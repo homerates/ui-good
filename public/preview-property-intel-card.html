@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Property Intelligence · HomeRates.AI</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'DM Sans', system-ui, sans-serif; }
+  .hero-photo { background-size: cover; background-position: center; transition: background-image 0.4s ease; }
+  .typewriter::after { content: '▋'; animation: blink 0.7s step-end infinite; color: #4ade80; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .field-in { animation: fieldIn 0.35s ease forwards; }
+  @keyframes fieldIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  .spin { animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .skeleton { background: linear-gradient(90deg, #1e293b 25%, #273449 50%, #1e293b 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
+  @keyframes shimmer { 0%{ background-position: 200% 0 } 100%{ background-position: -200% 0 } }
+  .score-ring { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; }
+  .score-ring::before { content: ''; position: absolute; inset: 0; border-radius: 50%; padding: 3px; background: conic-gradient(#4ade80 var(--pct, 0%), rgba(255,255,255,0.08) 0%); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: destination-out; mask-composite: exclude; }
+  .btn-primary { background: #4ade80; color: #050812; font-weight: 700; border: none; cursor: pointer; border-radius: 10px; transition: all 0.15s; }
+  .btn-primary:hover { background: #22c55e; transform: translateY(-1px); }
+  .btn-secondary { background: transparent; color: #94a3b8; font-weight: 600; border: 1px solid rgba(148,163,184,0.25); cursor: pointer; border-radius: 10px; transition: all 0.15s; }
+  .btn-secondary:hover { border-color: rgba(148,163,184,0.5); color: #f1f5f9; }
+  .btn-ghost { background: rgba(99,179,237,0.08); color: #93c5fd; font-weight: 600; border: 1px solid rgba(99,179,237,0.2); cursor: pointer; border-radius: 10px; transition: all 0.15s; }
+  .btn-ghost:hover { background: rgba(99,179,237,0.14); }
+  .comp-row:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.05); }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+<!-- ── Nav (mock) ── -->
+<nav style="height:56px; background:rgba(5,8,18,0.95); border-bottom:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; padding:0 20px; position:sticky; top:0; z-index:100; backdrop-filter:blur(12px);">
+  <img src="/assets/Green.png" alt="HomeRates.AI" style="height:28px;" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'HomeRates.AI',style:'font-weight:800;font-size:1rem;color:#4ade80'}))">
+  <div style="flex:1"></div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <a href="/check-property" style="font-size:0.8rem;color:#64748b;text-decoration:none;">Property Lookup</a>
+    <a href="/my-home" style="font-size:0.8rem;color:#64748b;text-decoration:none;">My Properties</a>
+    <div style="width:1px;height:18px;background:rgba(255,255,255,0.1)"></div>
+    <span style="font-size:0.75rem;color:#4ade80;font-weight:700;padding:4px 10px;border:1px solid rgba(74,222,128,0.3);border-radius:6px;">Sign In</span>
+  </div>
+</nav>
+
+<!-- ── Page wrapper ── -->
+<div style="max-width:900px; margin:0 auto; padding:24px 16px 80px;">
+
+  <!-- Loading overlay (shown during stream) -->
+  <div id="loadingOverlay" style="display:none; flex-direction:column; align-items:center; justify-content:center; padding:80px 20px; gap:20px;">
+    <div style="width:48px;height:48px;border-radius:50%;border:3px solid rgba(255,255,255,0.08);border-top-color:#4ade80;" class="spin"></div>
+    <div id="loadingLabel" style="font-size:0.9rem;color:#64748b;">Checking cache…</div>
+    <div style="width:240px;height:3px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;">
+      <div id="loadingBar" style="height:100%;background:#4ade80;border-radius:99px;width:5%;transition:width 0.4s ease;"></div>
+    </div>
+  </div>
+
+  <!-- Error state -->
+  <div id="errorBox" style="display:none;padding:16px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;color:#f87171;font-size:0.875rem;margin-bottom:20px;"></div>
+
+  <!-- ── Main card ── -->
+  <div id="mainCard" style="display:none; flex-direction:column; gap:0; background:#0f172a; border-radius:20px; overflow:hidden; border:1px solid rgba(255,255,255,0.07); box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+
+    <!-- Hero photo -->
+    <div id="heroSection" class="hero-photo" style="height:280px;position:relative;background:#1e293b;">
+      <!-- Loader overlay on photo -->
+      <div id="photoLoader" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.7);backdrop-filter:blur(4px);">
+        <div style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.1);border-top-color:#4ade80;" class="spin"></div>
+      </div>
+      <!-- Map toggle -->
+      <div id="mapToggle" style="display:none;position:absolute;top:14px;right:14px;z-index:10;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.12);border-radius:8px;overflow:hidden;backdrop-filter:blur(8px);">
+        <button id="btnStreet" onclick="setView('street')" style="padding:6px 12px;font-size:0.72rem;font-weight:700;background:rgba(255,255,255,0.18);color:#fff;border:none;cursor:pointer;">Street</button>
+        <button id="btnSat" onclick="setView('satellite')" style="padding:6px 12px;font-size:0.72rem;font-weight:700;background:transparent;color:rgba(255,255,255,0.5);border:none;cursor:pointer;transition:all 0.15s;">Satellite</button>
+      </div>
+      <!-- Cache badge -->
+      <div id="cacheBadge" style="display:none;position:absolute;top:14px;left:14px;z-index:10;font-size:0.65rem;font-weight:700;letter-spacing:0.06em;padding:4px 10px;background:rgba(74,222,128,0.12);color:#4ade80;border:1px solid rgba(74,222,128,0.25);border-radius:6px;backdrop-filter:blur(8px);">⚡ INSTANT</div>
+      <!-- Gradient + content -->
+      <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(5,8,18,0.98) 0%, rgba(5,8,18,0.4) 55%, transparent 100%);pointer-events:none;"></div>
+      <div style="position:absolute;bottom:0;left:0;right:0;padding:24px;z-index:5;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;">
+          <div>
+            <div id="statusBadge" style="display:inline-block;padding:3px 12px;border-radius:99px;font-size:0.68rem;font-weight:800;letter-spacing:0.1em;margin-bottom:8px;opacity:0;transition:opacity 0.3s;"></div>
+            <div id="heroPrice" style="font-size:2.4rem;font-weight:800;color:#fff;line-height:1;opacity:0;transition:opacity 0.3s;">—</div>
+            <div id="heroAddress" style="font-size:0.85rem;color:rgba(255,255,255,0.65);margin-top:5px;"></div>
+          </div>
+          <div style="text-align:right;">
+            <div id="heroPiti" style="font-size:1.8rem;font-weight:800;color:#4ade80;opacity:0;transition:opacity 0.3s;">—</div>
+            <div style="font-size:0.68rem;color:#64748b;margin-top:2px;">EST. MONTHLY PITI</div>
+            <div id="pitiRate" style="font-size:0.65rem;color:#475569;margin-top:1px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Property strip -->
+    <div style="display:flex;flex-wrap:wrap;gap:20px;padding:14px 24px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.06);">
+      <div style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:#94a3b8;">
+        <i class="fa-solid fa-bed" style="color:#475569;font-size:0.72rem;"></i>
+        <span id="sBeds" class="skeleton" style="min-width:36px;height:14px;display:inline-block;"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:#94a3b8;">
+        <i class="fa-solid fa-bath" style="color:#475569;font-size:0.72rem;"></i>
+        <span id="sBaths" class="skeleton" style="min-width:36px;height:14px;display:inline-block;"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:#94a3b8;">
+        <i class="fa-solid fa-ruler-combined" style="color:#475569;font-size:0.72rem;"></i>
+        <span id="sSqft" class="skeleton" style="min-width:60px;height:14px;display:inline-block;"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:#94a3b8;">
+        <i class="fa-solid fa-calendar" style="color:#475569;font-size:0.72rem;"></i>
+        Built <span id="sYear" class="skeleton" style="min-width:40px;height:14px;display:inline-block;margin-left:4px;"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;font-size:0.82rem;color:#94a3b8;">
+        <i class="fa-solid fa-expand" style="color:#475569;font-size:0.72rem;"></i>
+        <span id="sLot" class="skeleton" style="min-width:60px;height:14px;display:inline-block;"></span>
+      </div>
+    </div>
+
+    <!-- Two-column body -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;padding:0;">
+
+      <!-- Left column -->
+      <div style="padding:24px;border-right:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Grok Intelligence -->
+        <div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.18);border-radius:14px;padding:20px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <i class="fa-solid fa-brain" style="color:#a78bfa;font-size:1.1rem;"></i>
+            <span style="font-weight:700;font-size:0.95rem;">Grok Intelligence</span>
+            <div id="summarySpinner" style="margin-left:auto;width:14px;height:14px;border-radius:50%;border:2px solid rgba(139,92,246,0.2);border-top-color:#a78bfa;" class="spin"></div>
+          </div>
+          <p id="grokSummary" class="typewriter" style="font-size:0.85rem;color:#cbd5e1;line-height:1.7;min-height:60px;"></p>
+        </div>
+
+        <!-- Key Highlights -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px;">
+          <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#475569;margin-bottom:14px;">Key Highlights</div>
+          <div id="highlights" style="display:flex;flex-direction:column;gap:10px;">
+            <div class="skeleton" style="height:13px;border-radius:4px;"></div>
+            <div class="skeleton" style="height:13px;width:85%;border-radius:4px;"></div>
+            <div class="skeleton" style="height:13px;width:70%;border-radius:4px;"></div>
+            <div class="skeleton" style="height:13px;width:78%;border-radius:4px;"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right column -->
+      <div style="padding:24px;display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Key metrics 2x2 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:16px;text-align:center;">
+            <div id="mScore" style="font-size:2rem;font-weight:800;color:#4ade80;" class="skeleton" style="height:36px;"></div>
+            <div style="font-size:0.62rem;color:#475569;margin-top:4px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">Life-Fit Score</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:16px;text-align:center;">
+            <div id="mDom" style="font-size:2rem;font-weight:800;" class="skeleton" style="height:36px;"></div>
+            <div style="font-size:0.62rem;color:#475569;margin-top:4px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">Days on Market</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:16px;text-align:center;">
+            <div id="mPpsf" style="font-size:2rem;font-weight:800;" class="skeleton" style="height:36px;"></div>
+            <div style="font-size:0.62rem;color:#475569;margin-top:4px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">Price / SqFt</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:16px;text-align:center;">
+            <div id="mLastSold" style="font-size:1.6rem;font-weight:800;color:#fbbf24;" class="skeleton" style="height:36px;"></div>
+            <div id="mLastSoldDate" style="font-size:0.62rem;color:#64748b;margin-top:2px;min-height:12px;"></div>
+            <div style="font-size:0.62rem;color:#475569;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">Last Sold</div>
+          </div>
+        </div>
+
+        <!-- Comps -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px;flex:1;">
+          <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#475569;margin-bottom:14px;">Recent Comps</div>
+          <div id="comps">
+            <div class="skeleton" style="height:52px;border-radius:8px;margin-bottom:8px;"></div>
+            <div class="skeleton" style="height:52px;border-radius:8px;margin-bottom:8px;"></div>
+            <div class="skeleton" style="height:52px;border-radius:8px;"></div>
+          </div>
+        </div>
+
+        <!-- Confidence row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;font-size:0.78rem;">
+          <span style="color:#475569;">Confidence</span>
+          <span id="confBadge" class="skeleton" style="padding:3px 10px;border-radius:99px;font-size:0.68rem;font-weight:700;min-width:50px;height:20px;display:inline-block;"></span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Data freshness footer -->
+    <div style="padding:10px 24px;border-top:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <span id="freshness" style="font-size:0.65rem;color:#334155;" class="skeleton" style="height:12px;width:180px;"></span>
+      <span style="font-size:0.62rem;color:#1e293b;">Powered by Grok-4 · HomeRates.AI</span>
+    </div>
+
+    <!-- ── CTA bar ── -->
+    <div style="padding:20px 24px;border-top:1px solid rgba(255,255,255,0.07);display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:rgba(255,255,255,0.015);">
+
+      <!-- Share — always visible, no auth needed -->
+      <button id="shareBtn" onclick="handleShare()" class="btn-secondary" style="padding:11px 20px;font-size:0.82rem;display:flex;align-items:center;gap:7px;">
+        <i class="fa-solid fa-share-nodes"></i>
+        <span id="shareBtnLabel">Share Report</span>
+      </button>
+
+      <!-- Save to Vault — auth required -->
+      <div id="saveWrapper" style="position:relative;">
+        <!-- Signed in version -->
+        <button id="saveBtn" onclick="handleSave()" class="btn-secondary" style="padding:11px 20px;font-size:0.82rem;display:flex;align-items:center;gap:7px;color:#4ade80;border-color:rgba(74,222,128,0.25);">
+          <i class="fa-solid fa-bookmark"></i>
+          <span id="saveBtnLabel">Save to Vault</span>
+        </button>
+        <!-- Signed out overlay — clicking triggers sign in -->
+        <div id="saveAuthOverlay" onclick="triggerSignIn('save')" style="display:none;position:absolute;inset:0;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;font-size:0.82rem;font-weight:600;color:#4ade80;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.25);">
+          <i class="fa-solid fa-lock" style="font-size:0.75rem;"></i> Save to Vault
+        </div>
+      </div>
+
+      <!-- Run My Numbers — auth required, primary CTA -->
+      <button id="runBtn" onclick="handleRunNumbers()" class="btn-primary" style="padding:11px 24px;font-size:0.85rem;display:flex;align-items:center;gap:8px;flex:1;justify-content:center;max-width:260px;">
+        <i class="fa-solid fa-calculator"></i>
+        Run My Numbers →
+      </button>
+      <!-- Signed out version of Run My Numbers -->
+      <button id="runBtnSignedOut" onclick="triggerSignIn('run')" style="display:none;padding:11px 24px;font-size:0.85rem;font-weight:700;cursor:pointer;border-radius:10px;border:none;background:#4ade80;color:#050812;display:flex;align-items:center;gap:8px;flex:1;justify-content:center;max-width:260px;">
+        <i class="fa-solid fa-lock" style="font-size:0.8rem;"></i>
+        Sign In to Run Numbers →
+      </button>
+
+    </div>
+
+  </div>
+
+  <!-- No-address state -->
+  <div id="noAddressState" style="display:none;text-align:center;padding:80px 20px;">
+    <div style="font-size:3rem;margin-bottom:16px;">🏠</div>
+    <h2 style="font-size:1.3rem;font-weight:700;margin-bottom:8px;">Property Intelligence</h2>
+    <p style="color:#475569;font-size:0.9rem;">Look up a property from <a href="/check-property" style="color:#4ade80;">Property Lookup</a> or <a href="/my-home" style="color:#4ade80;">My Properties</a> to generate a report.</p>
+  </div>
+
+</div>
+
+<!-- Sign-in modal mock -->
+<div id="signInModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:32px;max-width:360px;width:90%;text-align:center;">
+    <div style="font-size:2rem;margin-bottom:12px;">🔐</div>
+    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:8px;">Sign in to continue</h3>
+    <p style="font-size:0.82rem;color:#64748b;margin-bottom:24px;" id="signInReason">Create a free account to save this property and run your mortgage numbers.</p>
+    <button onclick="closeModal()" style="width:100%;padding:12px;background:#4ade80;color:#050812;font-weight:700;font-size:0.9rem;border:none;border-radius:10px;cursor:pointer;margin-bottom:10px;">Create Free Account</button>
+    <button onclick="closeModal()" style="width:100%;padding:12px;background:transparent;color:#64748b;font-weight:600;font-size:0.85rem;border:1px solid rgba(255,255,255,0.08);border-radius:10px;cursor:pointer;">Sign In</button>
+    <button onclick="closeModal()" style="display:block;margin:14px auto 0;font-size:0.75rem;color:#334155;background:none;border:none;cursor:pointer;">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let streetViewUrl  = null;
+let satelliteUrl   = null;
+let currentView    = 'street';
+let summaryDone    = false;
+let fullContent    = '';
+const rendered     = new Set();
+let isSignedIn     = false; // replace with real Clerk state in React
+let currentAddress = '';
+
+// ── Helpers ──
+const fmt$ = n => n != null ? '$' + Math.round(n).toLocaleString() : '—';
+
+function clearSkel(el) {
+  el.classList.remove('skeleton');
+  el.style.minWidth = '';
+  el.style.height = '';
+}
+
+function popIn(el, val) {
+  clearSkel(el);
+  el.textContent = val;
+  el.classList.add('field-in');
+}
+
+function setOpacity(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.style.opacity = v;
+}
+
+// ── Map toggle ──
+function setView(v) {
+  currentView = v;
+  const hero = document.getElementById('heroSection');
+  const url = v === 'street' ? streetViewUrl : satelliteUrl;
+  if (url) hero.style.backgroundImage = `url('${url}')`;
+  document.getElementById('btnStreet').style.background = v === 'street' ? 'rgba(255,255,255,0.2)' : 'transparent';
+  document.getElementById('btnStreet').style.color = v === 'street' ? '#fff' : 'rgba(255,255,255,0.5)';
+  document.getElementById('btnSat').style.background = v === 'satellite' ? 'rgba(255,255,255,0.2)' : 'transparent';
+  document.getElementById('btnSat').style.color = v === 'satellite' ? '#fff' : 'rgba(255,255,255,0.5)';
+}
+
+// ── Status badge ──
+const STATUS_CFG = {
+  'for sale':   { bg:'rgba(74,222,128,0.15)',  color:'#4ade80',  label:'FOR SALE' },
+  'pending':    { bg:'rgba(251,191,36,0.15)',  color:'#fbbf24',  label:'PENDING' },
+  'sold':       { bg:'rgba(96,165,250,0.15)',  color:'#60a5fa',  label:'SOLD' },
+  'off market': { bg:'rgba(148,163,184,0.1)',  color:'#94a3b8',  label:'OFF MARKET' },
+};
+function applyStatus(raw) {
+  const cfg = STATUS_CFG[raw.toLowerCase()] ?? { bg:'rgba(148,163,184,0.1)', color:'#94a3b8', label: raw.toUpperCase() };
+  const el = document.getElementById('statusBadge');
+  el.style.background = cfg.bg;
+  el.style.color = cfg.color;
+  el.style.border = `1px solid ${cfg.color}40`;
+  el.textContent = cfg.label;
+  el.style.opacity = '1';
+}
+
+// ── Extractors ──
+const EXTRACTORS = [
+  { id:'current_status',    re:/"current_status"\s*:\s*"([^"]+)"/ },
+  { id:'current_list_price',re:/"current_list_price"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id:'days_on_market',    re:/"days_on_market"\s*:\s*(\d+)(?=[^0-9.])/ },
+  { id:'price_per_sqft',    re:/"price_per_sqft"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id:'sqft',              re:/"sqft"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id:'bedrooms',          re:/"bedrooms"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id:'bathrooms',         re:/"bathrooms"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id:'year_built',        re:/"year_built"\s*:\s*(\d+)(?=[^0-9.])/ },
+  { id:'lot_size_sqft',     re:/"lot_size_sqft"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id:'life_fit_score',    re:/"life_fit_score"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id:'estimated_piti',    re:/"estimated_piti"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id:'rate_used',         re:/"rate_used"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id:'last_sold_price',   re:/"last_sold_price"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/ },
+  { id:'last_sold_date',    re:/"last_sold_date"\s*:\s*"([^"]+)"/ },
+  { id:'key_highlights',    re:/"key_highlights"\s*:\s*(\[[\s\S]*?\])/ },
+  { id:'comparable_sales',  re:/"comparable_sales"\s*:\s*(\[[\s\S]*?\])/ },
+  { id:'data_freshness',    re:/"data_freshness"\s*:\s*"([^"]+)"/ },
+  { id:'confidence',        re:/"confidence"\s*:\s*"([^"]+)"/ },
+];
+
+function applyField(id, raw) {
+  if (rendered.has(id)) return;
+  rendered.add(id);
+  switch (id) {
+    case 'current_status': applyStatus(raw); break;
+    case 'current_list_price': { const el=document.getElementById('heroPrice'); clearSkel(el); el.textContent=fmt$(+raw); el.style.opacity='1'; break; }
+    case 'estimated_piti': { const el=document.getElementById('heroPiti'); clearSkel(el); el.textContent=fmt$(+raw)+'/mo'; el.style.opacity='1'; break; }
+    case 'rate_used': { const el=document.getElementById('pitiRate'); if(el) el.textContent=`@ ${(+raw).toFixed(2)}% · 20% down`; break; }
+    case 'days_on_market': popIn(document.getElementById('mDom'), raw+'d'); break;
+    case 'price_per_sqft': popIn(document.getElementById('mPpsf'), '$'+raw); break;
+    case 'life_fit_score': {
+      const el=document.getElementById('mScore'); clearSkel(el); el.textContent=raw;
+      const score=+raw; const pct=Math.round(score/100*360);
+      const ring=el.closest('.score-ring'); if(ring) ring.style.setProperty('--pct',score+'%');
+      break;
+    }
+    case 'last_sold_price': popIn(document.getElementById('mLastSold'), fmt$(+raw)); break;
+    case 'last_sold_date': { const el=document.getElementById('mLastSoldDate'); if(el){clearSkel(el);el.textContent=raw;} break; }
+    case 'sqft': { const el=document.getElementById('sSqft'); clearSkel(el); el.textContent=Number(raw).toLocaleString()+' sqft'; break; }
+    case 'bedrooms': { const el=document.getElementById('sBeds'); clearSkel(el); el.textContent=raw+' bd'; break; }
+    case 'bathrooms': { const el=document.getElementById('sBaths'); clearSkel(el); el.textContent=raw+' ba'; break; }
+    case 'year_built': { const el=document.getElementById('sYear'); clearSkel(el); el.textContent=raw; break; }
+    case 'lot_size_sqft': { const el=document.getElementById('sLot'); clearSkel(el); el.textContent=Number(raw).toLocaleString()+' sqft lot'; break; }
+    case 'key_highlights': {
+      try {
+        const arr=JSON.parse(raw);
+        document.getElementById('highlights').innerHTML=arr.map(h=>`
+          <div class="field-in" style="display:flex;gap:8px;align-items:flex-start;">
+            <span style="color:#4ade80;margin-top:2px;font-size:0.6rem;">●</span>
+            <span style="font-size:0.82rem;color:#cbd5e1;line-height:1.5;">${h}</span>
+          </div>`).join('');
+      } catch {}
+      break;
+    }
+    case 'comparable_sales': {
+      try {
+        const arr=JSON.parse(raw);
+        document.getElementById('comps').innerHTML = arr.length===0
+          ? '<p style="font-size:0.78rem;color:#334155;">No comps available</p>'
+          : arr.map(c=>`
+            <div class="comp-row field-in" style="padding:10px 0;">
+              <div style="font-size:0.8rem;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin-bottom:4px;">${c.address||'—'}</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:0.73rem;color:#64748b;">
+                <span style="color:#4ade80;font-weight:700;">${fmt$(c.sold_price)}</span>
+                <span>${c.sold_date||''}</span>
+                ${c.sqft?`<span>${Number(c.sqft).toLocaleString()} sf</span>`:''}
+                ${c.price_per_sqft?`<span>$${c.price_per_sqft}/sf</span>`:''}
+              </div>
+            </div>`).join('');
+      } catch {}
+      break;
+    }
+    case 'data_freshness': { const el=document.getElementById('freshness'); clearSkel(el); el.textContent=raw; break; }
+    case 'confidence': {
+      const el=document.getElementById('confBadge'); clearSkel(el);
+      const cfg={high:{bg:'rgba(74,222,128,0.1)',color:'#4ade80',border:'rgba(74,222,128,0.2)'},medium:{bg:'rgba(251,191,36,0.1)',color:'#fbbf24',border:'rgba(251,191,36,0.2)'},low:{bg:'rgba(248,113,113,0.1)',color:'#f87171',border:'rgba(248,113,113,0.2)'}};
+      const c=cfg[raw.toLowerCase()]||cfg.medium;
+      el.style.cssText=`padding:3px 10px;border-radius:99px;font-size:0.68rem;font-weight:700;background:${c.bg};color:${c.color};border:1px solid ${c.border};`;
+      el.textContent=raw.charAt(0).toUpperCase()+raw.slice(1);
+      break;
+    }
+  }
+}
+
+function tryExtract(buf) {
+  for (const {id,re} of EXTRACTORS) {
+    if (rendered.has(id)) continue;
+    const m=buf.match(re);
+    if (m) applyField(id, m[1]);
+  }
+}
+
+const SUMMARY_KEY = '"grok_intelligence_summary": "';
+function updateSummary(buf) {
+  if (summaryDone) return;
+  const si=buf.indexOf(SUMMARY_KEY); if(si===-1) return;
+  const after=buf.slice(si+SUMMARY_KEY.length);
+  let text='';
+  for (let i=0;i<after.length;i++) {
+    if(after[i]==='"'&&after[i-1]!=='\\'){summaryDone=true;break;}
+    text+=after[i];
+  }
+  const el=document.getElementById('grokSummary');
+  el.textContent=text.replace(/\\n/g,'\n').replace(/\\"/g,'"');
+  if (!summaryDone) el.classList.add('typewriter'); else el.classList.remove('typewriter');
+}
+
+function renderFinal(r) {
+  const str=JSON.stringify(r);
+  for (const {id,re} of EXTRACTORS) {
+    if (rendered.has(id)) continue;
+    const m=str.match(re); if(m) applyField(id,m[1]);
+  }
+  if (r.grok_intelligence_summary) {
+    const el=document.getElementById('grokSummary');
+    el.textContent=r.grok_intelligence_summary;
+    el.classList.remove('typewriter');
+  }
+  document.getElementById('summarySpinner').style.display='none';
+}
+
+// ── Loading UI ──
+function showLoading(label, pct) {
+  document.getElementById('loadingOverlay').style.display='flex';
+  document.getElementById('mainCard').style.display='none';
+  document.getElementById('loadingLabel').textContent=label;
+  document.getElementById('loadingBar').style.width=pct+'%';
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').style.display='none';
+  document.getElementById('mainCard').style.display='flex';
+  document.getElementById('mainCard').style.flexDirection='column';
+}
+function setLoadingLabel(label, pct) {
+  document.getElementById('loadingLabel').textContent=label;
+  if (pct!=null) document.getElementById('loadingBar').style.width=pct+'%';
+}
+
+// ── Main query ──
+async function runQuery(address) {
+  if (!address?.trim()) { document.getElementById('noAddressState').style.display='block'; return; }
+  currentAddress = address.trim();
+  document.getElementById('heroAddress').textContent = currentAddress;
+  showLoading('Checking for cached report…', 8);
+
+  // Reset state
+  fullContent=''; summaryDone=false; rendered.clear();
+  streetViewUrl=null; satelliteUrl=null;
+
+  // Try cache
+  try {
+    const cd = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(currentAddress)}`).then(r=>r.json());
+    if (cd.cached) {
+      if (cd.map_urls?.street_view_url) {
+        streetViewUrl=cd.map_urls.street_view_url;
+        satelliteUrl=cd.map_urls.static_map_url;
+        loadPhoto(streetViewUrl);
+      } else { document.getElementById('photoLoader').style.display='none'; }
+      hideLoading();
+      document.getElementById('cacheBadge').style.display='block';
+      renderFinal(cd.result);
+      return;
+    }
+  } catch {}
+
+  // Stream from Grok
+  setLoadingLabel('Connecting to Grok-4…', 15);
+  document.getElementById('heroSection').style.backgroundImage='';
+  hideLoading();
+
+  try {
+    const res = await fetch('/api/beta/grok-property', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ address: currentAddress }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const reader=res.body.getReader(); const dec=new TextDecoder();
+    let buf=''; let tokens=0;
+
+    while (true) {
+      const {done,value}=await reader.read(); if(done) break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n'); buf=lines.pop()??'';
+      for (const line of lines) {
+        if(!line.startsWith('data: ')) continue;
+        let ev; try{ev=JSON.parse(line.slice(6));}catch{continue;}
+
+        if (ev.meta_early) {
+          streetViewUrl=ev.meta_early.street_view_url;
+          satelliteUrl=ev.meta_early.static_map_url;
+          if (streetViewUrl) loadPhoto(streetViewUrl);
+          if (ev.meta_early.estimated_piti) applyField('estimated_piti', String(ev.meta_early.estimated_piti));
+          if (ev.meta_early.rate_used) applyField('rate_used', String(ev.meta_early.rate_used));
+        }
+        if (ev.thinking) { setLoadingLabel('Grok is reasoning…',25); }
+        if (ev.token) {
+          tokens++; fullContent+=ev.token;
+          tryExtract(fullContent); updateSummary(fullContent);
+        }
+        if (ev.done) {
+          renderFinal(ev.result);
+          return;
+        }
+        if (ev.error) throw new Error(ev.error);
+      }
+    }
+  } catch(e) {
+    document.getElementById('errorBox').style.display='block';
+    document.getElementById('errorBox').textContent='⚠ '+e.message;
+  }
+}
+
+function loadPhoto(url) {
+  const img=new Image();
+  img.onload=()=>{
+    document.getElementById('heroSection').style.backgroundImage=`url('${url}')`;
+    document.getElementById('photoLoader').style.display='none';
+    document.getElementById('mapToggle').style.display='flex';
+  };
+  img.onerror=()=>{ document.getElementById('photoLoader').style.display='none'; };
+  img.src=url;
+}
+
+// ── CTAs ──
+function handleShare() {
+  const url = window.location.href;
+  navigator.clipboard.writeText(url).catch(()=>{
+    const el=document.createElement('textarea'); el.value=url;
+    document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+  });
+  const lbl=document.getElementById('shareBtnLabel');
+  lbl.textContent='Link Copied!';
+  setTimeout(()=>lbl.textContent='Share Report',2000);
+}
+
+function handleSave() {
+  if (!isSignedIn) { triggerSignIn('save'); return; }
+  const lbl=document.getElementById('saveBtnLabel');
+  lbl.textContent='Saving…';
+  fetch('/api/homeowner/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:currentAddress})})
+    .then(r=>r.json()).then(()=>{ lbl.textContent='✓ Saved!'; setTimeout(()=>lbl.textContent='Save to Vault',3000); })
+    .catch(()=>{ lbl.textContent='Save to Vault'; });
+}
+
+function handleRunNumbers() {
+  if (!isSignedIn) { triggerSignIn('run'); return; }
+  window.location.href=`/my-home?address=${encodeURIComponent(currentAddress)}`;
+}
+
+function triggerSignIn(reason) {
+  const msgs={
+    save:'Sign in to save this property to your vault and track it over time.',
+    run:'Sign in to run your mortgage numbers, equity analysis, and payment estimates.'
+  };
+  document.getElementById('signInReason').textContent=msgs[reason]||msgs.save;
+  document.getElementById('signInModal').style.display='flex';
+}
+function closeModal() { document.getElementById('signInModal').style.display='none'; }
+
+// ── Auto-run from URL ──
+const _addr = new URLSearchParams(window.location.search).get('address');
+// For prototype: use JSON mock if no URL param
+if (_addr) {
+  runQuery(_addr);
+} else {
+  // Load with mock data for prototype review
+  loadMockData();
+}
+
+function loadMockData() {
+  const MOCK = {"sqft":2979,"bedrooms":4,"bathrooms":4.5,"rate_used":6.36,"confidence":"high","year_built":2005,"lot_size_sqft":8000,"current_status":"For Sale","data_freshness":"Listing data as of May 15, 2026","days_on_market":44,"estimated_piti":6500,"key_highlights":["Spacious 4-bedroom home with 4.5 bathrooms in desirable Thousand Oaks neighborhood","Modern updates including granite countertops and hardwood floors","Large backyard with patio for entertaining","Convenient access to top-rated schools and parks"],"last_sold_date":null,"life_fit_score":88,"price_per_sqft":361,"last_sold_price":null,"comparable_sales":[{"sqft":2850,"address":"1580 E Avenida De Las Flores, Thousand Oaks, CA 91362","sold_date":"Mar 2026","sold_price":1050000,"price_per_sqft":368},{"sqft":3000,"address":"1620 E Avenida De Las Flores, Thousand Oaks, CA 91362","sold_date":"Jan 2026","sold_price":1100000,"price_per_sqft":367},{"sqft":2900,"address":"1555 E Avenida De Las Flores, Thousand Oaks, CA 91362","sold_date":"Nov 2025","sold_price":1025000,"price_per_sqft":353},{"sqft":2950,"address":"1605 E Avenida De Las Flores, Thousand Oaks, CA 91362","sold_date":"Sep 2025","sold_price":1080000,"price_per_sqft":366}],"current_list_price":1075000,"original_list_date":"April 1, 2026","grok_intelligence_summary":"In the competitive Thousand Oaks market, this 4-bedroom home at 1595 E Avenida De Las Flores is priced attractively at $1,075,000, offering strong value compared to recent comps averaging $1,062,500 in the area. With excellent schools and commute options to Los Angeles, it's well-positioned for families seeking suburban tranquility amid rising demand. Buyers should note the home’s modern features and potential for quick appreciation, while sellers might leverage low inventory to negotiate favorably."};
+  currentAddress = '1595 E Avenida De Las Flores, Thousand Oaks, CA 91362';
+  document.getElementById('heroAddress').textContent = currentAddress;
+  document.getElementById('photoLoader').style.display='none';
+  document.getElementById('cacheBadge').style.display='block';
+  hideLoading();
+  renderFinal(MOCK);
+}
+</script>
+</body>
+</html>
