@@ -59,30 +59,6 @@ const CONF_CFG: Record<string, { bg: string; color: string; border: string }> = 
   low:    { bg: 'rgba(248,113,113,0.1)', color: '#f87171', border: 'rgba(248,113,113,0.2)' },
 };
 
-// Progressive field extractors — same lookahead guards as the beta endpoint
-const EXTRACTORS: { id: keyof PropResult; re: RegExp; type: 'num' | 'str' | 'json' }[] = [
-  { id: 'current_status',    re: /"current_status"\s*:\s*"([^"]+)"/,                         type: 'str'  },
-  { id: 'current_list_price',re: /"current_list_price"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/,    type: 'num'  },
-  { id: 'days_on_market',    re: /"days_on_market"\s*:\s*(\d+)(?=[^0-9.])/,                  type: 'num'  },
-  { id: 'price_per_sqft',    re: /"price_per_sqft"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/,        type: 'num'  },
-  { id: 'sqft',              re: /"sqft"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/,                  type: 'num'  },
-  { id: 'bedrooms',          re: /"bedrooms"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/,              type: 'num'  },
-  { id: 'bathrooms',         re: /"bathrooms"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/,             type: 'num'  },
-  { id: 'year_built',        re: /"year_built"\s*:\s*(\d+)(?=[^0-9.])/,                      type: 'num'  },
-  { id: 'lot_size_sqft',     re: /"lot_size_sqft"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/,        type: 'num'  },
-  { id: 'life_fit_score',    re: /"life_fit_score"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/,        type: 'num'  },
-  { id: 'estimated_piti',    re: /"estimated_piti"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/,        type: 'num'  },
-  { id: 'rate_used',         re: /"rate_used"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/,             type: 'num'  },
-  { id: 'last_sold_price',   re: /"last_sold_price"\s*:\s*(\d+(?:\.\d+)?)(?=[^0-9.])/,       type: 'num'  },
-  { id: 'last_sold_date',    re: /"last_sold_date"\s*:\s*"([^"]+)"/,                         type: 'str'  },
-  { id: 'key_highlights',    re: /"key_highlights"\s*:\s*(\[[\s\S]*?\])/,                    type: 'json' },
-  { id: 'comparable_sales',  re: /"comparable_sales"\s*:\s*(\[[\s\S]*?\])/,                  type: 'json' },
-  { id: 'data_freshness',    re: /"data_freshness"\s*:\s*"([^"]+)"/,                         type: 'str'  },
-  { id: 'confidence',        re: /"confidence"\s*:\s*"([^"]+)"/,                             type: 'str'  },
-];
-
-const SUMMARY_KEY = '"grok_intelligence_summary": "';
-
 // ── Skeleton helper ────────────────────────────────────────────────────────────
 function Sk({ w, h = 14, r = 5 }: { w?: number | string; h?: number; r?: number }) {
   return (
@@ -102,60 +78,25 @@ function PropertyIntelInner() {
   const searchParams  = useSearchParams();
   const address       = (searchParams?.get('address') ?? '').trim();
 
-  // Result — filled progressively during stream, replaced by final on done
-  const [fields,      setFields]      = useState<Partial<PropResult>>({});
   const [finalResult, setFinalResult] = useState<PropResult | null>(null);
   const [mapUrls,     setMapUrls]     = useState<MapUrls | null>(null);
   const [photoReady,  setPhotoReady]  = useState(false);
   const [mapView,     setMapView]     = useState<'street' | 'satellite'>('street');
   const [cacheHit,    setCacheHit]    = useState(false);
   const [loading,     setLoading]     = useState(false);
-  const [stage,       setStage]       = useState('');
-  const [loadPct,     setLoadPct]     = useState(5);
   const [summary,     setSummary]     = useState('');
-  const [summaryDone, setSummaryDone] = useState(false);
   const [error,       setError]       = useState('');
   const [copied,      setCopied]      = useState(false);
   const [saving,      setSaving]      = useState(false);
   const [savedVault,  setSavedVault]  = useState(false);
 
-  const renderedRef     = useRef(new Set<string>());
-  const bufRef          = useRef('');
-  const abortRef        = useRef<AbortController | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const d = finalResult ?? fields; // display source
+  const d = finalResult ?? {}; // display source
 
   const photoUrl = mapUrls
     ? (mapView === 'street' ? mapUrls.street_view_url : mapUrls.static_map_url)
     : null;
-
-  // ── Progressive extraction ─────────────────────────────────────────────────
-  const tryExtract = useCallback((buf: string) => {
-    for (const { id, re, type } of EXTRACTORS) {
-      if (renderedRef.current.has(id)) continue;
-      const m = buf.match(re);
-      if (!m) continue;
-      renderedRef.current.add(id);
-      const raw = m[1];
-      const parsed = type === 'json' ? (() => { try { return JSON.parse(raw); } catch { return null; } })()
-                   : type === 'num'  ? parseFloat(raw)
-                   : raw;
-      if (parsed == null && type === 'json') continue;
-      setFields(prev => ({ ...prev, [id]: parsed }));
-    }
-  }, []);
-
-  const updateSummary = useCallback((buf: string) => {
-    const si = buf.indexOf(SUMMARY_KEY);
-    if (si === -1) return;
-    const after = buf.slice(si + SUMMARY_KEY.length);
-    let text = '';
-    for (let i = 0; i < after.length; i++) {
-      if (after[i] === '"' && after[i - 1] !== '\\') { setSummaryDone(true); break; }
-      text += after[i];
-    }
-    setSummary(text.replace(/\\n/g, '\n').replace(/\\"/g, '"'));
-  }, []);
 
   // ── Query ──────────────────────────────────────────────────────────────────
   const runQuery = useCallback(async () => {
@@ -163,11 +104,10 @@ function PropertyIntelInner() {
     abortRef.current?.abort();
     abortRef.current = new AbortController();
 
-    setFields({}); setFinalResult(null); setMapUrls(null);
+    setFinalResult(null); setMapUrls(null);
     setPhotoReady(false); setCacheHit(false);
-    setSummary(''); setSummaryDone(false); setError('');
-    setLoading(true); setStage('Checking for cached report…'); setLoadPct(5);
-    renderedRef.current.clear(); bufRef.current = '';
+    setSummary(''); setError('');
+    setLoading(true);
 
     try {
       // 1 — try cache
@@ -179,7 +119,6 @@ function PropertyIntelInner() {
         if (cd.map_urls) setMapUrls(cd.map_urls);
         setFinalResult(cd.result as PropResult);
         setSummary(cd.result?.grok_intelligence_summary ?? '');
-        setSummaryDone(true);
         setLoading(false);
         return;
       }
@@ -187,78 +126,12 @@ function PropertyIntelInner() {
       // Cache miss — report hasn't been generated yet
       setError('No cached report found for this address. Open the property from My Properties to generate one.');
       setLoading(false);
-      return;
-
-      const res = await fetch('/api/beta/grok-property', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address }),
-        signal: abortRef.current.signal,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const reader = res.body!.getReader();
-      const dec    = new TextDecoder();
-      let sseBuf   = '';
-      let tokens   = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        sseBuf += dec.decode(value, { stream: true });
-        const lines = sseBuf.split('\n');
-        sseBuf = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          let ev: any;
-          try { ev = JSON.parse(line.slice(6)); } catch { continue; }
-
-          if (ev.meta_early) {
-            if (ev.meta_early.street_view_url || ev.meta_early.static_map_url) {
-              setMapUrls({ street_view_url: ev.meta_early.street_view_url ?? null, static_map_url: ev.meta_early.static_map_url ?? null });
-            }
-            if (ev.meta_early.estimated_piti != null) {
-              renderedRef.current.add('estimated_piti');
-              setFields(p => ({ ...p, estimated_piti: ev.meta_early.estimated_piti }));
-            }
-            if (ev.meta_early.rate_used != null) {
-              renderedRef.current.add('rate_used');
-              setFields(p => ({ ...p, rate_used: ev.meta_early.rate_used }));
-            }
-            continue;
-          }
-
-          if (ev.thinking) { setStage('Grok is reasoning…'); setLoadPct(22); continue; }
-
-          if (ev.token) {
-            tokens++;
-            bufRef.current += ev.token;
-            setLoadPct(Math.min(88, 22 + tokens * 0.28));
-            setStage('Receiving data…');
-            tryExtract(bufRef.current);
-            updateSummary(bufRef.current);
-            continue;
-          }
-
-          if (ev.done) {
-            const r = ev.result as PropResult;
-            setFinalResult(r);
-            setSummary(r.grok_intelligence_summary ?? '');
-            setSummaryDone(true);
-            return;
-          }
-
-          if (ev.error) throw new Error(ev.error);
-        }
-      }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       setError(err.message ?? 'Could not load property intelligence');
       setLoading(false);
     }
-  }, [address, tryExtract, updateSummary]);
+  }, [address]);
 
   useEffect(() => {
     if (address) runQuery();
@@ -294,7 +167,6 @@ function PropertyIntelInner() {
   const statusKey = (d.current_status ?? '').toLowerCase();
   const statusCfg = STATUS_CFG[statusKey] ?? { bg: 'rgba(148,163,184,0.1)', color: '#94a3b8', label: (d.current_status ?? '').toUpperCase() };
   const confCfg   = CONF_CFG[(d.confidence ?? '').toLowerCase()] ?? CONF_CFG.medium;
-  const hasCard   = !loading;
 
   if (!address) {
     return (
@@ -349,10 +221,7 @@ function PropertyIntelInner() {
           {loading && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '90px 20px', gap: 20 }}>
               <div className="spin" style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid rgba(255,255,255,0.08)', borderTopColor: '#4ade80' }} />
-              <div style={{ fontSize: '0.88rem', color: '#64748b' }}>{stage}</div>
-              <div style={{ width: 240, height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: '#4ade80', borderRadius: 99, width: `${loadPct}%`, transition: 'width 0.5s ease' }} />
-              </div>
+              <div style={{ fontSize: '0.88rem', color: '#64748b' }}>Checking for cached report…</div>
             </div>
           )}
 
@@ -363,8 +232,8 @@ function PropertyIntelInner() {
             </div>
           )}
 
-          {/* ── Card (visible during + after streaming) ───────────────────── */}
-          {hasCard && (
+          {/* ── Card ─────────────────────────────────────────────────────── */}
+          {finalResult && (
             <div style={{ display: 'flex', flexDirection: 'column', background: '#0f172a', borderRadius: 20, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 8px 48px rgba(0,0,0,0.55)' }}>
 
               {/* ── Hero photo ────────────────────────────────────────────── */}
@@ -472,12 +341,9 @@ function PropertyIntelInner() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                       <i className="fa-solid fa-brain" style={{ color: '#a78bfa', fontSize: '1.05rem' }} />
                       <span style={{ fontWeight: 700, fontSize: '0.93rem' }}>Grok Intelligence</span>
-                      {!summaryDone && (
-                        <div className="spin" style={{ marginLeft: 'auto', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(139,92,246,0.15)', borderTopColor: '#a78bfa' }} />
-                      )}
-                    </div>
+                      </div>
                     {summary ? (
-                      <p className={!summaryDone ? 'tw' : ''} style={{ fontSize: '0.84rem', color: '#cbd5e1', lineHeight: 1.75, margin: 0, minHeight: 64 }}>
+                      <p style={{ fontSize: '0.84rem', color: '#cbd5e1', lineHeight: 1.75, margin: 0, minHeight: 64 }}>
                         {summary}
                       </p>
                     ) : (
