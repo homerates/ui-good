@@ -1032,7 +1032,7 @@ export default function LandingPage() {
           <div className="lp-chips">
             <button className="lp-chip" onClick={() => goChat('Conventional loan with a $832,750 loan amount and 20% down at current rates — show me the full monthly payment breakdown')}>$832,750 · 20% down · conforming</button>
             <button className="lp-chip" onClick={() => goChat('Conventional loan with a $832,750 loan amount and 5% down — show me the full payment including PMI')}>$832,750 · 5% down · PMI?</button>
-            <button className="lp-chip" onClick={() => goChat('FHA loan on a $700,000 home in Los Angeles with 3.5% down — show me the full payment breakdown including MIP and confirm FHA limits for LA County')}>FHA · $700k LA · 3.5% down</button>
+            <button className="lp-chip" onClick={() => goChat('FHA loan on a $700,000 home in Los Angeles with 3.5% down — show me the full payment breakdown including MIP')}>FHA · $700k LA · 3.5% down</button>
             <button className="lp-chip" onClick={() => goChat('I make $180,000 a year and have $90,000 saved — can I afford a $900,000 home in California?')}>Can I afford $900k on $180k?</button>
             <button className="lp-chip" onClick={() => goChat('DSCR loan on a $650,000 rental property with $4,200/mo rent and 25% down — does it cash flow in California?')}>DSCR rental · $650k · $4,200 rent</button>
             <button className="lp-chip" onClick={() => goChat('VA loan on an $850,000 home with no down payment — show me the full breakdown including funding fee')}>VA loan · $850k · $0 down</button>
