@@ -74,6 +74,7 @@ const CITY_TO_COUNTY: Record<string, string> = {
 };
 
 const NATIONAL_BASELINE = 832750;
+const HIGH_BAL_CA_MAX  = 1_249_125; // max CA high-balance limit (LA, SF, OC, SJ)
 const PMI_RATE = 0.008;
 
 const ZONE_MAP = {
@@ -174,20 +175,27 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
     let sumSub: string;
 
     if (loanAmt <= NATIONAL_BASELINE) {
-        zone     = 'conforming';
-        limitVal = NATIONAL_BASELINE;
+        zone      = 'conforming';
+        limitVal  = NATIONAL_BASELINE;
         limitDesc = `Loan of ${fmt$(loanAmt)} is within the standard conforming limit. Best conventional pricing applies.`;
-        sumSub   = 'Conventional · conforming' + (countyName ? ' · ' + toTitle(countyName) : '');
+        sumSub    = 'Conventional · conforming' + (countyName ? ' · ' + toTitle(countyName) : '');
     } else if (isHBCounty && loanAmt <= countyLimit) {
-        zone     = 'highbal';
-        limitVal = countyLimit;
+        zone      = 'highbal';
+        limitVal  = countyLimit;
         limitDesc = `Loan of ${fmt$(loanAmt)} exceeds standard limit but qualifies as High Balance in this county. Same guidelines, slightly higher rate.`;
-        sumSub   = 'Conventional · high balance' + (countyName ? ' · ' + toTitle(countyName) : '');
+        sumSub    = 'Conventional · high balance · ' + toTitle(countyName);
+    } else if (!countyName && loanAmt <= HIGH_BAL_CA_MAX) {
+        // Loan is in the CA high-balance range but no county entered yet —
+        // can't confirm HB eligibility without county. Default to orange, prompt for county.
+        zone      = 'highbal';
+        limitVal  = NATIONAL_BASELINE;
+        limitDesc = `Loan of ${fmt$(loanAmt)} may qualify as High Balance (up to ${fmt$(HIGH_BAL_CA_MAX)} in many CA counties). Enter your county above to confirm.`;
+        sumSub    = 'Possible High Balance — enter county to confirm';
     } else {
-        zone     = 'exceeds';
-        limitVal = isHBCounty ? countyLimit : NATIONAL_BASELINE;
-        limitDesc = `Loan of ${fmt$(loanAmt)} exceeds the ${isHBCounty ? 'high-balance' : 'conforming'} cap. A Jumbo loan is required.`;
-        sumSub   = 'Exceeds conforming limits · Jumbo required';
+        zone      = 'exceeds';
+        limitVal  = isHBCounty ? countyLimit : NATIONAL_BASELINE;
+        limitDesc = `Loan of ${fmt$(loanAmt)} exceeds the ${isHBCounty ? 'high-balance' : 'conforming'} cap for this county. A Jumbo loan is required.`;
+        sumSub    = 'Exceeds conforming limits · Jumbo required';
     }
 
     const zc = ZONE_MAP[zone];

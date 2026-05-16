@@ -983,9 +983,9 @@ export function dispatch(
         const rate    = _jumboExtractedRate ?? fallbackRate;
         const downPct = Math.max(20, extractDownPct(q) ?? 20);
         const loanAmt = price * (1 - downPct / 100);
-        // If the actual loan amount falls within conforming limits, treat as conventional
-        // even though the user said "jumbo" — prevents mis-routing on $900k with 20% down
-        if (loanAmt <= 832_750) {
+        // If loan is within CA high-balance ceiling, treat as conventional (convHBSlider handles HB zone).
+        // Only true jumbo when loan > $1,249,125 (above the highest CA high-balance limit).
+        if (loanAmt <= 1_249_125) {
             // fall through to conventional path
         } else {
             if (_jumboExtractedRate == null) assumptions.push(`rate assumed ${rate}% (FRED 30yr avg)`);
@@ -1012,12 +1012,15 @@ export function dispatch(
     //    like "$1.5M, 25% down" don't fall into the conventional path first.
     //    Guard: skip if this is an affordability question — "can I afford $1.8M?" should
     //    route to affordability, not jumbo.
+    //    Guard: loan must exceed the CA high-balance ceiling ($1,249,125) to be true jumbo.
+    //    Loans in the $832k–$1.249M range may qualify as High Balance in many CA counties —
+    //    route those to conventional (convHBSlider) so the card can prompt for county.
     if (!isAffordabilityQuestion(q)) {
         const _impliedPrice = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
         if (_impliedPrice && _impliedPrice > 833_000) {
             const _impliedDown = Math.max(20, extractDownPct(q) ?? 20);
             const _impliedLoan = _impliedPrice * (1 - _impliedDown / 100);
-            if (_impliedLoan > 832_750) {
+            if (_impliedLoan > 1_249_125) {
                 const _iRate = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
                 if (_iRate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
                 return {
