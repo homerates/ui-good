@@ -443,6 +443,21 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
             </div>
             <button className="chb-cta-full" onClick={handleGetMatched}>Get Matched with a Lender →</button>
 
+            {/* Cross-fire chip — loan above national baseline: suggest running Jumbo card for comparison */}
+            {props.onRunScenario && loanAmt > NATIONAL_BASELINE && (
+                <div className="chb-xchip-row">
+                    <button
+                        className="chb-xchip"
+                        onClick={() => props.onRunScenario!(
+                            `Compare this as a Jumbo loan — ${fmtK(price)} home, ${downPct}% down. What does the jumbo payment and rate look like vs. High Balance conventional?`,
+                            { isJumbo: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate }
+                        )}
+                    >
+                        ⇄ Compare Jumbo loan rates
+                    </button>
+                </div>
+            )}
+
             {/* Drawer trigger */}
             <button className="chb-dtrigger" onClick={() => setDrawerOpen(o => !o)}>
                 <span className="chb-dtrigger-left">
@@ -652,6 +667,11 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 .chb-cta-run:hover { opacity:.85; }
                 .chb-cta-full { display:block; width:calc(100% - 24px); margin:0 12px 12px; padding:13px; background:var(--chb-color); border:none; border-radius:9px; color:#07100f; font-size:14px; font-weight:800; cursor:pointer; font-family:inherit; transition:opacity .15s; text-align:center; }
                 .chb-cta-full:hover { opacity:.88; }
+
+                /* Cross-fire chip */
+                .chb-xchip-row { padding:0 12px 8px; }
+                .chb-xchip { width:100%; padding:10px 14px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; text-align:center; background:rgba(255,95,95,0.06); border:1.5px solid rgba(255,95,95,0.2); color:#ff5f5f; font-family:inherit; transition:opacity .15s; }
+                .chb-xchip:hover { opacity:.82; }
 
                 /* Drawer trigger */
                 .chb-dtrigger { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 18px; background:var(--chb-bg); border:none; border-top:1px solid var(--chb-border); border-bottom:1px solid var(--chb-border); cursor:pointer; font-family:inherit; transition:opacity .15s; }

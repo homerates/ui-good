@@ -351,6 +351,21 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 </button>
             </div>
 
+            {/* Cross-fire chip — HB range: suggest running the conventional HB card for comparison */}
+            {props.onRunScenario && zone === 'highbal' && (
+                <div className="jbs-xchip-row">
+                    <button
+                        className="jbs-xchip"
+                        onClick={() => props.onRunScenario!(
+                            `Compare this as a High Balance conventional loan — ${fmtM(price)} home, ${downPct}% down at ${rate.toFixed(2)}% — what does a High Balance conventional look like vs. jumbo?`,
+                            { isConvHB: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate }
+                        )}
+                    >
+                        ⇄ Compare High Balance conventional rates
+                    </button>
+                </div>
+            )}
+
             {/* Drawer trigger */}
             <button className={`jbs-dtrigger${drawerOpen ? ' open' : ''}`} onClick={() => setDrawerOpen(o => !o)}>
                 <span className="jbs-dtrigger-lbl">Loan Zone · Reserves · Underwriting · Full Summary</span>
@@ -573,6 +588,11 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 .jbs-cta-full { padding:10px 20px 0; }
                 .jbs-btn-get-matched { width:100%; padding:11px 8px; border-radius:10px; font-size:0.82rem; font-weight:700; cursor:pointer; text-align:center; background:transparent; border:1px solid rgba(255,255,255,0.14); color:rgba(185,208,192,0.8); font-family:inherit; transition:opacity 0.15s; }
                 .jbs-btn-get-matched:hover { opacity:0.82; }
+
+                /* cross-fire chip */
+                .jbs-xchip-row { padding:8px 20px 0; }
+                .jbs-xchip { width:100%; padding:10px 14px; border-radius:10px; font-size:0.8rem; font-weight:600; cursor:pointer; text-align:center; background:rgba(255,140,66,0.07); border:1px solid rgba(255,140,66,0.25); color:#ff8c42; font-family:inherit; transition:opacity 0.15s; }
+                .jbs-xchip:hover { opacity:0.82; }
 
                 /* drawer trigger */
                 .jbs-dtrigger { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:14px 20px 0; padding:13px 20px; cursor:pointer; font-size:0.84rem; color:var(--jbs-color); background:var(--jbs-bg); border:1.5px solid var(--jbs-border); border-radius:12px; font-family:inherit; width:calc(100% - 40px); user-select:none; transition:all 0.18s; }
