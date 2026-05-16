@@ -57,11 +57,11 @@ export default function LandingPage() {
 
     // TYPING PLACEHOLDER
     const phrases = [
-      "What's my payment on a $650k home with 20% down?",
-      "Can I afford a $550k home on $110k salary?",
+      "What's my payment on an $832,750 home with 10% down?",
+      "Can I afford a $900k home on $180k salary in California?",
       "Does FHA allow bank statement income?",
       "What's my break-even if I refi at 5.75%?",
-      "DSCR on a $425k rental with $2,900/mo rent",
+      "DSCR on a $650k rental with $4,200/mo rent in SoCal",
     ];
 
     let phraseIndex = 0;
@@ -1030,12 +1030,12 @@ export default function LandingPage() {
 
           {/* CHIPS — each pre-seeds the chat question */}
           <div className="lp-chips">
-            <button className="lp-chip" onClick={() => goChat('Conventional loan on a $500,000 home with 20% down at current rates')}>$500k · 20% down</button>
-            <button className="lp-chip" onClick={() => goChat('FHA loan on a $400,000 home with 3.5% down — show me the full payment breakdown including MIP')}>FHA with 3.5% down</button>
-            <button className="lp-chip" onClick={() => goChat('I make $120,000 a year and have $42,000 saved — can I afford a $650,000 home?')}>Can I afford $650k on $120k salary?</button>
-            <button className="lp-chip" onClick={() => goChat('Should I refinance at today\'s rates? I have a $450,000 mortgage at 7.25%')}>Should I refi at today&apos;s rates?</button>
-            <button className="lp-chip" onClick={() => goChat('DSCR loan on a $400,000 rental property with $2,800/mo rent and 25% down — does it cash flow?')}>DSCR rental on $400k</button>
-            <button className="lp-chip" onClick={() => goChat('VA loan on a $500,000 home with no down payment — show me the full breakdown including funding fee')}>VA loan · $0 down</button>
+            <button className="lp-chip" onClick={() => goChat('Conventional loan on an $832,750 home with 20% down at current rates — confirm this is at the conforming limit')}>$832,750 · 20% down · conforming</button>
+            <button className="lp-chip" onClick={() => goChat('Conventional loan on an $832,750 home with 5% down — show me the full payment including PMI')}>$832,750 · 5% down · PMI?</button>
+            <button className="lp-chip" onClick={() => goChat('FHA loan on a $700,000 home in Los Angeles with 3.5% down — show me the full payment breakdown including MIP and confirm FHA limits for LA County')}>FHA · $700k LA · 3.5% down</button>
+            <button className="lp-chip" onClick={() => goChat('I make $180,000 a year and have $90,000 saved — can I afford a $900,000 home in California?')}>Can I afford $900k on $180k?</button>
+            <button className="lp-chip" onClick={() => goChat('DSCR loan on a $650,000 rental property with $4,200/mo rent and 25% down — does it cash flow in California?')}>DSCR rental · $650k · $4,200 rent</button>
+            <button className="lp-chip" onClick={() => goChat('VA loan on an $850,000 home with no down payment — show me the full breakdown including funding fee')}>VA loan · $850k · $0 down</button>
           </div>
 
           {/* LIVE INSIGHT */}
@@ -1079,35 +1079,35 @@ export default function LandingPage() {
           {/* SCENARIO CARDS */}
           <div className="lp-section-label">Live Scenarios</div>
           <div className="lp-cards-grid">
-            <button className="lp-card lp-card-green" onClick={() => goChat('I make $120,000 a year and have $42,000 saved — how much house can I afford?')}>
+            <button className="lp-card lp-card-green" onClick={() => goChat('I make $180,000 a year and have $90,000 saved — how much house can I afford in California?')}>
               <span className="lp-card-icon">🏠</span>
               <div className="lp-card-title">Can I afford it?</div>
-              <div className="lp-card-insight">~$460k max home</div>
-              <div className="lp-card-desc">~$2,800/mo on $120k salary · 28% DTI</div>
+              <div className="lp-card-insight">~$850k–$950k range</div>
+              <div className="lp-card-desc">~$4,800/mo on $180k salary · 36% DTI</div>
             </button>
-            <button className="lp-card lp-card-blue" onClick={() => goChat('What would refinancing look like on a $450,000 mortgage at 7.25%? Show me breakeven and monthly savings.')}>
+            <button className="lp-card lp-card-blue" onClick={() => goChat('What would refinancing look like on a $750,000 California mortgage at 7.25%? Show me breakeven and monthly savings.')}>
               <span className="lp-card-icon">📉</span>
               <div className="lp-card-title">Should I refi?</div>
-              <div className="lp-card-insight">~$340/mo savings</div>
-              <div className="lp-card-desc">Break even in ~26 months at 5.75%</div>
+              <div className="lp-card-insight">~$510/mo savings</div>
+              <div className="lp-card-desc">$750k CA balance · break-even analysis</div>
             </button>
-            <button className="lp-card lp-card-orange" onClick={() => goChat('DSCR loan on a $400,000 rental property with $2,800/mo rent and 25% down — does it cash flow?')}>
+            <button className="lp-card lp-card-orange" onClick={() => goChat('DSCR loan on a $650,000 rental property with $4,200/mo rent and 25% down — does it cash flow in California?')}>
               <span className="lp-card-icon">📊</span>
               <div className="lp-card-title">Cash flow check</div>
-              <div className="lp-card-insight">DSCR 1.12 — cash flows</div>
-              <div className="lp-card-desc">$400k rental · $2,800/mo rent</div>
+              <div className="lp-card-insight">DSCR ~1.08 — SoCal rental</div>
+              <div className="lp-card-desc">$650k rental · $4,200/mo rent</div>
             </button>
-            <button className="lp-card lp-card-purple" onClick={() => goChat('FHA loan on a $400,000 home with 3.5% down — show me the full payment breakdown including MIP.')}>
+            <button className="lp-card lp-card-purple" onClick={() => goChat('FHA loan on a $700,000 home in Los Angeles with 3.5% down — show me the full payment breakdown including MIP.')}>
               <span className="lp-card-icon">🏦</span>
               <div className="lp-card-title">FHA low down</div>
-              <div className="lp-card-insight">3.5% down · $13,860 to close</div>
-              <div className="lp-card-desc">$2,540/mo incl. MIP on $400k</div>
+              <div className="lp-card-insight">3.5% down · $24,500 to close</div>
+              <div className="lp-card-desc">$700k LA home · payment incl. MIP</div>
             </button>
-            <button className="lp-card lp-card-red" onClick={() => goChat('VA loan on a $500,000 home with no down payment — show me the full breakdown including funding fee.')}>
+            <button className="lp-card lp-card-red" onClick={() => goChat('VA loan on an $850,000 home with no down payment — show me the full breakdown including funding fee.')}>
               <span className="lp-card-icon">⭐</span>
               <div className="lp-card-title">VA — $0 down</div>
               <div className="lp-card-insight">No down · no PMI</div>
-              <div className="lp-card-desc">$500k home · full breakdown</div>
+              <div className="lp-card-desc">$850k home · full breakdown</div>
             </button>
             <button className="lp-card lp-card-blue" onClick={() => goChat('Jumbo loan on a $1,500,000 home with 20% down — show me the full payment breakdown and reserve requirements.')}>
               <span className="lp-card-icon">🏛️</span>
