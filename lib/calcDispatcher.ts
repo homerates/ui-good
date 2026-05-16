@@ -983,9 +983,9 @@ export function dispatch(
         const rate    = _jumboExtractedRate ?? fallbackRate;
         const downPct = Math.max(20, extractDownPct(q) ?? 20);
         const loanAmt = price * (1 - downPct / 100);
-        // If loan is within CA high-balance ceiling, treat as conventional (convHBSlider handles HB zone).
-        // Only true jumbo when loan > $1,249,125 (above the highest CA high-balance limit).
-        if (loanAmt <= 1_249_125) {
+        // If loan is conforming, fall through to conventional even if user said "jumbo".
+        // Above $832,750 with explicit "jumbo" keyword → honour the request and route to jumbo card.
+        if (loanAmt <= 832_750) {
             // fall through to conventional path
         } else {
             if (_jumboExtractedRate == null) assumptions.push(`rate assumed ${rate}% (FRED 30yr avg)`);
