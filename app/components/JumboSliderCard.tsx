@@ -10,7 +10,32 @@ import PdfDownloadButton from './PdfDownloadButton';
 
 const NATIONAL_CONFORMING_2026 = 832750;
 const HIGH_BAL_CA_MAX_2026     = 1249125;
-const ARM_SPREAD               = 1.10;   // typical 7/1 SOFR ARM discount below 30yr fixed
+const ARM_SPREAD               = 1.10;
+
+// ── Zone config ───────────────────────────────────────────────────────────────
+
+type LoanZone = 'conforming' | 'highbal' | 'jumbo';
+
+const ZONE_MAP: Record<LoanZone, { label: string; icon: string; color: string; bg: string; border: string; note: string; res: number }> = {
+    conforming: {
+        label: 'Conforming', icon: '✓',
+        color: '#00e87a', bg: 'rgba(0,232,122,0.07)', border: 'rgba(0,232,122,0.28)',
+        note: 'Loan is at or below the 2026 conforming limit — a conventional loan may offer better pricing and reserve requirements.',
+        res: 2,
+    },
+    highbal: {
+        label: 'High-Balance', icon: '◈',
+        color: '#ff8c42', bg: 'rgba(255,140,66,0.07)', border: 'rgba(255,140,66,0.28)',
+        note: 'Loan falls in the high-balance zone — available in designated high-cost counties (SF Bay, LA, NYC) via Fannie/Freddie.',
+        res: 4,
+    },
+    jumbo: {
+        label: 'Jumbo', icon: '⬡',
+        color: '#ff5f5f', bg: 'rgba(255,95,95,0.07)', border: 'rgba(255,95,95,0.28)',
+        note: 'Portfolio / non-conforming loan. Portfolio lenders set their own guidelines. Shop 2–3 jumbo lenders — pricing, reserves, and qualifying criteria vary significantly.',
+        res: 9,
+    },
+};
 
 // ── Math helpers ──────────────────────────────────────────────────────────────
 
@@ -35,17 +60,12 @@ function loanBalanceAfter(principal: number, annualRate: number, totalMonths: nu
 function fmt$(n: number) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 }
-
 function fmtM(n: number) {
     if (n >= 10_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1_000_000)  return `$${(n / 1_000_000).toFixed(3).replace(/\.?0+$/, '')}M`;
     if (n >= 100_000)    return `$${Math.round(n / 1_000)}k`;
     return fmt$(n);
 }
-
-// ── Zone ──────────────────────────────────────────────────────────────────────
-
-type LoanZone = 'conforming' | 'highbal' | 'jumbo';
 
 function getZone(loanAmt: number): LoanZone {
     if (loanAmt <= NATIONAL_CONFORMING_2026) return 'conforming';
@@ -60,8 +80,8 @@ type TermType = '15yr' | '30yr' | 'arm7';
 export interface JumboSliderParams {
     price:    number;
     downPct:  number;
-    rate:     number;   // FRED live seed
-    term?:    number;   // default 30
+    rate:     number;
+    term?:    number;
     taxRate:  number;
     insRate:  number;
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
@@ -70,24 +90,17 @@ export interface JumboSliderParams {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function JumboSliderCard(props: JumboSliderParams) {
-    const [price,     setPrice]     = useState(props.price);
-    const [downPct,   setDownPct]   = useState(Math.max(20, props.downPct));
-    const [rate,      setRate]      = useState(props.rate);
-    const [termType,  setTermType]  = useState<TermType>('30yr');
-    const [bkdOpen,   setBkdOpen]   = useState(true);
-    const [vaultDone, setVaultDone] = useState(false);
-    const [sliderOpen, setSliderOpen] = useState(false);
-    const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
+    const [price,    setPrice]    = useState(props.price);
+    const [downPct,  setDownPct]  = useState(Math.max(20, props.downPct));
+    const [rate,     setRate]     = useState(props.rate);
+    const [termType, setTermType] = useState<TermType>('30yr');
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [vaultDone,  setVaultDone]  = useState(false);
 
     const { user } = useUser();
     const router   = useRouter();
 
     const DP_CHIPS = [20, 25, 30, 40] as const;
-
-    const isDirty = price !== props.price ||
-        Math.abs(downPct - Math.max(20, props.downPct)) > 0.001 ||
-        Math.abs(rate - props.rate) > 0.001 ||
-        termType !== '30yr';
 
     // ── Derived values ─────────────────────────────────────────────────────────
 
@@ -111,20 +124,34 @@ export default function JumboSliderCard(props: JumboSliderParams) {
     const totalAssetsHi = downAmt + closingEst + reserves12mo;
 
     const zone = getZone(loanAmt);
+    const z    = ZONE_MAP[zone];
 
-    // ARM yr-8 projections (used only when termType === 'arm7')
-    const balYr8        = loanBalanceAfter(loanAmt, armRate, 360, 84);
-    const adjRate1      = armRate + 2;
-    const maxRate       = armRate + 5;
-    const piAdj         = calcPI(balYr8, adjRate1, 276);
-    const piMax         = calcPI(balYr8, maxRate, 276);
-    const pitiMax       = piMax + monthlyTax + monthlyIns;
-    const fixedPITI     = calcPI(loanAmt, rate, 30) + monthlyTax + monthlyIns;
+    // Crossover calculations
+    const excessOverNational = Math.max(0, loanAmt - NATIONAL_CONFORMING_2026);
+    const excessOverHighBal  = Math.max(0, loanAmt - HIGH_BAL_CA_MAX_2026);
+    const downToConforming   = zone !== 'conforming' ? Math.max(0, (excessOverNational / price) * 100) : 0;
+    const downToHighBal      = zone === 'jumbo' ? Math.max(0, (excessOverHighBal / price) * 100) : 0;
+    const savingsConforming  = zone !== 'conforming' ? (NATIONAL_CONFORMING_2026 * 0.0040) : 0;
+    const savingsHighBal     = zone === 'jumbo' ? (HIGH_BAL_CA_MAX_2026 * 0.0015) : 0;
+
+    // ARM yr-8 projections
+    const balYr8     = loanBalanceAfter(loanAmt, armRate, 360, 84);
+    const adjRate1   = armRate + 2;
+    const maxRate    = armRate + 5;
+    const piAdj      = calcPI(balYr8, adjRate1, 276);
+    const piMax      = calcPI(balYr8, maxRate, 276);
+    const pitiMax    = piMax + monthlyTax + monthlyIns;
+    const fixedPITI  = calcPI(loanAmt, rate, 30) + monthlyTax + monthlyIns;
     const armSaveMonthly = fixedPITI - total;
-    const armSave7yr    = armSaveMonthly * 84;
+    const armSave7yr = armSaveMonthly * 84;
 
     const totalInterest   = (monthlyPI * termYrs * 12) - loanAmt;
     const totalPIPayments = monthlyPI * termYrs * 12;
+
+    // DTI income
+    const income43 = (total / 0.43) * 12;
+    const income36 = (total / 0.36) * 12;
+    const income50 = (total / 0.50) * 12;
 
     // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -135,21 +162,13 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    question: `Jumbo: ${fmtM(price)} · ${downPct}% down · ${rate.toFixed(2)}% · ${termYrs}yr`,
+                    question: `Jumbo Purchase: ${fmtM(price)} · ${downPct}% down · ${rate.toFixed(2)}% · ${termYrs}yr`,
                     answer: `Total/mo: ${fmt$(Math.round(total))} · PITI · Loan: ${fmt$(Math.round(loanAmt))}`,
                     tool_id: 'vault_save_jumbo',
                 }),
             });
             setVaultDone(true);
         } catch { /* non-fatal */ }
-    }
-
-    function buildSeed() {
-        return `Jumbo loan on a ${fmtM(price)} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs} year ${termType === 'arm7' ? '7/1 ARM' : 'fixed'}`;
-    }
-
-    function getRunOverrides(): Record<string, any> {
-        return { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'jumbo' };
     }
 
     function getMatchedUrl() {
@@ -164,106 +183,121 @@ export default function JumboSliderCard(props: JumboSliderParams) {
         return `/connect/post?${p.toString()}`;
     }
 
-    function buildIncomeSeed() {
-        return `What income do I need to qualify for a ${fmtM(price)} jumbo home with ${downPct}% down at ${rate.toFixed(2)}%?`;
+    function handleRun() {
+        if (!props.onRunScenario) return;
+        props.onRunScenario(
+            `Jumbo loan on a ${fmtM(price)} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs}yr ${termType === 'arm7' ? '7/1 ARM' : 'fixed'}`,
+            { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'jumbo' },
+        );
     }
 
-    async function handleDrawerRun() {
-        setDrawerPhase('running');
-        if (props.onRunScenario) props.onRunScenario(buildSeed(), getRunOverrides());
-        await new Promise<void>(r => setTimeout(r, 900));
-        setDrawerPhase('done');
-        await new Promise<void>(r => setTimeout(r, 1800));
-        setSliderOpen(false);
-        setDrawerPhase('idle');
+    function handleCheckProperty() {
+        const p = new URLSearchParams({
+            price:   String(Math.round(price)),
+            dp:      String(downPct),
+            rate:    effRate.toFixed(3),
+            term:    String(termYrs),
+            lt:      'jumbo',
+            taxRate: props.taxRate.toFixed(5),
+            insRate: props.insRate.toFixed(5),
+        });
+        router.push(`/check-property?${p.toString()}`);
     }
-
-    // ── Zone band content ──────────────────────────────────────────────────────
-
-    const zoneBadge = zone === 'conforming' ? 'Standard Conforming'
-        : zone === 'highbal' ? 'High Balance Agency'
-        : 'Non-Conforming · Jumbo';
-
-    const zoneDesc = zone === 'conforming'
-        ? <span>Loan of <strong className="jbs-strong">{fmt$(Math.round(loanAmt))}</strong> is at or below the 2026 conforming limit — a conventional loan may offer better pricing.</span>
-        : zone === 'highbal'
-            ? <span>Loan of <strong className="jbs-strong">{fmt$(Math.round(loanAmt))}</strong> falls in the high-balance zone — available in designated high-cost counties (SF Bay, LA, NYC) via Fannie/Freddie.</span>
-            : <span>Loan of <strong className="jbs-strong">{fmt$(Math.round(loanAmt))}</strong> exceeds the 2026 conforming limit by <strong className="jbs-strong">{fmt$(Math.round(loanAmt - NATIONAL_CONFORMING_2026))}</strong> — requires jumbo portfolio underwriting.</span>;
-
-    const zoneRight = zone === 'conforming'
-        ? { label: '2026 Conforming Limit', val: fmt$(NATIONAL_CONFORMING_2026) }
-        : zone === 'highbal'
-            ? { label: 'High-Bal Max (CA/NY)', val: fmt$(HIGH_BAL_CA_MAX_2026) }
-            : { label: '2026 Conforming Limit', val: fmt$(NATIONAL_CONFORMING_2026) };
 
     // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
-        <div className="jbs">
-
-            {/* Topbar */}
-            <div className="jbs-topbar">
-                <div className="jbs-topbar-l">
-                    <div className="jbs-dot" />
-                    <span className="jbs-tl">AI Analysis</span>
-                </div>
-                <span className="jbs-tr">Live · CalcEngine-Deterministic</span>
-            </div>
+        <div className="jbs" style={{ '--jbs-color': z.color, '--jbs-bg': z.bg, '--jbs-border': z.border } as React.CSSProperties}>
 
             {/* Header */}
             <div className="jbs-header">
-                <div className="jbs-header-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75" />
-                    </svg>
+                <div className="jbs-header-left">
+                    <span className="jbs-title">Jumbo Purchase</span>
+                    <span className="jbs-sub">{fmtM(price)} · {downPct}% down · {effRate.toFixed(3)}% · {termType === 'arm7' ? '7/1 ARM' : `${termYrs}yr Fixed`}</span>
                 </div>
-                <div>
-                    <div className="jbs-header-title">Jumbo Purchase Payment</div>
-                    <div className="jbs-header-sub">
-                        {fmtM(price)} · {downPct}% down · {effRate.toFixed(3)}% · {termType === 'arm7' ? '7/1 ARM' : `${termYrs}yr Fixed`}
-                    </div>
-                </div>
-            </div>
-
-            {/* Zone band */}
-            <div className={`jbs-band jbs-band--${zone}`}>
-                <div className="jbs-band-l">
-                    <div className={`jbs-badge jbs-badge--${zone}`}>{zoneBadge}</div>
-                    <div className="jbs-band-desc">{zoneDesc}</div>
-                </div>
-                <div className="jbs-band-r">
-                    {zoneRight.label}<span>{zoneRight.val}</span>
-                </div>
+                <span className="jbs-zone-badge">{z.icon} {z.label}</span>
             </div>
 
             {/* Hero */}
             <div className="jbs-hero">
-                <div className="jbs-hero-label">
-                    {termType === 'arm7' ? 'Est. Monthly PITI (ARM Initial 7yr)' : 'Estimated Monthly PITI'}
-                </div>
-                <div className="jbs-hero-amount">
-                    {fmt$(Math.round(total))}<span className="jbs-hero-mo">/mo</span>
-                </div>
-                <div className="jbs-hero-sub">
-                    P&amp;I + Tax + Insurance · No PMI ({downPct}% down){termType === 'arm7' ? ' · Rate fixed yrs 1–7' : ''}
-                </div>
-                <div className="jbs-hero-grid">
-                    <div className="jbs-hero-stat">
-                        <div className="jbs-hero-sl">Loan Amount</div>
-                        <div className="jbs-hero-sv">{fmtM(loanAmt)}</div>
+                <div className="jbs-hero-main">
+                    <div className="jbs-hero-piti">
+                        {fmt$(Math.round(total))}<span className="jbs-hero-mo">/mo</span>
                     </div>
-                    <div className="jbs-hero-stat">
-                        <div className="jbs-hero-sl">Down Payment</div>
-                        <div className="jbs-hero-sv">{fmtM(downAmt)}</div>
-                    </div>
-                    <div className="jbs-hero-stat">
-                        <div className="jbs-hero-sl">LTV</div>
-                        <div className="jbs-hero-sv">{ltv.toFixed(1)}%</div>
-                    </div>
+                    <div className="jbs-hero-lbl">{termType === 'arm7' ? 'Monthly PITI (ARM Yr 1–7)' : 'Estimated Monthly PITI'}</div>
+                </div>
+                <div className="jbs-hero-stat">
+                    <div className="jbs-hero-sv">{fmtM(loanAmt)}</div>
+                    <div className="jbs-hero-sl">Loan Amount</div>
+                </div>
+                <div className="jbs-hero-stat">
+                    <div className="jbs-hero-sv">{ltv.toFixed(1)}%</div>
+                    <div className="jbs-hero-sl">LTV</div>
                 </div>
             </div>
 
-            {/* ARM disclosure — shown only when 7/1 ARM selected */}
+            {/* Crossover strip */}
+            {(downToHighBal > 0.05 || downToConforming > 0.05) && (
+                <div className="jbs-xstrip">
+                    <span>⚡</span>
+                    {downToHighBal > 0.05
+                        ? <span>Add <strong style={{ color: '#ff8c42' }}>{downToHighBal.toFixed(2)}% more down</strong> → High-Balance — saves <strong style={{ color: '#00e87a' }}>{fmt$(Math.round(savingsHighBal))}/yr</strong></span>
+                        : <span>Add <strong style={{ color: '#00e87a' }}>{downToConforming.toFixed(2)}% more down</strong> → Conforming — saves <strong style={{ color: '#00e87a' }}>{fmt$(Math.round(savingsConforming))}/yr</strong></span>
+                    }
+                </div>
+            )}
+
+            {/* Monthly Breakdown */}
+            <div className="jbs-div" />
+            <div className="jbs-sec">Monthly Breakdown</div>
+            <div className="jbs-bd">
+                <div className="jbs-bd-row"><span className="jbs-bd-lbl">Principal &amp; Interest{termType === 'arm7' ? ` (${effRate.toFixed(3)}% ARM initial)` : ''}</span><span className="jbs-bd-val">{fmt$(Math.round(monthlyPI))}</span></div>
+                <div className="jbs-bd-row"><span className="jbs-bd-lbl">Property Taxes (est. {(props.taxRate * 100).toFixed(1)}%/yr)</span><span className="jbs-bd-val">{fmt$(Math.round(monthlyTax))}</span></div>
+                <div className="jbs-bd-row"><span className="jbs-bd-lbl">Home Insurance (est. {(props.insRate * 100).toFixed(1)}%/yr)</span><span className="jbs-bd-val">{fmt$(Math.round(monthlyIns))}</span></div>
+                <div className="jbs-bd-row"><span className="jbs-bd-lbl">PMI</span><span className="jbs-bd-val-green">None ({downPct}% down)</span></div>
+                <div className="jbs-bd-total"><span>Total Monthly PITI</span><span className="jbs-bd-total-val">{fmt$(Math.round(total))}</span></div>
+            </div>
+
+            {/* Adjust Your Numbers */}
+            <div className="jbs-div" />
+            <div className="jbs-sec">Adjust Your Numbers</div>
+            <div className="jbs-sliders">
+                <div className="jbs-slider-wrap">
+                    <SliderField label="Home Price" value={price} min={500_000} max={25_000_000} step={25_000}
+                        onChange={setPrice} format={v => fmtM(v)}
+                        parse={v => { const c = v.replace(/[$,\s]/g, ''); const n = parseFloat(c); if (isNaN(n)) return price; return c.toLowerCase().includes('m') ? n * 1_000_000 : n; }}
+                        minLabel="$500k" maxLabel="$25M+" trackColor={z.color} theme="dark" />
+                </div>
+                <div className="jbs-slider-wrap">
+                    <SliderField label="Down Payment" value={downPct} min={20} max={60} step={1}
+                        onChange={setDownPct} format={v => `${v}% · ${fmtM(price * v / 100)}`}
+                        minLabel="20%" maxLabel="60%" trackColor={z.color} theme="dark" />
+                    <div className="jbs-dp-chips">
+                        {DP_CHIPS.map(pct => (
+                            <button key={pct} className={`jbs-dp-chip${Math.round(downPct) === pct ? ' active' : ''}`} onClick={() => setDownPct(pct)}>{pct}%</button>
+                        ))}
+                    </div>
+                    <div className="jbs-dp-note">Jumbo minimum: 20% down · 25% preferred by most lenders · No PMI required</div>
+                </div>
+                <div className="jbs-slider-wrap">
+                    <SliderField label="Interest Rate" value={rate} min={3} max={12} step={0.125}
+                        onChange={setRate}
+                        format={v => { const s = parseFloat(v.toFixed(3)) + '%'; return termType === 'arm7' ? `${s} → ARM ${Math.max(3, v - ARM_SPREAD).toFixed(3)}%` : s; }}
+                        minLabel="3%" maxLabel="12%" midLabel={`FRED: ${props.rate.toFixed(2)}%`}
+                        trackColor={z.color} theme="dark" />
+                    <div className="jbs-fred-tag">📡 Seeded from FRED live rate: {props.rate.toFixed(3)}%</div>
+                </div>
+                <div className="jbs-term-label">Loan Term</div>
+                <div className="jbs-terms">
+                    {(['15yr', '30yr', 'arm7'] as const).map(t => (
+                        <button key={t} className={`jbs-term${termType === t ? ' jbs-term--on' : ''}`} onClick={() => setTermType(t)}>
+                            {t === '15yr' ? '15yr Fixed' : t === '30yr' ? '30yr Fixed' : '7/1 ARM'}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* ARM analysis — inline when ARM selected */}
             {termType === 'arm7' && (
                 <div className="jbs-arm">
                     <div className="jbs-arm-head">
@@ -288,12 +322,12 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                             <strong>{fmtM(Math.round(armSave7yr))} total</strong> before first adjustment
                         </div>
                         {([
-                            { k: 'Initial rate (years 1–7)',              v: `${effRate.toFixed(3)}% (SOFR-indexed)`,           warn: false },
-                            { k: 'Caps · 2/2/5 structure',                v: 'First +2% · Per-period +2% · Lifetime +5%',        warn: false },
-                            { k: 'Year 8 adjusted rate (first +2% cap)',  v: `${adjRate1.toFixed(3)}%`,                          warn: true  },
-                            { k: 'Year 8 P&I at first cap',               v: `~${fmt$(Math.round(piAdj))}/mo`,                   warn: true  },
-                            { k: 'Maximum rate (lifetime +5%)',           v: `${maxRate.toFixed(3)}%`,                           warn: true  },
-                            { k: 'P&I at maximum rate',                   v: `~${fmt$(Math.round(piMax))}/mo`,                   warn: true  },
+                            { k: 'Initial rate (years 1–7)',             v: `${effRate.toFixed(3)}% (SOFR-indexed)`,         warn: false },
+                            { k: 'Caps · 2/2/5 structure',               v: 'First +2% · Per-period +2% · Lifetime +5%',     warn: false },
+                            { k: 'Year 8 adjusted rate (first +2% cap)', v: `${adjRate1.toFixed(3)}%`,                       warn: true  },
+                            { k: 'Year 8 P&I at first cap',              v: `~${fmt$(Math.round(piAdj))}/mo`,                warn: true  },
+                            { k: 'Maximum rate (lifetime +5%)',          v: `${maxRate.toFixed(3)}%`,                        warn: true  },
+                            { k: 'P&I at maximum rate',                  v: `~${fmt$(Math.round(piMax))}/mo`,                warn: true  },
                         ] as { k: string; v: string; warn: boolean }[]).map(({ k, v, warn }) => (
                             <div key={k} className="jbs-arm-cap-row">
                                 <span className="jbs-arm-cap-k">{k}</span>
@@ -308,344 +342,224 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 </div>
             )}
 
-            {/* Reserve Requirements */}
-            <div className="jbs-reserves">
-                <div className="jbs-reserves-head">
-                    <span className="jbs-reserves-icon">🏦</span>
-                    <span className="jbs-reserves-title">Cash Reserves Required by Lenders</span>
-                </div>
-                <div className="jbs-reserves-rows">
-                    <div className="jbs-reserves-row">
-                        <div className="jbs-reserves-label">
-                            6-Month Reserves (minimum)
-                            <small>Must remain in account after closing — cannot be gifted</small>
-                        </div>
-                        <div className="jbs-reserves-val">{fmt$(Math.round(reserves6mo))}</div>
-                    </div>
-                    <div className="jbs-reserves-divider" />
-                    <div className="jbs-reserves-row">
-                        <div className="jbs-reserves-label">
-                            12-Month Reserves (preferred for loans over $1M)
-                            <small>Higher loan amounts typically require 12 months documented</small>
-                        </div>
-                        <div className="jbs-reserves-val">{fmt$(Math.round(reserves12mo))}</div>
-                    </div>
-                </div>
-                <div className="jbs-reserves-note">
-                    💡 Reserves are <strong>in addition to</strong> your down payment and closing costs. Expect approximately&nbsp;
-                    <strong>{fmtM(Math.round(totalAssetsLo / 5000) * 5000)}–{fmtM(Math.round(totalAssetsHi / 5000) * 5000)} total liquid assets</strong> required at closing.
-                </div>
+            {/* What Income Do I Need to Qualify? */}
+            <div className="jbs-div" />
+            <div className="jbs-sec">What Income Do I Need to Qualify?</div>
+            <div className="jbs-income">
+                <div className="jbs-income-row"><span className="jbs-income-lbl">36% DTI — Conservative</span><span className="jbs-income-val">{fmt$(Math.round(income36 / 1000) * 1000)}/yr</span></div>
+                <div className="jbs-income-row"><span className="jbs-income-lbl">43% DTI — Standard</span><span className="jbs-income-val">{fmt$(Math.round(income43 / 1000) * 1000)}/yr</span></div>
+                <div className="jbs-income-row jbs-income-row--dim"><span className="jbs-income-lbl">50% DTI — Stretch</span><span className="jbs-income-val">{fmt$(Math.round(income50 / 1000) * 1000)}/yr</span></div>
             </div>
 
-            {/* Underwriting criteria */}
-            <div className="jbs-uw">
-                <div className="jbs-uw-head">
-                    <span className="jbs-uw-title">Jumbo Underwriting Standards</span>
-                </div>
-                <div className="jbs-uw-grid">
-                    {([
-                        { k: 'Min Credit Score',        v: '720+ (740+ preferred)',                                                                                cls: 'ok'                        },
-                        { k: 'Max Back-End DTI',        v: '43% (some lenders 45%)',                                                                               cls: 'tight'                     },
-                        { k: 'Down Payment',            v: downPct >= 30 ? `${downPct}% — strong position` : downPct >= 25 ? '25% — most lenders preferred' : '20% min · 25% preferred', cls: downPct >= 25 ? 'ok' : 'tight' },
-                        { k: 'PMI',                     v: 'None — 20%+ required',                                                                                 cls: 'ok'                        },
-                        { k: 'Income Documentation',   v: '2 yrs W-2 or 2 yrs tax returns',                                                                       cls: ''                          },
-                        { k: 'Appraisal',               v: price >= 1_500_000 ? '2 appraisals often required >$1.5M' : 'Single appraisal standard',               cls: price >= 1_500_000 ? 'tight' : '' },
-                    ] as { k: string; v: string; cls: string }[]).map(({ k, v, cls }) => (
-                        <div key={k} className="jbs-uw-item">
-                            <div className="jbs-uw-criterion">{k}</div>
-                            <div className={`jbs-uw-val${cls ? ` ${cls}` : ''}`}>{v}</div>
-                        </div>
-                    ))}
-                </div>
+            {/* CTAs */}
+            <div className="jbs-cta-row">
+                <button className="jbs-btn-check" onClick={handleCheckProperty}>Check Property ↗</button>
+                {props.onRunScenario && <button className="jbs-btn-run" onClick={handleRun}>Run My Numbers →</button>}
             </div>
-
-            {/* Breakdown accordion */}
-            <div className="jbs-bkd">
-                <button className="jbs-bkd-toggle" onClick={() => setBkdOpen(o => !o)}>
-                    <span className="jbs-bkd-label">⊞ &nbsp;Full payment breakdown</span>
-                    <span className={`jbs-bkd-chev${bkdOpen ? ' open' : ''}`}>▴</span>
+            <div className="jbs-cta-full">
+                <button className="jbs-btn-get-matched" onClick={() => router.push(getMatchedUrl())}>
+                    Get Matched with Jumbo Specialists →
                 </button>
-                {bkdOpen && (
-                    <div className="jbs-bkd-body">
-                        <div className="jbs-kv-s">Monthly Payment</div>
-                        <div className="jbs-kv">
-                            <span className="jbs-kv-k">Principal &amp; Interest{termType === 'arm7' ? ` (${effRate.toFixed(3)}% ARM initial)` : ''}</span>
-                            <span className="jbs-kv-v">{fmt$(Math.round(monthlyPI))}</span>
-                        </div>
-                        <div className="jbs-kv"><span className="jbs-kv-k">Property Taxes (est. {(props.taxRate * 100).toFixed(1)}%/yr)</span><span className="jbs-kv-v">{fmt$(Math.round(monthlyTax))}</span></div>
-                        <div className="jbs-kv"><span className="jbs-kv-k">Home Insurance (est. {(props.insRate * 100).toFixed(1)}%/yr)</span><span className="jbs-kv-v">{fmt$(Math.round(monthlyIns))}</span></div>
-                        <div className="jbs-kv"><span className="jbs-kv-k">PMI</span><span className="jbs-kv-v jbs-kv-v--green">None ({downPct}% down)</span></div>
-                        <div className="jbs-kv jbs-kv--total"><span className="jbs-kv-k">Total Monthly PITI</span><span className="jbs-kv-v jbs-kv-v--purple">{fmt$(Math.round(total))}</span></div>
-
-                        <div className="jbs-kv-s">Loan Details</div>
-                        <div className="jbs-kv"><span className="jbs-kv-k">Purchase Price</span><span className="jbs-kv-v">{fmt$(Math.round(price))}</span></div>
-                        <div className="jbs-kv"><span className="jbs-kv-k">Down Payment ({downPct}%)</span><span className="jbs-kv-v">{fmt$(Math.round(downAmt))}</span></div>
-                        <div className="jbs-kv"><span className="jbs-kv-k">Loan Amount</span><span className="jbs-kv-v jbs-kv-v--purple">{fmt$(Math.round(loanAmt))}</span></div>
-                        {zone === 'jumbo' && (
-                            <div className="jbs-kv"><span className="jbs-kv-k">Above 2026 Conforming Limit By</span><span className="jbs-kv-v jbs-kv-v--amber">{fmt$(Math.round(loanAmt - NATIONAL_CONFORMING_2026))}</span></div>
-                        )}
-
-                        <div className="jbs-kv-s">Lifetime Costs ({termYrs}yr)</div>
-                        <div className="jbs-kv"><span className="jbs-kv-k">Total Interest</span><span className="jbs-kv-v">est. {fmt$(Math.round(totalInterest))}</span></div>
-                        <div className="jbs-kv"><span className="jbs-kv-k">Total P&amp;I Payments</span><span className="jbs-kv-v">{fmt$(Math.round(totalPIPayments))}</span></div>
-
-                        <div className="jbs-kv-s">Income Needed (no other debts)</div>
-                        <div className="jbs-kv"><span className="jbs-kv-k">At 43% DTI (jumbo standard max)</span><span className="jbs-kv-v jbs-kv-v--purple">{fmt$(Math.round(total * 12 / 0.43))}/yr</span></div>
-                        <div className="jbs-kv"><span className="jbs-kv-k">At 36% DTI (conservative)</span><span className="jbs-kv-v">{fmt$(Math.round(total * 12 / 0.36))}/yr</span></div>
-                    </div>
-                )}
             </div>
 
-            {/* Slider Drawer Trigger */}
-            <button className={`jbs-slider-trigger${sliderOpen ? ' open' : ''}`} onClick={() => setSliderOpen(o => !o)}>
-                <div className="jbs-trigger-left">
-                    <span style={{ fontSize: 15 }}>⚙</span>
-                    <div>
-                        <div className="jbs-trigger-title">Adjust Your Numbers</div>
-                        {isDirty && <div className="jbs-trigger-sub">● Changes pending</div>}
-                    </div>
-                </div>
-                <span className="jbs-trigger-arrow">{sliderOpen ? '▲ Close' : '▼ Open'}</span>
+            {/* Drawer trigger */}
+            <button className={`jbs-dtrigger${drawerOpen ? ' open' : ''}`} onClick={() => setDrawerOpen(o => !o)}>
+                <span className="jbs-dtrigger-lbl">Loan Zone · Reserves · Underwriting · Full Summary</span>
+                <span className="jbs-dtrigger-chev">▼</span>
             </button>
-            <div className={`jbs-drawer${sliderOpen ? ' open' : ''}`}>
-            {/* Explorer */}
-            <div className="jbs-exp">
-                <div className="jbs-exp-head">Payment Explorer</div>
 
-                {/* Price — $500k to $25M; click value to type higher */}
-                <SliderField
-                    label="Home Price"
-                    value={price}
-                    min={500_000} max={25_000_000} step={25_000}
-                    onChange={setPrice}
-                    format={v => fmtM(v)}
-                    parse={v => {
-                        const clean = v.replace(/[$,\s]/g, '');
-                        const n = parseFloat(clean);
-                        if (isNaN(n)) return price;
-                        return clean.toLowerCase().includes('m') ? n * 1_000_000 : n;
-                    }}
-                    minLabel="$500k" maxLabel="$25M+"
-                    trackColor="#8b5cf6" theme="dark"
-                />
+            {/* Deep drawer */}
+            <div className={`jbs-ddrawn${drawerOpen ? ' open' : ''}`}>
+                <div style={{ padding: '0 0 28px' }}>
 
-                <SliderField
-                    label="Down Payment"
-                    value={downPct}
-                    min={20} max={60} step={1}
-                    onChange={setDownPct}
-                    format={v => `${v}% · ${fmtM(price * v / 100)}`}
-                    minLabel="20%" maxLabel="60%"
-                    trackColor="#8b5cf6" theme="dark"
-                />
-                <div className="jbs-dp-chips">
-                    {DP_CHIPS.map(pct => (
-                        <button
-                            key={pct}
-                            className={`jbs-dp-chip${Math.round(downPct) === pct ? ' active' : ''}`}
-                            onClick={() => setDownPct(pct)}
-                        >
-                            {pct}%
-                        </button>
-                    ))}
-                </div>
-                <div className="jbs-dp-min-note">Jumbo minimum: 20% down · 25% preferred by most lenders · No PMI required</div>
-
-                <SliderField
-                    label="Interest Rate"
-                    value={rate}
-                    min={3} max={12} step={0.125}
-                    onChange={setRate}
-                    format={v => {
-                        const s = parseFloat(v.toFixed(3)) + '%';
-                        return termType === 'arm7' ? `${s} → ARM ${Math.max(3, v - ARM_SPREAD).toFixed(3)}%` : s;
-                    }}
-                    minLabel="3%" maxLabel="12%"
-                    midLabel={`FRED: ${props.rate.toFixed(2)}%`}
-                    trackColor="#8b5cf6" theme="dark"
-                />
-
-                <div className="jbs-exp-term-label">Loan Term</div>
-                <div className="jbs-terms">
-                    {(['15yr', '30yr', 'arm7'] as const).map(t => (
-                        <button
-                            key={t}
-                            className={`jbs-term${termType === t ? ' jbs-term--on' : ''}`}
-                            onClick={() => setTermType(t)}
-                        >
-                            {t === '15yr' ? '15yr' : t === '30yr' ? '30yr' : '7/1 ARM'}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="jbs-exp-stats">
-                    <div className="jbs-exp-stat">
-                        <div className="jbs-exp-stat-label">Loan Amount</div>
-                        <div className="jbs-exp-stat-val">{fmtM(Math.round(loanAmt))}</div>
+                    {/* Zone detail */}
+                    <div className="jbs-dsec">
+                        <div className="jbs-dsec-lbl">Loan Zone</div>
+                        <div className="jbs-zone-detail" style={{ background: z.bg, border: `1px solid ${z.border}` }}>
+                            <div className="jbs-zone-detail-hdr" style={{ color: z.color }}>{z.icon} {z.label} Loan · {fmtM(loanAmt)}</div>
+                            <div className="jbs-zone-detail-note">{z.note}</div>
+                        </div>
+                        <div className="jbs-xblock">
+                            {downToHighBal > 0.05 && (
+                                <div className="jbs-xitem"><strong style={{ color: '#ff8c42' }}>High-Balance crossover:</strong> Add {downToHighBal.toFixed(2)}% more down (loan → {fmt$(HIGH_BAL_CA_MAX_2026)} max) — saves <strong style={{ color: '#00e87a' }}>{fmt$(Math.round(savingsHighBal))}/yr</strong> in rate premium.</div>
+                            )}
+                            {downToConforming > 0.05 && (
+                                <div className="jbs-xitem"><strong style={{ color: '#00e87a' }}>Conforming crossover:</strong> Add {downToConforming.toFixed(2)}% more down (loan → {fmt$(NATIONAL_CONFORMING_2026)} limit) — saves <strong style={{ color: '#00e87a' }}>{fmt$(Math.round(savingsConforming))}/yr</strong> in rate premium.</div>
+                            )}
+                            {downToHighBal <= 0.05 && downToConforming <= 0.05 && (
+                                <div className="jbs-xitem" style={{ color: 'rgba(185,208,192,0.38)' }}>No crossover opportunity at current price &amp; down payment.</div>
+                            )}
+                        </div>
                     </div>
-                    <div className="jbs-exp-stat">
-                        <div className="jbs-exp-stat-label">LTV</div>
-                        <div className="jbs-exp-stat-val">{ltv.toFixed(1)}%</div>
-                    </div>
-                    <div className="jbs-exp-stat">
-                        <div className="jbs-exp-stat-label">6mo Reserves</div>
-                        <div className="jbs-exp-stat-val" style={{ color: '#8b5cf6' }}>{fmtM(Math.round(reserves6mo))}</div>
-                    </div>
-                    <div className="jbs-exp-stat">
-                        <div className="jbs-exp-stat-label">Total / mo</div>
-                        <div className="jbs-exp-stat-val">{fmt$(Math.round(total))}</div>
-                    </div>
-                </div>
 
-                <div className="jbs-exp-actions">
-                    <button className="jbs-btn-vault" onClick={handleVault}>
-                        <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
-                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                        </svg>
-                        {vaultDone ? 'Saved ✓' : 'My Vault'}
-                    </button>
-                    <PdfDownloadButton
-                        type="jumbo"
-                        getParams={() => ({
-                            price, downPct, rate, term: termYrs,
-                            taxRate: props.taxRate, insRate: props.insRate,
-                            loanType: 'jumbo',
-                        })}
-                    />
-                    <button className="jbs-btn-match" onClick={() => router.push(getMatchedUrl())}>
-                        Get Matched →
-                    </button>
-                </div>
-                {/* Drawer CTA */}
-                <div className="jbs-drawer-cta">
-                    {drawerPhase === 'idle' && !isDirty && <span className="jbs-drawer-hint">Drag sliders to model a new scenario</span>}
-                    {drawerPhase === 'idle' && isDirty && <button className="jbs-drawer-run" onClick={handleDrawerRun}>▶ Run Adjusted Scenario →</button>}
-                    {drawerPhase === 'running' && <span className="jbs-drawer-hint">Calculating…</span>}
-                    {drawerPhase === 'done' && <span className="jbs-drawer-done">✓ Numbers Updated</span>}
+                    {/* Reserves */}
+                    <div className="jbs-dsec">
+                        <div className="jbs-dsec-lbl">Cash Reserves Required by Lenders</div>
+                        <div className="jbs-dres">
+                            <div className="jbs-dres-row">
+                                <div className="jbs-dres-lbl">6-Month Reserves (minimum)<small>Must remain in account after closing — cannot be gifted</small></div>
+                                <div className="jbs-dres-val">{fmt$(Math.round(reserves6mo))}</div>
+                            </div>
+                            <div className="jbs-dres-row">
+                                <div className="jbs-dres-lbl">12-Month Reserves (preferred &gt;$1M)<small>Higher loan amounts typically require 12 months documented</small></div>
+                                <div className="jbs-dres-val">{fmt$(Math.round(reserves12mo))}</div>
+                            </div>
+                        </div>
+                        <div className="jbs-dres-note">
+                            💡 Reserves are <strong>in addition to</strong> your down payment and closing costs. Expect approximately <strong>{fmtM(Math.round(totalAssetsLo / 5000) * 5000)}–{fmtM(Math.round(totalAssetsHi / 5000) * 5000)} total liquid assets</strong> required at closing.
+                        </div>
+                    </div>
+
+                    {/* Underwriting */}
+                    <div className="jbs-dsec">
+                        <div className="jbs-dsec-lbl">Jumbo Underwriting Standards</div>
+                        <div className="jbs-uw-grid">
+                            {([
+                                { k: 'Min Credit Score',       v: '720+ (740+ preferred)',                                                                              cls: 'ok'                        },
+                                { k: 'Max Back-End DTI',       v: '43% (some lenders 45%)',                                                                             cls: 'warn'                      },
+                                { k: 'Down Payment',           v: downPct >= 30 ? `${downPct}% — strong` : downPct >= 25 ? '25% — most lenders preferred' : '20% min · 25% preferred', cls: downPct >= 25 ? 'ok' : 'warn' },
+                                { k: 'PMI',                    v: 'None — 20%+ required',                                                                               cls: 'ok'                        },
+                                { k: 'Income Documentation',   v: '2 yrs W-2 or tax returns',                                                                           cls: ''                          },
+                                { k: 'Appraisal',              v: price >= 1_500_000 ? '2 appraisals often required' : 'Single appraisal standard',                    cls: price >= 1_500_000 ? 'warn' : '' },
+                            ] as { k: string; v: string; cls: string }[]).map(({ k, v, cls }) => (
+                                <div key={k} className="jbs-uw-item">
+                                    <div className="jbs-uw-k">{k}</div>
+                                    <div className={`jbs-uw-v${cls ? ` ${cls}` : ''}`}>{v}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Full Summary */}
+                    <div className="jbs-dsec">
+                        <div className="jbs-dsec-lbl">Full Loan Summary</div>
+                        <div style={{ marginTop: 8 }}>
+                            {([
+                                { lbl: 'Purchase Price',                                     val: fmt$(Math.round(price)) },
+                                { lbl: `Down Payment (${downPct}%)`,                         val: fmt$(Math.round(downAmt)) },
+                                { lbl: 'Loan Amount',                                        val: fmt$(Math.round(loanAmt)) },
+                                { lbl: 'LTV',                                                val: `${ltv.toFixed(1)}%` },
+                                { lbl: 'Rate',                                               val: `${effRate.toFixed(3)}%` },
+                                { lbl: 'Est. Closing Costs (2%)',                            val: fmt$(Math.round(closingEst)) },
+                                { lbl: `Total Interest (${termYrs}yr)`,                      val: `est. ${fmt$(Math.round(totalInterest))}` },
+                                { lbl: `Total P&I Payments (${termYrs}yr)`,                  val: fmt$(Math.round(totalPIPayments)) },
+                            ] as { lbl: string; val: string }[]).map(({ lbl, val }) => (
+                                <div key={lbl} className="jbs-sum-row">
+                                    <span className="jbs-sum-lbl">{lbl}</span>
+                                    <span className="jbs-sum-val">{val}</span>
+                                </div>
+                            ))}
+                            <div className="jbs-sum-total">
+                                <span>Total Cash at Closing</span>
+                                <span className="jbs-sum-total-val">{fmt$(Math.round(downAmt + closingEst + reserves6mo))}</span>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
-            </div>
 
-            {/* Income qualify chip */}
-            {props.onRunScenario && (
-                <div className="jbs-followup-row">
-                    <button
-                        className="jbs-followup-chip"
-                        onClick={() => {
-                            const prStr = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(1)}M` : `$${Math.round(price / 1000)}k`;
-                            props.onRunScenario!(
-                                `What income do I need to qualify for a ${prStr} jumbo loan with ${downPct}% down at ${effRate.toFixed(2)}%?`,
-                                { isIncomeQualify: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: effRate, loanType: 'jumbo' }
-                            );
-                        }}
-                    >
-                        What income do I need to qualify? →
-                    </button>
+            {/* ════ PERMANENT BOTTOM ════ */}
+            <div className="jbs-perm">
+                <div className="jbs-sec" style={{ paddingTop: 18 }}>Save This Scenario</div>
+                <div className="jbs-vault-row">
+                    <button className="jbs-btn-vault-new" onClick={handleVault}>{vaultDone ? '✓ Saved' : '⭐ Save to My Vault'}</button>
+                    <div style={{ display: 'flex' }}>
+                        <PdfDownloadButton
+                            type="jumbo"
+                            getParams={() => ({ price, downPct, rate, term: termYrs, taxRate: props.taxRate, insRate: props.insRate, loanType: 'jumbo' })}
+                        />
+                    </div>
                 </div>
-            )}
-
-            {/* Check a property */}
-            <div className="jbs-property-row">
-                <button
-                    className="jbs-btn-property"
-                    onClick={() => {
-                        const p = new URLSearchParams({
-                            price:   String(Math.round(price)),
-                            dp:      String(downPct),
-                            rate:    effRate.toFixed(3),
-                            term:    String(termYrs),
-                            lt:      'jumbo',
-                            taxRate: props.taxRate.toFixed(5),
-                            insRate: props.insRate.toFixed(5),
-                        });
-                        router.push(`/check-property?${p.toString()}`);
-                    }}
-                >
-                    Check a property →
-                </button>
-            </div>
-
-            {/* Rate note */}
-            <div className="jbs-rate-note">
-                <span className="jbs-bulb">💡</span>
-                <p>
-                    <strong>Rate seeded from live FRED 30yr avg.</strong> Jumbo loans for well-qualified borrowers (720+ credit, 20%+ down, strong reserves) often price at par with or below conforming rates — portfolio lenders compete aggressively for high-net-worth clients.
-                    {termType === 'arm7' && <> 7/1 ARM rate reflects SOFR-indexed pricing, typically ~{ARM_SPREAD.toFixed(2)}% below 30yr fixed at origination.</>}
-                </p>
-            </div>
-
-            {/* Disclosures */}
-            <div className="jbs-disc">
-                <p>
-                    <strong>Educational estimates only.</strong> A &quot;jumbo&quot; loan exceeds the 2026 FHFA conforming baseline of {fmt$(NATIONAL_CONFORMING_2026)} for a 1-unit standard-cost area residence. High-balance counties may have limits up to {fmt$(HIGH_BAL_CA_MAX_2026)}. Loans above the high-balance limit are held in portfolio by lenders. Property tax estimated at {(props.taxRate * 100).toFixed(1)}% annually; insurance at {(props.insRate * 100).toFixed(1)}% annually. Reserve calculations based on 6× and 12× total monthly PITI. 7/1 ARM caps shown as 2/2/5 (typical; actual caps vary by lender). Price slider range $500k–$25M; click the value to type higher amounts. These figures are not a pre-approval or commitment to lend.
-                </p>
+                <div className="jbs-rate-note-new">
+                    <span className="jbs-bulb">💡</span>
+                    <p>
+                        <strong>Rate seeded from live FRED 30yr avg.</strong> Jumbo loans for well-qualified borrowers (720+ credit, 20%+ down, strong reserves) often price at par with or below conforming rates — portfolio lenders compete aggressively for high-net-worth clients.
+                        {termType === 'arm7' && <> 7/1 ARM rate reflects SOFR-indexed pricing, typically ~{ARM_SPREAD.toFixed(2)}% below 30yr fixed at origination.</>}
+                    </p>
+                </div>
+                <div className="jbs-disc-new">
+                    <strong>⚠️ Educational estimates only.</strong> A &quot;jumbo&quot; loan exceeds the 2026 FHFA conforming baseline of {fmt$(NATIONAL_CONFORMING_2026)} for a 1-unit standard-cost area residence. High-balance counties may have limits up to {fmt$(HIGH_BAL_CA_MAX_2026)}. Property tax estimated at {(props.taxRate * 100).toFixed(1)}% annually; insurance at {(props.insRate * 100).toFixed(1)}% annually. Reserve calculations based on 6× and 12× total monthly PITI. 7/1 ARM caps shown as 2/2/5 (typical; actual caps vary by lender). These figures are not a pre-approval or commitment to lend.
+                </div>
+                <div className="jbs-share">
+                    <button className="jbs-btn-share">↗ &nbsp;Share This Scenario</button>
+                </div>
             </div>
 
             {/* ── Styles ── */}
             <style>{`
                 .jbs {
-                    background: #0d1117;
-                    border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: 16px;
+                    background: #0e1420;
+                    border: 1px solid var(--jbs-border, rgba(255,255,255,0.08));
+                    border-radius: 18px;
                     overflow: clip;
-                    margin-top: 14px;
-                    font-family: system-ui, -apple-system, sans-serif;
+                    font-family: var(--font-dm-sans, "DM Sans", system-ui, sans-serif);
                     color: #f0f4ff;
+                    transition: border-color 0.3s;
                 }
 
-                /* topbar */
-                .jbs-topbar { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid rgba(255,255,255,0.05); background:rgba(255,255,255,0.02); }
-                .jbs-topbar-l { display:flex; align-items:center; gap:6px; }
-                .jbs-dot { width:7px; height:7px; border-radius:50%; background:#8b5cf6; }
-                .jbs-tl { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#6b7a99; }
-                .jbs-tr { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#3a4560; }
-
                 /* header */
-                .jbs-header { display:flex; align-items:center; gap:12px; padding:16px 16px 12px; }
-                .jbs-header-icon { width:36px; height:36px; border-radius:10px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.2); display:flex; align-items:center; justify-content:center; color:#8b5cf6; flex-shrink:0; }
-                .jbs-header-title { font-size:15px; font-weight:700; color:#f0f4ff; }
-                .jbs-header-sub { font-size:11px; color:#6b7a99; margin-top:2px; }
-
-                /* zone band */
-                .jbs-band { margin:0 12px 12px; border-radius:10px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
-                .jbs-band--conforming { background:rgba(0,232,122,0.04); border:1px solid rgba(0,232,122,0.2); }
-                .jbs-band--highbal    { background:rgba(245,158,11,0.05); border:1px solid rgba(245,158,11,0.25); }
-                .jbs-band--jumbo      { background:rgba(139,92,246,0.05); border:1px solid rgba(139,92,246,0.2); }
-                .jbs-band-l { display:flex; align-items:center; gap:10px; min-width:0; }
-                .jbs-badge { font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:3px 10px; border-radius:20px; flex-shrink:0; }
-                .jbs-badge--conforming { background:rgba(0,232,122,0.1); color:#00e87a; border:1px solid rgba(0,232,122,0.25); }
-                .jbs-badge--highbal    { background:rgba(245,158,11,0.1); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); }
-                .jbs-badge--jumbo      { background:rgba(139,92,246,0.12); color:#8b5cf6; border:1px solid rgba(139,92,246,0.25); }
-                .jbs-band-desc { font-size:11px; color:#8fa3b8; line-height:1.4; }
-                .jbs-strong { color:#f0f4ff; }
-                .jbs-band-r { font-size:10px; color:#3a4560; flex-shrink:0; text-align:right; white-space:nowrap; }
-                .jbs-band-r span { display:block; font-size:11px; font-weight:600; margin-top:2px; color:#6b7a99; }
+                .jbs-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 0; }
+                .jbs-header-left { display:flex; flex-direction:column; gap:3px; }
+                .jbs-title { font-size:0.72rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:rgba(185,208,192,0.55); }
+                .jbs-sub { font-size:0.72rem; color:rgba(185,208,192,0.35); font-weight:400; }
+                .jbs-zone-badge { display:inline-flex; align-items:center; gap:6px; background:var(--jbs-bg); border:1px solid var(--jbs-border); border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; color:var(--jbs-color); flex-shrink:0; transition:all 0.25s; }
 
                 /* hero */
-                .jbs-hero { margin:0 12px 12px; background:#0e1020; border:1px solid rgba(139,92,246,0.2); border-radius:14px; padding:20px 20px 16px; text-align:center; }
-                .jbs-hero-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#2e1e5a; margin-bottom:8px; }
-                .jbs-hero-amount { font-size:46px; font-weight:800; color:#8b5cf6; letter-spacing:-2px; line-height:1; }
-                .jbs-hero-mo { font-size:18px; font-weight:600; color:#4a3a80; letter-spacing:0; }
-                .jbs-hero-sub { font-size:12px; color:#8fa3b8; margin-top:6px; }
-                .jbs-hero-grid { display:grid; grid-template-columns:repeat(3,1fr); margin-top:14px; border-top:1px solid rgba(255,255,255,0.06); padding-top:12px; }
-                .jbs-hero-stat { text-align:center; padding:0 8px; border-right:1px solid rgba(255,255,255,0.06); }
-                .jbs-hero-stat:last-child { border-right:none; }
-                .jbs-hero-sl { font-size:9px; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:4px; }
-                .jbs-hero-sv { font-size:13px; font-weight:700; color:#f0f4ff; }
+                .jbs-hero { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:10px; padding:14px 20px 0; }
+                .jbs-hero-main { background:rgba(255,255,255,0.04); border-radius:12px; padding:16px 12px; text-align:center; min-width:0; }
+                .jbs-hero-stat { background:rgba(255,255,255,0.04); border-radius:12px; padding:14px 12px; text-align:center; min-width:0; }
+                .jbs-hero-piti { font-size:clamp(1.5rem,5vw,2rem); font-weight:800; line-height:1; color:var(--jbs-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+                .jbs-hero-mo { font-size:0.65em; font-weight:600; opacity:0.7; }
+                .jbs-hero-lbl { font-size:0.62rem; color:rgba(185,208,192,0.5); margin-top:5px; text-transform:uppercase; letter-spacing:0.04em; }
+                .jbs-hero-sv { font-size:clamp(1.05rem,3.5vw,1.3rem); font-weight:800; color:#f0f4ff; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+                .jbs-hero-sl { font-size:0.62rem; color:rgba(185,208,192,0.5); margin-top:5px; text-transform:uppercase; letter-spacing:0.04em; }
+
+                /* crossover strip */
+                .jbs-xstrip { margin:12px 20px 0; background:rgba(255,140,66,0.07); border:1px solid rgba(255,140,66,0.25); border-radius:10px; padding:9px 14px; font-size:0.8rem; color:rgba(185,208,192,0.9); display:flex; gap:8px; align-items:flex-start; line-height:1.5; }
+
+                /* divider + section label */
+                .jbs-div { height:1px; background:rgba(255,255,255,0.06); margin:16px 20px 0; }
+                .jbs-sec { font-size:0.68rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(185,208,192,0.45); padding:14px 20px 0; }
+
+                /* breakdown */
+                .jbs-bd { padding:8px 20px 0; }
+                .jbs-bd-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.84rem; }
+                .jbs-bd-row:last-child { border-bottom:none; }
+                .jbs-bd-lbl { color:rgba(185,208,192,0.75); }
+                .jbs-bd-val { font-weight:600; color:#f0f4ff; }
+                .jbs-bd-val-green { font-weight:600; color:#00e87a; }
+                .jbs-bd-total { display:flex; justify-content:space-between; align-items:center; padding:10px 0 0; font-size:0.9rem; font-weight:700; margin-top:4px; border-top:1px solid rgba(255,255,255,0.1); }
+                .jbs-bd-total-val { font-size:1.05rem; font-weight:800; color:var(--jbs-color); }
+
+                /* sliders */
+                .jbs-sliders { padding:6px 20px 0; }
+                .jbs-slider-wrap { margin-bottom:16px; }
+                .jbs-dp-chips { display:flex; gap:6px; margin-top:8px; }
+                .jbs-dp-chip { flex:1; padding:5px 0; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer; text-align:center; background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1); color:rgba(185,208,192,0.6); font-family:inherit; transition:all 0.15s; }
+                .jbs-dp-chip:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
+                .jbs-dp-chip.active { background:var(--jbs-bg); border-color:var(--jbs-color); color:var(--jbs-color); }
+                .jbs-dp-note { font-size:0.7rem; color:rgba(185,208,192,0.38); margin-top:6px; }
+                .jbs-fred-tag { display:inline-flex; align-items:center; gap:4px; background:rgba(61,139,255,0.1); border:1px solid rgba(61,139,255,0.25); border-radius:6px; padding:3px 8px; font-size:0.7rem; color:#3d8bff; font-weight:600; margin-top:6px; }
+                .jbs-term-label { font-size:0.82rem; font-weight:600; color:rgba(185,208,192,0.8); padding:2px 20px 0; margin-bottom:-4px; }
+                .jbs-terms { display:flex; gap:8px; padding:10px 20px 0; }
+                .jbs-term { flex:1; background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:8px 0; font-size:0.82rem; font-weight:600; color:rgba(185,208,192,0.7); cursor:pointer; font-family:inherit; transition:all 0.15s; text-align:center; }
+                .jbs-term--on { background:var(--jbs-bg); border-color:var(--jbs-color); color:var(--jbs-color); }
+                .jbs-term:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
 
                 /* ARM disclosure */
-                .jbs-arm { margin:0 12px 12px; border-radius:12px; overflow:hidden; border:1px solid rgba(139,92,246,0.2); }
-                .jbs-arm-head { display:flex; align-items:center; gap:8px; padding:9px 14px; background:rgba(139,92,246,0.07); border-bottom:1px solid rgba(139,92,246,0.12); }
+                .jbs-arm { margin:12px 20px 0; border-radius:12px; overflow:hidden; border:1px solid var(--jbs-border); }
+                .jbs-arm-head { display:flex; align-items:center; gap:8px; padding:9px 14px; background:var(--jbs-bg); border-bottom:1px solid var(--jbs-border); }
                 .jbs-arm-icon { font-size:14px; }
-                .jbs-arm-title { font-size:11px; font-weight:700; color:#8b5cf6; letter-spacing:.04em; text-transform:uppercase; }
-                .jbs-arm-body { padding:12px 14px; }
+                .jbs-arm-title { font-size:11px; font-weight:700; color:var(--jbs-color); letter-spacing:.04em; text-transform:uppercase; }
+                .jbs-arm-body { padding:12px 14px; background:#080c12; }
                 .jbs-arm-compare { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
                 .jbs-arm-col { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:10px 12px; }
-                .jbs-arm-col--on { background:rgba(139,92,246,0.06); border-color:rgba(139,92,246,0.2); }
+                .jbs-arm-col--on { background:var(--jbs-bg); border-color:var(--jbs-border); }
                 .jbs-arm-col-label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#6b7a99; margin-bottom:6px; }
-                .jbs-arm-col--on .jbs-arm-col-label { color:#8b5cf6; }
+                .jbs-arm-col--on .jbs-arm-col-label { color:var(--jbs-color); }
                 .jbs-arm-col-amount { font-size:20px; font-weight:800; color:#c4cfe0; letter-spacing:-0.5px; }
-                .jbs-arm-col--on .jbs-arm-col-amount { color:#8b5cf6; }
+                .jbs-arm-col--on .jbs-arm-col-amount { color:var(--jbs-color); }
                 .jbs-arm-col-note { font-size:10px; color:#6b7a99; margin-top:3px; }
                 .jbs-arm-savings { background:rgba(0,232,122,0.05); border:1px solid rgba(0,232,122,0.15); border-radius:8px; padding:8px 12px; font-size:12px; color:#8fa3b8; margin-bottom:10px; line-height:1.5; }
                 .jbs-arm-savings strong { color:#00e87a; }
@@ -657,145 +571,96 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 .jbs-arm-risk { background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.18); border-radius:8px; padding:9px 12px; font-size:11px; color:#b8a577; line-height:1.5; margin-top:10px; }
                 .jbs-arm-risk strong { color:#f59e0b; }
 
-                /* reserves */
-                .jbs-reserves { margin:0 12px 12px; border-radius:12px; overflow:hidden; border:1px solid rgba(139,92,246,0.18); }
-                .jbs-reserves-head { display:flex; align-items:center; gap:8px; padding:9px 14px; background:rgba(139,92,246,0.06); border-bottom:1px solid rgba(139,92,246,0.12); }
-                .jbs-reserves-icon { font-size:14px; }
-                .jbs-reserves-title { font-size:11px; font-weight:700; color:#8b5cf6; letter-spacing:.04em; text-transform:uppercase; }
-                .jbs-reserves-rows { padding:10px 14px 8px; display:flex; flex-direction:column; gap:7px; }
-                .jbs-reserves-row { display:flex; justify-content:space-between; align-items:center; gap:12px; }
-                .jbs-reserves-label { font-size:12px; color:#8fa3b8; }
-                .jbs-reserves-label small { font-size:10px; color:#3a4560; display:block; margin-top:2px; }
-                .jbs-reserves-val { font-size:13px; font-weight:700; color:#8b5cf6; white-space:nowrap; }
-                .jbs-reserves-divider { height:1px; background:rgba(255,255,255,0.05); }
-                .jbs-reserves-note { margin:6px 14px 10px; border-radius:8px; padding:8px 12px; font-size:11px; line-height:1.5; background:rgba(139,92,246,0.05); border:1px solid rgba(139,92,246,0.14); color:#c4b5fd; }
+                /* income */
+                .jbs-income { padding:8px 20px 0; }
+                .jbs-income-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.84rem; }
+                .jbs-income-row--dim { border-bottom:none; }
+                .jbs-income-row--dim .jbs-income-lbl, .jbs-income-row--dim .jbs-income-val { color:rgba(185,208,192,0.38); font-weight:400; }
+                .jbs-income-lbl { color:rgba(185,208,192,0.75); }
+                .jbs-income-val { font-weight:600; color:#f0f4ff; }
 
-                /* underwriting */
-                .jbs-uw { margin:0 12px 12px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.07); }
-                .jbs-uw-head { display:flex; align-items:center; gap:8px; padding:9px 14px; background:rgba(255,255,255,0.025); border-bottom:1px solid rgba(255,255,255,0.06); }
-                .jbs-uw-title { font-size:10px; font-weight:700; color:#6b7a99; letter-spacing:.08em; text-transform:uppercase; }
-                .jbs-uw-grid { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+                /* CTAs */
+                .jbs-cta-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:16px 20px 0; }
+                .jbs-btn-check { padding:11px 8px; border-radius:10px; font-size:0.82rem; font-weight:700; cursor:pointer; text-align:center; background:rgba(61,139,255,0.1); border:1px solid rgba(61,139,255,0.25); color:#3d8bff; font-family:inherit; transition:opacity 0.15s; }
+                .jbs-btn-run { padding:11px 8px; border-radius:10px; font-size:0.82rem; font-weight:700; cursor:pointer; text-align:center; background:var(--jbs-color); border:none; color:#fff; font-family:inherit; transition:opacity 0.15s; }
+                .jbs-btn-check:hover, .jbs-btn-run:hover { opacity:0.82; }
+                .jbs-cta-full { padding:10px 20px 0; }
+                .jbs-btn-get-matched { width:100%; padding:11px 8px; border-radius:10px; font-size:0.82rem; font-weight:700; cursor:pointer; text-align:center; background:transparent; border:1px solid rgba(255,255,255,0.14); color:rgba(185,208,192,0.8); font-family:inherit; transition:opacity 0.15s; }
+                .jbs-btn-get-matched:hover { opacity:0.82; }
+
+                /* drawer trigger */
+                .jbs-dtrigger { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:14px 20px 0; padding:13px 20px; cursor:pointer; font-size:0.84rem; color:var(--jbs-color); background:var(--jbs-bg); border:1.5px solid var(--jbs-border); border-radius:12px; font-family:inherit; width:calc(100% - 40px); user-select:none; transition:all 0.18s; }
+                .jbs-dtrigger:hover { opacity:0.85; }
+                .jbs-dtrigger-lbl { font-weight:700; letter-spacing:0.01em; }
+                .jbs-dtrigger-chev { font-size:0.7rem; opacity:0.7; transition:transform 0.25s; display:inline-block; }
+                .jbs-dtrigger.open .jbs-dtrigger-chev { transform:rotate(180deg); }
+
+                /* deep drawer */
+                .jbs-ddrawn { max-height:0; overflow:hidden; transition:max-height 0.38s ease; background:#080c12; }
+                .jbs-ddrawn.open { max-height:1600px; }
+                .jbs-dsec { padding:14px 20px 0; }
+                .jbs-dsec-lbl { font-size:0.68rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(185,208,192,0.4); margin-bottom:8px; }
+                .jbs-zone-detail { border-radius:10px; padding:12px 14px; }
+                .jbs-zone-detail-hdr { font-size:0.85rem; font-weight:700; margin-bottom:6px; }
+                .jbs-zone-detail-note { font-size:0.8rem; color:rgba(185,208,192,0.8); line-height:1.55; }
+                .jbs-xblock { margin-top:10px; display:flex; flex-direction:column; gap:8px; }
+                .jbs-xitem { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:9px 12px; font-size:0.8rem; color:rgba(185,208,192,0.85); line-height:1.55; }
+
+                /* reserves in drawer */
+                .jbs-dres { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:10px; overflow:hidden; margin-top:8px; }
+                .jbs-dres-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.05); }
+                .jbs-dres-row:last-child { border-bottom:none; }
+                .jbs-dres-lbl { font-size:0.8rem; color:rgba(185,208,192,0.75); }
+                .jbs-dres-lbl small { font-size:0.7rem; color:rgba(185,208,192,0.38); display:block; margin-top:2px; }
+                .jbs-dres-val { font-size:0.85rem; font-weight:700; color:var(--jbs-color); white-space:nowrap; }
+                .jbs-dres-note { margin-top:8px; border-radius:8px; padding:9px 12px; font-size:0.78rem; line-height:1.5; background:var(--jbs-bg); border:1px solid var(--jbs-border); color:rgba(185,208,192,0.75); }
+                .jbs-dres-note strong { color:var(--jbs-color); }
+
+                /* underwriting in drawer */
+                .jbs-uw-grid { display:grid; grid-template-columns:1fr 1fr; gap:0; margin-top:8px; border:1px solid rgba(255,255,255,0.07); border-radius:10px; overflow:hidden; }
                 .jbs-uw-item { padding:9px 14px; border-bottom:1px solid rgba(255,255,255,0.04); border-right:1px solid rgba(255,255,255,0.04); }
                 .jbs-uw-item:nth-child(even) { border-right:none; }
                 .jbs-uw-item:nth-last-child(-n+2) { border-bottom:none; }
-                .jbs-uw-criterion { font-size:10px; color:#3a4560; text-transform:uppercase; letter-spacing:.05em; font-weight:600; margin-bottom:3px; }
-                .jbs-uw-val { font-size:12px; font-weight:700; color:#c4cfe0; }
-                .jbs-uw-val.tight { color:#f59e0b; }
-                .jbs-uw-val.ok { color:#00e87a; }
+                .jbs-uw-k { font-size:0.68rem; color:rgba(185,208,192,0.4); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; margin-bottom:3px; }
+                .jbs-uw-v { font-size:0.8rem; font-weight:700; color:#c4cfe0; }
+                .jbs-uw-v.ok { color:#00e87a; }
+                .jbs-uw-v.warn { color:#f59e0b; }
 
-                /* breakdown */
-                .jbs-bkd { border-top:1px solid rgba(255,255,255,0.05); }
-                .jbs-bkd-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; padding:10px 16px; background:transparent; border:none; cursor:pointer; font-family:inherit; }
-                .jbs-bkd-label { font-size:12px; font-weight:600; color:#8fa3b8; }
-                .jbs-bkd-chev { font-size:10px; color:#8fa3b8; transition:transform .2s; display:inline-block; transform:rotate(180deg); }
-                .jbs-bkd-chev.open { transform:rotate(0deg); }
-                .jbs-bkd-body { padding:0 16px 12px; }
-                .jbs-kv { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
-                .jbs-kv--total { padding-top:8px; border-top:1px solid rgba(255,255,255,0.12); border-bottom:none; }
-                .jbs-kv-k { font-size:12px; color:#8fa3b8; }
-                .jbs-kv-v { font-size:12px; font-weight:600; color:#c4cfe0; }
-                .jbs-kv-v--purple { color:#8b5cf6; }
-                .jbs-kv-v--green  { color:#00e87a; }
-                .jbs-kv-v--amber  { color:#f59e0b; }
-                .jbs-kv--total .jbs-kv-k { font-weight:700; color:#c4cfe0; font-size:13px; }
-                .jbs-kv--total .jbs-kv-v { font-weight:800; font-size:13px; }
-                .jbs-kv-s { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#6b7a99; padding:10px 0 4px; }
-                .jbs-kv-s:first-child { padding-top:4px; }
+                /* full summary in drawer */
+                .jbs-sum-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.83rem; }
+                .jbs-sum-row:last-child { border-bottom:none; }
+                .jbs-sum-lbl { color:rgba(185,208,192,0.7); }
+                .jbs-sum-val { font-weight:600; color:#f0f4ff; }
+                .jbs-sum-total { display:flex; justify-content:space-between; padding:10px 0 0; border-top:1px solid rgba(255,255,255,0.1); font-size:0.9rem; font-weight:700; margin-top:4px; }
+                .jbs-sum-total-val { font-size:1rem; font-weight:800; color:var(--jbs-color); }
 
-                /* explorer */
-                .jbs-exp { padding:12px 16px; border-top:1px solid rgba(255,255,255,0.05); background:rgba(255,255,255,0.015); }
-                .jbs-exp-head { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#6b7a99; margin-bottom:12px; }
-                .jbs-dp-chips { display:flex; gap:6px; margin:-4px 0 6px; }
-                .jbs-dp-chip { background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600; color:#8fa3b8; cursor:pointer; font-family:inherit; transition:all .15s; }
-                .jbs-dp-chip.active { background:rgba(139,92,246,0.1); border-color:rgba(139,92,246,0.35); color:#8b5cf6; }
-                .jbs-dp-chip:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
-                .jbs-dp-min-note { font-size:10px; color:#3a4560; margin:-2px 0 12px; }
-                .jbs-exp-term-label { font-size:12px; font-weight:600; color:#c4cfe0; margin-bottom:6px; }
-                .jbs-terms { display:flex; gap:6px; margin-bottom:14px; }
-                .jbs-term { flex:1; background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:7px 0; font-size:12px; font-weight:600; color:#8fa3b8; cursor:pointer; font-family:inherit; transition:all .15s; text-align:center; }
-                .jbs-term--on { background:rgba(139,92,246,0.1); border-color:rgba(139,92,246,0.35); color:#8b5cf6; }
-                .jbs-term:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
-                .jbs-exp-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:2px; margin-bottom:12px; }
-                .jbs-exp-stat { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:8px; text-align:center; }
-                .jbs-exp-stat-label { font-size:10px; color:#6b7a99; margin-bottom:3px; }
-                .jbs-exp-stat-val { font-size:12px; font-weight:700; color:#c4cfe0; }
-
-                /* actions */
-                .jbs-exp-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-                .jbs-btn-rerun { background:#111827; color:#f9fafb; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s; }
-                .jbs-btn-rerun:hover { background:#1f2937; }
-                .jbs-btn-vault { display:flex; align-items:center; gap:6px; background:#00e87a; color:#07100f; border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; flex-shrink:0; transition:opacity .15s; }
-                .jbs-btn-vault:hover { opacity:.88; }
-                .jbs-btn-match { margin-left:auto; background:#8b5cf6; color:#fff; border:none; border-radius:8px; padding:10px 22px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
-                .jbs-btn-match:hover { opacity:.88; }
-
-                /* check a property */
-                .jbs-followup-row { padding:0 12px 4px; }
-                .jbs-followup-chip { background:rgba(255,255,255,0.04); color:#8fa3b8; border:1.5px solid rgba(255,255,255,0.12); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
-                .jbs-followup-chip:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
-                .jbs-property-row { padding:0 12px 10px; }
-                .jbs-btn-property { background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.25); border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
-                .jbs-btn-property:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.45); }
-
-                /* rate note */
-                .jbs-rate-note { margin:0 12px 12px; background:rgba(139,92,246,0.04); border:1px solid rgba(139,92,246,0.12); border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px; }
+                /* permanent bottom */
+                .jbs-perm { padding-bottom:20px; }
+                .jbs-vault-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:10px 20px 0; }
+                .jbs-btn-vault-new { padding:11px 8px; border-radius:10px; font-size:0.82rem; font-weight:700; cursor:pointer; text-align:center; background:rgba(61,139,255,0.1); border:1px solid rgba(61,139,255,0.25); color:#3d8bff; font-family:inherit; width:100%; transition:opacity 0.15s; }
+                .jbs-btn-vault-new:hover { opacity:0.82; }
+                .jbs-rate-note-new { margin:12px 20px 0; background:rgba(61,139,255,0.05); border:1px solid rgba(61,139,255,0.15); border-radius:8px; padding:10px 12px; display:flex; align-items:flex-start; gap:8px; }
                 .jbs-bulb { font-size:16px; flex-shrink:0; margin-top:1px; }
-                .jbs-rate-note p { font-size:12px; color:#8fa3b8; line-height:1.5; }
-                .jbs-rate-note strong { color:#8b5cf6; }
-
-                /* disclosures */
-                .jbs-disc { padding:0 16px 16px; }
-                .jbs-disc p { font-size:10px; color:#3a4560; line-height:1.5; }
-
-                /* ── Slider Drawer ── */
-                @keyframes jbsTriggerPulse {
-                    0%, 100% { box-shadow: none; }
-                    50% { box-shadow: 0 0 14px rgba(139,92,246,0.08) inset; }
-                }
-                @keyframes jbsRunPulse {
-                    0%, 100% { box-shadow: none; }
-                    50% { box-shadow: 0 0 20px rgba(139,92,246,0.22); }
-                }
-                .jbs-slider-trigger {
-                    width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px;
-                    padding:13px 18px; background:transparent; border:none;
-                    border-top:1px solid rgba(139,92,246,0.12);
-                    cursor:pointer; font-family:inherit; position:relative; overflow:hidden;
-                    transition:background 0.2s, border-color 0.2s;
-                    animation:jbsTriggerPulse 3s ease-in-out infinite;
-                }
-                .jbs-slider-trigger:hover, .jbs-slider-trigger.open {
-                    background:rgba(139,92,246,0.05); border-color:rgba(139,92,246,0.3); animation:none;
-                }
-                .jbs-trigger-left { display:flex; align-items:center; gap:10px; text-align:left; }
-                .jbs-trigger-title { font-size:13px; font-weight:700; color:#8b5cf6; }
-                .jbs-trigger-sub { font-size:10px; color:rgba(139,92,246,0.6); margin-top:1px; }
-                .jbs-trigger-arrow { font-size:11px; color:rgba(139,92,246,0.55); flex-shrink:0; }
-                .jbs-drawer { max-height:0; overflow:hidden; transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
-                .jbs-drawer.open { max-height:900px; }
-                .jbs-drawer-cta { padding:4px 16px 12px; }
-                .jbs-drawer-hint { font-size:12px; color:rgba(148,163,184,0.4); display:block; text-align:center; padding:8px 0; }
-                .jbs-drawer-done { font-size:13px; color:#00e87a; display:block; text-align:center; font-weight:600; padding:10px 0; }
-                .jbs-drawer-run {
-                    width:100%; padding:13px 18px;
-                    background:rgba(139,92,246,0.08); border:1.5px solid rgba(139,92,246,0.38);
-                    border-radius:10px; color:#8b5cf6; font-size:14px; font-weight:700;
-                    cursor:pointer; font-family:inherit; transition:all 0.15s;
-                    animation:jbsRunPulse 1.8s ease-in-out infinite;
-                }
-                .jbs-drawer-run:hover { background:rgba(139,92,246,0.16); animation:none; }
+                .jbs-rate-note-new p { font-size:0.75rem; color:rgba(185,208,192,0.65); line-height:1.55; }
+                .jbs-rate-note-new strong { color:rgba(185,208,192,0.9); }
+                .jbs-disc-new { margin:12px 20px 0; padding:12px 14px; background:rgba(255,255,255,0.02); border-radius:8px; font-size:0.71rem; color:rgba(185,208,192,0.38); line-height:1.65; border:1px solid rgba(255,255,255,0.05); }
+                .jbs-disc-new strong { color:rgba(185,208,192,0.55); }
+                .jbs-share { padding:14px 20px 0; }
+                .jbs-btn-share { width:100%; background:transparent; border:1px solid rgba(255,255,255,0.11); border-radius:10px; padding:11px; color:rgba(185,208,192,0.6); font-size:0.82rem; font-weight:600; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:7px; transition:border-color 0.15s, color 0.15s; }
+                .jbs-btn-share:hover { border-color:rgba(255,255,255,0.28); color:#f0f4ff; }
 
                 @media (max-width: 480px) {
-                    .jbs-hero-amount { font-size:34px; }
-                    .jbs-exp-stats { grid-template-columns:repeat(2,1fr); }
-                    .jbs-band-r { display:none; }
+                    .jbs-hero { grid-template-columns:1fr 1fr 1fr; }
+                    .jbs-hero-piti { font-size:1.4rem; }
                     .jbs-uw-grid { grid-template-columns:1fr; }
+                    .jbs-uw-item:nth-child(even) { border-right:none; }
+                    .jbs-uw-item:nth-last-child(-n+2) { border-bottom:1px solid rgba(255,255,255,0.04); }
+                    .jbs-uw-item:last-child { border-bottom:none; }
                     .jbs-arm-compare { grid-template-columns:1fr; }
                 }
                 @media (max-width: 640px) {
-                    .jbs-exp-actions { flex-direction:column; gap:8px; }
-                    .jbs-exp-actions button { width:100%; justify-content:center; text-align:center; margin-left:0; display:flex; }
-                    .jbs-followup-chip,.jbs-btn-property { width:100%; text-align:center; display:block; }
+                    .jbs-cta-row { grid-template-columns:1fr; }
+                    .jbs-vault-row { grid-template-columns:1fr; }
                 }
             `}</style>
         </div>

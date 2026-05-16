@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useState, useMemo, CSSProperties } from 'react';
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
+import PdfDownloadButton from './PdfDownloadButton';
 import {
     getCALoanLimits,
     getCACountyByZip,
@@ -10,43 +13,52 @@ import {
     NATIONAL_CONFORMING_BASELINE,
 } from '@/loanLimits2026';
 
-// ─── local helpers ──────────────────────────────────────────────
-function calcPI(principal: number, annualRate: number, termYears: number): number {
-    if (principal <= 0 || annualRate <= 0) return 0;
-    const r = annualRate / 100 / 12;
-    const n = termYears * 12;
-    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-}
+// ─── helpers ────────────────────────────────────────────────────────────────
 
+function calcPI(p: number, r: number, y: number): number {
+    if (p <= 0 || r <= 0) return 0;
+    const mr = r / 100 / 12, n = y * 12;
+    return (p * mr * Math.pow(1 + mr, n)) / (Math.pow(1 + mr, n) - 1);
+}
 function f$(n: number): string {
-    const abs = Math.abs(n);
-    const sign = n < 0 ? '-' : '';
-    if (abs >= 1_000_000) {
-        const m = abs / 1_000_000;
-        // Use 2 decimal places unless it rounds cleanly to 1 or 0
-        const str = m % 1 === 0 ? m.toFixed(0) : m.toFixed(2).replace(/\.?0+$/, '');
-        return `${sign}$${str}M`;
-    }
-    if (abs >= 10_000) return `${sign}$${Math.round(abs / 1000)}k`;
-    return `${sign}$${Math.round(abs).toLocaleString()}`;
+    const a = Math.abs(n), s = n < 0 ? '-' : '';
+    if (a >= 1e6) { const m = a / 1e6; return s + '$' + (m % 1 === 0 ? m.toFixed(0) : m.toFixed(2).replace(/\.?0+$/, '')) + 'M'; }
+    if (a >= 1e4) return s + '$' + Math.round(a / 1000) + 'k';
+    return s + '$' + Math.round(a).toLocaleString();
 }
+function fL(n: number): string { return '$' + Math.round(n).toLocaleString(); }
+function fP(n: number): string { return n.toFixed(2) + '%'; }
 
-function fLong(n: number): string {
-    return '$' + Math.round(n).toLocaleString();
-}
+// ─── zone config ─────────────────────────────────────────────────────────────
 
-function fPct(n: number): string {
-    return n.toFixed(2) + '%';
-}
+type Zone = 'conforming' | 'high_balance' | 'jumbo';
 
-function trackStyle(val: number, min: number, max: number, color: string): CSSProperties {
-    const pct = ((val - min) / (max - min)) * 100;
-    return {
-        background: `linear-gradient(to right, ${color} 0%, ${color} ${pct}%, rgba(255,255,255,0.1) ${pct}%, rgba(255,255,255,0.1) 100%)`,
-    };
-}
+const ZC: Record<Zone, {
+    label: string; icon: string; color: string; bg: string; border: string;
+    spread: number; res: number; cc: number; note: string;
+}> = {
+    conforming: {
+        label: 'Conforming', icon: '✓',
+        color: '#00e87a', bg: 'rgba(0,232,122,0.07)', border: 'rgba(0,232,122,0.28)',
+        spread: 0, res: 2, cc: 0.025,
+        note: 'Fannie Mae / Freddie Mac — best rates, lowest reserve and down payment requirements.',
+    },
+    high_balance: {
+        label: 'High-Balance', icon: '◈',
+        color: '#ff8c42', bg: 'rgba(255,140,66,0.07)', border: 'rgba(255,140,66,0.28)',
+        spread: 0.25, res: 4, cc: 0.025,
+        note: 'High-balance conforming — GSE-backed up to county limit. Slight rate premium over standard conforming; easier qualifying than jumbo.',
+    },
+    jumbo: {
+        label: 'Jumbo', icon: '⬡',
+        color: '#ff5f5f', bg: 'rgba(255,95,95,0.07)', border: 'rgba(255,95,95,0.28)',
+        spread: 0.40, res: 9, cc: 0.02,
+        note: 'Portfolio / non-conforming loan. Portfolio lenders set their own guidelines. Shop 2–3 lenders — pricing, reserves, and criteria vary significantly.',
+    },
+};
 
-// ─── types ──────────────────────────────────────────────────────
+// ─── types ───────────────────────────────────────────────────────────────────
+
 export interface JumboAffordabilitySliderParams {
     price: number;
     downPct: number;
@@ -59,610 +71,340 @@ export interface JumboAffordabilitySliderParams {
     onRunScenario?: (seed: string, params: Record<string, any>) => void;
 }
 
-type Zone = 'conforming' | 'high_balance' | 'jumbo';
+// ─── component ───────────────────────────────────────────────────────────────
 
-const ZONE_CONFIG: Record<Zone, {
-    label: string;
-    icon: string;
-    color: string;
-    bg: string;
-    border: string;
-    spread: number;
-    reserveMonths: number;
-    note: string;
-}> = {
-    conforming: {
-        label: 'Conforming',
-        icon: '✓',
-        color: '#00e87a',
-        bg: 'rgba(0,232,122,0.08)',
-        border: 'rgba(0,232,122,0.3)',
-        spread: 0,
-        reserveMonths: 2,
-        note: 'Fannie Mae / Freddie Mac loan — best rates, lowest reserve requirements.',
-    },
-    high_balance: {
-        label: 'High-Balance',
-        icon: '◈',
-        color: '#ff8c42',
-        bg: 'rgba(255,140,66,0.08)',
-        border: 'rgba(255,140,66,0.3)',
-        spread: 0.25,
-        reserveMonths: 4,
-        note: 'High-balance conforming — GSE-backed but at county limit. Slight rate premium.',
-    },
-    jumbo: {
-        label: 'Jumbo',
-        icon: '⬡',
-        color: '#ff5f5f',
-        bg: 'rgba(255,95,95,0.08)',
-        border: 'rgba(255,95,95,0.3)',
-        spread: 0.40,
-        reserveMonths: 9,
-        note: 'Portfolio / non-conforming loan. Lenders vary widely — shop 2–3 jumbo lenders.',
-    },
-};
-
-// ─── component ──────────────────────────────────────────────────
 export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySliderParams) {
-    // Dynamic price slider bounds — scale sensibly with starting price
-    // e.g. $1.5M start → max $10M; $5M start → max $12.5M; $8M start → max $20M
-    const priceMax  = Math.max(10_000_000, Math.ceil(props.price * 2.5 / 500_000) * 500_000);
-    const priceStep = priceMax > 20_000_000 ? 500_000 : priceMax > 10_000_000 ? 250_000 : 100_000;
+    const pMax  = Math.max(10_000_000, Math.ceil(props.price * 2.5 / 500_000) * 500_000);
+    const pStep = pMax > 20_000_000 ? 500_000 : pMax > 10_000_000 ? 250_000 : 100_000;
 
-    const [price, setPrice] = useState(Math.max(500_000, Math.min(priceMax, Math.round(props.price / priceStep) * priceStep)));
-    const [downPct, setDownPct] = useState(Math.max(10, Math.min(50, props.downPct)));
-    const [rate, setRate] = useState(Math.round(props.baseRate * 8) / 8); // snap to 0.125% steps
-    const [zipInput, setZipInput] = useState(props.county ?? '');
-    const [countyLimit, setCountyLimit] = useState(props.countyLimit);
-    const [county, setCounty] = useState(props.county ?? '');
+    const [price,   setPrice]   = useState(Math.max(500_000, Math.min(pMax, Math.round(props.price / pStep) * pStep)));
+    const [down,    setDown]    = useState(Math.max(10, Math.min(50, props.downPct)));
+    const [rate,    setRate]    = useState(Math.round(props.baseRate * 8) / 8);
+    const [zip,     setZip]     = useState(props.county ?? '');
+    const [cLimit,  setCLimit]  = useState(props.countyLimit);
+    const [county,  setCounty]  = useState(props.county ?? '');
     const [taxRate, setTaxRate] = useState(props.taxRate);
     const [insRate, setInsRate] = useState(props.insRate);
-    const [isDirty, setIsDirty] = useState(false);
-    const [zipError, setZipError] = useState('');
+    const [zipErr,  setZipErr]  = useState('');
+    const [open,    setOpen]    = useState(false);
+    const [vaultOk, setVaultOk] = useState(false);
 
-    const nationalBaseline = props.nationalBaseline ?? NATIONAL_CONFORMING_BASELINE.units1;
+    const { user } = useUser();
+    const router   = useRouter();
+    const natBase  = props.nationalBaseline ?? NATIONAL_CONFORMING_BASELINE.units1;
 
-    // ZIP / county lookup
-    function handleZipChange(val: string) {
-        setZipInput(val);
-        setZipError('');
-        const trimmed = val.trim();
-
-        if (trimmed.length === 5 && /^\d{5}$/.test(trimmed)) {
-            // numeric ZIP
-            const found = getCACountyByZip(trimmed);
+    function handleZip(val: string) {
+        setZip(val); setZipErr('');
+        const t = val.trim();
+        if (t.length === 5 && /^\d{5}$/.test(t)) {
+            const found = getCACountyByZip(t);
             if (found) {
-                const limits = getCALoanLimits(found);
-                if (limits) {
-                    setCountyLimit(limits.conformingLimit);
-                    setCounty(limits.county);
-                    setTaxRate(getCACountyTaxRate(limits.county));
-                    setInsRate(getCACountyInsRate(limits.county));
-                    setIsDirty(true);
-                } else {
-                    setZipError('CA county not found for this ZIP');
-                }
-            } else {
-                setZipError('ZIP not found in CA database');
-            }
-        } else if (trimmed.length > 5 && /[a-zA-Z]/.test(trimmed)) {
-            // county name
-            const limits = getCALoanLimits(trimmed);
-            if (limits) {
-                setCountyLimit(limits.conformingLimit);
-                setCounty(limits.county);
-                setTaxRate(getCACountyTaxRate(limits.county));
-                setInsRate(getCACountyInsRate(limits.county));
-                setZipError('');
-                setIsDirty(true);
-            } else {
-                setZipError('County not found');
-            }
+                const lim = getCALoanLimits(found);
+                if (lim) { setCLimit(lim.conformingLimit); setCounty(lim.county); setTaxRate(getCACountyTaxRate(lim.county)); setInsRate(getCACountyInsRate(lim.county)); }
+                else setZipErr('CA county not found');
+            } else setZipErr('ZIP not in CA database');
+        } else if (t.length > 5 && /[a-zA-Z]/.test(t)) {
+            const lim = getCALoanLimits(t);
+            if (lim) { setCLimit(lim.conformingLimit); setCounty(lim.county); setTaxRate(getCACountyTaxRate(lim.county)); setInsRate(getCACountyInsRate(lim.county)); }
+            else setZipErr('County not found');
         }
     }
 
-    const calc = useMemo(() => {
-        const loanAmount = price * (1 - downPct / 100);
-        const downAmount = price - loanAmount;
-        const ltv = loanAmount / price;
-
-        const zone: Zone =
-            loanAmount <= nationalBaseline ? 'conforming' :
-            loanAmount <= countyLimit ? 'high_balance' :
-            'jumbo';
-
-        const z = ZONE_CONFIG[zone];
-        const effectiveRate = rate;
-
-        const monthlyPI = calcPI(loanAmount, effectiveRate, 30);
-        const monthlyTax = (price * taxRate) / 12;
-        const monthlyIns = (price * insRate) / 12;
-        const monthlyPMI =
-            zone !== 'jumbo' && downPct < 20
-                ? (loanAmount * 0.008) / 12
-                : 0;
-        const totalMonthly = monthlyPI + monthlyTax + monthlyIns + monthlyPMI;
-
-        const incomeNeeded36 = (totalMonthly / 0.36) * 12;
-        const incomeNeeded43 = (totalMonthly / 0.43) * 12;
-        const incomeNeeded50 = (totalMonthly / 0.50) * 12;
-
-        const reservesAmount = totalMonthly * z.reserveMonths;
-        const closingCosts = zone === 'jumbo' ? price * 0.02 : price * 0.025;
-        const totalCashNeeded = downAmount + closingCosts + reservesAmount;
-
-        // Crossover calculations
-        const loanForHB = countyLimit; // max loan for high-balance
-        const priceForHB = loanForHB / (1 - downPct / 100);
-        const downToHighBalance =
-            zone === 'jumbo'
-                ? Math.max(0, ((loanAmount - countyLimit) / price) * 100)
-                : 0;
-
-        const loanForConforming = nationalBaseline;
-        const priceForConforming = loanForConforming / (1 - downPct / 100);
-        const downToConforming =
-            zone !== 'conforming'
-                ? Math.max(0, ((loanAmount - nationalBaseline) / price) * 100)
-                : 0;
-
-        // Annual savings from dropping a zone (approx, based on spread diff)
-        const savingsHB =
-            zone === 'jumbo'
-                ? (countyLimit * (ZONE_CONFIG.jumbo.spread - ZONE_CONFIG.high_balance.spread) / 100) / 12 * 12
-                : 0;
-        const savingsConforming =
-            zone !== 'conforming'
-                ? (nationalBaseline * (z.spread - ZONE_CONFIG.conforming.spread) / 100) / 12 * 12
-                : 0;
-
-        // Total interest over life
-        const totalInterest = monthlyPI * 360 - loanAmount;
-
+    const c = useMemo(() => {
+        const loan = price * (1 - down / 100), dp = price - loan, ltv = loan / price;
+        const zone: Zone = loan <= natBase ? 'conforming' : loan <= cLimit ? 'high_balance' : 'jumbo';
+        const z = ZC[zone];
+        const mPI = calcPI(loan, rate, 30), mTax = price * taxRate / 12, mIns = price * insRate / 12;
+        const mPMI = zone !== 'jumbo' && down < 20 ? loan * 0.008 / 12 : 0;
+        const total = mPI + mTax + mIns + mPMI;
+        const res = total * z.res, cc = price * z.cc, cash = dp + cc + res;
+        const dHB  = zone === 'jumbo' ? Math.max(0, ((loan - cLimit) / price) * 100) : 0;
+        const dCon = zone !== 'conforming' ? Math.max(0, ((loan - natBase) / price) * 100) : 0;
+        const svHB  = zone === 'jumbo' ? cLimit * (ZC.jumbo.spread - ZC.high_balance.spread) / 100 : 0;
+        const svCon = zone !== 'conforming' ? natBase * (z.spread - ZC.conforming.spread) / 100 : 0;
         return {
-            loanAmount,
-            downAmount,
-            ltv,
-            zone,
-            z,
-            effectiveRate,
-            monthlyPI,
-            monthlyTax,
-            monthlyIns,
-            monthlyPMI,
-            totalMonthly,
-            incomeNeeded36,
-            incomeNeeded43,
-            incomeNeeded50,
-            reservesAmount,
-            closingCosts,
-            totalCashNeeded,
-            downToHighBalance,
-            downToConforming,
-            savingsHB,
-            savingsConforming,
-            totalInterest,
+            loan, dp, ltv, zone, z, mPI, mTax, mIns, mPMI, total, res, cc, cash,
+            i36: (total / 0.36) * 12, i43: (total / 0.43) * 12, i50: (total / 0.50) * 12,
+            tInt: mPI * 360 - loan, dHB, dCon, svHB, svCon,
         };
-    }, [price, downPct, rate, countyLimit, nationalBaseline, taxRate, insRate]);
+    }, [price, down, rate, cLimit, natBase, taxRate, insRate]);
 
-    const { zone, z } = calc;
+    const { z } = c;
+    const countyDisplay = county ? county.charAt(0) + county.slice(1).toLowerCase().replace(/_/g, ' ') : '';
 
-    function markDirty() {
-        setIsDirty(true);
+    async function handleVault() {
+        if (!user) { router.push('/sign-up'); return; }
+        try {
+            await fetch('/api/library', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: `Jumbo Affordability: ${f$(price)} home, ${down}% down, ${fP(rate)} — ${county || 'CA'}`,
+                    answer: `PITI: ${fL(Math.round(c.total))}/mo · Income @43%: ${f$(c.i43)} · Cash at close: ${f$(c.cash)}`,
+                    tool_id: 'vault_save_jumbo_affordability',
+                }),
+            });
+            setVaultOk(true);
+        } catch { /* non-fatal */ }
     }
 
-    function handleRunScenario() {
-        if (!props.onRunScenario) return;
-        const seed = `Jumbo affordability: ${f$(price)} home, ${downPct}% down, ${fPct(rate)} rate — ${county || 'CA'}`;
-        props.onRunScenario(seed, {
-            purchasePrice: price,
-            downPaymentPct: downPct,
-            annualRatePct: rate,
-            loanType: 'jumbo',
-            county: county || undefined,
-            taxRate,
-            insRate,
-        });
+    function handleCheckProperty() {
+        const p = new URLSearchParams({ price: String(Math.round(price)), dp: String(down), rate: rate.toFixed(3), term: '30', lt: 'jumbo', taxRate: taxRate.toFixed(5), insRate: insRate.toFixed(5) });
+        router.push(`/check-property?${p.toString()}`);
     }
 
-    const countyDisplay = county
-        ? county.charAt(0) + county.slice(1).toLowerCase().replace(/_/g, ' ')
-        : '';
+    function handleRun() {
+        props.onRunScenario?.(
+            `Jumbo affordability: ${f$(price)} home, ${down}% down, ${fP(rate)} — ${county || 'CA'}`,
+            { purchasePrice: price, downPaymentPct: down, annualRatePct: rate, loanType: 'jumbo', county: county || undefined, taxRate, insRate },
+        );
+    }
 
-    // styles
-    const S = {
-        card: {
-            background: '#0e1420',
-            border: `1px solid ${z.border}`,
-            borderRadius: 16,
-            padding: '20px 20px 24px',
-            color: '#f0f4ff',
-            fontFamily: 'var(--font-dm-sans, "DM Sans", sans-serif)',
-            maxWidth: 700,
-            width: '100%',
-            boxSizing: 'border-box' as const,
-        } as CSSProperties,
-        headerBar: {
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 20,
-        } as CSSProperties,
-        title: {
-            fontSize: '0.9rem',
-            fontWeight: 700,
-            color: 'rgba(185,208,192,0.7)',
-            letterSpacing: '0.05em',
-            textTransform: 'uppercase' as const,
-        } as CSSProperties,
-        badge: {
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            background: z.bg,
-            border: `1px solid ${z.border}`,
-            borderRadius: 20,
-            padding: '4px 12px',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            color: z.color,
-        } as CSSProperties,
-        heroRow: {
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 12,
-            marginBottom: 20,
-        } as CSSProperties,
-        heroBox: {
-            background: 'rgba(255,255,255,0.04)',
-            borderRadius: 12,
-            padding: '12px 14px',
-            textAlign: 'center' as const,
-            minWidth: 0,
-            overflow: 'hidden',
-        } as CSSProperties,
-        heroVal: {
-            fontSize: '1.4rem',
-            fontWeight: 800,
-            color: '#f0f4ff',
-            lineHeight: 1.1,
-        } as CSSProperties,
-        heroLabel: {
-            fontSize: '0.7rem',
-            color: 'rgba(185,208,192,0.6)',
-            marginTop: 4,
-            textTransform: 'uppercase' as const,
-            letterSpacing: '0.04em',
-        } as CSSProperties,
-        callout: {
-            background: z.bg,
-            border: `1px solid ${z.border}`,
-            borderRadius: 10,
-            padding: '10px 14px',
-            fontSize: '0.82rem',
-            color: z.color,
-            marginBottom: 14,
-        } as CSSProperties,
-        crossover: {
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.07)',
-            borderRadius: 10,
-            padding: '10px 14px',
-            fontSize: '0.82rem',
-            color: 'rgba(185,208,192,0.85)',
-            marginBottom: 10,
-        } as CSSProperties,
-        sectionLabel: {
-            fontSize: '0.72rem',
-            fontWeight: 700,
-            color: 'rgba(185,208,192,0.5)',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase' as const,
-            marginBottom: 8,
-            marginTop: 18,
-        } as CSSProperties,
-        sliderWrap: {
-            marginBottom: 16,
-        } as CSSProperties,
-        sliderRow: {
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 6,
-        } as CSSProperties,
-        sliderLabel: {
-            fontSize: '0.82rem',
-            color: 'rgba(185,208,192,0.8)',
-        } as CSSProperties,
-        sliderVal: {
-            fontSize: '0.85rem',
-            fontWeight: 700,
-            color: '#f0f4ff',
-        } as CSSProperties,
-        rangeInput: {
-            width: '100%',
-            height: 4,
-            borderRadius: 2,
-            outline: 'none',
-            appearance: 'none' as const,
-            WebkitAppearance: 'none' as const,
-            cursor: 'pointer',
-        } as CSSProperties,
-        table: {
-            width: '100%',
-            borderCollapse: 'collapse' as const,
-            fontSize: '0.82rem',
-        } as CSSProperties,
-        tr: {
-            borderBottom: '1px solid rgba(255,255,255,0.05)',
-        } as CSSProperties,
-        tdLabel: {
-            padding: '7px 0',
-            color: 'rgba(185,208,192,0.7)',
-        } as CSSProperties,
-        tdVal: {
-            padding: '7px 0',
-            textAlign: 'right' as const,
-            fontWeight: 600,
-            color: '#f0f4ff',
-        } as CSSProperties,
-        tdTotal: {
-            padding: '9px 0',
-            color: '#f0f4ff',
-            fontWeight: 700,
-        } as CSSProperties,
-        tdTotalVal: {
-            padding: '9px 0',
-            textAlign: 'right' as const,
-            fontWeight: 800,
-            color: z.color,
-            fontSize: '1rem',
-        } as CSSProperties,
-        zipInput: {
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 8,
-            padding: '8px 12px',
-            color: '#f0f4ff',
-            fontSize: '0.85rem',
-            outline: 'none',
-            width: '100%',
-        } as CSSProperties,
-        runBtn: {
-            marginTop: 20,
-            width: '100%',
-            background: z.color,
-            border: 'none',
-            borderRadius: 10,
-            padding: '12px',
-            color: '#fff',
-            fontSize: '0.88rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-        } as CSSProperties,
-        reserveCallout: {
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 10,
-            padding: '10px 14px',
-            fontSize: '0.82rem',
-            color: 'rgba(185,208,192,0.85)',
-            marginBottom: 14,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-        } as CSSProperties,
-    };
+    function handleGetMatched() {
+        const p = new URLSearchParams({ from: 'scenario', lt: 'Jumbo', purpose: 'Purchase', price: String(Math.round(price)), dp: String(down), monthly: String(Math.round(c.total)), rate: String(rate), term: '30' });
+        router.push(`/connect/post?${p.toString()}`);
+    }
+
+    // ── shared style fragments ────────────────────────────────────────────────
+    const divS: CSSProperties  = { height: 1, background: 'rgba(255,255,255,0.06)', margin: '16px 20px 0' };
+    const secLbl: CSSProperties = { fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' as const, color: 'rgba(185,208,192,0.45)', padding: '14px 20px 0' };
+    const bRow: CSSProperties  = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.84rem' };
+    const bLbl: CSSProperties  = { color: 'rgba(185,208,192,0.75)' };
+    const bVal: CSSProperties  = { fontWeight: 600, color: '#f0f4ff' };
+    const dsLbl: CSSProperties = { fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' as const, color: 'rgba(185,208,192,0.4)', marginBottom: 8 };
 
     return (
-        <div style={S.card}>
+        <div style={{ background: '#0e1420', border: `1px solid ${z.border}`, borderRadius: 18, width: '100%', color: '#f0f4ff', fontFamily: 'var(--font-dm-sans,"DM Sans",sans-serif)', overflow: 'hidden', transition: 'border-color 0.3s' }}>
+
             {/* Header */}
-            <div style={S.headerBar}>
-                <span style={S.title}>Jumbo Affordability</span>
-                <span style={S.badge}>
-                    <span>{z.icon}</span>
-                    <span>{z.label}</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 0' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'rgba(185,208,192,0.55)' }}>Jumbo Affordability</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: z.bg, border: `1px solid ${z.border}`, borderRadius: 20, padding: '4px 12px', fontSize: '0.78rem', fontWeight: 700, color: z.color }}>
+                    {z.icon} {z.label}
                 </span>
             </div>
 
-            {/* Hero row */}
-            <div style={S.heroRow}>
-                <div style={S.heroBox}>
-                    <div style={S.heroVal}>{fLong(Math.round(calc.totalMonthly))}</div>
-                    <div style={S.heroLabel}>Monthly PITI{calc.monthlyPMI > 0 ? '+PMI' : ''}</div>
-                </div>
-                <div style={S.heroBox}>
-                    <div style={S.heroVal}>{f$(calc.incomeNeeded43)}</div>
-                    <div style={S.heroLabel}>Income Needed (43% DTI)</div>
-                </div>
-                <div style={S.heroBox}>
-                    <div style={S.heroVal}>{f$(calc.totalCashNeeded)}</div>
-                    <div style={S.heroLabel}>Cash at Close</div>
-                </div>
-            </div>
-
-            {/* Zone note */}
-            <div style={S.callout}>{z.note}</div>
-
-            {/* Crossover callouts */}
-            {calc.downToHighBalance > 0 && (
-                <div style={S.crossover}>
-                    <strong style={{ color: ZONE_CONFIG.high_balance.color }}>High-Balance crossover:</strong>{' '}
-                    Add {fPct(calc.downToHighBalance)} more down to reach high-balance — saves{' '}
-                    <strong>{fLong(Math.round(calc.savingsHB))}/yr</strong> in interest.
-                </div>
-            )}
-            {calc.downToConforming > 0 && (
-                <div style={S.crossover}>
-                    <strong style={{ color: ZONE_CONFIG.conforming.color }}>Conforming crossover:</strong>{' '}
-                    Add {fPct(calc.downToConforming)} more down to reach conforming — saves{' '}
-                    <strong>{fLong(Math.round(calc.savingsConforming))}/yr</strong> in interest.
-                </div>
-            )}
-
-            {/* Reserves callout */}
-            <div style={S.reserveCallout}>
-                <span style={{ fontSize: '1rem' }}>🏦</span>
-                <span>
-                    <strong>{z.reserveMonths}-month reserves</strong> required for {z.label.toLowerCase()} loans —{' '}
-                    <strong>{fLong(Math.round(calc.reservesAmount))}</strong> at current payment.
-                </span>
-            </div>
-
-            {/* Sliders */}
-            <div style={S.sectionLabel}>Adjust Scenario</div>
-
-            {/* Price slider */}
-            <div style={S.sliderWrap}>
-                <SliderField
-                    label="Purchase Price" value={price}
-                    min={500_000} max={priceMax} step={priceStep}
-                    onChange={v => { setPrice(v); markDirty(); }}
-                    format={fLong}
-                    minLabel="$500k" maxLabel={f$(priceMax)}
-                    trackColor={z.color} theme="dark"
-                />
-            </div>
-
-            {/* Down payment slider */}
-            <div style={S.sliderWrap}>
-                <SliderField
-                    label="Down Payment" value={downPct}
-                    min={10} max={50} step={1}
-                    onChange={v => { setDownPct(v); markDirty(); }}
-                    format={v => `${v}% (${fLong(Math.round(price * v / 100))})`}
-                    minLabel="10%" maxLabel="50%"
-                    trackColor={z.color} theme="dark"
-                />
-            </div>
-
-            {/* Rate slider */}
-            <div style={S.sliderWrap}>
-                <SliderField
-                    label="Interest Rate" value={rate}
-                    min={3.5} max={10} step={0.125}
-                    onChange={v => { setRate(v); markDirty(); }}
-                    format={fPct}
-                    minLabel="3.5%"
-                    midLabel={`FRED: ${fPct(props.baseRate)}`}
-                    maxLabel="10%"
-                    trackColor={z.color} theme="dark"
-                />
-                {zone !== 'conforming' && (
-                    <div style={{ fontSize: '0.72rem', color: 'rgba(185,208,192,0.45)', marginTop: 5, lineHeight: 1.5 }}>
-                        💡 {zone === 'jumbo' ? 'Jumbo loans typically run 0.25–0.50% above conforming' : 'High-balance loans typically run 0.125–0.25% above conforming'} — varies by lender, credit, and reserves.
+            {/* Hero */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, padding: '14px 20px 0' }}>
+                {([
+                    { val: fL(Math.round(c.total)),                         lbl: 'Monthly PITI',    accent: true },
+                    { val: f$(Math.round(c.i43 / 1000) * 1000),             lbl: 'Income @43% DTI', accent: false },
+                    { val: f$(Math.round(c.cash)),                           lbl: 'Cash at Close',   accent: false },
+                ] as { val: string; lbl: string; accent: boolean }[]).map(({ val, lbl, accent }) => (
+                    <div key={lbl} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: '14px 10px', textAlign: 'center' as const, minWidth: 0 }}>
+                        <div style={{ fontSize: 'clamp(1.15rem,4vw,1.55rem)', fontWeight: 800, color: accent ? z.color : '#f0f4ff', lineHeight: 1.1, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
+                        <div style={{ fontSize: '0.63rem', color: 'rgba(185,208,192,0.55)', marginTop: 5, textTransform: 'uppercase' as const, letterSpacing: '0.04em', lineHeight: 1.3 }}>{lbl}</div>
                     </div>
+                ))}
+            </div>
+
+            {/* Crossover strip */}
+            {(c.dHB > 0.05 || c.dCon > 0.05) && (
+                <div style={{ margin: '12px 20px 0', background: 'rgba(255,140,66,0.07)', border: '1px solid rgba(255,140,66,0.25)', borderRadius: 10, padding: '9px 14px', fontSize: '0.8rem', color: 'rgba(185,208,192,0.9)', display: 'flex', gap: 8, alignItems: 'flex-start', lineHeight: 1.5 }}>
+                    <span>⚡</span>
+                    {c.dHB > 0.05
+                        ? <span>Add <strong style={{ color: '#ff8c42' }}>{fP(c.dHB)} more down</strong> → High-Balance — saves <strong style={{ color: '#00e87a' }}>{fL(Math.round(c.svHB))}/yr</strong></span>
+                        : <span>Add <strong style={{ color: '#00e87a' }}>{fP(c.dCon)} more down</strong> → Conforming — saves <strong style={{ color: '#00e87a' }}>{fL(Math.round(c.svCon))}/yr</strong></span>
+                    }
+                </div>
+            )}
+
+            {/* Monthly Breakdown */}
+            <div style={divS} />
+            <div style={secLbl}>Monthly Breakdown</div>
+            <div style={{ padding: '8px 20px 0' }}>
+                {([
+                    { lbl: 'Principal & Interest', val: fL(Math.round(c.mPI)) },
+                    { lbl: `Property Tax (${fP(taxRate * 100)})`, val: fL(Math.round(c.mTax)) },
+                    { lbl: "Homeowner's Insurance", val: fL(Math.round(c.mIns)) },
+                    ...(c.mPMI > 0 ? [{ lbl: 'PMI (until 20% equity)', val: fL(Math.round(c.mPMI)) }] : []),
+                ] as { lbl: string; val: string }[]).map(({ lbl, val }) => (
+                    <div key={lbl} style={bRow}><span style={bLbl}>{lbl}</span><span style={bVal}>{val}</span></div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0 0', fontSize: '0.9rem', fontWeight: 700, marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <span>Total Monthly PITI</span>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 800, color: z.color }}>{fL(Math.round(c.total))}</span>
+                </div>
+            </div>
+
+            {/* Adjust Your Numbers */}
+            <div style={divS} />
+            <div style={secLbl}>Adjust Your Numbers</div>
+            <div style={{ padding: '6px 20px 0' }}>
+                <div style={{ marginBottom: 16 }}>
+                    <SliderField label="Purchase Price" value={price} min={500_000} max={pMax} step={pStep}
+                        onChange={setPrice} format={fL} minLabel="$500k" maxLabel={f$(pMax)} trackColor={z.color} theme="dark" />
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                    <SliderField label="Down Payment" value={down} min={10} max={50} step={1}
+                        onChange={setDown} format={v => `${v}% (${fL(Math.round(price * v / 100))})`}
+                        minLabel="10%" maxLabel="50%" trackColor={z.color} theme="dark" />
+                </div>
+                <div style={{ marginBottom: 4 }}>
+                    <SliderField label="Interest Rate" value={rate} min={3.5} max={10} step={0.125}
+                        onChange={setRate} format={fP} minLabel="3.5%" midLabel={`FRED: ${fP(props.baseRate)}`} maxLabel="10%"
+                        trackColor={z.color} theme="dark" />
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(61,139,255,0.1)', border: '1px solid rgba(61,139,255,0.25)', borderRadius: 6, padding: '3px 8px', fontSize: '0.7rem', color: '#3d8bff', fontWeight: 600, marginTop: 6 }}>
+                        📡 Seeded from FRED live rate: {fP(props.baseRate)}
+                    </div>
+                    {c.zone !== 'conforming' && (
+                        <div style={{ fontSize: '0.7rem', color: 'rgba(185,208,192,0.4)', marginTop: 5, lineHeight: 1.5 }}>
+                            💡 {c.zone === 'jumbo' ? 'Jumbo loans typically run 0.25–0.50% above conforming' : 'High-balance loans typically run 0.125–0.25% above conforming'} — varies by lender, credit, and reserves.
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* What Income Do I Need to Qualify? */}
+            <div style={divS} />
+            <div style={secLbl}>What Income Do I Need to Qualify?</div>
+            <div style={{ padding: '8px 20px 0' }}>
+                {([
+                    { lbl: '36% DTI — Conservative', val: fL(Math.round(c.i36 / 1000) * 1000), dim: false },
+                    { lbl: '43% DTI — Standard',     val: fL(Math.round(c.i43 / 1000) * 1000), dim: false },
+                    { lbl: '50% DTI — Stretch',      val: fL(Math.round(c.i50 / 1000) * 1000), dim: true  },
+                ] as { lbl: string; val: string; dim: boolean }[]).map(({ lbl, val, dim }) => (
+                    <div key={lbl} style={{ ...bRow, borderBottom: dim ? 'none' : '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ ...bLbl, ...(dim ? { color: 'rgba(185,208,192,0.38)' } : {}) }}>{lbl}</span>
+                        <span style={{ ...bVal, ...(dim ? { color: 'rgba(185,208,192,0.38)', fontWeight: 500 } : {}) }}>{val}</span>
+                    </div>
+                ))}
+            </div>
+
+            {/* CTAs */}
+            <div style={{ display: 'grid', gridTemplateColumns: props.onRunScenario ? '1fr 1fr' : '1fr', gap: 10, padding: '16px 20px 0' }}>
+                <button onClick={handleCheckProperty} style={{ padding: '11px 8px', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', textAlign: 'center' as const, background: 'rgba(61,139,255,0.1)', border: '1px solid rgba(61,139,255,0.25)', color: '#3d8bff', fontFamily: 'inherit' }}>
+                    Check Property ↗
+                </button>
+                {props.onRunScenario && (
+                    <button onClick={handleRun} style={{ padding: '11px 8px', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', textAlign: 'center' as const, background: z.color, border: 'none', color: '#fff', fontFamily: 'inherit' }}>
+                        Run My Numbers →
+                    </button>
                 )}
             </div>
-
-            {/* ZIP / County input */}
-            <div style={S.sectionLabel}>County / ZIP (California)</div>
-            <input
-                type="text"
-                placeholder="ZIP code or county name (e.g. 90210 or Los Angeles)"
-                value={zipInput}
-                onChange={e => handleZipChange(e.target.value)}
-                style={S.zipInput}
-            />
-            {zipError && (
-                <div style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: 4 }}>{zipError}</div>
-            )}
-            {countyDisplay && !zipError && (
-                <div style={{ fontSize: '0.75rem', color: 'rgba(185,208,192,0.6)', marginTop: 4 }}>
-                    {countyDisplay} County — conforming limit {fLong(countyLimit)}
-                </div>
-            )}
-
-            {/* Monthly breakdown table */}
-            <div style={S.sectionLabel}>Monthly Breakdown</div>
-            <table style={S.table}>
-                <tbody>
-                    <tr style={S.tr}>
-                        <td style={S.tdLabel}>Principal & Interest</td>
-                        <td style={S.tdVal}>{fLong(Math.round(calc.monthlyPI))}</td>
-                    </tr>
-                    <tr style={S.tr}>
-                        <td style={S.tdLabel}>Property Tax ({fPct(taxRate * 100)})</td>
-                        <td style={S.tdVal}>{fLong(Math.round(calc.monthlyTax))}</td>
-                    </tr>
-                    <tr style={S.tr}>
-                        <td style={S.tdLabel}>Homeowner's Insurance</td>
-                        <td style={S.tdVal}>{fLong(Math.round(calc.monthlyIns))}</td>
-                    </tr>
-                    {calc.monthlyPMI > 0 && (
-                        <tr style={S.tr}>
-                            <td style={S.tdLabel}>PMI (until 20% equity)</td>
-                            <td style={S.tdVal}>{fLong(Math.round(calc.monthlyPMI))}</td>
-                        </tr>
-                    )}
-                    <tr>
-                        <td style={S.tdTotal}>Total Monthly PITI</td>
-                        <td style={S.tdTotalVal}>{fLong(Math.round(calc.totalMonthly))}</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            {/* DTI income table */}
-            <div style={S.sectionLabel}>Annual Income Needed by DTI</div>
-            <table style={S.table}>
-                <tbody>
-                    <tr style={S.tr}>
-                        <td style={S.tdLabel}>36% DTI (conservative)</td>
-                        <td style={S.tdVal}>{fLong(Math.round(calc.incomeNeeded36 / 1000) * 1000)}</td>
-                    </tr>
-                    <tr style={S.tr}>
-                        <td style={S.tdLabel}>43% DTI (standard)</td>
-                        <td style={S.tdVal}>{fLong(Math.round(calc.incomeNeeded43 / 1000) * 1000)}</td>
-                    </tr>
-                    <tr>
-                        <td style={{ ...S.tdTotal, color: 'rgba(185,208,192,0.6)', fontWeight: 500 }}>50% DTI (stretch)</td>
-                        <td style={{ ...S.tdTotalVal, color: 'rgba(185,208,192,0.6)', fontSize: '0.85rem' }}>{fLong(Math.round(calc.incomeNeeded50 / 1000) * 1000)}</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            {/* Loan summary */}
-            <div style={S.sectionLabel}>Loan Summary</div>
-            <table style={S.table}>
-                <tbody>
-                    <tr style={S.tr}>
-                        <td style={S.tdLabel}>Loan Amount</td>
-                        <td style={S.tdVal}>{fLong(Math.round(calc.loanAmount))}</td>
-                    </tr>
-                    <tr style={S.tr}>
-                        <td style={S.tdLabel}>LTV</td>
-                        <td style={S.tdVal}>{fPct(calc.ltv * 100)}</td>
-                    </tr>
-                    <tr style={S.tr}>
-                        <td style={S.tdLabel}>Rate</td>
-                        <td style={S.tdVal}>{fPct(calc.effectiveRate)}</td>
-                    </tr>
-                    <tr style={S.tr}>
-                        <td style={S.tdLabel}>Est. Total Interest (30yr)</td>
-                        <td style={S.tdVal}>{fLong(Math.round(calc.totalInterest))}</td>
-                    </tr>
-                    <tr style={S.tr}>
-                        <td style={S.tdLabel}>Down Payment</td>
-                        <td style={S.tdVal}>{fLong(Math.round(calc.downAmount))}</td>
-                    </tr>
-                    <tr style={S.tr}>
-                        <td style={S.tdLabel}>Est. Closing Costs ({zone === 'jumbo' ? '2%' : '2.5%'})</td>
-                        <td style={S.tdVal}>{fLong(Math.round(calc.closingCosts))}</td>
-                    </tr>
-                    <tr>
-                        <td style={S.tdTotal}>Total Cash Needed</td>
-                        <td style={S.tdTotalVal}>{fLong(Math.round(calc.totalCashNeeded))}</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            {/* Run scenario button */}
-            {isDirty && props.onRunScenario && (
-                <button style={S.runBtn} onClick={handleRunScenario}>
-                    Run adjusted scenario →
+            <div style={{ padding: '10px 20px 0' }}>
+                <button onClick={handleGetMatched} style={{ width: '100%', padding: '11px 8px', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', textAlign: 'center' as const, background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(185,208,192,0.8)', fontFamily: 'inherit' }}>
+                    Get Matched with a Jumbo Specialist →
                 </button>
-            )}
+            </div>
+
+            {/* Drawer trigger */}
+            <button
+                onClick={() => setOpen(o => !o)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, margin: '14px 20px 0', padding: '13px 20px', cursor: 'pointer', fontSize: '0.84rem', color: z.color, background: z.bg, border: `1.5px solid ${z.border}`, borderRadius: 12, fontFamily: 'inherit', width: 'calc(100% - 40px)', userSelect: 'none' as const }}
+            >
+                <span style={{ fontWeight: 700, letterSpacing: '0.01em' }}>Loan Zone · Full Summary · Cash to Close</span>
+                <span style={{ fontSize: '0.7rem', opacity: 0.7, transition: 'transform 0.25s', display: 'inline-block', transform: open ? 'rotate(180deg)' : undefined }}>▼</span>
+            </button>
+
+            {/* Drawer */}
+            <div style={{ maxHeight: open ? 1400 : 0, overflow: 'hidden', transition: 'max-height 0.38s ease', background: '#080c12' }}>
+                <div style={{ padding: '0 0 28px' }}>
+
+                    {/* Zone detail */}
+                    <div style={{ padding: '14px 20px 0' }}>
+                        <div style={dsLbl}>Loan Zone</div>
+                        <div style={{ background: z.bg, border: `1px solid ${z.border}`, borderRadius: 10, padding: '12px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', fontWeight: 700, color: z.color, marginBottom: 6 }}>{z.icon} {z.label} Loan</div>
+                            <div style={{ fontSize: '0.8rem', color: 'rgba(185,208,192,0.8)', lineHeight: 1.55 }}>{z.note}</div>
+                        </div>
+                        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                            {c.dHB > 0.05 && (
+                                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '9px 12px', fontSize: '0.8rem', color: 'rgba(185,208,192,0.85)', lineHeight: 1.55 }}>
+                                    <strong style={{ color: '#ff8c42' }}>High-Balance crossover:</strong> Add {fP(c.dHB)} more down (loan → {fL(Math.round(cLimit))} county limit) — saves <strong style={{ color: '#00e87a' }}>{fL(Math.round(c.svHB))}/yr</strong> in rate premium.
+                                </div>
+                            )}
+                            {c.dCon > 0.05 && (
+                                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '9px 12px', fontSize: '0.8rem', color: 'rgba(185,208,192,0.85)', lineHeight: 1.55 }}>
+                                    <strong style={{ color: '#00e87a' }}>Conforming crossover:</strong> Add {fP(c.dCon)} more down (loan → {fL(natBase)} national limit) — saves <strong style={{ color: '#00e87a' }}>{fL(Math.round(c.svCon))}/yr</strong> in rate premium.
+                                </div>
+                            )}
+                            {c.dHB <= 0.05 && c.dCon <= 0.05 && (
+                                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '9px 12px', fontSize: '0.8rem', color: 'rgba(185,208,192,0.38)', lineHeight: 1.55 }}>
+                                    No crossover opportunity at current price &amp; down payment.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* County / ZIP */}
+                    <div style={{ padding: '14px 20px 0' }}>
+                        <div style={dsLbl}>County / ZIP (California)</div>
+                        <input
+                            type="text"
+                            placeholder="ZIP code or county name (e.g. 90210 or Los Angeles)"
+                            value={zip} onChange={e => handleZip(e.target.value)}
+                            style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 8, padding: '9px 12px', color: '#f0f4ff', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit', marginTop: 8 }}
+                        />
+                        {zipErr && <div style={{ fontSize: '0.71rem', color: '#ef4444', marginTop: 4 }}>{zipErr}</div>}
+                        {countyDisplay && !zipErr && <div style={{ fontSize: '0.71rem', color: 'rgba(185,208,192,0.42)', marginTop: 5 }}>{countyDisplay} County — conforming limit {fL(cLimit)}</div>}
+                        {!countyDisplay && !zipErr && <div style={{ fontSize: '0.71rem', color: 'rgba(185,208,192,0.42)', marginTop: 5 }}>Updates loan limits, tax rate &amp; insurance for your county.</div>}
+                    </div>
+
+                    {/* Reserves */}
+                    <div style={{ padding: '14px 20px 0' }}>
+                        <div style={dsLbl}>Lender Reserve Requirement</div>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '11px 14px', fontSize: '0.8rem', color: 'rgba(185,208,192,0.85)', lineHeight: 1.5, marginTop: 8 }}>
+                            <span>🏦</span>
+                            <span><strong>{z.res}-month reserves</strong> required for {z.label.toLowerCase()} loans — <strong>{fL(Math.round(c.res))}</strong> at current monthly payment.</span>
+                        </div>
+                    </div>
+
+                    {/* Full Loan Summary */}
+                    <div style={{ padding: '14px 20px 0' }}>
+                        <div style={dsLbl}>Full Loan Summary</div>
+                        <div style={{ marginTop: 8 }}>
+                            {([
+                                { lbl: 'Loan Amount',                                           val: fL(Math.round(c.loan)) },
+                                { lbl: 'LTV',                                                   val: fP(c.ltv * 100) },
+                                { lbl: 'Down Payment',                                          val: fL(Math.round(c.dp)) },
+                                { lbl: `Est. Closing Costs (${c.zone === 'jumbo' ? '2%' : '2.5%'})`, val: fL(Math.round(c.cc)) },
+                                { lbl: `Reserves (${z.res} months)`,                            val: fL(Math.round(c.res)) },
+                                { lbl: 'Est. Total Interest (30yr)',                            val: fL(Math.round(c.tInt)) },
+                            ] as { lbl: string; val: string }[]).map(({ lbl, val }) => (
+                                <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.83rem' }}>
+                                    <span style={{ color: 'rgba(185,208,192,0.7)' }}>{lbl}</span>
+                                    <span style={{ fontWeight: 600, color: '#f0f4ff' }}>{val}</span>
+                                </div>
+                            ))}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: '0.9rem', fontWeight: 700, marginTop: 4 }}>
+                                <span>Total Cash Needed</span>
+                                <span style={{ fontSize: '1rem', fontWeight: 800, color: z.color }}>{fL(Math.round(c.cash))}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            {/* ════ PERMANENT BOTTOM ════ */}
+            <div style={{ paddingBottom: 20 }}>
+                <div style={{ ...secLbl, paddingTop: 18 }}>Save This Scenario</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '10px 20px 0' }}>
+                    <button onClick={handleVault} style={{ padding: '11px 8px', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', textAlign: 'center' as const, background: 'rgba(61,139,255,0.1)', border: '1px solid rgba(61,139,255,0.25)', color: '#3d8bff', fontFamily: 'inherit' }}>
+                        {vaultOk ? '✓ Saved' : '⭐ Save to My Vault'}
+                    </button>
+                    <div style={{ display: 'flex' }}>
+                        <PdfDownloadButton
+                            type="jumbo"
+                            getParams={() => ({ price, downPct: down, rate, term: 30, taxRate, insRate, loanType: 'jumbo' })}
+                        />
+                    </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '12px 20px 0', padding: '10px 12px', background: 'rgba(61,139,255,0.05)', border: '1px solid rgba(61,139,255,0.15)', borderRadius: 8, fontSize: '0.75rem', color: 'rgba(185,208,192,0.65)', lineHeight: 1.55 }}>
+                    <span>💡</span>
+                    <span><strong style={{ color: 'rgba(185,208,192,0.9)' }}>Rate seeded from live FRED 30yr avg.</strong> Jumbo loans typically run 0.25–0.50% above conforming. Adjust the rate slider to model your actual scenario.</span>
+                </div>
+                <div style={{ margin: '12px 20px 0', padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, fontSize: '0.71rem', color: 'rgba(185,208,192,0.38)', lineHeight: 1.65, border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <strong style={{ color: 'rgba(185,208,192,0.55)' }}>⚠️ Educational estimates only.</strong> All figures are approximate and for informational purposes only. Actual rates, taxes, insurance, PMI, closing costs, and reserve requirements will vary based on lender, credit profile, property location, and market conditions. This is not a commitment to lend or a loan approval. 2026 conforming limits sourced from FHFA. Rate data from FRED / St. Louis Fed (PMMS series).
+                </div>
+                <div style={{ padding: '14px 20px 0' }}>
+                    <button style={{ width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 10, padding: 11, color: 'rgba(185,208,192,0.6)', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                        ↗ &nbsp;Share This Scenario
+                    </button>
+                </div>
+            </div>
+
         </div>
     );
 }
