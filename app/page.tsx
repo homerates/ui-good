@@ -1030,8 +1030,8 @@ export default function LandingPage() {
 
           {/* CHIPS — each pre-seeds the chat question */}
           <div className="lp-chips">
-            <button className="lp-chip" onClick={() => goChat('Conventional loan on an $832,750 home with 20% down at current rates — confirm this is at the conforming limit')}>$832,750 · 20% down · conforming</button>
-            <button className="lp-chip" onClick={() => goChat('Conventional loan on an $832,750 home with 5% down — show me the full payment including PMI')}>$832,750 · 5% down · PMI?</button>
+            <button className="lp-chip" onClick={() => goChat('Conventional loan with a $832,750 loan amount and 20% down at current rates — show me the full monthly payment breakdown')}>$832,750 · 20% down · conforming</button>
+            <button className="lp-chip" onClick={() => goChat('Conventional loan with a $832,750 loan amount and 5% down — show me the full payment including PMI')}>$832,750 · 5% down · PMI?</button>
             <button className="lp-chip" onClick={() => goChat('FHA loan on a $700,000 home in Los Angeles with 3.5% down — show me the full payment breakdown including MIP and confirm FHA limits for LA County')}>FHA · $700k LA · 3.5% down</button>
             <button className="lp-chip" onClick={() => goChat('I make $180,000 a year and have $90,000 saved — can I afford a $900,000 home in California?')}>Can I afford $900k on $180k?</button>
             <button className="lp-chip" onClick={() => goChat('DSCR loan on a $650,000 rental property with $4,200/mo rent and 25% down — does it cash flow in California?')}>DSCR rental · $650k · $4,200 rent</button>

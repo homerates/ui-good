@@ -6,8 +6,8 @@ import React, { useEffect, useState } from 'react';
 
 // Quick scenario chips — fires immediately into chat
 const QUICK_CHIPS = [
-    { label: '$832,750 · 20% down · conforming', seed: 'Conventional loan on an $832,750 home with 20% down — confirm this is at the CA conforming limit and show full payment' },
-    { label: '$832,750 · 10% down · PMI?', seed: 'Conventional loan on an $832,750 home with 10% down — show me the full payment including PMI at the conforming limit' },
+    { label: '$832,750 · 20% down · conforming', seed: 'Conventional loan with a $832,750 loan amount and 20% down at current rates — show me the full monthly payment breakdown' },
+    { label: '$832,750 · 10% down · PMI?', seed: 'Conventional loan with a $832,750 loan amount and 10% down at current rates — show me the full payment including PMI' },
     { label: 'High Balance · $1.1M LA · 15% down', seed: 'I am buying a $1,100,000 home in Los Angeles with 15% down — does my loan qualify as High Balance conventional or do I need Jumbo financing?' },
     { label: 'DSCR · $650k rental · $4,200 rent', seed: 'DSCR loan on a $650,000 rental property in California, $4,200/mo rent, 25% down — does it cash flow?' },
     { label: 'VA loan · $850k · no down payment', seed: 'VA loan on an $850,000 home with no down payment at current rates — show me the full breakdown including funding fee' },

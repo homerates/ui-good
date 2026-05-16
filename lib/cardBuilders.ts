@@ -2257,7 +2257,7 @@ export function buildUWCard(input: UWCardInput): BuiltCard {
 
 export function buildLabCard(): BuiltCard {
     const labModules = [
-        { icon: '🏠', label: 'Home Purchase',   tag: 'Conventional',     desc: '$832,750 · 10% down · live rate',          seed: 'Conventional loan $832,750 home 10% down' },
+        { icon: '🏠', label: 'Home Purchase',   tag: 'Conventional',     desc: '$832,750 · 10% down · live rate',          seed: 'Conventional loan with a $832,750 loan amount and 10% down at current rates' },
         { icon: '📋', label: 'FHA Loan',         tag: 'Gov-backed',       desc: '$580,000 · 3.5% down · live rate',         seed: 'FHA loan $580,000 home 3.5% down' },
         { icon: '🎖️', label: 'VA Loan',          tag: '$0 down · no PMI', desc: '$850,000 · 0% down · live rate',           seed: 'VA loan $850,000 home 0% down' },
         { icon: '💎', label: 'Jumbo Loan',        tag: 'Above conforming', desc: '$1.4M · 20% down · live rate',              seed: 'Jumbo loan $1,400,000 home 20% down' },
