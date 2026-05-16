@@ -198,17 +198,6 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                 ))}
             </div>
 
-            {/* Crossover strip */}
-            {(c.dHB > 0.05 || c.dCon > 0.05) && (
-                <div style={{ margin: '12px 20px 0', background: 'rgba(255,140,66,0.07)', border: '1px solid rgba(255,140,66,0.25)', borderRadius: 10, padding: '9px 14px', fontSize: '0.8rem', color: 'rgba(185,208,192,0.9)', display: 'flex', gap: 8, alignItems: 'flex-start', lineHeight: 1.5 }}>
-                    <span>⚡</span>
-                    {c.dHB > 0.05
-                        ? <span>Add <strong style={{ color: '#ff8c42' }}>{fP(c.dHB)} more down</strong> → High-Balance — saves <strong style={{ color: '#00e87a' }}>{fL(Math.round(c.svHB))}/yr</strong></span>
-                        : <span>Add <strong style={{ color: '#00e87a' }}>{fP(c.dCon)} more down</strong> → Conforming — saves <strong style={{ color: '#00e87a' }}>{fL(Math.round(c.svCon))}/yr</strong></span>
-                    }
-                </div>
-            )}
-
             {/* Monthly Breakdown */}
             <div style={divS} />
             <div style={secLbl}>Monthly Breakdown</div>
@@ -397,11 +386,6 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                 </div>
                 <div style={{ margin: '12px 20px 0', padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, fontSize: '0.71rem', color: 'rgba(185,208,192,0.38)', lineHeight: 1.65, border: '1px solid rgba(255,255,255,0.05)' }}>
                     <strong style={{ color: 'rgba(185,208,192,0.55)' }}>⚠️ Educational estimates only.</strong> All figures are approximate and for informational purposes only. Actual rates, taxes, insurance, PMI, closing costs, and reserve requirements will vary based on lender, credit profile, property location, and market conditions. This is not a commitment to lend or a loan approval. 2026 conforming limits sourced from FHFA. Rate data from FRED / St. Louis Fed (PMMS series).
-                </div>
-                <div style={{ padding: '14px 20px 0' }}>
-                    <button style={{ width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 10, padding: 11, color: 'rgba(185,208,192,0.6)', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
-                        ↗ &nbsp;Share This Scenario
-                    </button>
                 </div>
             </div>
 

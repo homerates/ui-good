@@ -236,17 +236,6 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 </div>
             </div>
 
-            {/* Crossover strip */}
-            {(downToHighBal > 0.05 || downToConforming > 0.05) && (
-                <div className="jbs-xstrip">
-                    <span>⚡</span>
-                    {downToHighBal > 0.05
-                        ? <span>Add <strong style={{ color: '#ff8c42' }}>{downToHighBal.toFixed(2)}% more down</strong> → High-Balance — saves <strong style={{ color: '#00e87a' }}>{fmt$(Math.round(savingsHighBal))}/yr</strong></span>
-                        : <span>Add <strong style={{ color: '#00e87a' }}>{downToConforming.toFixed(2)}% more down</strong> → Conforming — saves <strong style={{ color: '#00e87a' }}>{fmt$(Math.round(savingsConforming))}/yr</strong></span>
-                    }
-                </div>
-            )}
-
             {/* Monthly Breakdown */}
             <div className="jbs-div" />
             <div className="jbs-sec">Monthly Breakdown</div>
@@ -480,9 +469,6 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 </div>
                 <div className="jbs-disc-new">
                     <strong>⚠️ Educational estimates only.</strong> A &quot;jumbo&quot; loan exceeds the 2026 FHFA conforming baseline of {fmt$(NATIONAL_CONFORMING_2026)} for a 1-unit standard-cost area residence. High-balance counties may have limits up to {fmt$(HIGH_BAL_CA_MAX_2026)}. Property tax estimated at {(props.taxRate * 100).toFixed(1)}% annually; insurance at {(props.insRate * 100).toFixed(1)}% annually. Reserve calculations based on 6× and 12× total monthly PITI. 7/1 ARM caps shown as 2/2/5 (typical; actual caps vary by lender). These figures are not a pre-approval or commitment to lend.
-                </div>
-                <div className="jbs-share">
-                    <button className="jbs-btn-share">↗ &nbsp;Share This Scenario</button>
                 </div>
             </div>
 
