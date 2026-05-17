@@ -90,6 +90,7 @@ export default function BuydownSliderCard(props: BuydownSliderParams) {
     const [bdType,       setBdType]       = useState<BdType>(props.buydownType);
     const [sellerCredit, setSellerCredit] = useState(props.sellerCredit ?? 0);
     const [activeYrIdx,  setActiveYrIdx]  = useState(0);
+    const [infoOpen,     setInfoOpen]     = useState(false);
 
     // ── Derived ──────────────────────────────────────────────────────────────
     const term     = props.term;
@@ -103,6 +104,15 @@ export default function BuydownSliderCard(props: BuydownSliderParams) {
     const curYear  = schedule[Math.min(activeYrIdx, schedule.length - 1)];
     const savings  = noteYear.piti - curYear.piti;
     const totalCost = Math.round(schedule.reduce((s, y) => s + y.subsidy, 0));
+
+    // Permanent buydown comparison (same dollars as buydown cost)
+    const ptsPossible  = loan > 0 ? totalCost / (loan / 100) : 0;
+    const rateReduct   = ptsPossible * 0.25;
+    const permRate     = Math.max(rate - rateReduct, 2.5);
+    const permPI       = calcPI(loan, permRate, term);
+    const permPITI     = Math.round(permPI + moTax + moIns);
+    const permSavMo    = noteYear.piti - permPITI;
+    const permBreakEven = permSavMo > 0 ? Math.ceil(totalCost / permSavMo) : null;
 
     // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -295,6 +305,67 @@ export default function BuydownSliderCard(props: BuydownSliderParams) {
                 <button className="bds-cta" onClick={handleRun}>Run My Numbers</button>
             </div>
 
+            {/* Advisory drawer */}
+            <div className="bds-info-trigger" onClick={() => setInfoOpen(o => !o)}>
+                <span>📘 How Buydowns Work — Common Questions &amp; Strategy</span>
+                <span className={`bds-info-chev${infoOpen ? ' open' : ''}`}>▼</span>
+            </div>
+
+            {infoOpen && (
+                <div className="bds-info-body">
+
+                    {/* Permanent buydown comparison */}
+                    <div className="bds-info-sec">Temporary vs Permanent Buydown — Same {fmt$(totalCost)}</div>
+                    <div className="bds-perm-grid">
+                        <div className="bds-perm-col">
+                            <div className="bds-perm-col-label">{bdType} Temporary</div>
+                            <div className="bds-perm-col-rate">{fmtRate(schedule[0].rate)} Yr 1</div>
+                            <div className="bds-perm-col-note">Resets to {fmtRate(rate)} after period</div>
+                            <div className="bds-perm-col-win">✓ Wins if you refinance in 1–{schedule.length - 1} yrs</div>
+                        </div>
+                        <div className="bds-perm-col bds-perm-col--alt">
+                            <div className="bds-perm-col-label">Permanent Points</div>
+                            <div className="bds-perm-col-rate">{fmtRate(permRate)} forever</div>
+                            <div className="bds-perm-col-note">{fmt$(permSavMo)}/mo savings forever</div>
+                            <div className="bds-perm-col-win">✓ Wins after {permBreakEven ? `${Math.ceil(permBreakEven / 12)} yr${Math.ceil(permBreakEven / 12) > 1 ? 's' : ''}` : 'long hold'} if no refi</div>
+                        </div>
+                    </div>
+                    <div className="bds-perm-note">
+                        {ptsPossible.toFixed(2)} pts purchased · {fmtRate(rateReduct)} rate reduction · break-even {permBreakEven ? `${permBreakEven} months` : 'N/A'}
+                    </div>
+
+                    {/* Q&A */}
+                    <div className="bds-info-sec" style={{ marginTop: 16 }}>Common Questions</div>
+                    <div className="bds-qa-list">
+                        <div className="bds-qa">
+                            <div className="bds-qa-q">What is a rate buydown?</div>
+                            <div className="bds-qa-a">A temporary reduction in your mortgage interest rate, paid as a lump sum at closing. The difference between your reduced payment and the full payment is covered by a dedicated escrow account each month until it runs out.</div>
+                        </div>
+                        <div className="bds-qa">
+                            <div className="bds-qa-q">Who can pay for it?</div>
+                            <div className="bds-qa-a">Anyone — seller, builder, lender, or you. Most commonly negotiated as a seller concession, especially in slower markets. Conventional loans allow seller concessions up to 3–9% of purchase price depending on LTV. VA allows up to 4%.</div>
+                        </div>
+                        <div className="bds-qa">
+                            <div className="bds-qa-q">Where is the money held?</div>
+                            <div className="bds-qa-a">In a custodial escrow account maintained by your loan servicer, separate from your regular impound account. The servicer draws from it monthly to make up the payment shortfall — you never touch the funds directly.</div>
+                        </div>
+                        <div className="bds-qa">
+                            <div className="bds-qa-q">What if I refinance during the buydown period?</div>
+                            <div className="bds-qa-a">Any unused buydown funds are typically applied as a principal reduction on your existing loan at payoff — they do not transfer to the new loan. Always ask your lender: "If I refi in Year 1, what happens to the remaining escrow balance?" before signing.</div>
+                        </div>
+                        <div className="bds-qa">
+                            <div className="bds-qa-q">Is this the same as builder teaser rates?</div>
+                            <div className="bds-qa-a">Same mechanism — builders fund 2/1 buydowns as a sales incentive rather than cutting the price. The key difference: builders typically build the buydown cost into the inflated purchase price. Always compare the builder's offer against buying the same home at market price with a lender-funded buydown.</div>
+                        </div>
+                        <div className="bds-qa">
+                            <div className="bds-qa-q">When does a temporary buydown beat permanent points?</div>
+                            <div className="bds-qa-a">If you plan to refinance within {schedule.length - 1 === 1 ? '1 year' : `${schedule.length - 1} years`}, the temporary buydown almost always wins — you got the rate relief and the permanent points would never have broken even. In a declining rate environment, the buydown preserves maximum refi upside. Permanent points only win on a long hold with stable or rising rates.</div>
+                        </div>
+                    </div>
+
+                </div>
+            )}
+
             {/* ── Styles ── */}
             <style>{`
                 .bds {
@@ -396,6 +467,33 @@ export default function BuydownSliderCard(props: BuydownSliderParams) {
                 .bds-cta-wrap { padding:14px 20px 20px; }
                 .bds-cta { width:100%; padding:13px; background:#f59e0b; color:#000; font-size:0.88rem; font-weight:800; border:none; border-radius:10px; cursor:pointer; letter-spacing:0.02em; font-family:inherit; transition:opacity 0.15s; }
                 .bds-cta:hover { opacity:0.88; }
+
+                /* advisory drawer */
+                .bds-info-trigger { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; cursor:pointer; font-size:0.78rem; font-weight:600; color:rgba(185,208,192,0.5); border-top:1px solid rgba(255,255,255,0.06); transition:color 0.15s; }
+                .bds-info-trigger:hover { color:rgba(185,208,192,0.8); }
+                .bds-info-chev { font-size:0.65rem; transition:transform 0.2s; }
+                .bds-info-chev.open { transform:rotate(180deg); }
+                .bds-info-body { padding:0 20px 20px; border-top:1px solid rgba(255,255,255,0.06); }
+                .bds-info-sec { font-size:0.65rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(185,208,192,0.35); padding:14px 0 8px; }
+
+                /* permanent buydown comparison */
+                .bds-perm-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+                .bds-perm-col { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:12px; }
+                .bds-perm-col--alt { background:rgba(245,158,11,0.06); border-color:rgba(245,158,11,0.2); }
+                .bds-perm-col-label { font-size:0.65rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:rgba(185,208,192,0.45); margin-bottom:6px; }
+                .bds-perm-col--alt .bds-perm-col-label { color:rgba(245,158,11,0.6); }
+                .bds-perm-col-rate { font-size:1.05rem; font-weight:800; color:#f0f4ff; line-height:1.1; }
+                .bds-perm-col--alt .bds-perm-col-rate { color:#f59e0b; }
+                .bds-perm-col-note { font-size:0.72rem; color:rgba(185,208,192,0.55); margin-top:4px; }
+                .bds-perm-col-win { font-size:0.68rem; color:#00e87a; margin-top:6px; opacity:0.8; }
+                .bds-perm-note { font-size:0.68rem; color:rgba(185,208,192,0.35); margin-top:8px; text-align:center; }
+
+                /* Q&A */
+                .bds-qa-list { display:flex; flex-direction:column; gap:0; }
+                .bds-qa { padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+                .bds-qa:last-child { border-bottom:none; }
+                .bds-qa-q { font-size:0.8rem; font-weight:700; color:rgba(245,158,11,0.85); margin-bottom:5px; }
+                .bds-qa-a { font-size:0.78rem; color:rgba(185,208,192,0.65); line-height:1.6; }
 
                 /* mobile */
                 @media (max-width: 480px) {
