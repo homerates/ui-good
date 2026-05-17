@@ -656,8 +656,8 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 .jbs-btn-share:hover { border-color:rgba(255,255,255,0.28); color:#f0f4ff; }
 
                 @media (max-width: 480px) {
-                    .jbs-hero { grid-template-columns:1fr 1fr 1fr; }
-                    .jbs-hero-piti { font-size:1.4rem; }
+                    .jbs-hero { grid-template-columns:1.6fr 1fr 1fr; }
+                    .jbs-hero-piti { font-size:clamp(0.95rem,3.5vw,1.3rem); }
                     .jbs-uw-grid { grid-template-columns:1fr; }
                     .jbs-uw-item:nth-child(even) { border-right:none; }
                     .jbs-uw-item:nth-last-child(-n+2) { border-bottom:1px solid rgba(255,255,255,0.04); }
