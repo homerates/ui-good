@@ -93,7 +93,7 @@ export default function JumboSliderCard(props: JumboSliderParams) {
     const [price,    setPrice]    = useState(props.price);
     const [downPct,  setDownPct]  = useState(Math.max(20, props.downPct));
     const [rate,     setRate]     = useState(props.rate);
-    const [termType, setTermType] = useState<TermType>('30yr');
+    const [termType, setTermType] = useState<TermType>(props.term === 15 ? '15yr' : '30yr');
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [vaultDone,  setVaultDone]  = useState(false);
 
