@@ -369,6 +369,7 @@ export default function BuydownSliderCard(props: BuydownSliderParams) {
             {/* ── Styles ── */}
             <style>{`
                 .bds {
+                    width: 100%;
                     background: #0e1420;
                     border: 1px solid rgba(245,158,11,0.22);
                     border-radius: 18px;
