@@ -298,8 +298,9 @@ body {
   transition: background 0.2s ease, border-color 0.2s ease !important;
 }
 
-/* Buydown card: force balloon to full bubble width regardless of content */
-.balloon.assistant:has(.bds) {
+/* Dark slider cards: force balloon to full bubble width regardless of content */
+.balloon.assistant:has(.bds),
+.balloon.assistant:has(.dsc) {
   width: 100%;
 }
 
