@@ -3,585 +3,806 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>FHA Purchase Payment Card — Preview</title>
+<title>FHA Purchase Payment Card v2 — Preview</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #060c14; font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; padding: 40px 16px 80px; }
   .wrap { width: 100%; max-width: 680px; }
+  .proto-label { font-size: 11px; color: #3a4560; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; margin-bottom: 12px; }
 
   /* ── Card shell ── */
   .fha { background: #0d1117; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; color: #f0f4ff; }
 
-  /* ── Topbar ── */
-  .fha-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); }
-  .fha-topbar-l { display: flex; align-items: center; gap: 6px; }
-  .fha-dot { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; }
-  .fha-tl { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6b7a99; }
-  .fha-tr { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #3a4560; }
+  /* ── Header ── */
+  .fha-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; gap: 10px; }
+  .fha-header-left { display: flex; align-items: center; gap: 10px; }
+  .fha-hicon { width: 32px; height: 32px; border-radius: 9px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .fha-title { font-size: 15px; font-weight: 700; color: #f0f4ff; }
+  .fha-sub   { font-size: 11px; color: #6b7a99; margin-top: 2px; }
+  .fha-zone-badge { font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; flex-shrink: 0; white-space: nowrap; }
+  .fha-zone-badge.within   { background: rgba(0,232,122,0.1);  color: #00e87a; border: 1px solid rgba(0,232,122,0.25); }
+  .fha-zone-badge.highcost { background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+  .fha-zone-badge.exceeds  { background: rgba(239,68,68,0.1);  color: #ef4444; border: 1px solid rgba(239,68,68,0.25); }
 
-  /* ── Summary tiles ── */
-  .fha-sum { padding: 16px 16px 0; }
-  .fha-sum-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .fha-sum-icon { width: 38px; height: 38px; border-radius: 11px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); display: flex; align-items: center; justify-content: center; color: #f59e0b; flex-shrink: 0; }
-  .fha-sum-title { font-size: 15px; font-weight: 700; color: #f0f4ff; }
-  .fha-sum-sub { font-size: 11px; color: #6b7a99; margin-top: 2px; }
-  .fha-tiles { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 14px; }
-  .fha-tile { background: #141b28; border-radius: 10px; padding: 10px 8px 8px; text-align: center; }
-  .fha-tile-icon { margin-bottom: 5px; display: flex; justify-content: center; }
-  .fha-tile-label { font-size: 10px; color: #6b7a99; margin-bottom: 3px; }
-  .fha-tile-value { font-size: 12px; font-weight: 700; color: #f0f4ff; }
-
-  /* ── FHA Limit band ── */
+  /* ── Limit band ── */
   .fha-band { margin: 0 12px 12px; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .fha-band.within  { background: rgba(0,232,122,0.05); border: 1px solid rgba(0,232,122,0.15); }
+  .fha-band.within   { background: rgba(0,232,122,0.05);  border: 1px solid rgba(0,232,122,0.15); }
   .fha-band.highcost { background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.2); }
-  .fha-band.exceeds { background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); }
-  .fha-band-left { display: flex; align-items: center; gap: 10px; }
-  .fha-badge { font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; flex-shrink: 0; }
-  .within .fha-badge  { background: rgba(0,232,122,0.12); color: #00e87a; border: 1px solid rgba(0,232,122,0.25); }
-  .highcost .fha-badge { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.25); }
-  .exceeds .fha-badge { background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); }
+  .fha-band.exceeds  { background: rgba(239,68,68,0.05);  border: 1px solid rgba(239,68,68,0.2); }
+  .fha-band-l { display: flex; align-items: center; gap: 10px; }
+  .fha-band-pill { font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; flex-shrink: 0; }
+  .fha-band-pill.within   { background: rgba(0,232,122,0.12);  color: #00e87a; border: 1px solid rgba(0,232,122,0.25); }
+  .fha-band-pill.highcost { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.25); }
+  .fha-band-pill.exceeds  { background: rgba(239,68,68,0.12);  color: #ef4444; border: 1px solid rgba(239,68,68,0.25); }
   .fha-band-desc { font-size: 11px; color: #8fa3b8; line-height: 1.4; }
   .fha-band-desc strong { color: #f0f4ff; }
-  .fha-band-right { font-size: 10px; color: #3a4560; flex-shrink: 0; text-align: right; }
-  .fha-band-right span { display: block; font-size: 11px; color: #6b7a99; font-weight: 600; }
+  .fha-band-r { font-size: 10px; color: #3a4560; flex-shrink: 0; text-align: right; }
+  .fha-band-r span { display: block; font-size: 11px; color: #6b7a99; font-weight: 600; margin-top: 2px; }
 
-  /* ── Payment hero ── */
-  .fha-hero { margin: 0 12px 12px; background: #0e1420; border: 1px solid rgba(245,158,11,0.2); border-radius: 14px; padding: 16px; }
-  .fha-hero-label { font-size: 10px; font-weight: 700; color: #4a3a10; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
-  .fha-hero-amount { font-size: 46px; font-weight: 800; color: #f59e0b; letter-spacing: -2px; line-height: 1; }
-  .fha-hero-mo { font-size: 18px; font-weight: 600; color: #6b5a1e; letter-spacing: 0; }
-  .fha-hero-sub { font-size: 11px; color: #8fa3b8; margin-top: 5px; }
-  .fha-hero-grid { display: grid; grid-template-columns: repeat(3,1fr); margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
-  .fha-hero-stat { text-align: center; padding: 0 8px; border-right: 1px solid rgba(255,255,255,0.06); }
-  .fha-hero-stat:last-child { border-right: none; }
-  .fha-hero-sl { font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; margin-bottom: 4px; }
-  .fha-hero-sv { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+  /* ── Hero ── */
+  .fha-hero { margin: 0 12px 12px; background: #0e1420; border: 1px solid rgba(245,158,11,0.22); border-radius: 14px; padding: 18px 20px 14px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: center; }
+  .fha-hero-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #4a3510; margin-bottom: 6px; }
+  .fha-hero-amount { font-size: 32px; font-weight: 800; color: #f59e0b; letter-spacing: -1px; line-height: 1; }
+  .fha-hero-mo { font-size: 16px; font-weight: 600; color: #6b5a1e; }
+  .fha-hero-sub { font-size: 11px; color: #8fa3b8; margin-top: 4px; }
+  .fha-hero-stats { display: flex; flex-direction: column; gap: 10px; padding-left: 16px; border-left: 1px solid rgba(255,255,255,0.05); }
+  .fha-hsl { font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; margin-bottom: 2px; }
+  .fha-hsv { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+  .fha-hsv.amber { color: #f59e0b; }
 
   /* ── MIP callout ── */
   .fha-mip { margin: 0 12px 12px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(245,158,11,0.18); }
   .fha-mip-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(245,158,11,0.06); border-bottom: 1px solid rgba(245,158,11,0.12); }
-  .fha-mip-icon { font-size: 14px; }
   .fha-mip-title { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #f59e0b; }
-  .fha-mip-rows { padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .fha-mip-rows { padding: 10px 14px 8px; display: flex; flex-direction: column; gap: 8px; }
   .fha-mip-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .fha-mip-row-label { font-size: 12px; color: #8fa3b8; line-height: 1.4; }
-  .fha-mip-row-label small { font-size: 10px; color: #3a4560; display: block; margin-top: 1px; }
-  .fha-mip-row-val { font-size: 13px; font-weight: 700; color: #f0f4ff; white-space: nowrap; text-align: right; }
-  .fha-mip-row-val.amber { color: #f59e0b; }
+  .fha-mip-row-label small { font-size: 10px; color: #3a4560; display: block; margin-top: 2px; }
+  .fha-mip-row-val { font-size: 13px; font-weight: 700; color: #f59e0b; white-space: nowrap; text-align: right; }
   .fha-mip-divider { height: 1px; background: rgba(255,255,255,0.05); }
-  .fha-mip-duration { margin: 8px 14px 12px; border-radius: 8px; padding: 9px 12px; display: flex; align-items: center; gap: 10px; font-size: 12px; line-height: 1.4; }
-  .fha-mip-duration.warn { background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.15); color: #fca5a5; }
-  .fha-mip-duration.good { background: rgba(0,232,122,0.05); border: 1px solid rgba(0,232,122,0.15); color: #86efac; }
-  .fha-mip-duration-icon { font-size: 14px; flex-shrink: 0; }
+  .fha-mip-dur { margin: 8px 14px 12px; border-radius: 8px; padding: 9px 12px; display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5; }
+  .fha-mip-dur.warn { background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.15); color: #fca5a5; }
+  .fha-mip-dur.good { background: rgba(0,232,122,0.05); border: 1px solid rgba(0,232,122,0.15); color: #86efac; }
 
-  /* ── Breakdown accordion ── */
-  .fha-bkd { margin: 0 12px 12px; background: #0e1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; }
-  .fha-bkd-toggle { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; cursor: pointer; user-select: none; width: 100%; background: transparent; border: none; color: inherit; font-family: inherit; }
-  .fha-bkd-toggle:hover { background: rgba(255,255,255,0.02); }
-  .fha-bkd-label { font-size: 12px; font-weight: 600; color: #8fa3b8; }
-  .fha-bkd-chev { font-size: 10px; color: #3a4560; transition: transform .2s; }
-  .fha-bkd-chev.open { transform: rotate(180deg); }
-  .fha-bkd-body { border-top: 1px solid rgba(255,255,255,0.05); padding: 12px 14px; }
-  .fha-kv { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
-  .fha-kv:last-child { border-bottom: none; }
-  .fha-kv-k { font-size: 12px; color: #8fa3b8; }
-  .fha-kv-v { font-size: 12px; font-weight: 600; color: #f0f4ff; }
-  .fha-kv-v.amber { color: #f59e0b; }
-  .fha-kv-v.red { color: #ef4444; }
-  .fha-kv-section { font-size: 9px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .1em; margin: 10px 0 5px; }
-  .fha-kv-section:first-child { margin-top: 0; }
-  .fha-kv--total { border-top: 1px solid rgba(255,255,255,0.08); border-bottom: none; margin-top: 4px; padding-top: 8px; }
-  .fha-kv--total .fha-kv-k { font-weight: 700; color: #c4cfe0; font-size: 13px; }
-  .fha-kv--total .fha-kv-v { color: #f59e0b; font-size: 13px; font-weight: 800; }
+  /* ── Monthly breakdown ── */
+  .fha-bkd { margin: 0 12px 12px; background: #0e1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 14px; }
+  .fha-bkd-title { font-size: 10px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+  .fha-bkd-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 12px; color: #8fa3b8; }
+  .fha-bkd-row:last-child { border-bottom: none; }
+  .fha-bkd-mip span { color: #f59e0b !important; font-weight: 700; }
+  .fha-bkd-total { border-top: 1px solid rgba(255,255,255,0.07) !important; border-bottom: none !important; margin-top: 4px; padding-top: 10px !important; }
+  .fha-bkd-total span:first-child { font-weight: 700; color: #f0f4ff; }
+  .fha-bkd-total span:last-child  { font-size: 14px; font-weight: 800; color: #f59e0b; }
 
-  /* ── Explorer (white panel) ── */
-  .fha-exp { border-top: 1px solid rgba(255,255,255,0.05); padding: 16px 18px; background: #fff; color: #0d1117; }
-  .fha-exp-title { font-size: 13px; font-weight: 700; color: #0d1117; margin-bottom: 14px; }
+  /* ── Sliders section (white) ── */
+  .fha-sliders { background: #fff; color: #0d1117; padding: 16px 18px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .fha-sliders-title { font-size: 13px; font-weight: 700; color: #0d1117; margin-bottom: 14px; }
 
-  .fha-slider-row { margin-bottom: 14px; }
-  .fha-slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-  .fha-slider-label { font-size: 13px; font-weight: 600; color: #0d1117; }
-  .fha-slider-value { font-size: 13px; font-weight: 700; color: #0d1117; }
-  .fha-slider-track { display: flex; align-items: center; gap: 6px; }
-  .fha-slider-btn { width: 26px; height: 26px; border-radius: 6px; border: 1.5px solid #e2e8f0; background: #f9f9f9; font-size: 15px; color: #64748b; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-weight: 700; user-select: none; line-height: 1; }
-  .fha-slider-btn:hover { border-color: #f59e0b; color: #92400e; background: #fffbeb; }
-  .fha-range-wrap { flex: 1; }
-  input[type=range].fha-range { width: 100%; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; outline: none; cursor: pointer; }
-  input[type=range].fha-range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #f59e0b; cursor: pointer; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
-  .fha-range-labels { display: flex; justify-content: space-between; margin-top: 3px; }
-  .fha-range-label { font-size: 10px; color: #94a3b8; }
+  /* Unit count selector */
+  .fha-unit-row { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #f1f5f9; }
+  .fha-unit-label { font-size: 13px; font-weight: 600; color: #0d1117; margin-bottom: 8px; }
+  .fha-unit-chips { display: flex; gap: 6px; }
+  .fha-unit-chip { flex: 1; padding: 8px 0; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f9f9f9; font-size: 12px; font-weight: 700; color: #64748b; cursor: pointer; font-family: inherit; text-align: center; transition: all .15s; }
+  .fha-unit-chip.active { border-color: #f59e0b; color: #b45309; background: #fffbeb; }
+  .fha-unit-chip:hover:not(.active) { border-color: #94a3b8; }
+  .fha-unit-note { font-size: 10px; color: #94a3b8; margin-top: 6px; }
 
-  /* Down chips — FHA specific: 3.5 / 5 / 10 */
-  .fha-dp-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-  .fha-dp-chip { padding: 5px 12px; border-radius: 20px; border: 1.5px solid #e2e8f0; background: #f9f9f9; font-size: 11px; font-weight: 600; color: #64748b; cursor: pointer; transition: all .12s; }
-  .fha-dp-chip.active { border-color: #f59e0b; color: #92400e; background: #fffbeb; }
-  .fha-dp-chip:hover:not(.active) { border-color: #94a3b8; }
-  .fha-dp-chip-note { font-size: 10px; color: #94a3b8; margin-top: 5px; }
+  /* Slider rows with side input */
+  .slider-row { margin-bottom: 16px; }
+  .slider-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; }
+  .slider-label { font-size: 13px; font-weight: 600; color: #0d1117; flex-shrink: 0; }
+  .slider-input-wrap { display: flex; align-items: center; gap: 0; }
+  .slider-prefix { font-size: 13px; font-weight: 700; color: #b45309; padding: 4px 4px 4px 8px; background: #fffbeb; border: 1.5px solid #fde68a; border-right: none; border-radius: 6px 0 0 6px; line-height: 1; }
+  .slider-val-input { width: 80px; padding: 4px 6px; background: #fffbeb; border: 1.5px solid #fde68a; border-left: none; border-radius: 0 6px 6px 0; font-size: 13px; font-weight: 700; color: #b45309; text-align: right; outline: none; font-family: inherit; -moz-appearance: textfield; appearance: textfield; }
+  .slider-val-input::-webkit-inner-spin-button,
+  .slider-val-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .slider-val-input:focus { border-color: #f59e0b; background: #fef9ec; }
+  .slider-val-input.pct-input { width: 58px; border-left: none; }
+  .slider-pct-suffix { font-size: 13px; font-weight: 700; color: #b45309; padding: 4px 8px 4px 4px; background: #fffbeb; border: 1.5px solid #fde68a; border-left: none; border-radius: 0 6px 6px 0; }
+
+  .slider-track-wrap { position: relative; }
+  .slider-track { height: 6px; background: #e2e8f0; border-radius: 3px; margin-bottom: 4px; position: relative; }
+  .slider-fill { position: absolute; left: 0; top: 0; height: 6px; background: #f59e0b; border-radius: 3px; pointer-events: none; }
+  .range-input { position: absolute; width: 100%; height: 6px; top: 0; opacity: 0; cursor: pointer; margin: 0; }
+  .slider-minmax { display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; }
+  .slider-sub { font-size: 10px; color: #64748b; margin-top: 3px; }
+  .fred-tag { display: inline-block; margin-top: 4px; font-size: 10px; font-weight: 700; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; padding: 2px 8px; letter-spacing: .04em; }
+
+  /* DP chips */
+  .fha-dp-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: -4px 0 8px; }
+  .fha-dp-chip { padding: 5px 12px; border-radius: 20px; border: 1.5px solid #e2e8f0; background: #f9f9f9; font-size: 11px; font-weight: 600; color: #64748b; cursor: pointer; font-family: inherit; transition: all .12s; }
+  .fha-dp-chip.active { border-color: #f59e0b; color: #b45309; background: #fffbeb; }
+  .fha-dp-chip-note { font-size: 9px; font-weight: 600; margin-left: 3px; opacity: .8; }
+  .fha-dp-note { font-size: 10px; color: #94a3b8; margin: -4px 0 12px; }
 
   /* Term buttons */
-  .fha-exp-term-label { font-size: 13px; font-weight: 600; color: #0d1117; margin: 4px 0 8px; }
-  .fha-terms { display: flex; gap: 8px; margin-bottom: 16px; }
-  .fha-term { flex: 1; padding: 10px 0; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f9f9f9; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; text-align: center; transition: all .15s; }
-  .fha-term.active { border-color: #f59e0b; color: #92400e; background: #fffbeb; }
-  .fha-term:hover:not(.active) { border-color: #94a3b8; }
+  .fha-term-label { font-size: 13px; font-weight: 600; color: #0d1117; margin: 4px 0 8px; }
+  .fha-terms { display: flex; gap: 8px; }
+  .fha-term { flex: 1; padding: 10px 0; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f9f9f9; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; font-family: inherit; text-align: center; transition: all .15s; }
+  .fha-term.on { border-color: #f59e0b; color: #b45309; background: #fffbeb; }
 
-  /* Stats bar */
-  .fha-exp-stats { display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid #eee; padding-top: 12px; margin-bottom: 14px; }
-  .fha-exp-stat { flex: 1; min-width: 90px; }
-  .fha-exp-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #999; font-weight: 700; margin-bottom: 3px; }
-  .fha-exp-stat-val { font-size: 14px; font-weight: 700; color: #0d1117; }
-  .fha-exp-stat-val.amber { color: #b45309; }
+  /* Limit warning (appears when loan exceeds county/unit limit) */
+  .fha-limit-warn { margin: 0 12px 12px; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); border-radius: 10px; padding: 10px 14px; display: none; }
+  .fha-limit-warn.visible { display: flex; gap: 10px; align-items: flex-start; }
+  .fha-limit-warn-icon { font-size: 16px; flex-shrink: 0; }
+  .fha-limit-warn-text { font-size: 12px; color: #fca5a5; line-height: 1.5; }
+  .fha-limit-warn-text strong { color: #ef4444; }
 
-  /* Actions */
-  .fha-exp-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .fha-btn-run { background: #111827; color: #f9fafb; border: none; border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
-  .fha-btn-run:hover { background: #1f2937; }
-  .fha-btn-compare { display: flex; align-items: center; gap: 5px; background: transparent; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 14px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; font-family: inherit; transition: all .15s; }
-  .fha-btn-compare:hover { border-color: #f59e0b; color: #92400e; }
-  .fha-btn-match { margin-left: auto; background: #f59e0b; color: #1c0f00; border: none; border-radius: 8px; padding: 10px 22px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
-  .fha-btn-match:hover { opacity: .88; }
+  /* ── Income qualify table ── */
+  .fha-qualify { margin: 0 12px 12px; background: #0e1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 14px; }
+  .fha-qualify-title { font-size: 10px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+  .fha-qtable { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .fha-qtable th { font-size: 9px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; padding: 0 0 8px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .fha-qtable th:last-child { text-align: right; }
+  .fha-qtable td { padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.03); color: #8fa3b8; }
+  .fha-qtable tr:last-child td { border-bottom: none; }
+  .fha-qrow-hi td { color: #f0f4ff; font-weight: 600; }
+  .fha-qval { font-weight: 700; color: #f59e0b !important; text-align: right; }
 
-  /* ── Follow-up chip ── */
-  .fha-followup-row { display: flex; padding: 0 12px 10px; }
-  .fha-followup-chip { background: rgba(245,158,11,0.06); border: 1.5px solid rgba(245,158,11,0.2); border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 600; color: #f59e0b; cursor: pointer; font-family: inherit; transition: all .15s; }
-  .fha-followup-chip:hover { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.4); }
+  /* ── CTAs ── */
+  .fha-cta-row { display: flex; gap: 8px; padding: 0 12px 8px; }
+  .fha-cta-prop { flex: 1; padding: 11px 14px; background: rgba(255,255,255,0.04); border: 1.5px solid rgba(255,255,255,0.12); border-radius: 9px; color: #f0f4ff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .15s; text-align: center; }
+  .fha-cta-prop:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.25); }
+  .fha-cta-run { flex: 1; padding: 11px 14px; background: rgba(245,158,11,0.08); border: 1.5px solid rgba(245,158,11,0.3); border-radius: 9px; color: #f59e0b; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .15s; text-align: center; }
+  .fha-cta-run:hover { opacity: .85; }
+  .fha-cta-full { display: block; width: calc(100% - 24px); margin: 0 12px 12px; padding: 13px; background: #f59e0b; border: none; border-radius: 9px; color: #1c0f00; font-size: 14px; font-weight: 800; cursor: pointer; font-family: inherit; transition: opacity .15s; text-align: center; }
+  .fha-cta-full:hover { opacity: .88; }
 
-  /* ── Rate note + Disclosures ── */
-  .fha-rate-note { margin: 0 12px 12px; background: rgba(245,158,11,0.04); border: 1px solid rgba(245,158,11,0.12); border-radius: 10px; padding: 10px 14px; display: flex; align-items: flex-start; gap: 10px; }
-  .fha-bulb { font-size: 16px; flex-shrink: 0; }
-  .fha-rate-note p { font-size: 12px; color: #8fa3b8; line-height: 1.5; }
+  /* ── Deep drawer trigger ── */
+  .fha-dtrigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 18px; background: rgba(245,158,11,0.05); border: none; border-top: 1px solid rgba(245,158,11,0.15); border-bottom: 1px solid rgba(245,158,11,0.15); cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .fha-dtrigger:hover { opacity: .85; }
+  .fha-dtrigger-left { display: flex; align-items: center; gap: 10px; text-align: left; }
+  .fha-dtrigger-dot { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; flex-shrink: 0; }
+  .fha-dtrigger-label { display: block; font-size: 13px; font-weight: 700; color: #f59e0b; }
+  .fha-dtrigger-sub { display: block; font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+  .fha-dtrigger-arrow { font-size: 11px; color: #f59e0b; opacity: .7; flex-shrink: 0; }
+
+  /* Deep drawer */
+  .fha-drawer { max-height: 0; overflow: hidden; transition: max-height 0.38s ease; }
+  .fha-drawer.open { max-height: 1400px; }
+  .fha-drawer-inner { padding: 14px; display: flex; flex-direction: column; gap: 12px; background: #0a0f1a; }
+  .fha-dsec { background: #0e1420; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px; }
+  .fha-dsec-label { font-size: 9px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+  .fha-kv2 { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 12px; }
+  .fha-kv2:last-child { border-bottom: none; }
+  .fha-kv2 span:first-child { color: #8fa3b8; }
+  .fha-kv2 span:last-child  { font-weight: 700; color: #f0f4ff; }
+  .fha-kv2.amber span:last-child { color: #f59e0b; }
+  .fha-kv2.red span:last-child { color: #ef4444; }
+  .fha-kv2.green span:last-child { color: #00e87a; }
+
+  /* FHA limits by unit type table */
+  .fha-limits-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+  .fha-limits-table th { font-size: 9px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; padding: 0 0 8px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .fha-limits-table th:not(:first-child) { text-align: right; }
+  .fha-limits-table td { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); color: #8fa3b8; font-size: 11px; }
+  .fha-limits-table tr:last-child td { border-bottom: none; }
+  .fha-limits-table td:not(:first-child) { text-align: right; font-weight: 600; color: #c4cfe0; }
+  .fha-limits-table tr.active-unit td { color: #f0f4ff; font-weight: 700; background: rgba(245,158,11,0.06); }
+  .fha-limits-table tr.active-unit td:not(:first-child) { color: #f59e0b; }
+
+  /* ── Permanent bottom ── */
+  .fha-perm { padding: 16px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .fha-perm-label { font-size: 10px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+  .fha-vault-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .fha-btn-vault { flex: 1; min-width: 140px; display: flex; align-items: center; justify-content: center; gap: 6px; background: rgba(245,158,11,0.08); color: #f59e0b; border: 1.5px solid rgba(245,158,11,0.3); border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .fha-btn-vault:hover { opacity: .85; }
+  .fha-btn-pdf { flex: 1; min-width: 120px; display: flex; align-items: center; justify-content: center; gap: 6px; background: rgba(255,255,255,0.04); color: #8fa3b8; border: 1.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .fha-btn-pdf:hover { opacity: .85; }
+  .fha-rate-note { background: rgba(245,158,11,0.04); border: 1px solid rgba(245,158,11,0.12); border-radius: 10px; padding: 10px 14px; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .fha-bulb { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .fha-rate-note p { font-size: 12px; color: #8fa3b8; line-height: 1.5; margin: 0; }
   .fha-rate-note strong { color: #f59e0b; }
-  .fha-disc { padding: 0 16px 16px; }
-  .fha-disc p { font-size: 10px; color: #2a3448; line-height: 1.6; }
-  .fha-disc strong { color: #3a4560; }
+  .fha-disc { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 12px 14px; }
+  .fha-disc p { font-size: 11px; color: #3a4560; line-height: 1.6; margin: 0; }
+  .fha-disc strong { color: #6b7a99; font-weight: 600; }
 
+  /* ── Responsive ── */
   @media (max-width: 480px) {
-    .fha-tiles { grid-template-columns: repeat(2,1fr); }
-    .fha-hero-amount { font-size: 34px; }
-    .fha-hero-grid { grid-template-columns: repeat(3,1fr); }
+    .fha-hero { grid-template-columns: 1fr; }
+    .fha-hero-stats { flex-direction: row; padding-left: 0; border-left: none; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
+    .fha-cta-row { flex-direction: column; }
+    .fha-hero-amount { font-size: 28px; }
+    .fha-band-r { display: none; }
+  }
+  @media (max-width: 640px) {
+    .fha-vault-row { flex-direction: column; }
+    .fha-btn-vault, .fha-btn-pdf { min-width: unset; }
   }
 </style>
 </head>
 <body>
 <div class="wrap">
-<div class="fha">
+  <div class="proto-label">FHA Purchase Card — Redesign v2 (following ConvHB pattern)</div>
+  <div class="fha" id="card">
 
-  <!-- Topbar -->
-  <div class="fha-topbar">
-    <div class="fha-topbar-l">
-      <div class="fha-dot"></div>
-      <span class="fha-tl">AI Analysis</span>
-    </div>
-    <span class="fha-tr">Live · CalcEngine-Deterministic</span>
-  </div>
-
-  <!-- Summary tiles -->
-  <div class="fha-sum">
-    <div class="fha-sum-head">
-      <div class="fha-sum-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"/>
-        </svg>
+    <!-- Header -->
+    <div class="fha-header">
+      <div class="fha-header-left">
+        <div class="fha-hicon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.8" width="16" height="16">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"/>
+          </svg>
+        </div>
+        <div>
+          <div class="fha-title">FHA Purchase Payment</div>
+          <div class="fha-sub" id="hdr-sub">$580k · 3.5% down · 6.875% · 30yr FHA · 1-unit</div>
+        </div>
       </div>
+      <span class="fha-zone-badge highcost" id="zone-badge">High-Cost Limit</span>
+    </div>
+
+    <!-- Limit band -->
+    <div class="fha-band highcost" id="limit-band">
+      <div class="fha-band-l">
+        <div class="fha-band-pill highcost" id="limit-pill">High-Cost Limit</div>
+        <div class="fha-band-desc" id="limit-desc">Base loan of <strong id="base-loan-band">$559,700</strong> requires a high-cost area FHA loan. County-specific limit applies.</div>
+      </div>
+      <div class="fha-band-r">2026 FHA <span id="band-unit-label">1-Unit</span> Max<span id="limit-right">up to $1,249,125</span></div>
+    </div>
+
+    <!-- Hero -->
+    <div class="fha-hero">
       <div>
-        <div class="fha-sum-title">FHA Purchase Payment</div>
-        <div class="fha-sum-sub" id="sum-sub">$450k · 3.5% down · 6.875% · 30yr FHA</div>
+        <div class="fha-hero-label">Est. Monthly PITI + MIP</div>
+        <div class="fha-hero-amount"><span id="hero-total">$4,675</span><span class="fha-hero-mo">/mo</span></div>
+        <div class="fha-hero-sub" id="hero-sub">P&I + MIP + Tax + Insurance · 3.5% down</div>
       </div>
-    </div>
-    <div class="fha-tiles">
-      <div class="fha-tile">
-        <div class="fha-tile-label">Home Price</div>
-        <div class="fha-tile-value" id="tile-price">$450,000</div>
-      </div>
-      <div class="fha-tile">
-        <div class="fha-tile-label">Down Payment</div>
-        <div class="fha-tile-value" id="tile-down">3.5% · $15,750</div>
-      </div>
-      <div class="fha-tile">
-        <div class="fha-tile-label">Rate (APR)</div>
-        <div class="fha-tile-value" id="tile-rate">6.875%</div>
-      </div>
-      <div class="fha-tile">
-        <div class="fha-tile-label">Loan Term</div>
-        <div class="fha-tile-value" id="tile-term">30 yr fixed</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- FHA Limit band -->
-  <div class="fha-band within" id="limitBand">
-    <div class="fha-band-left">
-      <div class="fha-badge" id="limitBadge">FHA Eligible</div>
-      <div class="fha-band-desc" id="limitDesc">Base loan of <strong id="limitLoanStr">$434,250</strong> is within the 2026 FHA national floor limit.</div>
-    </div>
-    <div class="fha-band-right">
-      2026 FHA Limit<span id="limitVal">$541,287</span>
-    </div>
-  </div>
-
-  <!-- Payment hero -->
-  <div class="fha-hero">
-    <div class="fha-hero-label">Estimated Monthly PITI + MIP</div>
-    <div class="fha-hero-amount" id="heroAmt">$3,736<span class="fha-hero-mo">/mo</span></div>
-    <div class="fha-hero-sub" id="heroSub">P&amp;I + MIP + Tax + Insurance · 3.5% down</div>
-    <div class="fha-hero-grid">
-      <div class="fha-hero-stat">
-        <div class="fha-hero-sl">Base Loan</div>
-        <div class="fha-hero-sv" id="stat-base">$434,250</div>
-      </div>
-      <div class="fha-hero-stat">
-        <div class="fha-hero-sl">Financed Loan</div>
-        <div class="fha-hero-sv" id="stat-financed">$441,849</div>
-      </div>
-      <div class="fha-hero-stat">
-        <div class="fha-hero-sl">LTV (base)</div>
-        <div class="fha-hero-sv" id="stat-ltv">96.5%</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MIP Callout -->
-  <div class="fha-mip">
-    <div class="fha-mip-head">
-      <span class="fha-mip-icon">🛡️</span>
-      <span class="fha-mip-title">FHA Mortgage Insurance (MIP)</span>
-    </div>
-    <div class="fha-mip-rows">
-      <div class="fha-mip-row">
-        <div class="fha-mip-row-label">
-          Upfront MIP (UFMIP)
-          <small>1.75% of base loan — financed into your loan</small>
+      <div class="fha-hero-stats">
+        <div>
+          <div class="fha-hsl">Base Loan</div>
+          <div class="fha-hsv" id="stat-base">$559,700</div>
         </div>
-        <div class="fha-mip-row-val amber" id="mip-ufmip">$7,599 financed</div>
-      </div>
-      <div class="fha-mip-divider"></div>
-      <div class="fha-mip-row">
-        <div class="fha-mip-row-label">
-          Annual MIP (monthly)
-          <small id="mip-rate-note">0.55%/yr on base loan · LTV &gt; 90%</small>
+        <div>
+          <div class="fha-hsl">Financed (w/ UFMIP)</div>
+          <div class="fha-hsv amber" id="stat-financed">$569,495</div>
         </div>
-        <div class="fha-mip-row-val amber" id="mip-monthly">$199/mo</div>
+        <div>
+          <div class="fha-hsl">LTV (base)</div>
+          <div class="fha-hsv" id="stat-ltv">96.5%</div>
+        </div>
       </div>
     </div>
-    <div class="fha-mip-duration warn" id="mipDuration">
-      <span class="fha-mip-duration-icon">⚠️</span>
-      <span id="mipDurationText">With 3.5% down, MIP runs for the <strong>life of your loan</strong> — it never drops off. Put 10%+ down to cancel MIP after 11 years.</span>
-    </div>
-  </div>
 
-  <!-- Payment breakdown -->
-  <div class="fha-bkd">
-    <button class="fha-bkd-toggle" onclick="toggleBkd()">
-      <span class="fha-bkd-label">⊞ &nbsp;Full payment breakdown</span>
-      <span class="fha-bkd-chev open" id="bkdChev">▾</span>
+    <!-- MIP callout -->
+    <div class="fha-mip">
+      <div class="fha-mip-head">
+        <span style="font-size:14px">🛡️</span>
+        <span class="fha-mip-title">FHA Mortgage Insurance (MIP)</span>
+      </div>
+      <div class="fha-mip-rows">
+        <div class="fha-mip-row">
+          <div class="fha-mip-row-label">
+            Upfront MIP (UFMIP)
+            <small>1.75% of base loan — financed into your loan</small>
+          </div>
+          <div class="fha-mip-row-val" id="mip-ufmip">$9,795 financed</div>
+        </div>
+        <div class="fha-mip-divider"></div>
+        <div class="fha-mip-row">
+          <div class="fha-mip-row-label">
+            Annual MIP (monthly)
+            <small id="mip-ann-note">0.55%/yr on base loan · LTV &gt; 90%</small>
+          </div>
+          <div class="fha-mip-row-val" id="mip-monthly">$257/mo</div>
+        </div>
+      </div>
+      <div class="fha-mip-dur warn" id="mip-dur">
+        <span style="font-size:14px;flex-shrink:0;margin-top:1px">⚠️</span>
+        <span id="mip-dur-text">With 3.5% down, MIP runs for the <strong>life of your loan</strong> — it never drops off. Put 10%+ down to cancel MIP after 11 years.</span>
+      </div>
+    </div>
+
+    <!-- Monthly breakdown (always visible) -->
+    <div class="fha-bkd">
+      <div class="fha-bkd-title">Monthly Breakdown</div>
+      <div class="fha-bkd-row"><span id="bkd-pi-label">Principal &amp; Interest</span><span id="bkd-pi">$3,741</span></div>
+      <div class="fha-bkd-row fha-bkd-mip"><span id="bkd-mip-label">Monthly MIP (0.55%/yr)</span><span id="bkd-mip">$257</span></div>
+      <div class="fha-bkd-row"><span>Property Taxes (1.10%)</span><span id="bkd-tax">$532</span></div>
+      <div class="fha-bkd-row"><span>Homeowner's Insurance</span><span id="bkd-ins">$145</span></div>
+      <div class="fha-bkd-row fha-bkd-total"><span>Total PITI + MIP</span><span id="bkd-total">$4,675/mo</span></div>
+    </div>
+
+    <!-- Sliders (always visible, white section) -->
+    <div class="fha-sliders">
+      <div class="fha-sliders-title">Adjust Your Numbers</div>
+
+      <!-- Unit count selector -->
+      <div class="fha-unit-row">
+        <div class="fha-unit-label">Property Type</div>
+        <div class="fha-unit-chips">
+          <button class="fha-unit-chip active" onclick="setUnits(1)">1-Unit</button>
+          <button class="fha-unit-chip" onclick="setUnits(2)">2-Unit</button>
+          <button class="fha-unit-chip" onclick="setUnits(3)">3-Unit</button>
+          <button class="fha-unit-chip" onclick="setUnits(4)">4-Unit</button>
+        </div>
+        <div class="fha-unit-note" id="unit-limit-note">FHA 2026 limit for 1-unit: $541,287 (floor) – $1,249,125 (high-cost ceiling)</div>
+      </div>
+
+      <!-- Home Price -->
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">Home Price</span>
+          <div class="slider-input-wrap">
+            <span class="slider-prefix">$</span>
+            <input type="number" class="slider-val-input" id="price-input" value="580000" step="5000" min="100000" oninput="onPriceInput(this.value)">
+          </div>
+        </div>
+        <div class="slider-track-wrap">
+          <div class="slider-track">
+            <div class="slider-fill" id="price-fill"></div>
+            <input type="range" class="range-input" id="price-slider" min="100000" max="1300000" step="5000" value="580000" oninput="onPriceSlider(this.value)">
+          </div>
+        </div>
+        <div class="slider-minmax"><span>$100k</span><span id="price-max-label">$1.3M</span></div>
+        <div class="slider-sub" id="price-sub">Down payment: $20,300 · Base loan: $559,700</div>
+      </div>
+
+      <!-- Down Payment -->
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">Down Payment</span>
+          <div class="slider-input-wrap">
+            <input type="number" class="slider-val-input pct-input" id="dp-input" value="3.5" step="0.5" min="3.5" max="30" oninput="onDpInput(this.value)">
+            <span class="slider-pct-suffix">%</span>
+          </div>
+        </div>
+        <div class="slider-track-wrap">
+          <div class="slider-track">
+            <div class="slider-fill" id="dp-fill"></div>
+            <input type="range" class="range-input" id="dp-slider" min="3.5" max="30" step="0.5" value="3.5" oninput="onDpSlider(this.value)">
+          </div>
+        </div>
+        <div class="slider-minmax"><span>3.5%</span><span>30%</span></div>
+        <div class="fha-dp-chips" style="margin-top:8px">
+          <button class="fha-dp-chip active" onclick="setDp(3.5)">3.5%</button>
+          <button class="fha-dp-chip" onclick="setDp(5)">5%</button>
+          <button class="fha-dp-chip" onclick="setDp(10)">10%<span class="fha-dp-chip-note">MIP↓</span></button>
+        </div>
+        <div class="fha-dp-note">FHA min: 3.5% (580+ credit) · 10% (500–579 credit)</div>
+      </div>
+
+      <!-- Interest Rate -->
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">Interest Rate</span>
+          <div class="slider-input-wrap">
+            <input type="number" class="slider-val-input pct-input" id="rate-input" value="6.875" step="0.125" min="3" max="12" oninput="onRateInput(this.value)">
+            <span class="slider-pct-suffix">%</span>
+          </div>
+        </div>
+        <div class="slider-track-wrap">
+          <div class="slider-track">
+            <div class="slider-fill" id="rate-fill"></div>
+            <input type="range" class="range-input" id="rate-slider" min="3" max="12" step="0.125" value="6.875" oninput="onRateSlider(this.value)">
+          </div>
+        </div>
+        <div class="slider-minmax"><span>3%</span><span>12%</span></div>
+        <div class="fred-tag">FRED PMMS · 6.88% live</div>
+      </div>
+
+      <!-- Term -->
+      <div class="fha-term-label">Loan Term</div>
+      <div class="fha-terms">
+        <button class="fha-term" onclick="setTerm(15)">15yr</button>
+        <button class="fha-term on" onclick="setTerm(30)">30yr</button>
+      </div>
+    </div>
+
+    <!-- Limit warning (shows when loan exceeds FHA max for unit type) -->
+    <div class="fha-limit-warn" id="limit-warn">
+      <span class="fha-limit-warn-icon">🚫</span>
+      <div class="fha-limit-warn-text" id="limit-warn-text">
+        Base loan exceeds the maximum FHA limit for this unit type.
+      </div>
+    </div>
+
+    <!-- Income qualify table -->
+    <div class="fha-qualify">
+      <div class="fha-qualify-title">Income to Qualify</div>
+      <table class="fha-qtable">
+        <thead>
+          <tr><th>DTI</th><th>Guideline</th><th>Gross Annual</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>36%</td><td>Conservative</td><td class="fha-qval" id="q36">$155,833</td></tr>
+          <tr class="fha-qrow-hi"><td>43%</td><td>FHA Standard</td><td class="fha-qval" id="q43">$130,465</td></tr>
+          <tr><td>50%</td><td>AUS Max</td><td class="fha-qval" id="q50">$112,200</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- CTAs -->
+    <div class="fha-cta-row">
+      <button class="fha-cta-prop">🏠 Check a Property</button>
+      <button class="fha-cta-run">▶ Run My Numbers</button>
+    </div>
+    <button class="fha-cta-full">Get Matched with a Lender →</button>
+
+    <!-- Deep analysis drawer trigger -->
+    <button class="fha-dtrigger" onclick="toggleDrawer()">
+      <span class="fha-dtrigger-left">
+        <span class="fha-dtrigger-dot"></span>
+        <span>
+          <span class="fha-dtrigger-label">Deep Analysis</span>
+          <span class="fha-dtrigger-sub">MIP lifetime cost · FHA limits by unit type · Reserves · Full summary</span>
+        </span>
+      </span>
+      <span class="fha-dtrigger-arrow" id="drawer-arrow">▼ View</span>
     </button>
-    <div class="fha-bkd-body" id="bkdBody">
-      <div class="fha-kv-section">Monthly Payment</div>
-      <div class="fha-kv"><span class="fha-kv-k">Principal &amp; Interest</span><span class="fha-kv-v" id="bkd-pi">$2,909</span></div>
-      <div class="fha-kv"><span class="fha-kv-k">Monthly MIP (0.55%/yr)</span><span class="fha-kv-v amber" id="bkd-mip">$199</span></div>
-      <div class="fha-kv"><span class="fha-kv-k">Property Taxes (est.)</span><span class="fha-kv-v" id="bkd-tax">$450</span></div>
-      <div class="fha-kv"><span class="fha-kv-k">Home Insurance</span><span class="fha-kv-v" id="bkd-ins">$188</span></div>
-      <div class="fha-kv fha-kv--total"><span class="fha-kv-k">Total Monthly</span><span class="fha-kv-v" id="bkd-total">$3,736</span></div>
-      <div class="fha-kv-section">FHA Loan Details</div>
-      <div class="fha-kv"><span class="fha-kv-k">Base loan amount</span><span class="fha-kv-v" id="bkd-base">$434,250</span></div>
-      <div class="fha-kv"><span class="fha-kv-k">UFMIP financed (1.75%)</span><span class="fha-kv-v amber" id="bkd-ufmip">$7,599</span></div>
-      <div class="fha-kv"><span class="fha-kv-k">Total financed loan</span><span class="fha-kv-v" id="bkd-financed">$441,849</span></div>
-      <div class="fha-kv"><span class="fha-kv-k">MIP duration</span><span class="fha-kv-v" id="bkd-mip-dur">Life of loan</span></div>
-      <div class="fha-kv"><span class="fha-kv-k">Total MIP paid (30yr est.)</span><span class="fha-kv-v amber" id="bkd-mip-total">$71,640</span></div>
-    </div>
-  </div>
 
-  <!-- Explorer -->
-  <div class="fha-exp">
-    <div class="fha-exp-title">Payment Explorer</div>
+    <!-- Deep drawer -->
+    <div class="fha-drawer" id="deep-drawer">
+      <div class="fha-drawer-inner">
 
-    <!-- Home Price -->
-    <div class="fha-slider-row">
-      <div class="fha-slider-header">
-        <span class="fha-slider-label">Home Price</span>
-        <span class="fha-slider-value" id="priceVal">$450,000</span>
-      </div>
-      <div class="fha-slider-track">
-        <div class="fha-slider-btn" onclick="adjustPrice(-5000)">−</div>
-        <div class="fha-range-wrap">
-          <input type="range" class="fha-range" id="priceRange" min="50000" max="900000" step="5000" value="450000" oninput="onPriceChange(this.value)" />
-          <div class="fha-range-labels"><span class="fha-range-label">$50k</span><span class="fha-range-label">$900k</span></div>
+        <!-- FHA Limits by unit type -->
+        <div class="fha-dsec">
+          <div class="fha-dsec-label">2026 FHA Loan Limits by Unit Type</div>
+          <table class="fha-limits-table">
+            <thead>
+              <tr><th>Units</th><th>National Floor</th><th>High-Cost Ceiling</th></tr>
+            </thead>
+            <tbody id="limits-table-body">
+              <tr class="active-unit"><td>1-Unit</td><td>$541,287</td><td>$1,249,125</td></tr>
+              <tr><td>2-Unit</td><td>$693,150</td><td>$1,598,400</td></tr>
+              <tr><td>3-Unit</td><td>$837,700</td><td>$1,932,100</td></tr>
+              <tr><td>4-Unit</td><td>$1,040,350</td><td>$2,403,550</td></tr>
+            </tbody>
+          </table>
+          <div style="font-size:10px;color:#3a4560;margin-top:8px">High-cost ceiling applies in eligible counties (verify at hud.gov/fha-limits)</div>
         </div>
-        <div class="fha-slider-btn" onclick="adjustPrice(5000)">+</div>
-      </div>
-    </div>
 
-    <!-- Down Payment -->
-    <div class="fha-slider-row">
-      <div class="fha-slider-header">
-        <span class="fha-slider-label">Down Payment</span>
-        <span class="fha-slider-value" id="downVal">3.5% · $15,750</span>
-      </div>
-      <div class="fha-slider-track">
-        <div class="fha-slider-btn" onclick="adjustDown(-0.5)">−</div>
-        <div class="fha-range-wrap">
-          <input type="range" class="fha-range" id="downRange" min="3.5" max="30" step="0.5" value="3.5" oninput="onDownChange(this.value)" />
-          <div class="fha-range-labels"><span class="fha-range-label">3.5%</span><span class="fha-range-label">30%</span></div>
+        <!-- MIP Detail -->
+        <div class="fha-dsec">
+          <div class="fha-dsec-label">MIP Lifetime Cost</div>
+          <div class="fha-kv2"><span>UFMIP (financed into loan)</span><span id="d-ufmip">$9,795</span></div>
+          <div class="fha-kv2"><span>Annual MIP Rate</span><span id="d-ann-rate">0.55% (LTV &gt; 90%)</span></div>
+          <div class="fha-kv2 amber"><span>Monthly MIP</span><span id="d-monthly-mip">$257/mo</span></div>
+          <div class="fha-kv2"><span>MIP Duration</span><span id="d-mip-dur">Life of loan (3.5% down)</span></div>
+          <div class="fha-kv2 amber"><span>Total MIP Paid (est.)</span><span id="d-total-mip">$92,520</span></div>
+          <div class="fha-kv2 green" id="d-mip-savings-row" style="display:none">
+            <span>vs. life-of-loan MIP</span><span id="d-mip-savings"></span>
+          </div>
         </div>
-        <div class="fha-slider-btn" onclick="adjustDown(0.5)">+</div>
-      </div>
-    </div>
-    <div class="fha-dp-chips">
-      <div class="fha-dp-chip active" onclick="setDown(3.5)" id="chip35">3.5% min</div>
-      <div class="fha-dp-chip" onclick="setDown(5)" id="chip5">5%</div>
-      <div class="fha-dp-chip" onclick="setDown(10)" id="chip10">10% <small style="font-size:9px">(MIP drops)</small></div>
-    </div>
-    <div class="fha-dp-chip-note">FHA minimum: 3.5% (580+ credit score) · 10% (500–579 credit score)</div>
 
-    <!-- Interest Rate -->
-    <div class="fha-slider-row" style="margin-top:12px">
-      <div class="fha-slider-header">
-        <span class="fha-slider-label">Interest Rate</span>
-        <span class="fha-slider-value" id="rateVal">6.875%</span>
-      </div>
-      <div class="fha-slider-track">
-        <div class="fha-slider-btn" onclick="adjustRate(-0.125)">−</div>
-        <div class="fha-range-wrap">
-          <input type="range" class="fha-range" id="rateRange" min="3" max="12" step="0.125" value="6.875" oninput="onRateChange(this.value)" />
-          <div class="fha-range-labels"><span class="fha-range-label">3%</span><span class="fha-range-label">12%</span></div>
+        <!-- Reserves -->
+        <div class="fha-dsec">
+          <div class="fha-dsec-label">Reserves Needed</div>
+          <div class="fha-kv2"><span>6-Month PITI Cushion</span><span id="d-res6">$28,050</span></div>
+          <div class="fha-kv2"><span>12-Month PITI Cushion</span><span id="d-res12">$56,100</span></div>
         </div>
-        <div class="fha-slider-btn" onclick="adjustRate(0.125)">+</div>
+
+        <!-- Full loan summary -->
+        <div class="fha-dsec">
+          <div class="fha-dsec-label">Full Loan Summary</div>
+          <div class="fha-kv2"><span>Purchase Price</span><span id="d-price">$580,000</span></div>
+          <div class="fha-kv2"><span>Down Payment</span><span id="d-down">$20,300 (3.5%)</span></div>
+          <div class="fha-kv2"><span>Base Loan Amount</span><span id="d-base">$559,700</span></div>
+          <div class="fha-kv2 amber"><span>UFMIP Financed (1.75%)</span><span id="d-ufmip2">$9,795</span></div>
+          <div class="fha-kv2"><span>Total Financed Loan</span><span id="d-financed">$569,495</span></div>
+          <div class="fha-kv2"><span>LTV (base)</span><span id="d-ltv">96.5%</span></div>
+          <div class="fha-kv2"><span>Interest Rate</span><span id="d-rate">6.875%</span></div>
+          <div class="fha-kv2"><span>Loan Term</span><span id="d-term">30 yr fixed</span></div>
+          <div class="fha-kv2"><span>Monthly PITI + MIP</span><span id="d-monthly">$4,675</span></div>
+          <div class="fha-kv2"><span id="d-pmts-label">Total of Payments (30yr)</span><span id="d-total-pmts">$1,683,000</span></div>
+          <div class="fha-kv2 amber"><span>Total Interest Paid</span><span id="d-total-int">$1,113,505</span></div>
+        </div>
+
       </div>
     </div>
 
-    <!-- Loan Term -->
-    <div class="fha-exp-term-label">Loan Term</div>
-    <div class="fha-terms">
-      <div class="fha-term" onclick="setTerm(15)" id="term15">15yr</div>
-      <div class="fha-term active" onclick="setTerm(30)" id="term30">30yr</div>
-    </div>
-
-    <!-- Stats bar -->
-    <div class="fha-exp-stats">
-      <div class="fha-exp-stat">
-        <div class="fha-exp-stat-label">Base Loan</div>
-        <div class="fha-exp-stat-val" id="expBase">$434,250</div>
+    <!-- Permanent bottom -->
+    <div class="fha-perm">
+      <div class="fha-perm-label">Save This Scenario</div>
+      <div class="fha-vault-row">
+        <button class="fha-btn-vault">⭐ Save to My Vault</button>
+        <button class="fha-btn-pdf">📄 Download PDF</button>
       </div>
-      <div class="fha-exp-stat">
-        <div class="fha-exp-stat-label">Financed (w/ UFMIP)</div>
-        <div class="fha-exp-stat-val" id="expFinanced">$441,849</div>
+      <div class="fha-rate-note">
+        <span class="fha-bulb">💡</span>
+        <p>Rate seeded at <strong>6.88%</strong> (FRED 30-yr fixed, live avg).
+        FHA MIP per HUD 2024 guidelines (0.55%/yr LTV &gt; 90%, 0.50%/yr ≤ 90%).
+        Actual rate depends on credit score, lender, and lock timing.</p>
       </div>
-      <div class="fha-exp-stat">
-        <div class="fha-exp-stat-label">MIP / mo</div>
-        <div class="fha-exp-stat-val amber" id="expMIP">$199</div>
-      </div>
-      <div class="fha-exp-stat">
-        <div class="fha-exp-stat-label">Total / mo</div>
-        <div class="fha-exp-stat-val" id="expTotal">$3,736</div>
+      <div class="fha-disc">
+        <p>
+          <strong>Educational estimates only.</strong> UFMIP of 1.75% is financed into the loan balance.
+          Monthly MIP calculated on the base loan per HUD Mortgagee Letter guidelines.
+          Property tax estimated at 1.10% annually; homeowner's insurance at 0.30% annually.
+          FHA loan limits per HUD 2026 schedule — county-specific limits may be higher in high-cost areas. Multi-unit properties require owner-occupancy.
+          These figures are not a pre-approval or commitment to lend.
+        </p>
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="fha-exp-actions">
-      <button class="fha-btn-run">Run adjusted scenario →</button>
-      <button class="fha-btn-compare">FHA vs Conventional →</button>
-      <button class="fha-btn-match">Get Matched →</button>
-    </div>
   </div>
-
-  <!-- Follow-up chip -->
-  <div class="fha-followup-row">
-    <button class="fha-followup-chip" id="followupChip">What income do I need to qualify for this FHA loan? →</button>
-  </div>
-
-  <!-- Rate note -->
-  <div class="fha-rate-note">
-    <span class="fha-bulb">💡</span>
-    <p>
-      <strong>Assumption:</strong> Rate seeded at <strong>6.875%</strong> (FRED 30-yr fixed, live). FHA MIP rates per HUD 2024 guidelines (0.55%/yr LTV &gt; 90%, 0.50%/yr ≤ 90%, 30-year term). Actual rate depends on credit score, lender, and lock timing.
-    </p>
-  </div>
-
-  <!-- Disclosures -->
-  <div class="fha-disc">
-    <p>
-      <strong>Educational estimates only.</strong> These figures are for planning purposes and are not a Loan Estimate, pre-approval, or commitment to lend under RESPA/TRID. UFMIP of 1.75% is financed into the loan balance. Monthly MIP calculated on the base loan amount per HUD Mortgagee Letter guidelines. Property tax estimated at 1.2% annually; homeowner's insurance at 0.5% annually. FHA loan limits per HUD 2026 schedule — county-specific limits may be higher in high-cost areas.
-    </p>
-  </div>
-
-</div><!-- /.fha -->
-</div><!-- /.wrap -->
+</div>
 
 <script>
-// ── Constants ──────────────────────────────────────────────────────────────
-const FHA_FLOOR  = 541287;
-const FHA_CEIL   = 1249125;
+// ── FHA 2026 limits by unit count ─────────────────────────────────────────────
+const FHA_LIMITS = {
+  1: { floor: 541287,  ceil: 1249125 },
+  2: { floor: 693150,  ceil: 1598400 },
+  3: { floor: 837700,  ceil: 1932100 },
+  4: { floor: 1040350, ceil: 2403550 },
+};
+
+// Slider max = max purchase price at 3.5% min down, rounded up to next $5k
+function sliderMax(units) {
+  return Math.ceil(FHA_LIMITS[units].ceil / 0.965 / 5000) * 5000;
+}
+
+const SLIDER_MAX_LABEL = {
+  1: '$1.3M',
+  2: '$1.66M',
+  3: '$2M',
+  4: '$2.5M',
+};
+
+const UNIT_LIMIT_NOTES = {
+  1: 'FHA 2026 limit for 1-unit: $541,287 (floor) – $1,249,125 (high-cost ceiling)',
+  2: 'FHA 2026 limit for 2-unit: $693,150 (floor) – $1,598,400 (high-cost ceiling). Owner-occupancy required.',
+  3: 'FHA 2026 limit for 3-unit: $837,700 (floor) – $1,932,100 (high-cost ceiling). Owner-occupancy required.',
+  4: 'FHA 2026 limit for 4-unit: $1,040,350 (floor) – $2,403,550 (high-cost ceiling). Owner-occupancy required.',
+};
+
 const UFMIP_RATE = 0.0175;
-const TAX_RATE   = 0.012;
-const INS_RATE   = 0.005;
+const TAX_RATE   = 0.011;
+const INS_RATE   = 0.003;
 
-// ── State ──────────────────────────────────────────────────────────────────
-let price   = 450000;
-let downPct = 3.5;
-let rate    = 6.875;
+let units   = 1;
 let termYrs = 30;
-let bkdOpen = true;
 
-// ── Math ──────────────────────────────────────────────────────────────────
-function calcPI(principal, annualRate, termYears) {
-    if (principal <= 0) return 0;
-    if (annualRate <= 0) return principal / (termYears * 12);
-    const r = annualRate / 100 / 12;
-    const n = termYears * 12;
-    return (principal * r * Math.pow(1+r,n)) / (Math.pow(1+r,n) - 1);
-}
-
-function fhaMIPRate(ltv) {
-    // HUD 2024: > 15yr term
-    return ltv > 90 ? 0.0055 : 0.0050;
-}
-
-function fmt$(n) {
-    return new Intl.NumberFormat('en-US', { style:'currency', currency:'USD', maximumFractionDigits:0 }).format(n);
+// ── Formatters ────────────────────────────────────────────────────────────────
+function fmt(n) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 }
 function fmtK(n) {
-    if (n >= 1000000) return '$' + (n/1000000).toFixed(2) + 'M';
-    if (n >= 100000)  return '$' + Math.round(n/1000) + 'k';
-    return fmt$(n);
+  if (n >= 1000000) return '$' + (n / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M';
+  if (n >= 100000)  return '$' + Math.round(n / 1000) + 'k';
+  return fmt(n);
+}
+function calcPI(principal, annualRate, termYears) {
+  if (principal <= 0) return 0;
+  if (annualRate <= 0) return principal / (termYears * 12);
+  const r = annualRate / 100 / 12;
+  const n = termYears * 12;
+  return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+}
+function mipRate(ltv) { return ltv > 90 ? 0.0055 : 0.0050; }
+
+// ── Input sync helpers ────────────────────────────────────────────────────────
+function onPriceSlider(val) {
+  document.getElementById('price-input').value = val;
+  recalc();
+}
+function onPriceInput(val) {
+  const v = Math.min(Math.max(+val || 100000, 100000), sliderMax(units));
+  document.getElementById('price-slider').value = v;
+  recalc();
+}
+function onDpSlider(val) {
+  document.getElementById('dp-input').value = val;
+  recalc();
+}
+function onDpInput(val) {
+  const v = Math.min(Math.max(+val || 3.5, 3.5), 30);
+  document.getElementById('dp-slider').value = v;
+  recalc();
+}
+function onRateSlider(val) {
+  document.getElementById('rate-input').value = val;
+  recalc();
+}
+function onRateInput(val) {
+  const v = Math.min(Math.max(+val || 3, 3), 12);
+  document.getElementById('rate-slider').value = v;
+  recalc();
 }
 
-// ── Recalc ────────────────────────────────────────────────────────────────
+function setDp(pct) {
+  document.getElementById('dp-slider').value = pct;
+  document.getElementById('dp-input').value  = pct;
+  recalc();
+}
+
+function setTerm(yr) {
+  termYrs = yr;
+  document.querySelectorAll('.fha-term').forEach(b => {
+    b.classList.toggle('on', parseInt(b.textContent) === yr);
+  });
+  recalc();
+}
+
+function setUnits(u) {
+  units = u;
+  document.querySelectorAll('.fha-unit-chip').forEach((b, i) => {
+    b.classList.toggle('active', i + 1 === u);
+  });
+  // Update slider max
+  const max = sliderMax(u);
+  document.getElementById('price-slider').max = max;
+  document.getElementById('price-max-label').textContent = SLIDER_MAX_LABEL[u];
+  document.getElementById('unit-limit-note').textContent = UNIT_LIMIT_NOTES[u];
+  // Update limits table active row
+  document.querySelectorAll('#limits-table-body tr').forEach((r, i) => {
+    r.classList.toggle('active-unit', i + 1 === u);
+  });
+  document.getElementById('band-unit-label').textContent = u + '-Unit';
+  // Clamp price if needed
+  const currentPrice = +document.getElementById('price-slider').value;
+  if (currentPrice > max) {
+    document.getElementById('price-slider').value = max;
+    document.getElementById('price-input').value  = max;
+  }
+  recalc();
+}
+
+function toggleDrawer() {
+  const d = document.getElementById('deep-drawer');
+  const isOpen = d.classList.toggle('open');
+  document.getElementById('drawer-arrow').textContent = isOpen ? '▲ Close' : '▼ View';
+}
+
+// ── Main recalc ────────────────────────────────────────────────────────────────
 function recalc() {
-    const downAmt    = price * downPct / 100;
-    const baseLoan   = price - downAmt;
-    const ufmip      = Math.round(baseLoan * UFMIP_RATE);
-    const loanAmt    = baseLoan + ufmip;
-    const ltv        = (baseLoan / price) * 100;
-    const mipRate    = fhaMIPRate(ltv);
-    const monthlyMIP = Math.round((baseLoan * mipRate) / 12);
-    const pi         = calcPI(loanAmt, rate, termYrs);
-    const tax        = (price * TAX_RATE) / 12;
-    const ins        = (price * INS_RATE) / 12;
-    const total      = pi + monthlyMIP + tax + ins;
-    const mipLife    = downPct < 10 ? 'Life of loan' : '11 years';
-    const totalMIP   = downPct < 10
-        ? Math.round(monthlyMIP * termYrs * 12)
-        : Math.round(monthlyMIP * 11 * 12);
+  const price   = +document.getElementById('price-slider').value;
+  const downPct = +document.getElementById('dp-slider').value;
+  const rate    = +document.getElementById('rate-slider').value;
+  const max     = sliderMax(units);
 
-    // ── Limit band ──
-    const bandEl = document.getElementById('limitBand');
-    const badgeEl = document.getElementById('limitBadge');
-    const descEl  = document.getElementById('limitDesc');
-    const limitValEl = document.getElementById('limitVal');
-    bandEl.className = 'fha-band';
-    if (baseLoan <= FHA_FLOOR) {
-        bandEl.classList.add('within');
-        badgeEl.textContent = 'FHA Eligible';
-        descEl.innerHTML = `Base loan of <strong>${fmt$(Math.round(baseLoan))}</strong> is within the 2026 FHA national floor limit.`;
-        limitValEl.textContent = fmt$(FHA_FLOOR);
-    } else if (baseLoan <= FHA_CEIL) {
-        bandEl.classList.add('highcost');
-        badgeEl.textContent = 'High-Cost Limit';
-        descEl.innerHTML = `Base loan of <strong>${fmt$(Math.round(baseLoan))}</strong> requires a high-cost area FHA loan. County-specific limit applies.`;
-        limitValEl.textContent = 'up to ' + fmt$(FHA_CEIL);
-    } else {
-        bandEl.classList.add('exceeds');
-        badgeEl.textContent = 'Exceeds FHA Max';
-        descEl.innerHTML = `Base loan of <strong>${fmt$(Math.round(baseLoan))}</strong> exceeds the FHA national ceiling. Consider Jumbo or Conventional.`;
-        limitValEl.textContent = fmt$(FHA_CEIL) + ' max';
-    }
-    document.getElementById('limitLoanStr').textContent = fmt$(Math.round(baseLoan));
+  // Slider fill percentages
+  document.getElementById('price-fill').style.width = ((price - 100000) / (max - 100000) * 100) + '%';
+  document.getElementById('dp-fill').style.width    = ((downPct - 3.5) / 26.5 * 100) + '%';
+  document.getElementById('rate-fill').style.width  = ((rate - 3) / 9 * 100) + '%';
 
-    // ── Summary tiles ──
-    document.getElementById('sum-sub').textContent =
-        fmtK(price) + ' · ' + downPct + '% down · ' + parseFloat(rate.toFixed(3)) + '% · ' + termYrs + 'yr FHA';
-    document.getElementById('tile-price').textContent = fmtK(price);
-    document.getElementById('tile-down').textContent = downPct + '% · ' + fmtK(downAmt);
-    document.getElementById('tile-rate').textContent = parseFloat(rate.toFixed(3)) + '%';
-    document.getElementById('tile-term').textContent = termYrs + ' yr fixed';
+  // DP chip active state
+  document.querySelectorAll('.fha-dp-chip').forEach((b, i) => {
+    b.classList.toggle('active', [3.5, 5, 10][i] === downPct);
+  });
 
-    // ── Hero ──
-    document.getElementById('heroAmt').innerHTML = fmt$(Math.round(total)) + '<span class="fha-hero-mo">/mo</span>';
-    document.getElementById('heroSub').textContent = 'P&I + MIP + Tax + Insurance · ' + downPct + '% down';
-    document.getElementById('stat-base').textContent = fmt$(Math.round(baseLoan));
-    document.getElementById('stat-financed').textContent = fmt$(Math.round(loanAmt));
-    document.getElementById('stat-ltv').textContent = ltv.toFixed(1) + '%';
+  // Derived values
+  const downAmt    = price * downPct / 100;
+  const baseLoan   = price - downAmt;
+  const ufmip      = Math.round(baseLoan * UFMIP_RATE);
+  const loanAmt    = baseLoan + ufmip;
+  const ltv        = (baseLoan / price) * 100;
+  const annMIP     = mipRate(ltv);
+  const monthlyMIP = Math.round((baseLoan * annMIP) / 12);
+  const pi         = Math.round(calcPI(loanAmt, rate, termYrs));
+  const tax        = Math.round((price * TAX_RATE) / 12);
+  const ins        = Math.round((price * INS_RATE) / 12);
+  const total      = pi + monthlyMIP + tax + ins;
+  const mipDrops   = downPct >= 10;
+  const totalMIP   = mipDrops
+    ? Math.round(monthlyMIP * 11 * 12)
+    : Math.round(monthlyMIP * termYrs * 12);
+  const totalPmts  = Math.round(total * termYrs * 12);
+  const totalInt   = Math.round(totalPmts - loanAmt);
 
-    // ── MIP callout ──
-    document.getElementById('mip-ufmip').textContent = fmt$(ufmip) + ' financed';
-    document.getElementById('mip-monthly').textContent = fmt$(monthlyMIP) + '/mo';
-    document.getElementById('mip-rate-note').textContent =
-        (mipRate * 100).toFixed(2) + '%/yr on base loan · LTV ' + (ltv > 90 ? '> 90%' : '≤ 90%');
+  // Income qualify
+  const q36 = Math.round((total / 0.36) * 12);
+  const q43 = Math.round((total / 0.43) * 12);
+  const q50 = Math.round((total / 0.50) * 12);
 
-    const durEl = document.getElementById('mipDuration');
-    const durText = document.getElementById('mipDurationText');
-    if (downPct < 10) {
-        durEl.className = 'fha-mip-duration warn';
-        durText.innerHTML = `With ${downPct}% down, MIP runs for the <strong>life of your loan</strong> — it never drops off. Put 10%+ down to cancel MIP after 11 years.`;
-    } else {
-        durEl.className = 'fha-mip-duration good';
-        durText.innerHTML = `With ${downPct}% down, MIP cancels automatically after <strong>11 years</strong> — you'll save ${fmt$(monthlyMIP)}/mo once it drops.`;
-    }
+  // FHA limit zone for selected unit count
+  const limits = FHA_LIMITS[units];
+  let zone, badgeText, limitRight, limitDesc;
 
-    // ── Breakdown ──
-    document.getElementById('bkd-pi').textContent     = fmt$(Math.round(pi));
-    document.getElementById('bkd-mip').textContent    = fmt$(monthlyMIP);
-    document.getElementById('bkd-tax').textContent    = fmt$(Math.round(tax));
-    document.getElementById('bkd-ins').textContent    = fmt$(Math.round(ins));
-    document.getElementById('bkd-total').textContent  = fmt$(Math.round(total));
-    document.getElementById('bkd-base').textContent   = fmt$(Math.round(baseLoan));
-    document.getElementById('bkd-ufmip').textContent  = fmt$(ufmip);
-    document.getElementById('bkd-financed').textContent = fmt$(Math.round(loanAmt));
-    document.getElementById('bkd-mip-dur').textContent = mipLife;
-    document.getElementById('bkd-mip-total').textContent = fmt$(totalMIP) + ' est.';
-    // Color life-of-loan red
-    document.getElementById('bkd-mip-dur').style.color = downPct < 10 ? '#ef4444' : '#86efac';
+  if (baseLoan <= limits.floor) {
+    zone = 'within'; badgeText = 'FHA Eligible';
+    limitRight = fmt(limits.floor);
+    limitDesc = `Base loan of <strong>${fmt(Math.round(baseLoan))}</strong> is within the 2026 FHA national floor for a ${units}-unit property.`;
+  } else if (baseLoan <= limits.ceil) {
+    zone = 'highcost'; badgeText = 'High-Cost Limit';
+    limitRight = 'up to ' + fmt(limits.ceil);
+    limitDesc = `Base loan of <strong>${fmt(Math.round(baseLoan))}</strong> requires a high-cost county FHA loan for a ${units}-unit property. Verify your county limit at hud.gov.`;
+  } else {
+    zone = 'exceeds'; badgeText = 'Exceeds FHA Max';
+    limitRight = fmt(limits.ceil) + ' max';
+    limitDesc = `Base loan of <strong>${fmt(Math.round(baseLoan))}</strong> exceeds the maximum FHA limit for a ${units}-unit property. Consider a Jumbo or Conventional loan.`;
+  }
 
-    // ── Explorer stats ──
-    document.getElementById('expBase').textContent     = fmt$(Math.round(baseLoan));
-    document.getElementById('expFinanced').textContent = fmt$(Math.round(loanAmt));
-    document.getElementById('expMIP').textContent      = fmt$(monthlyMIP) + '/mo';
-    document.getElementById('expTotal').textContent    = fmt$(Math.round(total)) + '/mo';
+  // Exceeds warning block
+  const warnEl = document.getElementById('limit-warn');
+  if (zone === 'exceeds') {
+    warnEl.classList.add('visible');
+    document.getElementById('limit-warn-text').innerHTML =
+      `<strong>Loan exceeds the FHA maximum for a ${units}-unit property.</strong> ` +
+      `The 2026 high-cost ceiling is <strong>${fmt(limits.ceil)}</strong> — your base loan of <strong>${fmt(Math.round(baseLoan))}</strong> ` +
+      `is ${fmt(Math.round(baseLoan - limits.ceil))} over the limit. ` +
+      `Reduce purchase price, increase down payment, or switch to a Jumbo or Conventional loan.`;
+  } else {
+    warnEl.classList.remove('visible');
+  }
 
-    // ── Follow-up chip ──
-    document.getElementById('followupChip').textContent =
-        `What income do I need to qualify for this FHA loan? →`;
+  // ── Update DOM ────────────────────────────────────────────────────────────
 
-    // Range fills
-    updateFill('priceRange', price, 50000, 900000);
-    updateFill('downRange', downPct, 3.5, 30);
-    updateFill('rateRange', rate, 3, 12);
+  // Header
+  document.getElementById('hdr-sub').textContent =
+    fmtK(price) + ' · ' + downPct + '% down · ' + parseFloat(rate.toFixed(3)) + '% · ' + termYrs + 'yr FHA · ' + units + '-unit';
 
-    // Down chips
-    ['35','5','10'].forEach(id => {
-        const v = id === '35' ? 3.5 : parseInt(id);
-        document.getElementById('chip'+id)?.classList.toggle('active', downPct === v);
-    });
-    // Term
-    [15, 30].forEach(yr => {
-        const el = document.getElementById('term'+yr);
-        if (el) el.classList.toggle('active', termYrs === yr);
-    });
+  // Price sub-info below slider
+  document.getElementById('price-sub').textContent =
+    'Down payment: ' + fmt(Math.round(downAmt)) + ' · Base loan: ' + fmt(Math.round(baseLoan));
+
+  // Zone badge
+  const badge = document.getElementById('zone-badge');
+  badge.className = 'fha-zone-badge ' + zone;
+  badge.textContent = badgeText;
+
+  // Limit band
+  document.getElementById('limit-band').className = 'fha-band ' + zone;
+  document.getElementById('limit-pill').className  = 'fha-band-pill ' + zone;
+  document.getElementById('limit-pill').textContent = badgeText;
+  document.getElementById('limit-desc').innerHTML  = limitDesc;
+  document.getElementById('limit-right').textContent = limitRight;
+
+  // Hero
+  document.getElementById('hero-total').textContent = fmt(total);
+  document.getElementById('hero-sub').textContent   = 'P&I + MIP + Tax + Insurance · ' + downPct + '% down';
+  document.getElementById('stat-base').textContent  = fmt(Math.round(baseLoan));
+  document.getElementById('stat-financed').textContent = fmt(Math.round(loanAmt));
+  document.getElementById('stat-ltv').textContent   = ltv.toFixed(1) + '%';
+
+  // MIP callout
+  document.getElementById('mip-ufmip').textContent     = fmt(ufmip) + ' financed';
+  document.getElementById('mip-ann-note').textContent  = (annMIP * 100).toFixed(2) + '%/yr on base loan · LTV ' + (ltv > 90 ? '> 90%' : '≤ 90%');
+  document.getElementById('mip-monthly').textContent   = fmt(monthlyMIP) + '/mo';
+  const durEl = document.getElementById('mip-dur');
+  durEl.className = 'fha-mip-dur ' + (mipDrops ? 'good' : 'warn');
+  document.getElementById('mip-dur-text').innerHTML = mipDrops
+    ? `With ${downPct}% down, MIP cancels automatically after <strong>11 years</strong> — you'll save ${fmt(monthlyMIP)}/mo once it drops.`
+    : `With ${downPct}% down, MIP runs for the <strong>life of your loan</strong> — it never drops off. Put 10%+ down to cancel MIP after 11 years.`;
+
+  // Breakdown
+  document.getElementById('bkd-pi').textContent    = fmt(pi);
+  document.getElementById('bkd-mip-label').textContent = 'Monthly MIP (' + (annMIP * 100).toFixed(2) + '%/yr)';
+  document.getElementById('bkd-mip').textContent   = fmt(monthlyMIP);
+  document.getElementById('bkd-tax').textContent   = fmt(tax);
+  document.getElementById('bkd-ins').textContent   = fmt(ins);
+  document.getElementById('bkd-total').textContent = fmt(total) + '/mo';
+
+  // Income qualify
+  document.getElementById('q36').textContent = fmt(q36);
+  document.getElementById('q43').textContent = fmt(q43);
+  document.getElementById('q50').textContent = fmt(q50);
+
+  // Deep drawer — MIP
+  document.getElementById('d-ufmip').textContent      = fmt(ufmip);
+  document.getElementById('d-ann-rate').textContent   = (annMIP * 100).toFixed(2) + '% (LTV ' + (ltv > 90 ? '> 90%' : '≤ 90%') + ')';
+  document.getElementById('d-monthly-mip').textContent = fmt(monthlyMIP) + '/mo';
+  document.getElementById('d-mip-dur').textContent    = mipDrops ? '11 years (10%+ down)' : 'Life of loan (' + downPct + '% down)';
+  document.getElementById('d-total-mip').textContent  = fmt(totalMIP) + ' est.';
+  if (mipDrops) {
+    const lifeMIP  = Math.round(monthlyMIP * termYrs * 12);
+    const savings  = lifeMIP - totalMIP;
+    document.getElementById('d-mip-savings-row').style.display = 'flex';
+    document.getElementById('d-mip-savings').textContent = fmt(savings) + ' less than life-of-loan';
+  } else {
+    document.getElementById('d-mip-savings-row').style.display = 'none';
+  }
+
+  // Deep drawer — Reserves
+  document.getElementById('d-res6').textContent   = fmt(total * 6);
+  document.getElementById('d-res12').textContent  = fmt(total * 12);
+
+  // Deep drawer — Full summary
+  document.getElementById('d-price').textContent     = fmt(price);
+  document.getElementById('d-down').textContent      = fmt(Math.round(downAmt)) + ' (' + downPct + '%)';
+  document.getElementById('d-base').textContent      = fmt(Math.round(baseLoan));
+  document.getElementById('d-ufmip2').textContent    = fmt(ufmip);
+  document.getElementById('d-financed').textContent  = fmt(Math.round(loanAmt));
+  document.getElementById('d-ltv').textContent       = ltv.toFixed(1) + '%';
+  document.getElementById('d-rate').textContent      = parseFloat(rate.toFixed(3)) + '%';
+  document.getElementById('d-term').textContent      = termYrs + ' yr fixed';
+  document.getElementById('d-monthly').textContent   = fmt(total);
+  document.getElementById('d-pmts-label').textContent = 'Total of Payments (' + termYrs + 'yr)';
+  document.getElementById('d-total-pmts').textContent = fmt(totalPmts);
+  document.getElementById('d-total-int').textContent  = fmt(totalInt);
 }
 
-function updateFill(id, val, min, max) {
-    const pct = ((val - min) / (max - min)) * 100;
-    const el = document.getElementById(id);
-    if (el) el.style.background =
-        `linear-gradient(to right, #f59e0b ${pct}%, #e2e8f0 ${pct}%)`;
-}
-
-// ── Handlers ──────────────────────────────────────────────────────────────
-function onPriceChange(v) { price = parseInt(v); document.getElementById('priceVal').textContent = fmtK(price); recalc(); }
-function adjustPrice(d)   { const el=document.getElementById('priceRange'); price=Math.max(50000,Math.min(900000,price+d)); el.value=price; document.getElementById('priceVal').textContent=fmtK(price); recalc(); }
-
-function onDownChange(v)  { downPct = parseFloat(v); document.getElementById('downVal').textContent = downPct + '% · ' + fmtK(price*downPct/100); recalc(); }
-function adjustDown(d)    { const el=document.getElementById('downRange'); downPct=Math.max(3.5,Math.min(30,Math.round((downPct+d)*10)/10)); el.value=downPct; document.getElementById('downVal').textContent=downPct+'% · '+fmtK(price*downPct/100); recalc(); }
-function setDown(p)       { const el=document.getElementById('downRange'); downPct=p; el.value=p; document.getElementById('downVal').textContent=downPct+'% · '+fmtK(price*downPct/100); recalc(); }
-
-function onRateChange(v)  { rate = parseFloat(v); document.getElementById('rateVal').textContent = parseFloat(rate.toFixed(3))+'%'; recalc(); }
-function adjustRate(d)    { const el=document.getElementById('rateRange'); rate=Math.max(3,Math.min(12,Math.round((rate+d)*1000)/1000)); el.value=rate; document.getElementById('rateVal').textContent=parseFloat(rate.toFixed(3))+'%'; recalc(); }
-
-function setTerm(yr)      { termYrs=yr; recalc(); }
-function toggleBkd()      { bkdOpen=!bkdOpen; document.getElementById('bkdBody').style.display=bkdOpen?'':'none'; document.getElementById('bkdChev').classList.toggle('open',bkdOpen); }
-
-// ── Init ──────────────────────────────────────────────────────────────────
+// Initial render
 recalc();
 </script>
 </body>
