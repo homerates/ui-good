@@ -1036,6 +1036,7 @@ export default function LandingPage() {
             <button className="lp-chip" onClick={() => goChat('I make $180,000 a year and have $90,000 saved — can I afford a $900,000 home in California?')}>Can I afford $900k on $180k?</button>
             <button className="lp-chip" onClick={() => goChat('DSCR loan on a $650,000 rental property with $4,200/mo rent and 25% down — does it cash flow in California?')}>DSCR rental · $650k · $4,200 rent</button>
             <button className="lp-chip" onClick={() => goChat('VA loan on an $850,000 home with no down payment — show me the full breakdown including funding fee')}>VA loan · $850k · $0 down</button>
+            <button className="lp-chip" onClick={() => goChat('2/1 buydown on a $900,000 conventional purchase with 20% down at current rates — show me the year-by-year savings')}>2/1 buydown · $900k · 20% down</button>
           </div>
 
           {/* LIVE INSIGHT */}

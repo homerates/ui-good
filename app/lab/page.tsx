@@ -99,6 +99,18 @@ const MODULES = [
       </svg>
     ),
   },
+  {
+    id: 'm9', accent: '#f59e0b', badge: 'BUYDOWN',
+    name: 'Rate Buydown', tag: '2/1 · 1/0 · 3/2/1',
+    desc: '$1.5M · 2/1 · 25% down', sub: 'Year-by-year savings · who pays · vs permanent',
+    seed: '2/1 buydown on a $1,500,000 conventional purchase with 25% down at current rates',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 4h4v4H2z"/><path d="M7 8h4v4H7z"/><path d="M12 12h4v4h-4z"/>
+        <path d="M6 6l2 2M11 10l2 2"/>
+      </svg>
+    ),
+  },
 ];
 
 export default function LabPage() {
@@ -156,10 +168,10 @@ export default function LabPage() {
         .lab-section-label{ font-size:10px; font-weight:700; letter-spacing:.18em; color:#5c6575; }
         .lab-section-count{ font-size:10px; color:#5c6575; font-variant-numeric:tabular-nums; }
 
-        /* ── 4×2 grid ── */
+        /* ── 3×3 grid ── */
         .lab-grid{
           display:grid;
-          grid-template-columns:repeat(4,1fr);
+          grid-template-columns:repeat(3,1fr);
           gap:10px;
         }
 
@@ -321,10 +333,10 @@ export default function LabPage() {
         {/* Section header */}
         <div className="lab-section-row">
           <span className="lab-section-label">ACTIVE MODULES</span>
-          <span className="lab-section-count">8 / 8</span>
+          <span className="lab-section-count">9 / 9</span>
         </div>
 
-        {/* 4×2 Module grid */}
+        {/* 3×3 Module grid */}
         <div className="lab-grid">
           {MODULES.map(m => (
             <button
