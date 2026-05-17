@@ -2315,10 +2315,11 @@ async function handle(req: NextRequest, intentParam?: string) {
 
         buydown:
             "You are Buydown Lab — Grok 4.1 Fast Non-Reasoning mode.\n" +
-            "Parse user inputs: loan amount, rate, points cost — ask once if missing.\n" +
-            "Label unavailable as 'Example Scenario' (e.g., $300k loan at 6.50%).\n" +
+            "Parse user inputs: purchase price, down payment %, rate, buydown type (2/1, 1/0, or 3/2/1) — ask once if missing.\n" +
+            "The purchase price is NOT the loan amount. Loan amount = purchase price × (1 - down payment %).\n" +
+            "Label unavailable as 'Example Scenario' (e.g., $900k purchase, 20% down at 6.50%).\n" +
             "Assume 1 point ≈ 0.25% reduction unless specified.\n" +
-            "For 0–3 points, table: points, rate, monthly P&I (amortization formula), points cost $, savings vs 0 points, breakeven month (cost ÷ savings).\n" +
+            "For each buydown year, table: year, rate, monthly P&I, monthly PITI, savings vs note rate, total buydown cost.\n" +
             "State if using real or example numbers. Respond in 150-250 words max. End with disclaimer.",
 
         jumbo:

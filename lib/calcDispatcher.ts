@@ -105,14 +105,15 @@ export interface FHANeedsInput {
 }
 
 export interface BuydownInput {
-    purchasePrice: number;
-    loanAmount:    number;
-    annualRatePct: number;
-    buydownType:   '2/1' | '1/0' | '3/2/1';
-    isVA:          boolean;
-    sellerCredit?: number;
-    annualTax?:    number;
+    purchasePrice:    number;
+    loanAmount:       number;
+    annualRatePct:    number;
+    buydownType:      '2/1' | '1/0' | '3/2/1';
+    isVA:             boolean;
+    sellerCredit?:    number;
+    annualTax?:       number;
     annualInsurance?: number;
+    downPaymentPct?:  number;
 }
 
 export interface SellerCreditInput {
@@ -901,14 +902,15 @@ export function dispatch(
             return {
                 type: 'buydown',
                 params: {
-                    purchasePrice: price,
-                    loanAmount:    loanAmt,
-                    annualRatePct: rate,
-                    buydownType:   /3[\s\/]2[\s\/]1/i.test(q) ? '3/2/1' : /\b1[\s\/]0\b/i.test(q) ? '1/0' : '2/1',
-                    isVA:          vaHint,
-                    sellerCredit:  credit,
-                    annualTax:     price * 0.011,
+                    purchasePrice:   price,
+                    loanAmount:      loanAmt,
+                    annualRatePct:   rate,
+                    buydownType:     /3[\s\/]2[\s\/]1/i.test(q) ? '3/2/1' : /\b1[\s\/]0\b/i.test(q) ? '1/0' : '2/1',
+                    isVA:            vaHint,
+                    sellerCredit:    credit,
+                    annualTax:       price * 0.011,
                     annualInsurance: price * 0.005,
+                    downPaymentPct:  downPct,
                 } as BuydownInput,
                 confidence: 0.95,
                 assumptions,

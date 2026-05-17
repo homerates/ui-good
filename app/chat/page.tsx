@@ -2640,6 +2640,14 @@ export default function Page() {
                         : `$${Math.round(sl.price / 1000)}k`;
                     return `Here's your jumbo affordability breakdown for a ${prK} home at ${sl.baseRate.toFixed(2)}% — ${sl.downPct}% down.`;
                 })()
+                : (meta.interactiveSlider?.buydownType && meta.interactiveSlider.buydownType !== 'none')
+                ? (() => {
+                    const sl = meta.interactiveSlider as { price: number; downPct: number; rate: number; buydownType: string };
+                    const prK = sl.price >= 1_000_000
+                        ? `$${(sl.price / 1_000_000).toFixed(2)}M`
+                        : `$${Math.round(sl.price / 1_000)}k`;
+                    return `Here's your ${sl.buydownType} buydown breakdown for a ${prK} home at ${sl.rate.toFixed(2)}% — ${sl.downPct}% down.`;
+                })()
                 : friendly;
             // Short constructed sentences use slow tick (3 chars/tick) so typewriter is visible
             const _hasBuydownCard = meta.interactiveSlider?.buydownType && meta.interactiveSlider.buydownType !== 'none';
