@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Home Purchase Card — Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #060c14; font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; padding: 40px 16px 80px; }
+  .wrap { width: 100%; max-width: 680px; }
+
+  /* ── Card shell ── */
+  .pc { background: #0d1117; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; }
+
+  /* ── Topbar ── */
+  .pc-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); }
+  .pc-topbar-l { display: flex; align-items: center; gap: 6px; }
+  .pc-dot { width: 7px; height: 7px; border-radius: 50%; background: #00e87a; }
+  .pc-tl { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6b7a99; }
+  .pc-tr { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #3a4560; }
+
+  /* ── Summary section ── */
+  .pc-sum { padding: 16px 16px 0; }
+  .pc-sum-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .pc-sum-icon { width: 32px; height: 32px; border-radius: 9px; background: rgba(0,232,122,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #00e87a; }
+  .pc-sum-title { font-size: 15px; font-weight: 700; color: #f0f4ff; }
+  .pc-sum-sub { font-size: 11px; color: #6b7a99; margin-top: 1px; }
+
+  /* ── Tiles ── */
+  .pc-tiles { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 14px; }
+  .pc-tile { background: #141b28; border-radius: 10px; padding: 10px 8px 8px; text-align: center; }
+  .pc-tile-icon { margin-bottom: 5px; display: flex; justify-content: center; }
+  .pc-tile-label { font-size: 10px; color: #6b7a99; margin-bottom: 3px; }
+  .pc-tile-value { font-size: 12px; font-weight: 700; color: #f0f4ff; }
+
+  /* ── Loan type tabs ── */
+  .pc-tabs { display: flex; gap: 0; margin: 0 12px 12px; background: #0e1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; }
+  .pc-tab { flex: 1; padding: 9px 4px; text-align: center; font-size: 11px; font-weight: 700; color: #3a4560; cursor: pointer; border-right: 1px solid rgba(255,255,255,0.05); transition: all .15s; letter-spacing: .03em; }
+  .pc-tab:last-child { border-right: none; }
+  .pc-tab.active { background: #00e87a; color: #07100f; }
+  .pc-tab:hover:not(.active) { color: #8fa3b8; background: rgba(255,255,255,0.03); }
+
+  /* ── Payment hero ── */
+  .pc-hero { margin: 0 12px 12px; background: #0e1420; border: 1px solid rgba(0,232,122,0.2); border-radius: 12px; padding: 16px; }
+  .pc-hero-label { font-size: 10px; font-weight: 700; color: #3a4560; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+  .pc-hero-amount { font-size: 32px; font-weight: 800; color: #00e87a; letter-spacing: -.5px; line-height: 1; }
+  .pc-hero-sub { font-size: 11px; color: #6b7a99; margin-top: 4px; }
+  .pc-hero-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 0; margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; }
+  .pc-hero-stat { text-align: center; padding: 0 8px; border-right: 1px solid rgba(255,255,255,0.05); }
+  .pc-hero-stat:last-child { border-right: none; }
+  .pc-hero-stat-label { font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; margin-bottom: 4px; }
+  .pc-hero-stat-val { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+
+  /* ── Payment breakdown accordion ── */
+  .pc-breakdown { margin: 0 12px 12px; background: #0e1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; }
+  .pc-breakdown-toggle { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; cursor: pointer; }
+  .pc-breakdown-toggle-label { font-size: 12px; font-weight: 600; color: #8fa3b8; }
+  .pc-breakdown-toggle-chev { font-size: 10px; color: #3a4560; transition: transform .2s; }
+  .pc-breakdown-toggle-chev.open { transform: rotate(180deg); }
+  .pc-breakdown-body { border-top: 1px solid rgba(255,255,255,0.05); padding: 12px 14px; }
+  .pc-kv { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  .pc-kv:last-child { border-bottom: none; }
+  .pc-kv-k { font-size: 12px; color: #8fa3b8; }
+  .pc-kv-v { font-size: 12px; font-weight: 600; color: #f0f4ff; }
+  .pc-kv-v.green { color: #00e87a; }
+  .pc-kv-section { font-size: 9px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .1em; margin: 10px 0 6px; }
+  .pc-kv-section:first-child { margin-top: 0; }
+  .pc-kv--total .pc-kv-k { font-weight: 700; color: #f0f4ff; }
+  .pc-kv--total .pc-kv-v { color: #00e87a; font-size: 13px; }
+  .pc-kv--total { border-top: 1px solid rgba(255,255,255,0.07); border-bottom: none; margin-top: 4px; padding-top: 8px; }
+
+  /* ── PMI note ── */
+  .pc-pmi-note { margin: 0 12px 12px; background: rgba(251,191,36,0.04); border: 1px solid rgba(251,191,36,0.12); border-radius: 8px; padding: 9px 12px; display: flex; gap: 8px; align-items: flex-start; }
+  .pc-pmi-icon { font-size: 13px; flex-shrink: 0; }
+  .pc-pmi-text { font-size: 11px; color: #8fa3b8; line-height: 1.5; }
+  .pc-pmi-text strong { color: #fbbf24; }
+
+  /* ── White Explorer ── */
+  .pc-explorer { border-top: 1px solid rgba(255,255,255,0.05); padding: 16px 18px; background: #fff; color: #0d1117; }
+  .pc-exp-title { font-size: 13px; font-weight: 700; color: #0d1117; margin-bottom: 14px; }
+
+  /* Slider row */
+  .pc-slider-row { margin-bottom: 14px; }
+  .pc-slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .pc-slider-label { font-size: 13px; font-weight: 600; color: #0d1117; }
+  .pc-slider-value { font-size: 13px; font-weight: 700; color: #0d1117; }
+  .pc-slider-track { display: flex; align-items: center; gap: 6px; }
+  .pc-slider-btn { width: 26px; height: 26px; border-radius: 6px; border: 1.5px solid #e2e8f0; background: #f9f9f9; font-size: 14px; color: #64748b; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-weight: 700; user-select: none; }
+  .pc-slider-btn:hover { border-color: #00e87a; color: #065f46; background: #f0fff8; }
+  .pc-range { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; outline: none; cursor: pointer; }
+  .pc-range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #00e87a; cursor: pointer; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+  .pc-range-labels { display: flex; justify-content: space-between; margin-top: 3px; }
+  .pc-range-label { font-size: 10px; color: #94a3b8; }
+
+  /* Down payment chips */
+  .pc-dp-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .pc-dp-chip { padding: 5px 12px; border-radius: 20px; border: 1.5px solid #e2e8f0; background: #f9f9f9; font-size: 11px; font-weight: 600; color: #64748b; cursor: pointer; transition: all .12s; }
+  .pc-dp-chip.active { border-color: #00e87a; color: #065f46; background: #f0fff8; }
+  .pc-dp-chip:hover:not(.active) { border-color: #94a3b8; }
+
+  /* Term buttons */
+  .pc-exp-term-label { font-size: 13px; font-weight: 600; color: #0d1117; margin: 4px 0 8px; }
+  .pc-terms { display: flex; gap: 8px; margin-bottom: 16px; }
+  .pc-term { flex: 1; padding: 10px 0; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f9f9f9; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; text-align: center; transition: all .15s; }
+  .pc-term.active { border-color: #00e87a; color: #065f46; background: #f0fff8; }
+  .pc-term:hover:not(.active) { border-color: #94a3b8; color: #374151; }
+
+  /* Stats bar */
+  .pc-exp-stats { display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid #eee; padding-top: 12px; margin-bottom: 14px; }
+  .pc-exp-stat { flex: 1; min-width: 100px; }
+  .pc-exp-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #999; font-weight: 700; margin-bottom: 3px; }
+  .pc-exp-stat-val { font-size: 14px; font-weight: 700; color: #0d1117; }
+
+  /* Actions */
+  .pc-exp-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .pc-btn-rerun { background: #111827; color: #f9fafb; border: none; border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; flex-shrink: 0; }
+  .pc-btn-rerun:hover { background: #1f2937; }
+  .pc-btn-vault { display: flex; align-items: center; gap: 6px; background: #00e87a; color: #07100f; border: none; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .pc-btn-vault:hover { opacity: .88; }
+  .pc-btn-pdf { display: flex; align-items: center; gap: 5px; background: transparent; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 14px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; font-family: inherit; }
+  .pc-btn-pdf:hover { border-color: #94a3b8; color: #374151; }
+  .pc-btn-match { margin-left: auto; background: #00e87a; color: #07100f; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .pc-btn-match:hover { opacity: .88; }
+
+  /* ── Rate note + Disclosures ── */
+  .pc-rate-note { margin: 0 12px 12px; background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.12); border-radius: 10px; padding: 10px 14px; display: flex; align-items: flex-start; gap: 10px; }
+  .pc-bulb { font-size: 16px; flex-shrink: 0; }
+  .pc-rate-note p { font-size: 12px; color: #8fa3b8; line-height: 1.5; }
+  .pc-rate-note strong { color: #00e87a; }
+  .pc-disc { margin: 0 12px 16px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 12px 14px; }
+  .pc-disc p { font-size: 11px; color: #3a4560; line-height: 1.6; }
+  .pc-disc strong { color: #6b7a99; font-weight: 600; }
+
+  /* ── Track color helper (JS-set inline style) ── */
+  input[type=range].pc-range { background: linear-gradient(to right, #00e87a 40%, #e2e8f0 40%); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="pc">
+
+    <!-- Topbar -->
+    <div class="pc-topbar">
+      <div class="pc-topbar-l">
+        <div class="pc-dot"></div>
+        <span class="pc-tl">AI Analysis</span>
+      </div>
+      <span class="pc-tr">Live · CalcEngine-Deterministic</span>
+    </div>
+
+    <!-- Summary -->
+    <div class="pc-sum">
+      <div class="pc-sum-head">
+        <div class="pc-sum-icon">
+          <!-- home icon -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"/>
+          </svg>
+        </div>
+        <div>
+          <div class="pc-sum-title">Your Payment Breakdown</div>
+          <div class="pc-sum-sub">Conventional loan · purchase analysis</div>
+        </div>
+      </div>
+      <div class="pc-tiles">
+        <div class="pc-tile">
+          <div class="pc-tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#00e87a" stroke-width="1.8" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"/></svg>
+          </div>
+          <div class="pc-tile-label">Home Price</div>
+          <div class="pc-tile-value">$650,000</div>
+        </div>
+        <div class="pc-tile">
+          <div class="pc-tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="1.8" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75"/></svg>
+          </div>
+          <div class="pc-tile-label">Down Payment</div>
+          <div class="pc-tile-value">20% · $130k</div>
+        </div>
+        <div class="pc-tile">
+          <div class="pc-tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#3d8bff" stroke-width="1.8" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/></svg>
+          </div>
+          <div class="pc-tile-label">Rate (APR)</div>
+          <div class="pc-tile-value">6.23%</div>
+        </div>
+        <div class="pc-tile">
+          <div class="pc-tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div class="pc-tile-label">Loan Term</div>
+          <div class="pc-tile-value">30 yr fixed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loan type tabs -->
+    <div class="pc-tabs">
+      <div class="pc-tab active">Conventional</div>
+      <div class="pc-tab">FHA</div>
+      <div class="pc-tab">VA</div>
+      <div class="pc-tab">Jumbo</div>
+    </div>
+
+    <!-- Payment hero -->
+    <div class="pc-hero">
+      <div class="pc-hero-label">Estimated Monthly PITI</div>
+      <div class="pc-hero-amount">$3,847<span style="font-size:16px;font-weight:600;color:#6b7a99">/mo</span></div>
+      <div class="pc-hero-sub">Principal &amp; Interest + Tax + Insurance · No PMI at 20% down</div>
+      <div class="pc-hero-grid">
+        <div class="pc-hero-stat">
+          <div class="pc-hero-stat-label">Loan Amount</div>
+          <div class="pc-hero-stat-val">$520,000</div>
+        </div>
+        <div class="pc-hero-stat">
+          <div class="pc-hero-stat-label">LTV</div>
+          <div class="pc-hero-stat-val">80.0%</div>
+        </div>
+        <div class="pc-hero-stat">
+          <div class="pc-hero-stat-label">Total Interest (30yr)</div>
+          <div class="pc-hero-stat-val">$665,420</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Breakdown accordion -->
+    <div class="pc-breakdown">
+      <div class="pc-breakdown-toggle" onclick="toggleBreakdown()">
+        <span class="pc-breakdown-toggle-label">⊞ &nbsp;Full payment breakdown</span>
+        <span class="pc-breakdown-toggle-chev open" id="bchev">▴</span>
+      </div>
+      <div class="pc-breakdown-body" id="breakdown-body">
+        <div class="pc-kv-section">Monthly Payment</div>
+        <div class="pc-kv"><span class="pc-kv-k">Principal &amp; Interest</span><span class="pc-kv-v">$3,196</span></div>
+        <div class="pc-kv"><span class="pc-kv-k">Property Taxes</span><span class="pc-kv-v">$542</span></div>
+        <div class="pc-kv"><span class="pc-kv-k">Home Insurance</span><span class="pc-kv-v">$108</span></div>
+        <div class="pc-kv"><span class="pc-kv-k">PMI</span><span class="pc-kv-v" style="color:#6b7a99">None (≥20% down)</span></div>
+        <div class="pc-kv pc-kv--total"><span class="pc-kv-k">Est. Total PITI</span><span class="pc-kv-v green">$3,847/mo</span></div>
+
+        <div class="pc-kv-section" style="margin-top:14px">Loan Structure</div>
+        <div class="pc-kv"><span class="pc-kv-k">Purchase Price</span><span class="pc-kv-v">$650,000</span></div>
+        <div class="pc-kv"><span class="pc-kv-k">Down Payment</span><span class="pc-kv-v">$130,000</span></div>
+        <div class="pc-kv"><span class="pc-kv-k">Loan Amount</span><span class="pc-kv-v">$520,000</span></div>
+        <div class="pc-kv"><span class="pc-kv-k">LTV Ratio</span><span class="pc-kv-v">80.0%</span></div>
+
+        <div class="pc-kv-section" style="margin-top:14px">Long-Term Cost</div>
+        <div class="pc-kv"><span class="pc-kv-k">Total of 360 Payments</span><span class="pc-kv-v">$1,150,920</span></div>
+        <div class="pc-kv"><span class="pc-kv-k">Total Interest Paid</span><span class="pc-kv-v" style="color:#ef4444">$665,420</span></div>
+        <div class="pc-kv"><span class="pc-kv-k">Break-even vs. 15yr</span><span class="pc-kv-v">~yr 8</span></div>
+      </div>
+    </div>
+
+    <!-- PMI note (shows when LTV > 80%) — hidden at 20% down -->
+    <!-- <div class="pc-pmi-note">
+      <span class="pc-pmi-icon">⚠</span>
+      <span class="pc-pmi-text"><strong>PMI applies</strong> at this LTV. Estimated $347/mo added to payment. Drops off automatically at 80% LTV (~yr 9 at this rate).</span>
+    </div> -->
+
+    <!-- White Explorer -->
+    <div class="pc-explorer">
+      <div class="pc-exp-title">Payment Explorer</div>
+
+      <!-- Home Price slider -->
+      <div class="pc-slider-row">
+        <div class="pc-slider-header">
+          <span class="pc-slider-label">Home Price</span>
+          <span class="pc-slider-value">$650,000</span>
+        </div>
+        <div class="pc-slider-track">
+          <div class="pc-slider-btn">‹</div>
+          <input type="range" class="pc-range" min="100000" max="2000000" step="5000" value="650000" style="background:linear-gradient(to right,#00e87a 30.5%,#e2e8f0 30.5%)" />
+          <div class="pc-slider-btn">›</div>
+        </div>
+        <div class="pc-range-labels"><span class="pc-range-label">$100k</span><span class="pc-range-label">$2M</span></div>
+      </div>
+
+      <!-- Down Payment slider -->
+      <div class="pc-slider-row">
+        <div class="pc-slider-header">
+          <span class="pc-slider-label">Down Payment</span>
+          <span class="pc-slider-value">20% · $130,000</span>
+        </div>
+        <div class="pc-slider-track">
+          <div class="pc-slider-btn">‹</div>
+          <input type="range" class="pc-range" min="3" max="50" step="1" value="20" style="background:linear-gradient(to right,#00e87a 36.2%,#e2e8f0 36.2%)" />
+          <div class="pc-slider-btn">›</div>
+        </div>
+        <div class="pc-range-labels"><span class="pc-range-label">3%</span><span class="pc-range-label">50%</span></div>
+        <!-- Quick-select chips -->
+        <div class="pc-dp-chips">
+          <div class="pc-dp-chip">3%</div>
+          <div class="pc-dp-chip">5%</div>
+          <div class="pc-dp-chip">10%</div>
+          <div class="pc-dp-chip active">20%</div>
+          <div class="pc-dp-chip">25%</div>
+        </div>
+      </div>
+
+      <!-- Interest Rate slider -->
+      <div class="pc-slider-row">
+        <div class="pc-slider-header">
+          <span class="pc-slider-label">Interest Rate</span>
+          <span class="pc-slider-value">6.23%</span>
+        </div>
+        <div class="pc-slider-track">
+          <div class="pc-slider-btn">‹</div>
+          <input type="range" class="pc-range" min="3" max="12" step="0.125" value="6.23" style="background:linear-gradient(to right,#00e87a 35.9%,#e2e8f0 35.9%)" />
+          <div class="pc-slider-btn">›</div>
+        </div>
+        <div class="pc-range-labels"><span class="pc-range-label">3%</span><span class="pc-range-label">12%</span></div>
+      </div>
+
+      <!-- Loan Term -->
+      <div class="pc-exp-term-label">Loan Term</div>
+      <div class="pc-terms">
+        <div class="pc-term">15yr</div>
+        <div class="pc-term">20yr</div>
+        <div class="pc-term active">30yr</div>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="pc-exp-stats">
+        <div class="pc-exp-stat">
+          <div class="pc-exp-stat-label">Loan Amount</div>
+          <div class="pc-exp-stat-val">$520,000</div>
+        </div>
+        <div class="pc-exp-stat">
+          <div class="pc-exp-stat-label">Base Loan</div>
+          <div class="pc-exp-stat-val">$520,000</div>
+        </div>
+        <div class="pc-exp-stat">
+          <div class="pc-exp-stat-label">LTV</div>
+          <div class="pc-exp-stat-val">80.0%</div>
+        </div>
+        <div class="pc-exp-stat">
+          <div class="pc-exp-stat-label">Total Interest (30yr)</div>
+          <div class="pc-exp-stat-val">$665,420</div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="pc-exp-actions">
+        <button class="pc-btn-rerun">Run adjusted scenario →</button>
+        <button class="pc-btn-vault">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clip-rule="evenodd"/></svg>
+          My Vault
+        </button>
+        <button class="pc-btn-pdf">↓ Save as PDF</button>
+        <button class="pc-btn-match">Get matched →</button>
+      </div>
+    </div>
+
+    <!-- Rate assumption -->
+    <div class="pc-rate-note">
+      <span class="pc-bulb">💡</span>
+      <p><strong>Assumption:</strong> Rate assumed at <strong>6.23%</strong> (FRED 30-yr fixed, live). Actual rate depends on credit score, lender, and lock timing. Use the slider above to model different rates.</p>
+    </div>
+
+    <!-- Disclosures -->
+    <div class="pc-disc">
+      <p><strong>Educational estimates only.</strong> These figures are for planning purposes and are not a Loan Estimate, pre-approval, or commitment to lend under RESPA/TRID. Monthly payment estimates include principal &amp; interest, estimated property tax (1.0% annual), homeowner's insurance (0.2% annual), and PMI where applicable. Actual terms depend on creditworthiness, property type, and lender. Rate sourced from FRED 30-Year Fixed Mortgage Average — not a rate lock or offer.</p>
+    </div>
+
+  </div><!-- /pc -->
+</div>
+
+<script>
+  // Breakdown toggle
+  let bOpen = true;
+  function toggleBreakdown() {
+    bOpen = !bOpen;
+    document.getElementById('breakdown-body').style.display = bOpen ? 'block' : 'none';
+    document.getElementById('bchev').textContent = bOpen ? '▴' : '▾';
+    document.getElementById('bchev').classList.toggle('open', bOpen);
+  }
+
+  // Tab switching
+  document.querySelectorAll('.pc-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.pc-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+
+  // Down payment chips
+  document.querySelectorAll('.pc-dp-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.pc-dp-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    });
+  });
+
+  // Term buttons
+  document.querySelectorAll('.pc-term').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.pc-term').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discover v2 — Design Review</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #060c18;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ─── Shell ─── */
+  .shell {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 20px 16px 80px;
+  }
+
+  /* ─── Mobile tab bar ─── */
+  .tab-bar {
+    display: none;
+    background: #0a1020;
+    border-bottom: 1px solid rgba(148,163,184,0.12);
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 13px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(148,163,184,0.50);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: all 0.15s;
+  }
+  .tab-btn.active { color: #00e87a; border-bottom-color: #00e87a; }
+
+  /* ─── Split ─── */
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 12px;
+    align-items: start;
+  }
+
+  /* ─── Chat panel ─── */
+  .chat-panel {
+    background: #0d1420;
+    border: 1px solid rgba(148,163,184,0.12);
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .chat-header {
+    padding: 13px 16px;
+    border-bottom: 1px solid rgba(148,163,184,0.10);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg,#1e3a5f,#2d5a8e);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #60a5fa;
+    flex-shrink: 0;
+  }
+  .ch-name { font-weight: 700; font-size: 13px; color: #f0f4ff; }
+  .ch-meta { font-size: 11px; color: rgba(148,163,184,0.50); margin-top: 1px; }
+  .ch-badge {
+    margin-left: auto;
+    font-size: 10px; font-weight: 700;
+    padding: 3px 9px; border-radius: 20px;
+    background: rgba(0,232,122,0.10);
+    border: 1px solid rgba(0,232,122,0.25);
+    color: #00e87a; white-space: nowrap; flex-shrink: 0;
+  }
+  .messages {
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 12px;
+    min-height: 300px; max-height: 420px;
+    overflow-y: auto;
+  }
+  .msg { display: flex; flex-direction: column; gap: 4px; max-width: 82%; }
+  .msg.pro { align-self: flex-start; }
+  .msg.borrow, .msg.discover-q { align-self: flex-end; }
+  .msg .who {
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    color: rgba(148,163,184,0.45);
+  }
+  .msg.borrow .who, .msg.discover-q .who { text-align: right; }
+  .bubble {
+    padding: 10px 13px; border-radius: 11px;
+    font-size: 12.5px; line-height: 1.6;
+  }
+  .msg.pro .bubble {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(148,163,184,0.10);
+    color: #dde8f0;
+    border-radius: 3px 11px 11px 11px;
+  }
+  .msg.borrow .bubble {
+    background: rgba(0,232,122,0.07);
+    border: 1px solid rgba(0,232,122,0.16);
+    color: #d4f0de;
+    border-radius: 11px 3px 11px 11px;
+  }
+  .msg.discover-q .bubble {
+    background: rgba(139,92,246,0.08);
+    border: 1px solid rgba(139,92,246,0.22);
+    color: #c4b5fd;
+    border-radius: 11px 3px 11px 11px;
+    font-size: 12px;
+  }
+  .msg.discover-q .who { color: rgba(139,92,246,0.70); }
+  .msg .ts { font-size: 10px; color: rgba(148,163,184,0.28); margin-top: 1px; }
+  .msg.borrow .ts, .msg.discover-q .ts { text-align: right; }
+
+  .chat-input-row {
+    display: flex; gap: 8px;
+    padding: 11px 14px;
+    border-top: 1px solid rgba(148,163,184,0.08);
+    background: rgba(0,0,0,0.18);
+  }
+  .chat-input {
+    flex: 1; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(148,163,184,0.15);
+    border-radius: 8px; padding: 9px 12px;
+    color: #e2e8f0; font-size: 13px; outline: none; font-family: inherit;
+  }
+  .chat-input::placeholder { color: rgba(148,163,184,0.30); }
+  .send-btn {
+    padding: 9px 16px; border-radius: 8px;
+    background: rgba(0,232,122,0.12);
+    border: 1px solid rgba(0,232,122,0.25);
+    color: #00e87a; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+
+  /* ─── Discover panel ─── */
+  .discover-panel {
+    background: #090e1a;
+    border: 1px solid rgba(148,163,184,0.13);
+    border-radius: 14px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .discover-hdr {
+    padding: 12px 15px;
+    border-bottom: 1px solid rgba(148,163,184,0.08);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dh-title { font-size: 12.5px; font-weight: 700; color: #c8dfc8; }
+  .dh-sub { font-size: 11px; color: rgba(148,163,184,0.45); margin-left: 3px; }
+  .dh-badge {
+    margin-left: auto;
+    font-size: 10px; font-weight: 600;
+    padding: 2px 9px; border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+    transition: all 0.2s;
+  }
+
+  /* Scenario strip */
+  .scen-strip {
+    padding: 8px 14px;
+    background: rgba(0,232,122,0.04);
+    border-bottom: 1px solid rgba(0,232,122,0.09);
+    display: flex; gap: 14px; flex-wrap: wrap;
+  }
+  .sc-item { display: flex; flex-direction: column; gap: 1px; }
+  .sc-val { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+  .sc-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(148,163,184,0.45); font-weight: 600; }
+
+  /* chips section label */
+  .section-lbl {
+    padding: 10px 14px 5px;
+    font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.09em; text-transform: uppercase;
+    color: rgba(148,163,184,0.38);
+  }
+
+  /* ─── Question chip ─── */
+  .chips-list { padding: 0 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .q-chip {
+    border-radius: 9px; overflow: hidden;
+    border: 1px solid rgba(148,163,184,0.10);
+    transition: border-color 0.15s;
+  }
+  .q-chip.idle { border-color: rgba(148,163,184,0.10); }
+  .q-chip.next { border-color: rgba(139,92,246,0.25); }
+  .q-chip.sent { border-color: rgba(139,92,246,0.28); }
+  .q-chip.answered.match { border-color: rgba(0,232,122,0.28); }
+  .q-chip.answered.check { border-color: rgba(251,191,36,0.28); }
+  .q-chip.answered.alert { border-color: rgba(248,113,113,0.30); }
+
+  .q-chip-top {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 11px;
+    background: none; border: none; width: 100%;
+    text-align: left; cursor: default;
+  }
+  .q-chip.next .q-chip-top, .q-chip.idle.next .q-chip-top { cursor: pointer; }
+  .q-icon { font-size: 14px; flex-shrink: 0; }
+  .q-title { font-size: 12px; font-weight: 600; color: rgba(185,208,192,0.75); flex: 1; }
+  .q-chip.next .q-title { color: #c4b5fd; }
+  .q-chip.sent .q-title { color: rgba(139,92,246,0.80); }
+  .q-chip.answered .q-title { color: #f0f4ff; }
+
+  /* sub-topics line */
+  .q-subtopics {
+    font-size: 10px; color: rgba(148,163,184,0.40);
+    padding: 0 11px 8px 33px;
+    line-height: 1.5;
+  }
+  .q-chip.next .q-subtopics { color: rgba(139,92,246,0.55); }
+
+  .q-pill {
+    font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px;
+    white-space: nowrap; flex-shrink: 0; margin-left: auto;
+  }
+  .pill-idle   { background: rgba(148,163,184,0.06); border: 1px solid rgba(148,163,184,0.12); color: rgba(148,163,184,0.38); }
+  .pill-next   { background: rgba(139,92,246,0.10); border: 1px solid rgba(139,92,246,0.28); color: #a78bfa; }
+  .pill-sent   { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.28); color: #c4b5fd; }
+  .pill-match  { background: rgba(0,232,122,0.10); border: 1px solid rgba(0,232,122,0.28); color: #00e87a; }
+  .pill-check  { background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.28); color: #fbbf24; }
+  .pill-alert  { background: rgba(248,113,113,0.10); border: 1px solid rgba(248,113,113,0.28); color: #f87171; }
+
+  /* ─── Chip expanded section ─── */
+  .q-expand {
+    border-top: 1px solid rgba(148,163,184,0.07);
+    padding: 10px 11px 11px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .expand-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cell {
+    border-radius: 7px; padding: 8px 10px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .cell-ai   { background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.13); }
+  .cell-lo   { background: rgba(255,255,255,0.02); border: 1px dashed rgba(148,163,184,0.13); }
+  .cell-lo.filled { background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.17); }
+  .cell-lo.filled.check { background: rgba(251,191,36,0.05); border-color: rgba(251,191,36,0.20); }
+  .cell-lo.filled.alert { background: rgba(248,113,113,0.05); border-color: rgba(248,113,113,0.22); }
+  .cell-col { font-size: 9px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 3px; }
+  .cell-ai .cell-col { color: rgba(0,232,122,0.55); }
+  .cell-lo .cell-col { color: rgba(148,163,184,0.40); }
+  .cell-val { font-size: 14px; font-weight: 700; line-height: 1.2; }
+  .cell-ai .cell-val { color: #00e87a; }
+  .cell-lo.filled.match .cell-val { color: #00e87a; }
+  .cell-lo.filled.check .cell-val { color: #fbbf24; }
+  .cell-lo.filled.alert .cell-val { color: #f87171; }
+  .cell-sub  { font-size: 10px; color: rgba(185,208,192,0.42); margin-top: 1px; }
+  .cell-empty { font-size: 11px; font-style: italic; color: rgba(148,163,184,0.25); }
+
+  /* waiting pulse */
+  .waiting-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: rgba(139,92,246,0.65); font-style: italic; }
+  .dot-pulse { display: inline-flex; gap: 3px; align-items: center; }
+  .dot-pulse span { width: 4px; height: 4px; border-radius: 50%; background: #a78bfa; animation: pulse 1.2s ease-in-out infinite; }
+  .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,80%,100%{opacity:.3;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
+
+  /* AI analysis bar */
+  .analysis-bar {
+    display: flex; align-items: flex-start; gap: 7px;
+    padding: 8px 10px; border-radius: 7px;
+    font-size: 11px; line-height: 1.55;
+  }
+  .analysis-bar.match { background: rgba(0,232,122,0.07); border: 1px solid rgba(0,232,122,0.18); color: #9de8bc; }
+  .analysis-bar.check { background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.18); color: #fde68a; }
+  .analysis-bar.alert { background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.18); color: #fca5a5; }
+  .analysis-icon { font-size: 11px; margin-top: 1px; flex-shrink: 0; }
+
+  /* ─── Ask AI section ─── */
+  .ask-ai-section {
+    margin: 6px 10px 10px;
+    border: 1px solid rgba(148,163,184,0.10);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .ask-ai-hdr {
+    display: flex; align-items: center; gap: 7px;
+    padding: 9px 12px;
+    cursor: pointer;
+    background: none; border: none; width: 100%; text-align: left;
+  }
+  .ask-ai-hdr-text { font-size: 12px; font-weight: 600; color: rgba(185,208,192,0.65); }
+  .ask-ai-hdr-sub  { font-size: 10px; color: rgba(148,163,184,0.40); margin-left: 4px; }
+  .ask-ai-hdr-arrow { margin-left: auto; font-size: 10px; color: rgba(148,163,184,0.30); }
+
+  .ask-ai-body { border-top: 1px solid rgba(148,163,184,0.07); padding: 10px 12px 12px; display: none; flex-direction: column; gap: 8px; }
+  .ask-ai-body.open { display: flex; }
+
+  /* AI conversation in the dock */
+  .ai-convo { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+  .ai-q-row { display: flex; flex-direction: column; gap: 2px; }
+  .ai-q-you  { font-size: 11.5px; color: rgba(185,208,192,0.65); line-height: 1.5; padding: 6px 9px; background: rgba(255,255,255,0.03); border-radius: 6px 6px 6px 2px; border: 1px solid rgba(148,163,184,0.08); }
+  .ai-q-ans  { font-size: 11.5px; color: #9de8bc; line-height: 1.5; padding: 7px 9px; background: rgba(0,232,122,0.05); border-radius: 6px 6px 2px 6px; border: 1px solid rgba(0,232,122,0.13); }
+  .ai-q-lbl  { font-size: 9px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(148,163,184,0.35); margin-bottom: 2px; }
+
+  .ask-ai-input-row { display: flex; gap: 7px; }
+  .ask-ai-input {
+    flex: 1; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(148,163,184,0.15);
+    border-radius: 7px; padding: 8px 10px;
+    color: #e2e8f0; font-size: 12px; outline: none; font-family: inherit;
+    resize: none;
+  }
+  .ask-ai-input::placeholder { color: rgba(148,163,184,0.28); font-style: italic; }
+  .ask-ai-send {
+    padding: 8px 13px; border-radius: 7px;
+    background: rgba(0,232,122,0.10);
+    border: 1px solid rgba(0,232,122,0.22);
+    color: #00e87a; font-size: 12px; font-weight: 700; cursor: pointer;
+    align-self: flex-end;
+  }
+  .ask-ai-disclaimer {
+    font-size: 10px; color: rgba(148,163,184,0.30); font-style: italic; line-height: 1.4;
+  }
+
+  /* ─── Discover footer ─── */
+  .discover-footer {
+    padding: 9px 14px;
+    border-top: 1px solid rgba(148,163,184,0.06);
+    background: rgba(0,0,0,0.22);
+    font-size: 10px; color: rgba(185,208,192,0.30);
+    font-style: italic; text-align: center; line-height: 1.5;
+  }
+
+  /* ─── Demo controls ─── */
+  .demo-bar {
+    margin-bottom: 20px;
+    padding: 13px 15px;
+    background: rgba(255,255,255,0.025);
+    border: 1px dashed rgba(148,163,184,0.18);
+    border-radius: 10px;
+  }
+  .demo-bar p { font-size: 11px; color: rgba(148,163,184,0.50); margin-bottom: 9px; line-height: 1.4; }
+  .demo-btns { display: flex; gap: 7px; flex-wrap: wrap; }
+  .demo-btn {
+    font-size: 11px; padding: 5px 11px; border-radius: 6px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(148,163,184,0.18);
+    color: rgba(185,208,192,0.65); cursor: pointer;
+  }
+  .demo-btn:hover { background: rgba(255,255,255,0.08); }
+  .demo-btn.active { background: rgba(0,232,122,0.10); border-color: rgba(0,232,122,0.30); color: #00e87a; }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 700px) {
+    .split { grid-template-columns: 1fr; gap: 0; }
+    .tab-bar { display: flex; position: sticky; top: 0; z-index: 10; }
+    .tab-panel { display: none; }
+    .tab-panel.visible { display: block; }
+    .chat-panel, .discover-panel { border-radius: 0; border-left: none; border-right: none; }
+    .messages { max-height: 50vh; }
+    .demo-bar { margin: 12px 0 0; }
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.15); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- Mobile tabs -->
+<div class="tab-bar" id="tabBar">
+  <button class="tab-btn active" onclick="switchTab('chat')">💬 Chat</button>
+  <button class="tab-btn" onclick="switchTab('discover')">🔍 Discover</button>
+</div>
+
+<div class="shell">
+
+  <!-- Demo controls -->
+  <div class="demo-bar">
+    <p><strong style="color:rgba(185,208,192,0.75)">Design Review</strong> — simulate each state to evaluate the flow</p>
+    <div class="demo-btns">
+      <button class="demo-btn active" onclick="setStep(0)">① Start — nothing asked</button>
+      <button class="demo-btn" onclick="setStep(1)">② Rate chip sent → waiting</button>
+      <button class="demo-btn" onclick="setStep(2)">③ LO answered Rate (✓ match)</button>
+      <button class="demo-btn" onclick="setStep(3)">④ Costs chip sent → waiting</button>
+      <button class="demo-btn" onclick="setStep(4)">⑤ LO answered Costs (⚠ alert)</button>
+      <button class="demo-btn" onclick="setStep(5)">⑥ Process answered (⚡ review)</button>
+      <button class="demo-btn" onclick="setStep(6)">⑦ All 4 done + Ask AI open</button>
+    </div>
+  </div>
+
+  <div class="split">
+
+    <!-- ── Chat panel ── -->
+    <div class="tab-panel visible" id="chatPanel">
+      <div class="chat-panel">
+        <div class="chat-header">
+          <div class="avatar">MR</div>
+          <div>
+            <div class="ch-name">Marcus Rivera</div>
+            <div class="ch-meta">CrossCountry Mortgage · NMLS 891234</div>
+          </div>
+          <div class="ch-badge">Jumbo · $1.5M</div>
+        </div>
+        <div class="messages" id="messages"></div>
+        <div class="chat-input-row">
+          <input class="chat-input" type="text" placeholder="Message Marcus…" />
+          <button class="send-btn">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Discover panel ── -->
+    <div class="tab-panel visible" id="discoverPanel">
+      <div class="discover-panel">
+
+        <!-- Header -->
+        <div class="discover-hdr">
+          <span style="font-size:15px">🔍</span>
+          <span class="dh-title">Discover</span>
+          <span class="dh-sub">Jumbo · AI benchmark</span>
+          <span class="dh-badge" id="dockBadge">Ask your lender</span>
+        </div>
+
+        <!-- Scenario strip -->
+        <div class="scen-strip">
+          <div class="sc-item"><span class="sc-val">$1,500,000</span><span class="sc-lbl">Purchase</span></div>
+          <div class="sc-item"><span class="sc-val">20% down</span><span class="sc-lbl">Down</span></div>
+          <div class="sc-item"><span class="sc-val">7.25%</span><span class="sc-lbl">Rate</span></div>
+          <div class="sc-item"><span class="sc-val">$8,186/mo</span><span class="sc-lbl">Est. P&amp;I</span></div>
+        </div>
+
+        <div class="section-lbl">Evaluation questions · tap next chip to ask lender</div>
+        <div class="chips-list" id="chipsList"></div>
+
+        <!-- Ask AI section -->
+        <div class="ask-ai-section" id="askAiSection">
+          <button class="ask-ai-hdr" onclick="toggleAskAi()">
+            <span style="font-size:14px">✨</span>
+            <span class="ask-ai-hdr-text">Ask AI about your scenario</span>
+            <span class="ask-ai-hdr-sub">Open research · any question</span>
+            <span class="ask-ai-hdr-arrow" id="askAiArrow">▼</span>
+          </button>
+          <div class="ask-ai-body" id="askAiBody">
+            <div class="ai-convo" id="aiConvo"></div>
+            <div class="ask-ai-input-row">
+              <textarea class="ask-ai-input" id="askAiInput" rows="2" placeholder="e.g. Is this rate competitive for a 740 credit score jumbo buyer in CA right now?"></textarea>
+              <button class="ask-ai-send" onclick="sendAiQuestion()">Ask</button>
+            </div>
+            <div class="ask-ai-disclaimer">AI answers use your scenario data. Not financial advice.</div>
+          </div>
+        </div>
+
+        <div class="discover-footer">The goal is not to avoid lenders — it's to choose who has earned the right to advise you.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── Question definitions ──────────────────────────────────────────────────
+const QUESTIONS = [
+  {
+    id: 'rate',
+    icon: '📊',
+    title: 'Rate, APR & Program',
+    subtopics: 'Exact rate · APR · fixed vs ARM · rate lock options & cost',
+    question: 'What is your exact interest rate and APR on a $1,200,000 jumbo loan at 20% down? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost?',
+    aiVal: '7.25%', aiSub: 'AI benchmark · 30yr fixed jumbo · 20% down',
+  },
+  {
+    id: 'costs',
+    icon: '💰',
+    title: 'Costs & Cash to Close',
+    subtopics: 'Origination fee · discount points · title · prepaids · total cash needed',
+    question: 'What is your origination fee on this loan — flat or percentage? Are there discount points to buy down the rate? What is the estimated total cash to close including all lender fees, title, prepaids, and escrow?',
+    aiVal: '~$345,000', aiSub: '$300K down + est. $45K in fees & prepaids',
+  },
+  {
+    id: 'process',
+    icon: '🗓',
+    title: 'Process & Timeline',
+    subtopics: 'Days to close · appraisal timing · UW approval · contingency removal · lock timing',
+    question: 'Walk me through your process: How many days does it take to close a jumbo purchase? When do you order the appraisal? What is your underwriting approval timeline, and how many days before close can I remove my loan contingency?',
+    aiVal: '30–45 days', aiSub: 'Appraisal day 3–5 · UW 10–14 days · contingency day 17–21',
+  },
+  {
+    id: 'after-close',
+    icon: '🔄',
+    title: 'After Close & Future Rate',
+    subtopics: 'No-cost refi options · rate monitoring · strike point alerts · lifetime guarantee · servicing quality',
+    question: 'What is your commitment to me after this loan closes? Do you offer a no-cost refinance if rates drop? Do you actively monitor my rate and notify me when I hit a strike point? Do you offer a lifetime rate guarantee or certificate? And regardless of who services the loan, what is your personal commitment to staying involved?',
+    aiVal: 'Ask lender', aiSub: 'Top lenders offer rate monitoring + no-cost refi commitment',
+  },
+];
+
+// ─── Steps ──────────────────────────────────────────────────────────────────
+const STEPS = [
+  // 0 — fresh
+  { sent: [], answers: {}, waiting: null, aiOpen: false },
+  // 1 — rate sent
+  { sent: ['rate'], answers: {}, waiting: 'rate', aiOpen: false },
+  // 2 — rate answered (match)
+  { sent: ['rate'], waiting: null, aiOpen: false, answers: {
+    rate: { val: '7.125% / 7.19% APR', status: 'match',
+      analysis: 'Rate is slightly below the AI benchmark of 7.25% — a positive signal. APR of 7.19% is consistent with low lender fees. 30-day lock is standard. Lock extension pricing at 0.125 pts/15 days is within normal range.' }
+  }},
+  // 3 — costs sent
+  { sent: ['rate','costs'], waiting: 'costs', aiOpen: false, answers: {
+    rate: { val: '7.125% / 7.19% APR', status: 'match', analysis: 'Rate slightly below benchmark. APR consistent with low fees.' }
+  }},
+  // 4 — costs answered (alert)
+  { sent: ['rate','costs'], waiting: null, aiOpen: false, answers: {
+    rate: { val: '7.125% / 7.19% APR', status: 'match', analysis: 'Rate slightly below benchmark. APR consistent with low fees.' },
+    costs: { val: '$372,000 to close', status: 'alert',
+      analysis: 'Cash to close is ~$27,000 above the AI estimate. Lender is charging 1.5% origination ($18,000) against a 0–1% jumbo benchmark. Request a revised Loan Estimate and ask Marcus to reduce or waive the origination fee before proceeding.' }
+  }},
+  // 5 — process answered (check)
+  { sent: ['rate','costs','process'], waiting: null, aiOpen: false, answers: {
+    rate: { val: '7.125% / 7.19% APR', status: 'match', analysis: 'Rate slightly below benchmark. APR consistent with low fees.' },
+    costs: { val: '$372,000 to close', status: 'alert', analysis: '$27K above estimate — 1.5% origination is high. Negotiate before proceeding.' },
+    process: { val: '35 days · appraisal day 5', status: 'check',
+      analysis: '35-day close is achievable but tight for jumbo. Appraisal on day 5 is good. However, contingency removal on day 25 is later than the AI benchmark of day 17–21 — this could be a negotiating liability with a competitive seller. Confirm with your agent.' }
+  }},
+  // 6 — all 4 + ask AI open
+  { sent: ['rate','costs','process','after-close'], waiting: null, aiOpen: true, answers: {
+    rate: { val: '7.125% / 7.19% APR', status: 'match', analysis: 'Rate slightly below benchmark.' },
+    costs: { val: '$372,000 to close', status: 'alert', analysis: 'Origination fee 1.5% is above market — negotiate down.' },
+    process: { val: '35 days · appraisal day 5', status: 'check', analysis: 'Contingency removal on day 25 is later than benchmark (17–21 days).' },
+    'after-close': { val: 'Rate alerts · no-cost refi offered', status: 'match',
+      analysis: 'Marcus confirmed rate monitoring with proactive alerts at your strike point, and a no-cost refi commitment if rates drop 0.5% or more. Note: every loan agreement allows sale to a servicer — what matters is the lender\'s documented commitment to stay engaged. A lifetime guarantee certificate in writing is the gold standard. Ask him to put it on letterhead.' }
+  }},
+];
+
+// ─── Chat messages ───────────────────────────────────────────────────────────
+function getMessages(step) {
+  const msgs = [
+    { role:'pro', who:'Marcus Rivera · LO', text:'Hi! Thanks for reaching out. I reviewed your scenario — we can definitely work with a $1.5M purchase. I\'m excited to walk you through our jumbo programs.', ts:'10:42 AM' },
+    { role:'borrow', who:'You', text:'Thanks Marcus. Before I move forward I have a few specific questions. I\'ll be sending them one at a time via Discover.', ts:'10:45 AM' },
+  ];
+  if (step>=1) msgs.push({ role:'discover-q', who:'You · via Discover', text:QUESTIONS[0].question, ts:'10:46 AM' });
+  if (step>=2) msgs.push({ role:'pro', who:'Marcus Rivera · LO', text:'Great question. Our rate right now on a 30-year fixed jumbo at 20% down is 7.125%. APR is 7.19% — this is a portfolio product we hold in-house. We offer 30-day locks at no cost, 45-day at 0.125 pts, and extensions at 0.125 pts per 15 days.', ts:'11:02 AM' });
+  if (step>=3) msgs.push({ role:'discover-q', who:'You · via Discover', text:QUESTIONS[1].question, ts:'11:06 AM' });
+  if (step>=4) msgs.push({ role:'pro', who:'Marcus Rivera · LO', text:'Our origination fee is 1.5% of the loan — roughly $18,000 on a $1.2M loan. No discount points required at this rate. Total cash to close I estimate at $372,000, including your $300K down, the origination fee, title ($9,500), prepaids ($12,000), and escrow reserves.', ts:'11:24 AM' });
+  if (step>=5) {
+    msgs.push({ role:'discover-q', who:'You · via Discover', text:QUESTIONS[2].question, ts:'11:32 AM' });
+    msgs.push({ role:'pro', who:'Marcus Rivera · LO', text:'We close most jumbo purchases in 35 days. Appraisal is ordered on day 5. Underwriting typically gives a conditional approval around day 14, clear to close by day 28. Loan contingency removal we\'d recommend on day 25 to be safe.', ts:'11:55 AM' });
+  }
+  if (step>=6) {
+    msgs.push({ role:'discover-q', who:'You · via Discover', text:QUESTIONS[3].question, ts:'12:10 PM' });
+    msgs.push({ role:'pro', who:'Marcus Rivera · LO', text:'Great question. We do offer a no-cost refinance if rates drop 0.5% or more — I personally track your rate against market and will reach out proactively. I can provide a lifetime rate guarantee letter. And while I can\'t promise the loan will never be sold to a servicer, my commitment to you as your advisor doesn\'t change — I\'ll be your first call if anything comes up.', ts:'12:28 PM' });
+  }
+  return msgs;
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderMessages(step) {
+  const el = document.getElementById('messages');
+  el.innerHTML = getMessages(step).map(m=>`
+    <div class="msg ${m.role}">
+      <div class="who">${m.who}</div>
+      <div class="bubble">${m.text}</div>
+      <div class="ts">${m.ts}</div>
+    </div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function renderChips(step) {
+  const state = STEPS[step];
+  const list = document.getElementById('chipsList');
+  let alertN=0, checkN=0, matchN=0, pendingN=0;
+
+  list.innerHTML = QUESTIONS.map((q,i)=>{
+    const isSent  = state.sent.includes(q.id);
+    const ans     = state.answers[q.id];
+    const waiting = state.waiting === q.id;
+    const isNext  = !isSent && state.waiting===null && i===state.sent.length;
+
+    if (ans?.status==='match') matchN++;
+    else if (ans?.status==='check') checkN++;
+    else if (ans?.status==='alert') alertN++;
+    else pendingN++;
+
+    let chipClass = isSent ? (ans ? 'answered '+(ans.status) : 'sent') : (isNext ? 'next' : 'idle');
+    let pillClass, pillText;
+    if (!isSent && isNext)      { pillClass='pill-next';  pillText='Tap to ask'; }
+    else if (!isSent)           { pillClass='pill-idle';  pillText='Pending'; }
+    else if (waiting)           { pillClass='pill-sent';  pillText='Waiting…'; }
+    else if (ans?.status)       { pillClass='pill-'+ans.status; pillText=ans.status==='match'?'✓ Match':ans.status==='check'?'⚡ Review':'⚠ Alert'; }
+    else                        { pillClass='pill-sent';  pillText='Sent'; }
+
+    const canClick = isNext ? 'onclick="onChipClick()"' : '';
+
+    let expandHtml = '';
+    if (isSent) {
+      const loCellClass = ans ? `cell-lo filled ${ans.status}` : 'cell-lo';
+      const loContent   = ans
+        ? `<div class="cell-col">Your Lender</div><div class="cell-val">${ans.val}</div>`
+        : `<div class="cell-col">Your Lender</div><div class="cell-empty">Waiting for reply…</div>`;
+
+      const waitHtml = waiting ? `<div class="waiting-row"><div class="dot-pulse"><span></span><span></span><span></span></div>Waiting for Marcus to reply in chat</div>` : '';
+      const aiHtml   = ans ? `<div class="analysis-bar ${ans.status}"><span class="analysis-icon">${ans.status==='match'?'✓':ans.status==='check'?'⚡':'⚠'}</span><span>${ans.analysis}</span></div>` : '';
+
+      expandHtml = `<div class="q-expand">
+        <div class="expand-grid">
+          <div class="cell cell-ai">
+            <div class="cell-col">HomeRates AI</div>
+            <div class="cell-val">${q.aiVal}</div>
+            <div class="cell-sub">${q.aiSub}</div>
+          </div>
+          <div class="${loCellClass}">${loContent}</div>
+        </div>
+        ${waitHtml}${aiHtml}
+      </div>`;
+    }
+
+    return `<div class="q-chip ${chipClass}">
+      <button class="q-chip-top" ${canClick}>
+        <span class="q-icon">${q.icon}</span>
+        <span class="q-title">${q.title}</span>
+        <span class="q-pill ${pillClass}">${pillText}</span>
+      </button>
+      <div class="q-subtopics">${q.subtopics}</div>
+      ${expandHtml}
+    </div>`;
+  }).join('');
+
+  // badge
+  const badge = document.getElementById('dockBadge');
+  if (alertN>0)             { badge.textContent=`${alertN} alert${alertN>1?'s':''}`; badge.style.cssText='background:rgba(248,113,113,0.10);border:1px solid rgba(248,113,113,0.28);color:#f87171;'; }
+  else if (checkN>0)        { badge.textContent=`${checkN} to review`; badge.style.cssText='background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.28);color:#fbbf24;'; }
+  else if (pendingN===QUESTIONS.length) { badge.textContent='Ask your lender'; badge.style.cssText='background:rgba(139,92,246,0.10);border:1px solid rgba(139,92,246,0.28);color:#a78bfa;'; }
+  else                      { badge.textContent=`${matchN}/${QUESTIONS.length} done`; badge.style.cssText='background:rgba(0,232,122,0.10);border:1px solid rgba(0,232,122,0.28);color:#00e87a;'; }
+}
+
+function renderAskAi(step) {
+  const state = STEPS[step];
+  const body  = document.getElementById('askAiBody');
+  const arrow = document.getElementById('askAiArrow');
+  const convo = document.getElementById('aiConvo');
+
+  if (state.aiOpen) {
+    body.classList.add('open');
+    arrow.textContent='▲';
+    // seed an example exchange in step 6
+    if (step===6) {
+      convo.innerHTML = `
+        <div class="ai-q-row">
+          <div class="ai-q-lbl">You asked</div>
+          <div class="ai-q-you">Is 7.125% competitive right now for a 740-score jumbo buyer in Los Angeles?</div>
+        </div>
+        <div class="ai-q-row">
+          <div class="ai-q-lbl">HomeRates AI</div>
+          <div class="ai-q-ans">For a 740 FICO 30-year fixed jumbo in LA County as of today, the competitive range is 7.00–7.375%. Marcus's quote of 7.125% sits in the middle of that band — not exceptional, but not overpriced. The more important variable is the 1.5% origination fee. At $18,000, that effectively moves your all-in cost above market. Ask him to reduce origination to 0.75% and hold the rate — that would save you $9,000 at close.</div>
+        </div>`;
+    }
+  } else {
+    body.classList.remove('open');
+    arrow.textContent='▼';
+    convo.innerHTML='';
+  }
+}
+
+let askAiOpen = false;
+function toggleAskAi() {
+  askAiOpen = !askAiOpen;
+  const body  = document.getElementById('askAiBody');
+  const arrow = document.getElementById('askAiArrow');
+  body.classList.toggle('open', askAiOpen);
+  arrow.textContent = askAiOpen ? '▲' : '▼';
+}
+
+function sendAiQuestion() {
+  const input = document.getElementById('askAiInput');
+  const convo = document.getElementById('aiConvo');
+  const q = input.value.trim();
+  if (!q) return;
+  convo.innerHTML += `
+    <div class="ai-q-row">
+      <div class="ai-q-lbl">You asked</div>
+      <div class="ai-q-you">${q}</div>
+    </div>
+    <div class="ai-q-row">
+      <div class="ai-q-lbl">HomeRates AI</div>
+      <div class="ai-q-ans">Based on your jumbo scenario ($1.5M purchase, 20% down, 7.125% rate), this is a great question. The AI analysis for your specific situation will appear here — pulling in your loan data, the lender's answers, and current market benchmarks to give you a grounded answer.</div>
+    </div>`;
+  input.value = '';
+  convo.scrollTop = convo.scrollHeight;
+}
+
+function onChipClick() {
+  // In demo: advance to next "sent" step
+  if (currentStep===0) setStep(1);
+  else if (currentStep===2) setStep(3);
+  else if (currentStep===4) setStep(5);
+}
+
+let currentStep = 0;
+function setStep(n) {
+  currentStep = n;
+  document.querySelectorAll('.demo-btn').forEach((b,i)=>b.classList.toggle('active',i===n));
+  renderMessages(n);
+  renderChips(n);
+  renderAskAi(n);
+  // sync ask-ai toggle state
+  askAiOpen = STEPS[n].aiOpen;
+}
+
+// Mobile tabs
+function switchTab(tab) {
+  const cp = document.getElementById('chatPanel');
+  const dp = document.getElementById('discoverPanel');
+  const [b0,b1] = document.querySelectorAll('.tab-btn');
+  if (tab==='chat') { cp.classList.add('visible'); dp.classList.remove('visible'); b0.classList.add('active'); b1.classList.remove('active'); }
+  else              { dp.classList.add('visible'); cp.classList.remove('visible'); b1.classList.add('active'); b0.classList.remove('active'); }
+}
+
+setStep(0);
+</script>
+</body>
+</html>

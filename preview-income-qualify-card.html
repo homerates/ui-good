@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Income to Qualify Card — Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #060c14; font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; padding: 40px 16px 80px; }
+  .wrap { width: 100%; max-width: 680px; }
+
+  /* ── Card shell ── */
+  .iq { background: #0d1117; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; color: #f0f4ff; }
+
+  /* ── Topbar ── */
+  .iq-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); }
+  .iq-topbar-l { display: flex; align-items: center; gap: 6px; }
+  .iq-dot { width: 7px; height: 7px; border-radius: 50%; background: #3d8bff; }
+  .iq-tl { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6b7a99; }
+  .iq-tr { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #3a4560; }
+
+  /* ── Header ── */
+  .iq-header { display: flex; align-items: center; gap: 12px; padding: 16px 16px 12px; }
+  .iq-header-icon { width: 38px; height: 38px; border-radius: 11px; background: rgba(61,139,255,0.1); border: 1px solid rgba(61,139,255,0.2); display: flex; align-items: center; justify-content: center; color: #3d8bff; flex-shrink: 0; }
+  .iq-header-title { font-size: 15px; font-weight: 700; color: #f0f4ff; }
+  .iq-header-sub { font-size: 11px; color: #6b7a99; margin-top: 2px; }
+
+  /* ── Hero ── */
+  .iq-hero { margin: 0 12px 0; background: #0a111d; border: 1px solid rgba(61,139,255,0.2); border-radius: 14px; padding: 20px 20px 16px; text-align: center; }
+  .iq-hero-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #4b6080; margin-bottom: 8px; }
+  .iq-hero-amount { font-size: 48px; font-weight: 800; color: #3d8bff; letter-spacing: -2.5px; line-height: 1; }
+  .iq-hero-yr { font-size: 20px; font-weight: 600; color: #4b6080; letter-spacing: 0; }
+  .iq-hero-sub { font-size: 12px; color: #8fa3b8; margin-top: 8px; }
+  .iq-hero-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 0; margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
+  .iq-hero-stat { text-align: center; padding: 0 8px; border-right: 1px solid rgba(255,255,255,0.06); }
+  .iq-hero-stat:last-child { border-right: none; }
+  .iq-hero-stat-label { font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; margin-bottom: 4px; }
+  .iq-hero-stat-val { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+
+  /* ── Debt slider section ── */
+  .iq-debt-section { padding: 14px 16px 8px; border-top: 1px solid rgba(255,255,255,0.05); margin-top: 12px; }
+  .iq-debt-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .iq-debt-label { font-size: 13px; font-weight: 600; color: #c4cfe0; }
+  .iq-debt-val { font-size: 14px; font-weight: 700; color: #f0f4ff; }
+  .iq-slider-track { display: flex; align-items: center; gap: 8px; }
+  .iq-slider-btn { width: 28px; height: 28px; border-radius: 7px; border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); font-size: 16px; color: #8fa3b8; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-weight: 700; user-select: none; line-height: 1; transition: all .12s; }
+  .iq-slider-btn:hover { border-color: #3d8bff; color: #3d8bff; background: rgba(61,139,255,0.08); }
+  .iq-range-wrap { flex: 1; }
+  input[type=range].iq-range { width: 100%; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: linear-gradient(to right, #3d8bff 30%, rgba(255,255,255,0.12) 30%); outline: none; cursor: pointer; }
+  input[type=range].iq-range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #3d8bff; cursor: pointer; border: 2px solid #0d1117; box-shadow: 0 0 0 3px rgba(61,139,255,0.25); }
+  .iq-range-labels { display: flex; justify-content: space-between; margin-top: 4px; }
+  .iq-range-label { font-size: 10px; color: #3a4560; }
+  .iq-debt-hint { font-size: 11px; color: #4b6080; margin-top: 6px; line-height: 1.4; padding-bottom: 4px; }
+  .iq-debt-impact { color: #3d8bff; font-weight: 600; }
+
+  /* ── DTI grid ── */
+  .iq-dti-section { padding: 14px 16px 12px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .iq-dti-head { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #3a4560; margin-bottom: 10px; }
+  .iq-dti-grid { display: flex; flex-direction: column; gap: 5px; }
+  .iq-dti-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 9px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); }
+  .iq-dti-row.active { background: rgba(61,139,255,0.06); border-color: rgba(61,139,255,0.22); }
+  .iq-dti-pct { font-size: 13px; font-weight: 800; color: #f0f4ff; min-width: 34px; }
+  .iq-dti-row.active .iq-dti-pct { color: #3d8bff; }
+  .iq-dti-label { font-size: 11px; color: #6b7a99; flex: 1; }
+  .iq-dti-row.active .iq-dti-label { color: #8fa3b8; }
+  .iq-dti-val { font-size: 13px; font-weight: 700; color: #6b7a99; }
+  .iq-dti-row.active .iq-dti-val { color: #3d8bff; font-size: 14px; }
+  .iq-dti-badge { font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 20px; background: rgba(61,139,255,0.12); color: #3d8bff; border: 1px solid rgba(61,139,255,0.25); flex-shrink: 0; }
+
+  /* ── Explorer (dark panel) ── */
+  .iq-exp { border-top: 1px solid rgba(255,255,255,0.05); padding: 14px 16px 16px; background: rgba(255,255,255,0.012); }
+  .iq-exp-title { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #3a4560; margin-bottom: 14px; }
+
+  .iq-slider-row { margin-bottom: 14px; }
+  .iq-slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+  .iq-slider-label { font-size: 13px; font-weight: 600; color: #c4cfe0; }
+  .iq-slider-value { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+  .iq-track-wrap { display: flex; align-items: center; gap: 8px; }
+  .iq-track-btn { width: 26px; height: 26px; border-radius: 6px; border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); font-size: 15px; color: #8fa3b8; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-weight: 700; user-select: none; line-height: 1; transition: all .12s; }
+  .iq-track-btn:hover { border-color: #00e87a; color: #00e87a; background: rgba(0,232,122,0.06); }
+  .iq-rng-wrap { flex: 1; }
+  input[type=range].iq-rng { width: 100%; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: linear-gradient(to right, #00e87a 20%, rgba(255,255,255,0.12) 20%); outline: none; cursor: pointer; }
+  input[type=range].iq-rng::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #00e87a; cursor: pointer; border: 2px solid #0d1117; box-shadow: 0 0 0 3px rgba(0,232,122,0.2); }
+  .iq-rng-labels { display: flex; justify-content: space-between; margin-top: 3px; }
+  .iq-rng-label { font-size: 10px; color: #3a4560; }
+
+  /* Down payment chips */
+  .iq-dp-chips { display: flex; gap: 6px; margin: -4px 0 14px; flex-wrap: wrap; }
+  .iq-dp-chip { padding: 5px 12px; border-radius: 20px; border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); font-size: 11px; font-weight: 600; color: #6b7a99; cursor: pointer; transition: all .12s; }
+  .iq-dp-chip.active { border-color: #00e87a; color: #00e87a; background: rgba(0,232,122,0.08); }
+  .iq-dp-chip:hover:not(.active) { border-color: rgba(255,255,255,0.25); color: #c4cfe0; }
+
+  /* Term buttons */
+  .iq-exp-term-label { font-size: 13px; font-weight: 600; color: #c4cfe0; margin: 0 0 8px; }
+  .iq-terms { display: flex; gap: 7px; margin-bottom: 14px; }
+  .iq-term { flex: 1; padding: 9px 0; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); font-size: 13px; font-weight: 600; color: #6b7a99; cursor: pointer; text-align: center; transition: all .15s; }
+  .iq-term.active { border-color: #00e87a; color: #00e87a; background: rgba(0,232,122,0.08); }
+  .iq-term:hover:not(.active) { border-color: rgba(255,255,255,0.25); color: #c4cfe0; }
+
+  /* Stats bar */
+  .iq-exp-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-bottom: 0; }
+  .iq-exp-stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 8px; text-align: center; }
+  .iq-exp-stat-label { font-size: 10px; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; margin-bottom: 3px; }
+  .iq-exp-stat-val { font-size: 13px; font-weight: 700; color: #c4cfe0; }
+
+  /* ── Payment breakdown ── */
+  .iq-bkd { border-top: 1px solid rgba(255,255,255,0.05); }
+  .iq-bkd-toggle { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; cursor: pointer; user-select: none; width: 100%; background: transparent; border: none; color: inherit; font-family: inherit; }
+  .iq-bkd-toggle:hover { background: rgba(255,255,255,0.015); }
+  .iq-bkd-label { font-size: 12px; font-weight: 600; color: #6b7a99; }
+  .iq-bkd-chev { font-size: 10px; color: #3a4560; transition: transform .2s; }
+  .iq-bkd-chev.open { transform: rotate(180deg); }
+  .iq-bkd-body { border-top: 1px solid rgba(255,255,255,0.05); padding: 10px 16px 12px; }
+  .iq-kv { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .iq-kv:last-child { border-bottom: none; }
+  .iq-kv-k { font-size: 12px; color: #6b7a99; }
+  .iq-kv-v { font-size: 12px; font-weight: 600; color: #c4cfe0; }
+  .iq-kv-v.blue { color: #3d8bff; }
+  .iq-kv-section { font-size: 9px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .1em; margin: 10px 0 5px; }
+  .iq-kv-section:first-child { margin-top: 0; }
+  .iq-kv--total { border-top: 1px solid rgba(255,255,255,0.08); border-bottom: none; margin-top: 4px; padding-top: 8px; }
+  .iq-kv--total .iq-kv-k { font-weight: 700; color: #c4cfe0; font-size: 13px; }
+  .iq-kv--total .iq-kv-v { color: #f0f4ff; font-size: 13px; font-weight: 800; }
+
+  /* ── Actions ── */
+  .iq-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .iq-btn-qualify { background: rgba(61,139,255,0.1); color: #3d8bff; border: 1.5px solid rgba(61,139,255,0.3); border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .15s; }
+  .iq-btn-qualify:hover { background: rgba(61,139,255,0.18); border-color: rgba(61,139,255,0.5); }
+  .iq-btn-match { margin-left: auto; background: #00e87a; color: #07100f; border: none; border-radius: 8px; padding: 10px 22px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .iq-btn-match:hover { opacity: .88; }
+
+  /* ── Rate note ── */
+  .iq-rate-note { margin: 0 12px 12px; background: rgba(61,139,255,0.04); border: 1px solid rgba(61,139,255,0.12); border-radius: 10px; padding: 10px 14px; display: flex; align-items: flex-start; gap: 10px; }
+  .iq-bulb { font-size: 16px; flex-shrink: 0; }
+  .iq-rate-note p { font-size: 12px; color: #6b7a99; line-height: 1.5; }
+  .iq-rate-note strong { color: #3d8bff; }
+
+  /* ── Disclosures ── */
+  .iq-disc { padding: 0 16px 16px; }
+  .iq-disc p { font-size: 10px; color: #2a3448; line-height: 1.6; }
+  .iq-disc strong { color: #3a4560; }
+
+  @media (max-width: 480px) {
+    .iq-hero-amount { font-size: 36px; }
+    .iq-exp-stats { grid-template-columns: repeat(2,1fr); }
+    .iq-dti-label { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="iq">
+
+  <!-- Topbar -->
+  <div class="iq-topbar">
+    <div class="iq-topbar-l">
+      <div class="iq-dot"></div>
+      <span class="iq-tl">AI Analysis</span>
+    </div>
+    <span class="iq-tr">Live · CalcEngine-Deterministic</span>
+  </div>
+
+  <!-- Header -->
+  <div class="iq-header">
+    <div class="iq-header-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </div>
+    <div>
+      <div class="iq-header-title">Income to Qualify</div>
+      <div class="iq-header-sub" id="header-sub">$800k · 20% down · 6.88% · 30yr fixed</div>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="iq-hero">
+    <div class="iq-hero-label">Minimum Annual Income (43% DTI)</div>
+    <div class="iq-hero-amount" id="hero-income">$164,280<span class="iq-hero-yr">/yr</span></div>
+    <div class="iq-hero-sub" id="hero-sub">Based on $5,883/mo PITI — no other debts entered</div>
+    <div class="iq-hero-grid">
+      <div class="iq-hero-stat">
+        <div class="iq-hero-stat-label">Monthly PITI</div>
+        <div class="iq-hero-stat-val" id="stat-piti">$5,883</div>
+      </div>
+      <div class="iq-hero-stat">
+        <div class="iq-hero-stat-label">Loan Amount</div>
+        <div class="iq-hero-stat-val" id="stat-loan">$640,000</div>
+      </div>
+      <div class="iq-hero-stat">
+        <div class="iq-hero-stat-label">Loan-to-Value</div>
+        <div class="iq-hero-stat-val">80.0%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Monthly Debt Slider -->
+  <div class="iq-debt-section">
+    <div class="iq-debt-label-row">
+      <span class="iq-debt-label">Your Other Monthly Debts</span>
+      <span class="iq-debt-val" id="debt-val">$0/mo</span>
+    </div>
+    <div class="iq-slider-track">
+      <div class="iq-slider-btn" onclick="adjustDebt(-100)">−</div>
+      <div class="iq-range-wrap">
+        <input type="range" class="iq-range" id="debtRange" min="0" max="3000" step="50" value="0" oninput="onDebtChange(this.value)" />
+        <div class="iq-range-labels">
+          <span class="iq-range-label">$0</span>
+          <span class="iq-range-label">$3,000</span>
+        </div>
+      </div>
+      <div class="iq-slider-btn" onclick="adjustDebt(100)">+</div>
+    </div>
+    <div class="iq-debt-hint" id="debt-hint">
+      Car loan, student loans, credit cards — adds <span class="iq-debt-impact" id="debt-impact-text">nothing until you enter a value</span>
+    </div>
+  </div>
+
+  <!-- DTI Grid -->
+  <div class="iq-dti-section">
+    <div class="iq-dti-head">Required Income by DTI Threshold</div>
+    <div class="iq-dti-grid">
+      <div class="iq-dti-row active">
+        <div class="iq-dti-pct">43%</div>
+        <div class="iq-dti-label">Standard max (Fannie/Freddie)</div>
+        <div class="iq-dti-val" id="dti43">$164,280/yr</div>
+        <div class="iq-dti-badge">Standard</div>
+      </div>
+      <div class="iq-dti-row">
+        <div class="iq-dti-pct">36%</div>
+        <div class="iq-dti-label">Conservative (strong file)</div>
+        <div class="iq-dti-val" id="dti36">$196,100/yr</div>
+      </div>
+      <div class="iq-dti-row">
+        <div class="iq-dti-pct">28%</div>
+        <div class="iq-dti-label">Front-end only (housing)</div>
+        <div class="iq-dti-val" id="dti28">$252,130/yr</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Explorer -->
+  <div class="iq-exp">
+    <div class="iq-exp-title">Payment Explorer</div>
+
+    <!-- Home Price -->
+    <div class="iq-slider-row">
+      <div class="iq-slider-header">
+        <span class="iq-slider-label">Home Price</span>
+        <span class="iq-slider-value" id="priceVal">$800,000</span>
+      </div>
+      <div class="iq-track-wrap">
+        <div class="iq-track-btn" onclick="adjustPrice(-5000)">−</div>
+        <div class="iq-rng-wrap">
+          <input type="range" class="iq-rng" id="priceRange" min="100000" max="3000000" step="5000" value="800000" oninput="onPriceChange(this.value)" />
+          <div class="iq-rng-labels">
+            <span class="iq-rng-label">$100k</span>
+            <span class="iq-rng-label">$3M</span>
+          </div>
+        </div>
+        <div class="iq-track-btn" onclick="adjustPrice(5000)">+</div>
+      </div>
+    </div>
+
+    <!-- Down Payment -->
+    <div class="iq-slider-row">
+      <div class="iq-slider-header">
+        <span class="iq-slider-label">Down Payment</span>
+        <span class="iq-slider-value" id="downVal">20% · $160,000</span>
+      </div>
+      <div class="iq-track-wrap">
+        <div class="iq-track-btn" onclick="adjustDown(-1)">−</div>
+        <div class="iq-rng-wrap">
+          <input type="range" class="iq-rng" id="downRange" min="3" max="50" step="1" value="20" oninput="onDownChange(this.value)" />
+          <div class="iq-rng-labels">
+            <span class="iq-rng-label">3%</span>
+            <span class="iq-rng-label">50%</span>
+          </div>
+        </div>
+        <div class="iq-track-btn" onclick="adjustDown(1)">+</div>
+      </div>
+    </div>
+
+    <!-- Down Payment Chips -->
+    <div class="iq-dp-chips">
+      <div class="iq-dp-chip" onclick="setDown(3)" id="chip3">3%</div>
+      <div class="iq-dp-chip" onclick="setDown(5)" id="chip5">5%</div>
+      <div class="iq-dp-chip" onclick="setDown(10)" id="chip10">10%</div>
+      <div class="iq-dp-chip active" onclick="setDown(20)" id="chip20">20%</div>
+    </div>
+
+    <!-- Interest Rate -->
+    <div class="iq-slider-row">
+      <div class="iq-slider-header">
+        <span class="iq-slider-label">Interest Rate</span>
+        <span class="iq-slider-value" id="rateVal">6.875%</span>
+      </div>
+      <div class="iq-track-wrap">
+        <div class="iq-track-btn" onclick="adjustRate(-0.125)">−</div>
+        <div class="iq-rng-wrap">
+          <input type="range" class="iq-rng" id="rateRange" min="3" max="12" step="0.125" value="6.875" oninput="onRateChange(this.value)" />
+          <div class="iq-rng-labels">
+            <span class="iq-rng-label">3%</span>
+            <span class="iq-rng-label">12%</span>
+          </div>
+        </div>
+        <div class="iq-track-btn" onclick="adjustRate(0.125)">+</div>
+      </div>
+    </div>
+
+    <!-- Loan Term -->
+    <div class="iq-exp-term-label">Loan Term</div>
+    <div class="iq-terms">
+      <div class="iq-term" onclick="setTerm(15)" id="term15">15yr</div>
+      <div class="iq-term" onclick="setTerm(20)" id="term20">20yr</div>
+      <div class="iq-term active" onclick="setTerm(30)" id="term30">30yr</div>
+    </div>
+
+    <!-- Stats bar -->
+    <div class="iq-exp-stats">
+      <div class="iq-exp-stat">
+        <div class="iq-exp-stat-label">Loan Amount</div>
+        <div class="iq-exp-stat-val" id="expLoan">$640,000</div>
+      </div>
+      <div class="iq-exp-stat">
+        <div class="iq-exp-stat-label">LTV</div>
+        <div class="iq-exp-stat-val" id="expLTV">80.0%</div>
+      </div>
+      <div class="iq-exp-stat">
+        <div class="iq-exp-stat-label">Monthly PITI</div>
+        <div class="iq-exp-stat-val" id="expPITI">$5,883/mo</div>
+      </div>
+      <div class="iq-exp-stat">
+        <div class="iq-exp-stat-label">Monthly PMI</div>
+        <div class="iq-exp-stat-val" id="expPMI" style="color:#94a3b8">None</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment breakdown -->
+  <div class="iq-bkd">
+    <button class="iq-bkd-toggle" onclick="toggleBkd()">
+      <span class="iq-bkd-label">⊞ &nbsp;Full payment breakdown</span>
+      <span class="iq-bkd-chev open" id="bkdChev">▴</span>
+    </button>
+    <div class="iq-bkd-body" id="bkdBody">
+      <div class="iq-kv-section">Monthly Payment</div>
+      <div class="iq-kv"><span class="iq-kv-k">Principal &amp; Interest</span><span class="iq-kv-v" id="bkd-pi">$4,228</span></div>
+      <div class="iq-kv"><span class="iq-kv-k">Property Taxes (est.)</span><span class="iq-kv-v" id="bkd-tax">$800</span></div>
+      <div class="iq-kv"><span class="iq-kv-k">Home Insurance</span><span class="iq-kv-v" id="bkd-ins">$333</span></div>
+      <div class="iq-kv"><span class="iq-kv-k">PMI</span><span class="iq-kv-v" id="bkd-pmi">None (20% down)</span></div>
+      <div class="iq-kv" id="bkd-debt-row" style="display:none;"><span class="iq-kv-k">Other Monthly Debts</span><span class="iq-kv-v" id="bkd-debt">—</span></div>
+      <div class="iq-kv iq-kv--total"><span class="iq-kv-k">Total Monthly</span><span class="iq-kv-v" id="bkd-total">$5,883</span></div>
+      <div class="iq-kv-section">Income Required</div>
+      <div class="iq-kv"><span class="iq-kv-k">Min. income @ 43% DTI</span><span class="iq-kv-v blue" id="bkd-income43">$13,690/mo · $164,280/yr</span></div>
+      <div class="iq-kv"><span class="iq-kv-k">Conservative @ 36% DTI</span><span class="iq-kv-v" id="bkd-income36">$16,342/mo · $196,100/yr</span></div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="iq-actions">
+    <button class="iq-btn-qualify">I qualify — check my scenario →</button>
+    <button class="iq-btn-match">Get Matched →</button>
+  </div>
+
+  <!-- Rate note -->
+  <div class="iq-rate-note">
+    <span class="iq-bulb">💡</span>
+    <p>
+      <strong>Assumption:</strong> Rate seeded at <strong>6.88%</strong> (FRED 30-yr fixed, live).
+      DTI thresholds per Fannie Mae / Freddie Mac guidelines. Actual qualification depends on credit score, loan program, and lender overlays.
+    </p>
+  </div>
+
+  <!-- Disclosures -->
+  <div class="iq-disc">
+    <p>
+      <strong>Educational estimates only.</strong> Income requirements are calculated using standard 43% back-end DTI (Fannie Mae DU guidelines).
+      Actual lender requirements may vary. Not a pre-approval or commitment to lend. Monthly payment includes P&amp;I, estimated property tax (1.2% annual),
+      homeowner's insurance (0.5% annual), and PMI where LTV exceeds 80%.
+    </p>
+  </div>
+
+</div><!-- /.iq -->
+</div><!-- /.wrap -->
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────
+
+let price    = 800000;
+let downPct  = 20;
+let rate     = 6.875;
+let termYrs  = 30;
+let debtMo   = 0;
+const TAX_RATE = 0.012;
+const INS_RATE = 0.005;
+let bkdOpen  = true;
+
+// ── Math ─────────────────────────────────────────────────────────────────
+
+function calcPI(principal, annualRate, termYears) {
+    if (principal <= 0) return 0;
+    if (annualRate <= 0) return principal / (termYears * 12);
+    const r = annualRate / 100 / 12;
+    const n = termYears * 12;
+    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+}
+
+function fmt$(n) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+}
+
+function fmtK(n) {
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(2) + 'M';
+    if (n >= 100000)  return '$' + Math.round(n / 1000) + 'k';
+    return fmt$(n);
+}
+
+// ── Recalc ────────────────────────────────────────────────────────────────
+
+function recalc() {
+    const downAmt = price * downPct / 100;
+    const loanAmt = price - downAmt;
+    const ltv     = (loanAmt / price) * 100;
+    const pi      = calcPI(loanAmt, rate, termYrs);
+    const tax     = (price * TAX_RATE) / 12;
+    const ins     = (price * INS_RATE) / 12;
+    const pmi     = ltv > 80 ? (loanAmt * 0.008) / 12 : 0;
+    const piti    = pi + tax + ins + pmi;
+    const totalMo = piti + debtMo;
+
+    const income43 = Math.round((totalMo / 0.43) * 12);
+    const income36 = Math.round((totalMo / 0.36) * 12);
+    const income28 = Math.round((totalMo / 0.28) * 12);
+
+    // Header sub
+    document.getElementById('header-sub').textContent =
+        fmtK(price) + ' · ' + downPct + '% down · ' + rate.toFixed(3).replace(/\.?0+$/,'') + '% · ' + termYrs + 'yr fixed';
+
+    // Hero
+    document.getElementById('hero-income').innerHTML =
+        fmt$(income43) + '<span class="iq-hero-yr">/yr</span>';
+    document.getElementById('hero-sub').textContent =
+        'Based on ' + fmt$(Math.round(piti)) + '/mo PITI' +
+        (debtMo > 0 ? ' + ' + fmt$(debtMo) + '/mo debts' : ' — no other debts entered');
+
+    document.getElementById('stat-piti').textContent = fmt$(Math.round(piti));
+    document.getElementById('stat-loan').textContent = fmt$(Math.round(loanAmt));
+
+    // DTI grid
+    document.getElementById('dti43').textContent = fmt$(income43) + '/yr';
+    document.getElementById('dti36').textContent = fmt$(income36) + '/yr';
+    document.getElementById('dti28').textContent = fmt$(income28) + '/yr';
+
+    // Breakdown
+    document.getElementById('bkd-pi').textContent   = fmt$(Math.round(pi));
+    document.getElementById('bkd-tax').textContent  = fmt$(Math.round(tax));
+    document.getElementById('bkd-ins').textContent  = fmt$(Math.round(ins));
+    if (pmi > 0) {
+        document.getElementById('bkd-pmi').textContent = fmt$(Math.round(pmi)) + '/mo';
+        document.getElementById('bkd-pmi').style.color = '#f59e0b';
+    } else {
+        document.getElementById('bkd-pmi').textContent = 'None (' + downPct + '% down)';
+        document.getElementById('bkd-pmi').style.color = '';
+    }
+    const debtRow = document.getElementById('bkd-debt-row');
+    if (debtMo > 0) {
+        debtRow.style.display = 'flex';
+        document.getElementById('bkd-debt').textContent = fmt$(debtMo);
+    } else {
+        debtRow.style.display = 'none';
+    }
+    document.getElementById('bkd-total').textContent = fmt$(Math.round(totalMo));
+    document.getElementById('bkd-income43').textContent =
+        fmt$(Math.round(totalMo / 0.43)) + '/mo · ' + fmt$(income43) + '/yr';
+    document.getElementById('bkd-income36').textContent =
+        fmt$(Math.round(totalMo / 0.36)) + '/mo · ' + fmt$(income36) + '/yr';
+
+    // Explorer stats
+    document.getElementById('expLoan').textContent = fmt$(Math.round(loanAmt));
+    document.getElementById('expLTV').textContent  = ltv.toFixed(1) + '%';
+    document.getElementById('expPITI').textContent = fmt$(Math.round(piti)) + '/mo';
+    const pmiEl = document.getElementById('expPMI');
+    if (pmi > 0) {
+        pmiEl.textContent = fmt$(Math.round(pmi)) + '/mo';
+        pmiEl.style.color = '#f59e0b';
+    } else {
+        pmiEl.textContent = 'None';
+        pmiEl.style.color = '#94a3b8';
+    }
+
+    // Update range backgrounds
+    updateRangeTrack('priceRange',  price,   100000, 3000000);
+    updateRangeTrack('downRange',   downPct, 3,      50);
+    updateRangeTrack('rateRange',   rate,    3,      12);
+
+    // Down chips
+    [3, 5, 10, 20].forEach(p => {
+        const el = document.getElementById('chip' + p);
+        if (el) el.classList.toggle('active', downPct === p);
+    });
+
+    // Term buttons
+    [15, 20, 30].forEach(yr => {
+        const el = document.getElementById('term' + yr);
+        if (el) el.classList.toggle('active', termYrs === yr);
+    });
+}
+
+function updateRangeTrack(id, val, min, max) {
+    const pct = ((val - min) / (max - min)) * 100;
+    const el = document.getElementById(id);
+    if (el) {
+        const color = id === 'debtRange' ? '#3d8bff' : '#00e87a';
+        el.style.background = `linear-gradient(to right, ${color} ${pct}%, rgba(255,255,255,0.12) ${pct}%)`;
+    }
+}
+
+// ── Handlers ──────────────────────────────────────────────────────────────
+
+function onDebtChange(v) {
+    debtMo = parseInt(v);
+    document.getElementById('debt-val').textContent = debtMo === 0 ? '$0/mo' : fmt$(debtMo) + '/mo';
+    const addedIncome = Math.round((debtMo / 0.43) * 12);
+    const impactEl = document.getElementById('debt-impact-text');
+    if (debtMo === 0) {
+        impactEl.textContent = 'nothing until you enter a value';
+    } else {
+        impactEl.textContent = fmt$(addedIncome) + ' added to annual income requirement';
+    }
+    updateRangeTrack('debtRange', debtMo, 0, 3000);
+    recalc();
+}
+
+function adjustDebt(delta) {
+    const el = document.getElementById('debtRange');
+    debtMo = Math.max(0, Math.min(3000, debtMo + delta));
+    el.value = debtMo;
+    onDebtChange(debtMo);
+}
+
+function onPriceChange(v) {
+    price = parseInt(v);
+    document.getElementById('priceVal').textContent = fmtK(price);
+    recalc();
+}
+
+function adjustPrice(delta) {
+    const el = document.getElementById('priceRange');
+    price = Math.max(100000, Math.min(3000000, price + delta));
+    el.value = price;
+    document.getElementById('priceVal').textContent = fmtK(price);
+    recalc();
+}
+
+function onDownChange(v) {
+    downPct = parseInt(v);
+    document.getElementById('downVal').textContent = downPct + '% · ' + fmtK(price * downPct / 100);
+    recalc();
+}
+
+function adjustDown(delta) {
+    const el = document.getElementById('downRange');
+    downPct = Math.max(3, Math.min(50, downPct + delta));
+    el.value = downPct;
+    document.getElementById('downVal').textContent = downPct + '% · ' + fmtK(price * downPct / 100);
+    recalc();
+}
+
+function setDown(pct) {
+    const el = document.getElementById('downRange');
+    downPct = pct;
+    el.value = pct;
+    document.getElementById('downVal').textContent = downPct + '% · ' + fmtK(price * downPct / 100);
+    recalc();
+}
+
+function onRateChange(v) {
+    rate = parseFloat(v);
+    document.getElementById('rateVal').textContent = parseFloat(rate.toFixed(3)) + '%';
+    recalc();
+}
+
+function adjustRate(delta) {
+    const el = document.getElementById('rateRange');
+    rate = Math.max(3, Math.min(12, Math.round((rate + delta) * 1000) / 1000));
+    el.value = rate;
+    document.getElementById('rateVal').textContent = parseFloat(rate.toFixed(3)) + '%';
+    recalc();
+}
+
+function setTerm(yr) {
+    termYrs = yr;
+    recalc();
+}
+
+function toggleBkd() {
+    bkdOpen = !bkdOpen;
+    document.getElementById('bkdBody').style.display = bkdOpen ? '' : 'none';
+    document.getElementById('bkdChev').classList.toggle('open', bkdOpen);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+recalc();
+</script>
+</body>
+</html>

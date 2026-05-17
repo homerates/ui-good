@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates Discover — Preview v2</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #06090f;
+  color: #f0f4ff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  padding: 28px 16px 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.page-label {
+  font-size: 10.5px;
+  color: rgba(185,208,192,0.35);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ── max-width wrapper ── */
+.frame { width: 100%; max-width: 620px; display: flex; flex-direction: column; gap: 0; }
+
+/* ══════════════════════════════════════
+   SCENARIO CARD (already exists — mock)
+══════════════════════════════════════ */
+.scenario-card {
+  background: #0e1420;
+  border: 1px solid rgba(148,163,184,0.14);
+  border-radius: 12px 12px 0 0;
+  border-bottom: none;
+  padding: 16px 18px 14px;
+}
+.sc-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+}
+.sc-title { font-size: 13px; font-weight: 700; color: #f0f4ff; display: flex; align-items: center; gap: 8px; }
+.badge {
+  font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px;
+  background: rgba(0,232,122,0.12); border: 1px solid rgba(0,232,122,0.28); color: #00e87a;
+}
+.sc-nums { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.sc-num {
+  background: rgba(255,255,255,0.025); border: 1px solid rgba(148,163,184,0.07);
+  border-radius: 7px; padding: 9px 11px;
+}
+.sc-num-label { font-size: 9.5px; color: rgba(185,208,192,0.4); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+.sc-num-val   { font-size: 15px; font-weight: 700; color: #f0f4ff; }
+.sc-num-sub   { font-size: 9.5px; color: rgba(185,208,192,0.45); margin-top: 1px; }
+
+/* ══════════════════════════════════════
+   DISCOVER DOCK
+══════════════════════════════════════ */
+.discover-dock {
+  background: #080d17;
+  border: 1px solid rgba(148,163,184,0.14);
+  border-top: 2px solid rgba(0,232,122,0.22);
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+}
+
+/* dock header */
+.dock-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer; user-select: none;
+  background: rgba(0,232,122,0.03);
+  transition: background .15s;
+}
+.dock-header:hover { background: rgba(0,232,122,0.055); }
+.dock-header-left { display: flex; align-items: center; gap: 10px; }
+.dock-logo {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.22);
+  display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
+}
+.dock-title   { font-size: 13px; font-weight: 700; color: #c8ffd8; line-height: 1.2; }
+.dock-sub     { font-size: 11px; color: rgba(185,208,192,0.5); margin-top: 1px; }
+.dock-caret   { font-size: 11px; color: rgba(0,232,122,0.5); font-weight: 700; white-space: nowrap; }
+
+/* ── Comparison rows ── */
+.compare-section { display: none; }
+.compare-section.open { display: block; }
+
+/* column headers */
+.col-heads {
+  display: grid; grid-template-columns: 1fr 1fr;
+  padding: 8px 16px 6px;
+  border-top: 1px solid rgba(148,163,184,0.07);
+  gap: 8px;
+}
+.col-head {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+}
+.col-head-ai     { color: #00e87a; }
+.col-head-lender { color: #60a5fa; }
+.col-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+.dot-ai     { background: #00e87a; }
+.dot-lender { background: #60a5fa; }
+
+/* individual compare row */
+.cmp-row {
+  border-top: 1px solid rgba(148,163,184,0.06);
+  padding: 10px 16px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.cmp-label {
+  font-size: 11.5px; font-weight: 600; color: rgba(185,208,192,0.7);
+  display: flex; align-items: center; gap: 6px;
+}
+.cmp-icon { font-size: 13px; }
+.cmp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* answer cell */
+.answer-cell {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(148,163,184,0.08);
+  border-radius: 7px;
+  padding: 8px 10px;
+  min-height: 52px;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+}
+.answer-cell.ai-cell   { border-color: rgba(0,232,122,0.14); background: rgba(0,232,122,0.04); }
+.answer-cell.pending   { border-style: dashed; border-color: rgba(148,163,184,0.12); background: transparent; }
+
+.answer-val  { font-size: 15px; font-weight: 700; color: #f0f4ff; line-height: 1.2; }
+.answer-val.green { color: #00e87a; }
+.answer-sub  { font-size: 10px; color: rgba(185,208,192,0.5); margin-top: 1px; }
+.pending-text { font-size: 11px; color: rgba(185,208,192,0.3); font-style: italic; }
+
+/* gap indicator */
+.gap-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  margin-top: 2px; align-self: flex-start;
+}
+.gap-match   { background: rgba(0,232,122,0.1);   color: #00e87a;  border: 1px solid rgba(0,232,122,0.2); }
+.gap-check   { background: rgba(251,191,36,0.1);  color: #fbbf24;  border: 1px solid rgba(251,191,36,0.2); }
+.gap-alert   { background: rgba(248,113,113,0.1); color: #f87171;  border: 1px solid rgba(248,113,113,0.2); }
+.gap-pending { background: rgba(148,163,184,0.07); color: rgba(185,208,192,0.4); border: 1px solid rgba(148,163,184,0.1); }
+
+/* send-to-lender button per row */
+.send-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 600;
+  padding: 5px 11px; border-radius: 6px;
+  background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.22);
+  color: #93c5fd; cursor: pointer; transition: background .12s;
+  align-self: flex-start; text-decoration: none;
+}
+.send-btn:hover { background: rgba(96,165,250,0.18); }
+
+/* ── Action bar ── */
+.action-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 11px 16px;
+  border-top: 1px solid rgba(148,163,184,0.08);
+  background: rgba(0,0,0,0.18);
+}
+.action-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 600;
+  padding: 7px 14px; border-radius: 7px;
+  cursor: pointer; transition: background .12s; text-decoration: none; border: none;
+}
+.btn-ai {
+  background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.25); color: #00e87a;
+}
+.btn-ai:hover { background: rgba(0,232,122,0.17); }
+.btn-lender {
+  background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.25); color: #60a5fa;
+}
+.btn-lender:hover { background: rgba(96,165,250,0.17); }
+.btn-spacer { flex: 1; }
+.btn-exchange {
+  background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25); color: #a78bfa;
+}
+.btn-exchange:hover { background: rgba(139,92,246,0.17); }
+
+/* CTA footer */
+.discover-cta {
+  padding: 10px 16px;
+  border-top: 1px solid rgba(148,163,184,0.06);
+  background: rgba(0,0,0,0.2);
+  font-size: 11px;
+  color: rgba(185,208,192,0.45);
+  font-style: italic;
+  line-height: 1.55;
+  text-align: center;
+}
+
+/* ══════════════════════════════════════
+   PRIVATE EXCHANGE PANEL (state 2)
+══════════════════════════════════════ */
+.px-panel {
+  width: 100%; max-width: 620px;
+  background: #080d17;
+  border: 1px solid rgba(139,92,246,0.22);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.px-header {
+  background: rgba(139,92,246,0.07);
+  border-bottom: 1px solid rgba(139,92,246,0.15);
+  padding: 12px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.px-title { font-size: 13px; font-weight: 700; color: #c4b5fd; display: flex; align-items: center; gap: 8px; }
+.px-badge {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); color: #a78bfa;
+}
+.px-context {
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(148,163,184,0.07);
+  font-size: 11px;
+  color: rgba(185,208,192,0.5);
+  display: flex; align-items: center; gap: 6px;
+}
+.px-context-val { color: rgba(185,208,192,0.8); font-weight: 600; }
+
+.px-thread { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+/* message bubble */
+.msg { display: flex; flex-direction: column; gap: 3px; }
+.msg-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.msg-bubble {
+  padding: 9px 12px; border-radius: 8px;
+  font-size: 12px; line-height: 1.6;
+  max-width: 90%;
+}
+.msg.ai   .msg-label  { color: #00e87a; }
+.msg.ai   .msg-bubble { background: rgba(0,232,122,0.07); border: 1px solid rgba(0,232,122,0.14); color: rgba(185,208,192,0.9); }
+.msg.lo   .msg-label  { color: #60a5fa; align-self: flex-end; }
+.msg.lo   .msg-bubble { background: rgba(96,165,250,0.07); border: 1px solid rgba(96,165,250,0.14); color: rgba(185,208,192,0.9); align-self: flex-end; }
+.msg.user .msg-label  { color: rgba(185,208,192,0.4); }
+.msg.user .msg-bubble { background: rgba(255,255,255,0.03); border: 1px solid rgba(148,163,184,0.1); color: rgba(185,208,192,0.75); }
+
+.verdict {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 12px; border-radius: 8px;
+  background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.18);
+  font-size: 12px; line-height: 1.55; color: #fbbf24;
+}
+.verdict-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+/* annotations */
+.note {
+  width: 100%; max-width: 620px;
+  background: rgba(255,200,80,0.05); border: 1px solid rgba(255,200,80,0.18);
+  border-radius: 8px; padding: 14px 16px;
+  font-size: 12px; color: rgba(255,220,120,0.8); line-height: 1.7;
+}
+.note strong { color: #ffd060; }
+.section-divider {
+  width: 100%; max-width: 620px;
+  border: none; border-top: 1px dashed rgba(148,163,184,0.12);
+}
+.section-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+  color: rgba(185,208,192,0.3);
+}
+</style>
+</head>
+<body>
+
+<div class="page-label">HomeRates Discover Card — Preview v2 · Concept Review</div>
+
+<!-- ═══════════════════════════════════════
+     PART 1 — Docked below scenario card
+═══════════════════════════════════════ -->
+<div class="section-title">Part 1 — Discover docked to scenario card</div>
+
+<div class="frame">
+
+  <!-- Mock scenario card -->
+  <div class="scenario-card">
+    <div class="sc-header">
+      <div class="sc-title">🏠 Your Scenario <span class="badge">FHA · 3.5% down</span></div>
+      <span style="font-size:10.5px;color:rgba(185,208,192,0.35);">FRED live · 6.30%</span>
+    </div>
+    <div class="sc-nums">
+      <div class="sc-num">
+        <div class="sc-num-label">Home Price</div>
+        <div class="sc-num-val">$560,919</div>
+        <div class="sc-num-sub">max qualified</div>
+      </div>
+      <div class="sc-num">
+        <div class="sc-num-label">Loan Amount</div>
+        <div class="sc-num-val">$550,760</div>
+        <div class="sc-num-sub">w/ 1.75% UFMIP</div>
+      </div>
+      <div class="sc-num">
+        <div class="sc-num-label">Monthly PITI</div>
+        <div class="sc-num-val">$4,311</div>
+        <div class="sc-num-sub">incl. $248 MIP</div>
+      </div>
+      <div class="sc-num">
+        <div class="sc-num-label">Down Payment</div>
+        <div class="sc-num-val">$19,632</div>
+        <div class="sc-num-sub">3.5% · $36k to close</div>
+      </div>
+      <div class="sc-num">
+        <div class="sc-num-label">Rate</div>
+        <div class="sc-num-val">6.30%</div>
+        <div class="sc-num-sub">FRED 30yr avg</div>
+      </div>
+      <div class="sc-num">
+        <div class="sc-num-label">Total Interest</div>
+        <div class="sc-num-val">$676k</div>
+        <div class="sc-num-sub">30yr cost</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Discover dock -->
+  <div class="discover-dock">
+
+    <div class="dock-header" onclick="toggleDock()">
+      <div class="dock-header-left">
+        <div class="dock-logo">🔍</div>
+        <div>
+          <div class="dock-title">Discover</div>
+          <div class="dock-sub">Compare this scenario against your lender's quote</div>
+        </div>
+      </div>
+      <span class="dock-caret" id="dock-caret">▼ Open</span>
+    </div>
+
+    <div class="compare-section" id="compare-section">
+
+      <!-- Column headers -->
+      <div class="col-heads">
+        <div class="col-head col-head-ai">
+          <div class="col-dot dot-ai"></div>
+          HomeRates AI
+        </div>
+        <div class="col-head col-head-lender">
+          <div class="col-dot dot-lender"></div>
+          Your Lender
+        </div>
+      </div>
+
+      <!-- Row 1: Interest Rate -->
+      <div class="cmp-row">
+        <div class="cmp-label"><span class="cmp-icon">📊</span> Interest Rate</div>
+        <div class="cmp-cols">
+          <div class="answer-cell ai-cell">
+            <div class="answer-val green">6.30%</div>
+            <div class="answer-sub">FRED 30yr benchmark · zero points</div>
+          </div>
+          <div class="answer-cell pending">
+            <div class="pending-text">Enter lender's quote…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="gap-tag gap-pending">⏳ Waiting on lender</span>
+          <a class="send-btn" href="#px-demo" onclick="scrollToPX()">↗ Ask in Private Exchange</a>
+        </div>
+      </div>
+
+      <!-- Row 2: Origination Fee -->
+      <div class="cmp-row">
+        <div class="cmp-label"><span class="cmp-icon">🏦</span> Origination Fee (Section A)</div>
+        <div class="cmp-cols">
+          <div class="answer-cell ai-cell">
+            <div class="answer-val green">0 – $5,508</div>
+            <div class="answer-sub">0–1% of $550,760 · lender-set</div>
+          </div>
+          <!-- example: lender filled in, alert gap -->
+          <div class="answer-cell" style="border-color:rgba(248,113,113,0.2);background:rgba(248,113,113,0.04);">
+            <div class="answer-val" style="color:#f87171;">$8,260</div>
+            <div class="answer-sub">1.5% origination charge</div>
+          </div>
+        </div>
+        <span class="gap-tag gap-alert">⚠ Above typical range — ask why</span>
+      </div>
+
+      <!-- Row 3: Monthly MIP -->
+      <div class="cmp-row">
+        <div class="cmp-label"><span class="cmp-icon">🔒</span> Monthly MIP / PMI</div>
+        <div class="cmp-cols">
+          <div class="answer-cell ai-cell">
+            <div class="answer-val green">$248/mo</div>
+            <div class="answer-sub">FHA 0.55%/yr · life of loan at 3.5% down</div>
+          </div>
+          <div class="answer-cell" style="border-color:rgba(0,232,122,0.14);background:rgba(0,232,122,0.04);">
+            <div class="answer-val" style="color:#6ee7b7;">$248/mo</div>
+            <div class="answer-sub">Confirmed by lender</div>
+          </div>
+        </div>
+        <span class="gap-tag gap-match">✓ Match</span>
+      </div>
+
+      <!-- Row 4: Total Cash to Close -->
+      <div class="cmp-row">
+        <div class="cmp-label"><span class="cmp-icon">💰</span> Total Cash to Close</div>
+        <div class="cmp-cols">
+          <div class="answer-cell ai-cell">
+            <div class="answer-val green">~$36,460</div>
+            <div class="answer-sub">down + 3% closing costs</div>
+          </div>
+          <div class="answer-cell" style="border-color:rgba(251,191,36,0.2);background:rgba(251,191,36,0.04);">
+            <div class="answer-val" style="color:#fbbf24;">$41,200</div>
+            <div class="answer-sub">lender estimate</div>
+          </div>
+        </div>
+        <span class="gap-tag gap-check">⚡ $4,740 higher — request itemized LE</span>
+      </div>
+
+      <!-- Row 5: Rate Lock -->
+      <div class="cmp-row">
+        <div class="cmp-label"><span class="cmp-icon">⏱</span> Rate Lock / Float-Down</div>
+        <div class="cmp-cols">
+          <div class="answer-cell ai-cell">
+            <div class="answer-val green">30–45 days</div>
+            <div class="answer-sub">standard · 60-day lock adds ~0.125%</div>
+          </div>
+          <div class="answer-cell pending">
+            <div class="pending-text">Enter lender's quote…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="gap-tag gap-pending">⏳ Waiting on lender</span>
+          <a class="send-btn" href="#px-demo" onclick="scrollToPX()">↗ Ask in Private Exchange</a>
+        </div>
+      </div>
+
+      <!-- Row 6: Points included -->
+      <div class="cmp-row">
+        <div class="cmp-label"><span class="cmp-icon">🎯</span> Points in Rate Quote</div>
+        <div class="cmp-cols">
+          <div class="answer-cell ai-cell">
+            <div class="answer-val green">0 points</div>
+            <div class="answer-sub">FRED benchmark is always zero-point</div>
+          </div>
+          <div class="answer-cell pending">
+            <div class="pending-text">Enter lender's quote…</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="gap-tag gap-pending">⏳ Waiting on lender</span>
+          <a class="send-btn" href="#px-demo" onclick="scrollToPX()">↗ Ask in Private Exchange</a>
+        </div>
+      </div>
+
+      <!-- Action bar -->
+      <div class="action-bar">
+        <a class="action-btn btn-ai" href="#" onclick="return false;">🤖 Ask AI all 6 questions</a>
+        <a class="action-btn btn-lender" href="#" onclick="return false;">📨 Send all to my lender</a>
+        <div class="btn-spacer"></div>
+        <a class="action-btn btn-exchange" href="#px-demo" onclick="scrollToPX()">⚡ Open in Private Exchange</a>
+      </div>
+
+    </div><!-- /compare-section -->
+
+    <div class="discover-cta">
+      The goal is not to avoid lenders. The goal is to choose who has earned the right to advise you.
+    </div>
+
+  </div><!-- /discover-dock -->
+</div><!-- /frame -->
+
+
+<hr class="section-divider">
+<div class="section-title">Part 2 — The same discovery running inside Private Exchange</div>
+
+
+<!-- ═══════════════════════════════════════
+     PART 2 — Private Exchange thread
+     This is what "Open in Private Exchange"
+     leads to
+═══════════════════════════════════════ -->
+<div class="px-panel" id="px-demo">
+
+  <div class="px-header">
+    <div class="px-title">⚡ Private Exchange <span class="px-badge">Discover thread</span></div>
+    <span style="font-size:11px;color:rgba(185,208,192,0.35);">You · Loan Officer</span>
+  </div>
+
+  <!-- Scenario context strip -->
+  <div class="px-context">
+    <span>Based on scenario:</span>
+    <span class="px-context-val">FHA · $560,919 · 3.5% down · 6.30% · $4,311/mo</span>
+  </div>
+
+  <div class="px-thread">
+
+    <!-- System: question fired -->
+    <div class="msg user">
+      <span class="msg-label">You · via Discover</span>
+      <div class="msg-bubble">
+        My HomeRates scenario shows an FHA loan of $550,760 at 6.30% with zero points. What rate are you quoting me, and does it include any discount points?
+      </div>
+    </div>
+
+    <!-- AI answer fires simultaneously -->
+    <div class="msg ai">
+      <span class="msg-label">HomeRates AI</span>
+      <div class="msg-bubble">
+        <strong>Verified answer:</strong> The FRED 30-year average is <strong>6.30%</strong> as of Apr 30, 2026. That's the zero-point benchmark. Any quote above 6.55% with no points attached warrants a follow-up — ask the lender to confirm their Section A origination charge.
+      </div>
+    </div>
+
+    <!-- LO responds -->
+    <div class="msg lo">
+      <span class="msg-label">Your Loan Officer</span>
+      <div class="msg-bubble">
+        I'm quoting you 6.375% with 0 points. My origination fee is $8,260 which is 1.5% — that covers my processing, underwriting, and lock fee.
+      </div>
+    </div>
+
+    <!-- AI verdict on LO response -->
+    <div class="verdict">
+      <span class="verdict-icon">⚠️</span>
+      <div>
+        <strong>Discover gap detected:</strong> The quoted rate of 6.375% is within normal range. However, $8,260 in Section A fees is 1.5% of loan — above the typical 0.5–1.0% range. Ask the lender to itemize what's inside that charge. Processing and underwriting are normally $800–$1,200 combined. The remaining ~$6,000 should be explained line by line.
+      </div>
+    </div>
+
+    <!-- Next question in thread -->
+    <div class="msg user">
+      <span class="msg-label">You · via Discover</span>
+      <div class="msg-bubble">
+        What is my total cash to close on this purchase, including all prepaids and escrow setup?
+      </div>
+    </div>
+
+    <div class="msg ai">
+      <span class="msg-label">HomeRates AI</span>
+      <div class="msg-bubble">
+        <strong>Verified estimate:</strong> $36,460 = $19,632 down + ~$16,828 closing costs (3% of price). Closing costs at 3% include origination, title, escrow, and prepaids. If the lender quotes above $41,000, ask which line items are driving the difference — specifically tax/insurance assumptions and escrow reserves.
+      </div>
+    </div>
+
+    <div class="msg lo">
+      <span class="msg-label">Your Loan Officer</span>
+      <div class="msg-bubble">
+        My estimate is $41,200 total cash to close. The higher number is due to my origination fee and a 1.35% property tax assumption for your area.
+      </div>
+    </div>
+
+    <div class="verdict" style="background:rgba(0,232,122,0.05);border-color:rgba(0,232,122,0.18);color:#6ee7b7;">
+      <span class="verdict-icon">✅</span>
+      <div>
+        <strong>Plausible explanation:</strong> A 1.35% tax rate adds ~$570/yr extra in escrow vs the 1.1% HomeRates default — that's ~$1,140 more in reserves at close. Combined with the higher origination fee, the $41,200 total is consistent with what the lender described. The origination fee is still worth negotiating.
+      </div>
+    </div>
+
+  </div><!-- /px-thread -->
+
+</div><!-- /px-panel -->
+
+
+<!-- Review notes -->
+<div class="note">
+  <strong>Concept review for Rayaan:</strong><br><br>
+
+  <strong>Part 1 — Discover dock (attached to scenario card):</strong><br>
+  6 comparison rows. Left column = HomeRates AI verified answer. Right column = lender's quote (user enters or pulled from PE thread). Gap indicator: ✓ Match · ⚡ Check · ⚠ Alert. Each pending row has "↗ Ask in Private Exchange" to fire that specific question into the PE thread.<br><br>
+
+  <strong>Part 2 — Private Exchange Discover thread:</strong><br>
+  Same questions become a structured message thread. AI answer fires simultaneously alongside the question to the lender. When lender responds, AI evaluates their answer and flags gaps. This is the "truth test" — who is being accurate.<br><br>
+
+  <strong>Key decisions still needed:</strong><br>
+  1. Does the user <em>manually enter</em> the lender's quote into the Discover dock, or does it auto-populate from what the LO says in the PE thread?<br>
+  2. Should the AI "verdict" be automatic (always fires) or optional (user asks "evaluate this")?<br>
+  3. Is the Discover thread a <em>new message type</em> in the existing Private Exchange, or a separate view?<br>
+  4. Questions shown are FHA-specific — confirm loan-type variation is needed.
+</div>
+
+<script>
+function toggleDock() {
+  const s = document.getElementById('compare-section');
+  const c = document.getElementById('dock-caret');
+  const open = s.classList.toggle('open');
+  c.textContent = open ? '▲ Close' : '▼ Open';
+}
+function scrollToPX() {
+  setTimeout(() => document.getElementById('px-demo').scrollIntoView({ behavior: 'smooth', block: 'start' }), 10);
+  return false;
+}
+</script>
+</body>
+</html>

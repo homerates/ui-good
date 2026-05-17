@@ -1,791 +1,909 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Jumbo Purchase Payment Card — Preview v2</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jumbo Affordability Card — Prototype</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #060c14; font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; padding: 40px 16px 80px; }
-  .wrap { width: 100%; max-width: 680px; }
 
-  /* ── Card shell ── */
-  .jb { background: #0d1117; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; color: #f0f4ff; }
+  body {
+    background: #080c12;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    color: #f0f4ff;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px 80px;
+  }
 
-  /* ── Topbar ── */
-  .jb-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); }
-  .jb-topbar-l { display: flex; align-items: center; gap: 6px; }
-  .jb-dot { width: 7px; height: 7px; border-radius: 50%; background: #8b5cf6; }
-  .jb-tl { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6b7a99; }
-  .jb-tr { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #3a4560; }
+  .card {
+    background: #0e1420;
+    border-radius: 18px;
+    width: 100%;
+    max-width: 660px;
+    overflow: hidden;
+    position: relative;
+    transition: border-color 0.3s;
+  }
 
   /* ── Header ── */
-  .jb-header { display: flex; align-items: center; gap: 12px; padding: 16px 16px 12px; }
-  .jb-header-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); display: flex; align-items: center; justify-content: center; color: #8b5cf6; flex-shrink: 0; }
-  .jb-header-title { font-size: 15px; font-weight: 700; color: #f0f4ff; }
-  .jb-header-sub { font-size: 11px; color: #6b7a99; margin-top: 2px; }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 0;
+  }
+  .card-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(185,208,192,0.55);
+  }
+  .zone-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    transition: all 0.25s;
+  }
 
-  /* ── Loan zone band ── */
-  .jb-band { margin: 0 12px 12px; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; transition: background .3s, border-color .3s; }
-  .jb-band.zone-conforming  { background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.22); }
-  .jb-band.zone-highbal     { background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.25); }
-  .jb-band.zone-jumbo       { background: rgba(139,92,246,0.05); border: 1px solid rgba(139,92,246,0.2);  }
-  .jb-band-l { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .jb-badge { font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; flex-shrink: 0; }
-  .zone-conforming .jb-badge { background: rgba(0,232,122,0.1); color: #00e87a; border: 1px solid rgba(0,232,122,0.25); }
-  .zone-highbal   .jb-badge { background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
-  .zone-jumbo     .jb-badge { background: rgba(139,92,246,0.12); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.25); }
-  .jb-band-desc { font-size: 11px; color: #8fa3b8; line-height: 1.4; }
-  .jb-band-desc strong { color: #f0f4ff; }
-  .jb-band-r { font-size: 10px; color: #3a4560; flex-shrink: 0; text-align: right; white-space: nowrap; }
-  .jb-band-r span { display: block; font-size: 11px; font-weight: 600; margin-top: 2px; }
-  .zone-conforming .jb-band-r span { color: #00e87a; }
-  .zone-highbal   .jb-band-r span { color: #f59e0b; }
-  .zone-jumbo     .jb-band-r span { color: #6b7a99; }
+  /* ── Hero numbers ── */
+  .hero {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 14px 20px 0;
+  }
+  .hero-box {
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    min-width: 0;
+  }
+  .hero-val {
+    font-size: clamp(1.15rem, 4vw, 1.55rem);
+    font-weight: 800;
+    color: #f0f4ff;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hero-label {
+    font-size: 0.63rem;
+    color: rgba(185,208,192,0.55);
+    margin-top: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+  }
+  .hero-val-accent { color: var(--zone-color, #00e87a); }
 
-  /* ── Hero ── */
-  .jb-hero { margin: 0 12px 12px; background: #0e1020; border: 1px solid rgba(139,92,246,0.2); border-radius: 14px; padding: 20px 20px 16px; text-align: center; }
-  .jb-hero-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #2e1e5a; margin-bottom: 8px; }
-  .jb-hero-amount { font-size: 46px; font-weight: 800; color: #8b5cf6; letter-spacing: -2px; line-height: 1; }
-  .jb-hero-mo { font-size: 18px; font-weight: 600; color: #4a3a80; letter-spacing: 0; }
-  .jb-hero-sub { font-size: 12px; color: #8fa3b8; margin-top: 6px; }
-  .jb-hero-grid { display: grid; grid-template-columns: repeat(3,1fr); margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
-  .jb-hero-stat { text-align: center; padding: 0 8px; border-right: 1px solid rgba(255,255,255,0.06); }
-  .jb-hero-stat:last-child { border-right: none; }
-  .jb-hero-sl { font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; margin-bottom: 4px; }
-  .jb-hero-sv { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+  /* ── Crossover alert ── */
+  .crossover-strip {
+    margin: 12px 20px 0;
+    background: rgba(255,140,66,0.07);
+    border: 1px solid rgba(255,140,66,0.25);
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 0.8rem;
+    color: rgba(185,208,192,0.9);
+    display: none;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .crossover-strip.visible { display: flex; }
+  .crossover-strip strong { color: #ff8c42; }
+  .crossover-strip .savings { color: #00e87a; font-weight: 700; }
 
-  /* ── ARM disclosure ── */
-  .jb-arm { margin: 0 12px 12px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(139,92,246,0.2); display: none; }
-  .jb-arm.visible { display: block; }
-  .jb-arm-head { display: flex; align-items: center; gap: 8px; padding: 9px 14px; background: rgba(139,92,246,0.07); border-bottom: 1px solid rgba(139,92,246,0.12); }
-  .jb-arm-icon { font-size: 14px; }
-  .jb-arm-title { font-size: 11px; font-weight: 700; color: #8b5cf6; letter-spacing: .04em; text-transform: uppercase; }
-  .jb-arm-body { padding: 12px 14px; }
-  .jb-arm-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-  .jb-arm-col { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 10px 12px; }
-  .jb-arm-col.arm { background: rgba(139,92,246,0.06); border-color: rgba(139,92,246,0.2); }
-  .jb-arm-col-label { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6b7a99; margin-bottom: 6px; }
-  .jb-arm-col.arm .jb-arm-col-label { color: #8b5cf6; }
-  .jb-arm-col-amount { font-size: 20px; font-weight: 800; color: #c4cfe0; letter-spacing: -0.5px; }
-  .jb-arm-col.arm .jb-arm-col-amount { color: #8b5cf6; }
-  .jb-arm-col-note { font-size: 10px; color: #6b7a99; margin-top: 3px; }
-  .jb-arm-savings { background: rgba(0,232,122,0.05); border: 1px solid rgba(0,232,122,0.15); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #8fa3b8; margin-bottom: 10px; line-height: 1.5; }
-  .jb-arm-savings strong { color: #00e87a; }
-  .jb-arm-caps { margin-bottom: 10px; }
-  .jb-arm-cap-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px; }
-  .jb-arm-cap-row:last-child { border-bottom: none; }
-  .jb-arm-cap-k { color: #8fa3b8; }
-  .jb-arm-cap-v { font-weight: 700; color: #c4cfe0; }
-  .jb-arm-cap-v.warn { color: #f59e0b; }
-  .jb-arm-risk { background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.18); border-radius: 8px; padding: 9px 12px; font-size: 11px; color: #b8a577; line-height: 1.5; }
-  .jb-arm-risk strong { color: #f59e0b; }
+  /* ── Divider ── */
+  .divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 16px 20px 0;
+  }
 
-  /* ── Reserve requirements callout ── */
-  .jb-reserves { margin: 0 12px 12px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(139,92,246,0.18); }
-  .jb-reserves-head { display: flex; align-items: center; gap: 8px; padding: 9px 14px; background: rgba(139,92,246,0.06); border-bottom: 1px solid rgba(139,92,246,0.12); }
-  .jb-reserves-icon { font-size: 14px; }
-  .jb-reserves-title { font-size: 11px; font-weight: 700; color: #8b5cf6; letter-spacing: .04em; text-transform: uppercase; }
-  .jb-reserves-rows { padding: 10px 14px 8px; display: flex; flex-direction: column; gap: 7px; }
-  .jb-reserves-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  .jb-reserves-label { font-size: 12px; color: #8fa3b8; }
-  .jb-reserves-label small { font-size: 10px; color: #3a4560; display: block; margin-top: 2px; }
-  .jb-reserves-val { font-size: 13px; font-weight: 700; color: #8b5cf6; white-space: nowrap; }
-  .jb-reserves-divider { height: 1px; background: rgba(255,255,255,0.05); }
-  .jb-reserves-note { margin: 6px 14px 10px; border-radius: 8px; padding: 8px 12px; font-size: 11px; line-height: 1.5; background: rgba(139,92,246,0.05); border: 1px solid rgba(139,92,246,0.14); color: #c4b5fd; }
+  /* ── Section label ── */
+  .section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: rgba(185,208,192,0.45);
+    padding: 14px 20px 0;
+  }
 
-  /* ── Underwriting criteria ── */
-  .jb-uw { margin: 0 12px 12px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.07); }
-  .jb-uw-head { display: flex; align-items: center; gap: 8px; padding: 9px 14px; background: rgba(255,255,255,0.025); border-bottom: 1px solid rgba(255,255,255,0.06); }
-  .jb-uw-title { font-size: 10px; font-weight: 700; color: #6b7a99; letter-spacing: .08em; text-transform: uppercase; }
-  .jb-uw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
-  .jb-uw-item { padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); border-right: 1px solid rgba(255,255,255,0.04); }
-  .jb-uw-item:nth-child(even) { border-right: none; }
-  .jb-uw-item:nth-last-child(-n+2) { border-bottom: none; }
-  .jb-uw-criterion { font-size: 10px; color: #3a4560; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; margin-bottom: 3px; }
-  .jb-uw-val { font-size: 12px; font-weight: 700; color: #c4cfe0; }
-  .jb-uw-val.tight { color: #f59e0b; }
-  .jb-uw-val.ok { color: #00e87a; }
+  /* ── Breakdown table ── */
+  .breakdown {
+    padding: 8px 20px 0;
+  }
+  .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 0.84rem;
+  }
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-row .lbl { color: rgba(185,208,192,0.75); }
+  .breakdown-row .val { font-weight: 600; color: #f0f4ff; }
+  .breakdown-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-top: 4px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .breakdown-total .total-val {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--zone-color, #00e87a);
+  }
 
-  /* ── Breakdown accordion ── */
-  .jb-bkd { border-top: 1px solid rgba(255,255,255,0.05); }
-  .jb-bkd-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: transparent; border: none; cursor: pointer; font-family: inherit; }
-  .jb-bkd-label { font-size: 12px; font-weight: 600; color: #8fa3b8; }
-  .jb-bkd-chev { font-size: 10px; color: #8fa3b8; }
-  .jb-bkd-body { padding: 0 16px 12px; display: none; }
-  .jb-bkd-body.open { display: block; }
-  .jb-kv { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
-  .jb-kv--total { padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.12); border-bottom: none; }
-  .jb-kv-k { font-size: 12px; color: #8fa3b8; }
-  .jb-kv-v { font-size: 12px; font-weight: 600; color: #c4cfe0; }
-  .jb-kv-v--purple { color: #8b5cf6; }
-  .jb-kv-v--green  { color: #00e87a; }
-  .jb-kv-v--amber  { color: #f59e0b; }
-  .jb-kv--total .jb-kv-k { font-weight: 700; color: #c4cfe0; font-size: 13px; }
-  .jb-kv--total .jb-kv-v { font-weight: 800; font-size: 13px; }
-  .jb-kv-s { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #6b7a99; padding: 10px 0 4px; }
-  .jb-kv-s:first-child { padding-top: 4px; }
+  /* ── Sliders ── */
+  .sliders {
+    padding: 6px 20px 0;
+  }
+  .slider-row {
+    margin-bottom: 16px;
+  }
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .slider-lbl {
+    font-size: 0.82rem;
+    color: rgba(185,208,192,0.8);
+  }
+  .slider-val {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #f0f4ff;
+  }
+  input[type=range] {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--zone-color, #00e87a);
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(0,0,0,0.5);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--zone-color, #00e87a);
+    cursor: pointer;
+    border: none;
+  }
+  .slider-sub {
+    font-size: 0.7rem;
+    color: rgba(185,208,192,0.4);
+    margin-top: 5px;
+    line-height: 1.5;
+  }
+  .fred-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(61,139,255,0.1);
+    border: 1px solid rgba(61,139,255,0.25);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    color: #3d8bff;
+    font-weight: 600;
+    margin-top: 6px;
+  }
 
-  /* ── Explorer ── */
-  .jb-exp { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.015); }
-  .jb-exp-head { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6b7a99; margin-bottom: 14px; }
+  /* ── Income table ── */
+  .income-table {
+    padding: 8px 20px 0;
+  }
+  .income-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 0.84rem;
+  }
+  .income-row:last-child { border-bottom: none; }
+  .income-row .lbl { color: rgba(185,208,192,0.75); }
+  .income-row .val { font-weight: 700; color: #f0f4ff; }
+  .income-row.stretch .lbl,
+  .income-row.stretch .val { color: rgba(185,208,192,0.38); font-weight: 500; }
 
-  /* slider */
-  .jb-slider-wrap { margin-bottom: 14px; }
-  .jb-slider-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
-  .jb-slider-label { font-size: 12px; font-weight: 600; color: #c4cfe0; }
-  .jb-slider-val { font-size: 13px; font-weight: 700; color: #8b5cf6; }
-  .jb-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: linear-gradient(to right, #8b5cf6 0%, #8b5cf6 var(--pct, 50%), rgba(255,255,255,0.1) var(--pct, 50%)); outline: none; cursor: pointer; }
-  .jb-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #8b5cf6; border: 2px solid #fff; cursor: pointer; }
-  .jb-slider-minmax { display: flex; justify-content: space-between; font-size: 10px; color: #3a4560; margin-top: 3px; }
+  /* ── CTA buttons ── */
+  .cta-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 16px 20px 0;
+  }
+  .btn {
+    padding: 11px 8px;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    border: none;
+    transition: opacity 0.15s;
+    font-family: inherit;
+  }
+  .btn:hover { opacity: 0.82; }
+  .btn-primary {
+    background: var(--zone-color, #00e87a);
+    color: #fff;
+  }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.14);
+    color: rgba(185,208,192,0.8);
+  }
+  .btn-check {
+    background: rgba(61,139,255,0.1);
+    border: 1px solid rgba(61,139,255,0.25);
+    color: #3d8bff;
+  }
+  .cta-single {
+    padding: 8px 20px 0;
+  }
+  .cta-single .btn { width: 100%; }
 
-  /* log scale marker ticks */
-  .jb-slider-ticks { display: flex; justify-content: space-between; font-size: 9px; color: #2a3550; margin-top: 2px; }
+  /* ── Drawer trigger ── */
+  .drawer-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 14px 20px 0;
+    padding: 13px 20px;
+    cursor: pointer;
+    font-size: 0.84rem;
+    color: var(--zone-color, #00e87a);
+    background: var(--zone-bg, rgba(0,232,122,0.07));
+    border: 1.5px solid var(--zone-border, rgba(0,232,122,0.25));
+    border-radius: 12px;
+    transition: all 0.18s;
+    user-select: none;
+  }
+  .drawer-trigger:hover {
+    background: var(--zone-bg, rgba(0,232,122,0.12));
+    border-color: var(--zone-color, #00e87a);
+  }
+  .drawer-trigger .chevron {
+    transition: transform 0.25s;
+    display: inline-block;
+    font-style: normal;
+    font-size: 0.7rem;
+    opacity: 0.7;
+  }
+  .drawer-trigger.open .chevron { transform: rotate(180deg); }
+  .drawer-trigger-label { font-weight: 700; letter-spacing: 0.01em; }
 
-  /* down chips */
-  .jb-dp-chips { display: flex; gap: 6px; margin: -4px 0 10px; }
-  .jb-dp-chip { background: rgba(255,255,255,0.04); border: 1.5px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; color: #8fa3b8; cursor: pointer; font-family: inherit; }
-  .jb-dp-chip.active { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.35); color: #8b5cf6; }
-  .jb-dp-min-note { font-size: 10px; color: #3a4560; margin: -4px 0 12px; }
+  /* ── Drawer ── */
+  .drawer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.38s ease;
+    background: #080c12;
+  }
+  .drawer.open { max-height: 1100px; }
+  .drawer-inner { padding: 0 0 28px; }
 
-  /* term */
-  .jb-exp-term-label { font-size: 12px; font-weight: 600; color: #c4cfe0; margin-bottom: 6px; }
-  .jb-terms { display: flex; gap: 6px; margin-bottom: 14px; }
-  .jb-term { flex: 1; background: rgba(255,255,255,0.04); border: 1.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 7px 0; font-size: 13px; font-weight: 600; color: #8fa3b8; cursor: pointer; font-family: inherit; text-align: center; }
-  .jb-term.active { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.35); color: #8b5cf6; }
+  .drawer-section { padding: 14px 20px 0; }
+  .drawer-section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: rgba(185,208,192,0.4);
+    margin-bottom: 8px;
+  }
 
-  /* stats */
-  .jb-exp-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 12px; }
-  .jb-exp-stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 8px; text-align: center; }
-  .jb-exp-stat-label { font-size: 10px; color: #6b7a99; margin-bottom: 3px; }
-  .jb-exp-stat-val { font-size: 12px; font-weight: 700; color: #c4cfe0; }
+  .zone-detail {
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .zone-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .zone-detail-note {
+    font-size: 0.8rem;
+    color: rgba(185,208,192,0.8);
+    line-height: 1.55;
+  }
 
-  /* actions */
-  .jb-exp-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .jb-btn-rerun { background: #111827; color: #f9fafb; border: none; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
-  .jb-btn-vault { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.04); color: #8fa3b8; border: 1.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 9px 14px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
-  .jb-btn-pdf  { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.04); color: #8fa3b8; border: 1.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 9px 14px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
-  .jb-btn-match { margin-left: auto; background: #8b5cf6; color: #fff; border: none; border-radius: 8px; padding: 10px 22px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .crossover-block {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .crossover-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 0.8rem;
+    color: rgba(185,208,192,0.85);
+    line-height: 1.55;
+  }
 
-  /* follow-up chip */
-  .jb-followup-row { display: flex; padding: 0 12px 10px; }
-  .jb-followup-chip { background: rgba(139,92,246,0.06); border: 1.5px solid rgba(139,92,246,0.2); border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 600; color: #8b5cf6; cursor: pointer; font-family: inherit; }
+  .zip-input {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.11);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: #f0f4ff;
+    font-size: 0.85rem;
+    outline: none;
+    font-family: inherit;
+    margin-top: 8px;
+  }
+  .zip-input:focus { border-color: rgba(255,255,255,0.24); }
+  .zip-hint {
+    font-size: 0.71rem;
+    color: rgba(185,208,192,0.42);
+    margin-top: 5px;
+  }
 
-  /* rate note */
-  .jb-rate-note { margin: 0 12px 12px; background: rgba(139,92,246,0.04); border: 1px solid rgba(139,92,246,0.12); border-radius: 10px; padding: 10px 14px; display: flex; align-items: flex-start; gap: 10px; }
-  .jb-bulb { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
-  .jb-rate-note p { font-size: 12px; color: #8fa3b8; line-height: 1.5; }
-  .jb-rate-note strong { color: #8b5cf6; }
+  .reserves-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 0.8rem;
+    color: rgba(185,208,192,0.85);
+    line-height: 1.5;
+    margin-top: 8px;
+  }
 
-  /* disclosures */
-  .jb-disc { padding: 0 16px 16px; }
-  .jb-disc p { font-size: 10px; color: #3a4560; line-height: 1.5; }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 0.83rem;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .lbl { color: rgba(185,208,192,0.7); }
+  .summary-row .val { font-weight: 600; color: #f0f4ff; }
+  .summary-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0 0;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+  .summary-total .val {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--zone-color, #00e87a);
+  }
 
-  @media (max-width: 480px) {
-    .jb-hero-amount { font-size: 34px; }
-    .jb-exp-stats { grid-template-columns: repeat(2,1fr); }
-    .jb-band-r { display: none; }
-    .jb-uw-grid { grid-template-columns: 1fr; }
-    .jb-arm-compare { grid-template-columns: 1fr; }
+  .disclaimer {
+    margin: 20px 20px 0;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 8px;
+    font-size: 0.71rem;
+    color: rgba(185,208,192,0.38);
+    line-height: 1.65;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .disclaimer strong { color: rgba(185,208,192,0.55); }
+
+  .share-row {
+    padding: 14px 20px 0;
+  }
+  .btn-share {
+    width: 100%;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.11);
+    border-radius: 10px;
+    padding: 11px;
+    color: rgba(185,208,192,0.6);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-share:hover { border-color: rgba(255,255,255,0.28); color: #f0f4ff; }
+
+  /* ── Permanent bottom ── */
+  .card-bottom { padding-bottom: 20px; }
+  .vault-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 10px 20px 0;
+  }
+  .btn-vault, .btn-pdf {
+    padding: 11px 8px;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    font-family: inherit;
+    transition: opacity 0.15s;
+    border: none;
+  }
+  .btn-vault:hover, .btn-pdf:hover { opacity: 0.82; }
+  .btn-vault {
+    background: rgba(61,139,255,0.1);
+    border: 1px solid rgba(61,139,255,0.25) !important;
+    color: #3d8bff;
+  }
+  .btn-pdf {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.14) !important;
+    color: rgba(185,208,192,0.8);
+  }
+  .rate-note {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin: 12px 20px 0;
+    padding: 10px 12px;
+    background: rgba(61,139,255,0.05);
+    border: 1px solid rgba(61,139,255,0.15);
+    border-radius: 8px;
+    font-size: 0.75rem;
+    color: rgba(185,208,192,0.65);
+    line-height: 1.55;
+  }
+
+  @media (max-width: 420px) {
+    .hero { gap: 7px; }
+    .hero-box { padding: 11px 6px; }
+    .hero-val { font-size: 1.05rem; }
+    .hero-label { font-size: 0.58rem; }
+    .cta-row { grid-template-columns: 1fr; }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
-<div class="jb" id="card">
 
-  <!-- Topbar -->
-  <div class="jb-topbar">
-    <div class="jb-topbar-l">
-      <div class="jb-dot"></div>
-      <span class="jb-tl">AI Analysis</span>
-    </div>
-    <span class="jb-tr">Live · CalcEngine-Deterministic</span>
-  </div>
+<div class="card" id="card">
 
   <!-- Header -->
-  <div class="jb-header">
-    <div class="jb-header-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"/>
-      </svg>
+  <div class="card-header">
+    <span class="card-title">Jumbo Affordability</span>
+    <span class="zone-badge" id="zoneBadge">⬡ Jumbo</span>
+  </div>
+
+  <!-- Hero numbers -->
+  <div class="hero">
+    <div class="hero-box">
+      <div class="hero-val hero-val-accent" id="heroMonthly">—</div>
+      <div class="hero-label">Monthly PITI</div>
     </div>
-    <div>
-      <div class="jb-header-title">Jumbo Purchase Payment</div>
-      <div class="jb-header-sub" id="hdr-sub">$1.50M · 25% down · 6.875% · 30yr Fixed</div>
+    <div class="hero-box">
+      <div class="hero-val" id="heroIncome">—</div>
+      <div class="hero-label">Income @43% DTI</div>
+    </div>
+    <div class="hero-box">
+      <div class="hero-val" id="heroCash">—</div>
+      <div class="hero-label">Cash at Close</div>
     </div>
   </div>
 
-  <!-- Loan zone band — dynamically updated -->
-  <div class="jb-band zone-jumbo" id="zone-band">
-    <div class="jb-band-l">
-      <div class="jb-badge" id="zone-badge">Non-Conforming · Jumbo</div>
-      <div class="jb-band-desc" id="zone-desc">
-        Loan of <strong id="zone-loan">$1,125,000</strong> exceeds the 2026 conforming limit — requires jumbo underwriting with stricter credit and reserve standards.
-      </div>
+  <!-- Crossover alert — only when relevant -->
+  <div class="crossover-strip" id="crossoverStrip">
+    <span>⚡</span>
+    <span id="crossoverText"></span>
+  </div>
+
+  <!-- Monthly Breakdown -->
+  <div class="divider"></div>
+  <div class="section-label">Monthly Breakdown</div>
+  <div class="breakdown">
+    <div class="breakdown-row">
+      <span class="lbl">Principal & Interest</span>
+      <span class="val" id="bPI">—</span>
     </div>
-    <div class="jb-band-r">
-      <span id="zone-limit-label">2026 Conforming Limit</span>
-      <span id="zone-limit-val">$832,750</span>
+    <div class="breakdown-row">
+      <span class="lbl" id="bTaxLabel">Property Tax</span>
+      <span class="val" id="bTax">—</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="lbl">Homeowner's Insurance</span>
+      <span class="val" id="bIns">—</span>
+    </div>
+    <div class="breakdown-row" id="bPMIRow" style="display:none">
+      <span class="lbl">PMI (until 20% equity)</span>
+      <span class="val" id="bPMI">—</span>
+    </div>
+    <div class="breakdown-total">
+      <span>Total Monthly PITI</span>
+      <span class="total-val" id="bTotal">—</span>
     </div>
   </div>
 
-  <!-- Hero -->
-  <div class="jb-hero">
-    <div class="jb-hero-label" id="hero-label">Estimated Monthly PITI</div>
-    <div class="jb-hero-amount"><span id="hero-amount">$9,382</span><span class="jb-hero-mo">/mo</span></div>
-    <div class="jb-hero-sub" id="hero-sub">P&amp;I + Tax + Insurance · No PMI (25% down)</div>
-    <div class="jb-hero-grid">
-      <div class="jb-hero-stat">
-        <div class="jb-hero-sl">Loan Amount</div>
-        <div class="jb-hero-sv" id="hero-loan">$1,125,000</div>
+  <!-- Adjust Your Numbers -->
+  <div class="divider"></div>
+  <div class="section-label">Adjust Your Numbers</div>
+  <div class="sliders">
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-lbl">Purchase Price</span>
+        <span class="slider-val" id="sPrice">$2,500,000</span>
       </div>
-      <div class="jb-hero-stat">
-        <div class="jb-hero-sl">Down Payment</div>
-        <div class="jb-hero-sv" id="hero-down">$375,000</div>
+      <input type="range" id="slPrice" min="500000" max="10000000" step="100000" value="2500000">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-lbl">Down Payment</span>
+        <span class="slider-val" id="sDown">20%</span>
       </div>
-      <div class="jb-hero-stat">
-        <div class="jb-hero-sl">LTV</div>
-        <div class="jb-hero-sv" id="hero-ltv">75.0%</div>
+      <input type="range" id="slDown" min="10" max="50" step="1" value="20">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-lbl">Interest Rate</span>
+        <span class="slider-val" id="sRate">7.375%</span>
       </div>
+      <input type="range" id="slRate" min="3.5" max="10" step="0.125" value="7.375">
+      <div class="fred-tag">📡 Seeded from FRED live rate: <span id="fredLabel">6.875%</span></div>
+      <div class="slider-sub" id="rateNote"></div>
+    </div>
+
+  </div>
+
+  <!-- Income to qualify -->
+  <div class="divider"></div>
+  <div class="section-label">What Income Do I Need to Qualify?</div>
+  <div class="income-table">
+    <div class="income-row">
+      <span class="lbl">36% DTI — Conservative</span>
+      <span class="val" id="inc36">—</span>
+    </div>
+    <div class="income-row">
+      <span class="lbl">43% DTI — Standard</span>
+      <span class="val" id="inc43">—</span>
+    </div>
+    <div class="income-row stretch">
+      <span class="lbl">50% DTI — Stretch</span>
+      <span class="val" id="inc50">—</span>
     </div>
   </div>
 
-  <!-- ARM Disclosure (visible when 7/1 ARM selected) -->
-  <div class="jb-arm" id="arm-section">
-    <div class="jb-arm-head">
-      <span class="jb-arm-icon">📊</span>
-      <span class="jb-arm-title">7/1 ARM — Rate Adjustment Analysis</span>
-    </div>
-    <div class="jb-arm-body">
-      <!-- Fixed vs ARM comparison -->
-      <div class="jb-arm-compare">
-        <div class="jb-arm-col">
-          <div class="jb-arm-col-label">30yr Fixed</div>
-          <div class="jb-arm-col-amount" id="arm-cmp-fixed">$9,382</div>
-          <div class="jb-arm-col-note">PITI · locks in for life of loan</div>
+  <!-- CTAs -->
+  <div class="cta-row">
+    <button class="btn btn-check">Check Property ↗</button>
+    <button class="btn btn-primary" id="runBtn">Run My Numbers →</button>
+  </div>
+  <div class="cta-single">
+    <button class="btn btn-secondary">Get Matched with a Jumbo Lender →</button>
+  </div>
+
+  <!-- Drawer trigger -->
+  <div class="drawer-trigger" id="drawerTrigger" onclick="toggleDrawer()">
+    <span class="drawer-trigger-label">Loan Zone · Full Summary · Cash to Close</span>
+    <i class="chevron">▼</i>
+  </div>
+
+  <!-- ════ DRAWER ════ -->
+  <div class="drawer" id="drawer">
+    <div class="drawer-inner">
+
+      <!-- Loan Zone -->
+      <div class="drawer-section">
+        <div class="drawer-section-label">Loan Zone</div>
+        <div class="zone-detail" id="zoneDetail">
+          <div class="zone-detail-header" id="zoneDetailHeader">⬡ Jumbo Loan</div>
+          <div class="zone-detail-note" id="zoneDetailNote"></div>
         </div>
-        <div class="jb-arm-col arm">
-          <div class="jb-arm-col-label">7/1 ARM Initial</div>
-          <div class="jb-arm-col-amount" id="arm-cmp-arm">$8,574</div>
-          <div class="jb-arm-col-note">PITI · fixed first 84 months</div>
+        <div class="crossover-block" id="crossoverBlock"></div>
+      </div>
+
+      <!-- County / ZIP -->
+      <div class="drawer-section">
+        <div class="drawer-section-label">County / ZIP (California)</div>
+        <input type="text" class="zip-input" id="zipInput"
+          placeholder="ZIP code or county name (e.g. 90210 or Los Angeles)">
+        <div class="zip-hint" id="zipHint">Updates loan limits, tax rate & insurance for your county.</div>
+      </div>
+
+      <!-- Reserves -->
+      <div class="drawer-section">
+        <div class="drawer-section-label">Lender Reserve Requirement</div>
+        <div class="reserves-box">
+          <span>🏦</span>
+          <span id="reservesText">—</span>
         </div>
       </div>
-      <!-- Savings callout -->
-      <div class="jb-arm-savings">
-        <strong id="arm-monthly-save">$808/mo saved</strong> in years 1–7 vs 30yr fixed ·
-        <strong id="arm-total-save">$67,872 total</strong> in savings before first adjustment
+
+      <!-- Loan Summary -->
+      <div class="drawer-section">
+        <div class="drawer-section-label">Full Loan Summary</div>
+        <div style="margin-top:8px">
+          <div class="summary-row">
+            <span class="lbl">Loan Amount</span>
+            <span class="val" id="sLoan">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="lbl">LTV</span>
+            <span class="val" id="sLTV">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="lbl">Down Payment</span>
+            <span class="val" id="sDown2">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="lbl" id="sClosingLabel">Est. Closing Costs</span>
+            <span class="val" id="sClosing">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="lbl" id="sReservesLabel">Reserves Required</span>
+            <span class="val" id="sReservesVal">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="lbl">Est. Total Interest (30yr)</span>
+            <span class="val" id="sTotalInt">—</span>
+          </div>
+          <div class="summary-total">
+            <span>Total Cash Needed</span>
+            <span class="val" id="sTotalCash">—</span>
+          </div>
+        </div>
       </div>
-      <!-- Caps table -->
-      <div class="jb-arm-caps">
-        <div class="jb-arm-cap-row">
-          <span class="jb-arm-cap-k">Initial rate (years 1–7)</span>
-          <span class="jb-arm-cap-v" id="arm-init-rate">5.75% (SOFR-indexed)</span>
-        </div>
-        <div class="jb-arm-cap-row">
-          <span class="jb-arm-cap-k">Adjustment caps · 2/2/5 structure</span>
-          <span class="jb-arm-cap-v">First +2% · Per-period +2% · Lifetime +5%</span>
-        </div>
-        <div class="jb-arm-cap-row">
-          <span class="jb-arm-cap-k">Year 8 adjusted rate (first cap)</span>
-          <span class="jb-arm-cap-v warn" id="arm-adj-rate">7.75% max on first adj</span>
-        </div>
-        <div class="jb-arm-cap-row">
-          <span class="jb-arm-cap-k">Year 8 P&I at first cap</span>
-          <span class="jb-arm-cap-v warn" id="arm-adj-pi">~$7,900/mo</span>
-        </div>
-        <div class="jb-arm-cap-row">
-          <span class="jb-arm-cap-k">Maximum possible rate (lifetime)</span>
-          <span class="jb-arm-cap-v warn" id="arm-max-rate">10.75%</span>
-        </div>
-        <div class="jb-arm-cap-row">
-          <span class="jb-arm-cap-k">P&I at maximum rate</span>
-          <span class="jb-arm-cap-v warn" id="arm-max-pi">~$9,750/mo</span>
-        </div>
-      </div>
-      <!-- Risk note -->
-      <div class="jb-arm-risk">
-        ⚠️ <strong>Know your exit strategy.</strong> 7/1 ARMs make sense if you plan to sell or refinance within 7 years, or if rates fall before year 8. The <strong id="arm-max-piti">$11,750/mo PITI at max rate</strong> should be stress-tested against your income.
-      </div>
+
     </div>
   </div>
 
-  <!-- Reserve requirements -->
-  <div class="jb-reserves">
-    <div class="jb-reserves-head">
-      <span class="jb-reserves-icon">🏦</span>
-      <span class="jb-reserves-title">Cash Reserves Required by Lenders</span>
+  <!-- ════ PERMANENT BOTTOM — always visible outside drawer ════ -->
+  <div class="card-bottom">
+    <div class="section-label" style="padding-top:18px">Save This Scenario</div>
+    <div class="vault-row">
+      <button class="btn-vault">⭐ Save to My Vault</button>
+      <button class="btn-pdf">⬇ Download PDF</button>
     </div>
-    <div class="jb-reserves-rows">
-      <div class="jb-reserves-row">
-        <div class="jb-reserves-label">
-          6-Month Reserves (minimum)
-          <small>Must remain in account after closing — cannot be gifted</small>
-        </div>
-        <div class="jb-reserves-val" id="res-6mo">$56,292</div>
-      </div>
-      <div class="jb-reserves-divider"></div>
-      <div class="jb-reserves-row">
-        <div class="jb-reserves-label">
-          12-Month Reserves (preferred for loans over $1M)
-          <small>Higher loan amounts typically require 12 months documented</small>
-        </div>
-        <div class="jb-reserves-val" id="res-12mo">$112,584</div>
-      </div>
+    <div class="rate-note">
+      <span>💡</span>
+      <span><strong>Rate seeded from live FRED 30yr avg.</strong> Jumbo loans typically run 0.25–0.50% above conforming. Adjust the rate slider to model your actual scenario.</span>
     </div>
-    <div class="jb-reserves-note" id="res-note">
-      💡 Reserves are <strong>in addition to</strong> your down payment and closing costs. Most jumbo lenders require approximately <strong id="res-total">$487k–$543k total liquid assets</strong> at closing.
+    <div class="disclaimer">
+      <strong>⚠️ Educational estimates only.</strong> All figures are approximate and for informational purposes only. Actual rates, taxes, insurance, PMI, closing costs, and reserve requirements will vary based on lender, credit profile, property location, and market conditions. This is not a commitment to lend or a loan approval. 2026 conforming limits sourced from FHFA. Rate data from FRED / St. Louis Fed (PMMS series).
+    </div>
+    <div class="share-row">
+      <button class="btn-share">↗ &nbsp;Share This Scenario</button>
     </div>
   </div>
 
-  <!-- Underwriting criteria -->
-  <div class="jb-uw">
-    <div class="jb-uw-head">
-      <span class="jb-uw-title">Jumbo Underwriting Standards</span>
-    </div>
-    <div class="jb-uw-grid">
-      <div class="jb-uw-item">
-        <div class="jb-uw-criterion">Min Credit Score</div>
-        <div class="jb-uw-val ok">720+ (740+ preferred)</div>
-      </div>
-      <div class="jb-uw-item">
-        <div class="jb-uw-criterion">Max Back-End DTI</div>
-        <div class="jb-uw-val tight">43% (some lenders 45%)</div>
-      </div>
-      <div class="jb-uw-item">
-        <div class="jb-uw-criterion">Down Payment</div>
-        <div class="jb-uw-val ok" id="uw-down">20% min · 25% preferred</div>
-      </div>
-      <div class="jb-uw-item">
-        <div class="jb-uw-criterion">PMI</div>
-        <div class="jb-uw-val ok">None — 20%+ required</div>
-      </div>
-      <div class="jb-uw-item">
-        <div class="jb-uw-criterion">Income Documentation</div>
-        <div class="jb-uw-val">2 yrs W-2 or 2 yrs tax returns</div>
-      </div>
-      <div class="jb-uw-item">
-        <div class="jb-uw-criterion">Appraisal</div>
-        <div class="jb-uw-val tight" id="uw-appraisal">2 appraisals often required >$1.5M</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Breakdown accordion -->
-  <div class="jb-bkd">
-    <button class="jb-bkd-toggle" onclick="toggleBkd(this)">
-      <span class="jb-bkd-label">⊞ &nbsp;Full payment breakdown</span>
-      <span class="jb-bkd-chev">▾</span>
-    </button>
-    <div class="jb-bkd-body open" id="bkd-body">
-      <div class="jb-kv-s">Monthly Payment</div>
-      <div class="jb-kv"><span class="jb-kv-k">Principal &amp; Interest</span><span class="jb-kv-v" id="bkd-pi">$7,382</span></div>
-      <div class="jb-kv"><span class="jb-kv-k">Property Taxes (est. 1.1%/yr)</span><span class="jb-kv-v" id="bkd-tax">$1,375</span></div>
-      <div class="jb-kv"><span class="jb-kv-k">Home Insurance (est. 0.5%/yr)</span><span class="jb-kv-v" id="bkd-ins">$625</span></div>
-      <div class="jb-kv"><span class="jb-kv-k">PMI</span><span class="jb-kv-v jb-kv-v--green">None (20%+ down)</span></div>
-      <div class="jb-kv jb-kv--total"><span class="jb-kv-k">Total Monthly PITI</span><span class="jb-kv-v jb-kv-v--purple" id="bkd-total">$9,382</span></div>
-
-      <div class="jb-kv-s">Loan Details</div>
-      <div class="jb-kv"><span class="jb-kv-k">Purchase Price</span><span class="jb-kv-v" id="bkd-price">$1,500,000</span></div>
-      <div class="jb-kv"><span class="jb-kv-k" id="bkd-down-label">Down Payment (25%)</span><span class="jb-kv-v" id="bkd-down">$375,000</span></div>
-      <div class="jb-kv"><span class="jb-kv-k">Loan Amount</span><span class="jb-kv-v jb-kv-v--purple" id="bkd-loan">$1,125,000</span></div>
-      <div class="jb-kv"><span class="jb-kv-k" id="bkd-limit-label">2026 Conforming Limit (standard)</span><span class="jb-kv-v">$832,750</span></div>
-      <div class="jb-kv" id="bkd-above-row"><span class="jb-kv-k">Above Conforming By</span><span class="jb-kv-v jb-kv-v--amber" id="bkd-above">$292,250</span></div>
-
-      <div class="jb-kv-s">Lifetime Costs</div>
-      <div class="jb-kv"><span class="jb-kv-k" id="bkd-int-label">Total Interest (30yr)</span><span class="jb-kv-v" id="bkd-int">est. $1,532,000</span></div>
-      <div class="jb-kv"><span class="jb-kv-k" id="bkd-pi-total-label">Total P&amp;I Payments</span><span class="jb-kv-v" id="bkd-pi-total">$2,657,520</span></div>
-
-      <div class="jb-kv-s">Income Needed (no other debts)</div>
-      <div class="jb-kv"><span class="jb-kv-k">At 43% DTI (standard max)</span><span class="jb-kv-v jb-kv-v--purple" id="bkd-dti43">$261,800/yr</span></div>
-      <div class="jb-kv"><span class="jb-kv-k">At 36% DTI (conservative)</span><span class="jb-kv-v" id="bkd-dti36">$312,800/yr</span></div>
-    </div>
-  </div>
-
-  <!-- Explorer -->
-  <div class="jb-exp">
-    <div class="jb-exp-head">Payment Explorer</div>
-
-    <!-- Price slider (logarithmic $500k → $50M) -->
-    <div class="jb-slider-wrap">
-      <div class="jb-slider-row">
-        <span class="jb-slider-label">Home Price</span>
-        <span class="jb-slider-val" id="sl-price-val">$1.50M</span>
-      </div>
-      <input type="range" id="sl-price" class="jb-slider" min="0" max="1000" step="1" value="239" style="--pct:23.9%">
-      <div class="jb-slider-ticks">
-        <span>$500k</span><span>$1M</span><span>$2M</span><span>$5M</span><span>$10M</span><span>$25M</span><span>$50M</span>
-      </div>
-    </div>
-
-    <!-- Down payment slider -->
-    <div class="jb-slider-wrap">
-      <div class="jb-slider-row">
-        <span class="jb-slider-label">Down Payment</span>
-        <span class="jb-slider-val" id="sl-down-val">25% · $375,000</span>
-      </div>
-      <input type="range" id="sl-down" class="jb-slider" min="20" max="60" step="1" value="25" style="--pct:12.5%">
-      <div class="jb-slider-minmax"><span>20%</span><span>60%</span></div>
-    </div>
-    <div class="jb-dp-chips">
-      <button class="jb-dp-chip" onclick="setDown(20)">20%</button>
-      <button class="jb-dp-chip active" onclick="setDown(25)">25%</button>
-      <button class="jb-dp-chip" onclick="setDown(30)">30%</button>
-      <button class="jb-dp-chip" onclick="setDown(40)">40%</button>
-    </div>
-    <div class="jb-dp-min-note">Jumbo minimum: 20% down · 25% preferred by most lenders · No PMI required</div>
-
-    <!-- Rate slider -->
-    <div class="jb-slider-wrap">
-      <div class="jb-slider-row">
-        <span class="jb-slider-label">Interest Rate <span id="rate-source" style="font-size:10px;font-weight:400;color:#3a4560">(FRED 30yr seed)</span></span>
-        <span class="jb-slider-val" id="sl-rate-val">6.875%</span>
-      </div>
-      <input type="range" id="sl-rate" class="jb-slider" min="3" max="12" step="0.125" value="6.875" style="--pct:43%">
-      <div class="jb-slider-minmax"><span>3%</span><span>12%</span></div>
-    </div>
-
-    <!-- Loan term -->
-    <div class="jb-exp-term-label">Loan Term</div>
-    <div class="jb-terms">
-      <button class="jb-term" onclick="setTerm('15yr', this)">15yr</button>
-      <button class="jb-term active" onclick="setTerm('30yr', this)">30yr</button>
-      <button class="jb-term" onclick="setTerm('arm7', this)">7/1 ARM</button>
-    </div>
-
-    <!-- Stats bar -->
-    <div class="jb-exp-stats">
-      <div class="jb-exp-stat">
-        <div class="jb-exp-stat-label">Loan Amount</div>
-        <div class="jb-exp-stat-val" id="stat-loan">$1,125,000</div>
-      </div>
-      <div class="jb-exp-stat">
-        <div class="jb-exp-stat-label">LTV</div>
-        <div class="jb-exp-stat-val" id="stat-ltv">75.0%</div>
-      </div>
-      <div class="jb-exp-stat">
-        <div class="jb-exp-stat-label">6mo Reserves</div>
-        <div class="jb-exp-stat-val" id="stat-res" style="color:#8b5cf6">$56,292</div>
-      </div>
-      <div class="jb-exp-stat">
-        <div class="jb-exp-stat-label">Total / mo</div>
-        <div class="jb-exp-stat-val" id="stat-total">$9,382</div>
-      </div>
-    </div>
-
-    <!-- Actions -->
-    <div class="jb-exp-actions">
-      <button class="jb-btn-rerun">Run adjusted scenario →</button>
-      <button class="jb-btn-vault">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clip-rule="evenodd"/></svg>
-        My Vault
-      </button>
-      <button class="jb-btn-pdf">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
-        PDF
-      </button>
-      <button class="jb-btn-match">Get Matched →</button>
-    </div>
-  </div>
-
-  <!-- Follow-up chip -->
-  <div class="jb-followup-row">
-    <button class="jb-followup-chip" id="followup-chip">What income do I need to qualify for this jumbo loan? →</button>
-  </div>
-
-  <!-- Rate note -->
-  <div class="jb-rate-note">
-    <span class="jb-bulb">💡</span>
-    <p>
-      <strong>Rate seeded from live FRED 30yr avg.</strong> In today's market, jumbo loans for well-qualified borrowers (720+ credit, 20%+ down, strong reserves) often price <em>at par with or below</em> conforming rates — large portfolio lenders compete aggressively for this client profile. The 7/1 ARM rate shown is SOFR-indexed, typically 0.75–1.25% below 30yr fixed. Actual rate depends on credit, assets, employment, and lender.
-    </p>
-  </div>
-
-  <!-- Disclosures -->
-  <div class="jb-disc">
-    <p>
-      <strong>Educational estimates only.</strong> A "jumbo" loan is any loan exceeding the 2026 FHFA conforming baseline of $832,750 for a 1-unit residence in a standard-cost area. High-balance areas (designated high-cost counties) have limits up to $1,249,125. Loans between $832,750 and the county high-balance limit may qualify as "agency jumbo" (backed by Fannie/Freddie) with different pricing than true non-conforming jumbo. Loans above the county high-balance limit are held in portfolio by lenders. Property tax estimated at 1.1%/yr; insurance at 0.5%/yr. Reserve calculations based on 6× and 12× total monthly PITI. 7/1 ARM caps shown as 2/2/5 (typical structure; actual caps vary by lender). These figures are not a pre-approval or commitment to lend.
-    </p>
-  </div>
-
-</div>
 </div>
 
 <script>
-// ── Constants ──────────────────────────────────────────────────────────────
-const NATIONAL_CONFORMING_2026  = 832750;
-const HIGH_BAL_CA_MAX_2026      = 1249125;
-const TAX_RATE   = 0.011;   // 1.1% annual
-const INS_RATE   = 0.005;   // 0.5% annual
-const ARM_SPREAD = 1.10;    // ARM rate = fixed rate - spread (approx SOFR-based)
+const FRED_RATE    = 6.875;
+const NATIONAL     = 766550;   // 2026 FHFA baseline (national 1-unit)
+const COUNTY_LIMIT = 1149825;  // LA / high-cost CA default
+const TAX_RATE     = 0.0125;
+const INS_RATE     = 0.003;
 
-// ── State ──────────────────────────────────────────────────────────────────
-let state = {
-  price:    1500000,
-  downPct:  25,
-  rate:     6.875,   // will seed from FRED in production
-  termType: '30yr',  // '15yr' | '30yr' | 'arm7'
+const ZONES = {
+  conforming: {
+    label:'Conforming', icon:'✓',
+    note:'Fannie Mae / Freddie Mac loan — best rates, lowest down payment requirements, and lowest reserve requirements.',
+    color:'#00e87a', bg:'rgba(0,232,122,0.07)', border:'rgba(0,232,122,0.28)',
+    spread:0, reserves:2, closing:0.025
+  },
+  high_balance: {
+    label:'High-Balance', icon:'◈',
+    note:'High-balance conforming — GSE-backed up to the county limit. Slight rate premium over standard conforming; easier qualifying than jumbo.',
+    color:'#ff8c42', bg:'rgba(255,140,66,0.07)', border:'rgba(255,140,66,0.28)',
+    spread:0.25, reserves:4, closing:0.025
+  },
+  jumbo: {
+    label:'Jumbo', icon:'⬡',
+    note:'Portfolio / non-conforming loan. Portfolio lenders set their own guidelines. Shop 2–3 jumbo lenders — pricing, reserves, and qualifying criteria vary significantly.',
+    color:'#ff5f5f', bg:'rgba(255,95,95,0.07)', border:'rgba(255,95,95,0.28)',
+    spread:0.40, reserves:9, closing:0.02
+  }
 };
 
-// ── Math helpers ───────────────────────────────────────────────────────────
-function calcPI(principal, annualRate, months) {
-  const r = annualRate / 100 / 12;
-  if (r < 0.0000001) return principal / months;
-  return principal * r / (1 - Math.pow(1 + r, -months));
+function f$(n) {
+  const abs = Math.abs(n), s = n < 0 ? '-' : '';
+  if (abs >= 1e6) {
+    const m = abs/1e6;
+    return s+'$'+(m%1===0?m.toFixed(0):m.toFixed(2).replace(/\.?0+$/,''))+'M';
+  }
+  if (abs >= 10000) return s+'$'+Math.round(abs/1000)+'k';
+  return s+'$'+Math.round(abs).toLocaleString();
+}
+function fL(n)  { return '$'+Math.round(n).toLocaleString(); }
+function fP(n)  { return n.toFixed(2)+'%'; }
+function pi(p,r,y) {
+  if (p<=0||r<=0) return 0;
+  const mr=r/100/12, n=y*12;
+  return (p*mr*Math.pow(1+mr,n))/(Math.pow(1+mr,n)-1);
+}
+function track(val,min,max,color) {
+  const p=((val-min)/(max-min))*100;
+  return `linear-gradient(to right,${color} 0%,${color} ${p}%,rgba(255,255,255,0.1) ${p}%,rgba(255,255,255,0.1) 100%)`;
 }
 
-// Loan balance after k payments
-function loanBalanceAfter(principal, annualRate, totalMonths, k) {
-  const r = annualRate / 100 / 12;
-  if (r < 0.0000001) return principal * (1 - k / totalMonths);
-  const rk = Math.pow(1 + r, k);
-  const rn = Math.pow(1 + r, totalMonths);
-  return principal * (rn - rk) / (rn - 1);
+let S = {
+  price: 2500000, down: 20, rate: FRED_RATE+0.5,
+  countyLimit: COUNTY_LIMIT, taxRate: TAX_RATE, insRate: INS_RATE
+};
+
+// seed slider
+document.getElementById('slRate').value = S.rate;
+document.getElementById('fredLabel').textContent = fP(FRED_RATE);
+
+function compute() {
+  const loan = S.price*(1-S.down/100), dp = S.price-loan, ltv=loan/S.price;
+  const zone = loan<=NATIONAL?'conforming':loan<=S.countyLimit?'high_balance':'jumbo';
+  const z = ZONES[zone];
+  const mPI  = pi(loan,S.rate,30);
+  const mTax = S.price*S.taxRate/12;
+  const mIns = S.price*S.insRate/12;
+  const mPMI = zone!=='jumbo'&&S.down<20?(loan*0.008)/12:0;
+  const total = mPI+mTax+mIns+mPMI;
+  const res   = total*z.reserves;
+  const cc    = S.price*z.closing;
+  const cash  = dp+cc+res;
+  const tInt  = mPI*360-loan;
+  // crossovers
+  const dHB   = zone==='jumbo'?Math.max(0,((loan-S.countyLimit)/S.price)*100):0;
+  const dCon  = zone!=='conforming'?Math.max(0,((loan-NATIONAL)/S.price)*100):0;
+  const svHB  = zone==='jumbo'?(S.countyLimit*(ZONES.jumbo.spread-ZONES.high_balance.spread)/100):0;
+  const svCon = zone!=='conforming'?(NATIONAL*(z.spread-ZONES.conforming.spread)/100):0;
+  return {loan,dp,ltv,zone,z,mPI,mTax,mIns,mPMI,total,
+    inc36:(total/0.36)*12, inc43:(total/0.43)*12, inc50:(total/0.50)*12,
+    res,cc,cash,tInt,dHB,dCon,svHB,svCon};
 }
 
-function fmt$(n) {
-  return '$' + Math.round(n).toLocaleString('en-US');
-}
-function fmtM(n) {
-  if (n >= 10000000) return '$' + (n / 1000000).toFixed(1) + 'M';
-  if (n >= 1000000)  return '$' + (n / 1000000).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1') + 'M';
-  if (n >= 1000)     return '$' + Math.round(n / 1000) + 'k';
-  return fmt$(n);
-}
-function fmtPct(n, d=3) { return n.toFixed(d).replace(/0+$/, '').replace(/\.$/, '') + '%'; }
+function render() {
+  const c=compute();
+  const {zone,z}=c;
 
-// Logarithmic price slider: maps 0–1000 → $500k–$50M
-function sliderToPrice(s) {
-  const raw = 500000 * Math.pow(100, s / 1000);
-  // Round to sensible increments
-  if (raw < 1000000)  return Math.round(raw / 25000)  * 25000;
-  if (raw < 3000000)  return Math.round(raw / 50000)  * 50000;
-  if (raw < 10000000) return Math.round(raw / 100000) * 100000;
-  if (raw < 25000000) return Math.round(raw / 500000) * 500000;
-  return Math.round(raw / 1000000) * 1000000;
-}
-function priceToSlider(p) {
-  return Math.round(Math.log(p / 500000) / Math.log(100) * 1000);
-}
+  // CSS vars
+  document.documentElement.style.setProperty('--zone-color', z.color);
+  document.documentElement.style.setProperty('--zone-bg',    z.bg);
+  document.documentElement.style.setProperty('--zone-border',z.border);
+  document.getElementById('card').style.border=`1px solid ${z.border}`;
 
-// ── Term helpers ───────────────────────────────────────────────────────────
-function getTermMonths(termType) {
-  if (termType === '15yr') return 180;
-  if (termType === 'arm7') return 360; // 30yr amortisation, ARM resets at yr 8
-  return 360;
-}
-function getEffectiveRate(termType, rate) {
-  if (termType === 'arm7') return Math.max(3.0, rate - ARM_SPREAD);
-  return rate;
-}
+  // badge
+  const b=document.getElementById('zoneBadge');
+  b.textContent=`${z.icon} ${z.label}`;
+  b.style.background=z.bg; b.style.border=`1px solid ${z.border}`; b.style.color=z.color;
 
-// ── Main update ────────────────────────────────────────────────────────────
-function update() {
-  const { price, downPct, rate, termType } = state;
-  const loan    = price * (1 - downPct / 100);
-  const down    = price - loan;
-  const ltv     = loan / price * 100;
-  const months  = getTermMonths(termType);
-  const effRate = getEffectiveRate(termType, rate);
+  // hero
+  document.getElementById('heroMonthly').textContent = fL(Math.round(c.total));
+  document.getElementById('heroIncome').textContent  = f$(Math.round(c.inc43/1000)*1000);
+  document.getElementById('heroCash').textContent    = f$(Math.round(c.cash));
 
-  const monthlyPI  = calcPI(loan, effRate, months);
-  const monthlyTax = price * TAX_RATE / 12;
-  const monthlyIns = price * INS_RATE / 12;
-  const totalPITI  = monthlyPI + monthlyTax + monthlyIns;
-
-  const reserves6  = totalPITI * 6;
-  const reserves12 = totalPITI * 12;
-  const closingEst = loan * 0.02; // ~2% closing costs
-  const totalAssetLo = down + closingEst + reserves6;
-  const totalAssetHi = down + closingEst + reserves12;
-
-  // Loan zone
-  const conformingLimit = NATIONAL_CONFORMING_2026;
-  let zone = 'jumbo';
-  if (loan <= conformingLimit)            zone = 'conforming';
-  else if (loan <= HIGH_BAL_CA_MAX_2026)  zone = 'highbal';
-
-  // ── DOM updates ────────────────────────────────────────────────────────
-  // Header sub
-  const termLabel = termType === 'arm7' ? '7/1 ARM' : termType === '15yr' ? '15yr Fixed' : '30yr Fixed';
-  $('#hdr-sub').textContent = `${fmtM(price)} · ${downPct}% down · ${fmtPct(effRate)}% · ${termLabel}`;
-
-  // Zone band
-  const band = $('#zone-band');
-  band.className = `jb-band zone-${zone}`;
-  if (zone === 'conforming') {
-    $('#zone-badge').textContent = 'Standard Conforming';
-    $('#zone-desc').innerHTML = `Loan of <strong>${fmt$(loan)}</strong> is at or below the 2026 conforming limit — a conventional loan may offer better pricing. Consider the conventional calculator.`;
-    $('#zone-limit-label').textContent = '2026 Conforming Limit';
-    $('#zone-limit-val').textContent = fmt$(conformingLimit);
-  } else if (zone === 'highbal') {
-    $('#zone-badge').textContent = 'High Balance Agency';
-    $('#zone-desc').innerHTML = `Loan of <strong>${fmt$(loan)}</strong> falls in the high-balance zone — available in designated high-cost counties (SF Bay Area, LA, NYC) via Fannie/Freddie with agency pricing.`;
-    $('#zone-limit-label').textContent = 'High-Bal Max (CA/NY)';
-    $('#zone-limit-val').textContent = fmt$(HIGH_BAL_CA_MAX_2026);
+  // crossover strip (main card — compact, above breakdown)
+  const strip=document.getElementById('crossoverStrip');
+  const txt=document.getElementById('crossoverText');
+  if (c.dHB>0.05) {
+    strip.classList.add('visible');
+    txt.innerHTML=`Add <strong>${fP(c.dHB)} more down</strong> → High-Balance — saves <span class="savings">${fL(Math.round(c.svHB))}/yr</span>`;
+  } else if (c.dCon>0.05) {
+    strip.classList.add('visible');
+    txt.innerHTML=`Add <strong>${fP(c.dCon)} more down</strong> → Conforming — saves <span class="savings">${fL(Math.round(c.svCon))}/yr</span>`;
   } else {
-    const over = loan - conformingLimit;
-    $('#zone-badge').textContent = 'Non-Conforming · Jumbo';
-    $('#zone-desc').innerHTML = `Loan of <strong>${fmt$(loan)}</strong> exceeds the 2026 conforming limit by <strong>${fmt$(over)}</strong> — requires jumbo portfolio underwriting.`;
-    $('#zone-limit-label').textContent = '2026 Conforming Limit';
-    $('#zone-limit-val').textContent = fmt$(conformingLimit);
+    strip.classList.remove('visible');
   }
 
-  // Hero
-  $('#hero-label').textContent = termType === 'arm7' ? 'Est. Monthly PITI (ARM Initial Period)' : 'Estimated Monthly PITI';
-  $('#hero-amount').textContent = fmt$(totalPITI);
-  $('#hero-sub').textContent = `P&I + Tax + Insurance · No PMI (${downPct}% down)${termType === 'arm7' ? ' · ARM rate fixed yrs 1–7' : ''}`;
-  $('#hero-loan').textContent = fmt$(loan);
-  $('#hero-down').textContent = fmt$(down);
-  $('#hero-ltv').textContent  = ltv.toFixed(1) + '%';
+  // breakdown
+  document.getElementById('bPI').textContent  = fL(Math.round(c.mPI));
+  document.getElementById('bTaxLabel').textContent = `Property Tax (${fP(S.taxRate*100)})`;
+  document.getElementById('bTax').textContent = fL(Math.round(c.mTax));
+  document.getElementById('bIns').textContent = fL(Math.round(c.mIns));
+  const pr=document.getElementById('bPMIRow');
+  if(c.mPMI>0){pr.style.display='flex';document.getElementById('bPMI').textContent=fL(Math.round(c.mPMI));}
+  else pr.style.display='none';
+  const bT=document.getElementById('bTotal');
+  bT.textContent=fL(Math.round(c.total)); bT.style.color=z.color;
 
-  // ARM section
-  if (termType === 'arm7') {
-    const armRate  = effRate;
-    const fixedPI  = calcPI(loan, rate, 360);
-    const fixedTotal = fixedPI + monthlyTax + monthlyIns;
-    const armSave  = fixedTotal - totalPITI;
-    const arm7Save = armSave * 84;
-    const balYr8   = loanBalanceAfter(loan, armRate, 360, 84);
-    const adjRate1 = armRate + 2;     // first cap +2%
-    const maxRate  = armRate + 5;     // lifetime cap +5%
-    const piAdj    = calcPI(balYr8, adjRate1, 276);
-    const piMax    = calcPI(balYr8, maxRate,  276);
-    const pitiMax  = piMax + monthlyTax + monthlyIns;
+  // sliders — track fill
+  document.getElementById('slPrice').style.background=track(S.price,500000,10000000,z.color);
+  document.getElementById('slDown').style.background =track(S.down,10,50,z.color);
+  document.getElementById('slRate').style.background =track(S.rate,3.5,10,z.color);
+  document.getElementById('sPrice').textContent = fL(S.price);
+  document.getElementById('sDown').textContent  = `${S.down}% (${fL(Math.round(S.price*S.down/100))})`;
+  document.getElementById('sRate').textContent  = fP(S.rate);
 
-    $('#arm-section').classList.add('visible');
-    $('#arm-cmp-fixed').textContent      = fmt$(fixedTotal);
-    $('#arm-cmp-arm').textContent        = fmt$(totalPITI);
-    $('#arm-monthly-save').textContent   = `${fmt$(armSave)}/mo saved`;
-    $('#arm-total-save').textContent     = `${fmt$(arm7Save)} total`;
-    $('#arm-init-rate').textContent      = `${fmtPct(armRate)} (SOFR-indexed)`;
-    $('#arm-adj-rate').textContent       = `${fmtPct(adjRate1)} max on first adj`;
-    $('#arm-adj-pi').textContent         = `~${fmt$(piAdj)}/mo P&I`;
-    $('#arm-max-rate').textContent       = fmtPct(maxRate);
-    $('#arm-max-pi').textContent         = `~${fmt$(piMax)}/mo P&I`;
-    $('#arm-max-piti').textContent       = `${fmt$(pitiMax)}/mo PITI at max rate`;
-  } else {
-    $('#arm-section').classList.remove('visible');
+  const rn=document.getElementById('rateNote');
+  if(zone==='jumbo') rn.textContent='💡 Jumbo loans typically run 0.25–0.50% above conforming — varies by lender, credit score, and reserves.';
+  else if(zone==='high_balance') rn.textContent='💡 High-balance loans typically run 0.125–0.25% above conforming.';
+  else rn.textContent='';
+
+  // income
+  document.getElementById('inc36').textContent = fL(Math.round(c.inc36/1000)*1000);
+  document.getElementById('inc43').textContent = fL(Math.round(c.inc43/1000)*1000);
+  document.getElementById('inc50').textContent = fL(Math.round(c.inc50/1000)*1000);
+
+  // drawer — zone
+  const zd=document.getElementById('zoneDetail');
+  zd.style.background=z.bg; zd.style.border=`1px solid ${z.border}`;
+  const zdh=document.getElementById('zoneDetailHeader');
+  zdh.textContent=`${z.icon} ${z.label} Loan`; zdh.style.color=z.color;
+  document.getElementById('zoneDetailNote').textContent=z.note;
+
+  // drawer — crossovers (detailed)
+  const cb=document.getElementById('crossoverBlock'); cb.innerHTML='';
+  if(c.dHB>0.05){
+    cb.innerHTML+=`<div class="crossover-item"><strong style="color:#ff8c42">High-Balance crossover:</strong> Add ${fP(c.dHB)} more down (loan → ${fL(Math.round(S.countyLimit))} county limit) — saves <strong style="color:#00e87a">${fL(Math.round(c.svHB))}/yr</strong> in rate premium.</div>`;
   }
-
-  // Reserves
-  $('#res-6mo').textContent   = fmt$(reserves6);
-  $('#res-12mo').textContent  = fmt$(reserves12);
-  $('#res-total').textContent = `${fmtM(Math.round(totalAssetLo/5000)*5000)}–${fmtM(Math.round(totalAssetHi/5000)*5000)} total liquid assets`;
-
-  // Underwriting dynamic notes
-  $('#uw-down').textContent     = downPct >= 30 ? `${downPct}% (strong position)` : downPct >= 25 ? '25% preferred · good standing' : '20% min — tight, some lenders 25%+';
-  $('#uw-appraisal').textContent = price >= 1500000 ? '2 appraisals often required >$1.5M' : 'Single appraisal standard';
-
-  // Breakdown
-  $('#bkd-pi').textContent    = fmt$(monthlyPI);
-  $('#bkd-tax').textContent   = fmt$(monthlyTax);
-  $('#bkd-ins').textContent   = fmt$(monthlyIns);
-  $('#bkd-total').textContent = fmt$(totalPITI);
-  $('#bkd-price').textContent = fmt$(price);
-  $('#bkd-down-label').textContent = `Down Payment (${downPct}%)`;
-  $('#bkd-down').textContent  = fmt$(down);
-  $('#bkd-loan').textContent  = fmt$(loan);
-  const aboveConforming = loan - conformingLimit;
-  if (aboveConforming > 0) {
-    $('#bkd-above-row').style.display = '';
-    $('#bkd-above').textContent = fmt$(aboveConforming);
-  } else {
-    $('#bkd-above-row').style.display = 'none';
+  if(c.dCon>0.05){
+    cb.innerHTML+=`<div class="crossover-item"><strong style="color:#00e87a">Conforming crossover:</strong> Add ${fP(c.dCon)} more down (loan → ${fL(NATIONAL)} national limit) — saves <strong style="color:#00e87a">${fL(Math.round(c.svCon))}/yr</strong> in rate premium.</div>`;
   }
-  const yrs = months / 12;
-  $('#bkd-int-label').textContent = `Total Interest (${yrs}yr)`;
-  $('#bkd-pi-total-label').textContent = `Total P&I Payments`;
-  const totalPIPayments = monthlyPI * months;
-  const totalInterest = totalPIPayments - loan;
-  $('#bkd-int').textContent      = 'est. ' + fmt$(totalInterest);
-  $('#bkd-pi-total').textContent = fmt$(totalPIPayments);
-  $('#bkd-dti43').textContent    = fmt$(totalPITI * 12 / 0.43) + '/yr';
-  $('#bkd-dti36').textContent    = fmt$(totalPITI * 12 / 0.36) + '/yr';
+  if(!cb.innerHTML) cb.innerHTML=`<div class="crossover-item" style="color:rgba(185,208,192,0.38)">No crossover opportunity at current price & down payment.</div>`;
 
-  // Stats bar
-  $('#stat-loan').textContent  = fmtM(loan);
-  $('#stat-ltv').textContent   = ltv.toFixed(1) + '%';
-  $('#stat-res').textContent   = fmt$(reserves6);
-  $('#stat-total').textContent = fmt$(totalPITI);
+  // drawer — reserves
+  document.getElementById('reservesText').innerHTML=`<strong>${z.reserves}-month reserves</strong> required for ${z.label.toLowerCase()} loans — <strong>${fL(Math.round(c.res))}</strong> at current monthly payment.`;
 
-  // Follow-up chip
-  $('#followup-chip').textContent = termType === 'arm7'
-    ? 'What income do I need for this jumbo ARM? →'
-    : 'What income do I need to qualify for this jumbo loan? →';
-
-  // Slider fill %
-  updateSliderFill($('#sl-price'), parseInt($('#sl-price').value), 0, 1000);
-  updateSliderFill($('#sl-down'),  parseFloat($('#sl-down').value),  20, 60);
-  updateSliderFill($('#sl-rate'),  parseFloat($('#sl-rate').value),  3, 12);
+  // drawer — summary
+  document.getElementById('sLoan').textContent     = fL(Math.round(c.loan));
+  document.getElementById('sLTV').textContent      = fP(c.ltv*100);
+  document.getElementById('sDown2').textContent    = fL(Math.round(c.dp));
+  document.getElementById('sClosingLabel').textContent=`Est. Closing Costs (${zone==='jumbo'?'2%':'2.5%'})`;
+  document.getElementById('sClosing').textContent  = fL(Math.round(c.cc));
+  document.getElementById('sReservesLabel').textContent=`Reserves (${z.reserves} months)`;
+  document.getElementById('sReservesVal').textContent  = fL(Math.round(c.res));
+  document.getElementById('sTotalInt').textContent  = fL(Math.round(c.tInt));
+  const tc=document.getElementById('sTotalCash');
+  tc.textContent=fL(Math.round(c.cash)); tc.style.color=z.color;
 }
 
-function updateSliderFill(el, val, min, max) {
-  const pct = (val - min) / (max - min) * 100;
-  el.style.setProperty('--pct', pct.toFixed(1) + '%');
+document.getElementById('slPrice').addEventListener('input',e=>{S.price=+e.target.value;render();});
+document.getElementById('slDown').addEventListener('input', e=>{S.down=+e.target.value;render();});
+document.getElementById('slRate').addEventListener('input', e=>{S.rate=+e.target.value;render();});
+
+function toggleDrawer(){
+  document.getElementById('drawer').classList.toggle('open');
+  document.getElementById('drawerTrigger').classList.toggle('open');
 }
 
-// ── Slider event handlers ──────────────────────────────────────────────────
-document.getElementById('sl-price').addEventListener('input', function() {
-  state.price = sliderToPrice(parseInt(this.value));
-  $('#sl-price-val').textContent = fmtM(state.price);
-  update();
-});
-
-document.getElementById('sl-down').addEventListener('input', function() {
-  state.downPct = parseInt(this.value);
-  $('#sl-down-val').textContent = state.downPct + '% · ' + fmt$(state.price * state.downPct / 100);
-  syncDownChips(state.downPct);
-  update();
-});
-
-document.getElementById('sl-rate').addEventListener('input', function() {
-  state.rate = parseFloat(this.value);
-  const label = state.termType === 'arm7' ? ` → ARM ~${Math.max(3, state.rate - ARM_SPREAD).toFixed(3)}%` : '';
-  $('#sl-rate-val').textContent = state.rate.toFixed(3) + '%' + label;
-  update();
-});
-
-function setDown(pct) {
-  state.downPct = pct;
-  const slider = document.getElementById('sl-down');
-  slider.value = pct;
-  $('#sl-down-val').textContent = pct + '% · ' + fmt$(state.price * pct / 100);
-  syncDownChips(pct);
-  update();
-}
-
-function syncDownChips(pct) {
-  document.querySelectorAll('.jb-dp-chip').forEach(btn => {
-    btn.classList.toggle('active', parseInt(btn.textContent) === pct);
-  });
-}
-
-function setTerm(termType, btn) {
-  state.termType = termType;
-  document.querySelectorAll('.jb-term').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  // Update rate label source note
-  if (termType === 'arm7') {
-    $('#rate-source').textContent = '(30yr fixed seed — ARM deducts ~1.10%)';
-    $('#sl-rate-val').textContent = state.rate.toFixed(3) + `% → ARM ~${Math.max(3, state.rate - ARM_SPREAD).toFixed(3)}%`;
-  } else {
-    $('#rate-source').textContent = '(FRED 30yr seed)';
-    $('#sl-rate-val').textContent = state.rate.toFixed(3) + '%';
-  }
-  update();
-}
-
-function toggleBkd(btn) {
-  const body = document.getElementById('bkd-body');
-  body.classList.toggle('open');
-  btn.querySelector('.jb-bkd-chev').textContent = body.classList.contains('open') ? '▴' : '▾';
-}
-
-function $(sel) { return document.querySelector(sel); }
-
-// ── Init ──────────────────────────────────────────────────────────────────
-update();
+render();
 </script>
 </body>
 </html>

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Check Property — Editable Scenario Bar</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #060a10; font-family: 'DM Sans', system-ui, sans-serif; color: #f1f5f9; min-height: 100vh; }
+  .page { max-width: 1280px; margin: 0 auto; padding: 40px 24px; }
+
+  h1.title { font-size: 28px; font-weight: 800; color: #f1f5f9; margin-bottom: 6px; }
+  p.subtitle { font-size: 14px; color: #64748b; margin-bottom: 32px; }
+
+  .change-reason {
+    background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.15);
+    border-radius: 12px; padding: 16px 20px; margin-bottom: 40px;
+  }
+  .change-reason h3 { font-size: 13px; font-weight: 700; color: #00e87a; margin-bottom: 6px; }
+  .change-reason p  { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 900px) { .compare { grid-template-columns: 1fr; } }
+
+  .column-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .column-label.before { color: #ef4444; }
+  .column-label.after  { color: #00e87a; }
+  .column-label span.badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; }
+  .column-label.before span.badge { background: rgba(239,68,68,0.12); color: #ef4444; }
+  .column-label.after  span.badge { background: rgba(0,232,122,0.12); color: #00e87a; }
+
+  /* Sticky scenario bar */
+  .scenario-bar {
+    background: #0f172a; border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 0 16px; position: sticky; top: 0; z-index: 10;
+  }
+  .scenario-bar-inner {
+    display: flex; align-items: center; gap: 10px; height: 52px; max-width: 720px; margin: 0 auto;
+  }
+  .back-link { color: #64748b; font-size: 13px; text-decoration: none; flex-shrink: 0; }
+  .scenario-pill {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 99px; padding: 4px 12px; font-size: 12px; color: #94a3b8;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px;
+  }
+  .scenario-pill span.sep { color: rgba(255,255,255,0.2); margin: 0 4px; }
+  .scenario-pill span.val { color: #f1f5f9; font-weight: 600; }
+  .edit-btn {
+    margin-left: auto; flex-shrink: 0;
+    background: transparent; border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px; padding: 5px 12px; font-size: 12px; color: #64748b;
+    cursor: pointer; font-family: inherit;
+  }
+  .edit-btn:hover { border-color: rgba(0,232,122,0.4); color: #00e87a; }
+
+  /* Expanded scenario editor */
+  .scenario-editor {
+    background: #0f172a; border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 16px; display: none;
+  }
+  .scenario-editor.open { display: block; }
+  .editor-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    max-width: 720px; margin: 0 auto;
+  }
+  .editor-field label {
+    display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em;
+    color: #475569; margin-bottom: 5px; font-weight: 700;
+  }
+  .editor-field input, .editor-field select {
+    width: 100%; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+    padding: 8px 12px; color: #f1f5f9; font-size: 13px; font-family: inherit;
+    outline: none;
+  }
+  .editor-field input:focus { border-color: rgba(0,232,122,0.4); }
+  .editor-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; max-width: 720px; margin-left: auto; margin-right: auto; }
+  .btn-run { background: #00e87a; color: #060a10; border: none; border-radius: 8px; padding: 8px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-cancel { background: transparent; color: #64748b; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; font-family: inherit; }
+
+  /* Property result card */
+  .result-card {
+    background: #0f172a; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px;
+    overflow: hidden; margin-top: 16px;
+  }
+  .result-photo { height: 140px; background: linear-gradient(135deg,#1a2744,#0f1c30); display: flex; align-items: center; justify-content: center; }
+  .result-photo-text { font-size: 11px; color: rgba(255,255,255,0.2); }
+  .result-body { padding: 14px 16px; }
+  .result-address { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .result-meta { font-size: 12px; color: #64748b; margin-bottom: 14px; }
+  .result-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
+  .result-stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 10px 12px; }
+  .result-stat .rs-val { font-size: 18px; font-weight: 800; color: #f1f5f9; display: block; }
+  .result-stat .rs-val.blue { color: #3b82f6; }
+  .result-stat .rs-val.green { color: #00e87a; }
+  .result-stat .rs-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #475569; display: block; margin-top: 2px; }
+
+  /* Section accordion */
+  .accordion {
+    border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; margin-top: 10px;
+  }
+  .accordion-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: rgba(255,255,255,0.02); cursor: pointer;
+    font-size: 13px; font-weight: 600; color: #f1f5f9;
+  }
+  .accordion-header .chevron { color: #475569; font-size: 12px; transition: transform 200ms; }
+  .accordion-header.open .chevron { transform: rotate(180deg); }
+  .accordion-body { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 13px; color: #94a3b8; line-height: 1.6; }
+  .piti-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .piti-row:last-child { border-bottom: none; font-weight: 700; color: #f1f5f9; }
+  .piti-row .label { color: #64748b; }
+
+  /* Annotation */
+  .annotation-list { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .annotation { display: flex; gap: 10px; align-items: flex-start; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 10px 12px; }
+  .annotation .dot { width: 8px; height: 8px; border-radius: 99px; margin-top: 4px; flex-shrink: 0; }
+  .annotation .dot.red   { background: #ef4444; }
+  .annotation .dot.green { background: #00e87a; }
+  .annotation .text { font-size: 12px; color: #94a3b8; line-height: 1.5; }
+  .annotation .text strong { color: #f1f5f9; }
+
+  hr.divider { margin: 48px 0 32px; border: none; border-top: 1px solid rgba(255,255,255,0.06); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #64748b; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  td:first-child { color: #f1f5f9; font-weight: 600; }
+  td:not(:first-child) { color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1 class="title">Check Property — Editable Scenario Bar</h1>
+  <p class="subtitle">Current scenario bar is read-only (left). Proposed: tap to edit inline, re-run without losing the property (right).</p>
+
+  <div class="change-reason">
+    <h3>Why this change?</h3>
+    <p>The scenario lock bar (budget / down payment / rate) is the most important input on this page — it controls all the affordability math. Today it's completely read-only after the initial submit. If a user wants to try "what if I put 10% down instead of 20%?" they have to navigate back, change the scenario, and wait for the property to re-load. This kills the entire "try different scenarios" use case. The proposed change makes the bar tappable — it expands into an inline editor that re-runs the numbers on the same property without navigation. Also adds a mobile accordion pattern for the 5 result sections to reduce scroll.</p>
+  </div>
+
+  <div class="compare">
+
+    <!-- BEFORE -->
+    <div>
+      <div class="column-label before">
+        <span>Current</span>
+        <span class="badge">Read-only. Must go back to change.</span>
+      </div>
+
+      <!-- Read-only lock bar -->
+      <div class="scenario-bar">
+        <div class="scenario-bar-inner">
+          <a class="back-link" href="#">← Back</a>
+          <div class="scenario-pill">
+            <span class="val">$500K</span><span class="sep">·</span>
+            <span class="val">20%</span> down<span class="sep">·</span>
+            <span class="val">6.65%</span><span class="sep">·</span>
+            San Diego, CA
+          </div>
+          <!-- No edit button -->
+        </div>
+      </div>
+
+      <!-- Results (dense, no accordion) -->
+      <div class="result-card" style="margin-top:12px;">
+        <div class="result-photo"><div class="result-photo-text">Property photo</div></div>
+        <div class="result-body">
+          <div class="result-address">4545 Illinois St, San Diego, CA 92116</div>
+          <div class="result-meta">3 bed · 2 bath · 1,450 sqft · Listed $749,000</div>
+          <div class="result-grid">
+            <div class="result-stat"><span class="rs-val blue">$749K</span><span class="rs-lbl">List Price</span></div>
+            <div class="result-stat"><span class="rs-val">$769K</span><span class="rs-lbl">Redfin AVM</span></div>
+            <div class="result-stat"><span class="rs-val">$3,940/mo</span><span class="rs-lbl">Est. PITI</span></div>
+            <div class="result-stat"><span class="rs-val green">+2.7%</span><span class="rs-lbl">AVM vs Ask</span></div>
+          </div>
+
+          <!-- All 5 sections always expanded, very dense -->
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:#475569;margin-bottom:8px;">Gap Analysis</div>
+          <div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#94a3b8;">Full gap analysis table (always visible)…</div>
+
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:#475569;margin-bottom:8px;">Real Numbers (PITI)</div>
+          <div class="piti-row"><span class="label">Principal & Interest</span><span>$3,142</span></div>
+          <div class="piti-row"><span class="label">Property Tax (est.)</span><span>$781</span></div>
+          <div class="piti-row"><span class="label">Homeowners Insurance</span><span>$125</span></div>
+          <div class="piti-row" style="color:#f1f5f9;font-weight:700;"><span>Total PITI</span><span>$4,048</span></div>
+
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:#475569;margin:12px 0 8px;">Cash to Close</div>
+          <div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#94a3b8;">Down payment, closing costs, prepaid escrow… (always visible)</div>
+
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:#475569;margin-bottom:8px;">True Cost of Ownership</div>
+          <div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 12px;font-size:12px;color:#94a3b8;">5yr / 10yr horizon tables… (always visible)</div>
+        </div>
+      </div>
+
+      <div class="annotation-list">
+        <div class="annotation">
+          <div class="dot red"></div>
+          <div class="text"><strong>Scenario bar is a dead end</strong> — user can see their parameters but cannot change them. "← Back" is the only escape, which destroys the property analysis.</div>
+        </div>
+        <div class="annotation">
+          <div class="dot red"></div>
+          <div class="text"><strong>All 5 result sections always expanded</strong> — massive scroll on mobile. Users who only want to know the payment still scroll past Gap Analysis, Cash to Close, and 5yr horizon tables.</div>
+        </div>
+        <div class="annotation">
+          <div class="dot red"></div>
+          <div class="text"><strong>No "what-if" capability</strong> — the core value proposition of the product is scenario testing. But once you've run a property, you're locked in.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div>
+      <div class="column-label after">
+        <span>Proposed</span>
+        <span class="badge">Tap to edit. Re-run instantly.</span>
+      </div>
+
+      <!-- Editable bar — shown collapsed (default state) -->
+      <div class="scenario-bar">
+        <div class="scenario-bar-inner">
+          <a class="back-link" href="#">← Back</a>
+          <div class="scenario-pill">
+            <span class="val">$500K</span><span class="sep">·</span>
+            <span class="val">20%</span> down<span class="sep">·</span>
+            <span class="val">6.65%</span><span class="sep">·</span>
+            San Diego, CA
+          </div>
+          <button class="edit-btn" onclick="toggleEditor()">✎ Edit</button>
+        </div>
+      </div>
+
+      <!-- Expanded editor (shown open for demo) -->
+      <div class="scenario-editor open" id="editor">
+        <div class="editor-grid">
+          <div class="editor-field">
+            <label>Budget / Home Price</label>
+            <input type="text" value="$749,000">
+          </div>
+          <div class="editor-field">
+            <label>Down Payment</label>
+            <select>
+              <option>20% — $149,800</option>
+              <option>10% — $74,900</option>
+              <option>5% — $37,450</option>
+              <option>3.5% FHA — $26,215</option>
+              <option>0% VA</option>
+            </select>
+          </div>
+          <div class="editor-field">
+            <label>Interest Rate</label>
+            <input type="text" value="6.65%">
+          </div>
+        </div>
+        <div class="editor-actions">
+          <button class="btn-cancel" onclick="toggleEditor()">Cancel</button>
+          <button class="btn-run">↻ Re-run Numbers</button>
+        </div>
+      </div>
+
+      <!-- Results — accordion pattern -->
+      <div class="result-card" style="margin-top:12px;">
+        <div class="result-photo"><div class="result-photo-text">Property photo</div></div>
+        <div class="result-body">
+          <div class="result-address">4545 Illinois St, San Diego, CA 92116</div>
+          <div class="result-meta">3 bed · 2 bath · 1,450 sqft · Listed $749,000</div>
+          <div class="result-grid">
+            <div class="result-stat"><span class="rs-val blue">$749K</span><span class="rs-lbl">List Price</span></div>
+            <div class="result-stat"><span class="rs-val">$769K</span><span class="rs-lbl">Redfin AVM</span></div>
+            <div class="result-stat"><span class="rs-val">$3,940/mo</span><span class="rs-lbl">Est. PITI</span></div>
+            <div class="result-stat"><span class="rs-val green">+2.7%</span><span class="rs-lbl">AVM vs Ask</span></div>
+          </div>
+
+          <!-- Accordion sections -->
+          <div class="accordion">
+            <div class="accordion-header open" onclick="this.classList.toggle('open')">
+              Gap Analysis — Can you afford it?
+              <span class="chevron">▾</span>
+            </div>
+            <div class="accordion-body">
+              Gap analysis table comparing your budget vs property price vs income required…
+            </div>
+          </div>
+
+          <div class="accordion">
+            <div class="accordion-header open" onclick="this.classList.toggle('open')">
+              Real Numbers — Your PITI
+              <span class="chevron">▾</span>
+            </div>
+            <div class="accordion-body">
+              <div class="piti-row"><span class="label">Principal & Interest</span><span>$3,142</span></div>
+              <div class="piti-row"><span class="label">Property Tax (est.)</span><span>$781</span></div>
+              <div class="piti-row"><span class="label">Homeowners Insurance</span><span>$125</span></div>
+              <div class="piti-row"><span>Total PITI</span><span>$4,048</span></div>
+            </div>
+          </div>
+
+          <div class="accordion">
+            <div class="accordion-header" onclick="this.classList.toggle('open')">
+              Cash to Close
+              <span class="chevron">▾</span>
+            </div>
+          </div>
+
+          <div class="accordion">
+            <div class="accordion-header" onclick="this.classList.toggle('open')">
+              True Cost of Ownership (5yr / 10yr)
+              <span class="chevron">▾</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="annotation-list">
+        <div class="annotation">
+          <div class="dot green"></div>
+          <div class="text"><strong>"✎ Edit" button in the scenario bar</strong> — expands the bar into a 3-field inline editor (price, down %, rate). Re-runs all math on the current property without navigation.</div>
+        </div>
+        <div class="annotation">
+          <div class="dot green"></div>
+          <div class="text"><strong>Down payment as dropdown</strong> — shows common options (20%, 10%, 5%, FHA 3.5%, VA 0%) with the dollar amount calculated automatically. Reduces typing friction.</div>
+        </div>
+        <div class="annotation">
+          <div class="dot green"></div>
+          <div class="text"><strong>Accordion sections</strong> — Gap Analysis and PITI open by default. Cash to Close and True Cost collapsed. User expands what they need. Reduces mobile scroll by ~60%.</div>
+        </div>
+        <div class="annotation">
+          <div class="dot green"></div>
+          <div class="text"><strong>Summary stats always visible</strong> — List Price, Redfin AVM, PITI, AVM vs Ask are pinned above the accordion. User always sees the 4 key numbers without expanding anything.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <hr class="divider">
+
+  <div style="font-size:18px;font-weight:800;margin-bottom:6px;">Functionality change table</div>
+  <div style="font-size:13px;color:#64748b;margin-bottom:24px;">What gets added, nothing gets removed.</div>
+  <table>
+    <thead><tr><th>Feature</th><th>Current</th><th>Proposed</th><th>Type</th></tr></thead>
+    <tbody>
+      <tr><td>Change budget/price</td><td>Must go back to scenario builder</td><td>Inline editor, same page</td><td><span style="background:rgba(0,232,122,0.12);color:#00e87a;border-radius:4px;padding:2px 8px;font-size:11px;">New</span></td></tr>
+      <tr><td>Change down payment</td><td>Must go back</td><td>Dropdown in inline editor</td><td><span style="background:rgba(0,232,122,0.12);color:#00e87a;border-radius:4px;padding:2px 8px;font-size:11px;">New</span></td></tr>
+      <tr><td>Change interest rate</td><td>Must go back</td><td>Text input in inline editor</td><td><span style="background:rgba(0,232,122,0.12);color:#00e87a;border-radius:4px;padding:2px 8px;font-size:11px;">New</span></td></tr>
+      <tr><td>Result sections</td><td>All 5 always expanded</td><td>Accordion — 2 open by default</td><td><span style="background:rgba(59,130,246,0.15);color:#60a5fa;border-radius:4px;padding:2px 8px;font-size:11px;">Enhanced</span></td></tr>
+      <tr><td>Key metrics summary</td><td>Embedded in first section</td><td>Always-visible grid above accordion</td><td><span style="background:rgba(59,130,246,0.15);color:#60a5fa;border-radius:4px;padding:2px 8px;font-size:11px;">Enhanced</span></td></tr>
+    </tbody>
+  </table>
+
+</div>
+<script>
+function toggleEditor() {
+  document.getElementById('editor').classList.toggle('open');
+}
+</script>
+</body>
+</html>

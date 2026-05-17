@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Affordability Card — Full Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #080c12;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    color: #f0f4ff;
+    padding: 24px 16px 80px;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  /* ── Chat bubble ── */
+  .chat-bubble {
+    background: linear-gradient(135deg,#1a3a2a,#0d2018);
+    border: 1px solid rgba(0,232,122,0.2);
+    border-radius: 18px 18px 4px 18px;
+    padding: 14px 18px;
+    font-size: 15px; color: #f0f4ff; line-height: 1.5;
+    margin-bottom: 14px;
+    max-width: 88%; margin-left: auto;
+  }
+
+  /* ── Card shell ── */
+  .card {
+    background: #0d1117;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  /* ── Card top badge bar ── */
+  .card-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.02);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #00e87a; }
+  .topbar-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6b7a99; }
+  .topbar-right { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #3a4560; }
+
+  /* ── Summary tiles ── */
+  .summary-wrap { padding: 16px 16px 0; }
+  .summary-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .summary-icon {
+    width: 32px; height: 32px; border-radius: 9px;
+    background: rgba(0,232,122,0.1);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .summary-icon svg { width: 16px; height: 16px; color: #00e87a; }
+  .summary-head h2 { font-size: 15px; font-weight: 700; color: #f0f4ff; }
+  .summary-head p  { font-size: 11px; color: #6b7a99; margin-top: 1px; }
+  .summary-tiles {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    margin-bottom: 14px;
+  }
+  .tile {
+    background: #141b28; border-radius: 10px; padding: 10px 8px 8px;
+    text-align: center;
+  }
+  .tile-icon { margin-bottom: 5px; display: flex; justify-content: center; }
+  .tile-icon svg { width: 16px; height: 16px; }
+  .tile-label { font-size: 10px; color: #6b7a99; margin-bottom: 3px; }
+  .tile-value { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+
+  /* ── Program cards ── */
+  .programs { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+
+  .program-card {
+    background: #0e1420;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .program-card.best {
+    border-color: rgba(0,232,122,0.3);
+    box-shadow: 0 0 0 1px rgba(0,232,122,0.06), 0 4px 16px rgba(0,232,122,0.05);
+  }
+
+  .card-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px 10px;
+    cursor: pointer; user-select: none;
+  }
+  .card-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .card-icon svg { width: 16px; height: 16px; }
+  .card-icon.fha   { background: rgba(251,191,36,0.12); color: #fbbf24; }
+  .card-icon.conv3 { background: rgba(0,232,122,0.1);   color: #00e87a; }
+  .card-icon.conv20{ background: rgba(61,139,255,0.1);  color: #3d8bff; }
+
+  .card-title { flex: 1; min-width: 0; }
+  .card-title h3 { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+  .card-title p  { font-size: 11px; color: #6b7a99; margin-top: 1px; }
+
+  .badge {
+    font-size: 9px; font-weight: 800; padding: 3px 8px;
+    border-radius: 20px; flex-shrink: 0; letter-spacing: .04em;
+    white-space: nowrap; text-transform: uppercase;
+  }
+  .badge-green { background: rgba(0,232,122,0.12); color: #00e87a; border: 1px solid rgba(0,232,122,0.2); }
+  .badge-amber { background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
+  .badge-blue  { background: rgba(61,139,255,0.12); color: #3d8bff; border: 1px solid rgba(61,139,255,0.2); }
+
+  .chevron {
+    width: 20px; height: 20px; border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: transform .2s, background .15s;
+  }
+  .chevron svg { width: 10px; height: 10px; color: #3a4560; }
+  .program-card.open .chevron { transform: rotate(180deg); background: rgba(0,232,122,0.08); }
+  .program-card.open .chevron svg { color: #00e87a; }
+
+  .card-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .stat-cell { padding: 9px 12px; }
+  .stat-cell:not(:last-child) { border-right: 1px solid rgba(255,255,255,0.04); }
+  .stat-label { font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; font-weight: 600; }
+  .stat-value { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+
+  .card-note {
+    padding: 7px 14px 9px;
+    display: flex; align-items: flex-start; gap: 6px;
+  }
+  .note-icon { font-size: 11px; color: #3a4560; flex-shrink: 0; margin-top: 1px; }
+  .note-text  { font-size: 11px; color: #6b7a99; line-height: 1.45; }
+
+  /* Drawer */
+  .card-drawer {
+    display: none;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding: 14px;
+    background: rgba(0,0,0,0.15);
+  }
+  .program-card.open .card-drawer { display: block; }
+
+  .drawer-section { margin-bottom: 14px; }
+  .drawer-section:last-child { margin-bottom: 0; }
+  .drawer-label {
+    font-size: 9px; font-weight: 800; color: #3a4560;
+    text-transform: uppercase; letter-spacing: .1em; margin-bottom: 7px;
+  }
+  .kv-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .kv-row:last-child { border-bottom: none; }
+  .kv-row.total-row {
+    border-top: 1px solid rgba(255,255,255,0.07);
+    border-bottom: none; margin-top: 3px; padding-top: 7px;
+  }
+  .kv-key { font-size: 12px; color: #8fa3b8; }
+  .kv-val { font-size: 12px; font-weight: 600; color: #f0f4ff; }
+  .kv-val.green { color: #00e87a; }
+  .kv-val.ok    { color: #00e87a; font-size: 11px; }
+
+  /* Income to qualify band inside drawer */
+  .qualify-band {
+    background: rgba(0,232,122,0.05);
+    border: 1px solid rgba(0,232,122,0.12);
+    border-radius: 8px; padding: 10px 12px; margin-top: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .qualify-left  { font-size: 11px; color: #6b7a99; }
+  .qualify-right { font-size: 13px; font-weight: 700; color: #00e87a; }
+  .qualify-check { font-size: 11px; color: #4a6e58; margin-top: 2px; }
+
+  /* ── Side-by-side comparison ── */
+  .comparison-wrap { margin: 0 12px 12px; }
+  .section-toggle {
+    width: 100%;
+    display: flex; align-items: center; justify-content: space-between;
+    background: #0e1420; border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 11px 14px;
+    font-size: 12px; font-weight: 600; color: #8fa3b8;
+    cursor: pointer; font-family: inherit;
+    transition: color .15s, border-color .15s;
+  }
+  .section-toggle:hover { color: #f0f4ff; border-color: rgba(255,255,255,0.12); }
+  .section-toggle svg { width: 12px; height: 12px; transition: transform .2s; }
+  .section-toggle.open { color: #f0f4ff; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-color: rgba(255,255,255,0.1); }
+  .section-toggle.open svg { transform: rotate(180deg); }
+
+  .comparison-table-wrap {
+    display: none;
+    background: #0e1420;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+  }
+  .comparison-table-wrap.open { display: block; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 9px 10px; text-align: left;
+    font-size: 10px; font-weight: 700; color: #3a4560;
+    text-transform: uppercase; letter-spacing: .07em;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    background: rgba(0,0,0,0.2);
+  }
+  thead th:not(:first-child) { text-align: right; }
+  tbody td {
+    padding: 8px 10px; font-size: 12px; color: #8fa3b8;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  tbody td:not(:first-child) { text-align: right; font-weight: 600; color: #f0f4ff; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr.highlight td { background: rgba(0,232,122,0.04); }
+  tbody tr.highlight td:not(:first-child) { color: #00e87a; }
+  .col-best { background: rgba(0,232,122,0.04); }
+
+  /* ── Live Rates assumption ── */
+  .rate-assumption {
+    margin: 0 12px 12px;
+    background: rgba(0,232,122,0.04);
+    border: 1px solid rgba(0,232,122,0.12);
+    border-radius: 10px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .rate-assumption .bulb { font-size: 16px; flex-shrink: 0; }
+  .rate-assumption p { font-size: 12px; color: #8fa3b8; line-height: 1.5; }
+  .rate-assumption strong { color: #00e87a; }
+
+  /* ── Affordability Explorer (slider section) ── */
+  .explorer-wrap {
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding: 16px;
+    background: #fff;
+    color: #0d1117;
+  }
+  .explorer-title { font-size: 13px; font-weight: 700; color: #0d1117; margin-bottom: 14px; }
+  .slider-label-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px; font-weight: 600; color: #0d1117; margin-bottom: 8px;
+  }
+  .slider-track-wrap {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+  }
+  .arrow-btn {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid #e0e0e0; background: #f5f5f5;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; font-size: 12px; color: #666;
+  }
+  .slider {
+    flex: 1; -webkit-appearance: none; appearance: none;
+    height: 4px; border-radius: 2px;
+    background: linear-gradient(to right, #00e87a 44%, #ddd 44%);
+    outline: none;
+  }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #00e87a; border: 3px solid #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer;
+  }
+  .slider-range { display: flex; justify-content: space-between; font-size: 11px; color: #999; margin-bottom: 14px; }
+
+  .term-label { font-size: 13px; font-weight: 600; color: #0d1117; margin-bottom: 8px; }
+  .term-btns  { display: flex; gap: 8px; margin-bottom: 16px; }
+  .term-btn {
+    flex: 1; padding: 10px 0; border-radius: 8px; border: 1px solid #e0e0e0;
+    background: #f9f9f9; font-size: 13px; font-weight: 600; color: #555;
+    cursor: pointer; font-family: inherit; text-align: center;
+  }
+  .term-btn.active {
+    background: #f0fff8; border-color: #00e87a; color: #00875a;
+  }
+
+  .stats-bar {
+    display: flex; gap: 0; border-top: 1px solid #eee; padding-top: 12px;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .stat-item { flex: 1; min-width: 100px; }
+  .stat-item-label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #999; font-weight: 700; margin-bottom: 3px; }
+  .stat-item-value { font-size: 14px; font-weight: 700; color: #0d1117; }
+  .stat-item-value.savings { color: #00875a; }
+
+  .explorer-btns {
+    display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;
+  }
+  .btn-vault {
+    display: flex; align-items: center; gap: 6px;
+    background: #00e87a; color: #07100f;
+    border: none; border-radius: 8px;
+    padding: 10px 16px; font-size: 13px; font-weight: 700;
+    cursor: pointer; font-family: inherit; flex-shrink: 0;
+  }
+  .btn-vault .star { font-size: 13px; }
+  .btn-pdf {
+    display: flex; align-items: center; gap: 6px;
+    background: transparent; color: #0d1117;
+    border: 1px solid #ddd; border-radius: 8px;
+    padding: 10px 16px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .btn-match {
+    margin-left: auto;
+    background: #00e87a; color: #07100f;
+    border: none; border-radius: 8px;
+    padding: 10px 20px; font-size: 13px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+
+  /* ── Disclosures ── */
+  .disclosures {
+    margin: 0 12px 16px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .disclosures p {
+    font-size: 11px; color: #3a4560; line-height: 1.6;
+  }
+  .disclosures strong { color: #6b7a99; font-weight: 600; }
+
+  /* ── Ready to talk ── */
+  .ready-band {
+    margin: 0 12px 16px;
+    background: #0e1420;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .ready-icon { font-size: 22px; flex-shrink: 0; }
+  .ready-text h4 { font-size: 13px; font-weight: 700; color: #f0f4ff; margin-bottom: 2px; }
+  .ready-text p  { font-size: 11px; color: #6b7a99; line-height: 1.4; }
+  .show-checklist {
+    margin-left: auto; font-size: 11px; color: #3d8bff;
+    background: none; border: none; cursor: pointer; font-family: inherit; flex-shrink: 0;
+  }
+
+  /* ── Best picks ── */
+  .best-picks {
+    margin: 0 12px 12px;
+    background: #0e1420;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .pick-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .pick-row:last-child { border-bottom: none; }
+  .pick-icon-wrap {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: rgba(0,232,122,0.08);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .pick-icon-wrap svg { width: 12px; height: 12px; color: #00e87a; }
+  .pick-label { font-size: 12px; color: #6b7a99; flex: 1; }
+  .pick-val   { font-size: 12px; font-weight: 700; color: #00e87a; }
+
+  .preview-label {
+    font-size: 10px; color: #3a4560; text-transform: uppercase;
+    letter-spacing: .1em; text-align: center; margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+<p class="preview-label">Full Card Preview — Tap cards to expand</p>
+
+<!-- Chat bubble -->
+<div class="chat-bubble">
+  I make $120,000 a year and have $42,000 saved — can I afford a $650,000 home?
+</div>
+
+<!-- ══ Main Card ══ -->
+<div class="card">
+
+  <!-- Top badge bar -->
+  <div class="card-topbar">
+    <div class="topbar-left">
+      <div class="dot"></div>
+      <span class="topbar-label">AI Analysis</span>
+    </div>
+    <span class="topbar-right">Live · CalcEngine-Deterministic</span>
+  </div>
+
+  <!-- Summary tiles -->
+  <div class="summary-wrap">
+    <div class="summary-head">
+      <div class="summary-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"/>
+        </svg>
+      </div>
+      <div>
+        <h2>What You Can Afford</h2>
+        <p>3 programs · based on your income &amp; savings</p>
+      </div>
+    </div>
+    <div class="summary-tiles">
+      <div class="tile">
+        <div class="tile-icon" style="color:#00e87a">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
+          </svg>
+        </div>
+        <div class="tile-label">Income</div>
+        <div class="tile-value">$120K/yr</div>
+      </div>
+      <div class="tile">
+        <div class="tile-icon" style="color:#fbbf24">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75"/>
+          </svg>
+        </div>
+        <div class="tile-label">Savings</div>
+        <div class="tile-value">$42K</div>
+      </div>
+      <div class="tile">
+        <div class="tile-icon" style="color:#3d8bff">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/>
+          </svg>
+        </div>
+        <div class="tile-label">Rate (APR)</div>
+        <div class="tile-value">6.23%</div>
+      </div>
+      <div class="tile">
+        <div class="tile-icon" style="color:#a78bfa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253"/>
+          </svg>
+        </div>
+        <div class="tile-label">Target DTI</div>
+        <div class="tile-value">43%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Program Cards ── -->
+  <div class="programs">
+
+    <!-- FHA 3.5% -->
+    <div class="program-card" id="card-fha">
+      <div class="card-header" onclick="toggle('card-fha')">
+        <div class="card-icon fha">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"/>
+          </svg>
+        </div>
+        <div class="card-title">
+          <h3>FHA 3.5% Down</h3>
+          <p>Government-backed · low entry</p>
+        </div>
+        <span class="badge badge-amber">Lowest cash to close</span>
+        <div class="chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+        </div>
+      </div>
+      <div class="card-stats">
+        <div class="stat-cell"><div class="stat-label">Max Home</div><div class="stat-value">$560,919</div></div>
+        <div class="stat-cell"><div class="stat-label">Est. Payment</div><div class="stat-value">$4,286/mo</div></div>
+        <div class="stat-cell"><div class="stat-label">Cash Needed</div><div class="stat-value">$36,460</div></div>
+      </div>
+      <div class="card-note">
+        <span class="note-icon">ⓘ</span>
+        <span class="note-text">MIP stays unless refinanced — factor this into long-term cost</span>
+      </div>
+      <div class="card-drawer">
+        <div class="drawer-section">
+          <div class="drawer-label">Loan Structure</div>
+          <div class="kv-row"><span class="kv-key">Max Home Price</span><span class="kv-val">$560,919</span></div>
+          <div class="kv-row"><span class="kv-key">Down Payment</span><span class="kv-val">$19,632</span></div>
+          <div class="kv-row"><span class="kv-key">Base Loan Amount</span><span class="kv-val">$541,287</span></div>
+          <div class="kv-row"><span class="kv-key">FHA UFMIP Financed</span><span class="kv-val">$9,473</span></div>
+          <div class="kv-row"><span class="kv-key">Total Loan Amount</span><span class="kv-val">$550,760</span></div>
+        </div>
+        <div class="drawer-section">
+          <div class="drawer-label">Monthly Payment</div>
+          <div class="kv-row"><span class="kv-key">Principal &amp; Interest</span><span class="kv-val">$3,384</span></div>
+          <div class="kv-row"><span class="kv-key">Property Taxes</span><span class="kv-val">$514</span></div>
+          <div class="kv-row"><span class="kv-key">Home Insurance</span><span class="kv-val">$140</span></div>
+          <div class="kv-row"><span class="kv-key">FHA MIP</span><span class="kv-val">$248</span></div>
+          <div class="kv-row total-row"><span class="kv-key">Estimated Total</span><span class="kv-val green">$4,286/mo</span></div>
+        </div>
+        <div class="drawer-section">
+          <div class="drawer-label">Cash Needed</div>
+          <div class="kv-row"><span class="kv-key">Down Payment</span><span class="kv-val">$19,632</span></div>
+          <div class="kv-row"><span class="kv-key">Closing Costs</span><span class="kv-val">$16,828</span></div>
+          <div class="kv-row total-row"><span class="kv-key">Total Cash Needed</span><span class="kv-val green">$36,460</span></div>
+        </div>
+        <div class="qualify-band">
+          <div>
+            <div class="qualify-left">Income to Qualify (43% DTI)</div>
+            <div class="qualify-check">✓ Your $120K/yr income qualifies</div>
+          </div>
+          <div class="qualify-right">$119,600/yr</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conventional 3% (expanded by default) -->
+    <div class="program-card best open" id="card-conv3">
+      <div class="card-header" onclick="toggle('card-conv3')">
+        <div class="card-icon conv3">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"/>
+          </svg>
+        </div>
+        <div class="card-title">
+          <h3>Conventional 3% Down</h3>
+          <p>Low-entry conventional</p>
+        </div>
+        <span class="badge badge-green">Best fit</span>
+        <div class="chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+        </div>
+      </div>
+      <div class="card-stats">
+        <div class="stat-cell"><div class="stat-label">Max Home</div><div class="stat-value">$564,762</div></div>
+        <div class="stat-cell"><div class="stat-label">Est. Payment</div><div class="stat-value">$4,276/mo</div></div>
+        <div class="stat-cell"><div class="stat-label">Cash Needed</div><div class="stat-value">$31,062</div></div>
+      </div>
+      <div class="card-note">
+        <span class="note-icon">ⓘ</span>
+        <span class="note-text">PMI drops off at 80% LTV — cleaner long term than FHA</span>
+      </div>
+      <div class="card-drawer">
+        <div class="drawer-section">
+          <div class="drawer-label">Loan Structure</div>
+          <div class="kv-row"><span class="kv-key">Max Home Price</span><span class="kv-val">$564,762</span></div>
+          <div class="kv-row"><span class="kv-key">Down Payment</span><span class="kv-val">$16,943</span></div>
+          <div class="kv-row"><span class="kv-key">Loan Amount</span><span class="kv-val">$547,819</span></div>
+        </div>
+        <div class="drawer-section">
+          <div class="drawer-label">Monthly Payment</div>
+          <div class="kv-row"><span class="kv-key">Principal &amp; Interest</span><span class="kv-val">$3,366</span></div>
+          <div class="kv-row"><span class="kv-key">Property Taxes</span><span class="kv-val">$518</span></div>
+          <div class="kv-row"><span class="kv-key">Home Insurance</span><span class="kv-val">$141</span></div>
+          <div class="kv-row"><span class="kv-key">PMI</span><span class="kv-val">$251</span></div>
+          <div class="kv-row total-row"><span class="kv-key">Estimated Total</span><span class="kv-val green">$4,276/mo</span></div>
+        </div>
+        <div class="drawer-section">
+          <div class="drawer-label">Cash Needed</div>
+          <div class="kv-row"><span class="kv-key">Down Payment</span><span class="kv-val">$16,943</span></div>
+          <div class="kv-row"><span class="kv-key">Closing Costs</span><span class="kv-val">$14,119</span></div>
+          <div class="kv-row total-row"><span class="kv-key">Total Cash Needed</span><span class="kv-val green">$31,062</span></div>
+        </div>
+        <div class="qualify-band">
+          <div>
+            <div class="qualify-left">Income to Qualify (43% DTI)</div>
+            <div class="qualify-check">✓ Your $120K/yr income qualifies</div>
+          </div>
+          <div class="qualify-right">$119,325/yr</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conventional 20% -->
+    <div class="program-card" id="card-conv20">
+      <div class="card-header" onclick="toggle('card-conv20')">
+        <div class="card-icon conv20">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+          </svg>
+        </div>
+        <div class="card-title">
+          <h3>Conventional 20% Down</h3>
+          <p>Best long-term payment structure</p>
+        </div>
+        <span class="badge badge-blue">Best long-term</span>
+        <div class="chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+        </div>
+      </div>
+      <div class="card-stats">
+        <div class="stat-cell"><div class="stat-label">Max Home</div><div class="stat-value">$702,156</div></div>
+        <div class="stat-cell"><div class="stat-label">Est. Payment</div><div class="stat-value">$4,270/mo</div></div>
+        <div class="stat-cell"><div class="stat-label">Cash Needed</div><div class="stat-value">$157,985</div></div>
+      </div>
+      <div class="card-note">
+        <span class="note-icon">ⓘ</span>
+        <span class="note-text">No PMI — highest purchase power but requires far more upfront cash</span>
+      </div>
+      <div class="card-drawer">
+        <div class="drawer-section">
+          <div class="drawer-label">Loan Structure</div>
+          <div class="kv-row"><span class="kv-key">Max Home Price</span><span class="kv-val">$702,156</span></div>
+          <div class="kv-row"><span class="kv-key">Down Payment</span><span class="kv-val">$140,431</span></div>
+          <div class="kv-row"><span class="kv-key">Loan Amount</span><span class="kv-val">$561,725</span></div>
+        </div>
+        <div class="drawer-section">
+          <div class="drawer-label">Monthly Payment</div>
+          <div class="kv-row"><span class="kv-key">Principal &amp; Interest</span><span class="kv-val">$3,451</span></div>
+          <div class="kv-row"><span class="kv-key">Property Taxes</span><span class="kv-val">$644</span></div>
+          <div class="kv-row"><span class="kv-key">Home Insurance</span><span class="kv-val">$176</span></div>
+          <div class="kv-row"><span class="kv-key">PMI</span><span class="kv-val">$0</span></div>
+          <div class="kv-row total-row"><span class="kv-key">Estimated Total</span><span class="kv-val green">$4,270/mo</span></div>
+        </div>
+        <div class="drawer-section">
+          <div class="drawer-label">Cash Needed</div>
+          <div class="kv-row"><span class="kv-key">Down Payment</span><span class="kv-val">$140,431</span></div>
+          <div class="kv-row"><span class="kv-key">Closing Costs</span><span class="kv-val">$17,554</span></div>
+          <div class="kv-row total-row"><span class="kv-key">Total Cash Needed</span><span class="kv-val green">$157,985</span></div>
+        </div>
+        <div class="qualify-band">
+          <div>
+            <div class="qualify-left">Income to Qualify (43% DTI)</div>
+            <div class="qualify-check">✓ Your $120K/yr income qualifies</div>
+          </div>
+          <div class="qualify-right">$119,163/yr</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Best picks ── -->
+  <div class="best-picks">
+    <div class="pick-row">
+      <div class="pick-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
+      </div>
+      <span class="pick-label">Best entry option</span>
+      <span class="pick-val">Conventional 3% down</span>
+    </div>
+    <div class="pick-row">
+      <div class="pick-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
+      </div>
+      <span class="pick-label">Best long-term structure</span>
+      <span class="pick-val">Conventional 20% down</span>
+    </div>
+  </div>
+
+  <!-- ── Side-by-side comparison ── -->
+  <div class="comparison-wrap">
+    <button class="section-toggle" id="comp-toggle" onclick="toggleSection('comp-toggle','comp-table')">
+      <span>⊞ &nbsp;Side-by-side comparison</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+    </button>
+    <div class="comparison-table-wrap" id="comp-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>FHA 3.5%</th>
+            <th class="col-best">Conv 3%</th>
+            <th>Conv 20%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Max Home Price</td><td>$560,919</td><td class="col-best">$564,762</td><td>$702,156</td></tr>
+          <tr><td>Down Payment</td><td>$19,632</td><td class="col-best">$16,943</td><td>$140,431</td></tr>
+          <tr><td>Loan Amount</td><td>$550,760</td><td class="col-best">$547,819</td><td>$561,725</td></tr>
+          <tr class="highlight"><td>Est. Monthly</td><td>$4,286</td><td class="col-best">$4,276</td><td>$4,270</td></tr>
+          <tr><td>P&amp;I</td><td>$3,384</td><td class="col-best">$3,366</td><td>$3,451</td></tr>
+          <tr><td>MIP / PMI</td><td>$248</td><td class="col-best">$251</td><td>$0</td></tr>
+          <tr class="highlight"><td>Cash Needed</td><td>$36,460</td><td class="col-best">$31,062</td><td>$157,985</td></tr>
+          <tr><td>Income to Qualify</td><td>$119,600</td><td class="col-best">$119,325</td><td>$119,163</td></tr>
+          <tr><td>MIP / PMI Drops Off</td><td>Refinance only</td><td class="col-best">At 80% LTV</td><td>N/A</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Live Rates assumption ── -->
+  <div class="rate-assumption">
+    <span class="bulb">💡</span>
+    <p><strong>Assumption:</strong> Rate assumed at <strong>6.23%</strong> (FRED 30Y national avg). Actual rate depends on credit score, lender, and lock timing. Use the slider below to model different rates.</p>
+  </div>
+
+  <!-- ── Affordability Explorer (slider — KEEP) ── -->
+  <div class="explorer-wrap">
+    <div class="explorer-title">Affordability Explorer</div>
+
+    <div class="slider-label-row">
+      <span>Interest Rate</span>
+      <span style="color:#00875a;font-weight:800">6.23%</span>
+    </div>
+    <div class="slider-track-wrap">
+      <div class="arrow-btn">‹</div>
+      <input type="range" class="slider" min="3" max="12" step="0.25" value="6.23">
+      <div class="arrow-btn">›</div>
+    </div>
+    <div class="slider-range"><span>3%</span><span>12%</span></div>
+
+    <div class="term-label">Loan Term</div>
+    <div class="term-btns">
+      <div class="term-btn">15yr</div>
+      <div class="term-btn">20yr</div>
+      <div class="term-btn active">30yr</div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-item-label">Down Payment</div>
+        <div class="stat-item-value">$19,670</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-label">Closing Costs</div>
+        <div class="stat-item-value">~$16,860</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-label">Total Cash Needed</div>
+        <div class="stat-item-value">$36,530</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-label">✓ Savings OK</div>
+        <div class="stat-item-value savings">$5,470 left after close</div>
+      </div>
+    </div>
+
+    <div class="explorer-btns">
+      <button class="btn-vault">
+        <span class="star">★</span> My Vault
+      </button>
+      <button class="btn-pdf">↓ Save as PDF</button>
+      <button class="btn-match">Get matched →</button>
+    </div>
+  </div>
+
+  <!-- ── Disclosures ── -->
+  <div class="disclosures">
+    <p>
+      <strong>Educational estimates only.</strong> These figures are for planning purposes and are not a Loan Estimate, pre-approval, or commitment to lend under RESPA/TRID. Monthly payment estimates include principal &amp; interest, estimated property tax (1.1% annual), homeowner's insurance (0.3% annual), and applicable MIP or PMI. Closing costs estimated at 2–3% of loan amount. Actual terms depend on creditworthiness, property type, and lender. Rate sourced from FRED 30-Year Fixed Mortgage Average — not a rate lock or offer.
+    </p>
+  </div>
+
+  <!-- ── Ready to talk ── -->
+  <div class="ready-band">
+    <span class="ready-icon">🏦</span>
+    <div class="ready-text">
+      <h4>Ready to talk to a lender?</h4>
+      <p>5 questions to ask about your FHA loan — $550,760 at 6.23%</p>
+    </div>
+    <button class="show-checklist">▼ Show checklist</button>
+  </div>
+
+</div><!-- /card -->
+
+<script>
+  function toggle(id) {
+    const card = document.getElementById(id);
+    const isOpen = card.classList.contains('open');
+    document.querySelectorAll('.program-card').forEach(c => c.classList.remove('open'));
+    if (!isOpen) card.classList.add('open');
+  }
+  function toggleSection(btnId, tableId) {
+    const btn = document.getElementById(btnId);
+    const table = document.getElementById(tableId);
+    btn.classList.toggle('open');
+    table.classList.toggle('open');
+  }
+</script>
+</body>
+</html>

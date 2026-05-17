@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jumbo Purchase Card — Prototype</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #080c12;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    color: #f0f4ff;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px 80px;
+  }
+
+  .card {
+    background: #0e1420;
+    border-radius: 18px;
+    width: 100%;
+    max-width: 660px;
+    overflow: hidden;
+    position: relative;
+    transition: border-color 0.3s;
+  }
+
+  /* ── Header ── */
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 0;
+  }
+  .header-left { display: flex; flex-direction: column; gap: 3px; }
+  .card-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(185,208,192,0.55);
+  }
+  .card-sub {
+    font-size: 0.72rem;
+    color: rgba(185,208,192,0.35);
+    font-weight: 400;
+  }
+  .zone-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    transition: all 0.25s;
+    flex-shrink: 0;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 10px;
+    padding: 14px 20px 0;
+  }
+  .hero-box {
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    padding: 14px 12px;
+    text-align: center;
+    min-width: 0;
+  }
+  .hero-box-main {
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    padding: 16px 12px;
+    text-align: center;
+    min-width: 0;
+  }
+  .hero-val-large {
+    font-size: clamp(1.5rem, 5vw, 2rem);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--zone-color, #8b5cf6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hero-val-large .per-mo {
+    font-size: 0.65em;
+    font-weight: 600;
+    opacity: 0.7;
+  }
+  .hero-val {
+    font-size: clamp(1.05rem, 3.5vw, 1.3rem);
+    font-weight: 800;
+    color: #f0f4ff;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hero-label {
+    font-size: 0.62rem;
+    color: rgba(185,208,192,0.5);
+    margin-top: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+  }
+
+  /* ── Crossover strip ── */
+  .crossover-strip {
+    margin: 12px 20px 0;
+    background: rgba(255,140,66,0.07);
+    border: 1px solid rgba(255,140,66,0.25);
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 0.8rem;
+    color: rgba(185,208,192,0.9);
+    display: none;
+    gap: 8px;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+  .crossover-strip.visible { display: flex; }
+  .crossover-strip strong { color: #ff8c42; }
+  .crossover-strip .savings { color: #00e87a; font-weight: 700; }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: rgba(255,255,255,0.06); margin: 16px 20px 0; }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: rgba(185,208,192,0.45);
+    padding: 14px 20px 0;
+  }
+
+  /* ── Breakdown ── */
+  .breakdown { padding: 8px 20px 0; }
+  .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 0.84rem;
+  }
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-row .lbl { color: rgba(185,208,192,0.75); }
+  .breakdown-row .val { font-weight: 600; color: #f0f4ff; }
+  .breakdown-row .val-green { font-weight: 600; color: #00e87a; }
+  .breakdown-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-top: 4px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .breakdown-total .total-val {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--zone-color, #8b5cf6);
+  }
+
+  /* ── Sliders ── */
+  .sliders { padding: 6px 20px 0; }
+  .slider-row { margin-bottom: 14px; }
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .slider-lbl { font-size: 0.82rem; color: rgba(185,208,192,0.8); }
+  .slider-val { font-size: 0.85rem; font-weight: 700; color: #f0f4ff; }
+
+  input[type=range] {
+    width: 100%; height: 4px; border-radius: 2px;
+    outline: none; appearance: none; -webkit-appearance: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--zone-color, #8b5cf6);
+    cursor: pointer; box-shadow: 0 0 6px rgba(0,0,0,0.5);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--zone-color, #8b5cf6); cursor: pointer; border: none;
+  }
+
+  /* DP chips */
+  .dp-chips { display: flex; gap: 6px; margin-top: 8px; }
+  .dp-chip {
+    flex: 1; padding: 5px 0; border-radius: 7px; font-size: 0.78rem;
+    font-weight: 700; cursor: pointer; text-align: center;
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    color: rgba(185,208,192,0.6); font-family: inherit;
+    transition: all 0.15s;
+  }
+  .dp-chip:hover { border-color: rgba(255,255,255,0.25); color: #f0f4ff; }
+  .dp-chip.active {
+    background: var(--zone-bg, rgba(139,92,246,0.1));
+    border-color: var(--zone-color, #8b5cf6);
+    color: var(--zone-color, #8b5cf6);
+  }
+
+  /* Term buttons */
+  .term-row { display: flex; gap: 8px; margin-top: 10px; }
+  .term-btn {
+    flex: 1; padding: 8px 0; border-radius: 8px; font-size: 0.8rem;
+    font-weight: 700; cursor: pointer; text-align: center;
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    color: rgba(185,208,192,0.6); font-family: inherit;
+    transition: all 0.15s;
+  }
+  .term-btn:hover { border-color: rgba(255,255,255,0.25); color: #f0f4ff; }
+  .term-btn.active {
+    background: var(--zone-bg, rgba(139,92,246,0.1));
+    border-color: var(--zone-color, #8b5cf6);
+    color: var(--zone-color, #8b5cf6);
+  }
+
+  .fred-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(61,139,255,0.1); border: 1px solid rgba(61,139,255,0.25);
+    border-radius: 6px; padding: 3px 8px; font-size: 0.7rem;
+    color: #3d8bff; font-weight: 600; margin-top: 6px;
+  }
+  .slider-sub {
+    font-size: 0.7rem; color: rgba(185,208,192,0.38);
+    margin-top: 5px; line-height: 1.5;
+  }
+
+  /* ── ARM panel ── */
+  .arm-panel {
+    margin: 14px 20px 0;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(245,158,11,0.25);
+    display: none;
+  }
+  .arm-panel.visible { display: block; }
+  .arm-panel-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    background: rgba(245,158,11,0.06);
+    border-bottom: 1px solid rgba(245,158,11,0.15);
+    font-size: 0.78rem; font-weight: 700;
+    color: #f59e0b; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .arm-panel-body { padding: 14px 14px 12px; }
+  .arm-compare {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;
+  }
+  .arm-col {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .arm-col-active {
+    background: rgba(245,158,11,0.06);
+    border-color: rgba(245,158,11,0.25);
+  }
+  .arm-col-lbl {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: rgba(185,208,192,0.45); margin-bottom: 6px;
+  }
+  .arm-col-active .arm-col-lbl { color: #f59e0b; }
+  .arm-col-val {
+    font-size: 1.2rem; font-weight: 800; color: rgba(185,208,192,0.8);
+  }
+  .arm-col-active .arm-col-val { color: #f59e0b; }
+  .arm-col-note { font-size: 0.7rem; color: rgba(185,208,192,0.4); margin-top: 3px; }
+  .arm-savings {
+    background: rgba(0,232,122,0.05); border: 1px solid rgba(0,232,122,0.15);
+    border-radius: 8px; padding: 8px 12px;
+    font-size: 0.8rem; color: rgba(185,208,192,0.8); margin-bottom: 10px; line-height: 1.5;
+  }
+  .arm-savings strong { color: #00e87a; }
+  .arm-cap-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 0.79rem;
+  }
+  .arm-cap-row:last-child { border-bottom: none; }
+  .arm-cap-k { color: rgba(185,208,192,0.65); }
+  .arm-cap-v { font-weight: 700; color: #f0f4ff; }
+  .arm-cap-v.warn { color: #f59e0b; }
+  .arm-risk {
+    margin-top: 10px;
+    background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.18);
+    border-radius: 8px; padding: 9px 12px;
+    font-size: 0.78rem; color: rgba(185,185,110,0.85); line-height: 1.5;
+  }
+  .arm-risk strong { color: #f59e0b; }
+
+  /* ── Income table ── */
+  .income-table { padding: 8px 20px 0; }
+  .income-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 0.84rem;
+  }
+  .income-row:last-child { border-bottom: none; }
+  .income-row .lbl { color: rgba(185,208,192,0.75); }
+  .income-row .val { font-weight: 700; color: #f0f4ff; }
+  .income-row.stretch .lbl,
+  .income-row.stretch .val { color: rgba(185,208,192,0.38); font-weight: 500; }
+
+  /* ── CTAs ── */
+  .cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px 20px 0; }
+  .btn {
+    padding: 11px 8px; border-radius: 10px; font-size: 0.82rem;
+    font-weight: 700; cursor: pointer; text-align: center;
+    border: none; transition: opacity 0.15s; font-family: inherit;
+  }
+  .btn:hover { opacity: 0.82; }
+  .btn-primary { background: var(--zone-color, #8b5cf6); color: #fff; }
+  .btn-check {
+    background: rgba(61,139,255,0.1);
+    border: 1px solid rgba(61,139,255,0.25); color: #3d8bff;
+  }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.13); color: rgba(185,208,192,0.8);
+  }
+  .cta-single { padding: 8px 20px 0; }
+  .cta-single .btn { width: 100%; }
+
+  /* ── Drawer trigger ── */
+  .drawer-trigger {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin: 14px 20px 0; padding: 13px 20px; cursor: pointer;
+    font-size: 0.84rem; color: var(--zone-color, #8b5cf6);
+    background: var(--zone-bg, rgba(139,92,246,0.07));
+    border: 1.5px solid var(--zone-border, rgba(139,92,246,0.25));
+    border-radius: 12px;
+    transition: all 0.18s; user-select: none;
+  }
+  .drawer-trigger:hover {
+    background: var(--zone-bg, rgba(139,92,246,0.12));
+    border-color: var(--zone-color, #8b5cf6);
+  }
+  .drawer-trigger .chevron {
+    transition: transform 0.25s; display: inline-block;
+    font-style: normal; font-size: 0.7rem; opacity: 0.7;
+  }
+  .drawer-trigger.open .chevron { transform: rotate(180deg); }
+  .drawer-trigger-label { font-weight: 700; letter-spacing: 0.01em; }
+
+  /* ── Drawer ── */
+  .drawer { max-height: 0; overflow: hidden; transition: max-height 0.38s ease; background: #080c12; }
+  .drawer.open { max-height: 1400px; }
+  .drawer-inner { padding: 0 0 28px; }
+
+  .drawer-section { padding: 14px 20px 0; }
+  .drawer-section-label {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: rgba(185,208,192,0.4); margin-bottom: 8px;
+  }
+
+  /* Zone detail */
+  .zone-detail { border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .zone-detail-header {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;
+  }
+  .zone-detail-note { font-size: 0.8rem; color: rgba(185,208,192,0.8); line-height: 1.55; }
+  .crossover-item {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px; padding: 9px 12px; font-size: 0.8rem;
+    color: rgba(185,208,192,0.85); line-height: 1.5; margin-bottom: 8px;
+  }
+
+  /* Reserves */
+  .reserves-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .reserve-box {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 12px;
+  }
+  .reserve-box-lbl { font-size: 0.68rem; color: rgba(185,208,192,0.45); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-bottom: 6px; }
+  .reserve-box-val { font-size: 1.05rem; font-weight: 800; color: var(--zone-color, #8b5cf6); }
+  .reserve-box-note { font-size: 0.68rem; color: rgba(185,208,192,0.38); margin-top: 4px; line-height: 1.4; }
+  .reserves-total {
+    margin-top: 8px; background: var(--zone-bg, rgba(139,92,246,0.06));
+    border: 1px solid var(--zone-border, rgba(139,92,246,0.2));
+    border-radius: 10px; padding: 11px 14px;
+    font-size: 0.82rem; color: rgba(185,208,192,0.85); line-height: 1.5;
+  }
+
+  /* Underwriting grid */
+  .uw-grid { display: grid; grid-template-columns: 1fr 1fr; margin-top: 8px; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; }
+  .uw-item {
+    padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-right: 1px solid rgba(255,255,255,0.05);
+  }
+  .uw-item:nth-child(even) { border-right: none; }
+  .uw-item:nth-last-child(-n+2) { border-bottom: none; }
+  .uw-item-k { font-size: 0.67rem; color: rgba(185,208,192,0.4); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-bottom: 4px; }
+  .uw-item-v { font-size: 0.8rem; font-weight: 700; color: #f0f4ff; }
+  .uw-item-v.ok { color: #00e87a; }
+  .uw-item-v.warn { color: #f59e0b; }
+
+  /* Summary rows */
+  .summary-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.83rem;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .lbl { color: rgba(185,208,192,0.7); }
+  .summary-row .val { font-weight: 600; color: #f0f4ff; }
+  .summary-total {
+    display: flex; justify-content: space-between;
+    padding: 10px 0 0; border-top: 1px solid rgba(255,255,255,0.1);
+    font-size: 0.9rem; font-weight: 700; margin-top: 4px;
+  }
+  .summary-total .val { font-size: 1rem; font-weight: 800; color: var(--zone-color, #8b5cf6); }
+
+  /* Vault/PDF row */
+  .vault-row { display: flex; gap: 10px; margin-top: 8px; }
+  .btn-vault {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: rgba(0,232,122,0.08); border: 1px solid rgba(0,232,122,0.2);
+    border-radius: 9px; padding: 10px; color: #00e87a;
+    font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: inherit;
+    transition: opacity 0.15s;
+  }
+  .btn-vault:hover { opacity: 0.8; }
+  .btn-pdf {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.11);
+    border-radius: 9px; padding: 10px; color: rgba(185,208,192,0.65);
+    font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: inherit;
+    transition: opacity 0.15s;
+  }
+  .btn-pdf:hover { opacity: 0.8; }
+
+  /* Rate note */
+  .rate-note {
+    margin: 14px 20px 0;
+    background: rgba(61,139,255,0.04); border: 1px solid rgba(61,139,255,0.12);
+    border-radius: 10px; padding: 10px 14px;
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 0.78rem; color: rgba(185,208,192,0.7); line-height: 1.55;
+  }
+  .rate-note strong { color: #3d8bff; }
+
+  /* Disclaimer */
+  .disclaimer {
+    margin: 16px 20px 0; padding: 12px 14px;
+    background: rgba(255,255,255,0.02); border-radius: 8px;
+    font-size: 0.71rem; color: rgba(185,208,192,0.35); line-height: 1.65;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .disclaimer strong { color: rgba(185,208,192,0.5); }
+
+  /* Share — outside drawer */
+  .share-row { padding: 12px 20px 20px; }
+  .btn-share {
+    width: 100%; background: transparent; border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 12px; padding: 13px; color: rgba(185,208,192,0.65);
+    font-size: 0.84rem; font-weight: 600; cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-share:hover { border-color: rgba(255,255,255,0.28); color: #f0f4ff; }
+
+  @media (max-width: 440px) {
+    .hero { grid-template-columns: 1fr 1fr; }
+    .hero-box-main { grid-column: 1 / -1; }
+    .cta-row { grid-template-columns: 1fr; }
+    .reserves-grid { grid-template-columns: 1fr; }
+    .uw-grid { grid-template-columns: 1fr; }
+    .uw-item { border-right: none; }
+    .uw-item:nth-last-child(-n+2) { border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .uw-item:last-child { border-bottom: none; }
+    .arm-compare { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="card">
+
+  <!-- Header -->
+  <div class="card-header">
+    <div class="header-left">
+      <span class="card-title">Jumbo Purchase</span>
+      <span class="card-sub" id="cardSub">$2.5M · 20% down · 7.375% · 30yr Fixed</span>
+    </div>
+    <span class="zone-badge" id="zoneBadge">⬡ Jumbo</span>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-box-main">
+      <div class="hero-val-large" id="heroMonthly">—<span class="per-mo">/mo</span></div>
+      <div class="hero-label" id="heroMonthlyLabel">Est. Monthly PITI</div>
+    </div>
+    <div class="hero-box">
+      <div class="hero-val" id="heroLoan">—</div>
+      <div class="hero-label">Loan Amount</div>
+    </div>
+    <div class="hero-box">
+      <div class="hero-val" id="heroLTV">—</div>
+      <div class="hero-label">LTV</div>
+    </div>
+  </div>
+
+  <!-- Crossover strip -->
+  <div class="crossover-strip" id="crossoverStrip">
+    <span>⚡</span>
+    <span id="crossoverText"></span>
+  </div>
+
+  <!-- Monthly Breakdown -->
+  <div class="divider"></div>
+  <div class="section-label">Monthly Breakdown</div>
+  <div class="breakdown">
+    <div class="breakdown-row">
+      <span class="lbl" id="bPILabel">Principal & Interest</span>
+      <span class="val" id="bPI">—</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="lbl" id="bTaxLabel">Property Tax</span>
+      <span class="val" id="bTax">—</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="lbl">Homeowner's Insurance</span>
+      <span class="val" id="bIns">—</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="lbl">PMI</span>
+      <span class="val-green">None — 20%+ down ✓</span>
+    </div>
+    <div class="breakdown-total">
+      <span>Total Monthly PITI</span>
+      <span class="total-val" id="bTotal">—</span>
+    </div>
+  </div>
+
+  <!-- Adjust Your Numbers -->
+  <div class="divider"></div>
+  <div class="section-label">Adjust Your Numbers</div>
+  <div class="sliders">
+
+    <!-- Price -->
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-lbl">Purchase Price</span>
+        <span class="slider-val" id="sPrice">$2,500,000</span>
+      </div>
+      <input type="range" id="slPrice" min="500000" max="25000000" step="25000" value="2500000">
+    </div>
+
+    <!-- Down -->
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-lbl">Down Payment</span>
+        <span class="slider-val" id="sDown">20%</span>
+      </div>
+      <input type="range" id="slDown" min="20" max="60" step="1" value="20">
+      <div class="dp-chips">
+        <button class="dp-chip active" onclick="setDP(20)">20%</button>
+        <button class="dp-chip" onclick="setDP(25)">25%</button>
+        <button class="dp-chip" onclick="setDP(30)">30%</button>
+        <button class="dp-chip" onclick="setDP(40)">40%</button>
+      </div>
+      <div class="slider-sub" style="margin-top:8px">Jumbo minimum: 20% · 25% preferred by most lenders · No PMI required</div>
+    </div>
+
+    <!-- Rate -->
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-lbl">Interest Rate</span>
+        <span class="slider-val" id="sRate">7.375%</span>
+      </div>
+      <input type="range" id="slRate" min="3" max="12" step="0.125" value="7.375">
+      <div class="fred-tag">📡 Seeded from FRED live rate: <span id="fredLabel">6.875%</span></div>
+    </div>
+
+    <!-- Term -->
+    <div class="slider-row" style="margin-bottom:4px">
+      <span class="slider-lbl">Loan Term</span>
+      <div class="term-row">
+        <button class="term-btn" id="term15" onclick="setTerm('15yr')">15yr Fixed</button>
+        <button class="term-btn active" id="term30" onclick="setTerm('30yr')">30yr Fixed</button>
+        <button class="term-btn" id="termARM" onclick="setTerm('arm7')">7/1 ARM</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ARM panel — visible only when ARM selected -->
+  <div class="arm-panel" id="armPanel">
+    <div class="arm-panel-head">📊 &nbsp;7/1 ARM — Rate Adjustment Analysis</div>
+    <div class="arm-panel-body">
+      <div class="arm-compare">
+        <div class="arm-col">
+          <div class="arm-col-lbl">30yr Fixed</div>
+          <div class="arm-col-val" id="armFixed">—</div>
+          <div class="arm-col-note">PITI · locks in for life</div>
+        </div>
+        <div class="arm-col arm-col-active">
+          <div class="arm-col-lbl">7/1 ARM Initial</div>
+          <div class="arm-col-val" id="armInitial">—</div>
+          <div class="arm-col-note">PITI · fixed first 84 months</div>
+        </div>
+      </div>
+      <div class="arm-savings" id="armSavings">—</div>
+      <div class="arm-cap-row">
+        <span class="arm-cap-k">Initial ARM rate (years 1–7)</span>
+        <span class="arm-cap-v" id="armRate1">—</span>
+      </div>
+      <div class="arm-cap-row">
+        <span class="arm-cap-k">Caps structure</span>
+        <span class="arm-cap-v">2/2/5 (first · per-period · lifetime)</span>
+      </div>
+      <div class="arm-cap-row">
+        <span class="arm-cap-k">Year 8 rate (first +2% cap)</span>
+        <span class="arm-cap-v warn" id="armRate2">—</span>
+      </div>
+      <div class="arm-cap-row">
+        <span class="arm-cap-k">Year 8 P&amp;I at first cap</span>
+        <span class="arm-cap-v warn" id="armPI2">—</span>
+      </div>
+      <div class="arm-cap-row">
+        <span class="arm-cap-k">Maximum rate (lifetime +5%)</span>
+        <span class="arm-cap-v warn" id="armRateMax">—</span>
+      </div>
+      <div class="arm-cap-row">
+        <span class="arm-cap-k">P&amp;I at maximum rate</span>
+        <span class="arm-cap-v warn" id="armPIMax">—</span>
+      </div>
+      <div class="arm-risk">
+        ⚠️ <strong>Know your exit strategy.</strong> 7/1 ARMs work best if you plan to sell or refinance within 7 years, or expect rates to fall before year 8. Maximum PITI of <strong id="armMaxPITI">—</strong> should be stress-tested against your income.
+      </div>
+    </div>
+  </div>
+
+  <!-- Income to qualify -->
+  <div class="divider"></div>
+  <div class="section-label">What Income Do I Need to Qualify?</div>
+  <div class="income-table">
+    <div class="income-row">
+      <span class="lbl">36% DTI — Conservative</span>
+      <span class="val" id="inc36">—</span>
+    </div>
+    <div class="income-row">
+      <span class="lbl">43% DTI — Standard Jumbo Max</span>
+      <span class="val" id="inc43">—</span>
+    </div>
+    <div class="income-row stretch">
+      <span class="lbl">50% DTI — Stretch (some lenders)</span>
+      <span class="val" id="inc50">—</span>
+    </div>
+  </div>
+
+  <!-- CTAs -->
+  <div class="cta-row">
+    <button class="btn btn-check">Check Property ↗</button>
+    <button class="btn btn-primary">Run My Numbers →</button>
+  </div>
+  <div class="cta-single">
+    <button class="btn btn-secondary">Get Matched with Jumbo Specialists →</button>
+  </div>
+
+  <!-- Drawer trigger -->
+  <div class="drawer-trigger" id="drawerTrigger" onclick="toggleDrawer()">
+    <span class="drawer-trigger-label">Full Summary · Reserves · Underwriting</span>
+    <i class="chevron">▼</i>
+  </div>
+
+  <!-- ════ DRAWER — deep detail only ════ -->
+  <div class="drawer" id="drawer">
+    <div class="drawer-inner">
+
+      <!-- Loan Zone -->
+      <div class="drawer-section">
+        <div class="drawer-section-label">Loan Zone</div>
+        <div class="zone-detail" id="zoneDetail">
+          <div class="zone-detail-header" id="zoneDetailHeader">⬡ Jumbo</div>
+          <div class="zone-detail-note" id="zoneDetailNote"></div>
+        </div>
+        <div id="crossoverBlock"></div>
+      </div>
+
+      <!-- Reserve Requirements -->
+      <div class="drawer-section">
+        <div class="drawer-section-label">Cash Reserves Required by Lenders</div>
+        <div class="reserves-grid">
+          <div class="reserve-box">
+            <div class="reserve-box-lbl">6-Month Minimum</div>
+            <div class="reserve-box-val" id="res6mo">—</div>
+            <div class="reserve-box-note">Must remain in account after closing — cannot be gifted</div>
+          </div>
+          <div class="reserve-box">
+            <div class="reserve-box-lbl">12-Month Preferred</div>
+            <div class="reserve-box-val" id="res12mo">—</div>
+            <div class="reserve-box-note">Required for most loans over $1M by portfolio lenders</div>
+          </div>
+        </div>
+        <div class="reserves-total" id="reservesTotal">—</div>
+      </div>
+
+      <!-- Underwriting criteria -->
+      <div class="drawer-section">
+        <div class="drawer-section-label">Jumbo Underwriting Standards</div>
+        <div class="uw-grid" id="uwGrid"></div>
+      </div>
+
+      <!-- Full Loan Summary -->
+      <div class="drawer-section" style="padding-bottom:16px">
+        <div class="drawer-section-label">Full Loan Summary</div>
+        <div style="margin-top:8px">
+          <div class="summary-row"><span class="lbl">Purchase Price</span><span class="val" id="sPrice2">—</span></div>
+          <div class="summary-row"><span class="lbl">Down Payment</span><span class="val" id="sDP">—</span></div>
+          <div class="summary-row"><span class="lbl">Loan Amount</span><span class="val" id="sLoan">—</span></div>
+          <div class="summary-row" id="sAboveRow" style="display:none"><span class="lbl">Above 2026 Conforming Limit By</span><span class="val" style="color:#f59e0b" id="sAbove">—</span></div>
+          <div class="summary-row"><span class="lbl">LTV</span><span class="val" id="sLTV2">—</span></div>
+          <div class="summary-row"><span class="lbl">Est. Closing Costs (2%)</span><span class="val" id="sCC">—</span></div>
+          <div class="summary-row"><span class="lbl">Reserves (6 months min)</span><span class="val" id="sResMin">—</span></div>
+          <div class="summary-row"><span class="lbl">Est. Total Interest (<span id="sTermYrs">30</span>yr)</span><span class="val" id="sTI">—</span></div>
+          <div class="summary-total"><span>Total Cash Needed</span><span class="val" id="sTotalCash">—</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════ PERMANENT BOTTOM — always visible outside drawer ════ -->
+  <div class="card-bottom">
+
+    <!-- Vault + PDF -->
+    <div class="section-label" style="padding-top:18px">Save This Scenario</div>
+    <div class="vault-row" style="padding:10px 20px 0">
+      <button class="btn-vault">⭐ Save to My Vault</button>
+      <button class="btn-pdf">⬇ Download PDF</button>
+    </div>
+
+    <!-- Rate note -->
+    <div class="rate-note">
+      <span>💡</span>
+      <span><strong>Rate seeded from live FRED 30yr avg.</strong> Jumbo loans for well-qualified borrowers (720+ credit, 20%+ down, strong reserves) often price at par with or below conforming — portfolio lenders compete aggressively for high-net-worth clients.</span>
+    </div>
+
+    <!-- Disclaimer -->
+    <div class="disclaimer">
+      <strong>⚠️ Educational estimates only.</strong> A "jumbo" loan exceeds the 2026 FHFA conforming baseline of $766,550 for a 1-unit property. High-balance counties (CA, NY, HI) may have limits up to $1,149,825. Loans above the high-balance limit are held in portfolio. Property tax and insurance are estimates. Reserve calculations based on 6× and 12× total monthly PITI. 7/1 ARM caps shown as 2/2/5 (typical; actual caps vary). These figures are not a pre-approval or commitment to lend.
+    </div>
+
+    <!-- Share -->
+    <div class="share-row">
+      <button class="btn-share">↗ &nbsp;Share This Scenario</button>
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<script>
+const FRED_RATE  = 6.875;
+const NATIONAL   = 766550;
+const HB_MAX     = 1149825;
+const ARM_SPREAD = 1.10;
+const TAX_RATE   = 0.0125;
+const INS_RATE   = 0.003;
+
+const ZONES = {
+  conforming: {
+    label:'Conforming', icon:'✓',
+    note:'Loan falls at or below the 2026 FHFA conforming limit — a conventional loan may offer better pricing.',
+    color:'#00e87a', bg:'rgba(0,232,122,0.07)', border:'rgba(0,232,122,0.28)'
+  },
+  highbal: {
+    label:'High-Balance', icon:'◈',
+    note:'Loan falls in the high-balance conforming zone — available in designated high-cost counties (SF Bay, LA, NYC) via Fannie/Freddie.',
+    color:'#ff8c42', bg:'rgba(255,140,66,0.07)', border:'rgba(255,140,66,0.28)'
+  },
+  jumbo: {
+    label:'Jumbo', icon:'⬡',
+    note:'Loan exceeds the 2026 conforming limit — requires jumbo portfolio underwriting. Shop 2–3 jumbo lenders; pricing and guidelines vary significantly.',
+    color:'#8b5cf6', bg:'rgba(139,92,246,0.07)', border:'rgba(139,92,246,0.25)'
+  }
+};
+
+function fL(n)  { return '$'+Math.round(n).toLocaleString(); }
+function fM(n) {
+  const abs=Math.abs(n), s=n<0?'-':'';
+  if(abs>=1e6){const m=abs/1e6;return s+'$'+(m%1===0?m.toFixed(0):m.toFixed(3).replace(/\.?0+$/,''))+'M';}
+  if(abs>=100000) return s+'$'+Math.round(abs/1000)+'k';
+  return s+'$'+Math.round(abs).toLocaleString();
+}
+function fP(n)  { return n.toFixed(3)+'%'; }
+function fP2(n) { return n.toFixed(2)+'%'; }
+function pi(p,r,y){
+  if(p<=0||r<=0) return 0;
+  const mr=r/100/12,n=y*12;
+  return (p*mr*Math.pow(1+mr,n))/(Math.pow(1+mr,n)-1);
+}
+function balAfter(p,r,totalMo,k){
+  if(p<=0||r<=0) return p;
+  const mr=r/100/12,rk=Math.pow(1+mr,k),rn=Math.pow(1+mr,totalMo);
+  return p*(rn-rk)/(rn-1);
+}
+function track(v,mn,mx,color){
+  const p=((v-mn)/(mx-mn))*100;
+  return `linear-gradient(to right,${color} 0%,${color} ${p}%,rgba(255,255,255,0.1) ${p}%,rgba(255,255,255,0.1) 100%)`;
+}
+
+let S = { price:2500000, down:20, rate:FRED_RATE+0.5, term:'30yr' };
+document.getElementById('slRate').value = S.rate;
+document.getElementById('fredLabel').textContent = fP2(FRED_RATE);
+
+function compute(){
+  const termYrs = S.term==='15yr'?15:30;
+  const armRate = Math.max(3.0, S.rate-ARM_SPREAD);
+  const effRate = S.term==='arm7'?armRate:S.rate;
+  const loan    = S.price*(1-S.down/100);
+  const dp      = S.price-loan;
+  const ltv     = (loan/S.price)*100;
+  const mPI     = pi(loan,effRate,termYrs);
+  const mTax    = S.price*TAX_RATE/12;
+  const mIns    = S.price*INS_RATE/12;
+  const total   = mPI+mTax+mIns;
+  const res6    = total*6;
+  const res12   = total*12;
+  const cc      = loan*0.02;
+  const tInt    = (mPI*termYrs*12)-loan;
+  const zone    = loan<=NATIONAL?'conforming':loan<=HB_MAX?'highbal':'jumbo';
+  // crossovers
+  const dHB  = zone==='jumbo'?Math.max(0,((loan-HB_MAX)/S.price)*100):0;
+  const dCon = zone!=='conforming'?Math.max(0,((loan-NATIONAL)/S.price)*100):0;
+  const svHB  = zone==='jumbo'?(HB_MAX*0.15/100):0;
+  const svCon = zone!=='conforming'?(NATIONAL*(zone==='jumbo'?0.40:0.25)/100):0;
+  // ARM projections
+  const bal8    = balAfter(loan,armRate,360,84);
+  const adjRate = armRate+2, maxRate2 = armRate+5;
+  const piAdj   = pi(bal8,adjRate,276);
+  const piMax2  = pi(bal8,maxRate2,276);
+  const fixed30 = pi(loan,S.rate,30)+mTax+mIns;
+  const armSaveMo = fixed30-total;
+  const armSave7  = armSaveMo*84;
+  return {termYrs,armRate,effRate,loan,dp,ltv,mPI,mTax,mIns,total,res6,res12,cc,tInt,zone,
+          dHB,dCon,svHB,svCon,inc36:(total/0.36)*12,inc43:(total/0.43)*12,inc50:(total/0.50)*12,
+          bal8,adjRate,maxRate2,piAdj,piMax2,fixed30,armSaveMo,armSave7};
+}
+
+function render(){
+  const c=compute();
+  const z=ZONES[c.zone];
+
+  document.documentElement.style.setProperty('--zone-color',z.color);
+  document.documentElement.style.setProperty('--zone-bg',z.bg);
+  document.documentElement.style.setProperty('--zone-border',z.border);
+  document.getElementById('card').style.border=`1px solid ${z.border}`;
+
+  // badge
+  const b=document.getElementById('zoneBadge');
+  b.textContent=`${z.icon} ${z.label}`;
+  b.style.background=z.bg; b.style.border=`1px solid ${z.border}`; b.style.color=z.color;
+
+  // sub-headline
+  const termLabel = S.term==='15yr'?'15yr Fixed':S.term==='arm7'?'7/1 ARM':'30yr Fixed';
+  document.getElementById('cardSub').textContent=`${fM(S.price)} · ${S.down}% down · ${fP(c.effRate)} · ${termLabel}`;
+
+  // hero
+  const heroMo=document.getElementById('heroMonthly');
+  heroMo.innerHTML=`${fL(Math.round(c.total))}<span class="per-mo">/mo</span>`;
+  document.getElementById('heroMonthlyLabel').textContent =
+    S.term==='arm7'?'Est. PITI (ARM Initial 7yr)':'Est. Monthly PITI';
+  document.getElementById('heroLoan').textContent = fM(c.loan);
+  document.getElementById('heroLTV').textContent  = c.ltv.toFixed(1)+'%';
+
+  // crossover strip
+  const strip=document.getElementById('crossoverStrip');
+  const txt=document.getElementById('crossoverText');
+  if(c.dHB>0.05){
+    strip.classList.add('visible');
+    txt.innerHTML=`Add <strong>${fP2(c.dHB)} more down</strong> → High-Balance — saves <span class="savings">${fL(Math.round(c.svHB))}/yr</span> in rate premium`;
+  } else if(c.dCon>0.05){
+    strip.classList.add('visible');
+    txt.innerHTML=`Add <strong>${fP2(c.dCon)} more down</strong> → Conforming — saves <span class="savings">${fL(Math.round(c.svCon))}/yr</span> in rate premium`;
+  } else { strip.classList.remove('visible'); }
+
+  // breakdown
+  document.getElementById('bPILabel').textContent =
+    S.term==='arm7'?`P&I (${fP(c.effRate)} ARM initial)`:'Principal & Interest';
+  document.getElementById('bPI').textContent  = fL(Math.round(c.mPI));
+  document.getElementById('bTaxLabel').textContent = `Property Tax (${fP2(TAX_RATE*100)})`;
+  document.getElementById('bTax').textContent = fL(Math.round(c.mTax));
+  document.getElementById('bIns').textContent = fL(Math.round(c.mIns));
+  const bT=document.getElementById('bTotal');
+  bT.textContent=fL(Math.round(c.total)); bT.style.color=z.color;
+
+  // sliders fill
+  document.getElementById('slPrice').style.background=track(S.price,500000,25000000,z.color);
+  document.getElementById('slDown').style.background =track(S.down,20,60,z.color);
+  document.getElementById('slRate').style.background =track(S.rate,3,12,z.color);
+  document.getElementById('sPrice').textContent=fL(S.price);
+  document.getElementById('sDown').textContent =`${S.down}% (${fL(Math.round(S.price*S.down/100))})`;
+  document.getElementById('sRate').textContent =fP(S.rate);
+
+  // DP chip active state
+  document.querySelectorAll('.dp-chip').forEach(btn=>{
+    btn.classList.toggle('active', parseInt(btn.textContent)===S.down);
+  });
+
+  // ARM panel
+  const armPanel=document.getElementById('armPanel');
+  if(S.term==='arm7'){
+    armPanel.classList.add('visible');
+    document.getElementById('armFixed').textContent   = fL(Math.round(c.fixed30));
+    document.getElementById('armInitial').textContent = fL(Math.round(c.total));
+    document.getElementById('armSavings').innerHTML   =
+      `<strong>${fL(Math.round(c.armSaveMo))}/mo saved</strong> vs 30yr fixed · <strong>${fM(Math.round(c.armSave7))} total</strong> before first adjustment at year 8`;
+    document.getElementById('armRate1').textContent   = fP(c.effRate)+' (SOFR-indexed)';
+    document.getElementById('armRate2').textContent   = fP(c.adjRate);
+    document.getElementById('armPI2').textContent     = '~'+fL(Math.round(c.piAdj))+'/mo';
+    document.getElementById('armRateMax').textContent = fP(c.maxRate2);
+    document.getElementById('armPIMax').textContent   = '~'+fL(Math.round(c.piMax2))+'/mo';
+    document.getElementById('armMaxPITI').textContent = fL(Math.round(c.piMax2+c.mTax+c.mIns))+'/mo';
+  } else {
+    armPanel.classList.remove('visible');
+  }
+
+  // income
+  document.getElementById('inc36').textContent = fL(Math.round(c.inc36/1000)*1000);
+  document.getElementById('inc43').textContent = fL(Math.round(c.inc43/1000)*1000);
+  document.getElementById('inc50').textContent = fL(Math.round(c.inc50/1000)*1000);
+
+  // — Drawer —
+  // zone detail
+  const zd=document.getElementById('zoneDetail');
+  zd.style.background=z.bg; zd.style.border=`1px solid ${z.border}`;
+  const zdh=document.getElementById('zoneDetailHeader');
+  zdh.textContent=`${z.icon} ${z.label}`; zdh.style.color=z.color;
+  document.getElementById('zoneDetailNote').textContent=z.note;
+
+  // crossover block (drawer — detailed)
+  const cb=document.getElementById('crossoverBlock'); cb.innerHTML='';
+  if(c.dHB>0.05) cb.innerHTML+=`<div class="crossover-item"><strong style="color:#ff8c42">High-Balance crossover:</strong> Add ${fP2(c.dHB)} more down (loan → ${fL(HB_MAX)} county limit) — saves <strong style="color:#00e87a">${fL(Math.round(c.svHB))}/yr</strong>.</div>`;
+  if(c.dCon>0.05) cb.innerHTML+=`<div class="crossover-item"><strong style="color:#00e87a">Conforming crossover:</strong> Add ${fP2(c.dCon)} more down (loan → ${fL(NATIONAL)} national limit) — saves <strong style="color:#00e87a">${fL(Math.round(c.svCon))}/yr</strong>.</div>`;
+  if(!cb.innerHTML) cb.innerHTML=`<div class="crossover-item" style="color:rgba(185,208,192,0.35)">No crossover opportunity at current price & down payment.</div>`;
+
+  // reserves
+  document.getElementById('res6mo').textContent  = fL(Math.round(c.res6));
+  document.getElementById('res12mo').textContent = fL(Math.round(c.res12));
+  document.getElementById('reservesTotal').innerHTML =
+    `💡 Reserves are <strong>in addition to</strong> your down payment and closing costs. Expect approximately <strong style="color:${z.color}">${fM(Math.round((c.dp+c.cc+c.res6)/5000)*5000)}–${fM(Math.round((c.dp+c.cc+c.res12)/5000)*5000)} total liquid assets</strong> required at closing.`;
+  document.getElementById('res6mo').style.color  = z.color;
+  document.getElementById('res12mo').style.color = z.color;
+
+  // underwriting grid
+  const dpCls   = S.down>=30?'ok':S.down>=25?'ok':'warn';
+  const dpTxt   = S.down>=30?`${S.down}% — strong position`:S.down>=25?'25% — lender preferred':'20% minimum';
+  const apprTxt = S.price>=1500000?'2 appraisals often required >$1.5M':'Single appraisal standard';
+  const apprCls = S.price>=1500000?'warn':'';
+  const loanAbove = c.loan>NATIONAL;
+  document.getElementById('uwGrid').innerHTML = [
+    {k:'Min Credit Score',       v:'720+ (740+ preferred)', cls:'ok'},
+    {k:'Max Back-End DTI',       v:'43% (some lenders 45%)', cls:'warn'},
+    {k:'Down Payment',           v:dpTxt, cls:dpCls},
+    {k:'PMI',                    v:'None — 20%+ required', cls:'ok'},
+    {k:'Income Documentation',   v:'2yr W-2 or tax returns', cls:''},
+    {k:'Appraisal',              v:apprTxt, cls:apprCls},
+  ].map(r=>`<div class="uw-item"><div class="uw-item-k">${r.k}</div><div class="uw-item-v${r.cls?' '+r.cls:''}">${r.v}</div></div>`).join('');
+
+  // summary
+  document.getElementById('sPrice2').textContent = fL(S.price);
+  document.getElementById('sDP').textContent     = `${S.down}% (${fL(Math.round(c.dp))})`;
+  document.getElementById('sLoan').textContent   = fL(Math.round(c.loan));
+  document.getElementById('sLTV2').textContent   = c.ltv.toFixed(1)+'%';
+  document.getElementById('sCC').textContent     = fL(Math.round(c.cc));
+  document.getElementById('sResMin').textContent = fL(Math.round(c.res6));
+  document.getElementById('sTermYrs').textContent= c.termYrs;
+  document.getElementById('sTI').textContent     = fL(Math.round(c.tInt));
+  const tc=document.getElementById('sTotalCash');
+  tc.textContent=fL(Math.round(c.dp+c.cc+c.res6)); tc.style.color=z.color;
+  const aboveRow=document.getElementById('sAboveRow');
+  if(c.zone==='jumbo'){
+    aboveRow.style.display='flex';
+    document.getElementById('sAbove').textContent=fL(Math.round(c.loan-NATIONAL));
+  } else { aboveRow.style.display='none'; }
+}
+
+// Slider events
+document.getElementById('slPrice').addEventListener('input',e=>{S.price=+e.target.value;render();});
+document.getElementById('slDown').addEventListener('input', e=>{S.down=+e.target.value;render();});
+document.getElementById('slRate').addEventListener('input', e=>{S.rate=+e.target.value;render();});
+
+function setDP(v){
+  S.down=v; document.getElementById('slDown').value=v; render();
+}
+function setTerm(t){
+  S.term=t;
+  ['term15','term30','termARM'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  document.getElementById(t==='15yr'?'term15':t==='arm7'?'termARM':'term30').classList.add('active');
+  render();
+}
+function toggleDrawer(){
+  document.getElementById('drawer').classList.toggle('open');
+  document.getElementById('drawerTrigger').classList.toggle('open');
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Refi Intelligence Card — HomeRates.ai Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #060c14;
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: #f0f4ff;
+    padding: 32px 16px 100px;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+
+  .bubble {
+    background: linear-gradient(135deg,#1a2a3a,#0d1a28);
+    border: 1px solid rgba(59,130,246,0.25);
+    border-radius: 18px 18px 4px 18px;
+    padding: 13px 17px;
+    font-size: 14px; color: #c9d8f0; line-height: 1.5;
+    margin-bottom: 14px;
+    max-width: 86%; margin-left: auto;
+  }
+
+  .rc { background: #0d1117; border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; overflow: hidden; }
+
+  /* ── Topbar ── */
+  .rc-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.02);
+  }
+  .rc-topbar-l { display: flex; align-items: center; gap: 7px; }
+  .rc-dot { width: 7px; height: 7px; border-radius: 50%; background: #00e87a; box-shadow: 0 0 7px rgba(0,232,122,0.6); }
+  .rc-tl { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6b7a99; }
+
+  /* ── Mode toggle ── */
+  .mode-toggle {
+    display: flex; gap: 2px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px; padding: 3px;
+  }
+  .mode-btn {
+    font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 5px; border: none; cursor: pointer;
+    background: transparent; color: #3a4560; transition: all .15s;
+  }
+  .mode-btn.active      { background: #0d1f35; color: #60a5fa; }
+  .mode-btn.active-deep { background: #1a0d2e; color: #a78bfa; }
+
+  /* ═══════════════════════════════════════════
+     PROPERTY + MAP HERO (shared both modes)
+  ═══════════════════════════════════════════ */
+  .prop-hero {
+    display: grid;
+    grid-template-columns: 60% 40%;
+    height: 190px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    position: relative;
+  }
+  .prop-hero.compact { height: 140px; }
+
+  /* Property image pane */
+  .prop-img-pane {
+    position: relative;
+    background: linear-gradient(160deg, #020c05 0%, #041208 100%);
+    overflow: hidden;
+    border-right: 1px solid rgba(255,255,255,0.05);
+  }
+  .prop-img-pane svg { width: 100%; height: 100%; display: block; }
+
+  /* Bottom fade to merge with rest of card */
+  .prop-img-pane::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 48px;
+    background: linear-gradient(to bottom, transparent, rgba(13,17,23,0.85));
+    pointer-events: none;
+  }
+
+  /* Map pane */
+  .prop-map-pane {
+    position: relative;
+    background: #030a12;
+    overflow: hidden;
+  }
+  .prop-map-pane svg { width: 100%; height: 100%; display: block; }
+  .prop-map-pane::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 40px;
+    background: linear-gradient(to bottom, transparent, rgba(3,10,18,0.9));
+    pointer-events: none;
+  }
+
+  /* Address overlay at bottom of hero */
+  .prop-hero-addr {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 8px 14px;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    pointer-events: none;
+  }
+  .prop-hero-name { font-size: 12px; font-weight: 700; color: #e6edf3; text-shadow: 0 1px 6px rgba(0,0,0,0.8); }
+  .prop-hero-sub  { font-size: 10px; color: rgba(107,122,153,0.9); margin-top: 2px; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+  .prop-hero-badge {
+    font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 20px; pointer-events: all;
+    background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3);
+    backdrop-filter: blur(4px); white-space: nowrap;
+  }
+
+  /* ═══════════════════════════════════════════
+     SIMPLE MODE
+  ═══════════════════════════════════════════ */
+
+  /* Equity ribbon */
+  .s-equity-row { display: flex; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .s-eq-cell { flex: 1; padding: 10px 14px; text-align: center; border-right: 1px solid rgba(255,255,255,0.04); }
+  .s-eq-cell:last-child { border-right: none; }
+  .s-eq-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #3a4560; margin-bottom: 4px; }
+  .s-eq-val   { font-size: 14px; font-weight: 800; color: #e6edf3; }
+  .s-eq-val.blue  { color: #60a5fa; }
+  .s-eq-val.green { color: #00e87a; }
+
+  /* Rate hero — Tesla big-number style */
+  .s-rate-hero {
+    padding: 28px 24px 20px;
+    display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .s-rate-col   { text-align: center; flex: 1; }
+  .s-rate-label { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #3a4560; margin-bottom: 8px; }
+  .s-rate-num   { font-size: 52px; font-weight: 800; line-height: 1; letter-spacing: -.02em; }
+  .s-rate-num.was { color: #ef4444; }
+  .s-rate-num.now { color: #00e87a; }
+  .s-rate-sub   { font-size: 10px; color: #6b7a99; margin-top: 6px; }
+  .s-rate-arrow { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0 14px; flex-shrink: 0; }
+  .s-arrow-icon { font-size: 20px; color: rgba(255,255,255,0.12); }
+  .s-delta-pill {
+    font-size: 12px; font-weight: 800; color: #00e87a;
+    background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.25);
+    border-radius: 20px; padding: 4px 12px; white-space: nowrap;
+  }
+
+  /* Live indicator */
+  .s-live-row {
+    display: flex; align-items: center; gap: 6px; justify-content: center;
+    padding: 7px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e87a; box-shadow: 0 0 6px #00e87a; animation: pulse 2s infinite; flex-shrink: 0; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+  .s-live-text { font-size: 10px; color: #3a4560; font-weight: 600; }
+
+  /* Savings hero */
+  .s-savings-hero {
+    padding: 28px 24px 20px; text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .s-savings-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #3a4560; margin-bottom: 10px; }
+  .s-savings-big  { font-size: 64px; font-weight: 800; color: #00e87a; line-height: 1; letter-spacing: -.03em; }
+  .s-savings-unit { font-size: 22px; font-weight: 700; color: rgba(0,232,122,0.6); }
+  .s-savings-sub  { font-size: 12px; color: #6b7a99; margin-top: 10px; line-height: 1.6; }
+  .s-savings-sub strong { color: #c9d8f0; }
+
+  /* Verdict */
+  .s-verdict {
+    margin: 0 16px 16px;
+    background: rgba(0,232,122,0.06); border: 1px solid rgba(0,232,122,0.18);
+    border-radius: 10px; padding: 11px 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .s-verdict-icon { font-size: 18px; flex-shrink: 0; }
+  .s-verdict-text { font-size: 12px; font-weight: 600; color: #c9d8f0; line-height: 1.5; }
+  .s-verdict-text strong { color: #00e87a; }
+
+  /* 3-stat row */
+  .s-stats-row { display: flex; border-top: 1px solid rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .s-stat { flex: 1; padding: 14px 10px; text-align: center; border-right: 1px solid rgba(255,255,255,0.04); }
+  .s-stat:last-child { border-right: none; }
+  .s-stat-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #3a4560; margin-bottom: 5px; }
+  .s-stat-val   { font-size: 16px; font-weight: 800; color: #e6edf3; }
+  .s-stat-val.green { color: #00e87a; }
+  .s-stat-sub   { font-size: 9px; color: #6b7a99; margin-top: 3px; }
+
+  /* Actions */
+  .s-actions { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .s-btn-primary {
+    width: 100%; background: #00e87a; color: #07100f;
+    font-size: 14px; font-weight: 800;
+    border: none; border-radius: 12px; padding: 15px 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .s-btn-row { display: flex; gap: 8px; }
+  .s-btn-secondary {
+    flex: 1; background: rgba(255,255,255,0.04); color: #8b949e;
+    font-size: 12px; font-weight: 700;
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 11px 10px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .s-btn-heloc {
+    flex: 1; background: rgba(99,179,237,0.07); color: #63b3ed;
+    font-size: 12px; font-weight: 700;
+    border: 1px solid rgba(99,179,237,0.18); border-radius: 10px; padding: 11px 10px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+
+  /* Deep dive trigger */
+  .s-deepdive-trigger {
+    margin: 0 16px 16px;
+    background: linear-gradient(135deg, rgba(139,92,246,0.06), rgba(99,179,237,0.04));
+    border: 1px solid rgba(139,92,246,0.18);
+    border-radius: 10px; padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; transition: all .15s;
+  }
+  .s-deepdive-trigger:hover { border-color: rgba(139,92,246,0.35); background: rgba(139,92,246,0.1); }
+  .s-deepdive-l { display: flex; align-items: center; gap: 9px; }
+  .s-deepdive-icon { font-size: 16px; }
+  .s-deepdive-text { display: flex; flex-direction: column; }
+  .s-deepdive-title { font-size: 12px; font-weight: 700; color: #a78bfa; }
+  .s-deepdive-sub   { font-size: 10px; color: #3a4560; margin-top: 2px; }
+  .s-deepdive-arrow { font-size: 14px; color: #a78bfa; }
+
+  /* ═══════════════════════════════════════════
+     DEEP DIVE MODE
+  ═══════════════════════════════════════════ */
+  .back-simple {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 16px 0;
+    font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: #3a4560; cursor: pointer;
+  }
+  .back-simple:hover { color: #60a5fa; }
+
+  .sec-label { font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #3a4560; margin-bottom: 10px; }
+
+  /* Full property card (deep dive) */
+  .prop-zone { padding: 14px 14px 0; }
+  .prop-card { background: linear-gradient(135deg, #0e1c2a, #0a1520); border: 1px solid rgba(59,130,246,0.18); border-radius: 14px; overflow: hidden; margin-bottom: 12px; }
+  .prop-stats { display: grid; grid-template-columns: repeat(5,1fr); }
+  .prop-stat { padding: 11px 10px; border-right: 1px solid rgba(255,255,255,0.05); text-align: center; }
+  .prop-stat:last-child { border-right: none; }
+  .prop-stat-l   { font-size: 9px; color: #3a4560; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+  .prop-stat-v   { font-size: 12px; font-weight: 700; color: #e6edf3; }
+  .prop-stat-sub { font-size: 9px; color: #6b7a99; margin-top: 2px; }
+  .prop-stat-v.green { color: #00e87a; }
+  .prop-stat-v.amber { color: #f59e0b; }
+  .prop-stat-v.blue  { color: #60a5fa; }
+
+  /* Rate environment */
+  .rate-zone { padding: 0 14px 12px; }
+  .rate-env { background: #0a111e; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; overflow: hidden; }
+  .rate-env-head { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .rate-env-title { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: #e6edf3; }
+  .rate-env-fred  { font-size: 10px; color: #3a4560; font-weight: 600; }
+  .rate-delta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .rate-delta-item { text-align: center; flex: 1; }
+  .rate-delta-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #3a4560; margin-bottom: 4px; }
+  .rate-delta-val { font-size: 20px; font-weight: 800; }
+  .rate-delta-val.was { color: #ef4444; }
+  .rate-delta-val.now { color: #00e87a; }
+  .rate-delta-divider { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0 4px; }
+  .rate-delta-arrow { font-size: 20px; color: #00e87a; }
+  .rate-delta-diff { font-size: 11px; font-weight: 700; color: #00e87a; background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.2); border-radius: 20px; padding: 2px 10px; white-space: nowrap; }
+  .rate-history { padding: 12px 14px 0; }
+  .rate-history-title { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #3a4560; margin-bottom: 10px; }
+  .rate-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .rate-bar-year { font-size: 10px; color: #6b7a99; width: 36px; flex-shrink: 0; font-weight: 600; }
+  .rate-bar-track { flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 7px; }
+  .rate-bar-fill { height: 100%; border-radius: 4px; }
+  .rate-bar-fill.old    { background: rgba(107,122,153,0.4); }
+  .rate-bar-fill.closed { background: rgba(239,68,68,0.55); }
+  .rate-bar-fill.avg    { background: rgba(251,191,36,0.5); }
+  .rate-bar-fill.now-bar { background: #00e87a; }
+  .rate-bar-fill.fwd    { background: repeating-linear-gradient(90deg,rgba(99,179,237,0.5) 0,rgba(99,179,237,0.5) 6px,transparent 6px,transparent 10px); }
+  .rate-bar-val { font-size: 10px; font-weight: 700; width: 42px; text-align: right; flex-shrink: 0; }
+  .rate-bar-val.now  { color: #00e87a; }
+  .rate-bar-val.fwd  { color: #63b3ed; }
+  .rate-bar-val.bad  { color: #ef4444; }
+  .rate-bar-val.muted { color: #6b7a99; }
+  .rate-bar-tag { font-size: 9px; padding: 1px 7px; border-radius: 20px; white-space: nowrap; margin-left: 2px; font-weight: 700; }
+  .rate-bar-tag.you  { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); }
+  .rate-bar-tag.live { background: rgba(0,232,122,0.12); color: #00e87a; border: 1px solid rgba(0,232,122,0.25); }
+  .rate-bar-tag.ahead { background: rgba(99,179,237,0.1); color: #63b3ed; border: 1px solid rgba(99,179,237,0.2); }
+  .fwd-signal { margin: 10px 14px 14px; background: rgba(99,179,237,0.06); border: 1px solid rgba(99,179,237,0.18); border-radius: 10px; padding: 9px 12px; display: flex; align-items: flex-start; gap: 8px; }
+  .fwd-signal-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .fwd-signal-text { font-size: 11px; color: #93c5fd; line-height: 1.5; }
+  .fwd-signal-text strong { color: #bfdbfe; }
+
+  /* Scenarios */
+  .tabs-zone { padding: 0 14px 12px; }
+  .tabs-nav { display: flex; gap: 4px; margin-bottom: 12px; background: #0a111e; border-radius: 10px; padding: 4px; border: 1px solid rgba(255,255,255,0.07); }
+  .tab-btn { flex: 1; padding: 7px 4px; border-radius: 7px; border: none; cursor: pointer; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; background: transparent; color: #3a4560; }
+  .tab-btn.active-green { background: #0d1f16; color: #00e87a; }
+  .scenario { background: #0a111e; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; overflow: hidden; margin-bottom: 10px; }
+  .scenario-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .scenario-badge { font-size: 9px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; padding: 2px 8px; border-radius: 20px; }
+  .scenario-badge.best    { background: rgba(0,232,122,0.18); color: #00e87a; border: 1px solid rgba(0,232,122,0.3); }
+  .scenario-badge.shorten { background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.22); }
+  .scenario-badge.cashout { background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
+  .scenario-name { font-size: 13px; font-weight: 700; color: #e6edf3; }
+  .scenario-tag  { font-size: 10px; color: #6b7a99; margin-top: 1px; }
+  .scenario-savings-val   { font-size: 16px; font-weight: 800; color: #00e87a; text-align: right; }
+  .scenario-savings-label { font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; margin-top: 1px; text-align: right; }
+  .scenario-savings-val.purple { color: #a78bfa; }
+  .scenario-savings-val.amber  { color: #fbbf24; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .compare-col { padding: 12px 14px; }
+  .compare-col.before { border-right: 1px solid rgba(255,255,255,0.05); }
+  .compare-col-label { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 10px; }
+  .compare-col.before .compare-col-label { color: #ef4444; }
+  .compare-col.after  .compare-col-label { color: #00e87a; }
+  .compare-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .compare-row-label { font-size: 11px; color: #6b7a99; }
+  .compare-row-val   { font-size: 11px; font-weight: 700; color: #e6edf3; }
+  .compare-row-val.strike { text-decoration: line-through; color: #3a4560; }
+  .compare-big { font-size: 20px; font-weight: 800; line-height: 1; margin-bottom: 12px; }
+  .compare-big.before { color: #ef4444; }
+  .compare-big.after  { color: #00e87a; }
+  .be-strip { padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .be-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .be-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #3a4560; }
+  .be-val-group { display: flex; align-items: baseline; gap: 4px; }
+  .be-val { font-size: 14px; font-weight: 800; color: #00e87a; }
+  .be-val.purple { color: #a78bfa; }
+  .be-unit { font-size: 10px; color: #6b7a99; }
+  .be-bar-track { height: 6px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+  .be-bar-fill { height: 100%; border-radius: 4px; }
+  .be-bar-fill.green  { background: #00e87a; }
+  .be-bar-fill.purple { background: #a78bfa; }
+  .be-breakdown { display: flex; gap: 16px; margin-top: 7px; flex-wrap: wrap; }
+  .be-item { font-size: 10px; color: #6b7a99; }
+  .be-item span { color: #e6edf3; font-weight: 700; }
+  .scen-footer { display: flex; gap: 8px; padding: 10px 14px; flex-wrap: wrap; }
+  .scen-chip { font-size: 10px; font-weight: 700; color: #6b7a99; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 4px 12px; cursor: pointer; }
+  .savings-row { display: flex; border-top: 1px solid rgba(255,255,255,0.05); }
+  .savings-cell { flex: 1; padding: 11px 14px; border-right: 1px solid rgba(255,255,255,0.05); text-align: center; }
+  .savings-cell:last-child { border-right: none; }
+  .savings-cell-label { font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; margin-bottom: 4px; }
+  .savings-cell-val { font-size: 14px; font-weight: 800; color: #e6edf3; }
+  .savings-cell-val.purple { color: #a78bfa; }
+  .savings-cell-val.amber  { color: #fbbf24; }
+  .savings-cell-val.red    { color: #ef4444; }
+
+  /* HELOC */
+  .heloc-zone { padding: 0 14px 12px; }
+  .heloc-card { background: linear-gradient(135deg,#0a1620,#081018); border: 1px solid rgba(99,179,237,0.15); border-radius: 14px; overflow: hidden; }
+  .heloc-head { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .heloc-title { font-size: 13px; font-weight: 700; color: #e6edf3; }
+  .heloc-sub   { font-size: 10px; color: #6b7a99; margin-top: 1px; }
+  .heloc-max-val   { font-size: 20px; font-weight: 800; color: #63b3ed; text-align: right; }
+  .heloc-max-label { font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .07em; margin-top: 1px; text-align: right; }
+  .heloc-body { padding: 12px 14px; }
+  .heloc-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
+  .heloc-tile { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 9px 10px; text-align: center; }
+  .heloc-tile-l { font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; font-weight: 600; }
+  .heloc-tile-v { font-size: 13px; font-weight: 700; color: #e6edf3; }
+  .heloc-tile-v.blue  { color: #63b3ed; }
+  .heloc-tile-v.amber { color: #f59e0b; }
+  .heloc-compare-head { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #3a4560; margin-bottom: 8px; }
+  .heloc-vs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .heloc-vs-col { background: rgba(255,255,255,0.02); border-radius: 10px; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.06); }
+  .heloc-vs-col.highlight { border-color: rgba(99,179,237,0.2); background: rgba(99,179,237,0.04); }
+  .heloc-vs-name { font-size: 10px; font-weight: 700; color: #6b7a99; margin-bottom: 7px; text-transform: uppercase; letter-spacing: .06em; }
+  .heloc-vs-name.blue { color: #63b3ed; }
+  .heloc-vs-row { display: flex; align-items: flex-start; gap: 5px; margin-bottom: 4px; font-size: 11px; color: #8b949e; line-height: 1.4; }
+  .heloc-vs-row::before { content: '✓'; color: #00e87a; font-weight: 700; flex-shrink: 0; font-size: 10px; margin-top: 1px; }
+  .heloc-vs-row.x::before { content: '·'; color: #3a4560; }
+
+  /* Equity map */
+  .equity-zone { padding: 0 14px 12px; }
+  .equity-card { background: #0a111e; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; overflow: hidden; }
+  .equity-head { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .equity-title { font-size: 12px; font-weight: 700; color: #e6edf3; }
+  .equity-ltv-badge { font-size: 10px; font-weight: 700; color: #00e87a; background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.2); border-radius: 20px; padding: 2px 10px; }
+  .equity-body { padding: 14px; }
+  .equity-bar-label { display: flex; justify-content: space-between; font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; margin-bottom: 6px; }
+  .equity-bar-track { height: 14px; background: rgba(255,255,255,0.05); border-radius: 8px; overflow: hidden; }
+  .equity-bar-loan { height: 100%; background: linear-gradient(90deg,#3b82f6,#1d4ed8); border-radius: 8px 0 0 8px; }
+  .equity-bar-wrap { margin-bottom: 14px; }
+  .equity-thresholds { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
+  .equity-thresh { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 9px 10px; }
+  .equity-thresh.available { border-color: rgba(0,232,122,0.2); background: rgba(0,232,122,0.04); }
+  .equity-thresh-ltv { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #3a4560; margin-bottom: 4px; }
+  .equity-thresh.available .equity-thresh-ltv { color: #00e87a; }
+  .equity-thresh-access { font-size: 13px; font-weight: 800; color: #e6edf3; }
+  .equity-thresh.available .equity-thresh-access { color: #00e87a; }
+  .equity-thresh-note { font-size: 9px; color: #6b7a99; margin-top: 2px; line-height: 1.3; }
+
+  /* AI recommendation */
+  .ai-zone { padding: 0 14px 14px; }
+  .ai-card { background: linear-gradient(135deg,#0d1f16,#081410); border: 1px solid rgba(0,232,122,0.2); border-radius: 14px; overflow: hidden; }
+  .ai-head { padding: 12px 14px; border-bottom: 1px solid rgba(0,232,122,0.1); display: flex; align-items: center; gap: 8px; }
+  .ai-icon { font-size: 16px; }
+  .ai-head-title { font-size: 12px; font-weight: 700; color: #00e87a; }
+  .ai-head-sub   { font-size: 10px; color: #3a5a3a; margin-top: 1px; }
+  .ai-verdict { margin: 14px 14px 12px; background: rgba(0,232,122,0.07); border: 1px solid rgba(0,232,122,0.18); border-radius: 10px; padding: 11px 14px; font-size: 13px; font-weight: 700; color: #00e87a; line-height: 1.4; }
+  .ai-body { padding: 0 14px 14px; }
+  .ai-text { font-size: 12px; color: #8b949e; line-height: 1.7; margin-bottom: 10px; }
+  .ai-text strong { color: #c9d8f0; }
+  .ai-signals { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .ai-signal { display: flex; align-items: flex-start; gap: 7px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 9px; padding: 9px 10px; }
+  .ai-signal-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .ai-signal-text { font-size: 11px; color: #8b949e; line-height: 1.4; }
+  .ai-signal-text strong { color: #e6edf3; display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+
+  /* Deep dive action bar */
+  .rc-actions { padding: 12px 14px 14px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,0.05); }
+  .rc-btn-primary   { flex: 1; min-width: 160px; background: #00e87a; color: #07100f; font-size: 13px; font-weight: 800; border: none; border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .rc-btn-secondary { flex: 1; background: rgba(255,255,255,0.04); color: #8b949e; font-size: 12px; font-weight: 700; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 11px 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .rc-btn-heloc     { flex: 1; background: rgba(99,179,237,0.08); color: #63b3ed; font-size: 12px; font-weight: 700; border: 1px solid rgba(99,179,237,0.18); border-radius: 10px; padding: 11px 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
+
+  .zone-div { margin: 0 14px 12px; height: 1px; background: rgba(255,255,255,0.05); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="bubble">Should I refinance my Thousand Oaks home? I bought in July 2022 and got a 7.125% rate.</div>
+
+  <div class="rc">
+
+    <!-- ── Topbar (always visible) ── -->
+    <div class="rc-topbar">
+      <div class="rc-topbar-l">
+        <div class="rc-dot"></div>
+        <span class="rc-tl">Refi Intelligence</span>
+      </div>
+      <div class="mode-toggle">
+        <button id="btn-simple" class="mode-btn active"      onclick="setMode('simple')">Simple</button>
+        <button id="btn-deep"   class="mode-btn"             onclick="setMode('deep')">Deep Dive AI</button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════
+         PROPERTY + MAP HERO  (both modes share this)
+    ════════════════════════════════════════ -->
+    <div class="prop-hero" id="hero-zone">
+
+      <!-- Left: monochrome house illustration -->
+      <div class="prop-img-pane">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 190" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stop-color="#010a04"/>
+              <stop offset="100%" stop-color="#041409"/>
+            </linearGradient>
+            <radialGradient id="glow-ground" cx="50%" cy="100%" r="60%">
+              <stop offset="0%"   stop-color="rgba(0,232,122,0.07)"/>
+              <stop offset="100%" stop-color="rgba(0,232,122,0)"/>
+            </radialGradient>
+            <filter id="soft">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- Sky -->
+          <rect width="340" height="190" fill="url(#sky)"/>
+
+          <!-- Horizon glow -->
+          <ellipse cx="170" cy="155" rx="200" ry="30" fill="rgba(0,232,122,0.04)"/>
+
+          <!-- Ground / lawn -->
+          <rect x="0" y="152" width="340" height="38" fill="rgba(0,232,122,0.025)"/>
+          <line x1="0" y1="152" x2="340" y2="152" stroke="rgba(0,232,122,0.1)" stroke-width="0.8"/>
+
+          <!-- Driveway -->
+          <polygon points="150,152 190,152 215,190 125,190" fill="rgba(0,232,122,0.03)" stroke="rgba(0,232,122,0.07)" stroke-width="0.5"/>
+          <!-- Driveway center seam -->
+          <line x1="170" y1="152" x2="170" y2="190" stroke="rgba(0,232,122,0.05)" stroke-width="0.5" stroke-dasharray="3,4"/>
+
+          <!-- LEFT WING -->
+          <rect x="18" y="98" width="95" height="54" fill="rgba(0,232,122,0.03)" stroke="rgba(0,232,122,0.38)" stroke-width="1"/>
+          <!-- Left wing roof (flat / slight pitch) -->
+          <polygon points="12,98 113,90 113,98" fill="rgba(0,232,122,0.05)" stroke="rgba(0,232,122,0.45)" stroke-width="1"/>
+
+          <!-- CENTER SECTION (tallest) -->
+          <rect x="113" y="80" width="114" height="72" fill="rgba(0,232,122,0.04)" stroke="rgba(0,232,122,0.55)" stroke-width="1"/>
+          <!-- Center gable roof -->
+          <polygon points="105,80 170,54 235,80" fill="rgba(0,232,122,0.05)" stroke="rgba(0,232,122,0.65)" stroke-width="1.2"/>
+
+          <!-- RIGHT WING (garage) -->
+          <rect x="227" y="98" width="95" height="54" fill="rgba(0,232,122,0.025)" stroke="rgba(0,232,122,0.35)" stroke-width="1"/>
+          <!-- Right wing roof -->
+          <polygon points="227,98 227,90 328,98" fill="rgba(0,232,122,0.04)" stroke="rgba(0,232,122,0.42)" stroke-width="1"/>
+
+          <!-- Chimney -->
+          <rect x="156" y="38" width="13" height="20" fill="rgba(0,232,122,0.04)" stroke="rgba(0,232,122,0.5)" stroke-width="0.8"/>
+          <rect x="153" y="36" width="19" height="4" rx="0.5" fill="rgba(0,232,122,0.06)" stroke="rgba(0,232,122,0.55)" stroke-width="0.8"/>
+          <!-- Chimney smoke (3 wisps) -->
+          <path d="M162,36 Q158,28 163,22 Q168,16 164,10" fill="none" stroke="rgba(0,232,122,0.12)" stroke-width="1" stroke-linecap="round"/>
+          <path d="M160,36 Q155,27 159,20 Q163,14 160,8"  fill="none" stroke="rgba(0,232,122,0.08)" stroke-width="0.8" stroke-linecap="round"/>
+
+          <!-- CENTER: Large modern picture windows -->
+          <rect x="121" y="91" width="40" height="30" rx="1" fill="rgba(0,232,122,0.05)" stroke="rgba(0,232,122,0.5)" stroke-width="0.9"/>
+          <line x1="141" y1="91" x2="141" y2="121" stroke="rgba(0,232,122,0.25)" stroke-width="0.5"/>
+          <line x1="121" y1="106" x2="161" y2="106" stroke="rgba(0,232,122,0.15)" stroke-width="0.5"/>
+
+          <rect x="179" y="91" width="40" height="30" rx="1" fill="rgba(0,232,122,0.05)" stroke="rgba(0,232,122,0.5)" stroke-width="0.9"/>
+          <line x1="199" y1="91" x2="199" y2="121" stroke="rgba(0,232,122,0.25)" stroke-width="0.5"/>
+          <line x1="179" y1="106" x2="219" y2="106" stroke="rgba(0,232,122,0.15)" stroke-width="0.5"/>
+
+          <!-- Front door (centered) -->
+          <rect x="154" y="120" width="32" height="32" rx="1" fill="rgba(0,232,122,0.05)" stroke="rgba(0,232,122,0.6)" stroke-width="1"/>
+          <rect x="159" y="125" width="10" height="13" rx="0.5" fill="none" stroke="rgba(0,232,122,0.28)" stroke-width="0.6"/>
+          <rect x="171" y="125" width="10" height="13" rx="0.5" fill="none" stroke="rgba(0,232,122,0.28)" stroke-width="0.6"/>
+          <!-- Door knob -->
+          <circle cx="183" cy="138" r="1.8" fill="rgba(0,232,122,0.6)"/>
+
+          <!-- LEFT WING: 2 windows -->
+          <rect x="28" y="108" width="32" height="22" rx="1" fill="rgba(0,232,122,0.04)" stroke="rgba(0,232,122,0.38)" stroke-width="0.8"/>
+          <line x1="44" y1="108" x2="44" y2="130" stroke="rgba(0,232,122,0.18)" stroke-width="0.5"/>
+          <rect x="72" y="108" width="32" height="22" rx="1" fill="rgba(0,232,122,0.04)" stroke="rgba(0,232,122,0.38)" stroke-width="0.8"/>
+          <line x1="88" y1="108" x2="88" y2="130" stroke="rgba(0,232,122,0.18)" stroke-width="0.5"/>
+
+          <!-- GARAGE DOOR (right wing) -->
+          <rect x="235" y="110" width="79" height="42" rx="1" fill="rgba(0,232,122,0.025)" stroke="rgba(0,232,122,0.38)" stroke-width="0.9"/>
+          <!-- Garage door panels (horizontal rails) -->
+          <line x1="235" y1="124" x2="314" y2="124" stroke="rgba(0,232,122,0.18)" stroke-width="0.5"/>
+          <line x1="235" y1="138" x2="314" y2="138" stroke="rgba(0,232,122,0.18)" stroke-width="0.5"/>
+          <!-- Garage window strip -->
+          <rect x="241" y="113" width="67" height="7" rx="0.8" fill="rgba(0,232,122,0.06)" stroke="rgba(0,232,122,0.22)" stroke-width="0.5"/>
+
+          <!-- Landscaping: left tree -->
+          <ellipse cx="14" cy="126" rx="11" ry="16" fill="rgba(0,232,122,0.025)" stroke="rgba(0,232,122,0.18)" stroke-width="0.8"/>
+          <line x1="14" y1="142" x2="14" y2="152" stroke="rgba(0,232,122,0.2)" stroke-width="1.2"/>
+          <!-- Right shrub -->
+          <ellipse cx="326" cy="132" rx="9" ry="12" fill="rgba(0,232,122,0.025)" stroke="rgba(0,232,122,0.16)" stroke-width="0.8"/>
+          <line x1="326" y1="144" x2="326" y2="152" stroke="rgba(0,232,122,0.18)" stroke-width="1"/>
+
+          <!-- Subtle scan lines (photo effect) -->
+          <rect width="340" height="190" fill="url(#glow-ground)" style="mix-blend-mode:screen"/>
+        </svg>
+      </div>
+
+      <!-- Right: monochrome street map -->
+      <div class="prop-map-pane">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 190" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <radialGradient id="pin-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stop-color="rgba(0,232,122,0.35)"/>
+              <stop offset="100%" stop-color="rgba(0,232,122,0)"/>
+            </radialGradient>
+          </defs>
+
+          <!-- Map background -->
+          <rect width="200" height="190" fill="#030c14"/>
+
+          <!-- ── Block fills (city lots) ── -->
+          <!-- Top row -->
+          <rect x="7"   y="7"   width="52" height="45" rx="1.5" fill="rgba(0,232,122,0.022)"/>
+          <rect x="69"  y="7"   width="44" height="45" rx="1.5" fill="rgba(0,232,122,0.022)"/>
+          <rect x="123" y="7"   width="70" height="45" rx="1.5" fill="rgba(0,232,122,0.022)"/>
+
+          <!-- Middle row – left block -->
+          <rect x="7"   y="62"  width="52" height="58" rx="1.5" fill="rgba(0,232,122,0.022)"/>
+          <!-- Middle row – TARGET block (highlighted) -->
+          <rect x="69"  y="62"  width="44" height="58" rx="1.5" fill="rgba(0,232,122,0.072)" stroke="rgba(0,232,122,0.28)" stroke-width="1"/>
+          <!-- Lot lines within target block -->
+          <line x1="69"  y1="91"  x2="113" y2="91"  stroke="rgba(0,232,122,0.1)" stroke-width="0.5"/>
+          <line x1="91"  y1="62"  x2="91"  y2="120" stroke="rgba(0,232,122,0.1)" stroke-width="0.5"/>
+          <!-- Middle row – right block -->
+          <rect x="123" y="62"  width="70" height="58" rx="1.5" fill="rgba(0,232,122,0.022)"/>
+
+          <!-- Bottom row -->
+          <rect x="7"   y="130" width="52" height="53" rx="1.5" fill="rgba(0,232,122,0.022)"/>
+          <rect x="69"  y="130" width="44" height="53" rx="1.5" fill="rgba(0,232,122,0.022)"/>
+          <rect x="123" y="130" width="70" height="53" rx="1.5" fill="rgba(0,232,122,0.022)"/>
+
+          <!-- ── Road network ── -->
+          <!-- Major horizontal arterial -->
+          <rect x="0"   y="52"  width="200" height="10" fill="rgba(0,232,122,0.048)"/>
+          <!-- Minor horizontal -->
+          <rect x="0"   y="120" width="200" height="10" fill="rgba(0,232,122,0.035)"/>
+          <!-- Major vertical arterial -->
+          <rect x="113" y="0"   width="10"  height="190" fill="rgba(0,232,122,0.048)"/>
+          <!-- Minor vertical -->
+          <rect x="59"  y="0"   width="10"  height="190" fill="rgba(0,232,122,0.035)"/>
+
+          <!-- Center-line dashes on major roads -->
+          <line x1="0" y1="57"  x2="200" y2="57"  stroke="rgba(0,232,122,0.1)" stroke-width="0.6" stroke-dasharray="5,5"/>
+          <line x1="118" y1="0" x2="118" y2="190" stroke="rgba(0,232,122,0.1)" stroke-width="0.6" stroke-dasharray="5,5"/>
+
+          <!-- Street labels -->
+          <text x="10" y="50" font-family="system-ui,sans-serif" font-size="4.5" fill="rgba(0,232,122,0.3)" font-weight="700" letter-spacing="0.3">WILLOW CANYON DR</text>
+          <text x="115" y="35" font-family="system-ui,sans-serif" font-size="4.5" fill="rgba(0,232,122,0.22)" font-weight="700" letter-spacing="0.3" transform="rotate(90,115,35)">COLTRANE AVE</text>
+          <text x="10" y="118" font-family="system-ui,sans-serif" font-size="4" fill="rgba(0,232,122,0.2)" font-weight="600" letter-spacing="0.2">OAK CREEK BLVD</text>
+
+          <!-- ── Location pin ── -->
+          <!-- Outer pulse ring -->
+          <circle cx="91" cy="91" r="22" fill="rgba(0,232,122,0.06)" stroke="rgba(0,232,122,0.12)" stroke-width="1"/>
+          <!-- Mid ring -->
+          <circle cx="91" cy="91" r="13" fill="rgba(0,232,122,0.1)" stroke="rgba(0,232,122,0.25)" stroke-width="1"/>
+          <!-- Pin glow -->
+          <circle cx="91" cy="91" r="10" fill="url(#pin-glow)"/>
+          <!-- Pin dot -->
+          <circle cx="91" cy="91" r="5" fill="#00e87a"/>
+          <circle cx="91" cy="91" r="2.5" fill="rgba(0,12,5,0.7)"/>
+
+          <!-- Tiny house icon at pin -->
+          <polygon points="87,89 91,85 95,89" fill="none" stroke="rgba(0,232,122,0.9)" stroke-width="0.8"/>
+          <rect x="87.5" y="89" width="7" height="5" fill="rgba(0,232,122,0.15)" stroke="rgba(0,232,122,0.7)" stroke-width="0.7"/>
+
+          <!-- Compass rose (top-right) -->
+          <g transform="translate(178,14)">
+            <circle cx="0" cy="0" r="8" fill="rgba(0,232,122,0.05)" stroke="rgba(0,232,122,0.15)" stroke-width="0.8"/>
+            <text x="0" y="-3"  text-anchor="middle" font-family="system-ui" font-size="4.5" fill="rgba(0,232,122,0.5)" font-weight="800">N</text>
+            <line x1="0" y1="-6" x2="0" y2="6"  stroke="rgba(0,232,122,0.25)" stroke-width="0.7"/>
+            <line x1="-6" y1="0" x2="6" y2="0" stroke="rgba(0,232,122,0.15)" stroke-width="0.5"/>
+          </g>
+
+          <!-- Scale bar -->
+          <g transform="translate(10,178)">
+            <line x1="0" y1="0" x2="28" y2="0" stroke="rgba(0,232,122,0.35)" stroke-width="1.2" stroke-linecap="round"/>
+            <line x1="0" y1="-2" x2="0" y2="2"  stroke="rgba(0,232,122,0.35)" stroke-width="0.8"/>
+            <line x1="28" y1="-2" x2="28" y2="2" stroke="rgba(0,232,122,0.35)" stroke-width="0.8"/>
+            <text x="14" y="-4" text-anchor="middle" font-family="system-ui" font-size="4" fill="rgba(0,232,122,0.3)" font-weight="600">0.1 mi</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- Address overlay at hero bottom -->
+      <div class="prop-hero-addr">
+        <div>
+          <div class="prop-hero-name">123 Willow Canyon Dr</div>
+          <div class="prop-hero-sub">Thousand Oaks, CA 91362</div>
+        </div>
+        <div class="prop-hero-badge">My Property</div>
+      </div>
+    </div><!-- /prop-hero -->
+
+    <!-- ════════════════════════════════════════
+         SIMPLE VIEW
+    ════════════════════════════════════════ -->
+    <div id="view-simple">
+
+      <!-- Equity ribbon -->
+      <div class="s-equity-row">
+        <div class="s-eq-cell">
+          <div class="s-eq-label">Est. Value</div>
+          <div class="s-eq-val blue">$855k</div>
+        </div>
+        <div class="s-eq-cell">
+          <div class="s-eq-label">Balance</div>
+          <div class="s-eq-val">$607.5k</div>
+        </div>
+        <div class="s-eq-cell">
+          <div class="s-eq-label">Equity</div>
+          <div class="s-eq-val green">$247.5k</div>
+        </div>
+      </div>
+
+      <!-- Rate hero -->
+      <div class="s-rate-hero">
+        <div class="s-rate-col">
+          <div class="s-rate-label">Your Rate · Jul 2022</div>
+          <div class="s-rate-num was">7.125%</div>
+          <div class="s-rate-sub">At close</div>
+        </div>
+        <div class="s-rate-arrow">
+          <div class="s-arrow-icon">→</div>
+          <div class="s-delta-pill">−0.895%</div>
+        </div>
+        <div class="s-rate-col">
+          <div class="s-rate-label">Today · FRED Live</div>
+          <div class="s-rate-num now">6.23%</div>
+          <div class="s-rate-sub">30yr avg · Apr 2026</div>
+        </div>
+      </div>
+
+      <!-- Live indicator -->
+      <div class="s-live-row">
+        <div class="live-dot"></div>
+        <span class="s-live-text">FRED data · updated weekly · not a lender quote</span>
+      </div>
+
+      <!-- Savings hero -->
+      <div class="s-savings-hero">
+        <div class="s-savings-eyebrow">Estimated Monthly Savings</div>
+        <div class="s-savings-big">$470<span class="s-savings-unit">/mo</span></div>
+        <div class="s-savings-sub">
+          Based on $607,500 balance · 0.895% rate drop<br>
+          <strong>~$10,500</strong> closing costs · <strong>22-month</strong> break-even
+        </div>
+      </div>
+
+      <!-- Verdict -->
+      <div class="s-verdict">
+        <div class="s-verdict-icon">✅</div>
+        <div class="s-verdict-text">
+          <strong>Refinance makes sense</strong> — 0.9% rate drop clears the 0.75% threshold. Break-even is only 22 months. Every month you wait costs $470.
+        </div>
+      </div>
+
+      <!-- 3 key stats -->
+      <div class="s-stats-row">
+        <div class="s-stat">
+          <div class="s-stat-label">Break-Even</div>
+          <div class="s-stat-val green">22 mo</div>
+          <div class="s-stat-sub">Excellent</div>
+        </div>
+        <div class="s-stat">
+          <div class="s-stat-label">5-Yr Net</div>
+          <div class="s-stat-val">$17.7k</div>
+          <div class="s-stat-sub">After closing costs</div>
+        </div>
+        <div class="s-stat">
+          <div class="s-stat-label">HELOC Available</div>
+          <div class="s-stat-val">$76k</div>
+          <div class="s-stat-sub">LTV 71.1% · 80% CLTV</div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="s-actions">
+        <button class="s-btn-primary">🔁 Run Full Analysis →</button>
+        <div class="s-btn-row">
+          <button class="s-btn-heloc">🏦 Explore HELOC</button>
+          <button class="s-btn-secondary">💾 Save to Vault</button>
+          <button class="s-btn-secondary">🤝 Get Matched</button>
+        </div>
+      </div>
+
+      <!-- Deep dive trigger -->
+      <div class="s-deepdive-trigger" onclick="setMode('deep')">
+        <div class="s-deepdive-l">
+          <div class="s-deepdive-icon">🧠</div>
+          <div class="s-deepdive-text">
+            <div class="s-deepdive-title">Deep Dive AI Analysis</div>
+            <div class="s-deepdive-sub">Rate timeline · 3 scenarios · HELOC intelligence · Equity map · AI signals</div>
+          </div>
+        </div>
+        <div class="s-deepdive-arrow">→</div>
+      </div>
+
+    </div><!-- /view-simple -->
+
+    <!-- ════════════════════════════════════════
+         DEEP DIVE VIEW
+    ════════════════════════════════════════ -->
+    <div id="view-deep" style="display:none">
+
+      <div class="back-simple" onclick="setMode('simple')">← Back to Simple View</div>
+
+      <!-- Full property stats -->
+      <div class="prop-zone">
+        <div class="sec-label">Property Details</div>
+        <div class="prop-card">
+          <div class="prop-stats">
+            <div class="prop-stat">
+              <div class="prop-stat-l">Est. Value</div>
+              <div class="prop-stat-v blue">$855k</div>
+              <div class="prop-stat-sub">Estated AVM</div>
+            </div>
+            <div class="prop-stat">
+              <div class="prop-stat-l">Balance</div>
+              <div class="prop-stat-v">$607.5k</div>
+              <div class="prop-stat-sub">Remaining</div>
+            </div>
+            <div class="prop-stat">
+              <div class="prop-stat-l">Equity</div>
+              <div class="prop-stat-v green">$247.5k</div>
+              <div class="prop-stat-sub">29.0% owned</div>
+            </div>
+            <div class="prop-stat">
+              <div class="prop-stat-l">Orig. Rate</div>
+              <div class="prop-stat-v amber">7.125%</div>
+              <div class="prop-stat-sub">Jul 2022</div>
+            </div>
+            <div class="prop-stat">
+              <div class="prop-stat-l">Remaining</div>
+              <div class="prop-stat-v">296 mo</div>
+              <div class="prop-stat-sub">24.7 yrs</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rate Environment -->
+      <div class="rate-zone">
+        <div class="rate-env">
+          <div class="rate-env-head">
+            <div class="rate-env-title"><div class="live-dot"></div>Rate Environment</div>
+            <div class="rate-env-fred">FRED · 30yr avg · Apr 23, 2026</div>
+          </div>
+          <div class="rate-delta">
+            <div class="rate-delta-item">
+              <div class="rate-delta-label">Your Rate (Jul '22)</div>
+              <div class="rate-delta-val was">7.125%</div>
+            </div>
+            <div class="rate-delta-divider">
+              <div class="rate-delta-arrow">→</div>
+              <div class="rate-delta-diff">−0.895%</div>
+            </div>
+            <div class="rate-delta-item">
+              <div class="rate-delta-label">Today (FRED Live)</div>
+              <div class="rate-delta-val now">6.23%</div>
+            </div>
+          </div>
+          <div class="rate-history">
+            <div class="rate-history-title">30-Year Rate Timeline</div>
+            <div class="rate-bar-row"><div class="rate-bar-year">2020</div><div class="rate-bar-track"><div class="rate-bar-fill old" style="width:33%"></div></div><div class="rate-bar-val muted">3.11%</div></div>
+            <div class="rate-bar-row"><div class="rate-bar-year">2021</div><div class="rate-bar-track"><div class="rate-bar-fill old" style="width:31%"></div></div><div class="rate-bar-val muted">2.96%</div></div>
+            <div class="rate-bar-row"><div class="rate-bar-year">2022</div><div class="rate-bar-track"><div class="rate-bar-fill closed" style="width:82%"></div></div><div class="rate-bar-val bad">7.125%</div><div class="rate-bar-tag you">You closed</div></div>
+            <div class="rate-bar-row"><div class="rate-bar-year">2023</div><div class="rate-bar-track"><div class="rate-bar-fill avg" style="width:74%"></div></div><div class="rate-bar-val muted">6.79%</div></div>
+            <div class="rate-bar-row"><div class="rate-bar-year">2024</div><div class="rate-bar-track"><div class="rate-bar-fill avg" style="width:71%"></div></div><div class="rate-bar-val muted">6.72%</div></div>
+            <div class="rate-bar-row"><div class="rate-bar-year">Now</div><div class="rate-bar-track"><div class="rate-bar-fill now-bar" style="width:64%"></div></div><div class="rate-bar-val now">6.23%</div><div class="rate-bar-tag live">Live</div></div>
+            <div class="rate-bar-row"><div class="rate-bar-year">Fwd</div><div class="rate-bar-track"><div class="rate-bar-fill fwd" style="width:57%"></div></div><div class="rate-bar-val fwd">~5.75%</div><div class="rate-bar-tag ahead">12–18 mo</div></div>
+          </div>
+          <div class="fwd-signal">
+            <div class="fwd-signal-icon">📈</div>
+            <div class="fwd-signal-text"><strong>Forward curve:</strong> Fed Funds 3.64% + 10yr 4.31% + spread 1.92% → equilibrium near 6.2%. Waiting for sub-5.75% is speculative — not priced into futures.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scenarios -->
+      <div class="tabs-zone">
+        <div class="sec-label">Scenario Explorer</div>
+        <div class="tabs-nav">
+          <div class="tab-btn active-green">Rate &amp; Term</div>
+          <div class="tab-btn">Shorten 15yr</div>
+          <div class="tab-btn">Cash-Out</div>
+          <div class="tab-btn">HELOC</div>
+        </div>
+
+        <!-- Rate & Term -->
+        <div class="scenario">
+          <div class="scenario-head">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="scenario-name">Rate &amp; Term Refi</span>
+                <span class="scenario-badge best">★ Best for You</span>
+              </div>
+              <div class="scenario-tag">Lower rate · Same 30-year term · No cash pulled</div>
+            </div>
+            <div><div class="scenario-savings-val">$470/mo</div><div class="scenario-savings-label">Monthly savings</div></div>
+          </div>
+          <div class="compare">
+            <div class="compare-col before">
+              <div class="compare-col-label">Current</div>
+              <div class="compare-big before">$4,234</div>
+              <div class="compare-row"><span class="compare-row-label">Rate</span><span class="compare-row-val strike">7.125%</span></div>
+              <div class="compare-row"><span class="compare-row-label">Remaining</span><span class="compare-row-val">296 mo</span></div>
+              <div class="compare-row"><span class="compare-row-label">Interest left</span><span class="compare-row-val strike">$646k</span></div>
+              <div class="compare-row"><span class="compare-row-label">Payoff</span><span class="compare-row-val">Nov 2049</span></div>
+            </div>
+            <div class="compare-col after">
+              <div class="compare-col-label">New Scenario</div>
+              <div class="compare-big after">$3,764</div>
+              <div class="compare-row"><span class="compare-row-label">Rate</span><span class="compare-row-val" style="color:#00e87a">6.23%</span></div>
+              <div class="compare-row"><span class="compare-row-label">New term</span><span class="compare-row-val">360 mo</span></div>
+              <div class="compare-row"><span class="compare-row-label">Total interest</span><span class="compare-row-val" style="color:#00e87a">$748k</span></div>
+              <div class="compare-row"><span class="compare-row-label">Payoff</span><span class="compare-row-val">May 2056</span></div>
+            </div>
+          </div>
+          <div class="be-strip">
+            <div class="be-meta"><div class="be-label">Break-Even</div><div class="be-val-group"><span class="be-val">22 months</span><span class="be-unit">· Excellent</span></div></div>
+            <div class="be-bar-track"><div class="be-bar-fill green" style="width:37%"></div></div>
+            <div class="be-breakdown">
+              <div class="be-item">Closing costs <span>~$10,500</span></div>
+              <div class="be-item">Monthly savings <span>$470</span></div>
+              <div class="be-item">5-yr net <span>$17,700</span></div>
+              <div class="be-item">Lifetime int. saved <span>$122k</span></div>
+            </div>
+          </div>
+          <div class="scen-footer">
+            <div class="scen-chip">Rate drops to 5.75% →</div>
+            <div class="scen-chip">Pay 1 extra/yr →</div>
+            <div class="scen-chip">Closing cost detail →</div>
+          </div>
+        </div>
+
+        <!-- Shorten 15yr -->
+        <div class="scenario">
+          <div class="scenario-head">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="scenario-name">Shorten to 15-Year</span>
+                <span class="scenario-badge shorten">Max Equity</span>
+              </div>
+              <div class="scenario-tag">Higher payment · Build equity fast · Lowest lifetime cost</div>
+            </div>
+            <div><div class="scenario-savings-val purple">$245k</div><div class="scenario-savings-label">Interest saved</div></div>
+          </div>
+          <div class="compare">
+            <div class="compare-col before">
+              <div class="compare-col-label">Current</div>
+              <div class="compare-big before">$4,234</div>
+              <div class="compare-row"><span class="compare-row-label">Rate</span><span class="compare-row-val strike">7.125%</span></div>
+              <div class="compare-row"><span class="compare-row-label">Payoff</span><span class="compare-row-val">Nov 2049</span></div>
+            </div>
+            <div class="compare-col after">
+              <div class="compare-col-label">15-Year at 5.64%</div>
+              <div class="compare-big" style="color:#a78bfa">$5,067</div>
+              <div class="compare-row"><span class="compare-row-label">Rate</span><span class="compare-row-val" style="color:#a78bfa">5.64%</span></div>
+              <div class="compare-row"><span class="compare-row-label">Payoff</span><span class="compare-row-val" style="color:#a78bfa">May 2041</span></div>
+            </div>
+          </div>
+          <div class="savings-row">
+            <div class="savings-cell"><div class="savings-cell-label">Payment Up</div><div class="savings-cell-val red">+$833/mo</div></div>
+            <div class="savings-cell"><div class="savings-cell-label">Payoff Earlier</div><div class="savings-cell-val purple">8.5 yrs</div></div>
+            <div class="savings-cell"><div class="savings-cell-label">Break-Even</div><div class="savings-cell-val purple">14 mo</div></div>
+            <div class="savings-cell"><div class="savings-cell-label">Int. Saved</div><div class="savings-cell-val purple">$245k</div></div>
+          </div>
+          <div class="scen-footer"><div class="scen-chip">20yr instead →</div><div class="scen-chip">Afford +$833/mo? →</div></div>
+        </div>
+
+        <!-- Cash-Out -->
+        <div class="scenario">
+          <div class="scenario-head">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="scenario-name">Cash-Out Refi</span>
+                <span class="scenario-badge cashout">Pull Equity</span>
+              </div>
+              <div class="scenario-tag">New loan · Access equity · Fixed rate</div>
+            </div>
+            <div><div class="scenario-savings-val amber">$80k</div><div class="scenario-savings-label">Cash available</div></div>
+          </div>
+          <div class="compare">
+            <div class="compare-col before">
+              <div class="compare-col-label">Current</div>
+              <div class="compare-big before">$4,234</div>
+              <div class="compare-row"><span class="compare-row-label">Balance</span><span class="compare-row-val">$607,500</span></div>
+              <div class="compare-row"><span class="compare-row-label">Rate</span><span class="compare-row-val strike">7.125%</span></div>
+            </div>
+            <div class="compare-col after">
+              <div class="compare-col-label">Cash-Out at 6.48%</div>
+              <div class="compare-big" style="color:#fbbf24">$4,310</div>
+              <div class="compare-row"><span class="compare-row-label">New balance</span><span class="compare-row-val" style="color:#fbbf24">$687,500</span></div>
+              <div class="compare-row"><span class="compare-row-label">Rate</span><span class="compare-row-val" style="color:#fbbf24">6.48%</span></div>
+            </div>
+          </div>
+          <div class="savings-row">
+            <div class="savings-cell"><div class="savings-cell-label">Cash Received</div><div class="savings-cell-val amber">+$80,000</div></div>
+            <div class="savings-cell"><div class="savings-cell-label">Pmt Change</div><div class="savings-cell-val red">+$76/mo</div></div>
+            <div class="savings-cell"><div class="savings-cell-label">New LTV</div><div class="savings-cell-val">80.4%</div></div>
+            <div class="savings-cell"><div class="savings-cell-label">Cash Rate</div><div class="savings-cell-val amber">6.48%</div></div>
+          </div>
+          <div class="scen-footer"><div class="scen-chip">$50k instead →</div><div class="scen-chip">vs HELOC →</div><div class="scen-chip">Renovation ROI →</div></div>
+        </div>
+      </div>
+
+      <div class="zone-div"></div>
+
+      <!-- HELOC -->
+      <div class="heloc-zone">
+        <div class="sec-label">HELOC Intelligence</div>
+        <div class="heloc-card">
+          <div class="heloc-head">
+            <div style="display:flex;align-items:center;gap:7px">
+              <span style="font-size:16px">🏦</span>
+              <div><div class="heloc-title">Home Equity Line of Credit</div><div class="heloc-sub">No refi needed · Variable rate · Draw when needed</div></div>
+            </div>
+            <div><div class="heloc-max-val">$76,000</div><div class="heloc-max-label">Max (80% CLTV)</div></div>
+          </div>
+          <div class="heloc-body">
+            <div class="heloc-grid">
+              <div class="heloc-tile"><div class="heloc-tile-l">HELOC Rate</div><div class="heloc-tile-v amber">~7.5–8.0%</div></div>
+              <div class="heloc-tile"><div class="heloc-tile-l">Rate Type</div><div class="heloc-tile-v">Variable<br><span style="font-size:10px;color:#6b7a99">Prime + 0.5%</span></div></div>
+              <div class="heloc-tile"><div class="heloc-tile-l">Closing Costs</div><div class="heloc-tile-v blue">~$500–$2k</div></div>
+              <div class="heloc-tile"><div class="heloc-tile-l">Draw Period</div><div class="heloc-tile-v">10 years</div></div>
+              <div class="heloc-tile"><div class="heloc-tile-l">Interest Only</div><div class="heloc-tile-v blue">During draw</div></div>
+              <div class="heloc-tile"><div class="heloc-tile-l">SOFR Today</div><div class="heloc-tile-v">4.30%</div></div>
+            </div>
+            <div class="heloc-compare-head">HELOC vs Cash-Out — When to Use Each</div>
+            <div class="heloc-vs">
+              <div class="heloc-vs-col highlight">
+                <div class="heloc-vs-name blue">HELOC — Better When</div>
+                <div class="heloc-vs-row">Phased renovations (kitchen, then bath)</div>
+                <div class="heloc-vs-row">Emergency liquidity backstop</div>
+                <div class="heloc-vs-row">Rates falling — can pay off quickly</div>
+                <div class="heloc-vs-row">Preserving your 7.125% first loan</div>
+                <div class="heloc-vs-row">Lower closing cost, faster to close</div>
+              </div>
+              <div class="heloc-vs-col">
+                <div class="heloc-vs-name">Cash-Out — Better When</div>
+                <div class="heloc-vs-row">One large lump need (payoff debt)</div>
+                <div class="heloc-vs-row">Need fixed rate certainty</div>
+                <div class="heloc-vs-row">Already refinancing — pull cash too</div>
+                <div class="heloc-vs-row x">Rates rising — variable gets expensive</div>
+                <div class="heloc-vs-row x">Revolving access is a spending risk</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="zone-div"></div>
+
+      <!-- Equity Map -->
+      <div class="equity-zone">
+        <div class="sec-label">Equity Access Map</div>
+        <div class="equity-card">
+          <div class="equity-head">
+            <div class="equity-title">LTV · Equity Position · Accessible Cash</div>
+            <div class="equity-ltv-badge">LTV 71.1% ✓</div>
+          </div>
+          <div class="equity-body">
+            <div class="equity-bar-wrap">
+              <div class="equity-bar-label"><span>Loan $607.5k</span><span>Value $855k</span></div>
+              <div class="equity-bar-track"><div class="equity-bar-loan" style="width:71%"></div></div>
+              <div style="position:relative;height:18px;margin-top:4px">
+                <div style="position:absolute;left:70%;transform:translateX(-50%);font-size:9px;color:#00e87a;font-weight:700;white-space:nowrap">71.1% ← Today</div>
+                <div style="position:absolute;left:80%;transform:translateX(-50%);font-size:9px;color:#6b7a99;font-weight:600;white-space:nowrap">80%</div>
+              </div>
+            </div>
+            <div class="equity-thresholds">
+              <div class="equity-thresh available">
+                <div class="equity-thresh-ltv">80% CLTV</div>
+                <div class="equity-thresh-access">$76,000</div>
+                <div class="equity-thresh-note">Available now · HELOC or cash-out</div>
+              </div>
+              <div class="equity-thresh available">
+                <div class="equity-thresh-ltv">75% CLTV</div>
+                <div class="equity-thresh-access">$33,750</div>
+                <div class="equity-thresh-note">Better jumbo refi threshold</div>
+              </div>
+              <div class="equity-thresh">
+                <div class="equity-thresh-ltv">70% CLTV</div>
+                <div class="equity-thresh-access" style="color:#3a4560">−$6,750</div>
+                <div class="equity-thresh-note">Requires paydown to reach</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="zone-div"></div>
+
+      <!-- AI Recommendation -->
+      <div class="ai-zone">
+        <div class="sec-label">AI Recommendation</div>
+        <div class="ai-card">
+          <div class="ai-head">
+            <div class="ai-icon">🤖</div>
+            <div>
+              <div class="ai-head-title">HomeRates.ai Refi Analysis</div>
+              <div class="ai-head-sub">FRED live data · Equity position · Rate trajectory</div>
+            </div>
+          </div>
+          <div class="ai-verdict">✅ Refinance now makes strategic sense — 22-month break-even with a 0.9% rate drop, strong equity, and no material additional rate reduction priced into forward markets within 12 months.</div>
+          <div class="ai-body">
+            <div class="ai-text">Your 7.125% rate from July 2022 was near the cycle peak. Today's FRED 30yr average is <strong>6.23%</strong> — a meaningful 0.895% improvement. At $607,500 balance, that's <strong>$470/month in payment relief</strong> and ~$10,500 in closing costs — break-even at <strong>22 months</strong>.</div>
+            <div class="ai-text">The forward curve implies rates could drift to ~5.75% in 12–18 months — but that's only <strong>0.48% more</strong>. Waiting 12 months costs you <strong>$5,640 in foregone savings</strong> while the improvement remains speculative.</div>
+            <div class="ai-signals">
+              <div class="ai-signal"><div class="ai-signal-icon">📉</div><div class="ai-signal-text"><strong>Rate Delta</strong>0.895% drop — above the 0.75% refi threshold</div></div>
+              <div class="ai-signal"><div class="ai-signal-icon">⏱️</div><div class="ai-signal-text"><strong>Break-Even</strong>22 months — excellent. Worth it if staying 2+ yrs</div></div>
+              <div class="ai-signal"><div class="ai-signal-icon">🏦</div><div class="ai-signal-text"><strong>Equity</strong>LTV 71.1% — strong. $76k HELOC available</div></div>
+              <div class="ai-signal"><div class="ai-signal-icon">📈</div><div class="ai-signal-text"><strong>Rate Outlook</strong>Forward −0.48% possible in 12–18 mo. Speculative</div></div>
+              <div class="ai-signal"><div class="ai-signal-icon">⚡</div><div class="ai-signal-text"><strong>HELOC Option</strong>Keep 7.125% + open $76k HELOC for short-term cash</div></div>
+              <div class="ai-signal"><div class="ai-signal-icon">🏅</div><div class="ai-signal-text"><strong>15yr Path</strong>5.64% saves $245k lifetime — if payment is manageable</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action bar -->
+      <div class="rc-actions">
+        <button class="rc-btn-primary">🔁 Run Full Analysis →</button>
+        <button class="rc-btn-heloc">🏦 Explore HELOC →</button>
+        <button class="rc-btn-secondary">💾 Save to Vault</button>
+        <button class="rc-btn-secondary">🤝 Get Matched</button>
+      </div>
+
+    </div><!-- /view-deep -->
+  </div><!-- /rc -->
+</div>
+
+<script>
+  function setMode(mode) {
+    var s = mode === 'simple';
+    document.getElementById('view-simple').style.display = s ? '' : 'none';
+    document.getElementById('view-deep').style.display   = s ? 'none' : '';
+    document.getElementById('btn-simple').className = 'mode-btn' + (s  ? ' active' : '');
+    document.getElementById('btn-deep').className   = 'mode-btn' + (!s ? ' active-deep' : '');
+    /* hero stays full height in simple, compact in deep dive */
+    document.getElementById('hero-zone').className = s ? 'prop-hero' : 'prop-hero compact';
+  }
+</script>
+
+</body>
+</html>

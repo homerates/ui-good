@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Home Hero — Before / After</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #060a10; font-family: 'DM Sans', system-ui, sans-serif; color: #f1f5f9; min-height: 100vh; }
+
+  .page { max-width: 1280px; margin: 0 auto; padding: 40px 24px; }
+
+  h1.title { font-size: 28px; font-weight: 800; color: #f1f5f9; margin-bottom: 6px; }
+  p.subtitle { font-size: 14px; color: #64748b; margin-bottom: 48px; }
+
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 900px) { .compare { grid-template-columns: 1fr; } }
+
+  .column-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .column-label.before { color: #ef4444; }
+  .column-label.after  { color: #00e87a; }
+  .column-label span.badge {
+    padding: 2px 8px; border-radius: 4px; font-size: 10px;
+  }
+  .column-label.before span.badge { background: rgba(239,68,68,0.12); color: #ef4444; }
+  .column-label.after  span.badge { background: rgba(0,232,122,0.12); color: #00e87a; }
+
+  /* ── SHARED CARD SHELL ───────────────────────── */
+  .card {
+    background: #0f172a; border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px; overflow: hidden;
+  }
+
+  /* ── PHOTO ───────────────────────────────────── */
+  .photo { position: relative; background: #1a2436; }
+  .photo img { width: 100%; display: block; object-fit: cover; }
+  .photo-before { height: 200px; }
+  .photo-after  { height: 260px; }
+  .photo-placeholder {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #1a2744 0%, #0f1c30 40%, #162035 100%);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .photo-placeholder::before {
+    content: ''; position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Crect width='60' height='60' fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='1'/%3E%3C/svg%3E");
+    background-size: 30px 30px;
+  }
+  .photo-overlay-text {
+    font-size: 12px; color: rgba(255,255,255,0.25); text-align: center; z-index: 1;
+  }
+  .upload-btn {
+    position: absolute; bottom: 10px; right: 10px;
+    background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px; color: rgba(255,255,255,0.7); font-size: 11px;
+    padding: 5px 10px; cursor: pointer; backdrop-filter: blur(4px);
+  }
+  .address-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(to top, rgba(6,10,16,0.92) 0%, transparent 100%);
+    padding: 28px 18px 14px;
+  }
+  .address-overlay-text { font-size: 14px; font-weight: 600; color: #f1f5f9; }
+  .address-overlay-sub  { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+
+  /* ── DETAILS BAR ─────────────────────────────── */
+  .details-bar {
+    display: flex; border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .detail-cell {
+    flex: 1; text-align: center; padding: 10px 6px;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    font-size: 12px;
+  }
+  .detail-cell:last-child { border-right: none; }
+  .detail-cell .val { font-weight: 700; color: #f1f5f9; display: block; }
+  .detail-cell .lbl { color: #475569; font-size: 10px; display: block; margin-top: 1px; }
+
+  /* ── STATS GRID ──────────────────────────────── */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .stat-cell {
+    padding: 14px 12px; text-align: center;
+    border-right: 1px solid rgba(255,255,255,0.06);
+  }
+  .stat-cell:last-child { border-right: none; }
+  .stat-cell .stat-val {
+    font-size: 18px; font-weight: 800; display: block; margin-bottom: 3px;
+  }
+  .stat-cell .stat-lbl {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #475569; display: block;
+  }
+  .stat-cell .stat-val.green  { color: #00e87a; }
+  .stat-cell .stat-val.blue   { color: #3b82f6; }
+  .stat-cell .stat-val.amber  { color: #f59e0b; }
+  .stat-cell .stat-val.white  { color: #f1f5f9; }
+
+  /* ── EQUITY BAR ──────────────────────────────── */
+  .equity-bar-wrap { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .equity-bar-labels { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; }
+  .equity-bar-labels .eq-label { color: #00e87a; font-weight: 600; }
+  .equity-bar-labels .bal-label { color: #64748b; }
+  .equity-bar-track { height: 6px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; }
+  .equity-bar-fill  { height: 100%; background: linear-gradient(90deg, #00e87a, #00b459); border-radius: 99px; width: 37%; }
+  .equity-bar-note  { font-size: 11px; color: #475569; margin-top: 6px; }
+  .equity-bar-note a { color: #00e87a; text-decoration: none; }
+
+  /* ── RATE WATCH ──────────────────────────────── */
+  .rate-watch {
+    margin: 14px 16px;
+    background: rgba(0,232,122,0.04);
+    border: 1px solid rgba(0,232,122,0.2);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .rate-watch-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #00e87a; margin-bottom: 6px;
+  }
+  .rate-watch-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .rate-watch-text { font-size: 12px; color: rgba(255,255,255,0.7); flex: 1; min-width: 160px; }
+  .rate-input {
+    width: 70px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px; padding: 5px 8px; color: #f1f5f9; font-size: 13px;
+    font-family: inherit;
+  }
+  .rate-set-btn {
+    background: #00e87a; color: #060a10; border: none; border-radius: 6px;
+    padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+
+  /* ── CTA ROW ─────────────────────────────────── */
+  .cta-row {
+    display: flex; gap: 10px; padding: 14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-wrap: wrap;
+  }
+  .btn-primary {
+    background: #00e87a; color: #060a10; border: none; border-radius: 8px;
+    padding: 9px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-outline {
+    background: transparent; color: rgba(255,255,255,0.6);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+    padding: 9px 16px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+
+  /* ── CHIPS ───────────────────────────────────── */
+  .chip-row {
+    display: flex; gap: 8px; padding: 14px 16px; overflow-x: auto;
+    scrollbar-width: none; border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .chip {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 99px; padding: 7px 14px; font-size: 13px; white-space: nowrap;
+    cursor: pointer; transition: all 150ms;
+  }
+  .chip.active {
+    background: rgba(0,232,122,0.12); border-color: rgba(0,232,122,0.35);
+    color: #00e87a;
+  }
+
+  /* ── AFTER: HERO HEADLINE BLOCK ──────────────── */
+  .hero-headline {
+    padding: 18px 18px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .hero-address { font-size: 13px; color: #64748b; margin-bottom: 12px; }
+  .hero-metric-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .hero-big-number { font-size: 42px; font-weight: 800; color: #00e87a; line-height: 1; }
+  .hero-big-label  { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: #475569; margin-top: 4px; }
+  .hero-secondary  { text-align: right; }
+  .hero-secondary .eq-val { font-size: 22px; font-weight: 700; color: #f1f5f9; }
+  .hero-secondary .eq-pct { font-size: 13px; color: #00e87a; margin-left: 6px; font-weight: 600; }
+  .hero-secondary .eq-lbl { font-size: 11px; color: #475569; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 3px; }
+  .hero-bar-mini { margin-top: 14px; }
+  .hero-bar-mini .bar-track { height: 4px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; }
+  .hero-bar-mini .bar-fill  { height: 100%; background: linear-gradient(90deg, #00e87a, #00b459); border-radius: 99px; width: 37%; }
+  .hero-bar-mini .bar-labels { display: flex; justify-content: space-between; margin-top: 5px; font-size: 11px; }
+  .hero-bar-mini .bar-labels .l { color: #475569; }
+
+  /* ── AFTER: COMPACT CTA ──────────────────────── */
+  .hero-cta-row {
+    display: flex; gap: 8px; padding: 12px 18px 16px;
+  }
+  .btn-primary-sm {
+    background: #00e87a; color: #060a10; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
+    font-family: inherit; flex: 1;
+  }
+  .btn-ghost {
+    background: transparent; color: rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+    padding: 8px 14px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+
+  /* ── AFTER: TAB CONTENT PREVIEW ─────────────── */
+  .tab-content-preview {
+    padding: 16px; background: rgba(0,232,122,0.02);
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .tab-content-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #475569; margin-bottom: 12px;
+  }
+
+  /* ── ANNOTATIONS ─────────────────────────────── */
+  .annotation-list { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .annotation {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .annotation .dot {
+    width: 8px; height: 8px; border-radius: 99px; margin-top: 4px; flex-shrink: 0;
+  }
+  .annotation .dot.red   { background: #ef4444; }
+  .annotation .dot.green { background: #00e87a; }
+  .annotation .text { font-size: 12px; color: #94a3b8; line-height: 1.5; }
+  .annotation .text strong { color: #f1f5f9; }
+
+  .section-divider {
+    margin: 56px 0 32px; border: none; border-top: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .change-reason {
+    background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.15);
+    border-radius: 12px; padding: 16px 20px; margin-bottom: 32px;
+  }
+  .change-reason h3 { font-size: 13px; font-weight: 700; color: #00e87a; margin-bottom: 6px; }
+  .change-reason p  { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+
+  .section-title {
+    font-size: 18px; font-weight: 800; color: #f1f5f9; margin-bottom: 6px;
+  }
+  .section-sub {
+    font-size: 13px; color: #64748b; margin-bottom: 24px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1 class="title">My Home — Hero Section Redesign</h1>
+  <p class="subtitle">Current hero (left) vs proposed hero (right). Scroll down for the stats grid relocation.</p>
+
+  <div class="change-reason">
+    <h3>Why this change?</h3>
+    <p>The current hero stacks 7 distinct UI layers before the user even reaches the tab navigation: photo, details bar, 4-stat grid, equity bar, rate watch input, CTA buttons, then chips. On mobile this is 600px of scroll before seeing any analysis content. More critically, all 4 stats are displayed at equal visual weight — users don't know what to focus on. The proposed redesign collapses the hero to 3 elements: photo, ONE headline number, one supporting metric. Everything else moves into the first tab (Equity & Value) where it belongs.</p>
+  </div>
+
+  <div class="compare">
+
+    <!-- ══ BEFORE ══ -->
+    <div>
+      <div class="column-label before">
+        <span>Current</span>
+        <span class="badge">7 layers before tabs</span>
+      </div>
+
+      <div class="card">
+
+        <!-- Photo -->
+        <div class="photo photo-before">
+          <div class="photo-placeholder">
+            <div class="photo-overlay-text">📷 Satellite + Street View + Redfin photo</div>
+          </div>
+          <button class="upload-btn">📷 Upload Photo</button>
+        </div>
+
+        <!-- Details bar -->
+        <div class="details-bar">
+          <div class="detail-cell"><span class="val">4</span><span class="lbl">Beds</span></div>
+          <div class="detail-cell"><span class="val">2.5</span><span class="lbl">Baths</span></div>
+          <div class="detail-cell"><span class="val">2,400</span><span class="lbl">Sq Ft</span></div>
+          <div class="detail-cell"><span class="val">1987</span><span class="lbl">Built</span></div>
+          <div class="detail-cell"><span class="val">0.22 ac</span><span class="lbl">Lot</span></div>
+          <div class="detail-cell"><span class="val">Single Family</span><span class="lbl">Type</span></div>
+        </div>
+
+        <!-- 4-stat grid -->
+        <div class="stats-grid">
+          <div class="stat-cell"><span class="stat-val green">$1.03M</span><span class="stat-lbl">Est. Value</span></div>
+          <div class="stat-cell"><span class="stat-val white">$247K</span><span class="stat-lbl">Est. Equity</span></div>
+          <div class="stat-cell"><span class="stat-val green">+18.4%</span><span class="stat-lbl">Appreciation</span></div>
+          <div class="stat-cell"><span class="stat-val white">76%</span><span class="stat-lbl">LTV (est.)</span></div>
+        </div>
+
+        <!-- Equity bar -->
+        <div class="equity-bar-wrap">
+          <div class="equity-bar-labels">
+            <span class="eq-label">$247K equity (24%)</span>
+            <span class="bal-label">$786K est. balance</span>
+          </div>
+          <div class="equity-bar-track"><div class="equity-bar-fill"></div></div>
+          <div class="equity-bar-note">Equity & LTV estimated assuming 20% down · <a href="#">Enter actual balance →</a></div>
+        </div>
+
+        <!-- Rate watch -->
+        <div class="rate-watch">
+          <div class="rate-watch-label">Rate Watch</div>
+          <div class="rate-watch-row">
+            <div class="rate-watch-text">Alert me when 30-year rates drop to:</div>
+            <input class="rate-input" type="number" value="5.65" step="0.125">
+            <button class="rate-set-btn">Set Alert</button>
+          </div>
+        </div>
+
+        <!-- CTAs -->
+        <div class="cta-row">
+          <button class="btn-primary">Save to My Properties</button>
+          <button class="btn-outline">Chat about this home ↗</button>
+        </div>
+
+        <!-- Chip nav -->
+        <div class="chip-row">
+          <div class="chip active">🏠 Equity &amp; Value</div>
+          <div class="chip">💳 HELOC Power</div>
+          <div class="chip">🔁 Refi Math</div>
+          <div class="chip">📈 Economy</div>
+          <div class="chip">🏁 Milestones</div>
+        </div>
+
+      </div><!-- /card -->
+
+      <div class="annotation-list">
+        <div class="annotation">
+          <div class="dot red"></div>
+          <div class="text"><strong>7 layers of content before any analysis</strong> — photo, details bar, 4 stats, equity bar, rate watch, CTAs, then chips. On mobile this is ~600px of scroll.</div>
+        </div>
+        <div class="annotation">
+          <div class="dot red"></div>
+          <div class="text"><strong>All 4 stats at equal weight</strong> — Est. Value, Equity, Appreciation, LTV are all the same font size. User doesn't know which number matters most.</div>
+        </div>
+        <div class="annotation">
+          <div class="dot red"></div>
+          <div class="text"><strong>Rate watch embedded in hero</strong> — an alert-setting input competes visually with the equity bar and CTAs. Wrong location for a secondary action.</div>
+        </div>
+        <div class="annotation">
+          <div class="dot red"></div>
+          <div class="text"><strong>Details bar is noise</strong> — beds/baths/sqft are secondary data that don't drive decisions from this screen. They belong in the property details tab.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ AFTER ══ -->
+    <div>
+      <div class="column-label after">
+        <span>Proposed</span>
+        <span class="badge">3 layers before tabs</span>
+      </div>
+
+      <div class="card">
+
+        <!-- Photo — taller, address overlaid -->
+        <div class="photo photo-after">
+          <div class="photo-placeholder">
+            <div class="photo-overlay-text">📷 Satellite + Street View + Redfin photo</div>
+          </div>
+          <button class="upload-btn">📷 Upload</button>
+          <div class="address-overlay">
+            <div class="address-overlay-text">1984 Winterset Pl, Simi Valley, CA 93065</div>
+            <div class="address-overlay-sub">Home Intelligence · Updated May 3, 2026</div>
+          </div>
+        </div>
+
+        <!-- ONE headline metric block -->
+        <div class="hero-headline">
+          <div class="hero-metric-row">
+            <div>
+              <div class="hero-big-number">$1.03M</div>
+              <div class="hero-big-label">Redfin Estimate</div>
+            </div>
+            <div class="hero-secondary">
+              <div><span class="eq-val">$247K</span><span class="eq-pct">+18.4%</span></div>
+              <div class="eq-lbl">Total Equity</div>
+            </div>
+          </div>
+          <div class="hero-bar-mini">
+            <div class="bar-track"><div class="bar-fill"></div></div>
+            <div class="bar-labels">
+              <span class="l">24% equity</span>
+              <span class="l">$786K est. balance · <a href="#" style="color:#00e87a;text-decoration:none;font-size:11px;">Enter actual →</a></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Compact CTAs -->
+        <div class="hero-cta-row">
+          <button class="btn-primary-sm">Save Property</button>
+          <button class="btn-ghost">Ask about this home ↗</button>
+        </div>
+
+        <!-- Chip nav -->
+        <div class="chip-row">
+          <div class="chip active">🏠 Equity &amp; Value</div>
+          <div class="chip">💳 HELOC Power</div>
+          <div class="chip">🔁 Refi Math</div>
+          <div class="chip">📈 Economy</div>
+          <div class="chip">🏁 Milestones</div>
+        </div>
+
+        <!-- Tab content preview — shows where details moved -->
+        <div class="tab-content-preview">
+          <div class="tab-content-label">▸ Equity &amp; Value tab now contains:</div>
+          <!-- Mini details bar -->
+          <div class="details-bar" style="border-radius:8px;overflow:hidden;margin-bottom:10px;">
+            <div class="detail-cell"><span class="val">4</span><span class="lbl">Beds</span></div>
+            <div class="detail-cell"><span class="val">2.5</span><span class="lbl">Baths</span></div>
+            <div class="detail-cell"><span class="val">2,400</span><span class="lbl">Sq Ft</span></div>
+            <div class="detail-cell"><span class="val">1987</span><span class="lbl">Built</span></div>
+            <div class="detail-cell"><span class="val">0.22 ac</span><span class="lbl">Lot</span></div>
+          </div>
+          <!-- Full stats grid -->
+          <div class="stats-grid" style="border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);">
+            <div class="stat-cell"><span class="stat-val green">$1.03M</span><span class="stat-lbl">Est. Value</span></div>
+            <div class="stat-cell"><span class="stat-val white">$247K</span><span class="stat-lbl">Total Equity</span></div>
+            <div class="stat-cell"><span class="stat-val green">+18.4%</span><span class="stat-lbl">Appreciation</span></div>
+            <div class="stat-cell"><span class="stat-val white">76%</span><span class="stat-lbl">LTV (est.)</span></div>
+          </div>
+        </div>
+
+      </div><!-- /card -->
+
+      <div class="annotation-list">
+        <div class="annotation">
+          <div class="dot green"></div>
+          <div class="text"><strong>Address overlaid on photo</strong> — no separate address line needed. Photo is taller (260px vs 200px) — the property image gets more visual real estate.</div>
+        </div>
+        <div class="annotation">
+          <div class="dot green"></div>
+          <div class="text"><strong>One big number leads</strong> — Est. Value at 42px dominates. Equity is secondary at 22px. User immediately knows the two most important metrics.</div>
+        </div>
+        <div class="annotation">
+          <div class="dot green"></div>
+          <div class="text"><strong>Mini equity bar stays</strong> — compressed to 4px, below the metric row. Still shows equity vs balance visually but doesn't dominate.</div>
+        </div>
+        <div class="annotation">
+          <div class="dot green"></div>
+          <div class="text"><strong>Details bar + full stats grid move into Equity & Value tab</strong> — they're still there, just in context where the user is already looking at equity data.</div>
+        </div>
+        <div class="annotation">
+          <div class="dot green"></div>
+          <div class="text"><strong>Rate watch moves to Refi Math tab</strong> — alert setting belongs next to the refi analysis, not in the hero. See preview-check-property.html for the Refi Math placement mockup.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /compare -->
+
+  <hr class="section-divider">
+
+  <!-- FUNCTIONALITY CHANGE TABLE -->
+  <div class="section-title">What changes — functionality checklist</div>
+  <div class="section-sub">No functionality is removed. Everything is relocated.</div>
+
+  <div style="overflow-x:auto;">
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08);color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Element</th>
+        <th style="text-align:left;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08);color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Current Location</th>
+        <th style="text-align:left;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08);color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Proposed Location</th>
+        <th style="text-align:left;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08);color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Change Type</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:10px 14px;color:#f1f5f9;font-weight:600;">Photo (3 layers + upload)</td>
+        <td style="padding:10px 14px;color:#94a3b8;">Hero, 200px</td>
+        <td style="padding:10px 14px;color:#00e87a;">Hero, 260px + address overlay</td>
+        <td style="padding:10px 14px;"><span style="background:rgba(59,130,246,0.15);color:#60a5fa;border-radius:4px;padding:2px 8px;font-size:11px;">Enhanced</span></td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:10px 14px;color:#f1f5f9;font-weight:600;">Address text</td>
+        <td style="padding:10px 14px;color:#94a3b8;">Hero heading (separate line)</td>
+        <td style="padding:10px 14px;color:#00e87a;">Overlaid on photo (bottom gradient)</td>
+        <td style="padding:10px 14px;"><span style="background:rgba(59,130,246,0.15);color:#60a5fa;border-radius:4px;padding:2px 8px;font-size:11px;">Relocated</span></td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:10px 14px;color:#f1f5f9;font-weight:600;">Est. Value</td>
+        <td style="padding:10px 14px;color:#94a3b8;">Stats grid, equal weight</td>
+        <td style="padding:10px 14px;color:#00e87a;">Hero, 42px primary headline</td>
+        <td style="padding:10px 14px;"><span style="background:rgba(0,232,122,0.12);color:#00e87a;border-radius:4px;padding:2px 8px;font-size:11px;">Promoted</span></td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:10px 14px;color:#f1f5f9;font-weight:600;">Equity + Appreciation + LTV</td>
+        <td style="padding:10px 14px;color:#94a3b8;">Stats grid, equal weight</td>
+        <td style="padding:10px 14px;color:#00e87a;">Equity: secondary in hero. LTV + Appreciation: Equity & Value tab</td>
+        <td style="padding:10px 14px;"><span style="background:rgba(59,130,246,0.15);color:#60a5fa;border-radius:4px;padding:2px 8px;font-size:11px;">Reorganized</span></td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:10px 14px;color:#f1f5f9;font-weight:600;">Property details bar</td>
+        <td style="padding:10px 14px;color:#94a3b8;">Hero, always visible</td>
+        <td style="padding:10px 14px;color:#00e87a;">Top of Equity & Value tab</td>
+        <td style="padding:10px 14px;"><span style="background:rgba(59,130,246,0.15);color:#60a5fa;border-radius:4px;padding:2px 8px;font-size:11px;">Relocated</span></td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:10px 14px;color:#f1f5f9;font-weight:600;">Rate Watch input</td>
+        <td style="padding:10px 14px;color:#94a3b8;">Hero, between equity bar and CTAs</td>
+        <td style="padding:10px 14px;color:#00e87a;">Bottom of Refi Math tab</td>
+        <td style="padding:10px 14px;"><span style="background:rgba(59,130,246,0.15);color:#60a5fa;border-radius:4px;padding:2px 8px;font-size:11px;">Relocated</span></td>
+      </tr>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:10px 14px;color:#f1f5f9;font-weight:600;">Equity bar</td>
+        <td style="padding:10px 14px;color:#94a3b8;">Hero, full-size with labels</td>
+        <td style="padding:10px 14px;color:#00e87a;">Hero: compressed 4px mini-bar. Full bar in Equity & Value tab.</td>
+        <td style="padding:10px 14px;"><span style="background:rgba(59,130,246,0.15);color:#60a5fa;border-radius:4px;padding:2px 8px;font-size:11px;">Compressed</span></td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px;color:#f1f5f9;font-weight:600;">CTA buttons</td>
+        <td style="padding:10px 14px;color:#94a3b8;">Hero, full-width row</td>
+        <td style="padding:10px 14px;color:#00e87a;">Below hero headline, compact 2-button row</td>
+        <td style="padding:10px 14px;"><span style="background:rgba(59,130,246,0.15);color:#60a5fa;border-radius:4px;padding:2px 8px;font-size:11px;">Simplified</span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+</div>
+</body>
+</html>
