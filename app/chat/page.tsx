@@ -2810,16 +2810,7 @@ export default function Page() {
                         <nav className="app-nav">
                             <a href="/" className="app-nav-link">Home</a>
                             <button type="button" className="app-nav-link" onClick={() => newChat()}>Scenario Engine</button>
-                            <button
-                                className="app-nav-link"
-                                type="button"
-                                onClick={() => {
-                                    newChat();
-                                    setTimeout(() => send('Show me the HomeRates Lab'), 80);
-                                }}
-                            >
-                                HomeRates Lab
-                            </button>
+                            <a href="/lab" className="app-nav-link">HomeRates Lab</a>
                             {user && <a href="/library" className="app-nav-link">My Vault</a>}
                         </nav>
 
