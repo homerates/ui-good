@@ -873,7 +873,7 @@ export default function LandingPage() {
           <ul className="lp-nav-links">
             <li><Link href="/chat">How it works</Link></li>
             <li><Link href="/chat">Scenario Engine</Link></li>
-            <li><Link href="/chat">HomeRates Lab</Link></li>
+            <li><Link href="/lab">HomeRates Lab</Link></li>
             <li><Link href="/homeowner">Home Value</Link></li>
             <li className="lp-nav-dropdown">
               <button className="lp-nav-dropdown-trigger">

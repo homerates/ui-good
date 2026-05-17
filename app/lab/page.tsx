@@ -32,7 +32,7 @@ const MODULES = [
     id: 'm3', accent: '#fb923c', badge: 'HB',
     name: 'High Balance', tag: 'CONV · CA HIGH-COST ZONE',
     desc: '$935k loan · 15% down', sub: 'LA County · up to $1,249,125',
-    seed: 'Conventional High Balance loan with a $935,000 loan amount and 15% down in Los Angeles — show full payment and compare with Jumbo rates',
+    seed: 'Conventional High Balance $1,100,000 home 15% down in Los Angeles California',
     icon: (
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 14l4-5.5 3 3.5 5-8"/><circle cx="15" cy="4" r="1.2" fill="currentColor" stroke="none"/>
