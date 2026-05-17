@@ -5119,6 +5119,8 @@ ${uwDatabase}`;
                 injectCmaChip(calcCard);
 
             } else if (calcDispatch.type === 'fha' && calcDispatch.params) {
+                console.log('[TERM-DEBUG] FHA dispatch params:', JSON.stringify(calcDispatch.params));
+                console.log('[TERM-DEBUG] paramOverrides:', JSON.stringify(paramOverrides));
                 const result = calcFHA(calcDispatch.params as any);
                 calcCard = buildFHACard(result, calcAssumptions, undefined, fredRateForCard);
                 calcDebugModel = 'calcEngine-fha';
@@ -5210,6 +5212,8 @@ ${uwDatabase}`;
                 calcDebugModel = 'calcEngine-va-entitlement';
 
             } else if (calcDispatch.type === 'va' && calcDispatch.params) {
+                console.log('[TERM-DEBUG] VA dispatch params:', JSON.stringify(calcDispatch.params));
+                console.log('[TERM-DEBUG] paramOverrides:', JSON.stringify(paramOverrides));
                 const result = calcVA(calcDispatch.params as any);
                 // Resolve county data for VA eligibility section (best-effort)
                 let vaCountyData: import('../../../lib/cardBuilders').VACountyData | undefined;
@@ -5286,6 +5290,8 @@ ${uwDatabase}`;
                 calcDebugModel = 'calcEngine-seller-credit';
 
             } else if (calcDispatch.type === 'jumbo' && calcDispatch.params) {
+                console.log('[TERM-DEBUG] Jumbo dispatch params:', JSON.stringify(calcDispatch.params));
+                console.log('[TERM-DEBUG] paramOverrides:', JSON.stringify(paramOverrides));
                 const result = calcJumbo(calcDispatch.params as any);
                 calcCard = buildJumboCard(result, calcAssumptions, fredRateForCard);
                 calcDebugModel = 'calcEngine-jumbo';
@@ -5466,6 +5472,8 @@ ${uwDatabase}`;
                 (!!/how much income|what income|what salary|income.*(?:need|qualify|required?)|(?:need|qualify).{0,20}income/i.test(question)
                     ? !!(calcDispatch as any)._isIncomeQualify  // only allow if explicitly flagged
                     : true)) {
+                console.log('[TERM-DEBUG] Conventional dispatch params:', JSON.stringify(calcDispatch.params));
+                console.log('[TERM-DEBUG] paramOverrides:', JSON.stringify(paramOverrides));
                 const result = calcConventional(calcDispatch.params as any);
                 calcCard = buildConventionalCard(result, calcAssumptions, fredRateForCard);
                 calcDebugModel = 'calcEngine-conventional';
