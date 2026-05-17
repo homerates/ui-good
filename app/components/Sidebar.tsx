@@ -367,14 +367,10 @@ export default function Sidebar(props: SidebarProps) {
             </button>
 
             {/* HomeRates Lab */}
-            <button
-              className="btn sidebar-tool-btn"
-              type="button"
-              onClick={() => onLabSeed?.('Show me the HomeRates Lab')}
-            >
+            <a href="/lab" className="btn sidebar-tool-btn">
               <span className="sidebar-tool-icon">🧪</span>
               HomeRates Lab
-            </button>
+            </a>
 
             {/* Property Lookup — paste a listing URL (leads to Pro Intelligence Report) */}
             {onPriceCheck && (
