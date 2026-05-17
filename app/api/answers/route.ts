@@ -4411,6 +4411,7 @@ ${uwDatabase}`;
                 sellerCredit:    (paramOverrides as any).sellerCredit ?? 0,
                 annualTax:       _bdPrice * 0.011,
                 annualInsurance: _bdPrice * 0.005,
+                downPaymentPct:  _bdDown,
             };
             (calcDispatch as any).assumptions = [
                 `${(paramOverrides as any).buydownType} buydown at ${paramOverrides.annualRatePct}%`,
@@ -4806,6 +4807,7 @@ ${uwDatabase}`;
                 sellerCredit:    (paramOverrides as any).sellerCredit ?? 0,
                 annualTax:       _bdPrice * 0.011,
                 annualInsurance: _bdPrice * 0.005,
+                downPaymentPct:  _bdDown,
             };
             (calcDispatch as any).assumptions = [
                 `${(paramOverrides as any).buydownType} buydown at ${paramOverrides.annualRatePct}%`,

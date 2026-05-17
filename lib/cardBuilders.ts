@@ -3707,20 +3707,21 @@ export function buildScenarioComparisonCard(inp: ScenarioComparisonCardInput): B
 // ─────────────────────────────────────────────────────────────────────────────
 export function buildBuydownCard(
     params: {
-        purchasePrice:   number;
-        loanAmount:      number;
-        annualRatePct:   number;
-        buydownType:     '2/1' | '1/0' | '3/2/1';
-        isVA:            boolean;
-        isJumbo?:        boolean;
-        sellerCredit?:   number;
-        annualTax?:      number;
+        purchasePrice:    number;
+        loanAmount:       number;
+        annualRatePct:    number;
+        buydownType:      '2/1' | '1/0' | '3/2/1';
+        isVA:             boolean;
+        isJumbo?:         boolean;
+        sellerCredit?:    number;
+        annualTax?:       number;
         annualInsurance?: number;
+        downPaymentPct?:  number;
     },
     assumptions: string[] = [],
     fredRateStr?: string,
 ): BuiltCard {
-    const { purchasePrice, loanAmount, annualRatePct, buydownType, isVA, isJumbo, sellerCredit, annualTax, annualInsurance } = params;
+    const { purchasePrice, loanAmount, annualRatePct, buydownType, isVA, isJumbo, sellerCredit, annualTax, annualInsurance, downPaymentPct } = params;
     const _effLoanType = isVA ? 'va' : isJumbo ? 'jumbo' : 'conventional';
 
     const pi = (loan: number, rate: number): number => {
@@ -3854,7 +3855,7 @@ ${schedTable}
         confidence: '0.99 (calculated — deterministic buydown math)',
         interactiveSlider: {
             price:       purchasePrice,
-            downPct:     0,
+            downPct:     downPaymentPct ?? 0,
             rate:        annualRatePct,
             term:        30,
             taxRate:     annualTax     ? annualTax     / purchasePrice : 0.011,

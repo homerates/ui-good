@@ -25,6 +25,7 @@ import {
 import WelcomeScreen from '@/components/WelcomeScreen';
 import ThemeToggle from '@/components/ThemeToggle';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
+import BuydownSliderCard from '@/components/BuydownSliderCard';
 import ConvHBSliderCard from '@/components/ConvHBSliderCard';
 import IncomeQualifySliderCard from '@/components/IncomeQualifySliderCard';
 import FhaSliderCard from '@/components/FhaSliderCard';
@@ -378,6 +379,8 @@ type ApiResponse = {
     interactiveSlider?: {
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number; loanType: 'conventional' | 'fha' | 'jumbo' | 'va';
+        buydownType?: '2/1' | '1/0' | '3/2/1' | 'none';
+        sellerCredit?: number;
         cmaAddress?: string; cmaCity?: string; cmaState?: string; cmaZip?: string;
         cmaPrice?: number; cmaBeds?: number; cmaBaths?: number; cmaSqft?: number;
         cmaTaxAnnual?: number; cmaTaxRate?: number; cmaLiveRate?: number; cmaPhotoUrl?: string;
@@ -3051,8 +3054,20 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
-                                                        {/* Interactive slider card — Buydown answers (VA now handled by VaSliderCard) */}
-                                                        {m.meta.interactiveSlider && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
+                                                        {/* Buydown slider card — modern redesign */}
+                                                        {m.meta.interactiveSlider && m.meta.interactiveSlider.buydownType && m.meta.interactiveSlider.buydownType !== 'none' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
+                                                            <BuydownSliderCard
+                                                                {...m.meta.interactiveSlider}
+                                                                buydownType={m.meta.interactiveSlider.buydownType as '2/1' | '1/0' | '3/2/1'}
+                                                                onRunScenario={(seed, overrides) => {
+                                                                    pendingParamOverridesRef.current = overrides;
+                                                                    setPendingParamOverrides(overrides);
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {/* Interactive slider card — non-buydown answers (VA handled by VaSliderCard) */}
+                                                        {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
                                                                 onRunScenario={(seed, sliderParams) => {
