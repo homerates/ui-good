@@ -187,7 +187,7 @@ export default function JumboSliderCard(props: JumboSliderParams) {
         if (!props.onRunScenario) return;
         props.onRunScenario(
             `Jumbo loan on a ${fmtM(price)} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs}yr ${termType === 'arm7' ? '7/1 ARM' : 'fixed'}`,
-            { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'jumbo' },
+            { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, termYears: termYrs, loanType: 'jumbo' },
         );
     }
 

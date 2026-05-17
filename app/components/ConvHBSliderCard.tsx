@@ -295,7 +295,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
     function handleRun() {
         if (!props.onRunScenario) return;
         const seed = `Conventional loan on ${fmtK(price)} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs} year fixed`;
-        props.onRunScenario(seed, { isConvHB: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, changedKeys: ['purchasePrice', 'downPaymentPct', 'annualRatePct'] });
+        props.onRunScenario(seed, { isConvHB: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, termYears: termYrs, changedKeys: ['purchasePrice', 'downPaymentPct', 'annualRatePct'] });
     }
 
     function handleGetMatched() {

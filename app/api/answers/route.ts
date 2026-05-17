@@ -4382,6 +4382,7 @@ ${uwDatabase}`;
                 purchasePrice: paramOverrides.purchasePrice,
                 downPaymentPct: paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 3.5,
                 annualRatePct: paramOverrides.annualRatePct,
+                termYears: (paramOverrides as any).termYears ?? 30,
             };
             const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
             const _labelMap: Record<string, string> = {
@@ -4460,6 +4461,7 @@ ${uwDatabase}`;
                 purchasePrice:       paramOverrides.purchasePrice,
                 downPaymentPct:      paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0,
                 annualRatePct:       paramOverrides.annualRatePct,
+                termYears:           (paramOverrides as any).termYears ?? 30,
                 fundingFeeExempt:    !!(paramOverrides as any).vaFundingFeeExempt,
                 customFundingFeePct: (paramOverrides as any).customFundingFeePct ?? undefined,
                 buydownPoints:       (paramOverrides as any).buydownPoints ?? 0,
@@ -4478,7 +4480,7 @@ ${uwDatabase}`;
                 purchasePrice:  paramOverrides.purchasePrice,
                 downPaymentPct: Math.max(20, paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20),
                 annualRatePct:  paramOverrides.annualRatePct,
-                termYears:      30,
+                termYears:      (paramOverrides as any).termYears ?? 30,
             };
             const _changedKeysJumbo: string[] = (paramOverrides as any).changedKeys ?? [];
             const _jumboLabelMap: Record<string, string> = {
@@ -4497,6 +4499,7 @@ ${uwDatabase}`;
                 purchasePrice:  paramOverrides.purchasePrice,
                 downPaymentPct: paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20,
                 annualRatePct:  paramOverrides.annualRatePct,
+                termYears:      (paramOverrides as any).termYears ?? 30,
             };
             const _chbCK: string[] = (paramOverrides as any).changedKeys ?? [];
             const _chbLM: Record<string, string> = {
@@ -4519,7 +4522,7 @@ ${uwDatabase}`;
                 purchasePrice: paramOverrides.purchasePrice,
                 downPaymentPct: _isImplicitJumboFB ? Math.max(20, _poDownFB) : _poDownFB,
                 annualRatePct: paramOverrides.annualRatePct,
-                ...(_isImplicitJumboFB ? { termYears: 30 } : {}),
+                termYears: (paramOverrides as any).termYears ?? 30,
             };
             const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
             const _labelMap: Record<string, string> = {
@@ -4774,6 +4777,7 @@ ${uwDatabase}`;
                 purchasePrice: paramOverrides.purchasePrice,
                 downPaymentPct: paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 3.5,
                 annualRatePct: paramOverrides.annualRatePct,
+                termYears: (paramOverrides as any).termYears ?? 30,
             };
             const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
             const _labelMap: Record<string, string> = {
@@ -4852,6 +4856,7 @@ ${uwDatabase}`;
                 purchasePrice:       paramOverrides.purchasePrice,
                 downPaymentPct:      paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 0,
                 annualRatePct:       paramOverrides.annualRatePct,
+                termYears:           (paramOverrides as any).termYears ?? 30,
                 fundingFeeExempt:    !!(paramOverrides as any).vaFundingFeeExempt,
                 customFundingFeePct: (paramOverrides as any).customFundingFeePct ?? undefined,
                 buydownPoints:       (paramOverrides as any).buydownPoints ?? 0,
@@ -4870,7 +4875,7 @@ ${uwDatabase}`;
                 purchasePrice:  paramOverrides.purchasePrice,
                 downPaymentPct: Math.max(20, paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20),
                 annualRatePct:  paramOverrides.annualRatePct,
-                termYears:      30,
+                termYears:      (paramOverrides as any).termYears ?? 30,
             };
             const _changedKeysJumbo: string[] = (paramOverrides as any).changedKeys ?? [];
             const _jumboLabelMap: Record<string, string> = {
@@ -4889,6 +4894,7 @@ ${uwDatabase}`;
                 purchasePrice:  paramOverrides.purchasePrice,
                 downPaymentPct: paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20,
                 annualRatePct:  paramOverrides.annualRatePct,
+                termYears:      (paramOverrides as any).termYears ?? 30,
             };
             const _chbCK: string[] = (paramOverrides as any).changedKeys ?? [];
             const _chbLM: Record<string, string> = {
@@ -4911,7 +4917,7 @@ ${uwDatabase}`;
                 purchasePrice: paramOverrides.purchasePrice,
                 downPaymentPct: _isImplicitJumboFB ? Math.max(20, _poDownFB) : _poDownFB,
                 annualRatePct: paramOverrides.annualRatePct,
-                ...(_isImplicitJumboFB ? { termYears: 30 } : {}),
+                termYears: (paramOverrides as any).termYears ?? 30,
             };
             const _changedKeys: string[] = (paramOverrides as any).changedKeys ?? [];
             const _labelMap: Record<string, string> = {

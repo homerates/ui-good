@@ -387,7 +387,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 {props.onRunScenario && (
                     <button
                         className="fha-cta-run"
-                        onClick={() => props.onRunScenario!(buildSeed(), { isFHA: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate })}
+                        onClick={() => props.onRunScenario!(buildSeed(), { isFHA: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, termYears: termYrs })}
                     >▶ Run My Numbers</button>
                 )}
             </div>
