@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VA Purchase Payment Card — Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #060c14; font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; padding: 40px 16px 80px; }
+  .wrap { width: 100%; max-width: 680px; }
+  .proto-label { font-size: 11px; color: #3a4560; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; margin-bottom: 12px; }
+
+  /* ── Card shell ── */
+  .va { background: #0d1117; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; color: #f0f4ff; }
+
+  /* ── Header ── */
+  .va-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; gap: 10px; }
+  .va-header-left { display: flex; align-items: center; gap: 10px; }
+  .va-hicon { width: 32px; height: 32px; border-radius: 9px; background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .va-title { font-size: 15px; font-weight: 700; color: #f0f4ff; }
+  .va-sub   { font-size: 11px; color: #6b7a99; margin-top: 2px; }
+  .va-nopmi-badge { font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; flex-shrink: 0; white-space: nowrap; background: rgba(20,184,166,0.1); color: #14b8a6; border: 1px solid rgba(20,184,166,0.25); }
+
+  /* ── Hero ── */
+  .va-hero { margin: 0 12px 12px; background: #071a18; border: 1px solid rgba(20,184,166,0.22); border-radius: 14px; padding: 18px 20px 14px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: center; }
+  .va-hero-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #0f3830; margin-bottom: 6px; }
+  .va-hero-amount { font-size: 32px; font-weight: 800; color: #14b8a6; letter-spacing: -1px; line-height: 1; }
+  .va-hero-mo { font-size: 16px; font-weight: 600; color: #1a5550; }
+  .va-hero-sub { font-size: 11px; color: #8fa3b8; margin-top: 4px; }
+  .va-hero-stats { display: flex; flex-direction: column; gap: 10px; padding-left: 16px; border-left: 1px solid rgba(255,255,255,0.05); }
+  .va-hsl { font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; margin-bottom: 2px; }
+  .va-hsv { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+  .va-hsv.teal { color: #14b8a6; }
+
+  /* ── Funding fee selector ── */
+  .va-ff { margin: 0 12px 12px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(20,184,166,0.18); }
+  .va-ff-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(20,184,166,0.06); border-bottom: 1px solid rgba(20,184,166,0.12); }
+  .va-ff-title { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #14b8a6; }
+  .va-ff-body { padding: 10px 14px 12px; }
+  .va-ff-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .va-ff-opt { display: flex; flex-direction: column; align-items: flex-start; background: rgba(255,255,255,0.03); border: 1.5px solid rgba(255,255,255,0.08); border-radius: 9px; padding: 8px 12px; cursor: pointer; font-family: inherit; transition: all .15s; min-width: 90px; }
+  .va-ff-opt.on { background: rgba(20,184,166,0.08); border-color: rgba(20,184,166,0.3); }
+  .va-ff-opt-label { font-size: 13px; font-weight: 700; color: #c4cfe0; }
+  .va-ff-opt.on .va-ff-opt-label { color: #14b8a6; }
+  .va-ff-opt-note { font-size: 10px; color: #4b6080; margin-top: 2px; }
+  .va-ff-calc { font-size: 12px; color: #8fa3b8; background: rgba(20,184,166,0.04); border: 1px solid rgba(20,184,166,0.1); border-radius: 8px; padding: 7px 12px; display: none; }
+  .va-ff-calc.show { display: block; }
+  .va-ff-calc strong { color: #14b8a6; }
+
+  /* ── No-PMI callout ── */
+  .va-nopmi { display: flex; align-items: flex-start; gap: 10px; margin: 0 12px 12px; background: rgba(20,184,166,0.05); border: 1px solid rgba(20,184,166,0.18); border-radius: 12px; padding: 12px 14px; }
+  .va-nopmi-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .va-nopmi-title { font-size: 12px; font-weight: 700; color: #14b8a6; margin-bottom: 4px; }
+  .va-nopmi-sub { font-size: 11px; color: #8fa3b8; line-height: 1.5; }
+
+  /* ── Monthly breakdown ── */
+  .va-bkd { margin: 0 12px 12px; background: #0e1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 14px; }
+  .va-bkd-title { font-size: 10px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+  .va-bkd-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 12px; color: #8fa3b8; }
+  .va-bkd-row:last-child { border-bottom: none; }
+  .va-bkd-pmi span { color: #14b8a6 !important; font-weight: 700; }
+  .va-bkd-total { border-top: 1px solid rgba(255,255,255,0.07) !important; border-bottom: none !important; margin-top: 4px; padding-top: 10px !important; }
+  .va-bkd-total span:first-child { font-weight: 700; color: #f0f4ff; }
+  .va-bkd-total span:last-child  { font-size: 14px; font-weight: 800; color: #14b8a6; }
+
+  /* ── Sliders section (white) ── */
+  .va-sliders { background: #fff; color: #0d1117; padding: 16px 18px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .va-sliders-title { font-size: 13px; font-weight: 700; color: #0d1117; margin-bottom: 14px; }
+
+  /* Slider rows with side input */
+  .slider-row { margin-bottom: 16px; }
+  .slider-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; }
+  .slider-label { font-size: 13px; font-weight: 600; color: #0d1117; flex-shrink: 0; }
+  .slider-input-wrap { display: flex; align-items: center; gap: 0; }
+  .slider-prefix { font-size: 13px; font-weight: 700; color: #0e6b65; padding: 4px 4px 4px 8px; background: #f0fdfc; border: 1.5px solid #99f6e4; border-right: none; border-radius: 6px 0 0 6px; line-height: 1; }
+  .slider-val-input { width: 80px; padding: 4px 6px; background: #f0fdfc; border: 1.5px solid #99f6e4; border-left: none; border-radius: 0 6px 6px 0; font-size: 13px; font-weight: 700; color: #0e6b65; text-align: right; outline: none; font-family: inherit; -moz-appearance: textfield; appearance: textfield; }
+  .slider-val-input::-webkit-inner-spin-button,
+  .slider-val-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .slider-val-input:focus { border-color: #14b8a6; background: #ecfdf5; }
+  .slider-val-input.pct-input { width: 58px; border-left: none; }
+  .slider-pct-suffix { font-size: 13px; font-weight: 700; color: #0e6b65; padding: 4px 8px 4px 4px; background: #f0fdfc; border: 1.5px solid #99f6e4; border-left: none; border-radius: 0 6px 6px 0; }
+
+  .slider-track-wrap { position: relative; }
+  .slider-track { height: 6px; background: #e2e8f0; border-radius: 3px; margin-bottom: 4px; position: relative; }
+  .slider-fill { position: absolute; left: 0; top: 0; height: 6px; background: #14b8a6; border-radius: 3px; pointer-events: none; }
+  .range-input { position: absolute; width: 100%; height: 6px; top: 0; opacity: 0; cursor: pointer; margin: 0; }
+  .slider-minmax { display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; }
+  .slider-sub { font-size: 10px; color: #64748b; margin-top: 3px; }
+  .fred-tag { display: inline-block; margin-top: 4px; font-size: 10px; font-weight: 700; color: #0e6b65; background: #f0fdfc; border: 1px solid #99f6e4; border-radius: 4px; padding: 2px 8px; letter-spacing: .04em; }
+
+  /* DP chips */
+  .va-dp-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: -4px 0 8px; }
+  .va-dp-chip { padding: 5px 12px; border-radius: 20px; border: 1.5px solid #e2e8f0; background: #f9f9f9; font-size: 11px; font-weight: 600; color: #64748b; cursor: pointer; font-family: inherit; transition: all .12s; }
+  .va-dp-chip.active { border-color: #14b8a6; color: #0e6b65; background: #f0fdfc; }
+  .va-dp-chip-note { font-size: 9px; font-weight: 600; margin-left: 3px; opacity: .8; }
+  .va-dp-note { font-size: 10px; color: #94a3b8; margin: -4px 0 12px; }
+
+  /* Term buttons */
+  .va-term-label { font-size: 13px; font-weight: 600; color: #0d1117; margin: 4px 0 8px; }
+  .va-terms { display: flex; gap: 8px; }
+  .va-term { flex: 1; padding: 10px 0; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f9f9f9; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; font-family: inherit; text-align: center; transition: all .15s; }
+  .va-term.on { border-color: #14b8a6; color: #0e6b65; background: #f0fdfc; }
+
+  /* ── Income qualify table ── */
+  .va-qualify { margin: 0 12px 12px; background: #0e1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 14px; }
+  .va-qualify-title { font-size: 10px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+  .va-qtable { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .va-qtable th { font-size: 9px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; padding: 0 0 8px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .va-qtable th:last-child { text-align: right; }
+  .va-qtable td { padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.03); color: #8fa3b8; }
+  .va-qtable tr:last-child td { border-bottom: none; }
+  .va-qrow-hi td { color: #f0f4ff; font-weight: 600; }
+  .va-qval { font-weight: 700; color: #14b8a6 !important; text-align: right; }
+
+  /* ── Residual income ── */
+  .va-residual { margin: 0 12px 12px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(20,184,166,0.18); }
+  .va-residual-head { display: flex; align-items: center; gap: 8px; padding: 9px 14px; background: rgba(20,184,166,0.06); border-bottom: 1px solid rgba(20,184,166,0.12); }
+  .va-residual-icon { font-size: 14px; }
+  .va-residual-title { font-size: 11px; font-weight: 700; color: #14b8a6; letter-spacing: .04em; }
+  .va-residual-body { padding: 10px 14px; font-size: 12px; color: #8fa3b8; line-height: 1.5; }
+  .va-residual-body em { color: #14b8a6; font-style: normal; font-weight: 600; }
+  .va-residual-table { border-top: 1px solid rgba(255,255,255,0.05); }
+  .va-rtable { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .va-rtable th { font-size: 9px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; padding: 8px 14px 6px; text-align: left; }
+  .va-rtable th:not(:first-child) { text-align: right; }
+  .va-rtable td { padding: 6px 14px; border-top: 1px solid rgba(255,255,255,0.04); font-size: 12px; color: #8fa3b8; }
+  .va-rtable td:not(:first-child) { text-align: right; font-weight: 600; color: #c4cfe0; }
+  .va-rtable .note td { color: #3a4560; font-size: 10px; font-style: italic; border-top: 1px solid rgba(255,255,255,0.04); }
+
+  /* ── CTAs ── */
+  .va-cta-row { display: flex; gap: 8px; padding: 0 12px 8px; }
+  .va-cta-prop { flex: 1; padding: 11px 14px; background: rgba(255,255,255,0.04); border: 1.5px solid rgba(255,255,255,0.12); border-radius: 9px; color: #f0f4ff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .15s; text-align: center; }
+  .va-cta-prop:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.25); }
+  .va-cta-run { flex: 1; padding: 11px 14px; background: rgba(20,184,166,0.08); border: 1.5px solid rgba(20,184,166,0.3); border-radius: 9px; color: #14b8a6; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .15s; text-align: center; }
+  .va-cta-run:hover { opacity: .85; }
+  .va-cta-full { display: block; width: calc(100% - 24px); margin: 0 12px 12px; padding: 13px; background: #14b8a6; border: none; border-radius: 9px; color: #071513; font-size: 14px; font-weight: 800; cursor: pointer; font-family: inherit; transition: opacity .15s; text-align: center; }
+  .va-cta-full:hover { opacity: .88; }
+
+  /* ── Deep drawer trigger ── */
+  .va-dtrigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 18px; background: rgba(20,184,166,0.05); border: none; border-top: 1px solid rgba(20,184,166,0.15); border-bottom: 1px solid rgba(20,184,166,0.15); cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .va-dtrigger:hover { opacity: .85; }
+  .va-dtrigger-left { display: flex; align-items: center; gap: 10px; text-align: left; }
+  .va-dtrigger-dot { width: 7px; height: 7px; border-radius: 50%; background: #14b8a6; flex-shrink: 0; }
+  .va-dtrigger-label { display: block; font-size: 13px; font-weight: 700; color: #14b8a6; }
+  .va-dtrigger-sub { display: block; font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+  .va-dtrigger-arrow { font-size: 11px; color: #14b8a6; opacity: .7; flex-shrink: 0; }
+
+  /* Deep drawer */
+  .va-drawer { max-height: 0; overflow: hidden; transition: max-height 0.38s ease; }
+  .va-drawer.open { max-height: 1200px; }
+  .va-drawer-inner { padding: 14px; display: flex; flex-direction: column; gap: 12px; background: #0a0f1a; }
+  .va-dsec { background: #0e1420; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px; }
+  .va-dsec-label { font-size: 9px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+  .va-kv2 { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 12px; }
+  .va-kv2:last-child { border-bottom: none; }
+  .va-kv2 span:first-child { color: #8fa3b8; }
+  .va-kv2 span:last-child  { font-weight: 700; color: #f0f4ff; }
+  .va-kv2.teal span:last-child { color: #14b8a6; }
+  .va-kv2.green span:last-child { color: #00e87a; }
+
+  /* ── Permanent bottom ── */
+  .va-perm { padding: 16px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .va-perm-label { font-size: 10px; font-weight: 800; color: #3a4560; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+  .va-vault-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .va-btn-vault { flex: 1; min-width: 140px; display: flex; align-items: center; justify-content: center; gap: 6px; background: rgba(20,184,166,0.08); color: #14b8a6; border: 1.5px solid rgba(20,184,166,0.3); border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .va-btn-vault:hover { opacity: .85; }
+  .va-btn-pdf { flex: 1; min-width: 120px; display: flex; align-items: center; justify-content: center; gap: 6px; background: rgba(255,255,255,0.04); color: #8fa3b8; border: 1.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .va-btn-pdf:hover { opacity: .85; }
+  .va-rate-note { background: rgba(20,184,166,0.04); border: 1px solid rgba(20,184,166,0.12); border-radius: 10px; padding: 10px 14px; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .va-bulb { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .va-rate-note p { font-size: 12px; color: #8fa3b8; line-height: 1.5; margin: 0; }
+  .va-rate-note strong { color: #14b8a6; }
+  .va-disc { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 12px 14px; }
+  .va-disc p { font-size: 11px; color: #3a4560; line-height: 1.6; margin: 0; }
+  .va-disc strong { color: #6b7a99; font-weight: 600; }
+
+  /* ── Responsive ── */
+  @media (max-width: 480px) {
+    .va-hero { grid-template-columns: 1fr; }
+    .va-hero-stats { flex-direction: row; padding-left: 0; border-left: none; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
+    .va-cta-row { flex-direction: column; }
+    .va-hero-amount { font-size: 28px; }
+    .va-ff-grid { gap: 4px; }
+    .va-ff-opt { min-width: 70px; }
+  }
+  @media (max-width: 640px) {
+    .va-vault-row { flex-direction: column; }
+    .va-btn-vault, .va-btn-pdf { min-width: unset; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-label">VA Purchase Card — Redesign (following ConvHB/FHA pattern)</div>
+  <div class="va" id="card">
+
+    <!-- Header -->
+    <div class="va-header">
+      <div class="va-header-left">
+        <div class="va-hicon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="1.8" width="16" height="16">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.955 11.955 0 003 12c0 2.09.54 4.05 1.487 5.753M15 9.75a3 3 0 11-6 0 3 3 0 016 0zm6 2.25c0 2.09-.54 4.05-1.487 5.753M12 21a11.955 11.955 0 01-8.513-3.547" />
+          </svg>
+        </div>
+        <div>
+          <div class="va-title">VA Loan — Purchase Payment</div>
+          <div class="va-sub" id="hdr-sub">$850k · 0% down · 6.875% · 30yr VA · No PMI</div>
+        </div>
+      </div>
+      <span class="va-nopmi-badge">No PMI</span>
+    </div>
+
+    <!-- Hero -->
+    <div class="va-hero">
+      <div>
+        <div class="va-hero-label">Est. Monthly PITI</div>
+        <div class="va-hero-amount"><span id="hero-total">$6,342</span><span class="va-hero-mo">/mo</span></div>
+        <div class="va-hero-sub" id="hero-sub">P&I + Tax + Insurance · 0% down · No PMI</div>
+      </div>
+      <div class="va-hero-stats">
+        <div>
+          <div class="va-hsl">Base Loan</div>
+          <div class="va-hsv" id="stat-base">$850,000</div>
+        </div>
+        <div>
+          <div class="va-hsl">Funding Fee</div>
+          <div class="va-hsv teal" id="stat-ff">$18,275 (2.15%)</div>
+        </div>
+        <div>
+          <div class="va-hsl">Total Loan</div>
+          <div class="va-hsv" id="stat-total">$868,275</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Funding fee selector -->
+    <div class="va-ff">
+      <div class="va-ff-head">
+        <span style="font-size:14px">🎖️</span>
+        <span class="va-ff-title">VA Funding Fee</span>
+      </div>
+      <div class="va-ff-body">
+        <div class="va-ff-grid">
+          <button class="va-ff-opt" onclick="setFF('exempt', 0)" id="ff-exempt">
+            <span class="va-ff-opt-label">Exempt</span>
+            <span class="va-ff-opt-note">10%+ disability rating</span>
+          </button>
+          <button class="va-ff-opt" onclick="setFF('1.25', 1.25)" id="ff-125">
+            <span class="va-ff-opt-label">1.25%</span>
+            <span class="va-ff-opt-note">≥10% down — 1st use</span>
+          </button>
+          <button class="va-ff-opt" onclick="setFF('1.5', 1.5)" id="ff-15">
+            <span class="va-ff-opt-label">1.50%</span>
+            <span class="va-ff-opt-note">5–9.99% down — 1st use</span>
+          </button>
+          <button class="va-ff-opt on" onclick="setFF('2.15', 2.15)" id="ff-215">
+            <span class="va-ff-opt-label">2.15%</span>
+            <span class="va-ff-opt-note">&lt;5% down — 1st use</span>
+          </button>
+          <button class="va-ff-opt" onclick="setFF('3.3', 3.3)" id="ff-33">
+            <span class="va-ff-opt-label">3.30%</span>
+            <span class="va-ff-opt-note">&lt;5% down — subsequent use</span>
+          </button>
+        </div>
+        <div class="va-ff-calc show" id="ff-calc">
+          2.15% × <span id="fc-base">$850,000</span> base loan = <strong id="fc-fee">$18,275</strong> financed into loan
+        </div>
+      </div>
+    </div>
+
+    <!-- No-PMI callout -->
+    <div class="va-nopmi">
+      <div class="va-nopmi-icon">🛡️</div>
+      <div>
+        <div class="va-nopmi-title">No Private Mortgage Insurance — Ever</div>
+        <div class="va-nopmi-sub" id="nopmi-sub">
+          Conventional at 0% down would add ~$567/mo in PMI at this loan size until 20% equity.
+          VA borrowers skip PMI entirely — that's a benefit worth <strong id="nopmi-5yr">$34,020</strong> over 5 years.
+        </div>
+      </div>
+    </div>
+
+    <!-- Monthly breakdown (always visible) -->
+    <div class="va-bkd">
+      <div class="va-bkd-title">Monthly Breakdown</div>
+      <div class="va-bkd-row"><span>Principal &amp; Interest</span><span id="bkd-pi">$5,719</span></div>
+      <div class="va-bkd-row va-bkd-pmi"><span>PMI</span><span>None — VA benefit</span></div>
+      <div class="va-bkd-row"><span>Property Taxes (1.10%)</span><span id="bkd-tax">$779</span></div>
+      <div class="va-bkd-row"><span>Homeowner's Insurance</span><span id="bkd-ins">$213</span></div>
+      <div class="va-bkd-row va-bkd-total"><span>Total Monthly PITI</span><span id="bkd-total">$6,711/mo</span></div>
+    </div>
+
+    <!-- Sliders (always visible, white section) -->
+    <div class="va-sliders">
+      <div class="va-sliders-title">Adjust Your Numbers</div>
+
+      <!-- Home Price -->
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">Home Price</span>
+          <div class="slider-input-wrap">
+            <span class="slider-prefix">$</span>
+            <input type="number" class="slider-val-input" id="price-input" value="850000" step="5000" min="100000" max="3000000" oninput="onPriceInput(this.value)">
+          </div>
+        </div>
+        <div class="slider-track-wrap">
+          <div class="slider-track">
+            <div class="slider-fill" id="price-fill"></div>
+            <input type="range" class="range-input" id="price-slider" min="100000" max="3000000" step="5000" value="850000" oninput="onPriceSlider(this.value)">
+          </div>
+        </div>
+        <div class="slider-minmax"><span>$100k</span><span>$3M</span></div>
+        <div class="slider-sub" id="price-sub">Down payment: $0 · Base loan: $850,000</div>
+      </div>
+
+      <!-- Down Payment -->
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">Down Payment</span>
+          <div class="slider-input-wrap">
+            <input type="number" class="slider-val-input pct-input" id="dp-input" value="0" step="1" min="0" max="50" oninput="onDpInput(this.value)">
+            <span class="slider-pct-suffix">%</span>
+          </div>
+        </div>
+        <div class="slider-track-wrap">
+          <div class="slider-track">
+            <div class="slider-fill" id="dp-fill"></div>
+            <input type="range" class="range-input" id="dp-slider" min="0" max="50" step="1" value="0" oninput="onDpSlider(this.value)">
+          </div>
+        </div>
+        <div class="slider-minmax"><span>0%</span><span>50%</span></div>
+        <div class="va-dp-chips" style="margin-top:8px">
+          <button class="va-dp-chip active" onclick="setDp(0)">0%</button>
+          <button class="va-dp-chip" onclick="setDp(5)">5%<span class="va-dp-chip-note">FF↓</span></button>
+          <button class="va-dp-chip" onclick="setDp(10)">10%<span class="va-dp-chip-note">FF↓</span></button>
+          <button class="va-dp-chip" onclick="setDp(20)">20%</button>
+        </div>
+        <div class="va-dp-note">VA allows 0% down with no PMI — one of the strongest mortgage benefits available</div>
+      </div>
+
+      <!-- Interest Rate -->
+      <div class="slider-row">
+        <div class="slider-label-row">
+          <span class="slider-label">Interest Rate</span>
+          <div class="slider-input-wrap">
+            <input type="number" class="slider-val-input pct-input" id="rate-input" value="6.875" step="0.125" min="3" max="12" oninput="onRateInput(this.value)">
+            <span class="slider-pct-suffix">%</span>
+          </div>
+        </div>
+        <div class="slider-track-wrap">
+          <div class="slider-track">
+            <div class="slider-fill" id="rate-fill"></div>
+            <input type="range" class="range-input" id="rate-slider" min="3" max="12" step="0.125" value="6.875" oninput="onRateSlider(this.value)">
+          </div>
+        </div>
+        <div class="slider-minmax"><span>3%</span><span>12%</span></div>
+        <div class="fred-tag">FRED PMMS · 6.88% live</div>
+      </div>
+
+      <!-- Term -->
+      <div class="va-term-label">Loan Term</div>
+      <div class="va-terms">
+        <button class="va-term" onclick="setTerm(15)">15yr</button>
+        <button class="va-term on" onclick="setTerm(30)">30yr</button>
+      </div>
+    </div>
+
+    <!-- Income qualify table -->
+    <div class="va-qualify">
+      <div class="va-qualify-title">Income to Qualify</div>
+      <table class="va-qtable">
+        <thead>
+          <tr><th>DTI</th><th>Guideline</th><th>Gross Annual</th></tr>
+        </thead>
+        <tbody>
+          <tr class="va-qrow-hi"><td>41%</td><td>VA Guideline</td><td class="va-qval" id="q41">$196,371</td></tr>
+          <tr><td>43%</td><td>Max (AUS)</td><td class="va-qval" id="q43">$187,284</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:10px;color:#3a4560;margin-top:8px">VA also applies a residual income test — strong residual income can qualify borrowers above 41% DTI.</div>
+    </div>
+
+    <!-- Residual income section -->
+    <div class="va-residual">
+      <div class="va-residual-head">
+        <span class="va-residual-icon">💰</span>
+        <span class="va-residual-title">VA Residual Income Test (VA Pamphlet 26-7)</span>
+      </div>
+      <div class="va-residual-body">
+        After paying PITI, debts, and maintenance, VA requires leftover (<em>residual</em>) income for family expenses. This secondary qualifier often allows higher DTIs when residual income is strong — and is why VA approvals differ from conventional underwriting.
+      </div>
+      <div class="va-residual-table">
+        <table class="va-rtable">
+          <thead>
+            <tr><th>Household</th><th>West</th><th>South/Midwest</th><th>Northeast</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1 person</td><td>$491</td><td>$441</td><td>$450</td></tr>
+            <tr><td>2 people</td><td>$823</td><td>$738</td><td>$755</td></tr>
+            <tr><td>3 people</td><td>$990</td><td>$889</td><td>$909</td></tr>
+            <tr><td>4 people</td><td>$1,117</td><td>$1,003</td><td>$1,025</td></tr>
+            <tr><td>5 people</td><td>$1,158</td><td>$1,039</td><td>$1,062</td></tr>
+            <tr class="note"><td colspan="4">Monthly minimums · Per VA Pamphlet 26-7 Table 41(a) · Loans ≥ $80k</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CTAs -->
+    <div class="va-cta-row">
+      <button class="va-cta-prop">🏠 Check a Property</button>
+      <button class="va-cta-run">▶ Run My Numbers</button>
+    </div>
+    <button class="va-cta-full">Get Matched with a VA Lender →</button>
+
+    <!-- Deep analysis drawer trigger -->
+    <button class="va-dtrigger" onclick="toggleDrawer()">
+      <span class="va-dtrigger-left">
+        <span class="va-dtrigger-dot"></span>
+        <span>
+          <span class="va-dtrigger-label">Deep Analysis</span>
+          <span class="va-dtrigger-sub">Funding fee detail · Reserves · Lifetime cost · Full loan summary</span>
+        </span>
+      </span>
+      <span class="va-dtrigger-arrow" id="drawer-arrow">▼ View</span>
+    </button>
+
+    <!-- Deep drawer -->
+    <div class="va-drawer" id="deep-drawer">
+      <div class="va-drawer-inner">
+
+        <!-- Funding fee detail -->
+        <div class="va-dsec">
+          <div class="va-dsec-label">Funding Fee Detail</div>
+          <div class="va-kv2"><span>Base Loan Amount</span><span id="d-base">$850,000</span></div>
+          <div class="va-kv2"><span>Funding Fee Rate</span><span id="d-ff-rate">2.15%</span></div>
+          <div class="va-kv2 teal"><span>Funding Fee (financed)</span><span id="d-ff-amt">$18,275</span></div>
+          <div class="va-kv2"><span>Total Loan (w/ fee)</span><span id="d-total-loan">$868,275</span></div>
+          <div class="va-kv2 green"><span>PMI Savings (vs 0% conv.)</span><span id="d-pmi-save">None — VA borrowers pay no PMI</span></div>
+        </div>
+
+        <!-- Reserves -->
+        <div class="va-dsec">
+          <div class="va-dsec-label">Reserves Needed</div>
+          <div class="va-kv2"><span>6-Month PITI Cushion</span><span id="d-res6">$40,266</span></div>
+          <div class="va-kv2"><span>12-Month PITI Cushion</span><span id="d-res12">$80,532</span></div>
+        </div>
+
+        <!-- Full loan summary -->
+        <div class="va-dsec">
+          <div class="va-dsec-label">Full Loan Summary</div>
+          <div class="va-kv2"><span>Purchase Price</span><span id="d-price">$850,000</span></div>
+          <div class="va-kv2"><span>Down Payment</span><span id="d-down">$0 (0%)</span></div>
+          <div class="va-kv2"><span>Base Loan Amount</span><span id="d-base2">$850,000</span></div>
+          <div class="va-kv2 teal"><span>Funding Fee (financed)</span><span id="d-ff2">$18,275</span></div>
+          <div class="va-kv2"><span>Total Financed Loan</span><span id="d-financed">$868,275</span></div>
+          <div class="va-kv2"><span>LTV (base)</span><span id="d-ltv">100.0%</span></div>
+          <div class="va-kv2"><span>Interest Rate</span><span id="d-rate">6.875%</span></div>
+          <div class="va-kv2"><span>Loan Term</span><span id="d-term">30 yr fixed</span></div>
+          <div class="va-kv2"><span>Monthly PITI</span><span id="d-monthly">$6,711</span></div>
+          <div class="va-kv2"><span id="d-pmts-label">Total of Payments (30yr)</span><span id="d-total-pmts">$2,415,960</span></div>
+          <div class="va-kv2 teal"><span>Total Interest Paid</span><span id="d-total-int">$1,547,685</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Permanent bottom -->
+    <div class="va-perm">
+      <div class="va-perm-label">Save This Scenario</div>
+      <div class="va-vault-row">
+        <button class="va-btn-vault">⭐ Save to My Vault</button>
+        <button class="va-btn-pdf">📄 Download PDF</button>
+      </div>
+      <div class="va-rate-note">
+        <span class="va-bulb">💡</span>
+        <p>Rate seeded at <strong>6.88%</strong> (FRED 30-yr fixed, live avg).
+        VA loans carry no PMI regardless of down payment or LTV.
+        VA funding fee per VA Pamphlet 26-7 (2024) — rates vary for National Guard/Reserve and surviving spouses. Actual rate depends on credit, lender, and lock timing.</p>
+      </div>
+      <div class="va-disc">
+        <p>
+          <strong>Educational estimates only.</strong> VA funding fee financed into loan per VA Pamphlet 26-7 (2024).
+          No PMI is required on VA loans guaranteed by the Department of Veterans Affairs.
+          Property tax estimated at 1.10% annually; homeowner's insurance at 0.30% annually.
+          Income requirements at 41% back-end DTI per VA guidelines; residual income thresholds per VA Pamphlet 26-7 Table 41(a).
+          Funding fee rates may differ for surviving spouses, National Guard, and Reserve members.
+          These figures are not a pre-approval or commitment to lend.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const TAX_RATE = 0.011;
+const INS_RATE = 0.003;
+
+const FF_OPTS = [
+  { id: 'ff-exempt', tier: 'exempt', pct: 0    },
+  { id: 'ff-125',   tier: '1.25',   pct: 1.25 },
+  { id: 'ff-15',    tier: '1.5',    pct: 1.5  },
+  { id: 'ff-215',   tier: '2.15',   pct: 2.15 },
+  { id: 'ff-33',    tier: '3.3',    pct: 3.3  },
+];
+
+let ffPct    = 2.15;
+let ffTier   = '2.15';
+let termYrs  = 30;
+
+function fmt(n) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+}
+function fmtK(n) {
+  if (n >= 1000000) return '$' + (n / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M';
+  if (n >= 100000)  return '$' + Math.round(n / 1000) + 'k';
+  return fmt(n);
+}
+function calcPI(principal, annualRate, termYears) {
+  if (principal <= 0) return 0;
+  if (annualRate <= 0) return principal / (termYears * 12);
+  const r = annualRate / 100 / 12;
+  const n = termYears * 12;
+  return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+}
+
+function setFF(tier, pct) {
+  ffTier = tier;
+  ffPct  = pct;
+  FF_OPTS.forEach(o => {
+    document.getElementById(o.id).classList.toggle('on', o.tier === tier);
+  });
+  recalc();
+}
+
+function setDp(pct) {
+  document.getElementById('dp-slider').value = pct;
+  document.getElementById('dp-input').value  = pct;
+  recalc();
+}
+
+function setTerm(yr) {
+  termYrs = yr;
+  document.querySelectorAll('.va-term').forEach(b => {
+    b.classList.toggle('on', parseInt(b.textContent) === yr);
+  });
+  recalc();
+}
+
+function onPriceSlider(val) { document.getElementById('price-input').value = val; recalc(); }
+function onPriceInput(val) {
+  const v = Math.min(Math.max(+val || 100000, 100000), 3000000);
+  document.getElementById('price-slider').value = v;
+  recalc();
+}
+function onDpSlider(val) { document.getElementById('dp-input').value = val; recalc(); }
+function onDpInput(val) {
+  const v = Math.min(Math.max(+val || 0, 0), 50);
+  document.getElementById('dp-slider').value = v;
+  recalc();
+}
+function onRateSlider(val) { document.getElementById('rate-input').value = val; recalc(); }
+function onRateInput(val) {
+  const v = Math.min(Math.max(+val || 3, 3), 12);
+  document.getElementById('rate-slider').value = v;
+  recalc();
+}
+
+function toggleDrawer() {
+  const d = document.getElementById('deep-drawer');
+  const isOpen = d.classList.toggle('open');
+  document.getElementById('drawer-arrow').textContent = isOpen ? '▲ Close' : '▼ View';
+}
+
+function recalc() {
+  const price   = +document.getElementById('price-slider').value;
+  const downPct = +document.getElementById('dp-slider').value;
+  const rate    = +document.getElementById('rate-slider').value;
+
+  // Slider fills
+  document.getElementById('price-fill').style.width = ((price - 100000) / (3000000 - 100000) * 100) + '%';
+  document.getElementById('dp-fill').style.width    = (downPct / 50 * 100) + '%';
+  document.getElementById('rate-fill').style.width  = ((rate - 3) / 9 * 100) + '%';
+
+  // DP chip active
+  [0, 5, 10, 20].forEach((pct, i) => {
+    document.querySelectorAll('.va-dp-chip')[i].classList.toggle('active', downPct === pct);
+  });
+
+  // Derived
+  const downAmt    = price * downPct / 100;
+  const baseLoan   = price - downAmt;
+  const fundingFee = ffPct > 0 ? Math.round(baseLoan * ffPct / 100) : 0;
+  const loanAmt    = baseLoan + fundingFee;
+  const ltv        = (baseLoan / price) * 100;
+  const pi         = Math.round(calcPI(loanAmt, rate, termYrs));
+  const tax        = Math.round((price * TAX_RATE) / 12);
+  const ins        = Math.round((price * INS_RATE) / 12);
+  const piti       = pi + tax + ins;
+
+  // PMI equivalent (0.8%/yr on base loan) — used for No-PMI callout savings
+  const pmiMo      = Math.round(baseLoan * 0.008 / 12);
+
+  // Income qualify
+  const q41 = Math.round((piti / 0.41) * 12);
+  const q43 = Math.round((piti / 0.43) * 12);
+
+  // Total payments
+  const totalPmts = Math.round(piti * termYrs * 12);
+  const totalInt  = Math.round(totalPmts - loanAmt);
+
+  // ── DOM updates ──────────────────────────────────────────────────────────
+
+  // Header
+  document.getElementById('hdr-sub').textContent =
+    fmtK(price) + ' · ' + downPct + '% down · ' + parseFloat(rate.toFixed(3)) + '% · ' + termYrs + 'yr VA · No PMI';
+
+  // Hero
+  document.getElementById('hero-total').textContent = fmt(piti);
+  document.getElementById('hero-sub').textContent   = 'P&I + Tax + Insurance · ' + downPct + '% down · No PMI';
+  document.getElementById('stat-base').textContent  = fmt(Math.round(baseLoan));
+  document.getElementById('stat-ff').textContent    =
+    ffTier === 'exempt' ? 'Exempt (0%)' : fmt(fundingFee) + ' (' + ffPct + '%)';
+  document.getElementById('stat-total').textContent = fmt(Math.round(loanAmt));
+
+  // Funding fee calc line
+  const calcEl = document.getElementById('ff-calc');
+  if (ffTier === 'exempt') {
+    calcEl.classList.remove('show');
+  } else {
+    calcEl.classList.add('show');
+    calcEl.innerHTML = ffPct + '% × ' + fmt(Math.round(baseLoan)) + ' base loan = <strong>' + fmt(fundingFee) + '</strong> financed into loan';
+  }
+
+  // No-PMI callout
+  document.getElementById('nopmi-sub').innerHTML =
+    'Conventional at ' + downPct + '% down would add ~' + fmt(pmiMo) + '/mo in PMI at this loan size until 20% equity. ' +
+    'VA borrowers skip PMI entirely — that\'s a benefit worth <strong>' + fmt(pmiMo * 60) + '</strong> over 5 years.';
+
+  // Breakdown
+  document.getElementById('bkd-pi').textContent    = fmt(pi);
+  document.getElementById('bkd-tax').textContent   = fmt(tax);
+  document.getElementById('bkd-ins').textContent   = fmt(ins);
+  document.getElementById('bkd-total').textContent = fmt(piti) + '/mo';
+
+  // Price sub
+  document.getElementById('price-sub').textContent =
+    'Down payment: ' + fmt(Math.round(downAmt)) + ' · Base loan: ' + fmt(Math.round(baseLoan));
+
+  // Income qualify
+  document.getElementById('q41').textContent = fmt(q41);
+  document.getElementById('q43').textContent = fmt(q43);
+
+  // Deep drawer
+  document.getElementById('d-base').textContent      = fmt(Math.round(baseLoan));
+  document.getElementById('d-ff-rate').textContent   = ffTier === 'exempt' ? 'Exempt (0%)' : ffPct + '%';
+  document.getElementById('d-ff-amt').textContent    = ffTier === 'exempt' ? 'None (Exempt)' : fmt(fundingFee);
+  document.getElementById('d-total-loan').textContent= fmt(Math.round(loanAmt));
+  document.getElementById('d-res6').textContent      = fmt(piti * 6);
+  document.getElementById('d-res12').textContent     = fmt(piti * 12);
+  document.getElementById('d-price').textContent     = fmt(price);
+  document.getElementById('d-down').textContent      = fmt(Math.round(downAmt)) + ' (' + downPct + '%)';
+  document.getElementById('d-base2').textContent     = fmt(Math.round(baseLoan));
+  document.getElementById('d-ff2').textContent       = ffTier === 'exempt' ? 'None (Exempt)' : fmt(fundingFee);
+  document.getElementById('d-financed').textContent  = fmt(Math.round(loanAmt));
+  document.getElementById('d-ltv').textContent       = ltv.toFixed(1) + '%';
+  document.getElementById('d-rate').textContent      = parseFloat(rate.toFixed(3)) + '%';
+  document.getElementById('d-term').textContent      = termYrs + ' yr fixed';
+  document.getElementById('d-monthly').textContent   = fmt(piti);
+  document.getElementById('d-pmts-label').textContent= 'Total of Payments (' + termYrs + 'yr)';
+  document.getElementById('d-total-pmts').textContent= fmt(totalPmts);
+  document.getElementById('d-total-int').textContent = fmt(totalInt);
+
+  // PMI savings row in drawer
+  const pmi5yr = pmiMo * 60;
+  document.getElementById('d-pmi-save').textContent =
+    fmt(pmiMo) + '/mo · ' + fmt(pmi5yr) + ' over 5yr (est.)';
+}
+
+recalc();
+</script>
+</body>
+</html>
