@@ -2380,6 +2380,13 @@ export default function Page() {
                 } // end !isRateMarketQuestion
             }
 
+            // Slider card "Run My Numbers" always needs answers route — paramOverrides are only
+            // processed there. Seeds containing "15 year" / "20 year" would otherwise be flagged
+            // as isFollowUp and inherit the scenario route, silently dropping the overrides.
+            if (pendingParamOverridesRef.current) {
+                useScenario = false;
+            }
+
             // Endpoint + payload
             const answersEndpoint = useScenario ? '/api/answers/scenario' : '/api/answers';
 
