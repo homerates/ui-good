@@ -77,6 +77,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/beta(.*)",
   // Deal room join — must be accessible before sign-in (token validates identity)
   "/deal-rooms/join(.*)",
+  // HomeRates Lab — public scenario launcher
+  "/lab",
 ]);
 
 export default clerkMiddleware((auth, req) => {
