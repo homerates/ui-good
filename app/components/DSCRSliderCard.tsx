@@ -289,9 +289,21 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
 
                 <SliderField
                     label="Down Payment" value={downPct}
-                    min={20} max={50} step={1}
+                    min={20} max={50} step={0.01}
                     onChange={setDownPct}
-                    format={v => `${v}% · ${fmtK(price * v / 100)}`}
+                    format={v => `${parseFloat(v.toFixed(2))}% · ${fmtK(price * v / 100)}`}
+                    parse={text => {
+                        const t = text.trim();
+                        const hasDollar = t.includes('$') || /[km]\b/i.test(t);
+                        const hasPercent = t.includes('%');
+                        const raw = parseFloat(t.replace(/[$,%\s]/gi, '').replace(/[km]\b/gi, ''));
+                        if (isNaN(raw)) return NaN;
+                        if (hasDollar || (!hasPercent && raw > 100)) {
+                            const mult = /k\b/i.test(t) ? 1_000 : /m\b/i.test(t) ? 1_000_000 : 1;
+                            return parseFloat(((raw * mult) / price * 100).toFixed(4));
+                        }
+                        return raw;
+                    }}
                     minLabel="20%" maxLabel="50%"
                     trackColor="#00e87a" theme="dark"
                 />
@@ -315,14 +327,6 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 <button className="dsc-btn-full" onClick={() => router.push('/connect/post?from=dscr&lt=DSCR&purpose=Investment')}>
                     Get Matched with a DSCR Lender
                 </button>
-            </div>
-
-            {/* ── Follow-up chips ── */}
-            <div className="dsc-chips">
-                <button className="dsc-chip" onClick={() => props.onRunScenario?.('What is market rent for this property type?', {})}>What&apos;s market rent here?</button>
-                <button className="dsc-chip" onClick={() => props.onRunScenario?.(`Multi-unit DSCR loan on a ${fmtK(price)} investment property — 2-4 unit analysis`, { purchasePrice: price, grossMonthlyRent: rent, downPaymentPct: downPct, annualRatePct: rate, loanType: 'dscr' })}>Multi-unit DSCR</button>
-                <button className="dsc-chip" onClick={() => props.onRunScenario?.(`DSCR vs conventional investment: ${fmtK(price)}, ${downPct}% down, ${fmt$(rent)}/mo rent at ${rate.toFixed(2)}%`, { purchasePrice: price, grossMonthlyRent: rent, downPaymentPct: downPct, annualRatePct: rate })}>DSCR vs conventional</button>
-                <button className="dsc-chip" onClick={() => props.onRunScenario?.(`Short-term rental DSCR analysis for a ${fmtK(price)} property — Airbnb/VRBO income qualification`, { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'dscr' })}>Short-term rental DSCR</button>
             </div>
 
             {/* ── Styles ── */}
