@@ -79,9 +79,16 @@ export default function VaSliderCard(props: VaSliderParams) {
     const [ffTier,     setFfTier]     = useState<FFTier>(pctToTier(props.vaFundingFeePct));
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [vaultDone,  setVaultDone]  = useState(false);
+    const [runDone,    setRunDone]    = useState(false);
 
     const { user } = useUser();
     const router   = useRouter();
+
+    const isDirty = price !== props.price
+        || Math.abs(downPct - props.downPct) > 0.001
+        || Math.abs(rate - props.rate) > 0.001
+        || termYrs !== props.term
+        || ffTier !== pctToTier(props.vaFundingFeePct);
 
     // ── Derived values ────────────────────────────────────────────────────────
 
@@ -121,6 +128,19 @@ export default function VaSliderCard(props: VaSliderParams) {
             });
             setVaultDone(true);
         } catch { /* non-fatal */ }
+    }
+
+    function handleRun() {
+        if (!props.onRunScenario) return;
+        props.onRunScenario(buildSeed(), {
+            purchasePrice: price, downPaymentPct: downPct,
+            annualRatePct: rate, termYears: termYrs,
+            vaFundingFeeExempt: ffTier === 'exempt',
+            customFundingFeePct: ffTier !== 'exempt' ? ffPct : undefined,
+            loanType: 'va',
+        });
+        setRunDone(true);
+        setTimeout(() => setRunDone(false), 3000);
     }
 
     function buildSeed() {
@@ -291,6 +311,22 @@ export default function VaSliderCard(props: VaSliderParams) {
                 </div>
             </div>
 
+            {/* Run Adjusted Scenario — appears when sliders have been changed */}
+            {props.onRunScenario && isDirty && (
+                <div className="va-run-adj">
+                    <div className="va-run-adj-inner">
+                        <div className="va-run-adj-left">
+                            <span className="va-run-adj-dot" />
+                            <span className="va-run-adj-text">Numbers updated — run analysis with new scenario?</span>
+                        </div>
+                        {runDone
+                            ? <span className="va-run-adj-done">✓ Running…</span>
+                            : <button className="va-run-adj-btn" onClick={handleRun}>▶ Run Adjusted Scenario</button>
+                        }
+                    </div>
+                </div>
+            )}
+
             {/* Income qualify table */}
             <div className="va-qualify">
                 <div className="va-qualify-title">Income to Qualify</div>
@@ -355,16 +391,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                 >🏠 Check a Property</button>
 
                 {props.onRunScenario && (
-                    <button
-                        className="va-cta-run"
-                        onClick={() => props.onRunScenario!(buildSeed(), {
-                            purchasePrice: price, downPaymentPct: downPct,
-                            annualRatePct: rate, termYears: termYrs,
-                            vaFundingFeeExempt: ffTier === 'exempt',
-                            customFundingFeePct: ffTier !== 'exempt' ? ffPct : undefined,
-                            loanType: 'va',
-                        })}
-                    >▶ Run My Numbers</button>
+                    <button className="va-cta-run" onClick={handleRun}>▶ Run My Numbers</button>
                 )}
             </div>
             <button className="va-cta-full" onClick={() => router.push(getMatchedUrl())}>
@@ -542,6 +569,17 @@ export default function VaSliderCard(props: VaSliderParams) {
                 .va-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid #e2e8f0; background:#f9f9f9; font-size:13px; font-weight:600; color:#64748b; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
                 .va-term--on { border-color:#14b8a6; color:#0e6b65; background:#f0fdfc; }
                 .va-term:hover:not(.va-term--on) { border-color:#94a3b8; }
+
+                /* Run adjusted scenario */
+                .va-run-adj { background:rgba(20,184,166,0.05); border-top:1px solid rgba(20,184,166,0.15); border-bottom:1px solid rgba(20,184,166,0.15); padding:10px 16px; }
+                .va-run-adj-inner { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+                .va-run-adj-left { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
+                .va-run-adj-dot { width:6px; height:6px; border-radius:50%; background:#14b8a6; flex-shrink:0; animation:vaPulse 1.4s ease-in-out infinite; }
+                @keyframes vaPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+                .va-run-adj-text { font-size:12px; color:#8fa3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+                .va-run-adj-btn { padding:8px 16px; background:rgba(20,184,166,0.1); border:1.5px solid rgba(20,184,166,0.4); border-radius:8px; color:#14b8a6; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap; transition:all .15s; flex-shrink:0; }
+                .va-run-adj-btn:hover { background:rgba(20,184,166,0.2); }
+                .va-run-adj-done { font-size:12px; font-weight:600; color:#14b8a6; flex-shrink:0; }
 
                 /* Income qualify */
                 .va-qualify { margin:0 12px 12px; background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px; }
