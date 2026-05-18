@@ -367,6 +367,7 @@ type ApiResponse = {
     limitHit?: boolean;
     credits_exhausted?: boolean;
     grace_remaining?: number;
+    requires_auth?: boolean;
 
     // ===== New fields for Grok + AnswerCard =====
     answerMarkdown?: string; // rich markdown answer we render in the card
