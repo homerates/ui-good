@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import AppNav from '../components/AppNav';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import type { InvestorIntelResult, RentalComp } from '../api/investor-intel/route';
@@ -106,6 +107,8 @@ function InvestorIntelInner() {
   const [mapUrl,       setMapUrl]       = useState<string | null>(null);
   const [photoReady,   setPhotoReady]   = useState(false);
   const [aiExpanded,   setAiExpanded]   = useState(true);
+  const [saving,       setSaving]       = useState(false);
+  const [savedPortfolio, setSavedPortfolio] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -208,6 +211,40 @@ function InvestorIntelInner() {
     return () => { abortRef.current?.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlAddr]);
+
+  // ── Save to Portfolio ────────────────────────────────────────────────────
+  const saveToPortfolio = async () => {
+    const p = price > 0 ? price : (propData?.current_list_price ?? propData?.last_sold_price ?? 0);
+    const r = rent > 0 ? rent : (rentalData?.rentRangeMedian ?? 0);
+    if (!urlAddr || p <= 0) return;
+    setSaving(true);
+    try {
+      const m = calcMetrics(p, r, downPct, rate, rentalData?.vacancyPct ?? 5);
+      await fetch('/api/investor/portfolio', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address:     urlAddr,
+          avm:         p,
+          beds:        propData?.bedrooms  ?? null,
+          baths:       propData?.bathrooms ?? null,
+          sqft:        propData?.sqft      ?? null,
+          year_built:  propData?.year_built ?? null,
+          dscr:        m ? parseFloat(m.dscr.toFixed(4))         : null,
+          cap_rate:    m ? parseFloat(m.capRate.toFixed(4))      : null,
+          gross_yield: m ? parseFloat(m.grossYield.toFixed(4))   : null,
+          cash_flow:   m ? Math.round(m.cashFlow)                : null,
+          down_pct:    downPct,
+          rate,
+          rent:        r,
+        }),
+      });
+      setSavedPortfolio(true);
+      setTimeout(() => setSavedPortfolio(false), 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const hasAddress   = !!urlAddr;
@@ -659,6 +696,24 @@ function InvestorIntelInner() {
               )}
             </div>
           </div>
+
+          {/* ── Save to Portfolio CTA ───────────────────────────────────── */}
+          {urlAddr && effectivePrice > 0 && (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
+              <button
+                onClick={saveToPortfolio}
+                disabled={saving || savedPortfolio}
+                style={{ padding: '11px 22px', fontSize: '0.85rem', fontWeight: 700, background: savedPortfolio ? 'rgba(0,232,122,0.12)' : '#00e87a', color: savedPortfolio ? '#00e87a' : '#07100f', border: savedPortfolio ? '1px solid rgba(0,232,122,0.3)' : 'none', borderRadius: 10, cursor: saving ? 'default' : 'pointer', fontFamily: 'inherit', opacity: saving ? 0.7 : 1, transition: 'all 0.2s' }}
+              >
+                {savedPortfolio ? '✓ Saved to Portfolio' : saving ? 'Saving…' : '+ Save to Portfolio'}
+              </button>
+              {savedPortfolio && (
+                <Link href="/investor" style={{ fontSize: '0.8rem', color: '#00e87a', textDecoration: 'none', fontWeight: 600 }}>
+                  View My Portfolio →
+                </Link>
+              )}
+            </div>
+          )}
 
           {/* ── Footer ───────────────────────────────────────────────────── */}
           <div style={{ fontSize: '0.6rem', color: '#1e2a3a', lineHeight: 1.5, padding: '0 4px' }}>

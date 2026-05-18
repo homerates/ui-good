@@ -262,8 +262,8 @@ export default function AppNav({
           <Link href="/lab" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
             <span className="an-drawer-icon">🧪</span>Lab
           </Link>
-          <Link href="/investor-intel" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-            <span className="an-drawer-icon">📊</span>Investor Intel
+          <Link href="/investor" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+            <span className="an-drawer-icon">📊</span>Investor Portal
           </Link>
           <Link href="/my-home" className={`an-drawer-link ${activePage === "dashboard" ? "an-drawer-active" : ""}`} onClick={() => setDrawerOpen(false)}>
             <span className="an-drawer-icon">🏡</span>My Home
