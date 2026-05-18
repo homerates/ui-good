@@ -11,7 +11,9 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+import { auth } from '@clerk/nextjs/server';
 import { getSupabase } from '../../../lib/supabaseServer';
+import { checkAnonGate } from '../../../lib/anonGate';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -247,6 +249,16 @@ export async function GET(req: Request) {
 // ── POST ──────────────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
+  // Anonymous gate — 3 free reports per IP per day
+  const { userId } = await auth().catch(() => ({ userId: null }));
+  if (!userId) {
+    const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown';
+    const anon = await checkAnonGate(ip, 'investor');
+    if (!anon.allowed) {
+      return new Response(JSON.stringify({ ok: false, requires_auth: true }), { status: 402, headers: { 'Content-Type': 'application/json' } });
+    }
+  }
+
   let body: any = {};
   try { body = await req.json(); } catch {}
 

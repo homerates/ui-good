@@ -181,7 +181,9 @@ function InvestorIntelInner() {
         signal:  sig,
       });
       const genJson = await genRes.json();
-      if (genJson?.ok && genJson.result) {
+      if (genJson?.requires_auth) {
+        setErrorRent('__requires_auth__');
+      } else if (genJson?.ok && genJson.result) {
         applyResult(genJson.result as InvestorIntelResult);
       } else {
         setErrorRent(genJson.error ?? 'Rental intel unavailable — check back shortly.');
@@ -643,8 +645,16 @@ function InvestorIntelInner() {
                 </div>
               )}
 
-              {errorRent && !rentalData && (
+              {errorRent && !rentalData && errorRent !== '__requires_auth__' && (
                 <div style={{ padding: '18px', fontSize: '0.8rem', color: '#ff5f5f' }}>⚠ {errorRent}</div>
+              )}
+              {errorRent === '__requires_auth__' && (
+                <div style={{ padding: '28px 20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: 10 }}>🔒</div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f0f4ff', marginBottom: 6 }}>Sign in to continue</div>
+                  <div style={{ fontSize: '0.78rem', color: '#4a5a7a', lineHeight: 1.6, marginBottom: 16 }}>You've used your 3 free reports. Sign in for free to keep going.</div>
+                  <a href="/sign-in" style={{ display: 'inline-block', background: '#00e87a', color: '#07100f', fontSize: '0.82rem', fontWeight: 800, borderRadius: 8, padding: '9px 20px', textDecoration: 'none' }}>Sign in — it's free →</a>
+                </div>
               )}
 
               {rentalData && (

@@ -2536,6 +2536,12 @@ export default function Page() {
                 return;
             }
 
+            // Anonymous gate — 3 free queries used up, prompt sign-in
+            if (meta.requires_auth) {
+                setShowAuthRequired(true);
+                return;
+            }
+
             // If the backend signals that a limit was hit, surface the right modal
             if (meta.upgradeRequired || meta.limitHit) {
                 if (clerkLoaded && !isSignedIn) {

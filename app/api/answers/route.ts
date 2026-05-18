@@ -50,6 +50,7 @@ import {
 import { resolveGeoFeatures, extractZip, extractIncome } from "../../../lib/geoFeatures";
 import { tavily as createTavilyClient } from '@tavily/core';
 import { spendCredits, checkCreditGate } from "../../../lib/credits";
+import { checkAnonGate } from "../../../lib/anonGate";
 import { getUserPlan } from "../../../lib/subscription";
 import { isAdminId } from "../../../lib/adminAuth";
 // Verify calc engine on cold start — logs failures, never throws
@@ -2164,6 +2165,16 @@ async function handle(req: NextRequest, intentParam?: string) {
           }, 402);
         }
         // 'grace' state: continue normally — gate already incremented grace counter
+      }
+    }
+
+    // ── Anonymous gate ───────────────────────────────────────────────────────
+    // Unauthenticated users get 3 free chat queries per IP per day.
+    if (!userId) {
+      const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown';
+      const anon = await checkAnonGate(ip, 'chat');
+      if (!anon.allowed) {
+        return noStore({ ok: false, requires_auth: true, route: 'anon_gate' }, 402);
       }
     }
 
