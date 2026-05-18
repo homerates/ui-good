@@ -14,7 +14,6 @@ import {
     calcVA, calcJumbo, calcVAEntitlement,
 } from "../../../lib/calcEngine";
 import { buildAnswerMarkdown, runFormatTests } from "../../../lib/answerFormat";
-import { buildDiscoverCard, isDiscoverCardTrigger } from "../../../lib/discoverCard";
 import { dispatch, isRefiQuestion, isLoanLimitsQuestion, isScenarioComparisonQuestion, isBuydownQuestion } from "../../../lib/calcDispatcher";
 import {
     buildConventionalCard, buildFHACard, buildFHAEquityTimelineCard, buildRefiCard, buildRefiNeedsInputCard,
@@ -5599,7 +5598,6 @@ ${uwDatabase}`;
                 jumboAffordabilitySlider: calcCard.jumboAffordabilitySlider ?? null,
                 lenderChecklist: calcCard.lenderChecklist ?? null,
                 labModules: (calcCard as any).labModules ?? null,
-                discoverCard: isDiscoverCardTrigger(question) ? buildDiscoverCard() : null,
                 debug: {
                     requestedModel: 'calcEngine',
                     servedModel: calcDebugModel,
@@ -7494,7 +7492,6 @@ Return valid JSON only:
         affordabilitySlider: (affordabilityAnswer as any)?.affordabilitySlider ?? null,
         fhaSlider: (fhaAnswer as any)?.fhaSlider ?? null,
         lenderChecklist: (affordabilityAnswer as any)?.lenderChecklist ?? null,
-        discoverCard: isDiscoverCardTrigger(question) ? buildDiscoverCard() : null,
         followUp: null,
         follow_up_chips: (affordabilityAnswer as any)?.follow_up_chips ?? (fhaAnswer as any)?.follow_up_chips ?? [],
     });
