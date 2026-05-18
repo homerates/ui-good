@@ -109,15 +109,16 @@ function InvestorIntelInner() {
 
   const abortRef = useRef<AbortController | null>(null);
 
-  // ── Fetch property data (from grok-property cache) ──────────────────────────
-  const fetchPropData = useCallback(async (addr: string) => {
+  // ── Fetch property data — cache-only (same as /property-intel) ──────────────
+  // Returns the result so runAnalysis can chain beds/type into the rental intel call.
+  const fetchPropData = useCallback(async (addr: string): Promise<PropData | null> => {
     setLoadingProp(true);
     setErrorProp('');
     setPropData(null);
     setMapUrl(null);
     setPhotoReady(false);
     try {
-      const res = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(addr)}`);
+      const res  = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(addr)}`);
       const json = await res.json();
       if (json?.cached && json.result) {
         const r = json.result as PropData;
@@ -125,38 +126,56 @@ function InvestorIntelInner() {
         const p = r.current_list_price ?? r.last_sold_price ?? 0;
         if (p > 0) setPrice(p);
         if (json.map_urls?.street_view_url) setMapUrl(json.map_urls.street_view_url);
+        return r;
       } else {
         setErrorProp('No cached property data — enter the purchase price manually below.');
+        return null;
       }
     } catch {
       setErrorProp('Property data unavailable — enter the purchase price manually below.');
+      return null;
     } finally {
       setLoadingProp(false);
     }
   }, []);
 
-  // ── Fetch rental intel ────────────────────────────────────────────────────
+  // ── Fetch rental intel — GET cache first, POST only on miss ─────────────────
   const fetchRentalIntel = useCallback(async (addr: string, beds: number | null, propType: string) => {
     setLoadingRent(true);
     setErrorRent('');
     setRentalData(null);
     abortRef.current?.abort();
     abortRef.current = new AbortController();
+    const sig = abortRef.current.signal;
+
+    const applyResult = (r: InvestorIntelResult) => {
+      setRentalData(r);
+      if (r.rentRangeMedian > 0) setRent(r.rentRangeMedian);
+      if (r.rate > 0) setRate(r.rate);
+    };
+
     try {
-      const res  = await fetch('/api/investor-intel', {
+      // 1 — check cache (GET)
+      const cacheRes  = await fetch(`/api/investor-intel?address=${encodeURIComponent(addr)}`, { signal: sig });
+      const cacheJson = await cacheRes.json();
+      if (cacheJson?.ok && cacheJson.result) {
+        applyResult(cacheJson.result as InvestorIntelResult);
+        setLoadingRent(false);
+        return;
+      }
+
+      // 2 — cache miss → generate (POST with actual beds/type)
+      const genRes  = await fetch('/api/investor-intel', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ address: addr, beds, propertyType: propType }),
-        signal:  abortRef.current.signal,
+        signal:  sig,
       });
-      const json = await res.json();
-      if (json?.ok && json.result) {
-        const r = json.result as InvestorIntelResult;
-        setRentalData(r);
-        if (r.rentRangeMedian > 0 && rent === 0) setRent(r.rentRangeMedian);
-        if (r.rate > 0) setRate(r.rate);
+      const genJson = await genRes.json();
+      if (genJson?.ok && genJson.result) {
+        applyResult(genJson.result as InvestorIntelResult);
       } else {
-        setErrorRent(json.error ?? 'Rental intel unavailable — check back shortly.');
+        setErrorRent(genJson.error ?? 'Rental intel unavailable — check back shortly.');
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
@@ -165,16 +184,19 @@ function InvestorIntelInner() {
     } finally {
       setLoadingRent(false);
     }
-  }, [rent]);
+  }, []);
 
-  // ── Run analysis on address ───────────────────────────────────────────────
-  const runAnalysis = useCallback((addr: string) => {
+  // ── Run analysis: property data first → rental intel with actual beds/type ──
+  const runAnalysis = useCallback(async (addr: string) => {
     if (!addr.trim()) return;
     router.replace(`/investor-intel?address=${encodeURIComponent(addr.trim())}`, { scroll: false });
     setRent(0);
-    fetchPropData(addr);
-    // beds/propertyType populated after propData loads — run rental intel in parallel with defaults
-    fetchRentalIntel(addr, null, 'single family');
+
+    // Fetch property data first so we can pass beds + property type to Tavily
+    const prop = await fetchPropData(addr);
+    const beds     = prop?.bedrooms     ?? null;
+    const propType = 'single family'; // extend later if propertyType field added to PropData
+    fetchRentalIntel(addr, beds, propType);
   }, [fetchPropData, fetchRentalIntel, router]);
 
   // ── Auto-run on URL param ─────────────────────────────────────────────────
@@ -186,13 +208,6 @@ function InvestorIntelInner() {
     return () => { abortRef.current?.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlAddr]);
-
-  // ── Update rent from AI once it loads ────────────────────────────────────
-  useEffect(() => {
-    if (rentalData?.rentRangeMedian && rent === 0) {
-      setRent(rentalData.rentRangeMedian);
-    }
-  }, [rentalData, rent]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const hasAddress   = !!urlAddr;
