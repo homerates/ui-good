@@ -61,18 +61,19 @@ const PLANS = [
     priceMonthly: 19,
     priceAnnual: 159,
     annualMonthly: 13.25,
-    description: "For investors, buyers, and loan officers who need the full stack.",
+    description: "Introductory pricing for investors and loan officers. Price goes to $49/mo at launch.",
     cta: "Start Pro",
     ctaVariant: "ghost" as const,
     badge2: "Investor + LO",
+    introUrgency: "⚡ Intro pricing · $19/mo now → $49 at launch",
     features: [
+      "⭐ Investment Property Reports (DSCR)",
+      "⭐ Portfolio tracker + deal pipeline",
+      "⭐ Live rent comps + cap rate analysis",
+      "⭐ Watchlist + cash flow monitoring",
       "Everything in Plus",
-      "⭐ Property Intelligence Reports",
-      "⭐ Live rent estimate + cap rate",
-      "⭐ DSCR & investment cash flow",
       "Up to 10 borrowers",
       "LO dashboard",
-      "Shared project threads",
     ],
     missing: [],
   },
@@ -204,6 +205,9 @@ export default function PricingPage() {
               )}
               {(plan as any).badge2 && (
                 <div className="pricing-badge pricing-badge--amber">{(plan as any).badge2}</div>
+              )}
+              {(plan as any).introUrgency && (
+                <div className="pricing-intro-urgency">{(plan as any).introUrgency}</div>
               )}
 
               <div className="pricing-card-header">
@@ -437,6 +441,18 @@ export default function PricingPage() {
         .pricing-badge--amber {
           background: linear-gradient(135deg, #f59e0b, #fbbf24);
           color: #1a0a00;
+        }
+        .pricing-intro-urgency {
+          margin: 8px 0 -8px;
+          padding: 7px 14px;
+          background: rgba(245,158,11,0.08);
+          border: 1px solid rgba(245,158,11,0.2);
+          border-radius: 8px;
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #f59e0b;
+          text-align: center;
+          letter-spacing: 0.02em;
         }
         .pricing-plan-name {
           font-family: var(--font-dm-sans, sans-serif);

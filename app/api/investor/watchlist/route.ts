@@ -25,6 +25,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getSupabase } from '../../../../lib/supabaseServer';
+import { getUserPlan } from '../../../../lib/subscription';
 
 function normalize(addr: string): string {
   return addr.trim().toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -54,6 +55,9 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+
+  const plan = await getUserPlan(userId);
+  if (plan.plan !== 'pro') return NextResponse.json({ error: 'Pro required', pro_required: true }, { status: 403 });
 
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
@@ -89,6 +93,9 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+
+  const plan = await getUserPlan(userId);
+  if (plan.plan !== 'pro') return NextResponse.json({ error: 'Pro required', pro_required: true }, { status: 403 });
 
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });

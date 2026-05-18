@@ -79,6 +79,7 @@ export default function InvestorPortalPage() {
   const [tab,          setTab]          = useState<'portfolio' | 'watchlist'>('portfolio');
   const [portfolio,    setPortfolio]    = useState<PortfolioItem[]>([]);
   const [watchlist,    setWatchlist]    = useState<WatchlistItem[]>([]);
+  const [userPlan,     setUserPlan]     = useState<string | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState('');
   const [filterText,   setFilterText]   = useState('');
@@ -93,10 +94,12 @@ export default function InvestorPortalPage() {
     Promise.all([
       fetch('/api/investor/portfolio').then(r => r.json()),
       fetch('/api/investor/watchlist').then(r => r.json()),
-    ]).then(([p, w]) => {
+      fetch('/api/user/plan').then(r => r.json()),
+    ]).then(([p, w, planData]) => {
       if (p.ok)  setPortfolio(p.items ?? []);
       if (w.ok)  setWatchlist(w.items ?? []);
-      if (!p.ok) setError(p.error ?? 'Could not load portfolio');
+      if (!p.ok && p.error && !p.pro_required) setError(p.error ?? 'Could not load portfolio');
+      setUserPlan(planData.plan ?? 'free');
     }).catch(() => setError('Could not load data'))
       .finally(() => setLoading(false));
   }, []);
@@ -239,7 +242,28 @@ export default function InvestorPortalPage() {
             ))}
           </div>
 
-          {/* ── Tabs ───────────────────────────────────────────────────── */}
+          {/* ── Pro gate ───────────────────────────────────────────────── */}
+          {userPlan !== null && userPlan !== 'pro' && (
+            <div style={{ background: 'rgba(0,232,122,0.03)', border: '1px solid rgba(0,232,122,0.12)', borderRadius: 16, padding: '52px 32px', textAlign: 'center', marginBottom: 24 }}>
+              <div style={{ fontSize: '2rem', marginBottom: 16 }}>🔒</div>
+              <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#f0f4ff', marginBottom: 8 }}>Investor Portal requires Pro</div>
+              <div style={{ fontSize: '0.85rem', color: '#4a5a7a', lineHeight: 1.65, maxWidth: 400, margin: '0 auto 24px' }}>
+                Save DSCR deal reports, track your portfolio performance, manage a watchlist, and monitor cash flow across all your properties.
+              </div>
+              <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                <Link href="/pricing" style={{ textDecoration: 'none' }}>
+                  <button style={{ background: '#00e87a', color: '#07100f', fontSize: '0.9rem', fontWeight: 800, border: 'none', borderRadius: 10, padding: '13px 28px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Upgrade to Pro →
+                  </button>
+                </Link>
+                <div style={{ fontSize: '0.7rem', color: '#00a853', fontWeight: 700 }}>⚡ Introductory $19/mo · Goes to $49 at launch</div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Tabs + content (Pro only) ──────────────────────────────── */}
+          {(userPlan === null || userPlan === 'pro') && <>
+
           <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: 20 }}>
             {([['portfolio', 'Portfolio', portfolio.length], ['watchlist', 'Watchlist', watchlist.length]] as const).map(([t, label, count]) => (
               <button key={t} onClick={() => setTab(t)}
@@ -418,6 +442,8 @@ export default function InvestorPortalPage() {
               )}
             </>
           )}
+
+          </>}
 
         </div>
       </div>

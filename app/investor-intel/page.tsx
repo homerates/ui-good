@@ -109,8 +109,14 @@ function InvestorIntelInner() {
   const [aiExpanded,   setAiExpanded]   = useState(true);
   const [saving,       setSaving]       = useState(false);
   const [savedPortfolio, setSavedPortfolio] = useState(false);
+  const [userPlan,     setUserPlan]     = useState<string | null>(null);
+  const [showProGate,  setShowProGate]  = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    fetch('/api/user/plan').then(r => r.json()).then(d => setUserPlan(d.plan ?? 'free')).catch(() => setUserPlan('free'));
+  }, []);
 
   // ── Fetch property data — cache-only (same as /property-intel) ──────────────
   // Returns the result so runAnalysis can chain beds/type into the rental intel call.
@@ -195,6 +201,7 @@ function InvestorIntelInner() {
     router.replace(`/investor-intel?address=${encodeURIComponent(addr.trim())}`, { scroll: false });
     setRent(0);
     setSavedPortfolio(false);
+    setShowProGate(false);
 
     // Fetch property data first so we can pass beds + property type to Tavily
     const prop = await fetchPropData(addr);
@@ -215,6 +222,7 @@ function InvestorIntelInner() {
 
   // ── Save to Portfolio ────────────────────────────────────────────────────
   const saveToPortfolio = async () => {
+    if (userPlan !== 'pro') { setShowProGate(true); return; }
     const p = price > 0 ? price : (propData?.current_list_price ?? propData?.last_sold_price ?? 0);
     const r = rent > 0 ? rent : (rentalData?.rentRangeMedian ?? 0);
     if (!urlAddr || p <= 0) return;
@@ -699,18 +707,34 @@ function InvestorIntelInner() {
 
           {/* ── Save to Portfolio CTA ───────────────────────────────────── */}
           {urlAddr && effectivePrice > 0 && (
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
-              <button
-                onClick={saveToPortfolio}
-                disabled={saving || savedPortfolio}
-                style={{ padding: '11px 22px', fontSize: '0.85rem', fontWeight: 700, background: savedPortfolio ? 'rgba(0,232,122,0.12)' : '#00e87a', color: savedPortfolio ? '#00e87a' : '#07100f', border: savedPortfolio ? '1px solid rgba(0,232,122,0.3)' : 'none', borderRadius: 10, cursor: saving ? 'default' : 'pointer', fontFamily: 'inherit', opacity: saving ? 0.7 : 1, transition: 'all 0.2s' }}
-              >
-                {savedPortfolio ? '✓ Saved to Portfolio' : saving ? 'Saving…' : '+ Save to Portfolio'}
-              </button>
-              {savedPortfolio && (
-                <Link href="/investor" style={{ fontSize: '0.8rem', color: '#00e87a', textDecoration: 'none', fontWeight: 600 }}>
-                  View My Portfolio →
-                </Link>
+            <div style={{ marginBottom: 24 }}>
+              {showProGate ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', background: 'rgba(245,200,66,0.06)', border: '1px solid rgba(245,200,66,0.2)', borderRadius: 12, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f5c842', marginBottom: 2 }}>Portfolio tracking requires Pro</div>
+                    <div style={{ fontSize: '0.72rem', color: '#6a7a9a' }}>Save DSCR reports, track cash flow, and manage your deal pipeline. Introductory pricing — $19/mo before launch.</div>
+                  </div>
+                  <Link href="/pricing" style={{ textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                    <button style={{ background: '#00e87a', color: '#07100f', fontSize: '0.78rem', fontWeight: 800, border: 'none', borderRadius: 8, padding: '9px 18px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      Upgrade to Pro →
+                    </button>
+                  </Link>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={saveToPortfolio}
+                    disabled={saving || savedPortfolio}
+                    style={{ padding: '11px 22px', fontSize: '0.85rem', fontWeight: 700, background: savedPortfolio ? 'rgba(0,232,122,0.12)' : '#00e87a', color: savedPortfolio ? '#00e87a' : '#07100f', border: savedPortfolio ? '1px solid rgba(0,232,122,0.3)' : 'none', borderRadius: 10, cursor: saving ? 'default' : 'pointer', fontFamily: 'inherit', opacity: saving ? 0.7 : 1, transition: 'all 0.2s' }}
+                  >
+                    {savedPortfolio ? '✓ Saved to Portfolio' : saving ? 'Saving…' : '+ Save to Portfolio'}
+                  </button>
+                  {savedPortfolio && (
+                    <Link href="/investor" style={{ fontSize: '0.8rem', color: '#00e87a', textDecoration: 'none', fontWeight: 600 }}>
+                      View My Portfolio →
+                    </Link>
+                  )}
+                </div>
               )}
             </div>
           )}
