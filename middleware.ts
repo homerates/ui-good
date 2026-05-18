@@ -79,6 +79,9 @@ const isPublicRoute = createRouteMatcher([
   "/deal-rooms/join(.*)",
   // HomeRates Lab — public scenario launcher
   "/lab",
+  // Investor Intel — shareable deal reports
+  "/investor-intel(.*)",
+  "/api/investor-intel(.*)",
 ]);
 
 export default clerkMiddleware((auth, req) => {
