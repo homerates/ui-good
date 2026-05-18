@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buydown Slider Card — Prototype</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0a0a;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #e8e8e8;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+
+  /* ── Card Shell ─────────────────────────────────────────────── */
+  .bds {
+    --bds-color: #f59e0b;
+    --bds-bg:    rgba(245,158,11,0.08);
+    --bds-border: rgba(245,158,11,0.22);
+    width: 100%;
+    max-width: 560px;
+    background: #111;
+    border: 1px solid var(--bds-border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  /* ── Header ─────────────────────────────────────────────────── */
+  .bds-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    gap: 10px;
+  }
+  .bds-header-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .bds-title { font-size: 0.85rem; font-weight: 600; color: #fff; letter-spacing: 0.02em; white-space: nowrap; }
+  .bds-sub   { font-size: 0.72rem; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bds-type-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    background: var(--bds-bg);
+    border: 1px solid var(--bds-border);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--bds-color);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Year Selector ──────────────────────────────────────────── */
+  .bds-year-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 18px 0;
+  }
+  .bds-year-btn {
+    flex: 1;
+    padding: 7px 0;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #777;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .bds-year-btn:hover { background: #222; color: #aaa; }
+  .bds-year-btn.active {
+    background: var(--bds-bg);
+    border-color: var(--bds-color);
+    color: var(--bds-color);
+  }
+  .bds-year-arrow {
+    font-size: 0.68rem;
+    color: #444;
+    padding: 0 2px;
+    flex-shrink: 0;
+  }
+
+  /* ── Hero ───────────────────────────────────────────────────── */
+  .bds-hero {
+    display: grid;
+    grid-template-columns: 1.7fr 1fr 1fr;
+    gap: 0;
+    padding: 14px 18px 12px;
+    align-items: center;
+  }
+  .bds-hero-main { display: flex; flex-direction: column; gap: 3px; }
+  .bds-hero-piti {
+    font-size: clamp(1.5rem, 5vw, 2rem);
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .bds-hero-mo {
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: #888;
+    margin-left: 2px;
+  }
+  .bds-hero-lbl { font-size: 0.68rem; color: #666; letter-spacing: 0.03em; text-transform: uppercase; margin-top: 2px; }
+
+  .bds-hero-rate-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+    padding: 3px 8px;
+    background: var(--bds-bg);
+    border: 1px solid var(--bds-border);
+    border-radius: 20px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--bds-color);
+  }
+
+  .bds-hero-stat { display: flex; flex-direction: column; gap: 2px; padding-left: 12px; }
+  .bds-hero-sv { font-size: 1rem; font-weight: 600; color: #e8e8e8; }
+  .bds-hero-sl { font-size: 0.65rem; color: #666; text-transform: uppercase; letter-spacing: 0.03em; }
+  .bds-savings-chip {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: rgba(16,185,129,0.12);
+    color: #10b981;
+    border: 1px solid rgba(16,185,129,0.2);
+  }
+
+  /* ── Divider / Section label ────────────────────────────────── */
+  .bds-div { height: 1px; background: rgba(255,255,255,0.06); margin: 0 18px; }
+  .bds-sec { font-size: 0.68rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 18px 6px; }
+
+  /* ── Year Table ─────────────────────────────────────────────── */
+  .bds-table { padding: 0 18px 4px; }
+  .bds-table-head {
+    display: grid;
+    grid-template-columns: 0.8fr 1fr 1.2fr 1fr;
+    gap: 4px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 4px;
+  }
+  .bds-th { font-size: 0.62rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.04em; }
+  .bds-th:not(:first-child) { text-align: right; }
+
+  .bds-tr {
+    display: grid;
+    grid-template-columns: 0.8fr 1fr 1.2fr 1fr;
+    gap: 4px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.1s;
+  }
+  .bds-tr:hover { background: rgba(255,255,255,0.02); }
+  .bds-tr.active-row { background: var(--bds-bg); border-color: transparent; border-radius: 8px; }
+  .bds-tr:last-child { border-bottom: none; }
+  .bds-td { font-size: 0.8rem; color: #bbb; }
+  .bds-td:not(:first-child) { text-align: right; }
+  .bds-td-label { font-size: 0.8rem; font-weight: 600; color: #e8e8e8; }
+  .bds-td-rate { color: var(--bds-color); font-weight: 600; }
+  .bds-td-savings { color: #10b981; font-size: 0.75rem; }
+  .bds-td-base { color: #666; font-size: 0.75rem; }
+  .bds-td-rate-base { color: #555; font-size: 0.75rem; text-decoration: line-through; }
+
+  /* ── Cost Callout ───────────────────────────────────────────── */
+  .bds-cost-box {
+    margin: 8px 18px 0;
+    padding: 10px 14px;
+    background: rgba(245,158,11,0.06);
+    border: 1px solid rgba(245,158,11,0.15);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .bds-cost-left { display: flex; flex-direction: column; gap: 2px; }
+  .bds-cost-label { font-size: 0.7rem; color: #888; }
+  .bds-cost-value { font-size: 1rem; font-weight: 700; color: var(--bds-color); }
+  .bds-cost-note { font-size: 0.65rem; color: #666; }
+  .bds-cost-seller { display: flex; flex-direction: column; gap: 2px; text-align: right; }
+  .bds-cost-seller-lbl { font-size: 0.65rem; color: #666; }
+  .bds-cost-seller-val { font-size: 0.85rem; font-weight: 600; color: #e8e8e8; }
+
+  /* ── Breakdown ──────────────────────────────────────────────── */
+  .bds-bd { padding: 2px 18px; }
+  .bds-bd-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .bds-bd-row:last-child { border-bottom: none; }
+  .bds-bd-lbl { font-size: 0.78rem; color: #888; }
+  .bds-bd-val { font-size: 0.78rem; color: #e8e8e8; font-weight: 500; }
+  .bds-bd-val-green { font-size: 0.78rem; color: #10b981; font-weight: 500; }
+  .bds-bd-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0 2px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin-top: 4px;
+  }
+  .bds-bd-total span:first-child { font-size: 0.82rem; font-weight: 600; color: #ccc; }
+  .bds-bd-total-val { font-size: 0.9rem; font-weight: 700; color: #fff; }
+
+  /* ── Adjusters ──────────────────────────────────────────────── */
+  .bds-sliders { padding: 4px 18px 8px; display: flex; flex-direction: column; gap: 14px; }
+
+  .bds-slider-wrap { display: flex; flex-direction: column; gap: 4px; }
+  .bds-slider-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .bds-slider-lbl { font-size: 0.72rem; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.04em; }
+  .bds-slider-val { font-size: 0.82rem; font-weight: 700; color: #e8e8e8; }
+
+  .bds-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(to right, var(--bds-color) 0%, var(--bds-color) var(--pct,50%), #2a2a2a var(--pct,50%), #2a2a2a 100%);
+    outline: none;
+    margin: 4px 0;
+  }
+  .bds-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--bds-color);
+    border: 2px solid #111;
+    cursor: pointer;
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.2);
+  }
+  .bds-range-limits {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    color: #555;
+  }
+
+  /* ── Chip rows ──────────────────────────────────────────────── */
+  .bds-chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .bds-chip {
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .bds-chip:hover { background: #222; color: #bbb; }
+  .bds-chip.active {
+    background: var(--bds-bg);
+    border-color: var(--bds-color);
+    color: var(--bds-color);
+  }
+
+  /* Buydown type chips — larger, with sub-label */
+  .bds-type-chips { display: flex; gap: 8px; }
+  .bds-type-chip {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 4px;
+    border-radius: 10px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    cursor: pointer;
+    transition: all 0.15s;
+    gap: 2px;
+  }
+  .bds-type-chip:hover { background: #222; }
+  .bds-type-chip.active {
+    background: var(--bds-bg);
+    border-color: var(--bds-color);
+  }
+  .bds-type-chip-name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #e8e8e8;
+  }
+  .bds-type-chip.active .bds-type-chip-name { color: var(--bds-color); }
+  .bds-type-chip-sub {
+    font-size: 0.62rem;
+    color: #666;
+    text-align: center;
+    line-height: 1.3;
+  }
+  .bds-type-chip.active .bds-type-chip-sub { color: #aaa; }
+
+  .bds-fred-tag { font-size: 0.65rem; color: #555; margin-top: 2px; }
+  .bds-dp-note  { font-size: 0.65rem; color: #555; margin-top: 2px; }
+
+  /* Seller credit input */
+  .bds-credit-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    margin-top: 2px;
+  }
+  .bds-credit-icon { font-size: 0.8rem; }
+  .bds-credit-label { font-size: 0.72rem; color: #888; flex: 1; }
+  .bds-credit-input {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.82rem;
+    color: #e8e8e8;
+    width: 100px;
+    text-align: right;
+    outline: none;
+  }
+  .bds-credit-input:focus { border-color: var(--bds-color); }
+
+  /* ── CTA ────────────────────────────────────────────────────── */
+  .bds-cta-wrap {
+    padding: 14px 18px 18px;
+  }
+  .bds-cta {
+    width: 100%;
+    padding: 12px;
+    background: var(--bds-color);
+    color: #000;
+    font-size: 0.88rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: opacity 0.15s;
+  }
+  .bds-cta:hover { opacity: 0.88; }
+  .bds-cta:disabled { opacity: 0.5; cursor: default; }
+
+  /* ── Responsive ─────────────────────────────────────────────── */
+  @media (max-width: 480px) {
+    .bds-hero { grid-template-columns: 1.6fr 1fr 1fr; }
+    .bds-hero-piti { font-size: clamp(1.1rem, 5vw, 1.5rem); }
+    .bds-table-head, .bds-tr { grid-template-columns: 0.7fr 1fr 1.2fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bds" id="card">
+
+  <!-- Header -->
+  <div class="bds-header">
+    <div class="bds-header-left">
+      <span class="bds-title">Buydown Purchase</span>
+      <span class="bds-sub" id="sub">$1.5M · 25% down · 6.360% note rate · 30yr Fixed</span>
+    </div>
+    <div class="bds-type-badge" id="typeBadge">⬇ 2/1 Buydown</div>
+  </div>
+
+  <!-- Year Selector -->
+  <div class="bds-year-nav">
+    <button class="bds-year-btn active" data-yr="1" onclick="selectYear(1)">Year 1</button>
+    <span class="bds-year-arrow">›</span>
+    <button class="bds-year-btn" data-yr="2" onclick="selectYear(2)">Year 2</button>
+    <span class="bds-year-arrow">›</span>
+    <button class="bds-year-btn" data-yr="3" onclick="selectYear(3)">Year 3+</button>
+  </div>
+
+  <!-- Hero -->
+  <div class="bds-hero">
+    <div class="bds-hero-main">
+      <div>
+        <span class="bds-hero-piti" id="heroPiti">$7,664</span><span class="bds-hero-mo">/mo</span>
+      </div>
+      <div class="bds-hero-lbl" id="heroLbl">PITI — Year 1 Buydown Rate</div>
+      <div class="bds-hero-rate-badge" id="heroRateBadge">⬇ 4.360% in Year 1</div>
+    </div>
+    <div class="bds-hero-stat">
+      <div class="bds-hero-sv" id="heroLoan">$1.125M</div>
+      <div class="bds-hero-sl">Loan Amount</div>
+    </div>
+    <div class="bds-hero-stat">
+      <div class="bds-hero-sv" id="heroSavings">
+        <span class="bds-savings-chip" id="savingsChip">-$1,338/mo</span>
+      </div>
+      <div class="bds-hero-sl">vs Note Rate</div>
+    </div>
+  </div>
+
+  <!-- Year Table -->
+  <div class="bds-div"></div>
+  <div class="bds-sec">Year-by-Year Buydown Schedule</div>
+  <div class="bds-table">
+    <div class="bds-table-head">
+      <div class="bds-th">Period</div>
+      <div class="bds-th">Rate</div>
+      <div class="bds-th">PITI</div>
+      <div class="bds-th">Savings</div>
+    </div>
+    <div class="bds-tr active-row" data-yr="1" onclick="selectYear(1)">
+      <div class="bds-td-label">Year 1</div>
+      <div class="bds-td bds-td-rate" id="rate-yr1">4.360%</div>
+      <div class="bds-td" id="piti-yr1">$7,664</div>
+      <div class="bds-td bds-td-savings" id="sav-yr1">-$1,338/mo</div>
+    </div>
+    <div class="bds-tr" data-yr="2" onclick="selectYear(2)">
+      <div class="bds-td-label">Year 2</div>
+      <div class="bds-td bds-td-rate" id="rate-yr2">5.360%</div>
+      <div class="bds-td" id="piti-yr2">$8,284</div>
+      <div class="bds-td bds-td-savings" id="sav-yr2">-$718/mo</div>
+    </div>
+    <div class="bds-tr" data-yr="3" onclick="selectYear(3)">
+      <div class="bds-td-label">Year 3+</div>
+      <div class="bds-td bds-td-rate-base" id="rate-yr3">6.360%</div>
+      <div class="bds-td" id="piti-yr3">$9,002</div>
+      <div class="bds-td bds-td-base">—</div>
+    </div>
+  </div>
+
+  <!-- Buydown Cost -->
+  <div class="bds-cost-box">
+    <div class="bds-cost-left">
+      <div class="bds-cost-label">Total Buydown Cost</div>
+      <div class="bds-cost-value" id="buydownCost">$24,672</div>
+      <div class="bds-cost-note" id="buydownCostNote">Paid at closing · negotiable as seller credit</div>
+    </div>
+    <div class="bds-cost-seller">
+      <div class="bds-cost-seller-lbl">Seller Credit Applied</div>
+      <div class="bds-cost-seller-val" id="sellerCreditDisplay">$0</div>
+    </div>
+  </div>
+
+  <!-- Monthly Breakdown -->
+  <div class="bds-div" style="margin-top:12px"></div>
+  <div class="bds-sec">Monthly Breakdown <span id="breakdownPeriod" style="color:#666;text-transform:none;font-weight:400">(Year 1)</span></div>
+  <div class="bds-bd">
+    <div class="bds-bd-row">
+      <span class="bds-bd-lbl">Principal &amp; Interest (<span id="bdRate">4.360%</span>)</span>
+      <span class="bds-bd-val" id="bdPI">$5,664</span>
+    </div>
+    <div class="bds-bd-row">
+      <span class="bds-bd-lbl">Property Taxes (est. 1.1%/yr)</span>
+      <span class="bds-bd-val" id="bdTax">$1,375</span>
+    </div>
+    <div class="bds-bd-row">
+      <span class="bds-bd-lbl">Home Insurance (est. 0.5%/yr)</span>
+      <span class="bds-bd-val" id="bdIns">$625</span>
+    </div>
+    <div class="bds-bd-row">
+      <span class="bds-bd-lbl">PMI</span>
+      <span class="bds-bd-val-green" id="bdPMI">None (25% down)</span>
+    </div>
+    <div class="bds-bd-total">
+      <span>Total Monthly PITI</span>
+      <span class="bds-bd-total-val" id="bdTotal">$7,664</span>
+    </div>
+  </div>
+
+  <!-- Adjusters -->
+  <div class="bds-div"></div>
+  <div class="bds-sec">Adjust Your Numbers</div>
+  <div class="bds-sliders">
+
+    <!-- Home Price -->
+    <div class="bds-slider-wrap">
+      <div class="bds-slider-label-row">
+        <span class="bds-slider-lbl">Home Price</span>
+        <span class="bds-slider-val" id="priceVal">$1,500,000</span>
+      </div>
+      <input class="bds-range" type="range" id="priceSlider" min="500000" max="5000000" step="25000" value="1500000"
+        oninput="onPriceChange(this.value)">
+      <div class="bds-range-limits"><span>$500k</span><span>$5M+</span></div>
+    </div>
+
+    <!-- Down Payment -->
+    <div class="bds-slider-wrap">
+      <div class="bds-slider-label-row">
+        <span class="bds-slider-lbl">Down Payment</span>
+        <span class="bds-slider-val" id="downVal">25% · $375,000</span>
+      </div>
+      <input class="bds-range" type="range" id="downSlider" min="3" max="60" step="1" value="25"
+        oninput="onDownChange(this.value)">
+      <div class="bds-range-limits"><span>3%</span><span>60%</span></div>
+      <div class="bds-chip-row" style="margin-top:4px">
+        <button class="bds-chip" onclick="setDown(5)">5%</button>
+        <button class="bds-chip" onclick="setDown(10)">10%</button>
+        <button class="bds-chip" onclick="setDown(20)">20%</button>
+        <button class="bds-chip active" id="dpChip25" onclick="setDown(25)">25%</button>
+      </div>
+    </div>
+
+    <!-- Interest Rate -->
+    <div class="bds-slider-wrap">
+      <div class="bds-slider-label-row">
+        <span class="bds-slider-lbl">Note Rate (Year 3+)</span>
+        <span class="bds-slider-val" id="rateVal">6.360%</span>
+      </div>
+      <input class="bds-range" type="range" id="rateSlider" min="3" max="12" step="0.125" value="6.36"
+        oninput="onRateChange(this.value)">
+      <div class="bds-range-limits"><span>3%</span><span>12%</span></div>
+      <div class="bds-fred-tag">📡 Seeded from FRED live rate: 6.360%</div>
+    </div>
+
+    <!-- Buydown Type -->
+    <div class="bds-slider-wrap">
+      <div class="bds-slider-label-row">
+        <span class="bds-slider-lbl">Buydown Type</span>
+      </div>
+      <div class="bds-type-chips">
+        <div class="bds-type-chip" onclick="setBuydownType('1/0')" id="chip-10">
+          <span class="bds-type-chip-name">1/0</span>
+          <span class="bds-type-chip-sub">-1% Yr 1<br>then note</span>
+        </div>
+        <div class="bds-type-chip active" onclick="setBuydownType('2/1')" id="chip-21">
+          <span class="bds-type-chip-name">2/1</span>
+          <span class="bds-type-chip-sub">-2% Yr 1<br>-1% Yr 2</span>
+        </div>
+        <div class="bds-type-chip" onclick="setBuydownType('3/2/1')" id="chip-321">
+          <span class="bds-type-chip-name">3/2/1</span>
+          <span class="bds-type-chip-sub">-3% Yr 1<br>-2% Yr 2<br>-1% Yr 3</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seller Credit -->
+    <div class="bds-slider-wrap">
+      <div class="bds-slider-label-row">
+        <span class="bds-slider-lbl">Seller Credit</span>
+      </div>
+      <div class="bds-credit-row">
+        <span class="bds-credit-icon">🤝</span>
+        <span class="bds-credit-label">Credit toward buydown cost</span>
+        <input class="bds-credit-input" type="text" id="sellerCreditInput" value="$0"
+          oninput="onSellerCreditChange(this.value)"
+          onblur="formatSellerCreditInput()">
+      </div>
+      <div class="bds-dp-note" id="sellerCreditNote">Seller credit covers $0 of $24,672 buydown cost</div>
+    </div>
+
+  </div>
+
+  <!-- CTA -->
+  <div class="bds-div"></div>
+  <div class="bds-cta-wrap">
+    <button class="bds-cta" onclick="runScenario()">Run My Numbers</button>
+  </div>
+
+</div>
+
+<script>
+// ── State (initialized from props) ────────────────────────────────────────────
+const PROPS = {
+  price:        1500000,
+  downPct:      25,
+  rate:         6.36,
+  term:         30,
+  taxRate:      0.011,
+  insRate:      0.005,
+  buydownType:  '2/1',
+  sellerCredit: 0,
+};
+
+let state = {
+  price:        PROPS.price,
+  downPct:      PROPS.downPct,
+  rate:         PROPS.rate,
+  term:         PROPS.term,
+  taxRate:      PROPS.taxRate,
+  insRate:      PROPS.insRate,
+  buydownType:  PROPS.buydownType,
+  sellerCredit: PROPS.sellerCredit,
+  activeYear:   1,
+};
+
+// ── Math ──────────────────────────────────────────────────────────────────────
+function calcPI(principal, annualRate, termYears) {
+  if (principal <= 0) return 0;
+  if (annualRate <= 0) return principal / (termYears * 12);
+  const r = annualRate / 100 / 12;
+  const n = termYears * 12;
+  return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+}
+
+function getBuydownOffsets(type) {
+  if (type === '1/0')   return [1, 0, 0];
+  if (type === '2/1')   return [2, 1, 0];
+  if (type === '3/2/1') return [3, 2, 1];
+  return [2, 1, 0];
+}
+
+function calcAll() {
+  const { price, downPct, rate, term, taxRate, insRate, buydownType, sellerCredit } = state;
+  const downAmt  = price * downPct / 100;
+  const loan     = price - downAmt;
+  const ltv      = loan / price * 100;
+  const pmi      = ltv > 80 ? (loan * 0.008 / 12) : 0;
+  const tax      = price * taxRate / 12;
+  const ins      = price * insRate / 12;
+  const offsets  = getBuydownOffsets(buydownType);
+  const numYears = offsets.filter(o => o > 0).length;
+
+  const years = offsets.map((offset, i) => {
+    const adjRate = rate - offset;
+    const pi      = calcPI(loan, adjRate, term);
+    const piti    = pi + tax + ins + pmi;
+    return { yr: i + 1, rate: adjRate, pi, piti, offset };
+  });
+  // If 3/2/1, add extra final-year row
+  if (buydownType === '3/2/1') {
+    // offsets array has 3 entries; last entry (yr 3) still has -1 offset but labeled "Yr 3"; add Yr 4+ at note rate
+    // Re-derive: [3,2,1] means yr1=-3, yr2=-2, yr3=-1, yr4+=0
+    // Rebuild years properly for 3/2/1
+    const o3 = [3, 2, 1, 0];
+    return {
+      loan, ltv, pmi, tax, ins, downAmt,
+      years: o3.map((offset, i) => {
+        const adjRate = rate - offset;
+        const pi      = calcPI(loan, adjRate, term);
+        const piti    = pi + tax + ins + pmi;
+        return { yr: i + 1, rate: adjRate, pi, piti, offset };
+      }),
+      buydownCost: calcBuydownCost(loan, rate, offsets, term),
+      sellerCredit,
+    };
+  }
+
+  return {
+    loan, ltv, pmi, tax, ins, downAmt,
+    years,
+    buydownCost: calcBuydownCost(loan, rate, offsets, term),
+    sellerCredit,
+  };
+}
+
+function calcBuydownCost(loan, noteRate, offsets, term) {
+  // Cost = sum of monthly payment differences for each buydown year
+  const basePI = calcPI(loan, noteRate, term);
+  return offsets.reduce((total, offset, i) => {
+    if (offset === 0) return total;
+    const adjPI = calcPI(loan, noteRate - offset, term);
+    return total + (basePI - adjPI) * 12;
+  }, 0);
+}
+
+// ── Formatting ─────────────────────────────────────────────────────────────
+function fmt$(n) {
+  return new Intl.NumberFormat('en-US', { style:'currency', currency:'USD', maximumFractionDigits:0 }).format(n);
+}
+function fmtK(n) {
+  if (n >= 1_000_000) return `$${(n/1_000_000).toFixed(2).replace(/\.?0+$/,'')}M`;
+  if (n >= 100_000)   return `$${Math.round(n/1_000)}k`;
+  return fmt$(n);
+}
+function fmtRate(r) { return r.toFixed(3) + '%'; }
+function setSliderPct(el, val, min, max) {
+  el.style.setProperty('--pct', ((val - min) / (max - min) * 100) + '%');
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  const data    = calcAll();
+  const { loan, ltv, pmi, tax, ins, downAmt, years, buydownCost, sellerCredit } = data;
+  const { price, downPct, rate, buydownType, activeYear, term } = state;
+
+  // Determine active year index
+  let yrIdx = activeYear - 1;
+  if (yrIdx >= years.length) yrIdx = years.length - 1;
+  const curYear  = years[yrIdx];
+  const baseYear = years[years.length - 1]; // note-rate year
+  const savings  = curYear.offset > 0 ? (baseYear.piti - curYear.piti) : 0;
+
+  // Header sub
+  document.getElementById('sub').textContent =
+    `${fmtK(price)} · ${downPct}% down · ${fmtRate(rate)} note rate · ${term}yr Fixed`;
+
+  // Badge
+  const typeLabel = buydownType === '1/0' ? '1/0' : buydownType === '3/2/1' ? '3/2/1' : '2/1';
+  document.getElementById('typeBadge').textContent = `⬇ ${typeLabel} Buydown`;
+
+  // Hero
+  document.getElementById('heroPiti').textContent = fmt$(Math.round(curYear.piti));
+  document.getElementById('heroLbl').textContent  = activeYear >= years.length
+    ? `PITI — Year ${activeYear}+ Note Rate`
+    : `PITI — Year ${activeYear} Buydown Rate`;
+  document.getElementById('heroRateBadge').textContent =
+    curYear.offset > 0 ? `⬇ ${fmtRate(curYear.rate)} in Year ${activeYear}` : `${fmtRate(curYear.rate)} note rate`;
+  document.getElementById('heroLoan').textContent = fmtK(loan);
+  if (savings > 0) {
+    document.getElementById('savingsChip').textContent = `-${fmt$(Math.round(savings))}/mo`;
+    document.getElementById('savingsChip').style.display = '';
+    document.getElementById('heroSavings').querySelector('.bds-savings-chip') && null;
+  } else {
+    document.getElementById('savingsChip').textContent = 'Full rate';
+    document.getElementById('savingsChip').style.background = 'rgba(100,100,100,0.15)';
+    document.getElementById('savingsChip').style.color = '#666';
+    document.getElementById('savingsChip').style.borderColor = 'rgba(100,100,100,0.2)';
+  }
+
+  // Year table — handle both 2-year (1/0, 2/1) and 3-year (3/2/1) layouts
+  renderTable(years, baseYear);
+
+  // Highlight active row
+  document.querySelectorAll('.bds-tr').forEach(r => r.classList.remove('active-row'));
+  const activeRow = document.querySelector(`.bds-tr[data-yr="${activeYear}"]`);
+  if (activeRow) activeRow.classList.add('active-row');
+
+  // Year nav buttons
+  document.querySelectorAll('.bds-year-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.querySelector(`.bds-year-btn[data-yr="${activeYear}"]`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  // Buydown cost
+  document.getElementById('buydownCost').textContent = fmt$(Math.round(buydownCost));
+  document.getElementById('buydownCostNote').textContent =
+    'Paid at closing · negotiable as seller credit';
+  document.getElementById('sellerCreditDisplay').textContent = fmt$(sellerCredit);
+  document.getElementById('sellerCreditNote').textContent =
+    `Seller credit covers ${fmt$(sellerCredit)} of ${fmt$(Math.round(buydownCost))} buydown cost`;
+
+  // Breakdown
+  document.getElementById('breakdownPeriod').textContent =
+    activeYear >= years.length ? `(Year ${activeYear}+)` : `(Year ${activeYear})`;
+  document.getElementById('bdRate').textContent     = fmtRate(curYear.rate);
+  document.getElementById('bdPI').textContent       = fmt$(Math.round(curYear.pi));
+  document.getElementById('bdTax').textContent      = fmt$(Math.round(tax));
+  document.getElementById('bdIns').textContent      = fmt$(Math.round(ins));
+  document.getElementById('bdPMI').textContent      = pmi > 0 ? fmt$(Math.round(pmi)) : `None (${downPct}% down)`;
+  document.getElementById('bdPMI').className        = pmi > 0 ? 'bds-bd-val' : 'bds-bd-val-green';
+  document.getElementById('bdTotal').textContent    = fmt$(Math.round(curYear.piti));
+
+  // Adjusters
+  document.getElementById('priceVal').textContent = fmt$(price);
+  document.getElementById('downVal').textContent  = `${downPct}% · ${fmtK(downAmt)}`;
+  document.getElementById('rateVal').textContent  = fmtRate(rate);
+
+  // Slider track fill
+  setSliderPct(document.getElementById('priceSlider'), price, 500000, 5000000);
+  setSliderPct(document.getElementById('downSlider'),  downPct, 3, 60);
+  setSliderPct(document.getElementById('rateSlider'),  rate, 3, 12);
+
+  // Buydown type chips
+  ['10','21','321'].forEach(id => document.getElementById(`chip-${id}`).classList.remove('active'));
+  const activeChipId = buydownType.replace(/\//g,'');
+  if (document.getElementById(`chip-${activeChipId}`)) {
+    document.getElementById(`chip-${activeChipId}`).classList.add('active');
+  }
+
+  // Update year nav buttons based on buydown type
+  updateYearNav(years.length);
+}
+
+function renderTable(years, baseYear) {
+  const tableEl = document.querySelector('.bds-table');
+  const headEl  = tableEl.querySelector('.bds-table-head');
+
+  // Remove existing rows
+  tableEl.querySelectorAll('.bds-tr').forEach(r => r.remove());
+
+  years.forEach((yr, i) => {
+    const isLast    = i === years.length - 1;
+    const savings   = yr.offset > 0 ? (baseYear.piti - yr.piti) : null;
+    const label     = isLast ? `Year ${yr.yr}+` : `Year ${yr.yr}`;
+    const yrData    = i + 1;
+
+    const row = document.createElement('div');
+    row.className = 'bds-tr';
+    row.setAttribute('data-yr', yrData);
+    row.setAttribute('onclick', `selectYear(${yrData})`);
+    row.innerHTML = `
+      <div class="bds-td-label">${label}</div>
+      <div class="bds-td ${yr.offset > 0 ? 'bds-td-rate' : 'bds-td-rate-base'}">${fmtRate(yr.rate)}</div>
+      <div class="bds-td">${fmt$(Math.round(yr.piti))}</div>
+      <div class="bds-td ${savings ? 'bds-td-savings' : 'bds-td-base'}">${savings ? `-${fmt$(Math.round(savings))}/mo` : '—'}</div>
+    `;
+    tableEl.appendChild(row);
+  });
+}
+
+function updateYearNav(numYears) {
+  const nav = document.querySelector('.bds-year-nav');
+  nav.innerHTML = '';
+
+  for (let i = 1; i <= numYears; i++) {
+    if (i > 1) {
+      const arrow = document.createElement('span');
+      arrow.className = 'bds-year-arrow';
+      arrow.textContent = '›';
+      nav.appendChild(arrow);
+    }
+    const btn = document.createElement('button');
+    btn.className = 'bds-year-btn' + (i === state.activeYear ? ' active' : '');
+    btn.setAttribute('data-yr', i);
+    btn.textContent = i === numYears ? `Year ${i}+` : `Year ${i}`;
+    btn.setAttribute('onclick', `selectYear(${i})`);
+    nav.appendChild(btn);
+  }
+}
+
+// ── Event handlers ─────────────────────────────────────────────────────────
+function selectYear(yr) {
+  state.activeYear = yr;
+  render();
+}
+
+function onPriceChange(val) {
+  state.price = parseInt(val);
+  document.getElementById('priceSlider').value = val;
+  render();
+}
+
+function onDownChange(val) {
+  state.downPct = parseInt(val);
+  document.getElementById('downSlider').value = val;
+  render();
+}
+
+function setDown(pct) {
+  state.downPct = pct;
+  document.getElementById('downSlider').value = pct;
+  render();
+}
+
+function onRateChange(val) {
+  state.rate = parseFloat(parseFloat(val).toFixed(3));
+  document.getElementById('rateSlider').value = val;
+  render();
+}
+
+function setBuydownType(type) {
+  state.buydownType = type;
+  state.activeYear  = 1;
+  render();
+}
+
+function onSellerCreditChange(val) {
+  const raw = val.replace(/[$,\s]/g, '');
+  const n   = parseFloat(raw);
+  state.sellerCredit = isNaN(n) ? 0 : Math.max(0, n);
+}
+
+function formatSellerCreditInput() {
+  document.getElementById('sellerCreditInput').value = fmt$(state.sellerCredit);
+  render();
+}
+
+function runScenario() {
+  const btn = document.querySelector('.bds-cta');
+  btn.textContent = 'Running...';
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.textContent = 'Run My Numbers';
+    btn.disabled = false;
+  }, 1200);
+  // In production: calls onRunScenario(seed, { price, downPct, rate, term, buydownType, sellerCredit })
+  console.log('Run scenario with state:', JSON.stringify(state, null, 2));
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>

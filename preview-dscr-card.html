@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSCR Investor Card — Prototype</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0f1a; font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px; }
+  .chat-balloon { background: #111827; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 14px 18px; max-width: 720px; width: 100%; }
+  .typeout { font-size: 14px; color: #c9d4e8; line-height: 1.55; margin-bottom: 14px; }
+
+  /* ── Card root ── */
+  .dsc { background: #0e1420; border: 1px solid rgba(0,232,122,0.2); border-radius: 14px; overflow: hidden; margin-top: 4px; font-family: system-ui, -apple-system, sans-serif; color: #f0f4ff; }
+
+  /* ── Header ── */
+  .dsc-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 10px; }
+  .dsc-header-left { display: flex; align-items: center; gap: 10px; }
+  .dsc-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .dsc-icon svg { width: 16px; height: 16px; }
+  .dsc-title { font-size: 15px; font-weight: 700; color: #f0f4ff; }
+  .dsc-sub { font-size: 11px; color: #5a6a8a; margin-top: 1px; }
+  .dsc-badge { font-size: 10px; font-weight: 800; letter-spacing: 0.07em; color: #00e87a; background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.2); border-radius: 5px; padding: 3px 7px; }
+
+  /* ── Hero row ── */
+  .dsc-hero { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: rgba(255,255,255,0.05); margin: 0 18px 14px; border-radius: 11px; overflow: hidden; }
+  .dsc-hero-cell { background: #0d1420; padding: 14px 16px; }
+  .dsc-hero-cell:first-child { border-radius: 11px 0 0 11px; }
+  .dsc-hero-cell:last-child { border-radius: 0 11px 11px 0; }
+  .dsc-hero-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #4a5a7a; margin-bottom: 5px; }
+  .dsc-hero-val { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+  .dsc-hero-unit { font-size: 0.6em; font-weight: 600; opacity: 0.65; }
+  .dsc-hero-note { font-size: 10px; color: #4a5a7a; margin-top: 4px; }
+
+  /* DSCR ratio color coding */
+  .status-excellent  { color: #00e87a; }
+  .status-good       { color: #5edb94; }
+  .status-standard   { color: #f5c842; }
+  .status-minimum    { color: #ff8c42; }
+  .status-noqual     { color: #ff5f5f; }
+
+  /* ── DSCR gauge ── */
+  .dsc-gauge-wrap { margin: 0 18px 16px; }
+  .dsc-gauge-label { font-size: 11px; font-weight: 700; color: #4a5a7a; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .dsc-gauge-bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; gap: 2px; }
+  .dsc-gauge-seg { flex: 1; border-radius: 99px; transition: opacity 0.2s; }
+  .seg-noqual  { background: #ff5f5f; }
+  .seg-min     { background: #ff8c42; }
+  .seg-std     { background: #f5c842; }
+  .seg-good    { background: #5edb94; }
+  .seg-excel   { background: #00e87a; }
+  .seg-inactive { opacity: 0.18; }
+  .dsc-gauge-ticks { display: flex; justify-content: space-between; margin-top: 6px; padding: 0 2px; }
+  .dsc-gauge-tick  { font-size: 9px; font-weight: 700; color: #3a4a6a; }
+  .dsc-gauge-tick.active { color: #c9d4e8; }
+
+  /* ── Status badge ── */
+  .dsc-status-row { margin: 0 18px 14px; }
+  .dsc-status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+
+  /* ── PITIA breakdown ── */
+  .dsc-pitia { margin: 0 18px 16px; background: #0a0f1c; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; overflow: hidden; }
+  .dsc-pitia-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .dsc-pitia-title  { font-size: 10px; font-weight: 800; color: #3a4a6a; text-transform: uppercase; letter-spacing: 0.07em; }
+  .dsc-pitia-total  { font-size: 13px; font-weight: 800; color: #f0f4ff; }
+  .dsc-pitia-rows   { padding: 8px 14px 10px; display: flex; flex-direction: column; gap: 5px; }
+  .dsc-pitia-row    { display: flex; align-items: center; justify-content: space-between; }
+  .dsc-pitia-row-lbl { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6a7a9a; }
+  .dsc-pitia-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dsc-pitia-row-val { font-size: 12px; font-weight: 600; color: #c9d4e8; }
+
+  /* ── Break-even section ── */
+  .dsc-be { margin: 0 18px 16px; }
+  .dsc-be-title { font-size: 10px; font-weight: 800; color: #3a4a6a; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 9px; }
+  .dsc-be-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .dsc-be-card { background: #0a0f1c; border: 1px solid rgba(255,255,255,0.06); border-radius: 9px; padding: 11px 12px; }
+  .dsc-be-card-lbl  { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+  .dsc-be-card-rent { font-size: 15px; font-weight: 800; color: #f0f4ff; line-height: 1; }
+  .dsc-be-card-mo   { font-size: 9px; font-weight: 600; color: #4a5a7a; }
+  .dsc-be-card-note { font-size: 10px; margin-top: 4px; }
+
+  /* ── Down payment insight ── */
+  .dsc-dp-insight { margin: 0 18px 16px; background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.15); border-radius: 10px; padding: 12px 14px; }
+  .dsc-dp-title { font-size: 10px; font-weight: 800; color: #00a853; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 9px; }
+  .dsc-dp-row   { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .dsc-dp-row:last-child { margin-bottom: 0; }
+  .dsc-dp-lbl   { font-size: 12px; color: #6a7a9a; }
+  .dsc-dp-val   { font-size: 13px; font-weight: 700; color: #00e87a; }
+  .dsc-dp-sub   { font-size: 10px; color: #3a4a6a; margin-top: 2px; }
+
+  /* ── Adjusters ── */
+  .dsc-adj { margin: 0 18px 16px; display: flex; flex-direction: column; gap: 14px; }
+  .dsc-adj-title { font-size: 10px; font-weight: 800; color: #3a4a6a; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 2px; }
+  .sf { display: flex; flex-direction: column; gap: 5px; }
+  .sf-top { display: flex; align-items: center; justify-content: space-between; }
+  .sf-label { font-size: 12px; font-weight: 600; color: #8a9aba; }
+  .sf-value { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+  .sf-range { display: flex; justify-content: space-between; margin-top: 2px; }
+  .sf-range span { font-size: 9px; color: #2a3a5a; font-weight: 600; }
+  input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 99px; background: rgba(255,255,255,0.1); outline: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #00e87a; border: 2px solid #0e1420; cursor: pointer; box-shadow: 0 0 0 2px rgba(0,232,122,0.25); }
+  .sf-note { font-size: 10px; color: #3a4a6a; font-style: italic; margin-top: 1px; }
+
+  /* ── CTA ── */
+  .dsc-cta-wrap { padding: 0 18px 18px; }
+  .dsc-cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .dsc-btn-primary { padding: 12px; background: #00e87a; color: #07100f; font-size: 13px; font-weight: 800; border: none; border-radius: 9px; cursor: pointer; font-family: inherit; letter-spacing: 0.02em; transition: opacity 0.15s; }
+  .dsc-btn-primary:hover { opacity: 0.88; }
+  .dsc-btn-secondary { padding: 12px; background: transparent; color: #00e87a; font-size: 13px; font-weight: 700; border: 1.5px solid rgba(0,232,122,0.3); border-radius: 9px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .dsc-btn-secondary:hover { background: rgba(0,232,122,0.06); }
+  .dsc-btn-full { display: block; width: 100%; padding: 12px; background: rgba(0,232,122,0.08); color: #00e87a; font-size: 13px; font-weight: 700; border: 1.5px solid rgba(0,232,122,0.2); border-radius: 9px; cursor: pointer; font-family: inherit; text-align: center; transition: all 0.15s; }
+  .dsc-btn-full:hover { background: rgba(0,232,122,0.12); }
+
+  /* ── Chips ── */
+  .dsc-chips { padding: 0 18px 14px; display: flex; gap: 7px; flex-wrap: wrap; }
+  .dsc-chip { padding: 6px 11px; background: rgba(0,232,122,0.06); border: 1px solid rgba(0,232,122,0.18); border-radius: 99px; font-size: 11px; font-weight: 600; color: #00a853; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .dsc-chip:hover { background: rgba(0,232,122,0.12); }
+
+  /* ── Separator ── */
+  .dsc-sep { height: 1px; background: rgba(255,255,255,0.05); margin: 0 18px 16px; }
+</style>
+</head>
+<body>
+
+<div class="chat-balloon">
+  <div class="typeout">Here's your DSCR investment breakdown for a $1.2M property at 7.25% — $3,800/mo rent, 25% down.</div>
+
+  <div class="dsc" id="card">
+
+    <!-- Header -->
+    <div class="dsc-header">
+      <div class="dsc-header-left">
+        <div class="dsc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#00e87a" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="dsc-title">DSCR Investment Analysis</div>
+          <div class="dsc-sub" id="dsc-sub-text">$1.2M · 25% down · $3,800/mo rent</div>
+        </div>
+      </div>
+      <div class="dsc-badge">DSCR</div>
+    </div>
+
+    <!-- Hero — DSCR + PITIA + Loan -->
+    <div class="dsc-hero">
+      <div class="dsc-hero-cell">
+        <div class="dsc-hero-lbl">DSCR Ratio</div>
+        <div class="dsc-hero-val" id="hero-dscr" style="color:#ff8c42">0.84<span class="dsc-hero-unit">x</span></div>
+        <div class="dsc-hero-note" id="hero-status-note" style="color:#ff8c42">Select lenders ≥0.75</div>
+      </div>
+      <div class="dsc-hero-cell">
+        <div class="dsc-hero-lbl">Monthly PITIA</div>
+        <div class="dsc-hero-val">$<span id="hero-pitia">4,518</span></div>
+        <div class="dsc-hero-note">P&amp;I + Tax + Ins</div>
+      </div>
+      <div class="dsc-hero-cell">
+        <div class="dsc-hero-lbl">Loan Amount</div>
+        <div class="dsc-hero-val">$<span id="hero-loan">900k</span></div>
+        <div class="dsc-hero-note" id="hero-ltv">75% LTV</div>
+      </div>
+    </div>
+
+    <!-- DSCR Gauge -->
+    <div class="dsc-gauge-wrap">
+      <div class="dsc-gauge-label">Qualification Band</div>
+      <div class="dsc-gauge-bar">
+        <div class="dsc-gauge-seg seg-noqual" id="seg0"></div>
+        <div class="dsc-gauge-seg seg-min" id="seg1"></div>
+        <div class="dsc-gauge-seg seg-std" id="seg2"></div>
+        <div class="dsc-gauge-seg seg-good" id="seg3"></div>
+        <div class="dsc-gauge-seg seg-excel" id="seg4"></div>
+      </div>
+      <div class="dsc-gauge-ticks">
+        <div class="dsc-gauge-tick"><0.75</div>
+        <div class="dsc-gauge-tick">0.75</div>
+        <div class="dsc-gauge-tick">1.00</div>
+        <div class="dsc-gauge-tick">1.25</div>
+        <div class="dsc-gauge-tick">1.50+</div>
+      </div>
+    </div>
+
+    <!-- Status pill -->
+    <div class="dsc-status-row">
+      <div class="dsc-status-pill" id="status-pill" style="background:rgba(255,140,66,0.08);border:1px solid rgba(255,140,66,0.25);color:#ff8c42">
+        <span id="status-icon">⚠</span>
+        <span id="status-label">Minimum Qualify — select lenders at ≥0.75x</span>
+      </div>
+    </div>
+
+    <!-- PITIA Breakdown -->
+    <div class="dsc-pitia">
+      <div class="dsc-pitia-header">
+        <div class="dsc-pitia-title">Monthly PITIA Breakdown</div>
+        <div class="dsc-pitia-total">$<span id="pitia-total">4,518</span>/mo</div>
+      </div>
+      <div class="dsc-pitia-rows">
+        <div class="dsc-pitia-row">
+          <div class="dsc-pitia-row-lbl"><div class="dsc-pitia-dot" style="background:#4a8cff"></div>Principal &amp; Interest</div>
+          <div class="dsc-pitia-row-val">$<span id="p-pi">3,688</span>/mo</div>
+        </div>
+        <div class="dsc-pitia-row">
+          <div class="dsc-pitia-row-lbl"><div class="dsc-pitia-dot" style="background:#f5c842"></div>Property Tax</div>
+          <div class="dsc-pitia-row-val">$<span id="p-tax">1,100</span>/mo</div>
+        </div>
+        <div class="dsc-pitia-row">
+          <div class="dsc-pitia-row-lbl"><div class="dsc-pitia-dot" style="background:#ff8c42"></div>Insurance</div>
+          <div class="dsc-pitia-row-val">$<span id="p-ins">500</span>/mo</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dsc-sep"></div>
+
+    <!-- Break-even Rent Section -->
+    <div class="dsc-be">
+      <div class="dsc-be-title">How Much Rent Do You Need?</div>
+      <div class="dsc-be-grid">
+        <div class="dsc-be-card" style="border-color:rgba(255,95,95,0.2)">
+          <div class="dsc-be-card-lbl" style="color:#ff5f5f">Minimum<br>0.75x</div>
+          <div class="dsc-be-card-rent">$<span id="be-075">3,389</span></div>
+          <div class="dsc-be-card-mo">/mo gross rent</div>
+          <div class="dsc-be-card-note" style="color:#5a3a3a">Select lenders only</div>
+        </div>
+        <div class="dsc-be-card" style="border-color:rgba(245,200,66,0.25)">
+          <div class="dsc-be-card-lbl" style="color:#f5c842">Standard<br>1.00x</div>
+          <div class="dsc-be-card-rent">$<span id="be-100">4,518</span></div>
+          <div class="dsc-be-card-mo">/mo gross rent</div>
+          <div class="dsc-be-card-note" style="color:#6a5a2a">Most lenders</div>
+        </div>
+        <div class="dsc-be-card" style="border-color:rgba(0,232,122,0.2)">
+          <div class="dsc-be-card-lbl" style="color:#00e87a">Ideal<br>1.25x</div>
+          <div class="dsc-be-card-rent">$<span id="be-125">5,648</span></div>
+          <div class="dsc-be-card-mo">/mo gross rent</div>
+          <div class="dsc-be-card-note" style="color:#00a853">Best rates &amp; terms</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Down Payment Insight -->
+    <div class="dsc-dp-insight">
+      <div class="dsc-dp-title">How Much Down Do You Need?</div>
+      <div class="dsc-dp-row">
+        <div>
+          <div class="dsc-dp-lbl">At $<span id="dp-rent-ref">3,800</span>/mo rent → 1.00x DSCR</div>
+          <div class="dsc-dp-sub">loan amount required to match rent</div>
+        </div>
+        <div style="text-align:right">
+          <div class="dsc-dp-val">$<span id="dp-for-100">543k</span> down</div>
+          <div class="dsc-dp-sub"><span id="dp-pct-100">45</span>% of purchase</div>
+        </div>
+      </div>
+      <div class="dsc-dp-row">
+        <div>
+          <div class="dsc-dp-lbl">At $<span id="dp-rent-ref2">3,800</span>/mo rent → 1.25x DSCR</div>
+          <div class="dsc-dp-sub">for best pricing tier</div>
+        </div>
+        <div style="text-align:right">
+          <div class="dsc-dp-val" style="color:#5edb94">$<span id="dp-for-125">743k</span> down</div>
+          <div class="dsc-dp-sub"><span id="dp-pct-125">62</span>% of purchase</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dsc-sep"></div>
+
+    <!-- Adjusters -->
+    <div class="dsc-adj">
+      <div class="dsc-adj-title">Adjust Scenario</div>
+
+      <div class="sf">
+        <div class="sf-top">
+          <span class="sf-label">Purchase Price</span>
+          <span class="sf-value" id="val-price">$1,200,000</span>
+        </div>
+        <input type="range" id="sl-price" min="200000" max="10000000" step="50000" value="1200000" oninput="recalc()">
+        <div class="sf-range"><span>$200k</span><span>$10M</span></div>
+        <div class="sf-note">DSCR loans up to $10M — fully independent of rent</div>
+      </div>
+
+      <div class="sf">
+        <div class="sf-top">
+          <span class="sf-label">Down Payment</span>
+          <span class="sf-value" id="val-down">25%</span>
+        </div>
+        <input type="range" id="sl-down" min="20" max="50" step="1" value="25" oninput="recalc()">
+        <div class="sf-range"><span>20%</span><span>50%</span></div>
+      </div>
+
+      <div class="sf">
+        <div class="sf-top">
+          <span class="sf-label">Interest Rate</span>
+          <span class="sf-value" id="val-rate">7.25%</span>
+        </div>
+        <input type="range" id="sl-rate" min="5.0" max="10.0" step="0.125" value="7.25" oninput="recalc()">
+        <div class="sf-range"><span>5.00%</span><span>10.00%</span></div>
+      </div>
+
+      <div class="sf">
+        <div class="sf-top">
+          <span class="sf-label">Monthly Gross Rent</span>
+          <span class="sf-value" id="val-rent">$3,800</span>
+        </div>
+        <input type="range" id="sl-rent" min="500" max="50000" step="100" value="3800" oninput="recalc()">
+        <div class="sf-range"><span>$500</span><span>$50k</span></div>
+        <div class="sf-note">Fully independent — set to actual market rent for this property</div>
+      </div>
+
+    </div>
+
+    <!-- CTA -->
+    <div class="dsc-cta-wrap">
+      <div class="dsc-cta-row">
+        <button class="dsc-btn-primary">Run My Numbers</button>
+        <button class="dsc-btn-secondary">Check Property</button>
+      </div>
+      <button class="dsc-btn-full">Get Matched with a DSCR Lender</button>
+    </div>
+
+    <!-- Follow-up chips -->
+    <div class="dsc-chips">
+      <div class="dsc-chip">What's market rent here?</div>
+      <div class="dsc-chip">Multi-unit DSCR</div>
+      <div class="dsc-chip">DSCR vs conventional</div>
+      <div class="dsc-chip">Short-term rental DSCR</div>
+    </div>
+
+  </div><!-- /dsc -->
+</div><!-- /balloon -->
+
+<script>
+function calcPI(principal, annualRate, termYears) {
+  if (principal <= 0 || annualRate <= 0) return 0;
+  const r = (annualRate / 100) / 12, n = termYears * 12;
+  return principal * (r * Math.pow(1+r,n)) / (Math.pow(1+r,n)-1);
+}
+function fmt$(n) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+}
+function fmtK(n) {
+  if (n >= 1_000_000) return '$' + (n/1_000_000).toFixed(2).replace(/\.?0+$/,'') + 'M';
+  if (n >= 100_000)   return '$' + Math.round(n/1_000) + 'k';
+  return fmt$(n);
+}
+function fmtNum(n) {
+  return new Intl.NumberFormat('en-US').format(Math.round(n));
+}
+
+const TAX_RATE = 0.011;
+const INS_RATE = 0.005;
+const TERM = 30;
+
+function recalc() {
+  const price  = +document.getElementById('sl-price').value;
+  const down   = +document.getElementById('sl-down').value;
+  const rate   = +document.getElementById('sl-rate').value;
+  const rent   = +document.getElementById('sl-rent').value;
+
+  // Display slider values
+  document.getElementById('val-price').textContent = fmtK(price);
+  document.getElementById('val-down').textContent  = down + '%';
+  document.getElementById('val-rate').textContent  = rate.toFixed(3).replace(/\.?0+$/, '') + '%';
+  document.getElementById('val-rent').textContent  = fmt$(rent);
+
+  // Core calc
+  const downAmt  = price * down / 100;
+  const loanAmt  = price - downAmt;
+  const ltv      = (loanAmt / price * 100).toFixed(0);
+  const pi       = calcPI(loanAmt, rate, TERM);
+  const tax      = (price * TAX_RATE) / 12;
+  const ins      = (price * INS_RATE) / 12;
+  const pitia    = pi + tax + ins;
+  const dscr     = pitia > 0 ? rent / pitia : 0;
+
+  // Break-even rents
+  const rentFor075 = Math.ceil(pitia * 0.75);
+  const rentFor100 = Math.ceil(pitia);
+  const rentFor125 = Math.ceil(pitia * 1.25);
+
+  // Down payment needed at current rent for target DSCR
+  // rent / (pi_needed + tax + ins) = 1.0  →  pi_needed = rent - tax - ins
+  // loan_for_100 via solve: pi(L, rate) = rent - tax - ins
+  // We approximate: loan ≈ (rent - tax - ins) / r_factor
+  const r = (rate/100)/12, n = TERM*12;
+  const rFactor = r * Math.pow(1+r,n) / (Math.pow(1+r,n)-1);
+  const piNeeded100 = rent - tax - ins;
+  const piNeeded125 = rent / 1.25 - tax - ins;
+  const loan100 = piNeeded100 > 0 ? piNeeded100 / rFactor : 0;
+  const loan125 = piNeeded125 > 0 ? piNeeded125 / rFactor : 0;
+  const dp100 = Math.max(0, price - loan100);
+  const dp125 = Math.max(0, price - loan125);
+  const dpPct100 = (dp100 / price * 100).toFixed(0);
+  const dpPct125 = (dp125 / price * 100).toFixed(0);
+
+  // Update DOM
+  document.getElementById('hero-dscr').innerHTML    = dscr.toFixed(2) + '<span class="dsc-hero-unit">x</span>';
+  document.getElementById('hero-pitia').textContent  = fmtNum(pitia);
+  document.getElementById('pitia-total').textContent = fmtNum(pitia);
+  document.getElementById('hero-loan').textContent   = fmtK(loanAmt).replace('$','');
+  document.getElementById('hero-ltv').textContent    = ltv + '% LTV';
+  document.getElementById('p-pi').textContent        = fmtNum(pi);
+  document.getElementById('p-tax').textContent       = fmtNum(tax);
+  document.getElementById('p-ins').textContent       = fmtNum(ins);
+  document.getElementById('be-075').textContent      = fmtNum(rentFor075);
+  document.getElementById('be-100').textContent      = fmtNum(rentFor100);
+  document.getElementById('be-125').textContent      = fmtNum(rentFor125);
+  document.getElementById('dp-rent-ref').textContent  = fmtNum(rent);
+  document.getElementById('dp-rent-ref2').textContent = fmtNum(rent);
+  document.getElementById('dp-for-100').textContent   = fmtK(dp100).replace('$','');
+  document.getElementById('dp-for-125').textContent   = fmtK(dp125).replace('$','');
+  document.getElementById('dp-pct-100').textContent   = dpPct100;
+  document.getElementById('dp-pct-125').textContent   = dpPct125;
+  document.getElementById('dsc-sub-text').textContent = fmtK(price) + ' · ' + down + '% down · ' + fmt$(rent) + '/mo rent';
+
+  // Color and status
+  let color, bg, border, icon, label, noteText;
+  if (dscr >= 1.5)       { color='#00e87a'; bg='rgba(0,232,122,0.07)';   border='rgba(0,232,122,0.25)';   icon='✓'; label='Excellent — qualifies at all lenders ≥1.5x';         noteText='All lenders'; }
+  else if (dscr >= 1.25) { color='#5edb94'; bg='rgba(94,219,148,0.07)';  border='rgba(94,219,148,0.22)';  icon='✓'; label='Strong Qualify — best rates & terms ≥1.25x';           noteText='Best pricing'; }
+  else if (dscr >= 1.0)  { color='#f5c842'; bg='rgba(245,200,66,0.07)';  border='rgba(245,200,66,0.22)';  icon='⚠'; label='Standard Qualify — most lenders approve ≥1.0x';        noteText='Most lenders'; }
+  else if (dscr >= 0.75) { color='#ff8c42'; bg='rgba(255,140,66,0.08)';  border='rgba(255,140,66,0.25)';  icon='⚠'; label='Minimum Qualify — select lenders at ≥0.75x';           noteText='Select lenders ≥0.75'; }
+  else                   { color='#ff5f5f'; bg='rgba(255,95,95,0.07)';   border='rgba(255,95,95,0.22)';   icon='✗'; label='Does Not Qualify — DSCR below 0.75x threshold';         noteText='No qualify'; }
+
+  document.getElementById('hero-dscr').style.color   = color;
+  document.getElementById('hero-status-note').style.color = color;
+  document.getElementById('hero-status-note').textContent = noteText;
+
+  const pill = document.getElementById('status-pill');
+  pill.style.background = bg;
+  pill.style.borderColor = border;
+  pill.style.color = color;
+  document.getElementById('status-icon').textContent = icon;
+  document.getElementById('status-label').textContent = label;
+
+  // Gauge segments
+  const segs = ['seg0','seg1','seg2','seg3','seg4'];
+  const thresholds = [0, 0.75, 1.0, 1.25, 1.5];
+  segs.forEach((id, i) => {
+    const active = dscr >= thresholds[i] && (i === 4 ? true : dscr < thresholds[i+1] || dscr >= thresholds[i+1]);
+    // Segments below current DSCR tier are full opacity, above are dim
+    const belowOrAt = dscr >= (i === 4 ? 1.5 : thresholds[i+1]);
+    const isCurrent = dscr >= thresholds[i] && (i === 4 || dscr < thresholds[i+1]);
+    document.getElementById(id).style.opacity = belowOrAt || isCurrent ? '1' : '0.15';
+  });
+}
+
+// Init
+recalc();
+</script>
+</body>
+</html>

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investor Portal — Prototype</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #07090f; font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; color: #f0f4ff; }
+
+  /* ── Nav stub ── */
+  .nav { height: 56px; background: rgba(7,9,15,0.95); border-bottom: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; padding: 0 24px; position: sticky; top: 0; z-index: 100; }
+  .nav-logo { font-size: 14px; font-weight: 800; color: #00e87a; letter-spacing: -0.02em; }
+  .nav-back  { font-size: 12px; color: #4a5a7a; margin-left: 18px; cursor: pointer; }
+
+  /* ── Page shell ── */
+  .page { max-width: 960px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  /* ── Page header row ── */
+  .page-hd { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .page-hd-left {}
+  .page-hd-badge { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: #00e87a; text-transform: uppercase; margin-bottom: 5px; }
+  .page-hd-title { font-size: 1.5rem; font-weight: 800; color: #f0f4ff; line-height: 1.1; }
+  .page-hd-sub   { font-size: 12px; color: #3a4a6a; margin-top: 4px; }
+  .btn-primary { background: #00e87a; color: #07100f; font-size: 12px; font-weight: 800; border: none; border-radius: 9px; padding: 10px 18px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .btn-primary:hover { background: #00d46e; }
+
+  /* ── Summary cards ── */
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
+  .sum-card { background: #0d1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 14px 16px; }
+  .sum-lbl  { font-size: 10px; font-weight: 700; color: #3a4a6a; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .sum-val  { font-size: 1.4rem; font-weight: 800; line-height: 1; }
+  .sum-note { font-size: 10px; color: #3a4a6a; margin-top: 4px; }
+  .c-green  { color: #00e87a; }
+  .c-yellow { color: #f5c842; }
+  .c-red    { color: #ff5f5f; }
+  .c-dim    { color: #c9d4e8; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 20px; }
+  .tab  { font-size: 13px; font-weight: 700; color: #4a5a7a; padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; user-select: none; }
+  .tab:hover { color: #c9d4e8; }
+  .tab.active { color: #00e87a; border-bottom-color: #00e87a; }
+  .tab-count { display: inline-block; font-size: 9px; font-weight: 800; background: rgba(0,232,122,0.12); color: #00e87a; border-radius: 99px; padding: 1px 6px; margin-left: 6px; }
+
+  /* ── Search / filter bar ── */
+  .filter-bar { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .filter-input { flex: 1; min-width: 180px; background: #0d1420; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 14px; font-size: 13px; color: #f0f4ff; outline: none; font-family: inherit; }
+  .filter-input::placeholder { color: #2a3a5a; }
+  .filter-select { background: #0d1420; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #6a7a9a; outline: none; font-family: inherit; cursor: pointer; }
+  .sort-lbl { font-size: 11px; color: #3a4a6a; white-space: nowrap; }
+
+  /* ── Portfolio table ── */
+  .deal-table { width: 100%; border-collapse: collapse; background: #0d1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; overflow: hidden; }
+  .deal-table thead th { font-size: 10px; font-weight: 800; color: #2a3a5a; text-transform: uppercase; letter-spacing: 0.07em; padding: 11px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); background: #0a0f1c; white-space: nowrap; }
+  .deal-table thead th:not(:first-child) { text-align: right; }
+  .deal-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: background 0.12s; }
+  .deal-table tbody tr:last-child { border-bottom: none; }
+  .deal-table tbody tr:hover { background: rgba(255,255,255,0.025); }
+  .deal-table td { font-size: 12px; padding: 13px 14px; text-align: right; vertical-align: middle; }
+  .deal-table td:first-child { text-align: left; }
+  .td-addr  { }
+  .td-addr-main { font-size: 13px; font-weight: 700; color: #f0f4ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+  .td-addr-sub  { font-size: 10px; color: #3a4a6a; margin-top: 2px; }
+  .td-num   { font-weight: 700; color: #c9d4e8; }
+  .td-dim   { font-size: 11px; color: #4a5a7a; }
+
+  /* Status badge */
+  .status-badge { display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; white-space: nowrap; }
+  .s-qualify { background: rgba(0,232,122,0.1);  color: #00e87a; border: 1px solid rgba(0,232,122,0.2); }
+  .s-watch   { background: rgba(245,200,66,0.1); color: #f5c842; border: 1px solid rgba(245,200,66,0.2); }
+  .s-nogo    { background: rgba(255,95,95,0.1);  color: #ff5f5f; border: 1px solid rgba(255,95,95,0.2); }
+  .s-pending { background: rgba(167,139,250,0.1);color: #a78bfa; border: 1px solid rgba(167,139,250,0.2); }
+
+  /* DSCR inline badge */
+  .dscr-val { font-weight: 800; }
+  .dscr-good   { color: #00e87a; }
+  .dscr-ok     { color: #f5c842; }
+  .dscr-warn   { color: #ff8c42; }
+  .dscr-bad    { color: #ff5f5f; }
+
+  /* Row actions */
+  .row-actions { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+  .btn-row { font-size: 10px; font-weight: 700; border-radius: 6px; padding: 5px 10px; cursor: pointer; border: 1px solid; font-family: inherit; white-space: nowrap; transition: all 0.12s; }
+  .btn-report { background: transparent; color: #00e87a; border-color: rgba(0,232,122,0.25); }
+  .btn-report:hover { background: rgba(0,232,122,0.08); }
+  .btn-remove { background: transparent; color: #3a4a6a; border-color: rgba(255,255,255,0.07); }
+  .btn-remove:hover { color: #ff5f5f; border-color: rgba(255,95,95,0.3); }
+
+  /* ── Empty state ── */
+  .empty-state { padding: 64px 20px; text-align: center; }
+  .empty-icon  { font-size: 2.5rem; margin-bottom: 14px; }
+  .empty-title { font-size: 1rem; font-weight: 700; color: #c9d4e8; margin-bottom: 8px; }
+  .empty-sub   { font-size: 12px; color: #3a4a6a; line-height: 1.6; max-width: 320px; margin: 0 auto 20px; }
+
+  /* ── Watchlist ── */
+  .watch-grid { display: flex; flex-direction: column; gap: 10px; }
+  .watch-card { background: #0d1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 11px; padding: 14px 18px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; transition: border-color 0.12s; cursor: pointer; }
+  .watch-card:hover { border-color: rgba(0,232,122,0.2); }
+  .watch-addr { flex: 1; min-width: 0; }
+  .watch-addr-main { font-size: 13px; font-weight: 700; color: #f0f4ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .watch-addr-sub  { font-size: 10px; color: #3a4a6a; margin-top: 2px; }
+  .watch-meta { display: flex; gap: 14px; align-items: center; flex-shrink: 0; }
+  .watch-meta-item { font-size: 11px; color: #4a5a7a; }
+  .watch-meta-item strong { color: #c9d4e8; }
+  .watch-note { font-size: 11px; color: #3a4a6a; font-style: italic; flex-basis: 100%; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.04); }
+  .watch-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* ── Add to watchlist bar ── */
+  .watch-add-bar { display: flex; gap: 10px; margin-bottom: 16px; }
+  .watch-add-input { flex: 1; background: #0d1420; border: 1.5px solid rgba(0,232,122,0.2); border-radius: 9px; padding: 10px 16px; font-size: 13px; color: #f0f4ff; outline: none; font-family: inherit; }
+  .watch-add-input::placeholder { color: #2a3a5a; }
+  .watch-add-input:focus { border-color: rgba(0,232,122,0.4); }
+  .btn-watch-add { background: rgba(0,232,122,0.1); color: #00e87a; font-size: 12px; font-weight: 800; border: 1px solid rgba(0,232,122,0.2); border-radius: 9px; padding: 10px 18px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .btn-watch-add:hover { background: rgba(0,232,122,0.18); }
+
+  /* ── Tab panels ── */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Responsive ── */
+  @media(max-width:700px){
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+    .deal-table thead th:nth-child(n+4) { display: none; }
+    .deal-table td:nth-child(n+4)       { display: none; }
+    .td-addr-main { max-width: 140px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<div class="nav">
+  <div class="nav-logo">HomeRates</div>
+  <div class="nav-back">← Back</div>
+</div>
+
+<div class="page">
+
+  <!-- Page header -->
+  <div class="page-hd">
+    <div class="page-hd-left">
+      <div class="page-hd-badge">Investor Portal</div>
+      <div class="page-hd-title">My Investment Dashboard</div>
+      <div class="page-hd-sub">Track deals · analyze properties · monitor your portfolio</div>
+    </div>
+    <button class="btn-primary" onclick="showTab('portfolio')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Run Deal Report
+    </button>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="summary-grid">
+    <div class="sum-card">
+      <div class="sum-lbl">Properties</div>
+      <div class="sum-val c-dim">4</div>
+      <div class="sum-note">2 qualifying · 1 watch</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-lbl">Combined AVM</div>
+      <div class="sum-val c-dim">$2.14M</div>
+      <div class="sum-note">Est. portfolio value</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-lbl">Avg DSCR</div>
+      <div class="sum-val c-yellow">1.04<span style="font-size:0.6em;font-weight:600;opacity:0.6">x</span></div>
+      <div class="sum-note">Portfolio average</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-lbl">Monthly Cash Flow</div>
+      <div class="sum-val c-red">−$318</div>
+      <div class="sum-note">Net across all deals</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('portfolio')" id="tab-portfolio">
+      Portfolio <span class="tab-count">4</span>
+    </div>
+    <div class="tab" onclick="showTab('watchlist')" id="tab-watchlist">
+      Watchlist <span class="tab-count">6</span>
+    </div>
+  </div>
+
+  <!-- ── PORTFOLIO TAB ── -->
+  <div class="tab-panel active" id="panel-portfolio">
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <input class="filter-input" placeholder="Filter by address or city…">
+      <select class="filter-select">
+        <option>All statuses</option>
+        <option>Qualifying</option>
+        <option>Watch</option>
+        <option>No-Go</option>
+      </select>
+      <select class="filter-select">
+        <option>Sort: Date added</option>
+        <option>Sort: DSCR ↓</option>
+        <option>Sort: AVM ↓</option>
+        <option>Sort: Cash flow ↓</option>
+      </select>
+    </div>
+
+    <!-- Deals table -->
+    <table class="deal-table">
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>AVM</th>
+          <th>DSCR</th>
+          <th>Cap Rate</th>
+          <th>Cash Flow</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr onclick="viewReport()">
+          <td class="td-addr">
+            <div class="td-addr-main">3847 Maple Ave, Sacramento, CA</div>
+            <div class="td-addr-sub">4bd · 2ba · 1,840 sqft · Added May 14</div>
+          </td>
+          <td class="td-num">$585,000</td>
+          <td><span class="dscr-val dscr-good">1.31x</span></td>
+          <td class="td-num">5.8%</td>
+          <td class="td-num c-green">+$214/mo</td>
+          <td><span class="status-badge s-qualify">Qualifying</span></td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-row btn-report" onclick="event.stopPropagation()">View Report</button>
+              <button class="btn-row btn-remove" onclick="event.stopPropagation()">✕</button>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="td-addr">
+            <div class="td-addr-main">1204 Oak Street, Fresno, CA</div>
+            <div class="td-addr-sub">3bd · 2ba · 1,450 sqft · Added May 10</div>
+          </td>
+          <td class="td-num">$390,000</td>
+          <td><span class="dscr-val dscr-good">1.28x</span></td>
+          <td class="td-num">6.2%</td>
+          <td class="td-num c-green">+$88/mo</td>
+          <td><span class="status-badge s-qualify">Qualifying</span></td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-row btn-report">View Report</button>
+              <button class="btn-row btn-remove">✕</button>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="td-addr">
+            <div class="td-addr-main">5521 Riverside Blvd, Stockton, CA</div>
+            <div class="td-addr-sub">4bd · 2ba · 1,620 sqft · Added May 8</div>
+          </td>
+          <td class="td-num">$465,000</td>
+          <td><span class="dscr-val dscr-ok">0.91x</span></td>
+          <td class="td-num">4.1%</td>
+          <td class="td-num c-red">−$412/mo</td>
+          <td><span class="status-badge s-watch">Watch</span></td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-row btn-report">View Report</button>
+              <button class="btn-row btn-remove">✕</button>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="td-addr">
+            <div class="td-addr-main">712 Valley Drive, Modesto, CA</div>
+            <div class="td-addr-sub">3bd · 1ba · 1,200 sqft · Added May 3</div>
+          </td>
+          <td class="td-num">$310,000</td>
+          <td><span class="dscr-val dscr-bad">0.68x</span></td>
+          <td class="td-num">3.4%</td>
+          <td class="td-num c-red">−$208/mo</td>
+          <td><span class="status-badge s-nogo">No-Go</span></td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-row btn-report">View Report</button>
+              <button class="btn-row btn-remove">✕</button>
+            </div>
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+
+  </div><!-- /portfolio panel -->
+
+  <!-- ── WATCHLIST TAB ── -->
+  <div class="tab-panel" id="panel-watchlist">
+
+    <!-- Add to watchlist -->
+    <div class="watch-add-bar">
+      <input class="watch-add-input" placeholder="Paste address to add to watchlist…">
+      <button class="btn-watch-add">+ Add to Watchlist</button>
+    </div>
+
+    <div class="watch-grid">
+
+      <div class="watch-card">
+        <div class="watch-addr">
+          <div class="watch-addr-main">9201 Sunrise Blvd, Rancho Cordova, CA 95742</div>
+          <div class="watch-addr-sub">Added May 15 · No report yet</div>
+        </div>
+        <div class="watch-meta">
+          <div class="watch-meta-item">Listed <strong>$542,000</strong></div>
+          <div class="watch-meta-item"><strong>4bd · 2ba</strong></div>
+        </div>
+        <div class="watch-actions">
+          <button class="btn-row btn-report">Run Report</button>
+          <button class="btn-row btn-remove">✕</button>
+        </div>
+        <div class="watch-note">"Good neighborhood, check rental comps before offer"</div>
+      </div>
+
+      <div class="watch-card">
+        <div class="watch-addr">
+          <div class="watch-addr-main">4418 Manzanita Ave, Carmichael, CA 95608</div>
+          <div class="watch-addr-sub">Added May 13 · No report yet</div>
+        </div>
+        <div class="watch-meta">
+          <div class="watch-meta-item">Listed <strong>$498,000</strong></div>
+          <div class="watch-meta-item"><strong>3bd · 2ba</strong></div>
+        </div>
+        <div class="watch-actions">
+          <button class="btn-row btn-report">Run Report</button>
+          <button class="btn-row btn-remove">✕</button>
+        </div>
+      </div>
+
+      <div class="watch-card">
+        <div class="watch-addr">
+          <div class="watch-addr-main">2230 Florin Rd, Sacramento, CA 95822</div>
+          <div class="watch-addr-sub">Added May 11 · No report yet</div>
+        </div>
+        <div class="watch-meta">
+          <div class="watch-meta-item">Off-market</div>
+          <div class="watch-meta-item"><strong>Duplex</strong></div>
+        </div>
+        <div class="watch-actions">
+          <button class="btn-row btn-report">Run Report</button>
+          <button class="btn-row btn-remove">✕</button>
+        </div>
+        <div class="watch-note">"Owner wants to sell — follow up end of month"</div>
+      </div>
+
+      <div class="watch-card">
+        <div class="watch-addr">
+          <div class="watch-addr-main">8850 Elk Grove Blvd, Elk Grove, CA 95624</div>
+          <div class="watch-addr-sub">Added May 9 · No report yet</div>
+        </div>
+        <div class="watch-meta">
+          <div class="watch-meta-item">Listed <strong>$620,000</strong></div>
+          <div class="watch-meta-item"><strong>5bd · 3ba</strong></div>
+        </div>
+        <div class="watch-actions">
+          <button class="btn-row btn-report">Run Report</button>
+          <button class="btn-row btn-remove">✕</button>
+        </div>
+      </div>
+
+      <div class="watch-card">
+        <div class="watch-addr">
+          <div class="watch-addr-main">1155 Howe Ave, Sacramento, CA 95825</div>
+          <div class="watch-addr-sub">Added May 6 · No report yet</div>
+        </div>
+        <div class="watch-meta">
+          <div class="watch-meta-item">Listed <strong>$375,000</strong></div>
+          <div class="watch-meta-item"><strong>3bd · 1ba</strong></div>
+        </div>
+        <div class="watch-actions">
+          <button class="btn-row btn-report">Run Report</button>
+          <button class="btn-row btn-remove">✕</button>
+        </div>
+      </div>
+
+      <div class="watch-card">
+        <div class="watch-addr">
+          <div class="watch-addr-main">663 Winding Way, Fair Oaks, CA 95628</div>
+          <div class="watch-addr-sub">Added May 4 · No report yet</div>
+        </div>
+        <div class="watch-meta">
+          <div class="watch-meta-item">Off-market</div>
+          <div class="watch-meta-item"><strong>4bd · 2ba</strong></div>
+        </div>
+        <div class="watch-actions">
+          <button class="btn-row btn-report">Run Report</button>
+          <button class="btn-row btn-remove">✕</button>
+        </div>
+        <div class="watch-note">"Probate sale — waiting on listing"</div>
+      </div>
+
+    </div>
+  </div><!-- /watchlist panel -->
+
+</div><!-- /page -->
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+function viewReport() {
+  alert('→ Opens /investor-intel?address=3847+Maple+Ave+Sacramento+CA');
+}
+</script>
+</body>
+</html>

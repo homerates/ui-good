@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investor Intel — Prototype</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #07090f; font-family: system-ui, -apple-system, sans-serif; min-height: 100vh; color: #f0f4ff; }
+
+  /* ── Nav stub ── */
+  .nav { height: 56px; background: rgba(7,9,15,0.95); border-bottom: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; padding: 0 24px; position: sticky; top: 0; z-index: 100; }
+  .nav-logo { font-size: 14px; font-weight: 800; color: #00e87a; letter-spacing: -0.02em; }
+  .nav-back  { font-size: 12px; color: #4a5a7a; margin-left: 18px; cursor: pointer; }
+  .nav-back:hover { color: #c9d4e8; }
+
+  /* ── Page shell ── */
+  .page { max-width: 860px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  /* ── Page header ── */
+  .page-hd { margin-bottom: 28px; }
+  .page-hd-badge { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: #00e87a; text-transform: uppercase; margin-bottom: 6px; }
+  .page-hd-title { font-size: 1.6rem; font-weight: 800; color: #f0f4ff; line-height: 1.15; }
+  .page-hd-sub   { font-size: 13px; color: #5a6a8a; margin-top: 6px; }
+
+  /* ── Address search ── */
+  .search-wrap { position: relative; margin-bottom: 32px; }
+  .search-input { width: 100%; background: #0d1420; border: 1.5px solid rgba(0,232,122,0.3); border-radius: 12px; padding: 14px 18px 14px 46px; font-size: 14px; color: #f0f4ff; outline: none; font-family: inherit; transition: border-color 0.15s; }
+  .search-input:focus { border-color: rgba(0,232,122,0.6); }
+  .search-input::placeholder { color: #3a4a6a; }
+  .search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #00e87a; pointer-events: none; }
+  .search-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #00e87a; color: #07100f; font-size: 12px; font-weight: 800; border: none; border-radius: 8px; padding: 7px 14px; cursor: pointer; font-family: inherit; }
+
+  /* ── Property header card ── */
+  .prop-header { background: #0d1420; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 20px; margin-bottom: 20px; display: flex; gap: 18px; align-items: flex-start; }
+  .prop-photo { width: 110px; height: 80px; border-radius: 9px; object-fit: cover; flex-shrink: 0; background: #1a2440; display: flex; align-items: center; justify-content: center; color: #2a3a5a; font-size: 11px; overflow: hidden; }
+  .prop-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .prop-info { flex: 1; min-width: 0; }
+  .prop-address { font-size: 15px; font-weight: 700; color: #f0f4ff; line-height: 1.3; margin-bottom: 6px; }
+  .prop-details { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+  .prop-detail { font-size: 12px; color: #6a7a9a; }
+  .prop-detail strong { color: #c9d4e8; }
+  .prop-avm-row { display: flex; gap: 20px; flex-wrap: wrap; }
+  .prop-avm { }
+  .prop-avm-lbl { font-size: 10px; font-weight: 700; color: #3a4a6a; text-transform: uppercase; letter-spacing: 0.06em; }
+  .prop-avm-val { font-size: 18px; font-weight: 800; color: #00e87a; }
+  .prop-avm-sub { font-size: 10px; color: #3a4a6a; margin-top: 1px; }
+
+  /* ── Rent input bar ── */
+  .rent-bar { background: rgba(0,232,122,0.05); border: 1px solid rgba(0,232,122,0.18); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .rent-bar-left h3 { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+  .rent-bar-left p  { font-size: 11px; color: #4a5a7a; margin-top: 2px; }
+  .rent-input-row { display: flex; align-items: center; gap: 10px; }
+  .rent-prefix { font-size: 16px; font-weight: 700; color: #00e87a; }
+  .rent-input { background: rgba(0,232,122,0.08); border: 1.5px solid rgba(0,232,122,0.3); border-radius: 8px; padding: 8px 12px; font-size: 18px; font-weight: 800; color: #00e87a; width: 130px; outline: none; font-family: inherit; text-align: right; }
+  .rent-input:focus { border-color: rgba(0,232,122,0.6); }
+  .rent-mo { font-size: 13px; font-weight: 600; color: #4a5a7a; }
+  .rent-ai-hint { font-size: 11px; color: #00a853; background: rgba(0,232,122,0.07); border: 1px solid rgba(0,232,122,0.15); border-radius: 6px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+  .rent-ai-hint:hover { background: rgba(0,232,122,0.12); }
+
+  /* ── Section header ── */
+  .sec-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .sec-title { font-size: 11px; font-weight: 800; color: #3a4a6a; text-transform: uppercase; letter-spacing: 0.08em; }
+  .sec-badge { font-size: 10px; font-weight: 700; color: #00e87a; }
+
+  /* ── Deal metrics grid ── */
+  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+  .metric-card { background: #0d1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 11px; padding: 14px 16px; }
+  .metric-lbl  { font-size: 10px; font-weight: 700; color: #3a4a6a; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .metric-val  { font-size: 1.4rem; font-weight: 800; line-height: 1; }
+  .metric-unit { font-size: 0.55em; font-weight: 600; opacity: 0.6; }
+  .metric-note { font-size: 10px; color: #3a4a6a; margin-top: 5px; }
+  .metric-good { color: #00e87a; }
+  .metric-warn { color: #f5c842; }
+  .metric-bad  { color: #ff5f5f; }
+  .metric-neut { color: #c9d4e8; }
+
+  /* ── Scenario comparison ── */
+  .scenario-wrap { margin-bottom: 24px; }
+  .scenario-table { width: 100%; border-collapse: collapse; background: #0d1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 11px; overflow: hidden; }
+  .scenario-table th { font-size: 10px; font-weight: 800; color: #3a4a6a; text-transform: uppercase; letter-spacing: 0.07em; padding: 10px 14px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.06); background: #0a0f1c; }
+  .scenario-table th:first-child { text-align: left; }
+  .scenario-table td { font-size: 12px; font-weight: 600; color: #c9d4e8; padding: 10px 14px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .scenario-table td:first-child { text-align: left; color: #6a7a9a; font-size: 11px; font-weight: 700; }
+  .scenario-table tr:last-child td { border-bottom: none; }
+  .scenario-table tr.scen-highlight td { background: rgba(0,232,122,0.04); }
+  .scenario-table tr.scen-highlight td:first-child { color: #00a853; }
+  .val-good { color: #00e87a; }
+  .val-warn { color: #f5c842; }
+  .val-bad  { color: #ff5f5f; }
+  .col-head-active { color: #00e87a !important; }
+  .scen-tag { display: inline-block; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; margin-left: 6px; background: rgba(0,232,122,0.1); color: #00e87a; border: 1px solid rgba(0,232,122,0.2); }
+
+  /* ── AI rental comps ── */
+  .ai-section { margin-bottom: 24px; }
+  .ai-card { background: #0d1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; overflow: hidden; }
+  .ai-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .ai-header-left { display: flex; align-items: center; gap: 10px; }
+  .ai-dot { width: 7px; height: 7px; border-radius: 50%; background: #00e87a; animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  .ai-title { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+  .ai-source { font-size: 10px; color: #3a4a6a; }
+  .ai-model-badge { font-size: 10px; font-weight: 700; color: #a78bfa; background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2); border-radius: 5px; padding: 2px 7px; }
+
+  /* Comps range bar */
+  .comps-body { padding: 18px; }
+  .comps-range-wrap { margin-bottom: 18px; }
+  .comps-range-lbl { font-size: 10px; font-weight: 700; color: #3a4a6a; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .comps-range-bar { position: relative; height: 8px; background: rgba(255,255,255,0.06); border-radius: 99px; }
+  .comps-range-fill { position: absolute; top: 0; height: 100%; background: linear-gradient(to right, #ff8c42, #00e87a); border-radius: 99px; left: 15%; width: 55%; }
+  .comps-range-marker { position: absolute; top: -4px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #0d1420; }
+  .comps-marker-user { background: #00e87a; left: calc(43% - 8px); }
+  .comps-ticks { display: flex; justify-content: space-between; margin-top: 6px; font-size: 9px; color: #3a4a6a; font-weight: 700; }
+
+  /* Comps table */
+  .comps-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .comp-card { background: #0a0f1c; border: 1px solid rgba(255,255,255,0.05); border-radius: 9px; padding: 12px 14px; }
+  .comp-addr { font-size: 11px; font-weight: 600; color: #c9d4e8; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .comp-stats { display: flex; gap: 10px; font-size: 10px; color: #4a5a7a; margin-bottom: 8px; }
+  .comp-rent { font-size: 16px; font-weight: 800; color: #f0f4ff; line-height: 1; }
+  .comp-rent-mo { font-size: 9px; font-weight: 600; color: #4a5a7a; }
+  .comp-vs { font-size: 10px; margin-top: 3px; }
+  .comp-vs-up   { color: #00e87a; }
+  .comp-vs-down { color: #ff8c42; }
+
+  /* AI narrative */
+  .ai-narrative { background: rgba(167,139,250,0.04); border: 1px solid rgba(167,139,250,0.12); border-radius: 10px; padding: 14px 16px; }
+  .ai-narrative-hd { font-size: 10px; font-weight: 800; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+  .ai-narrative-body { font-size: 12px; color: #9aa4bf; line-height: 1.6; }
+  .ai-narrative-body strong { color: #c9d4e8; }
+
+  /* ── Footer note ── */
+  .footer-note { font-size: 10px; color: #2a3a5a; line-height: 1.5; padding: 0 4px; }
+  .footer-note a { color: #3a4a6a; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .metrics-grid { grid-template-columns: 1fr 1fr; }
+    .comps-grid   { grid-template-columns: 1fr 1fr; }
+    .prop-header  { flex-direction: column; }
+    .prop-photo   { width: 100%; height: 140px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<div class="nav">
+  <div class="nav-logo">HomeRates</div>
+  <div class="nav-back">← Back</div>
+</div>
+
+<div class="page">
+
+  <!-- Page header -->
+  <div class="page-hd">
+    <div class="page-hd-badge">Investor Intel</div>
+    <div class="page-hd-title">Investment Property Report</div>
+    <div class="page-hd-sub">DSCR analysis · rental comps · deal metrics · AI market intelligence</div>
+  </div>
+
+  <!-- Address search -->
+  <div class="search-wrap">
+    <div class="search-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+      </svg>
+    </div>
+    <input class="search-input" value="2847 Walnut Creek Dr, Sacramento, CA 95821" placeholder="Enter investment property address…">
+    <button class="search-btn">Analyze →</button>
+  </div>
+
+  <!-- Property header -->
+  <div class="prop-header">
+    <div class="prop-photo">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+    </div>
+    <div class="prop-info">
+      <div class="prop-address">2847 Walnut Creek Dr, Sacramento, CA 95821</div>
+      <div class="prop-details">
+        <span class="prop-detail"><strong>4</strong> bed</span>
+        <span class="prop-detail"><strong>2</strong> bath</span>
+        <span class="prop-detail"><strong>1,840</strong> sqft</span>
+        <span class="prop-detail"><strong>SFR</strong></span>
+        <span class="prop-detail">Built <strong>1988</strong></span>
+      </div>
+      <div class="prop-avm-row">
+        <div class="prop-avm">
+          <div class="prop-avm-lbl">AVM Estimate</div>
+          <div class="prop-avm-val">$585,000</div>
+          <div class="prop-avm-sub">Redfin · updated May 2026</div>
+        </div>
+        <div class="prop-avm" style="margin-left:24px">
+          <div class="prop-avm-lbl">Est. Loan (25% down)</div>
+          <div class="prop-avm-val" style="color:#c9d4e8">$438,750</div>
+          <div class="prop-avm-sub">DSCR · 30yr fixed</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rent input bar -->
+  <div class="rent-bar">
+    <div class="rent-bar-left">
+      <h3>Expected Monthly Rent</h3>
+      <p>Used for all calculations below — override with your own estimate</p>
+    </div>
+    <div class="rent-input-row">
+      <span class="rent-prefix">$</span>
+      <input class="rent-input" value="2,650" oninput="recalc(this.value)">
+      <span class="rent-mo">/mo</span>
+      <div class="rent-ai-hint" onclick="showAIHint()">✦ AI estimate: $2,400–$2,800</div>
+    </div>
+  </div>
+
+  <!-- Deal Metrics -->
+  <div style="margin-bottom:24px">
+    <div class="sec-hd">
+      <div class="sec-title">Deal Metrics</div>
+      <div class="sec-badge">Live · 25% down · 7.50%</div>
+    </div>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-lbl">DSCR Ratio</div>
+        <div class="metric-val metric-warn">0.93<span class="metric-unit">x</span></div>
+        <div class="metric-note">Select lenders ≥0.75</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-lbl">Cap Rate</div>
+        <div class="metric-val metric-neut">4.7<span class="metric-unit">%</span></div>
+        <div class="metric-note">Net operating income / price</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-lbl">Gross Yield</div>
+        <div class="metric-val metric-neut">5.4<span class="metric-unit">%</span></div>
+        <div class="metric-note">Annual rent / purchase price</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-lbl">Cash-on-Cash</div>
+        <div class="metric-val metric-bad">−2.1<span class="metric-unit">%</span></div>
+        <div class="metric-note">Cash flow / cash invested</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scenario comparison -->
+  <div class="scenario-wrap">
+    <div class="sec-hd">
+      <div class="sec-title">Down Payment Scenarios</div>
+      <div class="sec-badge">$585k purchase · $2,650/mo rent · 7.50%</div>
+    </div>
+    <table class="scenario-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>20% Down<br><span style="font-weight:500;color:#4a5a7a;text-transform:none;letter-spacing:0">$117k</span></th>
+          <th class="col-head-active">25% Down<span class="scen-tag">current</span><br><span style="font-weight:500;color:#4a5a7a;text-transform:none;letter-spacing:0">$146k</span></th>
+          <th>30% Down<br><span style="font-weight:500;color:#4a5a7a;text-transform:none;letter-spacing:0">$176k</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Loan Amount</td>
+          <td>$468,000</td>
+          <td>$438,750</td>
+          <td>$409,500</td>
+        </tr>
+        <tr>
+          <td>Monthly P&amp;I</td>
+          <td>$3,268</td>
+          <td>$3,064</td>
+          <td>$2,860</td>
+        </tr>
+        <tr>
+          <td>Monthly PITIA</td>
+          <td>$4,079</td>
+          <td>$3,875</td>
+          <td>$3,671</td>
+        </tr>
+        <tr class="scen-highlight">
+          <td>DSCR Ratio</td>
+          <td class="val-bad">0.65x</td>
+          <td class="val-warn">0.68x</td>
+          <td class="val-warn">0.72x</td>
+        </tr>
+        <tr>
+          <td>Monthly Cash Flow</td>
+          <td class="val-bad">−$1,429</td>
+          <td class="val-bad">−$1,225</td>
+          <td class="val-bad">−$1,021</td>
+        </tr>
+        <tr>
+          <td>Cash-on-Cash Return</td>
+          <td class="val-bad">−14.6%</td>
+          <td class="val-bad">−10.1%</td>
+          <td class="val-bad">−6.9%</td>
+        </tr>
+        <tr>
+          <td>Gross Yield</td>
+          <td>5.4%</td>
+          <td>5.4%</td>
+          <td>5.4%</td>
+        </tr>
+        <tr>
+          <td>Rent needed → 1.0x</td>
+          <td>$4,079/mo</td>
+          <td>$3,875/mo</td>
+          <td>$3,671/mo</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="margin-top:8px;font-size:10px;color:#2a3a5a">At $2,650/mo rent this property needs significantly higher rent or lower purchase price to qualify. Rent needed for 1.25x DSCR at 25% down: <strong style="color:#4a5a7a">$4,844/mo</strong>.</div>
+  </div>
+
+  <!-- AI Rental Comps -->
+  <div class="ai-section">
+    <div class="sec-hd">
+      <div class="sec-title">Rental Market Intelligence</div>
+      <div class="sec-badge">Tavily + Grok · Live</div>
+    </div>
+    <div class="ai-card">
+      <div class="ai-header">
+        <div class="ai-header-left">
+          <div class="ai-dot"></div>
+          <div>
+            <div class="ai-title">Comparable Rentals — Sacramento 95821</div>
+            <div class="ai-source">Web search · 4 sources · updated just now</div>
+          </div>
+        </div>
+        <div class="ai-model-badge">Grok</div>
+      </div>
+      <div class="comps-body">
+
+        <!-- Rent range bar -->
+        <div class="comps-range-wrap">
+          <div class="comps-range-lbl">4BR SFR Market Range — Sacramento 95821</div>
+          <div class="comps-range-bar">
+            <div class="comps-range-fill"></div>
+            <div class="comps-range-marker comps-marker-user" title="Your estimate $2,650"></div>
+          </div>
+          <div class="comps-ticks">
+            <span>$1,800</span>
+            <span>$2,200</span>
+            <span style="color:#00a853">$2,650 ← yours</span>
+            <span>$3,000</span>
+            <span>$3,400+</span>
+          </div>
+        </div>
+
+        <!-- Comp cards -->
+        <div class="comps-grid">
+          <div class="comp-card">
+            <div class="comp-addr">3012 Walnut Creek Dr</div>
+            <div class="comp-stats"><span>4 bd · 2 ba</span><span>1,790 sqft</span></div>
+            <div class="comp-rent">$2,595<span class="comp-rent-mo">/mo</span></div>
+            <div class="comp-vs comp-vs-down">▼ $55 below yours</div>
+          </div>
+          <div class="comp-card" style="border-color:rgba(0,232,122,0.15)">
+            <div class="comp-addr">2901 Tupelo Way</div>
+            <div class="comp-stats"><span>4 bd · 2 ba</span><span>1,920 sqft</span></div>
+            <div class="comp-rent">$2,750<span class="comp-rent-mo">/mo</span></div>
+            <div class="comp-vs comp-vs-up">▲ $100 above yours</div>
+          </div>
+          <div class="comp-card">
+            <div class="comp-addr">3140 Fair Oaks Blvd</div>
+            <div class="comp-stats"><span>4 bd · 2.5 ba</span><span>2,010 sqft</span></div>
+            <div class="comp-rent">$2,895<span class="comp-rent-mo">/mo</span></div>
+            <div class="comp-vs comp-vs-up">▲ $245 · larger unit</div>
+          </div>
+        </div>
+
+        <!-- AI narrative -->
+        <div class="ai-narrative">
+          <div class="ai-narrative-hd">AI Market Analysis</div>
+          <div class="ai-narrative-body">
+            The Sacramento 95821 ZIP shows <strong>4BR SFR rentals ranging $2,400–$2,900/mo</strong> in May 2026, with median around $2,650. Your estimate sits at the market median — realistic and well-supported by comps. Vacancy rates in this corridor run <strong>4–6%</strong> (below Sacramento average of 7.2%). However, at $585K purchase price with current rates, <strong>DSCR does not reach 1.0x at market rent</strong> — you would need either a lower purchase price (~$430K), a rate buydown, or higher-density housing (duplex/triplex) to achieve positive cash flow at standard DSCR thresholds. Sacramento investor demand is moderate — days-on-market for rentals averaging 18 days suggests a healthy absorption rate.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer-note">
+    Estimates only. AVM via Redfin. Rental comps via web search (Zillow, Realtor, Apartments.com). DSCR rates vary by lender (Griffin, LoanDepot, JMAC typical). Tax 1.1%/yr · Insurance 0.5%/yr assumed. Not a pre-approval or commitment to lend. <a href="#">Disclosures</a>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+// Live recalc on rent change (simplified demo)
+function recalc(val) {
+  const rent = parseFloat(val.replace(/,/g, '')) || 2650;
+  const pitia = 3875;
+  const dscr = (rent / pitia).toFixed(2);
+  // update DSCR metric card (demo only)
+  const dscrEl = document.querySelector('.metric-val.metric-warn, .metric-val.metric-bad, .metric-val.metric-good');
+  if (dscrEl) {
+    const v = parseFloat(dscr);
+    dscrEl.className = 'metric-val ' + (v >= 1.25 ? 'metric-good' : v >= 0.75 ? 'metric-warn' : 'metric-bad');
+    dscrEl.innerHTML = dscr + '<span class="metric-unit">x</span>';
+  }
+}
+
+function showAIHint() {
+  const input = document.querySelector('.rent-input');
+  if (input) { input.value = '2,600'; input.focus(); }
+}
+</script>
+</body>
+</html>
