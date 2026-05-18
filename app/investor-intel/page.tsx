@@ -194,6 +194,7 @@ function InvestorIntelInner() {
     if (!addr.trim()) return;
     router.replace(`/investor-intel?address=${encodeURIComponent(addr.trim())}`, { scroll: false });
     setRent(0);
+    setSavedPortfolio(false);
 
     // Fetch property data first so we can pass beds + property type to Tavily
     const prop = await fetchPropData(addr);
@@ -240,7 +241,6 @@ function InvestorIntelInner() {
         }),
       });
       setSavedPortfolio(true);
-      setTimeout(() => setSavedPortfolio(false), 3000);
     } finally {
       setSaving(false);
     }
