@@ -52,12 +52,13 @@ function fmtK(n: number) {
 // ── Interface ─────────────────────────────────────────────────────────────────
 
 export interface FhaSliderParams {
-    price:   number;
-    downPct: number;
-    rate:    number;
-    term:    number;
-    taxRate: number;
-    insRate: number;
+    price:         number;
+    downPct:       number;
+    rate:          number;
+    term:          number;
+    taxRate:       number;
+    insRate:       number;
+    monthlyDebts?: number;
     onRunScenario?: (seed: string, overrides: Record<string, unknown>) => void;
 }
 
@@ -82,6 +83,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
     const [units,      setUnits]      = useState(1);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [vaultDone,  setVaultDone]  = useState(false);
+    const [debts,      setDebts]      = useState(props.monthlyDebts ?? 0);
 
     const { user } = useUser();
     const router   = useRouter();
@@ -107,9 +109,10 @@ export default function FhaSliderCard(props: FhaSliderParams) {
     const totalPmts  = Math.round(total * termYrs * 12);
     const totalInt   = Math.round(totalPmts - loanAmt);
 
-    const q36 = Math.round((total / 0.36) * 12);
-    const q43 = Math.round((total / 0.43) * 12);
-    const q50 = Math.round((total / 0.50) * 12);
+    const totalObligation = total + debts;
+    const q36 = Math.round((totalObligation / 0.36) * 12);
+    const q43 = Math.round((totalObligation / 0.43) * 12);
+    const q50 = Math.round((totalObligation / 0.50) * 12);
 
     const limitStatus = getLimitStatus(baseLoan, units);
     const limits      = FHA_LIMITS[units];
@@ -150,7 +153,8 @@ export default function FhaSliderCard(props: FhaSliderParams) {
     function buildSeed() {
         const prStr  = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(2)}M` : `$${Math.round(price / 1000)}k`;
         const uStr   = units > 1 ? ` ${units}-unit` : '';
-        return `FHA loan on a${uStr} ${prStr} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs} year fixed`;
+        const dStr   = debts > 0 ? ` with ${fmt$(debts)}/mo in other debts` : '';
+        return `FHA loan on a${uStr} ${prStr} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs} year fixed${dStr}`;
     }
 
     function getMatchedUrl() {
@@ -336,6 +340,17 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                         >{yr}yr</button>
                     ))}
                 </div>
+
+                <SliderField
+                    label="Monthly Debts"
+                    value={debts}
+                    min={0} max={5000} step={50}
+                    onChange={setDebts}
+                    format={v => v === 0 ? 'None' : fmt$(v) + '/mo'}
+                    minLabel="None" maxLabel="$5k/mo"
+                    trackColor="#f59e0b" theme="dark"
+                />
+                <div className="fha-dp-note" style={{ marginTop: -4 }}>Car payments, student loans, credit cards, child support, etc.</div>
             </div>
 
             {/* Limit exceeded warning */}
@@ -354,6 +369,12 @@ export default function FhaSliderCard(props: FhaSliderParams) {
             {/* Income qualify table */}
             <div className="fha-qualify">
                 <div className="fha-qualify-title">Income to Qualify</div>
+                {debts > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#94a3b8', marginBottom: 8, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span>PITI+MIP {fmt$(total)} + Debts {fmt$(debts)}</span>
+                        <span style={{ color: '#f59e0b', fontWeight: 600 }}>Total {fmt$(totalObligation)}/mo</span>
+                    </div>
+                )}
                 <table className="fha-qtable">
                     <thead>
                         <tr><th>DTI</th><th>Guideline</th><th>Gross Annual</th></tr>
@@ -387,7 +408,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 {props.onRunScenario && (
                     <button
                         className="fha-cta-run"
-                        onClick={() => props.onRunScenario!(buildSeed(), { isFHA: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, termYears: termYrs })}
+                        onClick={() => props.onRunScenario!(buildSeed(), { isFHA: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, termYears: termYrs, monthlyDebts: debts })}
                     >▶ Run My Numbers</button>
                 )}
             </div>

@@ -64,6 +64,7 @@ export interface VaSliderParams {
     taxRate:          number;
     insRate:          number;
     vaFundingFeePct?: number;  // 0 = exempt; undefined → default 2.15%
+    monthlyDebts?:    number;
     onRunScenario?:   (seed: string, overrides: Record<string, unknown>) => void;
 }
 
@@ -79,6 +80,7 @@ export default function VaSliderCard(props: VaSliderParams) {
     const [ffTier,     setFfTier]     = useState<FFTier>(pctToTier(props.vaFundingFeePct));
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [vaultDone,  setVaultDone]  = useState(false);
+    const [debts,      setDebts]      = useState(props.monthlyDebts ?? 0);
 
     const { user } = useUser();
     const router   = useRouter();
@@ -99,8 +101,9 @@ export default function VaSliderCard(props: VaSliderParams) {
     // PMI equivalent at 0.8%/yr — used for No-PMI savings callout
     const pmiMo       = Math.round(baseLoan * 0.008 / 12);
 
-    const q41         = Math.round((piti / 0.41) * 12);
-    const q43         = Math.round((piti / 0.43) * 12);
+    const totalObligation = piti + debts;
+    const q41         = Math.round((totalObligation / 0.41) * 12);
+    const q43         = Math.round((totalObligation / 0.43) * 12);
 
     const totalPmts   = Math.round(piti * termYrs * 12);
     const totalInt    = Math.round(totalPmts - loanAmt);
@@ -131,13 +134,15 @@ export default function VaSliderCard(props: VaSliderParams) {
             vaFundingFeeExempt: ffTier === 'exempt',
             customFundingFeePct: ffTier !== 'exempt' ? ffPct : undefined,
             loanType: 'va',
+            monthlyDebts: debts,
         });
     }
 
     function buildSeed() {
         const prStr = fmtK(price);
         const ffStr = ffTier === 'exempt' ? 'exempt from VA funding fee' : `${ffPct}% VA funding fee`;
-        return `VA loan on a ${prStr} home, ${downPct}% down at ${rate.toFixed(3)}%, ${ffStr}, ${termYrs}-year fixed`;
+        const dStr  = debts > 0 ? ` with ${fmt$(debts)}/mo in other debts` : '';
+        return `VA loan on a ${prStr} home, ${downPct}% down at ${rate.toFixed(3)}%, ${ffStr}, ${termYrs}-year fixed${dStr}`;
     }
 
     function getMatchedUrl() {
@@ -300,11 +305,28 @@ export default function VaSliderCard(props: VaSliderParams) {
                         >{yr}yr</button>
                     ))}
                 </div>
+
+                <SliderField
+                    label="Monthly Debts"
+                    value={debts}
+                    min={0} max={5000} step={50}
+                    onChange={setDebts}
+                    format={v => v === 0 ? 'None' : fmt$(v) + '/mo'}
+                    minLabel="None" maxLabel="$5k/mo"
+                    trackColor="#14b8a6" theme="dark"
+                />
+                <div className="va-dp-note" style={{ marginTop: -4 }}>Car payments, student loans, credit cards, child support, etc.</div>
             </div>
 
             {/* Income qualify table */}
             <div className="va-qualify">
                 <div className="va-qualify-title">Income to Qualify</div>
+                {debts > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#94a3b8', marginBottom: 8, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span>PITI {fmt$(piti)} + Debts {fmt$(debts)}</span>
+                        <span style={{ color: '#14b8a6', fontWeight: 600 }}>Total {fmt$(totalObligation)}/mo</span>
+                    </div>
+                )}
                 <table className="va-qtable">
                     <thead>
                         <tr><th>DTI</th><th>Guideline</th><th>Gross Annual</th></tr>

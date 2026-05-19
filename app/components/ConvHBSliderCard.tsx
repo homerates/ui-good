@@ -124,6 +124,7 @@ export interface ConvHBSliderParams {
     insRate: number;
     county?: string;
     countyLimit?: number;
+    monthlyDebts?: number;
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
 }
 
@@ -136,6 +137,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
     const [termYrs,    setTermYrs]    = useState(props.term);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [vaultOk,    setVaultOk]    = useState(false);
+    const [debts,      setDebts]      = useState(props.monthlyDebts ?? 0);
 
     const initCounty = props.county ? resolveCounty(props.county) : null;
     const initLimit  = props.countyLimit ?? (initCounty ? CA_LIMITS[initCounty] : NATIONAL_BASELINE) ?? NATIONAL_BASELINE;
@@ -236,9 +238,10 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
     // ── Income qualify ────────────────────────────────────────────────────────
 
-    const q36 = (total / 0.36) * 12;
-    const q43 = (total / 0.43) * 12;
-    const q50 = (total / 0.50) * 12;
+    const totalObligation = total + debts;
+    const q36 = (totalObligation / 0.36) * 12;
+    const q43 = (totalObligation / 0.43) * 12;
+    const q50 = (totalObligation / 0.50) * 12;
 
     // ── County handler ────────────────────────────────────────────────────────
 
@@ -293,8 +296,9 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
     function handleRun() {
         if (!props.onRunScenario) return;
-        const seed = `Conventional loan on ${fmtK(price)} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs} year fixed`;
-        props.onRunScenario(seed, { isConvHB: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, termYears: termYrs, changedKeys: ['purchasePrice', 'downPaymentPct', 'annualRatePct'] });
+        const dStr = debts > 0 ? ` with ${fmt$(debts)}/mo in other debts` : '';
+        const seed = `Conventional loan on ${fmtK(price)} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs} year fixed${dStr}`;
+        props.onRunScenario(seed, { isConvHB: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, termYears: termYrs, monthlyDebts: debts, changedKeys: ['purchasePrice', 'downPaymentPct', 'annualRatePct'] });
     }
 
     function handleGetMatched() {
@@ -416,11 +420,28 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                             onClick={() => setTermYrs(yr)}>{yr}yr</button>
                     ))}
                 </div>
+
+                <SliderField
+                    label="Monthly Debts"
+                    value={debts}
+                    min={0} max={5000} step={50}
+                    onChange={setDebts}
+                    format={v => v === 0 ? 'None' : fmt$(v) + '/mo'}
+                    minLabel="None" maxLabel="$5k/mo"
+                    trackColor={zc.color} theme="dark"
+                />
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: -4 }}>Car payments, student loans, credit cards, child support, etc.</div>
             </div>
 
             {/* Income qualify table */}
             <div className="chb-qualify">
                 <div className="chb-qualify-title">Income to Qualify</div>
+                {debts > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#94a3b8', marginBottom: 8, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span>PITI {fmt$(Math.round(total))} + Debts {fmt$(debts)}</span>
+                        <span style={{ color: zc.color, fontWeight: 600 }}>Total {fmt$(Math.round(totalObligation))}/mo</span>
+                    </div>
+                )}
                 <table className="chb-qtable">
                     <thead>
                         <tr><th>DTI</th><th>Guideline</th><th>Gross Annual</th></tr>
