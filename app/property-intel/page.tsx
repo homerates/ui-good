@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
+import { normalizeListingStatus } from '@/prefetchGrokProperty';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Comp {
@@ -84,6 +85,7 @@ function PropertyIntelInner() {
   const [mapView,     setMapView]     = useState<'street' | 'satellite'>('street');
   const [cacheHit,    setCacheHit]    = useState(false);
   const [loading,     setLoading]     = useState(false);
+  const [loadingMsg,  setLoadingMsg]  = useState('Checking for cached report…');
   const [summary,     setSummary]     = useState('');
   const [error,       setError]       = useState('');
   const [copied,      setCopied]      = useState(false);
@@ -103,15 +105,17 @@ function PropertyIntelInner() {
     if (!address) return;
     abortRef.current?.abort();
     abortRef.current = new AbortController();
+    const sig = abortRef.current.signal;
 
     setFinalResult(null); setMapUrls(null);
     setPhotoReady(false); setCacheHit(false);
     setSummary(''); setError('');
+    setLoadingMsg('Checking for cached report…');
     setLoading(true);
 
     try {
-      // 1 — try cache
-      const cd = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(address)}`)
+      // 1 — try cache (GET)
+      const cd = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(address)}`, { signal: sig })
         .then(r => r.json()).catch(() => null);
 
       if (cd?.cached) {
@@ -123,8 +127,85 @@ function PropertyIntelInner() {
         return;
       }
 
-      // Cache miss — report hasn't been generated yet
-      setError('No cached report found for this address. Open the property from My Properties to generate one.');
+      // 2 — cache miss: get Redfin facts then stream Grok
+      setLoadingMsg('Pulling property data…');
+      let redfin: Record<string, unknown> | null = null;
+      try {
+        const lr = await fetch('/api/property/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address }),
+          signal: sig,
+        });
+        const lj = await lr.json();
+        if (lr.ok && lj.ok && lj.data) {
+          const d = lj.data;
+          redfin = {
+            current_status:     normalizeListingStatus(d.listingStatus),
+            current_list_price: d.price ?? null,
+            bedrooms:           d.beds ?? null,
+            bathrooms:          d.baths ?? null,
+            sqft:               d.sqft ?? null,
+            year_built:         d.yearBuilt ?? null,
+            days_on_market:     d.daysOnMarket ?? null,
+            last_sold_price:    d.lastSalePrice ?? null,
+            last_sold_date:     d.lastSaleDate ?? null,
+            lot_size_sqft:      d.lotSqft ?? null,
+            tax_rate_effective: d.taxRateEffective ?? null,
+            hoa_monthly:        d.hoaMonthly ?? null,
+          };
+        }
+      } catch { /* proceed without Redfin data */ }
+
+      // 3 — stream Grok
+      setLoadingMsg('Generating intelligence with Grok 4…');
+      const postRes = await fetch('/api/beta/grok-property', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, redfin }),
+        signal: sig,
+      });
+
+      if (!postRes.ok || !postRes.body) {
+        setError('Could not generate property intelligence. Try again.');
+        setLoading(false);
+        return;
+      }
+
+      const reader = postRes.body.getReader();
+      const dec    = new TextDecoder();
+      let buf      = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith('data: ')) continue;
+          try {
+            const ev = JSON.parse(t.slice(6));
+            if (ev.meta_early) {
+              if (ev.meta_early.street_view_url || ev.meta_early.static_map_url) {
+                setMapUrls({ street_view_url: ev.meta_early.street_view_url, static_map_url: ev.meta_early.static_map_url });
+              }
+            }
+            if (ev.done && ev.result) {
+              setFinalResult(ev.result as PropResult);
+              setSummary((ev.result as PropResult).grok_intelligence_summary ?? '');
+              setLoading(false);
+            }
+            if (ev.error) {
+              setError(ev.error);
+              setLoading(false);
+            }
+          } catch { /* skip malformed SSE chunks */ }
+        }
+      }
       setLoading(false);
     } catch (err: any) {
       if (err.name === 'AbortError') return;
@@ -235,7 +316,12 @@ function PropertyIntelInner() {
           {loading && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '90px 20px', gap: 20 }}>
               <div className="spin" style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid rgba(255,255,255,0.08)', borderTopColor: '#4ade80' }} />
-              <div style={{ fontSize: '0.88rem', color: '#64748b' }}>Checking for cached report…</div>
+              <div style={{ fontSize: '0.88rem', color: '#64748b' }}>{loadingMsg}</div>
+              {loadingMsg.includes('Grok') && (
+                <div style={{ fontSize: '0.72rem', color: '#334155', maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
+                  Grok 4 is researching comps, market context, and buyer intelligence. This takes 30–60 seconds on first run.
+                </div>
+              )}
             </div>
           )}
 
