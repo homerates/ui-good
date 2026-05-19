@@ -205,6 +205,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
     const [income, setIncome]     = useState(props.annualIncome);
     const [debts, setDebts]       = useState(props.monthlyDebts);
     const [savings, setSavings]   = useState(props.savings);
+    const [downPct, setDownPct]   = useState(props.downPct > 0 ? props.downPct : 3);
     const [rate, setRate]         = useState(props.rate);
     const [term, setTerm]         = useState(props.term);
     const [openCard, setOpenCard] = useState<'fha' | 'conv3' | 'conv20' | null>('conv3');
@@ -213,17 +214,19 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
     const [sliderOpen, setSliderOpen] = useState(false);
     const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
 
+    const initDownPct = props.downPct > 0 ? props.downPct : 3;
     const isDirty = income !== props.annualIncome || debts !== props.monthlyDebts ||
-        savings !== props.savings || Math.abs(rate - props.rate) > 0.001 || term !== props.term;
+        savings !== props.savings || downPct !== initDownPct ||
+        Math.abs(rate - props.rate) > 0.001 || term !== props.term;
 
     const { user } = useUser();
     const router   = useRouter();
 
     const { fha, conv3, conv20 } = useMemo(() => ({
-        fha:    calcProgram(income, debts, 3.5, rate, term, props.taxRate, props.insRate, 'fha',          savings),
-        conv3:  calcProgram(income, debts, 3,   rate, term, props.taxRate, props.insRate, 'conventional', savings),
-        conv20: calcProgram(income, debts, 20,  rate, term, props.taxRate, props.insRate, 'conventional', savings),
-    }), [income, debts, savings, rate, term, props.taxRate, props.insRate]);
+        fha:    calcProgram(income, debts, 3.5,     rate, term, props.taxRate, props.insRate, 'fha',          savings),
+        conv3:  calcProgram(income, debts, downPct, rate, term, props.taxRate, props.insRate, 'conventional', savings),
+        conv20: calcProgram(income, debts, 20,      rate, term, props.taxRate, props.insRate, 'conventional', savings),
+    }), [income, debts, savings, downPct, rate, term, props.taxRate, props.insRate]);
 
     // Explorer stats based on Conv 3% (the "best fit" recommendation)
     const ref = conv3;
@@ -266,6 +269,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
             annualIncome: income,
             savings,
             monthlyDebts: debts,
+            downPaymentPct: downPct,
             annualRatePct: rate,
             changedKeys,
         };
@@ -285,7 +289,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
     const chipIsJumbo = !!conv3 && conv3.baseLoan > 806_500;
     const chipUseFHA  = !chipIsJumbo && !!fha?.qualifies && !conv3?.qualifies;
     const chipLt      = chipIsJumbo ? 'jumbo' : chipUseFHA ? 'fha' : 'conventional';
-    const chipDp      = chipIsJumbo ? 20 : chipUseFHA ? 3.5 : 3;
+    const chipDp      = chipIsJumbo ? 20 : chipUseFHA ? 3.5 : downPct;
     const chipProg    = (chipUseFHA && fha) ? fha : conv3;
 
     return (
@@ -370,8 +374,8 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     <div className="afc-ph" onClick={() => toggle('conv3')}>
                         <div className="afc-pi afc-pi--conv3"><HomeIcon /></div>
                         <div className="afc-pt">
-                            <div className="afc-pt-name">Conventional 3% Down</div>
-                            <div className="afc-pt-sub">Low-entry conventional</div>
+                            <div className="afc-pt-name">Conventional {parseFloat(downPct.toFixed(1))}% Down</div>
+                            <div className="afc-pt-sub">{downPct >= 20 ? 'No PMI · best payment' : 'Low-entry conventional'}</div>
                         </div>
                         <span className="afc-badge afc-badge--green">Best fit</span>
                         <div className="afc-chev"><ChevronDown /></div>
@@ -385,7 +389,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                             </div>
                             <div className="afc-pcnote">
                                 <span className="afc-note-icon">ⓘ</span>
-                                <span className="afc-note-text">PMI drops off at 80% LTV — cleaner long term than FHA</span>
+                                <span className="afc-note-text">{downPct >= 20 ? 'No PMI at this down payment — cleanest long-term structure' : 'PMI drops off at 80% LTV — cleaner long term than FHA'}</span>
                             </div>
                             {openCard === 'conv3' && <ProgramDrawer calc={conv3} loanType="conv3" annualIncome={props.annualIncome} />}
                         </>
@@ -455,7 +459,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                                 <tr>
                                     <th>Metric</th>
                                     <th>FHA 3.5%</th>
-                                    <th className="afc-col-best">Conv 3%</th>
+                                    <th className="afc-col-best">Conv {parseFloat(downPct.toFixed(1))}%</th>
                                     <th>Conv 20%</th>
                                 </tr>
                             </thead>
@@ -487,7 +491,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 <span className="afc-trigger-arrow">{sliderOpen ? '▲ Close' : '▼ Open'}</span>
             </button>
             <div className={`afc-sdrawer${sliderOpen ? ' open' : ''}`}>
-            {/* ── Affordability Explorer (white bg — KEEP) ── */}
+            {/* ── Affordability Explorer ── */}
             <div className="afc-explorer">
                 <div className="afc-exp-title">Affordability Explorer</div>
 
@@ -497,7 +501,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     onChange={setIncome}
                     format={v => fmtK(v) + '/yr'}
                     minLabel="$30k" maxLabel="$500k"
-                    trackColor="#00e87a" theme="light"
+                    trackColor="#00e87a" theme="dark"
                 />
 
                 <SliderField
@@ -506,7 +510,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     onChange={setDebts}
                     format={v => v === 0 ? 'None' : fmt$(v) + '/mo'}
                     minLabel="$0" maxLabel="$5k/mo"
-                    trackColor="#00e87a" theme="light"
+                    trackColor="#00e87a" theme="dark"
                 />
 
                 <SliderField
@@ -515,7 +519,16 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     onChange={setSavings}
                     format={v => v === 0 ? 'None' : fmtK(v)}
                     minLabel="$0" maxLabel="$500k"
-                    trackColor="#00e87a" theme="light"
+                    trackColor="#00e87a" theme="dark"
+                />
+
+                <SliderField
+                    label="Down Payment (Conv)" value={downPct}
+                    min={3} max={30} step={0.5}
+                    onChange={setDownPct}
+                    format={v => parseFloat(v.toFixed(1)) + '%'}
+                    minLabel="3%" maxLabel="30%"
+                    trackColor="#00e87a" theme="dark"
                 />
 
                 <SliderField
@@ -524,7 +537,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     onChange={setRate}
                     format={v => parseFloat(v.toFixed(3)) + '%'}
                     minLabel="3%" maxLabel="12%"
-                    trackColor="#00e87a" theme="light"
+                    trackColor="#00e87a" theme="dark"
                 />
 
                 {/* Term buttons */}
@@ -588,7 +601,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                             purpose: 'Purchase',
                             ...(ref ? {
                                 price: String(Math.round(ref.maxPrice)),
-                                dp: '3',
+                                dp: String(downPct),
                                 monthly: String(Math.round(ref.total)),
                             } : {}),
                             rate: String(parseFloat(rate.toFixed(3))),
@@ -640,7 +653,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                         onClick={() => {
                             const p = new URLSearchParams({
                                 price:   String(Math.round(conv3!.maxPrice)),
-                                dp:      '3',
+                                dp:      String(downPct),
                                 rate:    rate.toFixed(3),
                                 term:    String(term),
                                 lt:      'conventional',
@@ -896,37 +909,37 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 .afc-rate-note p { font-size: 12px; color: #8fa3b8; line-height: 1.5; }
                 .afc-rate-note strong { color: #00e87a; }
 
-                /* explorer (white bg) */
+                /* explorer */
                 .afc-explorer {
                     border-top: 1px solid rgba(255,255,255,0.05);
                     padding: 16px 18px;
-                    background: #fff;
-                    color: #0d1117;
+                    background: #0d1117;
+                    color: #f0f4ff;
                     overflow: visible;
                 }
-                .afc-exp-title { font-size: 13px; font-weight: 700; color: #0d1117; margin-bottom: 14px; }
-                .afc-exp-term-label { font-size: 13px; font-weight: 600; color: #0d1117; margin: 14px 0 8px; }
+                .afc-exp-title { font-size: 13px; font-weight: 700; color: #f0f4ff; margin-bottom: 14px; }
+                .afc-exp-term-label { font-size: 13px; font-weight: 600; color: #8fa3b8; margin: 14px 0 8px; }
                 .afc-terms { display: flex; gap: 8px; margin-bottom: 16px; }
                 .afc-term {
                     flex: 1; padding: 10px 0; border-radius: 8px;
-                    border: 1.5px solid #e2e8f0; background: #f9f9f9;
-                    font-size: 13px; font-weight: 600; color: #64748b;
+                    border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+                    font-size: 13px; font-weight: 600; color: #6b7a99;
                     cursor: pointer; font-family: inherit; text-align: center;
                     transition: all .15s;
                 }
-                .afc-term--on { border-color: #00e87a; color: #065f46; background: #f0fff8; }
-                .afc-term:hover:not(.afc-term--on) { border-color: #94a3b8; color: #374151; }
+                .afc-term--on { border-color: #00e87a; color: #00e87a; background: rgba(0,232,122,0.08); }
+                .afc-term:hover:not(.afc-term--on) { border-color: rgba(255,255,255,0.2); color: #f0f4ff; }
 
                 .afc-exp-stats {
                     display: flex; flex-wrap: wrap; gap: 8px;
-                    border-top: 1px solid #eee; padding-top: 12px; margin-bottom: 14px;
+                    border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-bottom: 14px;
                 }
                 .afc-exp-stat { flex: 1; min-width: 100px; }
                 .afc-exp-stat-label {
                     font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
-                    color: #999; font-weight: 700; margin-bottom: 3px;
+                    color: #3a4560; font-weight: 700; margin-bottom: 3px;
                 }
-                .afc-exp-stat-val { font-size: 14px; font-weight: 700; color: #0d1117; }
+                .afc-exp-stat-val { font-size: 14px; font-weight: 700; color: #f0f4ff; }
 
                 .afc-exp-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
                 .afc-btn-rerun {
