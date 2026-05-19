@@ -482,7 +482,7 @@ function PropertyIntelInner() {
 
                 {/* Run My Numbers — primary CTA */}
                 <SignedIn>
-                  <Link href={chatUrl} target="_blank" rel="noopener noreferrer" style={{ flex: 1, maxWidth: 280, textDecoration: 'none' }}>
+                  <Link href={chatUrl} style={{ flex: 1, maxWidth: 280, textDecoration: 'none' }}>
                     <button style={{ width: '100%', padding: '12px 24px', fontSize: '0.88rem', fontWeight: 700, background: '#4ade80', color: '#050812', border: 'none', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s' }}>
                       <i className="fa-solid fa-calculator" style={{ fontSize: '0.8rem' }} />
                       Run My Numbers →

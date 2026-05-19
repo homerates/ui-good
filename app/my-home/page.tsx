@@ -502,7 +502,7 @@ function CardEquity({ d, nearbySales, onEdit }: { d: AnalysisData; nearbySales?:
         </div>
       )}
       <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href={`/chat?sq=${encodeURIComponent(`Equity options for ${d.address}: value ${d.estimatedValue ? fmt(d.estimatedValue) : '?'}, balance ${d.estimatedBalance ? fmt(d.estimatedBalance) : '?'}, equity ${d.estimatedEquity ? fmt(d.estimatedEquity) : '?'} (${d.equityPct ?? '?'}%). What are my best options — HELOC, cash-out refi, or sell?`)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link" target="_blank" rel="noopener noreferrer">
+        <Link href={`/chat?sq=${encodeURIComponent(`Equity options for ${d.address}: value ${d.estimatedValue ? fmt(d.estimatedValue) : '?'}, balance ${d.estimatedBalance ? fmt(d.estimatedBalance) : '?'}, equity ${d.estimatedEquity ? fmt(d.estimatedEquity) : '?'} (${d.equityPct ?? '?'}%). What are my best options — HELOC, cash-out refi, or sell?`)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link">
           Explore my equity options →
         </Link>
       </div>
@@ -564,7 +564,7 @@ function CardHELOC({ d }: { d: AnalysisData }) {
         </Link>
       </div>
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href={`/chat?sq=${encodeURIComponent(`HELOC vs cash-out refi analysis for ${d.address}: I have ${d.helocMax ? '$' + Math.round(d.helocMax).toLocaleString() : 'equity'} available at ~${d.helocRate?.toFixed(2) ?? '7.75'}% HELOC rate. Compare accessing equity via HELOC vs cash-out refi at today's ${d.liveRate.toFixed(2)}% rate. Show payments, costs, and break-even.`)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link" target="_blank" rel="noopener noreferrer">
+        <Link href={`/chat?sq=${encodeURIComponent(`HELOC vs cash-out refi analysis for ${d.address}: I have ${d.helocMax ? '$' + Math.round(d.helocMax).toLocaleString() : 'equity'} available at ~${d.helocRate?.toFixed(2) ?? '7.75'}% HELOC rate. Compare accessing equity via HELOC vs cash-out refi at today's ${d.liveRate.toFixed(2)}% rate. Show payments, costs, and break-even.`)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link">
           Compare HELOC vs cash-out refi →
         </Link>
       </div>
@@ -761,7 +761,7 @@ function CardEconomy({ d }: { d: AnalysisData }) {
         </div>
       )}
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href={`/chat?sq=${encodeURIComponent(economySeed)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link" target="_blank" rel="noopener noreferrer">
+        <Link href={`/chat?sq=${encodeURIComponent(economySeed)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link">
           How do rates affect my options? →
         </Link>
       </div>
@@ -818,7 +818,7 @@ function CardMilestones({ d }: { d: AnalysisData }) {
       ))}
       <div className="mh-footnote" style={{ marginTop: 16 }}>Milestones based on ATTOM AVM or FHFA model, FRED live rates, and 4.2% national avg. appreciation.</div>
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href={`/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${d.address}: mortgage balance $${d.estimatedBalance ? Math.round(d.estimatedBalance).toLocaleString() : 'unknown'}${d.purchaseRate ? ` at ${d.purchaseRate}%` : ''}${d.payoffYear ? `, payoff projected ${d.payoffYear}` : ''}${d.estimatedEquity ? ` — current equity $${Math.round(d.estimatedEquity).toLocaleString()}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link" target="_blank" rel="noopener noreferrer">
+        <Link href={`/chat?sq=${encodeURIComponent(`Payoff and wealth plan for ${d.address}: mortgage balance $${d.estimatedBalance ? Math.round(d.estimatedBalance).toLocaleString() : 'unknown'}${d.purchaseRate ? ` at ${d.purchaseRate}%` : ''}${d.payoffYear ? `, payoff projected ${d.payoffYear}` : ''}${d.estimatedEquity ? ` — current equity $${Math.round(d.estimatedEquity).toLocaleString()}` : ''}. Build a full equity trajectory, payoff acceleration options, and wealth-building milestones.`)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link">
           Get my full payoff plan →
         </Link>
       </div>
