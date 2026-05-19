@@ -204,6 +204,7 @@ function KV({ k, v, green, total }: { k: string; v: string; green?: boolean; tot
 export default function AffordabilitySliderCard(props: AffordabilitySliderParams) {
     const [income, setIncome]     = useState(props.annualIncome);
     const [debts, setDebts]       = useState(props.monthlyDebts);
+    const [savings, setSavings]   = useState(props.savings);
     const [rate, setRate]         = useState(props.rate);
     const [term, setTerm]         = useState(props.term);
     const [openCard, setOpenCard] = useState<'fha' | 'conv3' | 'conv20' | null>('conv3');
@@ -213,16 +214,16 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
     const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
 
     const isDirty = income !== props.annualIncome || debts !== props.monthlyDebts ||
-        Math.abs(rate - props.rate) > 0.001 || term !== props.term;
+        savings !== props.savings || Math.abs(rate - props.rate) > 0.001 || term !== props.term;
 
     const { user } = useUser();
     const router   = useRouter();
 
     const { fha, conv3, conv20 } = useMemo(() => ({
-        fha:    calcProgram(income, debts, 3.5, rate, term, props.taxRate, props.insRate, 'fha',          props.savings),
-        conv3:  calcProgram(income, debts, 3,   rate, term, props.taxRate, props.insRate, 'conventional', props.savings),
-        conv20: calcProgram(income, debts, 20,  rate, term, props.taxRate, props.insRate, 'conventional', props.savings),
-    }), [income, debts, rate, term, props.taxRate, props.insRate, props.savings]);
+        fha:    calcProgram(income, debts, 3.5, rate, term, props.taxRate, props.insRate, 'fha',          savings),
+        conv3:  calcProgram(income, debts, 3,   rate, term, props.taxRate, props.insRate, 'conventional', savings),
+        conv20: calcProgram(income, debts, 20,  rate, term, props.taxRate, props.insRate, 'conventional', savings),
+    }), [income, debts, savings, rate, term, props.taxRate, props.insRate]);
 
     // Explorer stats based on Conv 3% (the "best fit" recommendation)
     const ref = conv3;
@@ -250,8 +251,9 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
     }
 
     function buildSeed(): string {
-        const debtsStr = debts > 0 ? ` with $${debts.toLocaleString()}/mo in existing debts` : '';
-        return `Affordability for ${fmtK(income)}/yr income${debtsStr} at ${rate.toFixed(3)}% — ${term} year fixed`;
+        const debtsStr   = debts   > 0 ? ` with $${debts.toLocaleString()}/mo in existing debts` : '';
+        const savingsStr = savings > 0 ? ` and ${fmtK(savings)} in savings` : '';
+        return `Affordability for ${fmtK(income)}/yr income${debtsStr}${savingsStr} at ${rate.toFixed(3)}% — ${term} year fixed`;
     }
 
     function getRunOverrides(): Record<string, any> {
@@ -262,7 +264,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
         if (term !== props.term) changedKeys.push('term');
         return {
             annualIncome: income,
-            savings: props.savings,
+            savings,
             monthlyDebts: debts,
             annualRatePct: rate,
             changedKeys,
@@ -319,7 +321,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                         <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="1.8" width="16" height="16">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75"/>
                         </svg>
-                    } label="Savings" value={fmtK(props.savings)} />
+                    } label="Savings" value={fmtK(savings)} />
                     <Tile icon={
                         <svg viewBox="0 0 24 24" fill="none" stroke="#3d8bff" strokeWidth="1.8" width="16" height="16">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/>
@@ -504,6 +506,15 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     onChange={setDebts}
                     format={v => v === 0 ? 'None' : fmt$(v) + '/mo'}
                     minLabel="$0" maxLabel="$5k/mo"
+                    trackColor="#00e87a" theme="light"
+                />
+
+                <SliderField
+                    label="Available Savings" value={savings}
+                    min={0} max={500000} step={1000}
+                    onChange={setSavings}
+                    format={v => v === 0 ? 'None' : fmtK(v)}
+                    minLabel="$0" maxLabel="$500k"
                     trackColor="#00e87a" theme="light"
                 />
 
