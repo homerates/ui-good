@@ -4,7 +4,8 @@
 // Displays a scraped property listing snapshot — photo, address, price, beds/baths/sqft, tax note.
 // Rendered in the chat when a user pastes a Zillow/Redfin URL.
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { prefetchGrokProperty } from '@/prefetchGrokProperty';
 
 export interface PropertyCardData {
     source: string;
@@ -72,6 +73,25 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
     const isOffMarket = data.listingStatus === 'OFF_MARKET' || data.listingStatus === 'SOLD';
     // Homeowner analysis mode: off-market with equity data from Rentcast
     const isHomeowner = isOffMarket && data.estimatedEquity != null && data.estimatedBalance != null;
+
+    const fullAddress = [data.address, data.city, data.state, data.zip].filter(Boolean).join(', ');
+
+    // Fire-and-forget: warm the Grok cache so "View Intelligence Report →" loads instantly
+    useEffect(() => {
+        if (!fullAddress) return;
+        prefetchGrokProperty(fullAddress, {
+            current_status:     data.listingStatus ?? undefined,
+            current_list_price: data.price ?? undefined,
+            bedrooms:           data.beds ?? undefined,
+            bathrooms:          data.baths ?? undefined,
+            sqft:               data.sqft ?? undefined,
+            days_on_market:     data.daysOnMarket ?? undefined,
+            hoa_monthly:        data.hoaMonthly ?? undefined,
+            last_sold_price:    data.lastSalePrice ?? undefined,
+            last_sold_date:     data.lastSaleDate ?? undefined,
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [fullAddress]);
 
     const taxNote =
         data.taxSource === 'scraped' ? 'Property taxes from listing'
@@ -183,7 +203,7 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
                 {/* ── Intelligence Report CTA ── */}
                 {data.address && (
                     <div style={{ padding: '10px 18px' }}>
-                        <a href={`/property-intel?address=${encodeURIComponent([data.address, data.city, data.state, data.zip].filter(Boolean).join(', '))}`}
+                        <a href={`/property-intel?address=${encodeURIComponent(fullAddress)}`}
                             target="_blank" rel="noopener noreferrer"
                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#00e87a', background: 'rgba(0,232,122,0.07)', border: '1px solid rgba(0,232,122,0.18)', textDecoration: 'none' }}>
                             View Intelligence Report →
@@ -312,7 +332,7 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
 
                 {data.address && (
                     <div style={{ marginTop: 10 }}>
-                        <a href={`/property-intel?address=${encodeURIComponent([data.address, data.city, data.state, data.zip].filter(Boolean).join(', '))}`}
+                        <a href={`/property-intel?address=${encodeURIComponent(fullAddress)}`}
                             target="_blank" rel="noopener noreferrer"
                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#00e87a', background: 'rgba(0,232,122,0.07)', border: '1px solid rgba(0,232,122,0.18)', textDecoration: 'none' }}>
                             View Intelligence Report →
