@@ -181,10 +181,10 @@ export default function RefiSliderCard(props: RefiSliderParams) {
 
     return (
         <div style={{
-            background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16,
+            background: '#0d1117', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16,
             padding: '20px 20px 16px', marginTop: 12, width: '100%', boxSizing: 'border-box',
             fontFamily: 'system-ui, -apple-system, sans-serif',
-            overflow: 'hidden',
+            overflow: 'hidden', color: '#f0f4ff',
         }}>
         <style>{`
           .refi-hero-val{font-size:22px;font-weight:800;letter-spacing:-0.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -194,16 +194,16 @@ export default function RefiSliderCard(props: RefiSliderParams) {
         `}</style>
             {/* ── Header ── */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: tier !== 'conforming' ? 8 : 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.01em' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f4ff', letterSpacing: '-0.01em' }}>
                     Refi Explorer
                 </div>
                 <button
                     onClick={() => setNoCost(v => !v)}
                     style={{
                         fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                        border: `1px solid ${noCost ? '#059669' : '#cbd5e1'}`,
-                        background: noCost ? '#f0fdf4' : '#f8fafc',
-                        color: noCost ? '#059669' : '#64748b',
+                        border: `1px solid ${noCost ? '#059669' : 'rgba(255,255,255,0.12)'}`,
+                        background: noCost ? 'rgba(5,150,105,0.12)' : 'rgba(255,255,255,0.04)',
+                        color: noCost ? '#059669' : '#6b7a99',
                         cursor: 'pointer',
                     }}
                 >
@@ -232,14 +232,14 @@ export default function RefiSliderCard(props: RefiSliderParams) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 18 }}>
                 {/* Monthly savings */}
                 <div style={{
-                    background: calc.savings >= 0 ? '#f0fdf4' : '#fef2f2',
-                    border: `1px solid ${calc.savings >= 0 ? '#6ee7b7' : '#fca5a5'}`,
+                    background: calc.savings >= 0 ? 'rgba(0,232,122,0.07)' : 'rgba(239,68,68,0.07)',
+                    border: `1px solid ${calc.savings >= 0 ? 'rgba(0,232,122,0.2)' : 'rgba(239,68,68,0.2)'}`,
                     borderRadius: 10, padding: '10px 8px', textAlign: 'center', minWidth: 0, overflow: 'hidden',
                 }}>
-                    <div className="refi-hero-val" style={{ color: calc.savings >= 0 ? '#059669' : '#dc2626' }}>
+                    <div className="refi-hero-val" style={{ color: calc.savings >= 0 ? '#00e87a' : '#ef4444' }}>
                         {calc.savings >= 0 ? '+' : '−'}{fmt$(calc.savings)}
                     </div>
-                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, fontWeight: 500 }}>Monthly savings</div>
+                    <div style={{ fontSize: 10, color: '#3a4560', marginTop: 2, fontWeight: 500 }}>Monthly savings</div>
                 </div>
 
                 {/* Break-even */}
@@ -250,34 +250,34 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     <div className="refi-hero-val" style={{ color: beC.text }}>
                         {beLabel}
                     </div>
-                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, fontWeight: 500 }}>Break-even</div>
+                    <div style={{ fontSize: 10, color: '#3a4560', marginTop: 2, fontWeight: 500 }}>Break-even</div>
                 </div>
 
                 {/* 5-yr net */}
                 <div style={{
-                    background: calc.net5yr >= 0 ? '#f0fdf4' : '#fef2f2',
-                    border: `1px solid ${calc.net5yr >= 0 ? '#6ee7b7' : '#fca5a5'}`,
+                    background: calc.net5yr >= 0 ? 'rgba(0,232,122,0.07)' : 'rgba(239,68,68,0.07)',
+                    border: `1px solid ${calc.net5yr >= 0 ? 'rgba(0,232,122,0.2)' : 'rgba(239,68,68,0.2)'}`,
                     borderRadius: 10, padding: '10px 8px', textAlign: 'center', minWidth: 0, overflow: 'hidden',
                 }}>
-                    <div className="refi-hero-val" style={{ color: calc.net5yr >= 0 ? '#059669' : '#dc2626' }}>
+                    <div className="refi-hero-val" style={{ color: calc.net5yr >= 0 ? '#00e87a' : '#ef4444' }}>
                         {calc.net5yr >= 0 ? '+' : '−'}{fmt$(calc.net5yr)}
                     </div>
-                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, fontWeight: 500 }}>5-yr net</div>
+                    <div style={{ fontSize: 10, color: '#3a4560', marginTop: 2, fontWeight: 500 }}>5-yr net</div>
                 </div>
             </div>
 
             {/* ── Payment comparison bars ── */}
             <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#3a4560', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     P&amp;I Payment
                 </div>
                 {[
-                    { label: 'Now', val: calc.oldPI, color: '#64748b' },
+                    { label: 'Now', val: calc.oldPI, color: '#6b7a99' },
                     { label: 'New', val: calc.newPI, color: calc.savings >= 0 ? '#10b981' : '#ef4444' },
                 ].map(({ label, val, color }) => (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                         <div style={{ fontSize: 11, color: '#94a3b8', width: 28, textAlign: 'right' }}>{label}</div>
-                        <div style={{ flex: 1, height: 22, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ flex: 1, height: 22, background: 'rgba(255,255,255,0.06)', borderRadius: 4, overflow: 'hidden' }}>
                             <div style={{
                                 height: '100%',
                                 width: `${(val / maxBarPmt) * 100}%`,
@@ -286,7 +286,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                                 transition: 'width 0.2s ease',
                             }} />
                         </div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', width: 72, textAlign: 'right' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#f0f4ff', width: 72, textAlign: 'right' }}>
                             {fmt$(val)}/mo
                         </div>
                     </div>
@@ -307,7 +307,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     min={50_000} max={balanceMax} step={balance >= 1_000_000 ? 25_000 : 5_000}
                     onChange={setBalance}
                     format={fmt$}
-                    trackColor="#10b981" theme="light"
+                    trackColor="#10b981" theme="dark"
                 />
             </div>
 
@@ -318,17 +318,17 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     min={3} max={12} step={0.125}
                     onChange={setCurrentRate}
                     format={fmtRate}
-                    trackColor="#ef4444" theme="light"
+                    trackColor="#ef4444" theme="dark"
                     style={{ minWidth: 0 }}
                 />
-                <div className="refi-rate-arrow" style={{ textAlign: 'center', paddingBottom: 6, fontSize: 12, color: '#cbd5e1', fontWeight: 700 }}>→</div>
+                <div className="refi-rate-arrow" style={{ textAlign: 'center', paddingBottom: 6, fontSize: 12, color: '#3a4560', fontWeight: 700 }}>→</div>
                 <SliderField
                     label={`New Rate${noCost ? ' +0.25%' : ''}`} value={newRate}
                     min={3} max={12} step={0.125}
                     onChange={setNewRate}
                     format={fmtRate}
                     disabled={noCost}
-                    trackColor="#059669" theme="light"
+                    trackColor="#059669" theme="dark"
                     style={{ minWidth: 0 }}
                 />
             </div>
@@ -343,7 +343,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     format={fmt$}
                     disabled={noCost}
                     midLabel="1% ≈ no-cost · click to type"
-                    trackColor="#10b981" theme="light"
+                    trackColor="#10b981" theme="dark"
                     style={{ flex: '1 1 200px', minWidth: 0 }}
                 />
 
@@ -355,7 +355,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                         onChange={handleLtvChange}
                         format={v => `${v}%`}
                         minLabel="50%" midLabel="80% = no PMI" maxLabel="97%"
-                        trackColor={ltv > 80 ? '#ef4444' : '#10b981'} theme="light"
+                        trackColor={ltv > 80 ? '#ef4444' : '#10b981'} theme="dark"
                         style={{ flex: '1 1 200px', minWidth: 0 }}
                     />
                 )}
@@ -363,7 +363,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
 
             {/* Term toggle */}
             <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>New Term</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#8fa3b8', marginBottom: 6 }}>New Term</div>
                 <div style={{ display: 'flex', gap: 6 }}>
                     {[15, 20, 30].map(yr => (
                         <button key={yr}
@@ -371,9 +371,9 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                             style={{
                                 flex: 1, padding: '6px 0', borderRadius: 8, fontSize: 12, fontWeight: 700,
                                 cursor: 'pointer',
-                                border: termYears === yr ? '2px solid #10b981' : '2px solid #e2e8f0',
-                                background: termYears === yr ? '#f0fdf4' : '#f8fafc',
-                                color: termYears === yr ? '#059669' : '#64748b',
+                                border: termYears === yr ? '2px solid #10b981' : '1.5px solid rgba(255,255,255,0.1)',
+                                background: termYears === yr ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)',
+                                color: termYears === yr ? '#10b981' : '#6b7a99',
                             }}
                         >{yr}yr</button>
                     ))}
@@ -382,28 +382,28 @@ export default function RefiSliderCard(props: RefiSliderParams) {
 
             {/* ── Interest savings panel ── */}
             <div style={{
-                background: '#f8fafc', borderRadius: 10, padding: '10px 14px',
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 14px',
                 marginBottom: 12, fontSize: 12,
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span style={{ color: '#64748b' }}>Remaining interest (current loan)</span>
+                    <span style={{ color: '#6b7a99' }}>Remaining interest (current loan)</span>
                     <span style={{ fontWeight: 700, color: '#ef4444' }}>{fmt$(calc.oldTotalInt)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span style={{ color: '#64748b' }}>Total interest (new {termYears}yr loan)</span>
-                    <span style={{ fontWeight: 700, color: '#334155' }}>{fmt$(calc.newTotalInt)}</span>
+                    <span style={{ color: '#6b7a99' }}>Total interest (new {termYears}yr loan)</span>
+                    <span style={{ fontWeight: 700, color: '#f0f4ff' }}>{fmt$(calc.newTotalInt)}</span>
                 </div>
                 {termYears === 30 && calc.int20saved > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                        <span style={{ color: '#64748b' }}>20yr alt @ {fmtRate(effNewRate)} saves vs 30yr</span>
+                        <span style={{ color: '#6b7a99' }}>20yr alt @ {fmtRate(effNewRate)} saves vs 30yr</span>
                         <span style={{ fontWeight: 700, color: '#0ea5e9' }}>+{fmt$(calc.int20saved)}</span>
                     </div>
                 )}
-                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 5, display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#475569', fontWeight: 600 }}>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 5, display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#8fa3b8', fontWeight: 600 }}>
                         Lifetime interest {calc.intSaved >= 0 ? 'saved' : 'added'}
                     </span>
-                    <span style={{ fontWeight: 800, color: calc.intSaved >= 0 ? '#059669' : '#dc2626' }}>
+                    <span style={{ fontWeight: 800, color: calc.intSaved >= 0 ? '#00e87a' : '#ef4444' }}>
                         {calc.intSaved >= 0 ? '+' : '−'}{fmt$(calc.intSaved)}
                     </span>
                 </div>
@@ -411,16 +411,16 @@ export default function RefiSliderCard(props: RefiSliderParams) {
 
             {/* ── Footer stats ── */}
             <div style={{
-                display: 'flex', gap: 14, fontSize: 11, color: '#64748b',
+                display: 'flex', gap: 14, fontSize: 11, color: '#6b7a99',
                 marginBottom: isDirty ? 12 : 0, flexWrap: 'wrap',
             }}>
                 <span>Balance <strong style={{ color: '#334155' }}>{fmt$(balance)}</strong></span>
                 <span>Rate drop <strong style={{ color: rateDrop > 0 ? '#059669' : '#dc2626' }}>
                     {rateDrop > 0 ? `↓` : `↑`}{Math.abs(rateDrop).toFixed(3)}%
                 </strong></span>
-                <span>Payoff <strong style={{ color: '#334155' }}>{termYears}yr</strong></span>
+                <span>Payoff <strong style={{ color: '#f0f4ff' }}>{termYears}yr</strong></span>
                 {effClosing > 0 && (
-                    <span>Closing <strong style={{ color: '#334155' }}>{fmt$(effClosing)}</strong></span>
+                    <span>Closing <strong style={{ color: '#f0f4ff' }}>{fmt$(effClosing)}</strong></span>
                 )}
                 {tier !== 'conforming' && (
                     <span style={{ color: tierStyle.text, fontWeight: 600 }}>{TIER_LABEL[tier]}</span>

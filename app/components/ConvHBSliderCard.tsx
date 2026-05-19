@@ -390,11 +390,11 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
                 <SliderField label="Home Price" value={price} min={100000} max={3000000} step={5000}
                     onChange={setPrice} format={v => fmt$(v)} minLabel="$100k" maxLabel="$3M"
-                    trackColor={zc.color} theme="light" />
+                    trackColor={zc.color} theme="dark" />
 
                 <SliderField label="Down Payment" value={downPct} min={3} max={50} step={1}
                     onChange={setDownPct} format={v => `${v}% · ${fmt$(price * v / 100)}`}
-                    minLabel="3%" maxLabel="50%" trackColor={zc.color} theme="light" />
+                    minLabel="3%" maxLabel="50%" trackColor={zc.color} theme="dark" />
                 <div className="chb-dp-chips">
                     {[3, 5, 10, 20, 25].map(pct => (
                         <button key={pct} className={`chb-dp-chip${downPct === pct ? ' active' : ''}`}
@@ -405,7 +405,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 <div className="chb-rate-wrap">
                     <SliderField label="Interest Rate" value={rate} min={3} max={12} step={0.125}
                         onChange={setRate} format={v => parseFloat(v.toFixed(3)) + '%'}
-                        minLabel="3%" maxLabel="12%" trackColor={zc.color} theme="light" />
+                        minLabel="3%" maxLabel="12%" trackColor={zc.color} theme="dark" />
                     <div className="chb-fred-tag">FRED PMMS · {props.rate.toFixed(2)}% live</div>
                 </div>
 
@@ -607,36 +607,36 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 .chb-bkd-total span:last-child  { font-size:14px; font-weight:800; color:var(--chb-color); }
 
                 /* Sliders section — white */
-                .chb-sliders { background:#fff; color:#0d1117; padding:16px 18px; border-top:1px solid rgba(255,255,255,0.05); }
-                .chb-sliders-title { font-size:13px; font-weight:700; color:#0d1117; margin-bottom:14px; }
+                .chb-sliders { background:#0d1117; color:#f0f4ff; padding:16px 18px; border-top:1px solid rgba(255,255,255,0.05); }
+                .chb-sliders-title { font-size:13px; font-weight:700; color:#f0f4ff; margin-bottom:14px; }
 
                 /* County lookup */
-                .chb-loc-row { margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid #f1f5f9; }
+                .chb-loc-row { margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,0.05); }
                 .chb-loc-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
-                .chb-loc-label  { font-size:13px; font-weight:600; color:#0d1117; }
-                .chb-loc-matched { font-size:11px; color:#00855c; font-weight:600; }
+                .chb-loc-label  { font-size:13px; font-weight:600; color:#8fa3b8; }
+                .chb-loc-matched { font-size:11px; color:#00e87a; font-weight:600; }
                 .chb-loc-wrap { position:relative; }
-                .chb-loc-input { width:100%; padding:9px 14px 9px 32px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:13px; font-weight:500; color:#0d1117; font-family:inherit; background:#f9f9f9; outline:none; transition:border-color .15s; box-sizing:border-box; }
-                .chb-loc-input:focus { border-color:#00e87a; background:#f0fff8; }
+                .chb-loc-input { width:100%; padding:9px 14px 9px 32px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:13px; font-weight:500; color:#f0f4ff; font-family:inherit; background:rgba(255,255,255,0.04); outline:none; transition:border-color .15s; box-sizing:border-box; }
+                .chb-loc-input:focus { border-color:#00e87a; background:rgba(0,232,122,0.06); }
                 .chb-loc-pin { position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:12px; pointer-events:none; }
-                .chb-loc-hint { font-size:10px; color:#94a3b8; margin-top:5px; }
+                .chb-loc-hint { font-size:10px; color:#3a4560; margin-top:5px; }
 
                 /* DP chips */
                 .chb-dp-chips { display:flex; gap:6px; flex-wrap:wrap; margin:-4px 0 14px; }
-                .chb-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid #e2e8f0; background:#f9f9f9; font-size:11px; font-weight:600; color:#64748b; cursor:pointer; font-family:inherit; transition:all .12s; }
+                .chb-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:11px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; transition:all .12s; }
                 .chb-dp-chip.active { border-color:var(--chb-color); color:var(--chb-color); background:var(--chb-bg); }
-                .chb-dp-chip:hover:not(.active) { border-color:#94a3b8; }
+                .chb-dp-chip:hover:not(.active) { border-color:rgba(255,255,255,0.2); }
 
                 /* FRED rate tag */
                 .chb-rate-wrap { position:relative; }
-                .chb-fred-tag { font-size:10px; font-weight:700; color:#00855c; background:#f0fff8; border:1px solid #bbf7d0; border-radius:4px; padding:2px 8px; display:inline-block; margin:-2px 0 12px; letter-spacing:.04em; }
+                .chb-fred-tag { font-size:10px; font-weight:700; color:#00e87a; background:rgba(0,232,122,0.1); border:1px solid rgba(0,232,122,0.2); border-radius:4px; padding:2px 8px; display:inline-block; margin:-2px 0 12px; letter-spacing:.04em; }
 
                 /* Term buttons */
-                .chb-term-label { font-size:13px; font-weight:600; color:#0d1117; margin:4px 0 8px; }
+                .chb-term-label { font-size:13px; font-weight:600; color:#8fa3b8; margin:4px 0 8px; }
                 .chb-terms { display:flex; gap:8px; margin-bottom:4px; }
-                .chb-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid #e2e8f0; background:#f9f9f9; font-size:13px; font-weight:600; color:#64748b; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
+                .chb-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:13px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
                 .chb-term--on { border-color:var(--chb-color); color:var(--chb-color); background:var(--chb-bg); }
-                .chb-term:hover:not(.chb-term--on) { border-color:#94a3b8; }
+                .chb-term:hover:not(.chb-term--on) { border-color:rgba(255,255,255,0.2); }
 
                 /* Income qualify */
                 .chb-qualify { margin:0 12px 12px; background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px; }

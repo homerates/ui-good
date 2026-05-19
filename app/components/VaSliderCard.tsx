@@ -252,7 +252,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                     onChange={setPrice}
                     format={v => fmt$(v)}
                     minLabel="$100k" maxLabel="$3M"
-                    trackColor="#14b8a6" theme="light"
+                    trackColor="#14b8a6" theme="dark"
                 />
 
                 <SliderField
@@ -262,7 +262,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                     onChange={setDownPct}
                     format={v => `${v}% · ${fmtK(price * v / 100)}`}
                     minLabel="0%" maxLabel="50%"
-                    trackColor="#14b8a6" theme="light"
+                    trackColor="#14b8a6" theme="dark"
                 />
                 <div className="va-dp-chips">
                     {DP_CHIPS.map(pct => (
@@ -285,7 +285,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                         onChange={setRate}
                         format={v => parseFloat(v.toFixed(3)) + '%'}
                         minLabel="3%" maxLabel="12%"
-                        trackColor="#14b8a6" theme="light"
+                        trackColor="#14b8a6" theme="dark"
                     />
                     <div className="va-fred-tag">FRED PMMS · {props.rate.toFixed(2)}% live</div>
                 </div>
@@ -523,27 +523,27 @@ export default function VaSliderCard(props: VaSliderParams) {
                 .va-bkd-total span:last-child  { font-size:14px; font-weight:800; color:#14b8a6; }
 
                 /* Sliders section */
-                .va-sliders { background:#fff; color:#0d1117; padding:16px 18px; border-top:1px solid rgba(255,255,255,0.05); }
-                .va-sliders-title { font-size:13px; font-weight:700; color:#0d1117; margin-bottom:14px; }
+                .va-sliders { background:#0d1117; color:#f0f4ff; padding:16px 18px; border-top:1px solid rgba(255,255,255,0.05); }
+                .va-sliders-title { font-size:13px; font-weight:700; color:#f0f4ff; margin-bottom:14px; }
 
                 /* FRED tag */
                 .va-rate-wrap { position:relative; }
-                .va-fred-tag { display:inline-block; margin-top:4px; font-size:10px; font-weight:700; color:#0e6b65; background:#f0fdfc; border:1px solid #99f6e4; border-radius:4px; padding:2px 8px; letter-spacing:.04em; }
+                .va-fred-tag { display:inline-block; margin-top:4px; font-size:10px; font-weight:700; color:#14b8a6; background:rgba(20,184,166,0.1); border:1px solid rgba(20,184,166,0.2); border-radius:4px; padding:2px 8px; letter-spacing:.04em; }
 
                 /* DP chips */
                 .va-dp-chips { display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 8px; }
-                .va-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid #e2e8f0; background:#f9f9f9; font-size:11px; font-weight:600; color:#64748b; cursor:pointer; font-family:inherit; transition:all .12s; }
-                .va-dp-chip.active { border-color:#14b8a6; color:#0e6b65; background:#f0fdfc; }
-                .va-dp-chip:hover:not(.active) { border-color:#94a3b8; }
+                .va-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:11px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; transition:all .12s; }
+                .va-dp-chip.active { border-color:#14b8a6; color:#14b8a6; background:rgba(20,184,166,0.1); }
+                .va-dp-chip:hover:not(.active) { border-color:rgba(255,255,255,0.2); }
                 .va-dp-chip-note { font-size:9px; font-weight:600; margin-left:3px; opacity:.8; }
-                .va-dp-note { font-size:10px; color:#94a3b8; margin:-4px 0 12px; }
+                .va-dp-note { font-size:10px; color:#3a4560; margin:-4px 0 12px; }
 
                 /* Term */
-                .va-term-label { font-size:13px; font-weight:600; color:#0d1117; margin:4px 0 8px; }
+                .va-term-label { font-size:13px; font-weight:600; color:#8fa3b8; margin:4px 0 8px; }
                 .va-terms { display:flex; gap:8px; }
-                .va-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid #e2e8f0; background:#f9f9f9; font-size:13px; font-weight:600; color:#64748b; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
-                .va-term--on { border-color:#14b8a6; color:#0e6b65; background:#f0fdfc; }
-                .va-term:hover:not(.va-term--on) { border-color:#94a3b8; }
+                .va-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:13px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
+                .va-term--on { border-color:#14b8a6; color:#14b8a6; background:rgba(20,184,166,0.1); }
+                .va-term:hover:not(.va-term--on) { border-color:rgba(255,255,255,0.2); }
 
                 /* Income qualify */
                 .va-qualify { margin:0 12px 12px; background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px; }

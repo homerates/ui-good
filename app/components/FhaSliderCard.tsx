@@ -288,7 +288,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     onChange={setPrice}
                     format={v => fmt$(v)}
                     minLabel="$100k" maxLabel={priceMaxLabel(units)}
-                    trackColor="#f59e0b" theme="light"
+                    trackColor="#f59e0b" theme="dark"
                 />
 
                 <SliderField
@@ -298,7 +298,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     onChange={setDownPct}
                     format={v => `${v}% · ${fmtK(price * v / 100)}`}
                     minLabel="3.5%" maxLabel="30%"
-                    trackColor="#f59e0b" theme="light"
+                    trackColor="#f59e0b" theme="dark"
                 />
                 <div className="fha-dp-chips">
                     {DP_CHIPS.map(pct => (
@@ -321,7 +321,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                         onChange={setRate}
                         format={v => parseFloat(v.toFixed(3)) + '%'}
                         minLabel="3%" maxLabel="12%"
-                        trackColor="#f59e0b" theme="light"
+                        trackColor="#f59e0b" theme="dark"
                     />
                     <div className="fha-fred-tag">FRED PMMS · {props.rate.toFixed(2)}% live</div>
                 </div>
@@ -580,36 +580,36 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-bkd-total span:last-child  { font-size:14px; font-weight:800; color:#f59e0b; }
 
                 /* Sliders section */
-                .fha-sliders { background:#fff; color:#0d1117; padding:16px 18px; border-top:1px solid rgba(255,255,255,0.05); }
-                .fha-sliders-title { font-size:13px; font-weight:700; color:#0d1117; margin-bottom:14px; }
+                .fha-sliders { background:#0d1117; color:#f0f4ff; padding:16px 18px; border-top:1px solid rgba(255,255,255,0.05); }
+                .fha-sliders-title { font-size:13px; font-weight:700; color:#f0f4ff; margin-bottom:14px; }
 
                 /* Unit selector */
-                .fha-unit-row { margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid #f1f5f9; }
-                .fha-unit-label { font-size:13px; font-weight:600; color:#0d1117; margin-bottom:8px; }
+                .fha-unit-row { margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,0.05); }
+                .fha-unit-label { font-size:13px; font-weight:600; color:#8fa3b8; margin-bottom:8px; }
                 .fha-unit-chips { display:flex; gap:6px; margin-bottom:6px; }
-                .fha-unit-chip { flex:1; padding:8px 0; border-radius:8px; border:1.5px solid #e2e8f0; background:#f9f9f9; font-size:12px; font-weight:700; color:#64748b; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
-                .fha-unit-chip.active { border-color:#f59e0b; color:#b45309; background:#fffbeb; }
-                .fha-unit-chip:hover:not(.active) { border-color:#94a3b8; }
-                .fha-unit-note { font-size:10px; color:#94a3b8; }
+                .fha-unit-chip { flex:1; padding:8px 0; border-radius:8px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:12px; font-weight:700; color:#6b7a99; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
+                .fha-unit-chip.active { border-color:#f59e0b; color:#f59e0b; background:rgba(245,158,11,0.1); }
+                .fha-unit-chip:hover:not(.active) { border-color:rgba(255,255,255,0.2); }
+                .fha-unit-note { font-size:10px; color:#3a4560; }
 
                 /* FRED tag */
                 .fha-rate-wrap { position:relative; }
-                .fha-fred-tag { display:inline-block; margin-top:4px; font-size:10px; font-weight:700; color:#b45309; background:#fffbeb; border:1px solid #fde68a; border-radius:4px; padding:2px 8px; letter-spacing:.04em; }
+                .fha-fred-tag { display:inline-block; margin-top:4px; font-size:10px; font-weight:700; color:#f59e0b; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.2); border-radius:4px; padding:2px 8px; letter-spacing:.04em; }
 
                 /* DP chips */
                 .fha-dp-chips { display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 8px; }
-                .fha-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid #e2e8f0; background:#f9f9f9; font-size:11px; font-weight:600; color:#64748b; cursor:pointer; font-family:inherit; transition:all .12s; }
-                .fha-dp-chip.active { border-color:#f59e0b; color:#b45309; background:#fffbeb; }
-                .fha-dp-chip:hover:not(.active) { border-color:#94a3b8; }
+                .fha-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:11px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; transition:all .12s; }
+                .fha-dp-chip.active { border-color:#f59e0b; color:#f59e0b; background:rgba(245,158,11,0.1); }
+                .fha-dp-chip:hover:not(.active) { border-color:rgba(255,255,255,0.2); }
                 .fha-dp-chip-note { font-size:9px; font-weight:600; margin-left:3px; opacity:.8; }
-                .fha-dp-note { font-size:10px; color:#94a3b8; margin:-4px 0 12px; }
+                .fha-dp-note { font-size:10px; color:#3a4560; margin:-4px 0 12px; }
 
                 /* Term */
-                .fha-term-label { font-size:13px; font-weight:600; color:#0d1117; margin:4px 0 8px; }
+                .fha-term-label { font-size:13px; font-weight:600; color:#8fa3b8; margin:4px 0 8px; }
                 .fha-terms { display:flex; gap:8px; }
-                .fha-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid #e2e8f0; background:#f9f9f9; font-size:13px; font-weight:600; color:#64748b; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
-                .fha-term--on { border-color:#f59e0b; color:#b45309; background:#fffbeb; }
-                .fha-term:hover:not(.fha-term--on) { border-color:#94a3b8; }
+                .fha-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:13px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
+                .fha-term--on { border-color:#f59e0b; color:#f59e0b; background:rgba(245,158,11,0.1); }
+                .fha-term:hover:not(.fha-term--on) { border-color:rgba(255,255,255,0.2); }
 
                 /* Limit exceeded warning */
                 .fha-limit-warn { margin:0 12px 12px; background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2); border-radius:10px; padding:10px 14px; display:flex; gap:10px; align-items:flex-start; }
