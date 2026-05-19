@@ -279,23 +279,23 @@ export default function DSCRCalculatorPage() {
 
                     <div className="seed-chips">
                         <span className="seed-label">Try an example:</span>
-                        <a href="/?sq=DSCR+loan+on+a+%24400%2C000+rental+property+with+%242%2C800%2Fmo+rent+and+25%25+down" className="seed-chip">
+                        <a href="/chat?sq=DSCR+loan+on+a+%24400%2C000+rental+property+with+%242%2C800%2Fmo+rent+and+25%25+down" className="seed-chip">
                             $400k · $2,800 rent
                         </a>
-                        <a href="/?sq=DSCR+loan+on+a+%24500%2C000+rental+property+with+%243%2C400%2Fmo+rent+and+25%25+down" className="seed-chip">
+                        <a href="/chat?sq=DSCR+loan+on+a+%24500%2C000+rental+property+with+%243%2C400%2Fmo+rent+and+25%25+down" className="seed-chip">
                             $500k · $3,400 rent
                         </a>
-                        <a href="/?sq=DSCR+on+a+%24350%2C000+rental+property+with+%242%2C400%2Fmo+rent+%E2%80%94+does+it+cash+flow%3F" className="seed-chip">
+                        <a href="/chat?sq=DSCR+on+a+%24350%2C000+rental+property+with+%242%2C400%2Fmo+rent+%E2%80%94+does+it+cash+flow%3F" className="seed-chip">
                             Does it cash flow?
                         </a>
-                        <a href="/?sq=What+rent+do+I+need+for+a+1.25+DSCR+on+a+%24450%2C000+investment+property%3F" className="seed-chip">
+                        <a href="/chat?sq=What+rent+do+I+need+for+a+1.25+DSCR+on+a+%24450%2C000+investment+property%3F" className="seed-chip">
                             What rent for 1.25 DSCR?
                         </a>
                     </div>
 
                     <div className="cta-block">
                         <a
-                            href="/?sq=DSCR+loan+on+a+%24400%2C000+rental+property+with+%242%2C800%2Fmo+rent+and+25%25+down+%E2%80%94+show+full+cash+flow+and+DSCR+analysis"
+                            href="/chat?sq=DSCR+loan+on+a+%24400%2C000+rental+property+with+%242%2C800%2Fmo+rent+and+25%25+down+%E2%80%94+show+full+cash+flow+and+DSCR+analysis"
                             className="cta-button"
                         >
                             Calculate my DSCR →
@@ -428,7 +428,7 @@ export default function DSCRCalculatorPage() {
                     </div>
                     <p className="table-note">
                         Thresholds vary by lender. Some specialty lenders offer more flexible terms.{' '}
-                        <a href="/?sq=What+DSCR+do+lenders+require+for+investment+property+loans+in+2026%3F">
+                        <a href="/chat?sq=What+DSCR+do+lenders+require+for+investment+property+loans+in+2026%3F">
                             Ask HomeRates.ai about current DSCR lender requirements →
                         </a>
                     </p>

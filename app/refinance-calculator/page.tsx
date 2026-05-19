@@ -259,22 +259,22 @@ export default function RefinanceCalculatorPage() {
                     </div>
                     <div className="seed-chips">
                         <span className="seed-label">Try an example:</span>
-                        <a href="/?sq=I+have+a+%24400%2C000+mortgage+at+7.25%25+%E2%80%94+should+I+refinance+to+6.5%25%3F" className="seed-chip">
+                        <a href="/chat?sq=I+have+a+%24400%2C000+mortgage+at+7.25%25+%E2%80%94+should+I+refinance+to+6.5%25%3F" className="seed-chip">
                             $400k at 7.25% → 6.5%
                         </a>
-                        <a href="/?sq=I+have+a+%24500%2C000+mortgage+at+7%25+%E2%80%94+what+rate+do+I+need+to+refi+with+a+3-year+breakeven%3F" className="seed-chip">
+                        <a href="/chat?sq=I+have+a+%24500%2C000+mortgage+at+7%25+%E2%80%94+what+rate+do+I+need+to+refi+with+a+3-year+breakeven%3F" className="seed-chip">
                             $500k — what's my trigger rate?
                         </a>
-                        <a href="/?sq=Should+I+do+a+no-cost+refi+on+my+%24450%2C000+mortgage+at+7%25+to+6.5%25%3F" className="seed-chip">
+                        <a href="/chat?sq=Should+I+do+a+no-cost+refi+on+my+%24450%2C000+mortgage+at+7%25+to+6.5%25%3F" className="seed-chip">
                             No-cost refi on $450k
                         </a>
-                        <a href="/?sq=I+have+an+FHA+loan+at+%24350%2C000+and+7%25+%E2%80%94+should+I+refinance+to+conventional+to+eliminate+MIP%3F" className="seed-chip">
+                        <a href="/chat?sq=I+have+an+FHA+loan+at+%24350%2C000+and+7%25+%E2%80%94+should+I+refinance+to+conventional+to+eliminate+MIP%3F" className="seed-chip">
                             FHA → conventional refi
                         </a>
                     </div>
                     <div className="cta-block">
                         <a
-                            href="/?sq=I+have+a+%24400%2C000+mortgage+at+7.25%25+with+25+years+remaining+%E2%80%94+should+I+refinance%3F+Show+me+breakeven%2C+monthly+savings%2C+and+trigger+rate."
+                            href="/chat?sq=I+have+a+%24400%2C000+mortgage+at+7.25%25+with+25+years+remaining+%E2%80%94+should+I+refinance%3F+Show+me+breakeven%2C+monthly+savings%2C+and+trigger+rate."
                             className="cta-button"
                         >
                             Calculate my refi savings →
@@ -392,7 +392,7 @@ export default function RefinanceCalculatorPage() {
                         </table>
                     </div>
                     <p className="table-note">
-                        <a href="/?sq=What+rate+do+I+need+for+a+3-year+breakeven+on+my+%24400%2C000+mortgage+at+7.25%25%3F">
+                        <a href="/chat?sq=What+rate+do+I+need+for+a+3-year+breakeven+on+my+%24400%2C000+mortgage+at+7.25%25%3F">
                             Calculate your trigger rate in the calculator →
                         </a>
                     </p>

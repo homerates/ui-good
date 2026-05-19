@@ -112,8 +112,8 @@ export default function CalculatorsPage() {
 
                 .calc-shell{max-width:900px;margin:0 auto;padding:48px 24px 80px;}
 
-                .calc-breadcrumb ol{display:flex;gap:6px;list-style:none;padding:0;margin:0 0 2.5rem;font-size:13px;color:#3a4560;}
-                .calc-breadcrumb a{color:#3a4560;text-decoration:none;}
+                .calc-breadcrumb ol{display:flex;gap:6px;list-style:none;padding:0;margin:0 0 2.5rem;font-size:13px;color:#8fa3b8;}
+                .calc-breadcrumb a{color:#8fa3b8;text-decoration:none;}
                 .calc-breadcrumb a:hover{color:#8fa3b8;}
                 .calc-breadcrumb li[aria-current]{color:#8fa3b8;}
 
@@ -131,7 +131,7 @@ export default function CalculatorsPage() {
                 .calc-card-tag{font-size:11px;padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:99px;border:1px solid rgba(255,255,255,0.08);color:#6b7a99;}
                 .calc-card-cta{font-size:0.85rem;font-weight:600;color:#00e87a;}
 
-                .calc-section-title{font-size:0.78rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#3a4560;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(255,255,255,0.06);}
+                .calc-section-title{font-size:0.78rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8fa3b8;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(255,255,255,0.06);}
                 .calc-h2{font-size:clamp(1.1rem,2.5vw,1.5rem);font-weight:700;color:#f0f4ff;margin:0 0 0.5rem;letter-spacing:-0.02em;}
                 .calc-section-lead{font-size:0.92rem;color:#6b7a99;margin:0 0 1.25rem;max-width:640px;line-height:1.65;}
 
@@ -142,7 +142,7 @@ export default function CalculatorsPage() {
                 .calc-about{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:1.5rem;}
                 .calc-about p{font-size:0.88rem;color:#6b7a99;margin:0 0 0.75rem;line-height:1.65;}
                 .calc-about p:last-child{margin-bottom:0;}
-                .calc-disclaimer{font-size:0.8rem!important;color:#3a4560!important;}
+                .calc-disclaimer{font-size:0.8rem!important;color:#8fa3b8!important;}
 
                 @media(max-width:600px){.calc-shell{padding:1.25rem 1rem 3rem;}.calc-grid{grid-template-columns:1fr;}}
             `}</style>

@@ -285,23 +285,23 @@ export default function FHACalculatorPage() {
 
                     <div className="seed-chips">
                         <span className="seed-label">Try an example:</span>
-                        <a href="/?sq=FHA+loan+on+a+%24350%2C000+home+with+3.5%25+down+at+current+rates" className="seed-chip">
+                        <a href="/chat?sq=FHA+loan+on+a+%24350%2C000+home+with+3.5%25+down+at+current+rates" className="seed-chip">
                             $350k · 3.5% down
                         </a>
-                        <a href="/?sq=FHA+loan+on+a+%24450%2C000+home+with+3.5%25+down+%E2%80%94+show+full+MIP+breakdown" className="seed-chip">
+                        <a href="/chat?sq=FHA+loan+on+a+%24450%2C000+home+with+3.5%25+down+%E2%80%94+show+full+MIP+breakdown" className="seed-chip">
                             $450k · 3.5% down
                         </a>
-                        <a href="/?sq=FHA+loan+on+a+%24600%2C000+home+with+10%25+down+%E2%80%94+does+MIP+cancel+after+11+years%3F" className="seed-chip">
+                        <a href="/chat?sq=FHA+loan+on+a+%24600%2C000+home+with+10%25+down+%E2%80%94+does+MIP+cancel+after+11+years%3F" className="seed-chip">
                             $600k · 10% down
                         </a>
-                        <a href="/?sq=Compare+FHA+3.5%25+down+vs+conventional+5%25+down+on+a+%24400%2C000+home" className="seed-chip">
+                        <a href="/chat?sq=Compare+FHA+3.5%25+down+vs+conventional+5%25+down+on+a+%24400%2C000+home" className="seed-chip">
                             FHA vs conventional
                         </a>
                     </div>
 
                     <div className="cta-block">
                         <a
-                            href="/?sq=FHA+loan+on+a+%24450%2C000+home+with+3.5%25+down+%E2%80%94+show+me+the+full+payment+breakdown+including+MIP+and+UFMIP"
+                            href="/chat?sq=FHA+loan+on+a+%24450%2C000+home+with+3.5%25+down+%E2%80%94+show+me+the+full+payment+breakdown+including+MIP+and+UFMIP"
                             className="cta-button"
                         >
                             Calculate my FHA payment →
@@ -435,7 +435,7 @@ export default function FHACalculatorPage() {
                         </table>
                     </div>
                     <p className="table-note">
-                        <a href="/?sq=Compare+FHA+3.5%25+down+vs+conventional+5%25+down+on+a+%24400%2C000+home+at+6.75%25">
+                        <a href="/chat?sq=Compare+FHA+3.5%25+down+vs+conventional+5%25+down+on+a+%24400%2C000+home+at+6.75%25">
                             Run this comparison in the calculator →
                         </a>
                     </p>

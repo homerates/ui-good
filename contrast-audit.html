@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates Contrast Audit — RESOLVED</title>
+<style>
+  * { box-sizing: border-box; }
+  body { background: #080c12; color: #e0f0e8; font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 24px 20px 60px; font-size: 14px; line-height: 1.6; }
+  h1 { font-size: 1.5rem; color: #00e87a; margin: 0 0 4px; }
+  .intro { color: #8fa3b8; font-size: 13px; margin-bottom: 32px; }
+  .resolved-banner { background: rgba(0,232,122,0.08); border: 1px solid rgba(0,232,122,0.3); border-radius: 10px; padding: 12px 16px; margin-bottom: 28px; color: #00e87a; font-size: 13px; font-weight: 600; }
+
+  .section { margin-bottom: 32px; }
+  .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: #00e87a; border-bottom: 1px solid rgba(0,232,122,0.15); padding-bottom: 6px; margin-bottom: 14px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: #8fa3b8; border-bottom: 1px solid rgba(255,255,255,0.07); }
+  td { padding: 9px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+
+  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15); vertical-align: middle; margin-right: 6px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; }
+  .badge-fixed  { background: rgba(0,232,122,0.12); color: #00e87a; border: 1px solid rgba(0,232,122,0.3); }
+  .arrow { color: #8fa3b8; margin: 0 6px; }
+
+  hr { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 24px 0; }
+</style>
+</head>
+<body>
+
+<h1>Contrast &amp; Readability Audit</h1>
+<p class="intro">Audit completed 2026-05-18. All items resolved and deployed to production.</p>
+
+<div class="resolved-banner">✅ All 20 contrast issues resolved · 6 files patched · Deployed 2026-05-18</div>
+
+<div class="section">
+  <div class="section-title">Changes Applied</div>
+
+  <table>
+    <tr>
+      <th>Was</th>
+      <th>Now</th>
+      <th>Role</th>
+      <th>Files</th>
+      <th>Status</th>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background:#3a4560"></span><code style="color:#8fa3b8">#3a4560</code></td>
+      <td><span class="swatch" style="background:#8fa3b8"></span><code style="color:#8fa3b8">#8fa3b8</code></td>
+      <td>Section headers, table headers, hint labels (9–10px uppercase)</td>
+      <td>globals.css (--text-dim), ConvHB, FHA, VA, ISC cards</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background:#3a4560"></span><code style="color:#8fa3b8">#3a4560</code></td>
+      <td><span class="swatch" style="background:#6b7a99"></span><code style="color:#8fa3b8">#6b7a99</code></td>
+      <td>Disclaimer / fine print body text (11px)</td>
+      <td>ConvHB .chb-disc p, FHA .fha-disc p, VA .va-disc p, ISC .isc-note p</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background:#3a4a6a"></span><code style="color:#8fa3b8">#3a4a6a</code></td>
+      <td><span class="swatch" style="background:#8fa3b8"></span><code style="color:#8fa3b8">#8fa3b8</code></td>
+      <td>DSCR section titles, gauge labels, section headers</td>
+      <td>DSCRSliderCard (×7 CSS classes)</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background:#3a4a6a"></span><code style="color:#8fa3b8">#3a4a6a</code></td>
+      <td><span class="swatch" style="background:#6b7a99"></span><code style="color:#8fa3b8">#6b7a99</code></td>
+      <td>DSCR gauge inactive tick labels (needs visual hierarchy vs active)</td>
+      <td>DSCRSliderCard inline ternary</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background:#4a5a7a"></span><code style="color:#8fa3b8">#4a5a7a</code></td>
+      <td><span class="swatch" style="background:#8fa3b8"></span><code style="color:#8fa3b8">#8fa3b8</code></td>
+      <td>DSCR hero sub-label, beat-card /mo label</td>
+      <td>DSCRSliderCard</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background:#5a6a8a"></span><code style="color:#8fa3b8">#5a6a8a</code></td>
+      <td><span class="swatch" style="background:#8fa3b8"></span><code style="color:#8fa3b8">#8fa3b8</code></td>
+      <td>DSCR card sub-label (card type below icon)</td>
+      <td>DSCRSliderCard .dsc-sub</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background:#6a7a9a"></span><code style="color:#8fa3b8">#6a7a9a</code></td>
+      <td><span class="swatch" style="background:#8fa3b8"></span><code style="color:#8fa3b8">#8fa3b8</code></td>
+      <td>DSCR breakdown row labels, PITIA row labels</td>
+      <td>DSCRSliderCard .dsc-pitia-row-lbl, .dsc-dp-lbl</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background:#5a3a3a"></span><code style="color:#8fa3b8">#5a3a3a</code></td>
+      <td><span class="swatch" style="background:#f87171"></span><code style="color:#8fa3b8">#f87171</code></td>
+      <td>DSCR break-even "Select lenders only" note</td>
+      <td>DSCRSliderCard inline style</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background:#6a5a2a"></span><code style="color:#8fa3b8">#6a5a2a</code></td>
+      <td><span class="swatch" style="background:#fbbf24"></span><code style="color:#8fa3b8">#fbbf24</code></td>
+      <td>DSCR break-even "Most lenders" note</td>
+      <td>DSCRSliderCard inline style</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td><code style="color:#8fa3b8">rgba(255,255,255,0.3)</code></td>
+      <td><code style="color:#8fa3b8">rgba(255,255,255,0.6)</code></td>
+      <td>Sidebar section labels (9px uppercase)</td>
+      <td>globals.css .sidebar-section-label</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td><code style="color:#8fa3b8">rgba(255,255,255,0.35)</code></td>
+      <td><code style="color:#8fa3b8">rgba(255,255,255,0.6)</code></td>
+      <td>Drawer trigger sub-text (below "Deep Analysis" button)</td>
+      <td>ConvHB, FHA, VA .dtrigger-sub</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td><code style="color:#8fa3b8">rgba(185,208,192,0.4)</code></td>
+      <td><code style="color:#8fa3b8">rgba(185,208,192,0.75)</code></td>
+      <td>Page shell footer text, .page-updated timestamp</td>
+      <td>globals.css .page-shell-footer, .page-updated</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td><code style="color:#8fa3b8">rgba(185,208,192,0.65)</code></td>
+      <td><code style="color:#8fa3b8">rgba(185,208,192,0.9)</code></td>
+      <td>Page shell "← Back" nav link</td>
+      <td>globals.css .page-shell-back</td>
+      <td><span class="badge badge-fixed">Fixed</span></td>
+    </tr>
+  </table>
+</div>
+
+<hr>
+
+<div style="font-size:12px;color:#6b7a99;text-align:center;margin-top:24px;">
+  HomeRates Contrast Audit · Completed 2026-05-18 · All items resolved · git 435f298
+</div>
+
+</body>
+</html>

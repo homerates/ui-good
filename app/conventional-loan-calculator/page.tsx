@@ -233,13 +233,13 @@ export default function ConventionalLoanCalculatorPage() {
                     </div>
                     <div className="seed-chips">
                         <span className="seed-label">Try an example:</span>
-                        <a href="/?sq=Conventional+loan+on+a+%24400%2C000+home+with+20%25+down+at+current+rates" className="seed-chip">$400k · 20% down</a>
-                        <a href="/?sq=Conventional+loan+on+a+%24450%2C000+home+with+5%25+down+%E2%80%94+show+PMI+and+when+it+cancels" className="seed-chip">$450k · 5% down + PMI</a>
-                        <a href="/?sq=Conventional+loan+on+a+%24500%2C000+home+with+10%25+down+at+current+rates" className="seed-chip">$500k · 10% down</a>
-                        <a href="/?sq=Compare+conventional+5%25+down+vs+FHA+3.5%25+down+on+a+%24400%2C000+home" className="seed-chip">Conventional vs FHA</a>
+                        <a href="/chat?sq=Conventional+loan+on+a+%24400%2C000+home+with+20%25+down+at+current+rates" className="seed-chip">$400k · 20% down</a>
+                        <a href="/chat?sq=Conventional+loan+on+a+%24450%2C000+home+with+5%25+down+%E2%80%94+show+PMI+and+when+it+cancels" className="seed-chip">$450k · 5% down + PMI</a>
+                        <a href="/chat?sq=Conventional+loan+on+a+%24500%2C000+home+with+10%25+down+at+current+rates" className="seed-chip">$500k · 10% down</a>
+                        <a href="/chat?sq=Compare+conventional+5%25+down+vs+FHA+3.5%25+down+on+a+%24400%2C000+home" className="seed-chip">Conventional vs FHA</a>
                     </div>
                     <div className="cta-block">
-                        <a href="/?sq=Conventional+loan+on+a+%24450%2C000+home+with+10%25+down+%E2%80%94+show+full+payment+breakdown+including+PMI+and+when+it+cancels" className="cta-button">
+                        <a href="/chat?sq=Conventional+loan+on+a+%24450%2C000+home+with+10%25+down+%E2%80%94+show+full+payment+breakdown+including+PMI+and+when+it+cancels" className="cta-button">
                             Calculate my conventional payment →
                         </a>
                         <p className="cta-sub">Free · No login required · Result in seconds</p>
@@ -397,7 +397,7 @@ export default function ConventionalLoanCalculatorPage() {
                         </table>
                     </div>
                     <p className="table-note">
-                        <a href="/?sq=Compare+conventional+5%25+down+vs+FHA+3.5%25+down+on+a+%24400%2C000+home+at+6.75%25">
+                        <a href="/chat?sq=Compare+conventional+5%25+down+vs+FHA+3.5%25+down+on+a+%24400%2C000+home+at+6.75%25">
                             Run this comparison in the calculator →
                         </a>
                     </p>
