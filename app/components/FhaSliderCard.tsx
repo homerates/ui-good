@@ -541,7 +541,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-band-pill--exceeds  { background:rgba(239,68,68,0.12);  color:#ef4444; border:1px solid rgba(239,68,68,0.25); }
                 .fha-band-desc { font-size:11px; color:#8fa3b8; line-height:1.4; }
                 .fha-strong { color:#f0f4ff; }
-                .fha-band-r { font-size:10px; color:#3a4560; flex-shrink:0; text-align:right; }
+                .fha-band-r { font-size:10px; color:#8fa3b8; flex-shrink:0; text-align:right; }
                 .fha-band-r span { display:block; font-size:11px; color:#6b7a99; font-weight:600; margin-top:2px; }
 
                 /* Hero */
@@ -551,7 +551,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-hero-mo { font-size:16px; font-weight:600; color:#6b5a1e; }
                 .fha-hero-sub { font-size:11px; color:#8fa3b8; margin-top:4px; }
                 .fha-hero-stats { display:flex; flex-direction:column; gap:10px; padding-left:16px; border-left:1px solid rgba(255,255,255,0.05); }
-                .fha-hsl { font-size:9px; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:2px; }
+                .fha-hsl { font-size:9px; color:#8fa3b8; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:2px; }
                 .fha-hsv { font-size:13px; font-weight:700; color:#f0f4ff; }
                 .fha-hsv--amber { color:#f59e0b; }
 
@@ -562,7 +562,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-mip-rows { padding:10px 14px 8px; display:flex; flex-direction:column; gap:8px; }
                 .fha-mip-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
                 .fha-mip-row-label { font-size:12px; color:#8fa3b8; line-height:1.4; }
-                .fha-mip-row-label small { font-size:10px; color:#3a4560; display:block; margin-top:2px; }
+                .fha-mip-row-label small { font-size:10px; color:#8fa3b8; display:block; margin-top:2px; }
                 .fha-mip-row-val { font-size:13px; font-weight:700; color:#f59e0b; white-space:nowrap; text-align:right; }
                 .fha-mip-divider { height:1px; background:rgba(255,255,255,0.05); margin:0 14px; }
                 .fha-mip-dur { margin:8px 14px 12px; border-radius:8px; padding:9px 12px; display:flex; align-items:flex-start; gap:8px; font-size:12px; line-height:1.5; }
@@ -571,7 +571,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
 
                 /* Breakdown */
                 .fha-bkd { margin:0 12px 12px; background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px; }
-                .fha-bkd-title { font-size:10px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+                .fha-bkd-title { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
                 .fha-bkd-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:12px; color:#8fa3b8; }
                 .fha-bkd-row:last-child { border-bottom:none; }
                 .fha-bkd-mip span { color:#f59e0b !important; font-weight:700; }
@@ -618,9 +618,9 @@ export default function FhaSliderCard(props: FhaSliderParams) {
 
                 /* Income qualify */
                 .fha-qualify { margin:0 12px 12px; background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px; }
-                .fha-qualify-title { font-size:10px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+                .fha-qualify-title { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
                 .fha-qtable { width:100%; border-collapse:collapse; font-size:12px; }
-                .fha-qtable th { font-size:9px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; padding:0 0 8px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.05); }
+                .fha-qtable th { font-size:9px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.06em; padding:0 0 8px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.05); }
                 .fha-qtable th:last-child { text-align:right; }
                 .fha-qtable td { padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.03); color:#8fa3b8; }
                 .fha-qtable tr:last-child td { border-bottom:none; }
@@ -642,13 +642,13 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-dtrigger-left { display:flex; align-items:center; gap:10px; text-align:left; }
                 .fha-dtrigger-dot { width:7px; height:7px; border-radius:50%; background:#f59e0b; flex-shrink:0; }
                 .fha-dtrigger-label { display:block; font-size:13px; font-weight:700; color:#f59e0b; }
-                .fha-dtrigger-sub { display:block; font-size:10px; color:rgba(255,255,255,0.35); margin-top:1px; }
+                .fha-dtrigger-sub { display:block; font-size:10px; color:rgba(255,255,255,0.6); margin-top:1px; }
                 .fha-dtrigger-arrow { font-size:11px; color:#f59e0b; opacity:.7; flex-shrink:0; }
 
                 /* Drawer inner */
                 .fha-drawer-inner { padding:14px; display:flex; flex-direction:column; gap:12px; background:#0a0f1a; }
                 .fha-dsec { background:#0e1420; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:14px; }
-                .fha-dsec-label { font-size:9px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; }
+                .fha-dsec-label { font-size:9px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; }
                 .fha-kv2 { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:12px; }
                 .fha-kv2:last-child { border-bottom:none; }
                 .fha-kv2 span:first-child { color:#8fa3b8; }
@@ -658,18 +658,18 @@ export default function FhaSliderCard(props: FhaSliderParams) {
 
                 /* FHA limits table in drawer */
                 .fha-limits-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:4px; }
-                .fha-limits-table th { font-size:9px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; padding:0 0 8px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.05); }
+                .fha-limits-table th { font-size:9px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.06em; padding:0 0 8px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.05); }
                 .fha-limits-table th:not(:first-child) { text-align:right; }
                 .fha-limits-table td { padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.03); color:#8fa3b8; font-size:11px; }
                 .fha-limits-table tr:last-child td { border-bottom:none; }
                 .fha-limits-table td:not(:first-child) { text-align:right; font-weight:600; color:#c4cfe0; }
                 .fha-limits-active td { color:#f0f4ff !important; font-weight:700; background:rgba(245,158,11,0.06); }
                 .fha-limits-active td:not(:first-child) { color:#f59e0b !important; }
-                .fha-limits-note { font-size:10px; color:#3a4560; margin-top:8px; }
+                .fha-limits-note { font-size:10px; color:#8fa3b8; margin-top:8px; }
 
                 /* Permanent bottom */
                 .fha-perm { padding:16px; border-top:1px solid rgba(255,255,255,0.05); }
-                .fha-perm-label { font-size:10px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+                .fha-perm-label { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
                 .fha-vault-row { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
                 .fha-btn-vault { flex:1; min-width:140px; display:flex; align-items:center; justify-content:center; gap:6px; background:rgba(245,158,11,0.08); color:#f59e0b; border:1.5px solid rgba(245,158,11,0.3); border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
                 .fha-btn-vault:hover { opacity:.85; }
@@ -678,7 +678,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-rate-note p { font-size:12px; color:#8fa3b8; line-height:1.5; margin:0; }
                 .fha-rate-note strong { color:#f59e0b; }
                 .fha-disc { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:12px 14px; }
-                .fha-disc p { font-size:11px; color:#3a4560; line-height:1.6; margin:0; }
+                .fha-disc p { font-size:11px; color:#6b7a99; line-height:1.6; margin:0; }
                 .fha-disc strong { color:#6b7a99; font-weight:600; }
 
                 @media (max-width:480px) {

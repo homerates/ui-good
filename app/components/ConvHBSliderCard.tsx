@@ -588,17 +588,17 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
                 /* Hero */
                 .chb-hero { margin:0 12px 12px; background:#0e1420; border:1px solid var(--chb-border); border-radius:12px; padding:16px; display:grid; grid-template-columns:1.4fr 1fr; gap:16px; align-items:center; }
-                .chb-hero-label { font-size:10px; font-weight:700; color:#3a4560; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px; }
+                .chb-hero-label { font-size:10px; font-weight:700; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px; }
                 .chb-hero-amount { font-size:30px; font-weight:800; color:var(--chb-color); letter-spacing:-.5px; line-height:1; }
                 .chb-hero-mo { font-size:16px; font-weight:600; color:#6b7a99; }
                 .chb-hero-sub { font-size:11px; color:#6b7a99; margin-top:4px; }
                 .chb-hero-stats { display:flex; flex-direction:column; gap:10px; padding-left:16px; border-left:1px solid rgba(255,255,255,0.05); }
-                .chb-hsl { font-size:9px; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:2px; }
+                .chb-hsl { font-size:9px; color:#8fa3b8; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:2px; }
                 .chb-hsv { font-size:13px; font-weight:700; color:#f0f4ff; }
 
                 /* Breakdown */
                 .chb-bkd { margin:0 12px 12px; background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px; }
-                .chb-bkd-title { font-size:10px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+                .chb-bkd-title { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
                 .chb-bkd-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:12px; color:#8fa3b8; }
                 .chb-bkd-row:last-child { border-bottom:none; }
                 .chb-bkd-pmi span { color:#fbbf24 !important; font-weight:700; }
@@ -640,9 +640,9 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
                 /* Income qualify */
                 .chb-qualify { margin:0 12px 12px; background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px; }
-                .chb-qualify-title { font-size:10px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+                .chb-qualify-title { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
                 .chb-qtable { width:100%; border-collapse:collapse; font-size:12px; }
-                .chb-qtable th { font-size:9px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; padding:0 0 8px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.05); }
+                .chb-qtable th { font-size:9px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.06em; padding:0 0 8px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.05); }
                 .chb-qtable th:last-child { text-align:right; }
                 .chb-qtable td { padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.03); color:#8fa3b8; }
                 .chb-qtable tr:last-child td { border-bottom:none; }
@@ -669,13 +669,13 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 .chb-dtrigger-left { display:flex; align-items:center; gap:10px; text-align:left; }
                 .chb-dtrigger-dot { width:7px; height:7px; border-radius:50%; background:var(--chb-color); flex-shrink:0; }
                 .chb-dtrigger-label { display:block; font-size:13px; font-weight:700; color:var(--chb-color); }
-                .chb-dtrigger-sub { display:block; font-size:10px; color:rgba(255,255,255,0.35); margin-top:1px; }
+                .chb-dtrigger-sub { display:block; font-size:10px; color:rgba(255,255,255,0.6); margin-top:1px; }
                 .chb-dtrigger-arrow { font-size:11px; color:var(--chb-color); opacity:.7; flex-shrink:0; }
 
                 /* Drawer inner */
                 .chb-drawer-inner { padding:14px; display:flex; flex-direction:column; gap:12px; background:#0a0f1a; }
                 .chb-dsec { background:#0e1420; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:14px; }
-                .chb-dsec-label { font-size:9px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; }
+                .chb-dsec-label { font-size:9px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; }
                 .chb-zone-row { display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; }
                 .chb-zone-pill { font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:4px 10px; border-radius:20px; background:var(--chb-bg); color:var(--chb-color); border:1px solid var(--chb-border); flex-shrink:0; white-space:nowrap; }
                 .chb-zone-desc { font-size:11px; color:#8fa3b8; line-height:1.5; }
@@ -689,7 +689,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
                 /* Permanent bottom */
                 .chb-perm { padding:16px; border-top:1px solid rgba(255,255,255,0.05); }
-                .chb-perm-label { font-size:10px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+                .chb-perm-label { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
                 .chb-vault-row { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
                 .chb-btn-vault { flex:1; min-width:140px; display:flex; align-items:center; justify-content:center; gap:6px; background:var(--chb-bg); color:var(--chb-color); border:1.5px solid var(--chb-border); border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
                 .chb-btn-vault:hover { opacity:.85; }
@@ -698,7 +698,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 .chb-rate-note p { font-size:12px; color:#8fa3b8; line-height:1.5; margin:0; }
                 .chb-rate-note strong { color:#00e87a; }
                 .chb-disc { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:12px 14px; }
-                .chb-disc p { font-size:11px; color:#3a4560; line-height:1.6; margin:0; }
+                .chb-disc p { font-size:11px; color:#6b7a99; line-height:1.6; margin:0; }
                 .chb-disc strong { color:#6b7a99; font-weight:600; }
 
                 @media (max-width:480px) {

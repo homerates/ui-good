@@ -695,8 +695,8 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc-topbar { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid rgba(255,255,255,0.06); }
                 .isc-topbar-l { display:flex; align-items:center; gap:8px; }
                 .isc-dot { width:6px; height:6px; border-radius:50%; background:#00e87a; flex-shrink:0; }
-                .isc-tl { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#3a4560; }
-                .isc-tr { font-size:10px; color:#3a4560; }
+                .isc-tl { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#8fa3b8; }
+                .isc-tr { font-size:10px; color:#8fa3b8; }
 
                 /* loan type tabs */
                 .isc-tabs { display:flex; gap:5px; padding:10px 16px; border-bottom:1px solid rgba(255,255,255,0.06); }
@@ -737,7 +737,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc-bd-trow--reduced { background:rgba(0,232,122,0.06); color:#00e87a; }
                 .isc-bd-trow--note { background:rgba(255,255,255,0.02); color:#6b7a99; }
                 .isc-bd-green { color:#00e87a; font-weight:700; }
-                .isc-bd-muted { color:#3a4560; font-style:italic; }
+                .isc-bd-muted { color:#8fa3b8; font-style:italic; }
                 .isc-bd-cost-row { display:flex; align-items:center; gap:10px; padding:7px 10px; border-top:1px solid rgba(255,255,255,0.07); background:rgba(255,255,255,0.03); font-size:12px; font-weight:600; color:#8fa3b8; }
                 .isc-bd-cost-amt { font-weight:700; color:#c4cfe0; font-variant-numeric:tabular-nums; }
                 .isc-bd-covered { font-size:11px; font-weight:700; color:#00e87a; background:rgba(0,232,122,0.08); border:1px solid rgba(0,232,122,0.2); border-radius:5px; padding:2px 7px; }
@@ -780,7 +780,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc-term.on-jumbo{ border-color:rgba(139,92,246,0.35); color:#8b5cf6; background:rgba(139,92,246,0.08); }
                 .isc-term.on-bd   { border-color:rgba(99,102,241,0.35); color:#818cf8; background:rgba(99,102,241,0.08); }
                 .isc-term:hover:not(.on):not(.on-fha):not(.on-va):not(.on-jumbo):not(.on-bd) { border-color:rgba(255,255,255,0.2); color:#c4cfe0; }
-                .isc-hint { font-size:10px; color:#3a4560; line-height:1.4; }
+                .isc-hint { font-size:10px; color:#8fa3b8; line-height:1.4; }
 
                 /* subsequent use toggle */
                 .isc-subseq-toggle { padding:5px 12px; border:1.5px solid rgba(255,255,255,0.12); border-radius:20px; font-size:11px; font-weight:600; cursor:pointer; color:#8fa3b8; background:rgba(255,255,255,0.04); transition:all .15s; white-space:nowrap; font-family:inherit; }
@@ -811,7 +811,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
                 /* note */
                 .isc-note { padding:4px 16px 12px; }
-                .isc-note p { font-size:10px; color:#3a4560; line-height:1.5; }
+                .isc-note p { font-size:10px; color:#6b7a99; line-height:1.5; }
 
                 @media (max-width: 480px) {
                     .isc-hero-amount { font-size:1.9rem; }

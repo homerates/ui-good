@@ -487,7 +487,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                 .va-hero-mo { font-size:16px; font-weight:600; color:#1a5550; }
                 .va-hero-sub { font-size:11px; color:#8fa3b8; margin-top:4px; }
                 .va-hero-stats { display:flex; flex-direction:column; gap:10px; padding-left:16px; border-left:1px solid rgba(255,255,255,0.05); }
-                .va-hsl { font-size:9px; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:2px; }
+                .va-hsl { font-size:9px; color:#8fa3b8; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:2px; }
                 .va-hsv { font-size:13px; font-weight:700; color:#f0f4ff; }
                 .va-hsv--teal { color:#14b8a6; }
 
@@ -514,7 +514,7 @@ export default function VaSliderCard(props: VaSliderParams) {
 
                 /* Breakdown */
                 .va-bkd { margin:0 12px 12px; background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px; }
-                .va-bkd-title { font-size:10px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+                .va-bkd-title { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
                 .va-bkd-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:12px; color:#8fa3b8; }
                 .va-bkd-row:last-child { border-bottom:none; }
                 .va-bkd-pmi span { color:#14b8a6 !important; font-weight:700; }
@@ -547,15 +547,15 @@ export default function VaSliderCard(props: VaSliderParams) {
 
                 /* Income qualify */
                 .va-qualify { margin:0 12px 12px; background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px; }
-                .va-qualify-title { font-size:10px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+                .va-qualify-title { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
                 .va-qtable { width:100%; border-collapse:collapse; font-size:12px; }
-                .va-qtable th { font-size:9px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; padding:0 0 8px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.05); }
+                .va-qtable th { font-size:9px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.06em; padding:0 0 8px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.05); }
                 .va-qtable th:last-child { text-align:right; }
                 .va-qtable td { padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.03); color:#8fa3b8; }
                 .va-qtable tr:last-child td { border-bottom:none; }
                 .va-qrow-hi td { color:#f0f4ff; font-weight:600; }
                 .va-qval { font-weight:700; color:#14b8a6 !important; text-align:right; }
-                .va-qualify-note { font-size:10px; color:#3a4560; margin-top:8px; }
+                .va-qualify-note { font-size:10px; color:#8fa3b8; margin-top:8px; }
 
                 /* Residual income */
                 .va-residual { margin:0 12px 12px; border-radius:12px; overflow:hidden; border:1px solid rgba(20,184,166,0.18); }
@@ -564,11 +564,11 @@ export default function VaSliderCard(props: VaSliderParams) {
                 .va-residual-body { padding:10px 14px; font-size:12px; color:#8fa3b8; line-height:1.5; border-bottom:1px solid rgba(255,255,255,0.05); }
                 .va-em { color:#14b8a6; font-style:normal; font-weight:600; }
                 .va-rtable { width:100%; border-collapse:collapse; font-size:12px; }
-                .va-rtable th { font-size:9px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; padding:8px 14px 6px; text-align:left; }
+                .va-rtable th { font-size:9px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.06em; padding:8px 14px 6px; text-align:left; }
                 .va-rtable th:not(:first-child) { text-align:right; }
                 .va-rtable td { padding:5px 14px; border-top:1px solid rgba(255,255,255,0.04); font-size:12px; color:#8fa3b8; }
                 .va-rtable td:not(:first-child) { text-align:right; font-weight:600; color:#c4cfe0; }
-                .va-rtable-note td { color:#3a4560; font-size:10px; font-style:italic; text-align:left !important; font-weight:400 !important; color:#3a4560 !important; }
+                .va-rtable-note td { color:#8fa3b8; font-size:10px; font-style:italic; text-align:left !important; font-weight:400 !important; color:#8fa3b8 !important; }
 
                 /* CTAs */
                 .va-cta-row { display:flex; gap:8px; padding:0 12px 8px; }
@@ -585,13 +585,13 @@ export default function VaSliderCard(props: VaSliderParams) {
                 .va-dtrigger-left { display:flex; align-items:center; gap:10px; text-align:left; }
                 .va-dtrigger-dot { width:7px; height:7px; border-radius:50%; background:#14b8a6; flex-shrink:0; }
                 .va-dtrigger-label { display:block; font-size:13px; font-weight:700; color:#14b8a6; }
-                .va-dtrigger-sub { display:block; font-size:10px; color:rgba(255,255,255,0.35); margin-top:1px; }
+                .va-dtrigger-sub { display:block; font-size:10px; color:rgba(255,255,255,0.6); margin-top:1px; }
                 .va-dtrigger-arrow { font-size:11px; color:#14b8a6; opacity:.7; flex-shrink:0; }
 
                 /* Drawer inner */
                 .va-drawer-inner { padding:14px; display:flex; flex-direction:column; gap:12px; background:#0a0f1a; }
                 .va-dsec { background:#0e1420; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:14px; }
-                .va-dsec-label { font-size:9px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; }
+                .va-dsec-label { font-size:9px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; }
                 .va-kv2 { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:12px; }
                 .va-kv2:last-child { border-bottom:none; }
                 .va-kv2 span:first-child { color:#8fa3b8; }
@@ -601,7 +601,7 @@ export default function VaSliderCard(props: VaSliderParams) {
 
                 /* Permanent bottom */
                 .va-perm { padding:16px; border-top:1px solid rgba(255,255,255,0.05); }
-                .va-perm-label { font-size:10px; font-weight:800; color:#3a4560; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+                .va-perm-label { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
                 .va-vault-row { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
                 .va-btn-vault { flex:1; min-width:140px; display:flex; align-items:center; justify-content:center; gap:6px; background:rgba(20,184,166,0.08); color:#14b8a6; border:1.5px solid rgba(20,184,166,0.3); border-radius:8px; padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; }
                 .va-btn-vault:hover { opacity:.85; }
@@ -610,7 +610,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                 .va-rate-note p { font-size:12px; color:#8fa3b8; line-height:1.5; margin:0; }
                 .va-rate-note strong { color:#14b8a6; }
                 .va-disc { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:12px 14px; }
-                .va-disc p { font-size:11px; color:#3a4560; line-height:1.6; margin:0; }
+                .va-disc p { font-size:11px; color:#6b7a99; line-height:1.6; margin:0; }
                 .va-disc strong { color:#6b7a99; font-weight:600; }
 
                 @media (max-width:480px) {

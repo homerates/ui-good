@@ -8,7 +8,7 @@
   --surface2: #141b28;
   --text: #f0f4ff;
   --text-weak: #8fa3b8;
-  --text-dim: #3a4560;
+  --text-dim: #8fa3b8;
   --border: rgba(255,255,255,0.07);
   --border-bright: rgba(255,255,255,0.13);
   --muted: #141b28;
@@ -498,7 +498,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.6);
   padding: 0 2px;
   margin-bottom: 2px;
 }
@@ -1209,7 +1209,7 @@ body:has(.page-shell) {
   display: flex;
   align-items: center;
   font-size: 0.8rem;
-  color: rgba(185, 208, 192, 0.65);
+  color: rgba(185, 208, 192, 0.9);
   text-decoration: none;
   transition: color 0.15s;
   font-family: var(--font-dm-sans, sans-serif);
@@ -1238,7 +1238,7 @@ body:has(.page-shell) {
   gap: 8px;
   flex-wrap: wrap;
   font-size: 0.7rem;
-  color: rgba(185, 208, 192, 0.4);
+  color: rgba(185, 208, 192, 0.75);
   font-family: var(--font-dm-sans, sans-serif);
 }
 .page-shell-footer-sep { opacity: 0.3; }
@@ -1292,7 +1292,7 @@ body:has(.page-shell) {
 .page-shell-content section { margin-bottom: 8px; }
 .page-shell-content .page-updated {
   font-size: 0.75rem;
-  color: rgba(185, 208, 192, 0.4);
+  color: rgba(185, 208, 192, 0.75);
   margin-bottom: 24px;
   display: block;
 }

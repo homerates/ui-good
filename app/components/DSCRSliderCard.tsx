@@ -176,7 +176,7 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 </div>
                 <div className="dsc-gauge-ticks">
                     {['<0.75', '0.75', '1.00', '1.25', '1.50+'].map((t, i) => (
-                        <div key={i} className="dsc-gauge-tick" style={{ color: i === currentBand || i === currentBand + 1 ? '#c9d4e8' : '#3a4a6a' }}>{t}</div>
+                        <div key={i} className="dsc-gauge-tick" style={{ color: i === currentBand || i === currentBand + 1 ? '#c9d4e8' : '#8fa3b8' }}>{t}</div>
                     ))}
                 </div>
             </div>
@@ -221,13 +221,13 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                         <div className="dsc-be-card-lbl" style={{ color: '#ff5f5f' }}>Minimum<br />0.75x</div>
                         <div className="dsc-be-card-rent">{fmt$(calc.rentFor075)}</div>
                         <div className="dsc-be-card-mo">/mo gross rent</div>
-                        <div className="dsc-be-card-note" style={{ color: '#5a3a3a' }}>Select lenders only</div>
+                        <div className="dsc-be-card-note" style={{ color: '#f87171' }}>Select lenders only</div>
                     </div>
                     <div className="dsc-be-card" style={{ borderColor: 'rgba(245,200,66,0.25)' }}>
                         <div className="dsc-be-card-lbl" style={{ color: '#f5c842' }}>Standard<br />1.00x</div>
                         <div className="dsc-be-card-rent">{fmt$(calc.rentFor100)}</div>
                         <div className="dsc-be-card-mo">/mo gross rent</div>
-                        <div className="dsc-be-card-note" style={{ color: '#6a5a2a' }}>Most lenders</div>
+                        <div className="dsc-be-card-note" style={{ color: '#fbbf24' }}>Most lenders</div>
                     </div>
                     <div className="dsc-be-card" style={{ borderColor: 'rgba(0,232,122,0.2)' }}>
                         <div className="dsc-be-card-lbl" style={{ color: '#00e87a' }}>Ideal<br />1.25x</div>
@@ -347,20 +347,20 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 .dsc-header-left { display:flex; align-items:center; gap:10px; }
                 .dsc-icon { width:32px; height:32px; border-radius:8px; background:rgba(0,232,122,0.1); border:1px solid rgba(0,232,122,0.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
                 .dsc-title { font-size:15px; font-weight:700; color:#f0f4ff; }
-                .dsc-sub   { font-size:11px; color:#5a6a8a; margin-top:1px; }
+                .dsc-sub   { font-size:11px; color:#8fa3b8; margin-top:1px; }
                 .dsc-badge { font-size:10px; font-weight:800; letter-spacing:0.07em; color:#00e87a; background:rgba(0,232,122,0.1); border:1px solid rgba(0,232,122,0.2); border-radius:5px; padding:3px 7px; }
 
                 /* Hero */
                 .dsc-hero { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1px; background:rgba(255,255,255,0.05); margin:0 18px 14px; border-radius:11px; overflow:hidden; }
                 .dsc-hero-cell { background:#0d1420; padding:14px 16px; }
-                .dsc-hero-lbl  { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#4a5a7a; margin-bottom:5px; }
+                .dsc-hero-lbl  { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#8fa3b8; margin-bottom:5px; }
                 .dsc-hero-val  { font-size:1.45rem; font-weight:800; line-height:1; color:#f0f4ff; }
                 .dsc-hero-unit { font-size:0.6em; font-weight:600; opacity:0.65; }
-                .dsc-hero-note { font-size:10px; color:#4a5a7a; margin-top:4px; }
+                .dsc-hero-note { font-size:10px; color:#8fa3b8; margin-top:4px; }
 
                 /* Gauge */
                 .dsc-gauge-wrap  { margin:0 18px 14px; }
-                .dsc-gauge-label { font-size:10px; font-weight:700; color:#3a4a6a; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:7px; }
+                .dsc-gauge-label { font-size:10px; font-weight:700; color:#8fa3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:7px; }
                 .dsc-gauge-bar   { display:flex; height:7px; border-radius:99px; overflow:hidden; gap:2px; }
                 .dsc-gauge-seg   { flex:1; border-radius:99px; transition:opacity 0.2s; }
                 .dsc-gauge-ticks { display:flex; justify-content:space-between; margin-top:5px; }
@@ -373,11 +373,11 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 /* PITIA breakdown */
                 .dsc-pitia { margin:0 18px 16px; background:#0a0f1c; border:1px solid rgba(255,255,255,0.06); border-radius:10px; overflow:hidden; }
                 .dsc-pitia-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px 8px; border-bottom:1px solid rgba(255,255,255,0.05); }
-                .dsc-pitia-title  { font-size:10px; font-weight:800; color:#3a4a6a; text-transform:uppercase; letter-spacing:0.07em; }
+                .dsc-pitia-title  { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:0.07em; }
                 .dsc-pitia-total  { font-size:13px; font-weight:800; color:#f0f4ff; }
                 .dsc-pitia-rows   { padding:8px 14px 10px; display:flex; flex-direction:column; gap:5px; }
                 .dsc-pitia-row    { display:flex; align-items:center; justify-content:space-between; }
-                .dsc-pitia-row-lbl { display:flex; align-items:center; gap:6px; font-size:12px; color:#6a7a9a; }
+                .dsc-pitia-row-lbl { display:flex; align-items:center; gap:6px; font-size:12px; color:#8fa3b8; }
                 .dsc-pitia-dot    { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
                 .dsc-pitia-row-val { font-size:12px; font-weight:600; color:#c9d4e8; }
 
@@ -386,25 +386,25 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
 
                 /* Break-even */
                 .dsc-be { margin:0 18px 16px; }
-                .dsc-be-title     { font-size:10px; font-weight:800; color:#3a4a6a; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:9px; }
+                .dsc-be-title     { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:9px; }
                 .dsc-be-grid      { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
                 .dsc-be-card      { background:#0a0f1c; border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:11px 12px; }
                 .dsc-be-card-lbl  { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:5px; line-height:1.3; }
                 .dsc-be-card-rent { font-size:15px; font-weight:800; color:#f0f4ff; line-height:1; }
-                .dsc-be-card-mo   { font-size:9px; font-weight:600; color:#4a5a7a; }
+                .dsc-be-card-mo   { font-size:9px; font-weight:600; color:#8fa3b8; }
                 .dsc-be-card-note { font-size:10px; margin-top:4px; }
 
                 /* Down payment insight */
                 .dsc-dp-insight { margin:0 18px 16px; background:rgba(0,232,122,0.04); border:1px solid rgba(0,232,122,0.15); border-radius:10px; padding:12px 14px; }
                 .dsc-dp-title   { font-size:10px; font-weight:800; color:#00a853; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:9px; }
                 .dsc-dp-row     { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-                .dsc-dp-lbl     { font-size:12px; color:#6a7a9a; }
+                .dsc-dp-lbl     { font-size:12px; color:#8fa3b8; }
                 .dsc-dp-val     { font-size:13px; font-weight:700; color:#00e87a; }
-                .dsc-dp-sub     { font-size:10px; color:#3a4a6a; margin-top:2px; }
+                .dsc-dp-sub     { font-size:10px; color:#8fa3b8; margin-top:2px; }
 
                 /* Adjusters */
                 .dsc-adj       { margin:0 18px 16px; display:flex; flex-direction:column; gap:14px; }
-                .dsc-adj-title { font-size:10px; font-weight:800; color:#3a4a6a; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:2px; }
+                .dsc-adj-title { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:2px; }
 
                 /* CTA */
                 .dsc-cta-wrap      { padding:0 18px 18px; }
