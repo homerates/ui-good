@@ -80,6 +80,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html lang="en" suppressHydrationWarning>
         {/* Anti-flash: set theme BEFORE paint so there's no white flash on dark mode */}
         <head>
+          {/* Blocking inline style — sets dark background before ANY CSS loads, eliminating white flash on cold page loads and new-tab navigations */}
+          <style dangerouslySetInnerHTML={{ __html: `html,body{background:#080c12!important;color:#f0f4ff;}` }} />
           {/* Anti-flash theme */}
           <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('hr-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();` }} />
           {/* Schema.org — WebApplication (AI crawler structured data) */}
