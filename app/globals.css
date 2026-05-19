@@ -74,7 +74,7 @@ body {
   font-size: 14px;
   line-height: 1.5;
   font-family: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: color 0.2s ease;
 }
 
 /* ---------- Header (sticky) ---------- */
@@ -218,6 +218,7 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  background: #080c12;
 }
 
 .center {
@@ -278,7 +279,7 @@ body {
   font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
   font-size: 14px;
   line-height: 1.55;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: color 0.2s ease;
 }
 
 /* Assistant answers: left-aligned, full-width content */

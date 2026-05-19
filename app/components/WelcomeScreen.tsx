@@ -444,7 +444,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 }
                 .hr-chip {
                     padding: 8px 16px;
-                    background: var(--card, #ffffff);
+                    background: var(--card, #0e1420);
                     border: 1px solid var(--border, #e2e8f0);
                     border-radius: 99px;
                     font-size: 0.82rem;

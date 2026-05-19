@@ -107,7 +107,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* llms.txt link for AI crawler discovery */}
           <link rel="llms" href="/llms.txt" />
         </head>
-        <body className={`app ${inter.variable} ${syne.variable} ${dmMono.variable} ${dmSans.variable}`}>
+        <body
+          className={`app ${inter.variable} ${syne.variable} ${dmMono.variable} ${dmSans.variable}`}
+          style={{ background: '#080c12', color: '#f0f4ff' }}
+        >
           {children}
           <Analytics />
           <SpeedInsights />
