@@ -4,7 +4,7 @@ import { getSupabase } from '../../../../lib/supabaseServer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 90;
+export const maxDuration = 150;
 
 // ── PITI (deterministic — same logic as CalcEngine) ───────────────────────────
 
@@ -40,7 +40,7 @@ function calcPITI(
   return Math.round((pi + monthlyTax + monthlyIns + hoaMonthly) / 50) * 50;
 }
 
-// ── Grok prompt ───────────────────────────────────────────────────────────────
+// ── Grok prompts ──────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are HomeRates.AI's Property Intelligence Expert.
 
@@ -81,6 +81,54 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text:
   "confidence": "high | medium | low"
 }`;
 
+// Deep mode: instructs Grok to use live web search for current listing data
+const DEEP_SYSTEM_PROMPT = `You are HomeRates.AI's Property Intelligence Expert with LIVE WEB SEARCH.
+
+Current date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+
+CRITICAL: Search the web NOW to find the current active listing for the property address provided. Do not rely solely on training data — retrieve live values from Redfin, Zillow, or MLS.
+
+REQUIRED SEARCHES:
+1. Find the exact listing page on Redfin or Zillow for the address
+2. Extract: days on market, original list date, lot size, year built, listing agent, MLS number
+3. Get last sold date and price from public records
+4. Get Zillow Zestimate and Redfin Estimate (current AVM)
+5. Find Zillow saves/favorites count
+6. Find 4 real recent comparable sales within 0.5 miles, past 18 months (real addresses, verified prices)
+7. Find market stats for this ZIP: median DOM, median sale price, sale-to-list ratio
+8. life_fit_score 0-100: schools, walkability, commute, neighborhood quality, value vs comps
+
+Return ONLY valid JSON — no markdown, no code fences, no explanation:
+{
+  "current_status": "For Sale | Pending | Sold | Off Market | Withdrawn",
+  "last_sold_date": "Month DD, YYYY or null",
+  "last_sold_price": number or null,
+  "original_list_date": "Month DD, YYYY or null",
+  "days_on_market": number or null,
+  "current_list_price": number or null,
+  "price_per_sqft": number or null,
+  "sqft": number or null,
+  "bedrooms": number or null,
+  "bathrooms": number or null,
+  "year_built": number or null,
+  "lot_size_sqft": number or null,
+  "zillow_estimate": number or null,
+  "redfin_estimate": number or null,
+  "zillow_saves": number or null,
+  "market_median_dom": number or null,
+  "market_sale_to_list": number or null,
+  "market_median_price": number or null,
+  "key_highlights": ["string", "string", "string", "string"],
+  "comparable_sales": [
+    { "address": "string", "sold_price": number, "sold_date": "Mon YYYY", "sqft": number or null, "price_per_sqft": number or null, "days_on_market": number or null }
+  ],
+  "grok_intelligence_summary": "2-3 high-quality sentences covering market context, positioning, buyer/seller considerations",
+  "buyer_strategy": "1-2 sentences of specific actionable strategy based on live search data",
+  "life_fit_score": number,
+  "data_freshness": "Live data as of [date]",
+  "confidence": "high | medium | low"
+}`;
+
 function buildUserMessage(address: string, redfin?: RedfinFacts | null): string {
   if (!redfin) {
     return `Analyze this property and return structured JSON: ${address.trim()}`;
@@ -98,6 +146,27 @@ function buildUserMessage(address: string, redfin?: RedfinFacts | null): string 
   if (redfin.lot_size_sqft)      facts.push(`Lot Size: ${redfin.lot_size_sqft.toLocaleString()} sqft`);
 
   return `The following verified listing facts are from Redfin MLS — treat as authoritative:\n\n${facts.join('\n')}\n\nReturn structured JSON for this property. Ensure factual fields match the verified data above exactly. Focus your intelligence on: comparable_sales, grok_intelligence_summary, life_fit_score, and key_highlights.`;
+}
+
+function buildDeepUserMessage(address: string, redfin?: RedfinFacts | null): string {
+  const base = `Search the web for the current listing: ${address.trim()}`;
+  if (!redfin) return base + '\n\nFind the exact Redfin/Zillow page and return all available data as structured JSON.';
+  const facts: string[] = [];
+  if (redfin.current_list_price) facts.push(`Known list price: $${redfin.current_list_price.toLocaleString()}`);
+  if (redfin.bedrooms)           facts.push(`Beds: ${redfin.bedrooms}`);
+  if (redfin.bathrooms)          facts.push(`Baths: ${redfin.bathrooms}`);
+  if (redfin.sqft)               facts.push(`Sqft: ${redfin.sqft.toLocaleString()}`);
+  return `${base}\n\nAlready known from Redfin: ${facts.join(', ')}.\n\nSearch for additional live data: days on market, lot size, year built, last sold, Zillow/Redfin estimates, comps, and market stats. Return complete structured JSON.`;
+}
+
+// Strip markdown code fences from Grok response when response_format is not enforced
+function extractJson(raw: string): string {
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenced) return fenced[1].trim();
+  const start = raw.indexOf('{');
+  const end   = raw.lastIndexOf('}');
+  if (start !== -1 && end !== -1 && end > start) return raw.slice(start, end + 1);
+  return raw;
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -235,8 +304,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const address: string = body.address ?? '';
+  const address: string      = body.address ?? '';
   const redfin:  RedfinFacts | null = body.redfin ?? null;
+  const deep:    boolean     = body.deep === true;
 
   if (!address?.trim()) {
     return new Response(JSON.stringify({ error: 'address is required' }), {
@@ -263,7 +333,21 @@ export async function POST(req: NextRequest) {
   const encodedAddr = encodeURIComponent(address.trim());
 
   const controller = new AbortController();
-  const timeoutId  = setTimeout(() => controller.abort(), 85_000);
+  const timeoutId  = setTimeout(() => controller.abort(), deep ? 140_000 : 85_000);
+
+  // Build API body — deep mode enables web search and removes json_object constraint
+  const apiBody: Record<string, unknown> = {
+    model:       'grok-4',
+    messages: [
+      { role: 'system', content: deep ? DEEP_SYSTEM_PROMPT : SYSTEM_PROMPT },
+      { role: 'user',   content: deep ? buildDeepUserMessage(address, redfin) : buildUserMessage(address, redfin) },
+    ],
+    temperature: 0.1,
+    max_tokens:  deep ? 3000 : 1200,
+    stream:      true,
+  };
+  if (!deep) apiBody.response_format = { type: 'json_object' };
+  if (deep)  apiBody.tools           = [{ type: 'web_search' }];
 
   let upstream: Response;
   try {
@@ -271,17 +355,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       signal: controller.signal,
-      body: JSON.stringify({
-        model: 'grok-4',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user',   content: buildUserMessage(address, redfin) },
-        ],
-        temperature: 0.1,
-        max_tokens:  1200,
-        stream:      true,
-        response_format: { type: 'json_object' },
-      }),
+      body: JSON.stringify(apiBody),
     });
   } catch (err: any) {
     clearTimeout(timeoutId);
@@ -337,7 +411,7 @@ export async function POST(req: NextRequest) {
           address_normalized: normalizeAddressStrict(address),
           address_raw:        address.trim(),
           grok_result:        result,
-          model:              'grok-4',
+          model:              deep ? 'grok-4-search' : 'grok-4',
           fetched_at:         now.toISOString(),
           expires_at:         new Date(now.getTime() + ttl).toISOString(),
         }, { onConflict: 'address_normalized' });
@@ -346,8 +420,11 @@ export async function POST(req: NextRequest) {
 
       const finalizeResult = (raw: string): Record<string, unknown> | null => {
         try {
-          const grok = JSON.parse(raw);
-          return mergeResult(grok, redfin, pitiCalc, liveRate);
+          const cleaned = deep ? extractJson(raw) : raw;
+          const grok    = JSON.parse(cleaned);
+          const merged  = mergeResult(grok, redfin, pitiCalc, liveRate);
+          if (deep) merged.deep_analysis = true;
+          return merged;
         } catch { return null; }
       };
 

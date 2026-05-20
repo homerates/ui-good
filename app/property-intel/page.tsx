@@ -28,14 +28,24 @@ interface PropResult {
   price_per_sqft:            number | null;
   last_sold_price:           number | null;
   last_sold_date:            string | null;
+  original_list_date:        string | null;
   estimated_piti:            number | null;
   rate_used:                 number | null;
   life_fit_score:            number | null;
   key_highlights:            string[] | null;
   comparable_sales:          Comp[]   | null;
   grok_intelligence_summary: string   | null;
+  buyer_strategy:            string   | null;
   confidence:                string   | null;
   data_freshness:            string   | null;
+  // Deep analysis fields
+  zillow_estimate:           number | null;
+  redfin_estimate:           number | null;
+  zillow_saves:              number | null;
+  market_median_dom:         number | null;
+  market_sale_to_list:       number | null;
+  market_median_price:       number | null;
+  deep_analysis:             boolean | null;
 }
 
 interface MapUrls {
@@ -91,8 +101,11 @@ function PropertyIntelInner() {
   const [copied,      setCopied]      = useState(false);
   const [saving,      setSaving]      = useState(false);
   const [savedVault,  setSavedVault]  = useState(false);
+  const [deepLoading, setDeepLoading] = useState(false);
+  const [deepStep,    setDeepStep]    = useState(0);
 
-  const abortRef = useRef<AbortController | null>(null);
+  const abortRef   = useRef<AbortController | null>(null);
+  const deepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const d: Partial<PropResult> = finalResult ?? {};
 
@@ -219,6 +232,61 @@ function PropertyIntelInner() {
     return () => { abortRef.current?.abort(); };
   }, [address]);
 
+  const DEEP_STEPS = [
+    'Searching Redfin for current listing data…',
+    'Pulling comparable sales from Zillow and MLS…',
+    'Analyzing market trends for this ZIP code…',
+    'Compiling your full intelligence report…',
+  ];
+
+  const runDeepAnalysis = useCallback(async () => {
+    if (!address || deepLoading) return;
+    setDeepLoading(true);
+    setDeepStep(0);
+    deepTimerRef.current = setInterval(() => {
+      setDeepStep(s => Math.min(s + 1, DEEP_STEPS.length - 1));
+    }, 20_000);
+
+    try {
+      const postRes = await fetch('/api/beta/grok-property', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, redfin: null, deep: true }),
+      });
+      if (!postRes.ok || !postRes.body) {
+        setDeepLoading(false);
+        if (deepTimerRef.current) clearInterval(deepTimerRef.current);
+        return;
+      }
+      const reader = postRes.body.getReader();
+      const dec    = new TextDecoder();
+      let buf      = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith('data: ')) continue;
+          try {
+            const ev = JSON.parse(t.slice(6));
+            if (ev.done && ev.result) {
+              setFinalResult(ev.result as PropResult);
+              setSummary((ev.result as PropResult).grok_intelligence_summary ?? '');
+              setCacheHit(false);
+            }
+          } catch { /* skip */ }
+        }
+      }
+    } catch { /* non-fatal */ }
+
+    setDeepLoading(false);
+    setDeepStep(0);
+    if (deepTimerRef.current) clearInterval(deepTimerRef.current);
+  }, [address, deepLoading]);
+
   // ── CTAs ───────────────────────────────────────────────────────────────────
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href).catch(() => {
@@ -286,11 +354,13 @@ function PropertyIntelInner() {
     <>
       <style>{`
         .pi-root{background:#050812;color:#f1f5f9;font-family:var(--font-dm-sans,system-ui)}
-        @keyframes shimmer  { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-        @keyframes fieldIn  { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes blink    { 50%{opacity:0} }
-        @keyframes spin     { to{transform:rotate(360deg)} }
-        @keyframes photoFade{ from{opacity:0} to{opacity:1} }
+        @keyframes shimmer   { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        @keyframes fieldIn   { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes blink     { 50%{opacity:0} }
+        @keyframes spin      { to{transform:rotate(360deg)} }
+        @keyframes photoFade { from{opacity:0} to{opacity:1} }
+        @keyframes pulseGlow { 0%,100%{opacity:0.5} 50%{opacity:1} }
+        @keyframes stepIn    { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
         .fi  { animation: fieldIn  0.38s ease forwards; }
         .tw::after { content:'▋'; animation: blink 0.7s step-end infinite; color:#4ade80; margin-left:1px; }
         .spin{ animation: spin 0.9s linear infinite; }
@@ -471,6 +541,14 @@ function PropertyIntelInner() {
                       </div>
                     )}
                   </div>
+
+                  {/* Buyer Strategy — only when deep analysis available */}
+                  {d.buyer_strategy && (
+                    <div className="fi" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 14, padding: 20 }}>
+                      <div style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#fbbf24', marginBottom: 10 }}>Buyer Strategy</div>
+                      <p style={{ fontSize: '0.84rem', color: '#cbd5e1', lineHeight: 1.75, margin: 0 }}>{d.buyer_strategy}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Right — Metrics + Comps + Confidence */}
@@ -480,20 +558,56 @@ function PropertyIntelInner() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {[
                       { val: d.life_fit_score,  fmt: (v: number) => String(v),  color: '#4ade80', label: 'Life-Fit Score', sub: null },
-                      { val: d.days_on_market,  fmt: (v: number) => `${v}d`,    color: '#f1f5f9', label: 'Days on Market', sub: null },
+                      { val: d.days_on_market,  fmt: (v: number) => v === 0 ? 'New' : `${v}d`, color: '#f1f5f9', label: 'Days on Market', sub: d.original_list_date ?? null },
                       { val: d.price_per_sqft,  fmt: (v: number) => `$${v}`,    color: '#f1f5f9', label: 'Price / SqFt',  sub: null },
                       { val: d.last_sold_price, fmt: (v: number) => fmt$(v),    color: '#fbbf24', label: 'Last Sold',      sub: d.last_sold_date },
                     ].map(({ val, fmt: fmtFn, color, label, sub }, i) => (
                       <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
                         {val != null
                           ? <div className="fi" style={{ fontSize: i === 3 ? '1.5rem' : '2rem', fontWeight: 800, color, lineHeight: 1 }}>{fmtFn(val as number)}</div>
-                          : <div style={{ display: 'flex', justifyContent: 'center' }}><Sk w={52} h={34} /></div>
+                          : loading
+                            ? <div style={{ display: 'flex', justifyContent: 'center' }}><Sk w={52} h={34} /></div>
+                            : <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#1e293b', lineHeight: 1 }}>—</div>
                         }
                         {sub && <div className="fi" style={{ fontSize: '0.59rem', color: '#64748b', marginTop: 3 }}>{sub}</div>}
                         <div style={{ fontSize: '0.59rem', color: '#475569', marginTop: 5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
                       </div>
                     ))}
                   </div>
+
+                  {/* Deep analysis market stats — only when available */}
+                  {(d.market_median_dom != null || d.market_sale_to_list != null || d.market_median_price != null) && (
+                    <div className="fi" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                      {[
+                        { val: d.market_median_dom,   fmt: (v: number) => `${v}d`,              color: '#94a3b8', label: 'Area Avg DOM' },
+                        { val: d.market_sale_to_list, fmt: (v: number) => `${v}%`,              color: '#94a3b8', label: 'Sale/List' },
+                        { val: d.market_median_price, fmt: (v: number) => fmt$(v),              color: '#94a3b8', label: 'Median Price' },
+                      ].map(({ val, fmt: fmtFn, color, label }, i) => val != null ? (
+                        <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
+                          <div style={{ fontSize: '1.1rem', fontWeight: 700, color, lineHeight: 1 }}>{fmtFn(val)}</div>
+                          <div style={{ fontSize: '0.56rem', color: '#334155', marginTop: 4, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
+                        </div>
+                      ) : null)}
+                    </div>
+                  )}
+
+                  {/* Zillow / Redfin estimates — only when available */}
+                  {(d.zillow_estimate != null || d.redfin_estimate != null) && (
+                    <div className="fi" style={{ display: 'flex', gap: 8 }}>
+                      {d.zillow_estimate != null && (
+                        <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Zillow Est.</span>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#60a5fa' }}>{fmt$(d.zillow_estimate)}</span>
+                        </div>
+                      )}
+                      {d.redfin_estimate != null && (
+                        <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.65rem', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Redfin Est.</span>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f87171' }}>{fmt$(d.redfin_estimate)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Comps */}
                   <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20, flex: 1 }}>
@@ -532,6 +646,23 @@ function PropertyIntelInner() {
                 </div>
               </div>
 
+              {/* ── Deep analysis progress ────────────────────────────────── */}
+              {deepLoading && (
+                <div style={{ padding: '20px 28px', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(139,92,246,0.04)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                    <div className="spin" style={{ width: 16, height: 16, border: '2px solid rgba(139,92,246,0.3)', borderTopColor: '#a78bfa', borderRadius: '50%', flexShrink: 0 }} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#a78bfa' }}>Full Market Analysis in Progress</span>
+                  </div>
+                  {DEEP_STEPS.map((step, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', opacity: i <= deepStep ? 1 : 0.25, animation: i === deepStep ? 'pulseGlow 2s ease infinite' : 'none', fontSize: '0.78rem', color: i < deepStep ? '#4ade80' : i === deepStep ? '#e2e8f0' : '#334155', transition: 'opacity 0.4s' }}>
+                      <span style={{ fontSize: '0.6rem', width: 14, textAlign: 'center', flexShrink: 0 }}>{i < deepStep ? '✓' : i === deepStep ? '●' : '○'}</span>
+                      {step}
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 12, fontSize: '0.68rem', color: '#334155' }}>Takes 60–90 seconds. You can navigate away — your report will be cached when ready.</div>
+                </div>
+              )}
+
               {/* ── Freshness footer ──────────────────────────────────────── */}
               <div style={{ padding: '10px 28px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                 {d.data_freshness
@@ -565,6 +696,19 @@ function PropertyIntelInner() {
                     </button>
                   </SignInButton>
                 </SignedOut>
+
+                {/* Full Market Analysis */}
+                {!d.deep_analysis && !deepLoading && finalResult && (
+                  <button onClick={runDeepAnalysis} style={{ padding: '11px 20px', fontSize: '0.82rem', fontWeight: 600, background: 'rgba(139,92,246,0.1)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.28)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s' }}>
+                    <i className="fa-solid fa-magnifying-glass-chart" style={{ fontSize: '0.8rem' }} />
+                    Full Market Analysis
+                  </button>
+                )}
+                {d.deep_analysis && (
+                  <div style={{ padding: '6px 14px', fontSize: '0.72rem', fontWeight: 700, color: '#a78bfa', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <i className="fa-solid fa-circle-check" style={{ fontSize: '0.7rem' }} /> Deep Analysis
+                  </div>
+                )}
 
                 {/* Run My Numbers — primary CTA */}
                 <SignedIn>
