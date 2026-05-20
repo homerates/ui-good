@@ -347,7 +347,7 @@ export async function POST(req: NextRequest) {
     stream:      true,
   };
   if (!deep) apiBody.response_format = { type: 'json_object' };
-  if (deep)  apiBody.tools           = [{ type: 'web_search' }];
+  if (deep)  apiBody.tools           = [{ type: 'live_search' }];
 
   let upstream: Response;
   try {
