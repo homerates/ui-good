@@ -82,6 +82,8 @@ const isPublicRoute = createRouteMatcher([
   // Investor Intel — shareable deal reports
   "/investor-intel(.*)",
   "/api/investor-intel(.*)",
+  // Track 5 Decision Dashboard — public consumer portal
+  "/track5(.*)",
 ]);
 
 export default clerkMiddleware((auth, req) => {
