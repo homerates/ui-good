@@ -496,9 +496,14 @@ export async function POST(req: NextRequest) {
 
       const finalizeResult = (raw: string): Record<string, unknown> | null => {
         try {
-          const grok = JSON.parse(raw);
-          const merged  = mergeResult(grok, redfin, pitiCalc, liveRate);
+          const grok   = JSON.parse(raw);
+          const merged = mergeResult(grok, redfin, pitiCalc, liveRate);
           if (deep) merged.deep_analysis = true;
+          // If pitiCalc was 0 (redfin context missing) but we have the price, recalculate
+          if ((merged.estimated_piti as number) === 0 && merged.current_list_price) {
+            merged.estimated_piti = calcPITI(merged.current_list_price as number, liveRate, 0.012, 0.005, 0);
+            merged.rate_used      = liveRate;
+          }
           return merged;
         } catch { return null; }
       };
