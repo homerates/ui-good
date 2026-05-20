@@ -81,29 +81,28 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text:
   "confidence": "high | medium | low"
 }`;
 
-// Deep mode: Tavily web search results are pre-fetched and provided as context
+// Deep mode: grok-4.3 with live web search
 const DEEP_SYSTEM_PROMPT = `You are HomeRates.AI's Property Intelligence Expert.
 
 Current date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
 
-Live web search results for this property are provided in the user message. Extract ALL available data from those results and return the most complete, accurate structured JSON possible.
+Search the web for the property address provided. Find its active listing on Redfin and Zillow, then extract every available data point.
 
-EXTRACTION PRIORITIES:
-1. days_on_market — look for "X days on Redfin/Zillow", "listed X days ago", "on market since [date]"
-2. year_built, lot_size_sqft — found in property detail sections
-3. last_sold_date, last_sold_price — from public records / sale history sections
-4. zillow_estimate, redfin_estimate — AVM / Zestimate values
-5. zillow_saves — saves or favorites count
-6. comparable_sales — 3-4 recent verified sold addresses with prices
-7. market_median_dom, market_sale_to_list, market_median_price — ZIP-level market stats
-8. life_fit_score 0-100: schools, walkability, commute, neighborhood quality, value vs comps
+CRITICAL RULE: If you found a value during your web search, you MUST include it in the JSON. Return null ONLY if the field is genuinely unavailable — not if you are uncertain. A value you found is always better than null.
+
+REQUIRED searches:
+1. Find the exact Redfin listing — extract days_on_market, original_list_date, lot_size_sqft, year_built, HOA, MLS#, listing agent
+2. Find the Zillow listing — extract Zestimate, saves count, views count, last sold date + price
+3. Find 4-6 recent comparable sales (past 24 months, within 1 mile) — use web search AND your training knowledge. Real addresses with verified sale prices.
+4. Find ZIP-level market stats — median DOM, median sale price, sale-to-list ratio
+5. life_fit_score 0-100: schools, walkability, commute, neighborhood quality, value vs comps
 
 Return ONLY valid JSON — no markdown, no code fences, no explanation:
 {
   "current_status": "For Sale | Pending | Sold | Off Market | Withdrawn",
-  "last_sold_date": "Month DD, YYYY or null",
+  "last_sold_date": "YYYY-MM-DD or null",
   "last_sold_price": number or null,
-  "original_list_date": "Month DD, YYYY or null",
+  "original_list_date": "YYYY-MM-DD or null",
   "days_on_market": number or null,
   "current_list_price": number or null,
   "price_per_sqft": number or null,
@@ -115,15 +114,16 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation:
   "zillow_estimate": number or null,
   "redfin_estimate": number or null,
   "zillow_saves": number or null,
+  "zillow_views": number or null,
   "market_median_dom": number or null,
   "market_sale_to_list": number or null,
   "market_median_price": number or null,
-  "key_highlights": ["string", "string", "string", "string"],
+  "key_highlights": ["string","string","string","string","string"],
   "comparable_sales": [
     { "address": "string", "sold_price": number, "sold_date": "Mon YYYY", "sqft": number or null, "price_per_sqft": number or null, "days_on_market": number or null }
   ],
   "grok_intelligence_summary": "2-3 high-quality sentences covering market context, positioning, buyer/seller considerations",
-  "buyer_strategy": "1-2 sentences of specific actionable strategy based on the search data",
+  "buyer_strategy": "1-2 sentences of specific actionable strategy based on live data",
   "life_fit_score": number,
   "data_freshness": "Live data as of [date]",
   "confidence": "high | medium | low"
@@ -452,7 +452,7 @@ export async function POST(req: NextRequest) {
 
         let toStore = result;
 
-        // Deep mode: merge into existing basic entry so we never lose good comps/highlights
+        // Deep mode: merge into existing BASIC entry so we never lose good comps/PITI
         if (deep) {
           const { data: existing } = await sb
             .from('grok_property_cache')
@@ -463,18 +463,21 @@ export async function POST(req: NextRequest) {
             const prev: Record<string, unknown> = typeof existing.grok_result === 'string'
               ? JSON.parse(existing.grok_result)
               : existing.grok_result as Record<string, unknown>;
-            const deepComps = result.comparable_sales as unknown[] | null;
-            toStore = {
-              ...prev,
-              ...result,
-              // Preserve comps from basic if deep returned none
-              comparable_sales: deepComps?.length ? deepComps : prev.comparable_sales ?? [],
-              // Preserve non-zero PITI/rate from basic
-              estimated_piti: (result.estimated_piti as number) > 0 ? result.estimated_piti : prev.estimated_piti,
-              rate_used:      result.rate_used ?? prev.rate_used,
-              // Preserve price_per_sqft if deep lost it
-              price_per_sqft: result.price_per_sqft ?? prev.price_per_sqft,
-            };
+            // Only merge from a basic (non-deep) entry — don't inherit a previous bad deep run
+            if (!prev.deep_analysis) {
+              const deepComps = result.comparable_sales as unknown[] | null;
+              const prevComps = prev.comparable_sales as unknown[] | null;
+              toStore = {
+                ...prev,
+                ...result,
+                // Use deep comps only if >= 2, otherwise keep the basic comps
+                comparable_sales: (deepComps?.length ?? 0) >= 2 ? deepComps : prevComps ?? deepComps ?? [],
+                // Preserve non-zero PITI/rate from basic if deep lost it
+                estimated_piti: (result.estimated_piti as number) > 0 ? result.estimated_piti : prev.estimated_piti,
+                rate_used:      result.rate_used ?? prev.rate_used,
+                price_per_sqft: result.price_per_sqft ?? prev.price_per_sqft,
+              };
+            }
           }
         }
 

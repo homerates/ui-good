@@ -42,6 +42,7 @@ interface PropResult {
   zillow_estimate:           number | null;
   redfin_estimate:           number | null;
   zillow_saves:              number | null;
+  zillow_views:              number | null;
   market_median_dom:         number | null;
   market_sale_to_list:       number | null;
   market_median_price:       number | null;
