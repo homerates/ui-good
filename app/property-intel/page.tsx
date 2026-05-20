@@ -335,13 +335,18 @@ function PropertyIntelInner() {
   const chatUrl   = (() => {
     const price = d.current_list_price;
     const rate  = d.rate_used ?? 6.875;
+    // Best available value estimate for homeowner context
+    const compsAvg = d.comparable_sales?.length
+      ? Math.round(d.comparable_sales.reduce((s, c) => s + c.sold_price, 0) / d.comparable_sales.length)
+      : null;
+    const avmEst = d.zillow_estimate ?? d.redfin_estimate ?? compsAvg ?? price;
     let sq: string;
     if (isBuyer && price) {
       sq = `I'm looking at buying ${address} listed at $${Math.round(price).toLocaleString()}. Current 30-year rate is ${rate.toFixed(2)}%.`;
-    } else if (price) {
-      sq = `I own ${address}. Estimated value $${Math.round(price).toLocaleString()}. Current 30-year rate is ${rate.toFixed(2)}%.`;
+    } else if (avmEst) {
+      sq = `Run homeowner analysis for ${address}: estimated value $${Math.round(avmEst).toLocaleString()}, current 30-year rate is ${rate.toFixed(2)}%. Show me refi savings, break-even, and equity options.`;
     } else {
-      sq = `Mortgage analysis for ${address}. Current 30-year rate is ${rate.toFixed(2)}%.`;
+      sq = `Run homeowner analysis for ${address} at today's ${rate.toFixed(2)}% rate. Show refi savings, break-even, and equity options.`;
     }
     return `/chat?${new URLSearchParams({ sq, from: '/property-intel', fromLabel: 'Property Intelligence' }).toString()}`;
   })();

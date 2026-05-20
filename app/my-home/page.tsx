@@ -2309,7 +2309,8 @@ function MyHomePageInner() {
                                 // Prefer historical purchase rate — avoids seeding with today's market rate (6.3%) as "current rate"
                                 const usedRate = effectiveRate ?? a.purchaseRate ?? 5.5;
                                 const balNote  = balIsEstimate ? ' (estimated — adjust if you know your balance)' : '';
-                                const sq = `Run homeowner analysis for ${a.address}: balance $${Math.round(balFinal).toLocaleString()}${balNote}, rate ${usedRate}%, home value $${Math.round(a.estimatedValue ?? 0).toLocaleString()}. Show me refi savings, break-even, and equity options.`;
+                                const homeValStr = a.estimatedValue && a.estimatedValue > 0 ? `, home value $${Math.round(a.estimatedValue).toLocaleString()}` : '';
+                                const sq = `Run homeowner analysis for ${a.address}: balance $${Math.round(balFinal).toLocaleString()}${balNote}, rate ${usedRate}%${homeValStr}. Show me refi savings, break-even, and equity options.`;
                                 return `/chat?${new URLSearchParams({ sq }).toString()}&from=%2Fmy-home&fromLabel=My+Properties`;
                               })()}
                               target="_blank"
