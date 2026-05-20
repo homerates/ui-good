@@ -462,21 +462,6 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 )}
             </div>
             <button className="chb-cta-full" onClick={handleGetMatched}>Get Matched with a Lender →</button>
-            <a
-                href="/track5"
-                target="_blank"
-                rel="noopener"
-                style={{
-                    display: 'block', margin: '8px 12px 0',
-                    background: 'rgba(167,139,250,0.08)',
-                    border: '1px solid rgba(167,139,250,0.2)',
-                    borderRadius: 9, padding: '11px 14px',
-                    fontSize: 13, fontWeight: 700, color: '#a78bfa',
-                    textDecoration: 'none', textAlign: 'center',
-                }}
-            >
-                Check on Track 5 ↗
-            </a>
 
             {/* Cross-fire chip — loan above national baseline: suggest running Jumbo card for comparison */}
             {props.onRunScenario && loanAmt > NATIONAL_BASELINE && (

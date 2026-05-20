@@ -3105,6 +3105,41 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
+                                                        {/* Track 5 — L1 Financial feed from affordability analysis */}
+                                                        {m.meta.affordabilitySlider && !loading && typingId === null && (() => {
+                                                            const p = m.meta.affordabilitySlider;
+                                                            const monthlyIncome = p.annualIncome / 12;
+                                                            const preDTI = monthlyIncome > 0 ? (p.monthlyDebts / monthlyIncome) * 100 : 0;
+                                                            const l1Score = preDTI < 10 ? 95 : preDTI < 20 ? 80 : preDTI < 30 ? 65 : preDTI < 35 ? 50 : 30;
+                                                            const income = `$${Math.round(p.annualIncome / 1000)}K`;
+                                                            const debts = p.monthlyDebts > 0 ? `, $${Math.round(p.monthlyDebts)}/mo debts` : ', no existing debts';
+                                                            const summary = `${income}/yr income${debts}. Pre-housing DTI ${preDTI.toFixed(0)}%.`;
+                                                            const href = `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(summary)}`;
+                                                            return (
+                                                                <a
+                                                                    href={href}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    style={{
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                                        margin: '6px 0 2px',
+                                                                        background: 'rgba(255,255,255,0.02)',
+                                                                        border: '1px solid rgba(255,255,255,0.07)',
+                                                                        borderRadius: 10, padding: '10px 14px',
+                                                                        textDecoration: 'none',
+                                                                    }}
+                                                                >
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                        <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 4, padding: '2px 6px', color: '#4ade80' }}>Track 5</span>
+                                                                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#94a3b8' }}>L1 Financial score ready</span>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                        <span style={{ fontSize: '1rem', fontWeight: 900, color: l1Score >= 70 ? '#4ade80' : l1Score >= 50 ? '#fbbf24' : '#f87171' }}>{l1Score}</span>
+                                                                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>View ↗</span>
+                                                                    </div>
+                                                                </a>
+                                                            );
+                                                        })()}
                                                         {/* DSCR slider card — investment property answers */}
                                                         {m.meta.dscrSlider && !loading && typingId === null && (
                                                             <DSCRSliderCard

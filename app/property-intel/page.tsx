@@ -743,6 +743,48 @@ function PropertyIntelInner() {
                   </SignInButton>
                 </SignedOut>
 
+                {/* Track 5 — L3 Property Value feed */}
+                {(() => {
+                  const list = d.current_list_price;
+                  const compsAvg = d.comparable_sales?.length
+                    ? d.comparable_sales.reduce((s, c) => s + c.sold_price, 0) / d.comparable_sales.length
+                    : null;
+                  const avm = d.zillow_estimate ?? d.redfin_estimate ?? compsAvg;
+                  if (!list || !avm) return null;
+                  const prem = (list - avm) / avm;
+                  const l3Score = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76 : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
+                  const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
+                  const listFmt = `$${Math.round(list / 1000)}K`;
+                  const avmFmt  = `$${Math.round(avm  / 1000)}K`;
+                  const compsN  = d.comparable_sales?.length ?? 0;
+                  const summary = `${address} — Listed ${listFmt} vs AVM ${avmFmt} (${premStr}${compsN > 0 ? `, ${compsN} comps` : ''}).`;
+                  const href = `/track5?l3_score=${l3Score}&l3_summary=${encodeURIComponent(summary)}`;
+                  return (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        width: '100%', textDecoration: 'none',
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid rgba(255,255,255,0.07)',
+                        borderRadius: 10, padding: '10px 14px',
+                        marginTop: 2,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 4, padding: '2px 6px', color: '#4ade80' }}>Track 5</span>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#94a3b8' }}>L3 Property Value score ready</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: '1rem', fontWeight: 900, color: l3Score >= 70 ? '#4ade80' : l3Score >= 50 ? '#fbbf24' : '#f87171' }}>{l3Score}</span>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>View ↗</span>
+                      </div>
+                    </a>
+                  );
+                })()}
+
               </div>
             </div>
           )}

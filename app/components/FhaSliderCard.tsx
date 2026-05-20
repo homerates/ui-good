@@ -415,21 +415,6 @@ export default function FhaSliderCard(props: FhaSliderParams) {
             <button className="fha-cta-full" onClick={() => router.push(getMatchedUrl())}>
                 Get Matched with a Lender →
             </button>
-            <a
-                href="/track5"
-                target="_blank"
-                rel="noopener"
-                style={{
-                    display: 'block', margin: '8px 12px 0',
-                    background: 'rgba(167,139,250,0.08)',
-                    border: '1px solid rgba(167,139,250,0.2)',
-                    borderRadius: 9, padding: '11px 14px',
-                    fontSize: 13, fontWeight: 700, color: '#a78bfa',
-                    textDecoration: 'none', textAlign: 'center',
-                }}
-            >
-                Check on Track 5 ↗
-            </a>
 
             {/* Deep analysis drawer */}
             <button className="fha-dtrigger" onClick={() => setDrawerOpen(o => !o)}>
