@@ -675,6 +675,23 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 </p>
             </div>
 
+            {/* ── Track 5 — check a specific property with this income context ── */}
+            <a
+                href={`/track5?income=${Math.round(income)}&downpct=${Math.round(downPct)}`}
+                target="track5"
+                rel="noopener"
+                style={{
+                    display: 'block', margin: '0 12px 12px',
+                    background: 'rgba(167,139,250,0.08)',
+                    border: '1px solid rgba(167,139,250,0.25)',
+                    borderRadius: 10, padding: '12px 16px',
+                    fontSize: 13, fontWeight: 700, color: '#a78bfa',
+                    textDecoration: 'none', textAlign: 'center',
+                }}
+            >
+                Check a Property on Track 5 ↗
+            </a>
+
             {/* ── Rate assumption (FRED) — bottom of card ── */}
             <div className="afc-rate-note">
                 <span className="afc-bulb">💡</span>

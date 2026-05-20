@@ -253,11 +253,12 @@ interface LevelCardProps {
   onToggle:  () => void;
   children?: React.ReactNode;
   pendingMsg?: string;
+  pendingContent?: React.ReactNode; // rich CTA override when level is not yet scored
   address:   string;
   proLabel:  string;
 }
 
-function LevelCard({ id, badge, badgeColor, name, tagline, score, ready, open, onToggle, children, pendingMsg, address, proLabel }: LevelCardProps) {
+function LevelCard({ id, badge, badgeColor, name, tagline, score, ready, open, onToggle, children, pendingMsg, pendingContent, address, proLabel }: LevelCardProps) {
   const isActive = open;
   return (
     <div style={{
@@ -319,11 +320,13 @@ function LevelCard({ id, badge, badgeColor, name, tagline, score, ready, open, o
       {open && (
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: 16 }}>
           {ready && children ? children : (
-            <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
-              <div style={{ fontSize: 13, color: '#8fa3b8', marginBottom: 14 }}>
-                {pendingMsg ?? 'Run Full Market Analysis to unlock this level.'}
+            pendingContent ?? (
+              <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+                <div style={{ fontSize: 13, color: '#8fa3b8', marginBottom: 14 }}>
+                  {pendingMsg ?? 'Run Full Market Analysis to unlock this level.'}
+                </div>
               </div>
-            </div>
+            )
           )}
 
           {/* Action row — always rendered */}
@@ -386,8 +389,8 @@ function Track5Inner() {
   const router  = useRouter();
 
   const [address,     setAddress]     = useState(params?.get('address') ?? '');
-  const [income,      setIncome]      = useState('');
-  const [downPct,     setDownPct]     = useState('20');
+  const [income,      setIncome]      = useState(params?.get('income') ?? '');
+  const [downPct,     setDownPct]     = useState(params?.get('downpct') ?? '20');
   const [data,        setData]        = useState<PropResult | null>(null);
   const [loading,     setLoading]     = useState(false);
   const [deepLoading, setDeepLoading] = useState(false);
@@ -926,7 +929,28 @@ function Track5Inner() {
               ready={scores.l1 != null}
               open={openLevel === 'l1'}
               onToggle={() => toggleLevel('l1')}
-              pendingMsg={!incomeNum ? 'Enter your annual income in the bar above to unlock your L1 Financial score.' : undefined}
+              pendingContent={!incomeNum ? (
+                <div style={{ padding: '4px 0 12px' }}>
+                  <div style={{ fontSize: 13, color: '#8fa3b8', marginBottom: 14, lineHeight: 1.6 }}>
+                    Enter your income in the bar above to score L1, or run a full affordability scenario in chat to understand your budget range first.
+                  </div>
+                  <a
+                    href="/chat?sq=How+much+home+can+I+afford%3F+I+want+to+run+an+affordability+scenario"
+                    target="_blank" rel="noopener noreferrer"
+                    style={{
+                      display: 'block', background: '#00e87a', color: '#050a0a',
+                      borderRadius: 8, padding: '11px 16px',
+                      fontSize: 13, fontWeight: 700, textDecoration: 'none',
+                      textAlign: 'center', marginBottom: 8,
+                    }}
+                  >
+                    Run Affordability Analysis in Chat ↗
+                  </a>
+                  <div style={{ fontSize: 11, color: '#6b7a99', textAlign: 'center' }}>
+                    After running your scenario, click "Check on Track 5" in chat to return here with your income pre-filled.
+                  </div>
+                </div>
+              ) : undefined}
               address={address}
               proLabel="Ask your LO"
             >
