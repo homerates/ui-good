@@ -404,18 +404,57 @@ function Track5Inner() {
     setError(null);
     setData(null);
     try {
-      const res = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(addr.trim())}`);
-      const json = await res.json();
-      if (json.grok_result) {
-        const r = typeof json.grok_result === 'string' ? JSON.parse(json.grok_result) : json.grok_result;
-        setData(r);
+      // 1 — try cache (GET)
+      const cd = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(addr.trim())}`)
+        .then(r => r.json()).catch(() => null);
+
+      if (cd?.cached && cd.result) {
+        setData(cd.result);
         setOpenLevel('l1');
-      } else {
-        setError('No data found for this address. Visit My Properties to generate an analysis.');
+        setLoading(false);
+        return;
       }
+
+      // 2 — cache miss: run basic Grok analysis (POST, no deep)
+      const postRes = await fetch('/api/beta/grok-property', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: addr.trim() }),
+      });
+
+      if (!postRes.ok || !postRes.body) {
+        setError('Could not generate analysis. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      const reader = postRes.body.getReader();
+      const dec    = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith('data: ')) continue;
+          try {
+            const ev = JSON.parse(t.slice(6));
+            if (ev.done && ev.result) {
+              setData(ev.result);
+              setOpenLevel('l1');
+              setLoading(false);
+            }
+            if (ev.error) { setError(ev.error); setLoading(false); }
+          } catch { /* skip malformed */ }
+        }
+      }
+      setLoading(false);
     } catch {
       setError('Unable to load analysis. Please try again.');
-    } finally {
       setLoading(false);
     }
   }, []);
@@ -457,8 +496,8 @@ function Track5Inner() {
           if (raw === '[DONE]') break;
           try {
             const chunk = JSON.parse(raw);
-            if (chunk.type === 'result' && chunk.data) {
-              setData(prev => prev ? { ...prev, ...chunk.data } : chunk.data);
+            if (chunk.done && chunk.result) {
+              setData(prev => prev ? { ...prev, ...chunk.result } : chunk.result);
             }
           } catch { /* ignore parse errors */ }
         }
@@ -618,7 +657,8 @@ function Track5Inner() {
             animation: 'spin 0.9s linear infinite',
             margin: '0 auto 20px',
           }} />
-          <div style={{ fontSize: 14, color: '#6b7a99' }}>Loading analysis…</div>
+          <div style={{ fontSize: 14, color: '#6b7a99' }}>Analyzing property…</div>
+          <div style={{ fontSize: 12, color: '#3a4560', marginTop: 6 }}>This takes about 15 seconds</div>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       )}
