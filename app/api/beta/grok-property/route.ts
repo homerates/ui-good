@@ -81,21 +81,21 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text:
   "confidence": "high | medium | low"
 }`;
 
-// Deep mode: instructs Grok to use live web search for current listing data
-const DEEP_SYSTEM_PROMPT = `You are HomeRates.AI's Property Intelligence Expert with LIVE WEB SEARCH.
+// Deep mode: Tavily web search results are pre-fetched and provided as context
+const DEEP_SYSTEM_PROMPT = `You are HomeRates.AI's Property Intelligence Expert.
 
 Current date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
 
-CRITICAL: Search the web NOW to find the current active listing for the property address provided. Do not rely solely on training data — retrieve live values from Redfin, Zillow, or MLS.
+Live web search results for this property are provided in the user message. Extract ALL available data from those results and return the most complete, accurate structured JSON possible.
 
-REQUIRED SEARCHES:
-1. Find the exact listing page on Redfin or Zillow for the address
-2. Extract: days on market, original list date, lot size, year built, listing agent, MLS number
-3. Get last sold date and price from public records
-4. Get Zillow Zestimate and Redfin Estimate (current AVM)
-5. Find Zillow saves/favorites count
-6. Find 4 real recent comparable sales within 0.5 miles, past 18 months (real addresses, verified prices)
-7. Find market stats for this ZIP: median DOM, median sale price, sale-to-list ratio
+EXTRACTION PRIORITIES:
+1. days_on_market — look for "X days on Redfin/Zillow", "listed X days ago", "on market since [date]"
+2. year_built, lot_size_sqft — found in property detail sections
+3. last_sold_date, last_sold_price — from public records / sale history sections
+4. zillow_estimate, redfin_estimate — AVM / Zestimate values
+5. zillow_saves — saves or favorites count
+6. comparable_sales — 3-4 recent verified sold addresses with prices
+7. market_median_dom, market_sale_to_list, market_median_price — ZIP-level market stats
 8. life_fit_score 0-100: schools, walkability, commute, neighborhood quality, value vs comps
 
 Return ONLY valid JSON — no markdown, no code fences, no explanation:
@@ -123,7 +123,7 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation:
     { "address": "string", "sold_price": number, "sold_date": "Mon YYYY", "sqft": number or null, "price_per_sqft": number or null, "days_on_market": number or null }
   ],
   "grok_intelligence_summary": "2-3 high-quality sentences covering market context, positioning, buyer/seller considerations",
-  "buyer_strategy": "1-2 sentences of specific actionable strategy based on live search data",
+  "buyer_strategy": "1-2 sentences of specific actionable strategy based on the search data",
   "life_fit_score": number,
   "data_freshness": "Live data as of [date]",
   "confidence": "high | medium | low"
@@ -148,15 +148,44 @@ function buildUserMessage(address: string, redfin?: RedfinFacts | null): string 
   return `The following verified listing facts are from Redfin MLS — treat as authoritative:\n\n${facts.join('\n')}\n\nReturn structured JSON for this property. Ensure factual fields match the verified data above exactly. Focus your intelligence on: comparable_sales, grok_intelligence_summary, life_fit_score, and key_highlights.`;
 }
 
-function buildDeepUserMessage(address: string, redfin?: RedfinFacts | null): string {
-  const base = `Search the web for the current listing: ${address.trim()}`;
-  if (!redfin) return base + '\n\nFind the exact Redfin/Zillow page and return all available data as structured JSON.';
-  const facts: string[] = [];
-  if (redfin.current_list_price) facts.push(`Known list price: $${redfin.current_list_price.toLocaleString()}`);
-  if (redfin.bedrooms)           facts.push(`Beds: ${redfin.bedrooms}`);
-  if (redfin.bathrooms)          facts.push(`Baths: ${redfin.bathrooms}`);
-  if (redfin.sqft)               facts.push(`Sqft: ${redfin.sqft.toLocaleString()}`);
-  return `${base}\n\nAlready known from Redfin: ${facts.join(', ')}.\n\nSearch for additional live data: days on market, lot size, year built, last sold, Zillow/Redfin estimates, comps, and market stats. Return complete structured JSON.`;
+function buildDeepUserMessage(address: string, redfin?: RedfinFacts | null, searchContext?: string): string {
+  const knownFacts: string[] = [`Property: ${address.trim()}`];
+  if (redfin?.current_list_price) knownFacts.push(`Known list price: $${redfin.current_list_price.toLocaleString()}`);
+  if (redfin?.bedrooms)           knownFacts.push(`Beds: ${redfin.bedrooms}`);
+  if (redfin?.bathrooms)          knownFacts.push(`Baths: ${redfin.bathrooms}`);
+  if (redfin?.sqft)               knownFacts.push(`Sqft: ${redfin.sqft.toLocaleString()}`);
+  const factSection = knownFacts.join('\n');
+
+  if (!searchContext) {
+    return `${factSection}\n\nReturn complete structured JSON using your best knowledge of this property.`;
+  }
+  return `LIVE WEB SEARCH RESULTS:\n\n${searchContext}\n\n---\n\nVERIFIED MLS FACTS:\n${factSection}\n\nExtract every available data point from the search results above. Prioritize days_on_market, year_built, lot_size_sqft, last_sold_date, last_sold_price, zillow_estimate, redfin_estimate, zillow_saves, market stats, and verified comparable sales. Return complete structured JSON.`;
+}
+
+// Run 4 parallel Tavily searches to gather live property data for deep mode
+async function runTavilyDeepSearches(address: string): Promise<string> {
+  const tavilyKey = process.env.TAVILY_API_KEY;
+  if (!tavilyKey) return '';
+  const localArea = address.split(',').slice(1, 3).join(',').trim();
+  const queries = [
+    `"${address}" days on market redfin listing details`,
+    `"${address}" zillow zestimate last sold price history`,
+    `"${address}" comparable sales sold nearby 2025 2026`,
+    `${localArea} real estate market median price days on market 2026`,
+  ];
+  const snippets = await Promise.all(queries.map(async (q) => {
+    try {
+      const r = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: tavilyKey, query: q, search_depth: 'basic', max_results: 3 }),
+      });
+      if (!r.ok) return null;
+      const d = await r.json();
+      return (d.results ?? []).slice(0, 3).map((x: any) => `${x.title}\n${x.content}`).join('\n\n');
+    } catch { return null; }
+  }));
+  return snippets.filter(Boolean).join('\n\n---\n\n');
 }
 
 // Strip markdown code fences from Grok response when response_format is not enforced
@@ -335,19 +364,21 @@ export async function POST(req: NextRequest) {
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), deep ? 140_000 : 85_000);
 
-  // Build API body — deep mode enables web search and removes json_object constraint
+  // Deep mode: run Tavily searches first, then pass context to Grok
+  const deepSearchContext = deep ? await runTavilyDeepSearches(address.trim()) : '';
+
+  // Build API body — always use json_object (no xAI tools needed)
   const apiBody: Record<string, unknown> = {
-    model:       'grok-4',
+    model:           'grok-4',
     messages: [
       { role: 'system', content: deep ? DEEP_SYSTEM_PROMPT : SYSTEM_PROMPT },
-      { role: 'user',   content: deep ? buildDeepUserMessage(address, redfin) : buildUserMessage(address, redfin) },
+      { role: 'user',   content: deep ? buildDeepUserMessage(address, redfin, deepSearchContext) : buildUserMessage(address, redfin) },
     ],
-    temperature: 0.1,
-    max_tokens:  deep ? 3000 : 1200,
-    stream:      true,
+    temperature:     0.1,
+    max_tokens:      deep ? 3000 : 1200,
+    stream:          true,
+    response_format: { type: 'json_object' },
   };
-  if (!deep) apiBody.response_format = { type: 'json_object' };
-  if (deep)  apiBody.tools           = [{ type: 'live_search', sources: [{ type: 'web' }] }];
 
   let upstream: Response;
   try {
@@ -420,8 +451,7 @@ export async function POST(req: NextRequest) {
 
       const finalizeResult = (raw: string): Record<string, unknown> | null => {
         try {
-          const cleaned = deep ? extractJson(raw) : raw;
-          const grok    = JSON.parse(cleaned);
+          const grok = JSON.parse(raw);
           const merged  = mergeResult(grok, redfin, pitiCalc, liveRate);
           if (deep) merged.deep_analysis = true;
           return merged;
