@@ -212,10 +212,11 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
     else if (/\bpending\b/i.test(t))                { listingStatus = 'PENDING'; }
     else if (/\bsold\b/i.test(t))                   { listingStatus = 'SOLD'; }
 
-    // Days on market
+    // Days on market — match days or hours ("6 hours on Redfin" → 0 days)
     const domM = t.match(/(\d+)\s+days?\s+on\s+(?:redfin|market|zillow|trulia)/i)
         ?? t.match(/days\s+on\s+(?:redfin|market)[:\s]+(\d+)/i);
-    const daysOnMarket = domM ? parseInt(domM[1]) : null;
+    const domHours = !domM ? t.match(/(\d+)\s+hours?\s+on\s+(?:redfin|market)/i) : null;
+    const daysOnMarket = domM ? parseInt(domM[1]) : domHours ? 0 : null;
 
     // Refine UNKNOWN: additional signals that Redfin Tavily text reliably contains for active listings
     if (listingStatus === 'UNKNOWN') {
@@ -392,6 +393,7 @@ interface GPT4oPropertyFields {
     state?: string | null;
     zip?: string | null;
     taxAssessedValue?: number | null;
+    daysOnMarket?: number | null;
 }
 
 async function gpt4oExtract(text: string, url: string): Promise<GPT4oPropertyFields | null> {
@@ -418,7 +420,7 @@ CRITICAL — Redfin pages show TWO dollar amounts that must NOT be confused:
 
 listingStatus: SOLD if "SOLD ON [date]" or "Sold Price" present, FOR_SALE if active listing, OFF_MARKET if no active listing, PENDING if under contract, UNKNOWN otherwise.
 
-Fields: beds, baths, sqft, lotSqft, yearBuilt, redfinEstimate, estimatedValue, lastSalePrice, lastSaleDate, listingStatus, listPrice, hoaMonthly, propertyType, address, city, state (2-letter), zip, taxAssessedValue`,
+Fields: beds, baths, sqft, lotSqft, yearBuilt, redfinEstimate, estimatedValue, lastSalePrice, lastSaleDate, listingStatus, listPrice, hoaMonthly, propertyType, address, city, state (2-letter), zip, taxAssessedValue, daysOnMarket (number of days listed — if shown as hours use 0)`,
                     },
                     { role: 'user', content: `URL: ${url}\n\nPage text:\n${snippet}` },
                 ],
