@@ -242,8 +242,8 @@ function Track5Inner() {
       summary: params?.get('l3_summary') ?? null,
     },
     l4: {
-      score:   null, // Coming soon
-      summary: null,
+      score:   params?.get('l4_score')   ? Number(params.get('l4_score'))   : null,
+      summary: params?.get('l4_summary') ?? null,
     },
   };
 
@@ -357,7 +357,7 @@ function Track5Inner() {
         <LevelCard
           num="L2" title="Market Conditions" weight="25%"
           data={levels.l2}
-          cta={{ label: 'Run in Chat ↗', href: '/chat?sq=Run+a+market+analysis+for+my+area' }}
+          cta={{ label: 'Run Deep Analysis ↗', href: '/property-intel' }}
         />
         <LevelCard
           num="L3" title="Property Value" weight="25%"
@@ -367,8 +367,7 @@ function Track5Inner() {
         <LevelCard
           num="L4" title="Location Intelligence" weight="15%"
           data={levels.l4}
-          cta={{ label: 'Coming Soon', href: '#' }}
-          comingSoon
+          cta={{ label: 'Run Deep Analysis ↗', href: '/property-intel' }}
         />
 
         {/* ── Wealth Monitor ── */}

@@ -47,6 +47,11 @@ interface PropResult {
   market_sale_to_list:       number | null;
   market_median_price:       number | null;
   deep_analysis:             boolean | null;
+  // Location Intelligence fields
+  school_score:                      number | null;
+  walk_score:                        number | null;
+  commute_minutes:                   number | null;
+  neighborhood_appreciation_3yr_pct: number | null;
 }
 
 interface MapUrls {
@@ -748,22 +753,78 @@ function PropertyIntelInner() {
                   </SignInButton>
                 </SignedOut>
 
-                {/* Track 5 — L3 Property Value feed */}
+                {/* Track 5 — L2 + L3 + L4 feed */}
                 {(() => {
-                  const list = d.current_list_price;
+                  // ── L3: Property Value ──────────────────────────────────
+                  const list     = d.current_list_price;
                   const compsAvg = d.comparable_sales?.length
                     ? d.comparable_sales.reduce((s, c) => s + c.sold_price, 0) / d.comparable_sales.length
                     : null;
-                  const avm = d.zillow_estimate ?? d.redfin_estimate ?? compsAvg;
-                  if (!list || !avm) return null;
-                  const prem = (list - avm) / avm;
-                  const l3Score = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76 : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
-                  const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
-                  const listFmt = `$${Math.round(list / 1000)}K`;
-                  const avmFmt  = `$${Math.round(avm  / 1000)}K`;
-                  const compsN  = d.comparable_sales?.length ?? 0;
-                  const summary = `${address} — Listed ${listFmt} vs AVM ${avmFmt} (${premStr}${compsN > 0 ? `, ${compsN} comps` : ''}).`;
-                  const href = `/track5?l3_score=${l3Score}&l3_summary=${encodeURIComponent(summary)}`;
+                  const avm      = d.zillow_estimate ?? d.redfin_estimate ?? compsAvg;
+                  let l3Score: number | null = null;
+                  let l3Summary: string | null = null;
+                  if (list && avm) {
+                    const prem    = (list - avm) / avm;
+                    l3Score       = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76 : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
+                    const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
+                    const compsN  = d.comparable_sales?.length ?? 0;
+                    l3Summary     = `${address} — Listed $${Math.round(list / 1000)}K vs AVM $${Math.round(avm / 1000)}K (${premStr}${compsN > 0 ? `, ${compsN} comps` : ''}).`;
+                  }
+
+                  // ── L2: Market Conditions (deep analysis only) ──────────
+                  const dom = d.market_median_dom;
+                  const stl = d.market_sale_to_list;
+                  let l2Score: number | null = null;
+                  let l2Summary: string | null = null;
+                  if (dom != null || stl != null) {
+                    const subs: number[] = [];
+                    if (dom != null) subs.push(dom > 90 ? 90 : dom > 60 ? 80 : dom > 45 ? 68 : dom > 30 ? 55 : dom > 15 ? 42 : 32);
+                    if (stl != null) subs.push(stl < 0.95 ? 90 : stl < 0.98 ? 80 : stl < 1.00 ? 68 : stl < 1.02 ? 55 : stl < 1.05 ? 42 : 30);
+                    l2Score   = Math.round(subs.reduce((a, b) => a + b, 0) / subs.length);
+                    const pts: string[] = [];
+                    if (dom != null) pts.push(`Median DOM ${dom}d`);
+                    if (stl != null) pts.push(`sale-to-list ${(stl * 100).toFixed(1)}%`);
+                    l2Summary = pts.join(', ') + '.';
+                  }
+
+                  // ── L4: Location Intelligence (deep analysis only) ──────
+                  const school  = d.school_score;
+                  const walk    = d.walk_score;
+                  const commute = d.commute_minutes;
+                  const apprec  = d.neighborhood_appreciation_3yr_pct;
+                  let l4Score: number | null = null;
+                  let l4Summary: string | null = null;
+                  if (school != null || walk != null || commute != null || apprec != null) {
+                    const subs: number[] = [];
+                    if (school  != null) subs.push(Math.min(100, school * 10));
+                    if (walk    != null) subs.push(walk);
+                    if (commute != null) subs.push(commute <= 15 ? 90 : commute <= 25 ? 80 : commute <= 35 ? 70 : commute <= 45 ? 58 : commute <= 60 ? 44 : 30);
+                    if (apprec  != null) subs.push(apprec >= 12 ? 92 : apprec >= 7 ? 84 : apprec >= 3 ? 72 : apprec >= 0 ? 55 : 35);
+                    l4Score = Math.round(subs.reduce((a, b) => a + b, 0) / subs.length);
+                    const pts: string[] = [];
+                    if (school  != null) pts.push(`Schools ${school}/10`);
+                    if (walk    != null) pts.push(`Walk ${walk}`);
+                    if (commute != null) pts.push(`${commute}min commute`);
+                    if (apprec  != null) pts.push(`${apprec >= 0 ? '+' : ''}${apprec}% 3yr appreciation`);
+                    l4Summary = pts.join(', ') + '.';
+                  }
+
+                  // ── Build URL if anything is ready ─────────────────────
+                  const readyCount = [l3Score, l2Score, l4Score].filter(s => s != null).length;
+                  if (readyCount === 0) return null;
+
+                  const urlp = new URLSearchParams();
+                  if (l3Score != null && l3Summary) { urlp.set('l3_score', String(l3Score)); urlp.set('l3_summary', l3Summary); }
+                  if (l2Score != null && l2Summary) { urlp.set('l2_score', String(l2Score)); urlp.set('l2_summary', l2Summary); }
+                  if (l4Score != null && l4Summary) { urlp.set('l4_score', String(l4Score)); urlp.set('l4_summary', l4Summary); }
+                  const href = `/track5?${urlp.toString()}`;
+
+                  const allScores = [l3Score, l2Score, l4Score].filter((s): s is number => s != null);
+                  const avgScore  = Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);
+                  const ctaLabel  = readyCount === 1
+                    ? (l3Score != null ? 'L3 Property Value' : l2Score != null ? 'L2 Market Conditions' : 'L4 Location') + ' score ready'
+                    : `${readyCount} Track 5 levels scored`;
+
                   return (
                     <a
                       href={href}
@@ -780,10 +841,10 @@ function PropertyIntelInner() {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 4, padding: '2px 6px', color: '#4ade80' }}>Track 5</span>
-                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#94a3b8' }}>L3 Property Value score ready</span>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#94a3b8' }}>{ctaLabel}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: '1rem', fontWeight: 900, color: l3Score >= 70 ? '#4ade80' : l3Score >= 50 ? '#fbbf24' : '#f87171' }}>{l3Score}</span>
+                        <span style={{ fontSize: '1rem', fontWeight: 900, color: avgScore >= 70 ? '#4ade80' : avgScore >= 50 ? '#fbbf24' : '#f87171' }}>{avgScore}</span>
                         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>View ↗</span>
                       </div>
                     </a>

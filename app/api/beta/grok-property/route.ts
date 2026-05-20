@@ -125,6 +125,10 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation:
   "grok_intelligence_summary": "2-3 high-quality sentences covering market context, positioning, buyer/seller considerations",
   "buyer_strategy": "1-2 sentences of specific actionable strategy based on live data",
   "life_fit_score": number,
+  "school_score": "0-10 rating of nearby public school quality based on GreatSchools or equivalent, or null",
+  "walk_score": "0-100 walkability score for this address, or null",
+  "commute_minutes": "estimated drive time in minutes to nearest major employment hub or downtown, or null",
+  "neighborhood_appreciation_3yr_pct": "% home price appreciation over past 3 years for this neighborhood/ZIP e.g. 8.5 for +8.5%, or null",
   "data_freshness": "Live data as of [date]",
   "confidence": "high | medium | low"
 }`;
@@ -167,11 +171,13 @@ async function runTavilyDeepSearches(address: string): Promise<string> {
   const tavilyKey = process.env.TAVILY_API_KEY;
   if (!tavilyKey) return '';
   const localArea = address.split(',').slice(1, 3).join(',').trim();
+  const nearbyArea = address.split(',').slice(0, 2).join(',').trim();
   const queries = [
     `"${address}" days on market redfin listing details`,
     `"${address}" zillow zestimate last sold price history`,
     `"${address}" comparable sales sold nearby 2025 2026`,
     `${localArea} real estate market median price days on market 2026`,
+    `${nearbyArea} schools rating walkability commute neighborhood appreciation`,
   ];
   const snippets = await Promise.all(queries.map(async (q) => {
     try {
