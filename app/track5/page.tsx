@@ -247,6 +247,10 @@ function Track5Inner() {
     },
   };
 
+  // Extract address from l3_summary if present ("ADDRESS — Listed ...")
+  const address = levels.l3.summary?.split(' — ')[0]?.trim() ?? null;
+  const piUrl   = address ? `/property-intel?address=${encodeURIComponent(address)}` : '/property-intel';
+
   const idx      = computeIndex(levels);
   const v        = idx ? verdict(idx.score) : null;
   const scoredN  = Object.values(levels).filter(l => l.score != null).length;
@@ -352,22 +356,22 @@ function Track5Inner() {
         <LevelCard
           num="L1" title="Financial Readiness" weight="35%"
           data={levels.l1}
-          cta={{ label: 'Run in Chat ↗', href: '/chat?sq=I+want+to+run+an+affordability+scenario' }}
+          cta={{ label: 'Run Affordability ↗', href: '/chat?sq=I+want+to+run+an+affordability+analysis.+Show+me+the+affordability+calculator+so+I+can+enter+my+income+and+debts.' }}
         />
         <LevelCard
           num="L2" title="Market Conditions" weight="25%"
           data={levels.l2}
-          cta={{ label: 'Run Deep Analysis ↗', href: '/property-intel' }}
+          cta={{ label: address ? 'Open Property Intel ↗' : 'Search a Property ↗', href: piUrl }}
         />
         <LevelCard
           num="L3" title="Property Value" weight="25%"
           data={levels.l3}
-          cta={{ label: 'Analyze Property ↗', href: '/property-intel' }}
+          cta={{ label: address ? 'Open Property Intel ↗' : 'Search a Property ↗', href: piUrl }}
         />
         <LevelCard
           num="L4" title="Location Intelligence" weight="15%"
           data={levels.l4}
-          cta={{ label: 'Run Deep Analysis ↗', href: '/property-intel' }}
+          cta={{ label: address ? 'Open Property Intel ↗' : 'Search a Property ↗', href: piUrl }}
         />
 
         {/* ── Wealth Monitor ── */}
