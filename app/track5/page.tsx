@@ -62,7 +62,8 @@ function ScoreRing({ score, size = 48 }: { score: number | null; size?: number }
   const fill  = score != null ? circ * (score / 100) : 0;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: 'relative' }}>
-      <circle cx={cx} cy={cx} r={r} fill="none" stroke="#1e293b" strokeWidth={size * 0.065} />
+      {/* Track ring — visible but dim */}
+      <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={size * 0.065} />
       {score != null && (
         <circle cx={cx} cy={cx} r={r} fill="none" stroke={color} strokeWidth={size * 0.065}
           strokeDasharray={`${fill} ${circ}`} strokeLinecap="round"
@@ -91,7 +92,7 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
                : score >= 70   ? 'rgba(74,222,128,0.18)'
                : score >= 50   ? 'rgba(251,191,36,0.18)'
                :                 'rgba(248,113,113,0.18)';
-  const stripe = !scored       ? 'rgba(255,255,255,0.05)'
+  const stripe = !scored       ? 'rgba(255,255,255,0.08)'
                : score >= 70   ? '#4ade80'
                : score >= 50   ? '#fbbf24'
                :                 '#f87171';
@@ -119,7 +120,8 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
           padding: '16px 0',
           borderRight: '1px solid rgba(255,255,255,0.05)',
         }}>
-          <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', color: '#334155', marginBottom: 8 }}>
+          {/* Level number — readable dim label */}
+          <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', color: '#64748b', marginBottom: 8 }}>
             {num}
           </div>
           <div style={{ position: 'relative', width: 48, height: 48 }}>
@@ -127,7 +129,9 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
             <div style={{
               position: 'absolute', inset: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.8rem', fontWeight: 800, color: ringColor ?? '#1e293b',
+              fontSize: '0.8rem', fontWeight: 800,
+              /* unscored dash uses #475569 so it's visible but clearly inactive */
+              color: ringColor ?? '#475569',
             }}>
               {score != null ? score : '—'}
             </div>
@@ -140,13 +144,16 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
             <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#e2e8f0' }}>{title}</span>
             <span style={{
               fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.05em',
-              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 4, padding: '2px 6px', color: '#475569',
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 4, padding: '2px 6px',
+              /* weight badge — clear enough to read */
+              color: '#94a3b8',
             }}>{weight}</span>
           </div>
           <div style={{
             fontSize: '0.78rem', lineHeight: 1.65,
-            color: scored ? '#94a3b8' : '#1e293b',
+            /* scored summary: bright; unscored placeholder: dim but readable */
+            color: scored ? '#94a3b8' : '#64748b',
             fontStyle: scored ? 'normal' : 'italic',
           }}>
             {summary ?? (scored ? '' : `Not yet analyzed — run the tool to score this level.`)}
@@ -159,7 +166,7 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
                   background: score >= 70 ? '#4ade80' : score >= 50 ? '#fbbf24' : '#f87171',
                 }} />
               </div>
-              <span style={{ fontSize: '0.62rem', color: '#334155', whiteSpace: 'nowrap' }}>{score} / 100</span>
+              <span style={{ fontSize: '0.62rem', color: '#64748b', whiteSpace: 'nowrap' }}>{score} / 100</span>
             </div>
           )}
         </div>
@@ -170,8 +177,8 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
             <span style={{
               display: 'inline-block', padding: '8px 14px', borderRadius: 8,
               fontSize: '0.72rem', fontWeight: 700, fontStyle: 'italic',
-              background: 'transparent', color: '#1e293b',
-              border: '1px solid rgba(255,255,255,0.04)',
+              background: 'transparent', color: '#475569',
+              border: '1px solid rgba(255,255,255,0.07)',
             }}>Coming Soon</span>
           ) : (
             <a
@@ -180,8 +187,8 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
                 display: 'inline-block', padding: '8px 14px', borderRadius: 8,
                 fontSize: '0.72rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap',
                 background: scored ? 'rgba(255,255,255,0.04)' : 'rgba(74,222,128,0.08)',
-                color:      scored ? '#475569'                : '#4ade80',
-                border:     scored ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(74,222,128,0.2)',
+                color:      scored ? '#64748b'                : '#4ade80',
+                border:     scored ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(74,222,128,0.2)',
               }}
             >
               {scored ? 'Re-run ↗' : cta.label}
@@ -203,7 +210,8 @@ function IndexGauge({ score }: { score: number }) {
   return (
     <div style={{ position: 'relative', width: 108, height: 108, flexShrink: 0 }}>
       <svg width={108} height={108} viewBox="0 0 108 108">
-        <circle cx={54} cy={54} r={r} fill="none" stroke="#1e293b" strokeWidth={7} />
+        {/* Track ring — visible but dim */}
+        <circle cx={54} cy={54} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={7} />
         <circle cx={54} cy={54} r={r} fill="none" stroke={v.color} strokeWidth={7}
           strokeDasharray={`${fill} ${circ}`} strokeLinecap="round"
           transform="rotate(-135 54 54)"
@@ -216,7 +224,7 @@ function IndexGauge({ score }: { score: number }) {
         <span style={{ fontSize: '2.1rem', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em', color: v.color }}>
           {score}
         </span>
-        <span style={{ fontSize: '0.65rem', color: '#334155', marginTop: 2 }}>/100</span>
+        <span style={{ fontSize: '0.65rem', color: '#64748b', marginTop: 2 }}>/100</span>
       </div>
     </div>
   );
@@ -273,8 +281,8 @@ function Track5Inner() {
           <h1 style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#f1f5f9', marginBottom: 4 }}>
             Your Buying Decision Score
           </h1>
-          <p style={{ fontSize: '0.8rem', color: '#334155', lineHeight: 1.6 }}>
-            Five independent analyses. One clear verdict. Run each tool — your score updates automatically.
+          <p style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.6 }}>
+            Four independent analyses. One clear verdict. Run each tool — your score updates automatically.
           </p>
         </div>
 
@@ -294,7 +302,7 @@ function Track5Inner() {
               </div>
               <div style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: 1.65, marginBottom: 12 }}>
                 Based on {scoredN} of 4 levels.{' '}
-                {scoredN < 4 ? 'Complete remaining analyses to sharpen your score.' : 'All available levels scored.'}
+                {scoredN < 4 ? 'Complete remaining analyses to sharpen your score.' : 'All levels scored.'}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {[
@@ -305,7 +313,7 @@ function Track5Inner() {
                     fontSize: '0.65rem', fontWeight: 600,
                     background: 'rgba(255,255,255,0.04)',
                     border: '1px solid rgba(255,255,255,0.07)',
-                    borderRadius: 6, padding: '3px 8px', color: '#475569',
+                    borderRadius: 6, padding: '3px 8px', color: '#64748b',
                   }}>
                     <span style={{ color: '#94a3b8', fontWeight: 700 }}>{t.split(' ')[0]}</span>
                     {' '}{t.split(' ').slice(1).join(' ')}
@@ -317,14 +325,14 @@ function Track5Inner() {
         ) : (
           <div style={{
             background: '#0d1117',
-            border: '1px solid rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.07)',
             borderRadius: 14, padding: '24px 28px',
             marginBottom: 8,
           }}>
-            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#94a3b8', marginBottom: 6 }}>
               No analyses run yet
             </div>
-            <div style={{ fontSize: '0.8rem', color: '#1e293b', lineHeight: 1.65 }}>
+            <div style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.65 }}>
               Run any tool below. Your Decision Index appears here once you have at least one score.
               Each analysis can be run independently — start wherever makes sense for you.
             </div>
@@ -341,7 +349,7 @@ function Track5Inner() {
                 transition: 'width 0.6s ease',
               }} />
             </div>
-            <span style={{ fontSize: '0.6rem', color: '#334155', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '0.6rem', color: '#64748b', whiteSpace: 'nowrap' }}>
               {weightPct}% of index scored
             </span>
           </div>
@@ -382,11 +390,11 @@ function Track5Inner() {
               background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)',
               borderRadius: 4, padding: '2px 7px', color: '#60a5fa',
             }}>Ongoing</span>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#334155' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#94a3b8' }}>
               Wealth Monitor
             </span>
           </div>
-          <div style={{ fontSize: '0.78rem', color: '#1e293b', lineHeight: 1.6, marginBottom: 14 }}>
+          <div style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.6, marginBottom: 14 }}>
             Not part of your buying score — but essential after you own. Track refi timing, equity position, and market factors impacting your investment.
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
@@ -401,16 +409,16 @@ function Track5Inner() {
                 style={{
                   display: 'block', textDecoration: 'none',
                   background: '#0d1117',
-                  border: '1px solid rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.07)',
                   borderRadius: 10, padding: '14px 16px',
                   transition: 'border-color 0.15s',
                 }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(96,165,250,0.2)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)')}
               >
                 <div style={{ fontSize: '1.1rem', marginBottom: 7 }}>{tile.icon}</div>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: 4 }}>{tile.label}</div>
-                <div style={{ fontSize: '0.68rem', color: '#1e293b', lineHeight: 1.5 }}>{tile.sub}</div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginBottom: 4 }}>{tile.label}</div>
+                <div style={{ fontSize: '0.68rem', color: '#64748b', lineHeight: 1.5 }}>{tile.sub}</div>
                 <div style={{ fontSize: '0.65rem', color: '#60a5fa', marginTop: 8, fontWeight: 600 }}>{tile.link}</div>
               </a>
             ))}
