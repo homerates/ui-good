@@ -375,7 +375,7 @@ export async function POST(req: NextRequest) {
         model:             'grok-4.3',
         max_output_tokens: 3000,
         reasoning:         { effort: 'low' },
-        tools:             [{ type: 'web_search_preview' }],
+        tools:             [{ type: 'web_search' }],
         stream:            true,
         instructions:      DEEP_SYSTEM_PROMPT,
         input:             buildDeepUserMessage(address, redfin),
