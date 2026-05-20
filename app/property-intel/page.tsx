@@ -251,7 +251,21 @@ function PropertyIntelInner() {
       const postRes = await fetch('/api/beta/grok-property', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, redfin: null, deep: true }),
+        body: JSON.stringify({
+          address,
+          deep: true,
+          redfin: finalResult ? {
+            current_status:     finalResult.current_status     ?? undefined,
+            current_list_price: finalResult.current_list_price ?? undefined,
+            bedrooms:           finalResult.bedrooms           ?? undefined,
+            bathrooms:          finalResult.bathrooms          ?? undefined,
+            sqft:               finalResult.sqft               ?? undefined,
+            year_built:         finalResult.year_built         ?? undefined,
+            lot_size_sqft:      finalResult.lot_size_sqft      ?? undefined,
+            last_sold_price:    finalResult.last_sold_price    ?? undefined,
+            last_sold_date:     finalResult.last_sold_date     ?? undefined,
+          } : null,
+        }),
       });
       if (!postRes.ok || !postRes.body) {
         setDeepLoading(false);

@@ -182,7 +182,7 @@ async function runTavilyDeepSearches(address: string): Promise<string> {
       });
       if (!r.ok) return null;
       const d = await r.json();
-      return (d.results ?? []).slice(0, 3).map((x: any) => `${x.title}\n${x.content}`).join('\n\n');
+      return (d.results ?? []).slice(0, 3).map((x: any) => `${x.title}\n${String(x.content ?? '').slice(0, 300)}`).join('\n\n');
     } catch { return null; }
   }));
   return snippets.filter(Boolean).join('\n\n---\n\n');
@@ -436,12 +436,41 @@ export async function POST(req: NextRequest) {
       const cacheResult = async (result: Record<string, unknown>): Promise<void> => {
         const sb = getSupabase();
         if (!sb) return;
+
+        let toStore = result;
+
+        // Deep mode: merge into existing basic entry so we never lose good comps/highlights
+        if (deep) {
+          const { data: existing } = await sb
+            .from('grok_property_cache')
+            .select('grok_result')
+            .eq('address_normalized', normalizeAddressStrict(address))
+            .maybeSingle();
+          if (existing?.grok_result) {
+            const prev: Record<string, unknown> = typeof existing.grok_result === 'string'
+              ? JSON.parse(existing.grok_result)
+              : existing.grok_result as Record<string, unknown>;
+            const deepComps = result.comparable_sales as unknown[] | null;
+            toStore = {
+              ...prev,
+              ...result,
+              // Preserve comps from basic if deep returned none
+              comparable_sales: deepComps?.length ? deepComps : prev.comparable_sales ?? [],
+              // Preserve non-zero PITI/rate from basic
+              estimated_piti: (result.estimated_piti as number) > 0 ? result.estimated_piti : prev.estimated_piti,
+              rate_used:      result.rate_used ?? prev.rate_used,
+              // Preserve price_per_sqft if deep lost it
+              price_per_sqft: result.price_per_sqft ?? prev.price_per_sqft,
+            };
+          }
+        }
+
         const now = new Date();
-        const ttl = cacheTtlMs((result.current_status as string) ?? '');
+        const ttl = cacheTtlMs((toStore.current_status as string) ?? '');
         const { error } = await sb.from('grok_property_cache').upsert({
           address_normalized: normalizeAddressStrict(address),
           address_raw:        address.trim(),
-          grok_result:        result,
+          grok_result:        toStore,
           model:              deep ? 'grok-4-search' : 'grok-4',
           fetched_at:         now.toISOString(),
           expires_at:         new Date(now.getTime() + ttl).toISOString(),
