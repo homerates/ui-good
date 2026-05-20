@@ -677,8 +677,8 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
 
             {/* ── Track 5 — check a specific property with this income context ── */}
             <a
-                href={`/track5?income=${Math.round(income)}&downpct=${Math.round(downPct)}`}
-                target="track5"
+                href="/track5"
+                target="_blank"
                 rel="noopener"
                 style={{
                     display: 'block', margin: '0 12px 12px',

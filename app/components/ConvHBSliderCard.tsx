@@ -463,8 +463,8 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
             </div>
             <button className="chb-cta-full" onClick={handleGetMatched}>Get Matched with a Lender →</button>
             <a
-                href={`/track5?price=${Math.round(price)}&downpct=${Math.round(downPct)}`}
-                target="track5"
+                href="/track5"
+                target="_blank"
                 rel="noopener"
                 style={{
                     display: 'block', margin: '8px 12px 0',
