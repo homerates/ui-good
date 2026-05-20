@@ -180,7 +180,7 @@ function HomeReportInner() {
     data?.purchaseRate ? `Current mortgage rate: ${data.purchaseRate}% (estimated from purchase year).` : '',
     val ? `Home value: ${fmtFull(val)}.` : '',
     equity ? `Equity: ${fmtFull(equity)} (${eqPct}%).` : '',
-    `Show me refinance savings, break-even, and equity options. Use these exact figures.`,
+    `Show me refinance savings and break-even. Use these exact figures.`,
   ].filter(Boolean).join(' ') : '';
 
   return (

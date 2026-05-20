@@ -2245,7 +2245,7 @@ function MyHomePageInner() {
                                 parts.push(`Current 30-year rate is ${a.liveRate.toFixed(2)}%.`);
                                 if (a.estimatedValue && ask && a.estimatedValue !== ask) parts.push(`Redfin AVM is $${Math.round(a.estimatedValue).toLocaleString()}.`);
                                 if (a.daysOnMarket != null) parts.push(`Property has been on market ${a.daysOnMarket} days.`);
-                                parts.push('Calculate monthly PITI, run comps vs ask price, and project 5-year equity outlook.');
+                                parts.push('Calculate monthly PITI.');
                                 const addrParts = (a.address ?? '').split(',').map((s: string) => s.trim());
                                 const p = new URLSearchParams({
                                   sq: parts.join(' '),
@@ -2310,7 +2310,7 @@ function MyHomePageInner() {
                                 const usedRate = effectiveRate ?? a.purchaseRate ?? 5.5;
                                 const balNote  = balIsEstimate ? ' (estimated — adjust if you know your balance)' : '';
                                 const homeValStr = a.estimatedValue && a.estimatedValue > 0 ? `, home value $${Math.round(a.estimatedValue).toLocaleString()}` : '';
-                                const sq = `Run homeowner analysis for ${a.address}: balance $${Math.round(balFinal).toLocaleString()}${balNote}, rate ${usedRate}%${homeValStr}. Show me refi savings, break-even, and equity options.`;
+                                const sq = `Run homeowner analysis for ${a.address}: balance $${Math.round(balFinal).toLocaleString()}${balNote}, rate ${usedRate}%${homeValStr}. Show me refi savings and break-even.`;
                                 return `/chat?${new URLSearchParams({ sq }).toString()}&from=%2Fmy-home&fromLabel=My+Properties`;
                               })()}
                               target="_blank"

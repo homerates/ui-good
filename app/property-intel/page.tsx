@@ -344,9 +344,9 @@ function PropertyIntelInner() {
     if (isBuyer && price) {
       sq = `I'm looking at buying ${address} listed at $${Math.round(price).toLocaleString()}. Current 30-year rate is ${rate.toFixed(2)}%.`;
     } else if (avmEst) {
-      sq = `Run homeowner analysis for ${address}: estimated value $${Math.round(avmEst).toLocaleString()}, current 30-year rate is ${rate.toFixed(2)}%. Show me refi savings, break-even, and equity options.`;
+      sq = `Run homeowner analysis for ${address}: estimated value $${Math.round(avmEst).toLocaleString()}, current 30-year rate is ${rate.toFixed(2)}%. Show me refi savings and break-even.`;
     } else {
-      sq = `Run homeowner analysis for ${address} at today's ${rate.toFixed(2)}% rate. Show refi savings, break-even, and equity options.`;
+      sq = `Run homeowner analysis for ${address} at today's ${rate.toFixed(2)}% rate. Show refi savings and break-even.`;
     }
     return `/chat?${new URLSearchParams({ sq, from: '/property-intel', fromLabel: 'Property Intelligence' }).toString()}`;
   })();
