@@ -414,7 +414,7 @@ function Track5Inner() {
 
       if (cd?.cached && cd.result) {
         setData(cd.result);
-        setOpenLevel('l2'); // address entered → open Property level first
+        setOpenLevel('l1'); // always open L1 Financial first — it's the foundation
         setLoading(false);
         return;
       }
@@ -483,7 +483,7 @@ function Track5Inner() {
             const ev = JSON.parse(t.slice(6));
             if (ev.done && ev.result) {
               setData(ev.result);
-              setOpenLevel('l2'); // address entered → open Property level first
+              setOpenLevel('l1'); // always open L1 Financial first — it's the foundation
               setLoading(false);
             }
             if (ev.error) { setError(ev.error); setLoading(false); }
