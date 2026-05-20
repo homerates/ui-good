@@ -364,25 +364,38 @@ export async function POST(req: NextRequest) {
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), deep ? 140_000 : 85_000);
 
-  // Deep mode: run Tavily searches first, then pass context to Grok
-  const deepSearchContext = deep ? await runTavilyDeepSearches(address.trim()) : '';
+  // Deep mode: Responses API with native web search (grok-4.3 + web_search_preview)
+  // Basic mode: Chat Completions API with json_object
+  const upstreamUrl = deep
+    ? 'https://api.x.ai/v1/responses'
+    : 'https://api.x.ai/v1/chat/completions';
 
-  // Build API body — always use json_object (no xAI tools needed)
-  const apiBody: Record<string, unknown> = {
-    model:           'grok-4',
-    messages: [
-      { role: 'system', content: deep ? DEEP_SYSTEM_PROMPT : SYSTEM_PROMPT },
-      { role: 'user',   content: deep ? buildDeepUserMessage(address, redfin, deepSearchContext) : buildUserMessage(address, redfin) },
-    ],
-    temperature:     0.1,
-    max_tokens:      deep ? 3000 : 1200,
-    stream:          true,
-    response_format: { type: 'json_object' },
-  };
+  const apiBody: Record<string, unknown> = deep
+    ? {
+        model:             'grok-4.3',
+        max_output_tokens: 3000,
+        reasoning:         { effort: 'low' },
+        tools:             [{ type: 'web_search_preview' }],
+        stream:            true,
+        instructions:      DEEP_SYSTEM_PROMPT,
+        input:             buildDeepUserMessage(address, redfin),
+        text:              { format: { type: 'json_object' } },
+      }
+    : {
+        model:           'grok-4.3',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user',   content: buildUserMessage(address, redfin) },
+        ],
+        temperature:     0.1,
+        max_tokens:      1200,
+        stream:          true,
+        response_format: { type: 'json_object' },
+      };
 
   let upstream: Response;
   try {
-    upstream = await fetch('https://api.x.ai/v1/chat/completions', {
+    upstream = await fetch(upstreamUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       signal: controller.signal,
@@ -471,7 +484,7 @@ export async function POST(req: NextRequest) {
           address_normalized: normalizeAddressStrict(address),
           address_raw:        address.trim(),
           grok_result:        toStore,
-          model:              deep ? 'grok-4-search' : 'grok-4',
+          model:              deep ? 'grok-4.3-search' : 'grok-4.3',
           fetched_at:         now.toISOString(),
           expires_at:         new Date(now.getTime() + ttl).toISOString(),
         }, { onConflict: 'address_normalized' });
@@ -516,11 +529,43 @@ export async function POST(req: NextRequest) {
 
             try {
               const chunk = JSON.parse(payload);
-              const token: string = chunk.choices?.[0]?.delta?.content ?? '';
-              if (token) {
-                if (!tokensStarted) { tokensStarted = true; clearInterval(heartbeat); }
-                fullContent += token;
-                ctrl.enqueue(sse({ token }));
+
+              // ── Responses API (deep mode: grok-4.3 /v1/responses) ──────────
+              if (chunk.type === 'response.output_text.delta') {
+                const tok: string = chunk.delta ?? '';
+                if (tok) {
+                  if (!tokensStarted) { tokensStarted = true; clearInterval(heartbeat); }
+                  fullContent += tok;
+                  ctrl.enqueue(sse({ token: tok }));
+                }
+              } else if (chunk.type === 'response.completed') {
+                // Responses API signals completion via this event (no [DONE] sentinel)
+                const outputs = (chunk.response?.output ?? []) as any[];
+                const msgOutput = outputs.find((o: any) => o.type === 'message');
+                if (msgOutput?.content?.[0]?.text) fullContent = msgOutput.content[0].text;
+                finish();
+                const merged = finalizeResult(fullContent);
+                if (merged) {
+                  ctrl.enqueue(sse({ done: true, result: merged, meta: { model: 'grok-4.3', fetched_at: new Date().toISOString() } }));
+                  await cacheResult(merged);
+                } else {
+                  ctrl.enqueue(sse({ error: 'Grok returned malformed JSON' }));
+                }
+                ctrl.close();
+                return;
+              } else if (chunk.type === 'response.failed') {
+                finish();
+                ctrl.enqueue(sse({ error: (chunk.response as any)?.error?.message ?? 'Grok deep search failed' }));
+                ctrl.close();
+                return;
+              } else {
+                // ── Chat Completions API (basic mode) ──────────────────────
+                const token: string = chunk.choices?.[0]?.delta?.content ?? '';
+                if (token) {
+                  if (!tokensStarted) { tokensStarted = true; clearInterval(heartbeat); }
+                  fullContent += token;
+                  ctrl.enqueue(sse({ token }));
+                }
               }
             } catch { /* skip malformed SSE chunks */ }
           }
