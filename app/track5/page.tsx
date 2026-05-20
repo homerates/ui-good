@@ -168,8 +168,11 @@ const fmt$ = (n: number | null | undefined) =>
   n != null ? '$' + Math.round(n).toLocaleString() : '—';
 
 const fmtIncome = (raw: string): number | null => {
+  if (!raw.trim()) return null;
   const n = parseFloat(raw.replace(/[^0-9.]/g, ''));
-  return isNaN(n) ? null : n < 500 ? n * 1000 : n; // treat < 500 as thousands
+  if (isNaN(n) || n <= 0) return null;
+  const result = n < 500 ? n * 1000 : n; // shorthand: 180 → $180k
+  return result >= 20000 ? result : null;  // require at least $20k to be valid
 };
 
 const fmtPct = (raw: string): number => {
@@ -183,9 +186,9 @@ function ScoreBadge({ score, size = 20 }: { score: number | null; size?: number 
   const c = scoreColor(score);
   return (
     <span style={{
-      fontFamily: "'Syne', system-ui, sans-serif",
+      fontFamily: 'var(--font-syne), system-ui, sans-serif',
       fontSize: size, fontWeight: 800,
-      color: score != null ? c : '#3a4560',
+      color: score != null ? c : '#6b7a99',
     }}>
       {score ?? '—'}
     </span>
@@ -212,13 +215,13 @@ function KMetric({ label, value, sub, color }: { label: string; value: string; s
       border: '1px solid rgba(255,255,255,0.07)',
       borderRadius: 9, padding: '11px 12px',
     }}>
-      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#6b7a99', marginBottom: 3 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#8fa3b8', marginBottom: 3 }}>
         {label}
       </div>
       <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.2, color: color ?? '#f0f4ff' }}>
         {value}
       </div>
-      {sub && <div style={{ fontSize: 10, color: '#6b7a99', marginTop: 2 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
@@ -231,7 +234,7 @@ function VerdictLine({ children, tone }: { children: React.ReactNode; tone: 'goo
       background: '#141b28',
       borderRadius: '0 8px 8px 0',
       padding: '10px 12px',
-      fontSize: 13, color: '#6b7a99', lineHeight: 1.6,
+      fontSize: 13, color: '#8fa3b8', lineHeight: 1.6,
       marginBottom: 14,
     }}>
       {children}
@@ -293,7 +296,7 @@ function LevelCard({ id, badge, badgeColor, name, tagline, score, ready, open, o
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f4ff', marginBottom: 2 }}>{name}</div>
           <div style={{
-            fontSize: 11, color: ready ? scoreColor(score) : '#3a4560',
+            fontSize: 11, color: ready ? scoreColor(score) : '#8fa3b8',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             {ready ? tagline : (pendingMsg ?? 'Run Full Market Analysis to unlock')}
@@ -318,7 +321,7 @@ function LevelCard({ id, badge, badgeColor, name, tagline, score, ready, open, o
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: 16 }}>
           {ready && children ? children : (
             <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
-              <div style={{ fontSize: 13, color: '#6b7a99', marginBottom: 14 }}>
+              <div style={{ fontSize: 13, color: '#8fa3b8', marginBottom: 14 }}>
                 {pendingMsg ?? 'Run Full Market Analysis to unlock this level.'}
               </div>
             </div>
@@ -348,7 +351,7 @@ function LevelCard({ id, badge, badgeColor, name, tagline, score, ready, open, o
                 background: 'transparent',
                 border: '1px solid rgba(255,255,255,0.07)',
                 borderRadius: 8, padding: '10px 14px',
-                fontSize: 12, fontWeight: 600, color: '#6b7a99',
+                fontSize: 12, fontWeight: 600, color: '#8fa3b8',
                 textDecoration: 'none', textAlign: 'center',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 whiteSpace: 'nowrap',
@@ -584,7 +587,7 @@ function Track5Inner() {
 
       {/* ── COLD STATE ── */}
       {!hasAnyData && !loading && (
-        <div style={{ maxWidth: 480, margin: '0 auto', padding: '56px 16px 80px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 640, margin: '0 auto', padding: '56px 20px 80px', textAlign: 'center' }}>
           <div style={{
             fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
             textTransform: 'uppercase', color: '#a78bfa', marginBottom: 12,
@@ -592,14 +595,14 @@ function Track5Inner() {
             Track 5 · HomeRates.AI
           </div>
           <h1 style={{
-            fontFamily: "'Syne', system-ui, sans-serif",
-            fontSize: 'clamp(28px, 7vw, 40px)', fontWeight: 800,
-            lineHeight: 1.1, color: '#f0f4ff', marginBottom: 10,
+            fontFamily: 'var(--font-syne), system-ui, sans-serif',
+            fontSize: 'clamp(28px, 7vw, 44px)', fontWeight: 800,
+            lineHeight: 1.1, color: '#f0f4ff', marginBottom: 12,
           }}>
             Score your home<br />
             <span style={{ color: '#00e87a' }}>decision.</span>
           </h1>
-          <p style={{ fontSize: 14, color: '#6b7a99', marginBottom: 36, lineHeight: 1.6 }}>
+          <p style={{ fontSize: 15, color: '#8fa3b8', marginBottom: 36, lineHeight: 1.65 }}>
             5 intelligence levels. One verdict.<br />Property, financial, market, community, wealth.
           </p>
 
@@ -619,13 +622,13 @@ function Track5Inner() {
           />
 
           {/* Optional financial inputs */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16, textAlign: 'left' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16, textAlign: 'left' }}>
             {[
-              { label: 'Annual Income', placeholder: 'Optional', value: income,  setter: setIncome  },
-              { label: 'Down Payment',  placeholder: '20%',      value: downPct, setter: setDownPct },
+              { label: 'Annual Income', placeholder: 'e.g. 180 or $180,000', value: income,  setter: setIncome  },
+              { label: 'Down Payment %', placeholder: '20',   value: downPct, setter: setDownPct },
             ].map(f => (
               <div key={f.label}>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b7a99', marginBottom: 4 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8fa3b8', marginBottom: 5 }}>
                   {f.label}
                 </div>
                 <input
@@ -634,25 +637,16 @@ function Track5Inner() {
                   placeholder={f.placeholder}
                   style={{
                     width: '100%', background: '#0e1420',
-                    border: '1px solid rgba(255,255,255,0.07)',
-                    borderRadius: 8, padding: '9px 12px',
-                    color: '#f0f4ff', fontSize: 13, fontFamily: 'inherit', outline: 'none',
+                    border: '1px solid rgba(255,255,255,0.13)',
+                    borderRadius: 8, padding: '11px 14px',
+                    color: '#f0f4ff', fontSize: 14, fontFamily: 'inherit', outline: 'none',
                   }}
                 />
               </div>
             ))}
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b7a99', marginBottom: 4 }}>
-                30-Yr Rate
-              </div>
-              <div style={{
-                background: '#141b28', border: '1px solid rgba(255,255,255,0.07)',
-                borderRadius: 8, padding: '9px 12px',
-                fontSize: 13, color: '#6b7a99',
-              }}>
-                Live (FRED)
-              </div>
-            </div>
+          </div>
+          <div style={{ fontSize: 12, color: '#6b7a99', marginBottom: 16, textAlign: 'left' }}>
+            30-yr rate pulled live from FRED · Income optional — unlocks L2 Financial score
           </div>
 
           <button
@@ -661,7 +655,7 @@ function Track5Inner() {
             style={{
               width: '100%', background: hasInput ? '#a78bfa' : '#141b28',
               border: 'none', borderRadius: 10, padding: '14px',
-              fontSize: 14, fontWeight: 700, color: hasInput ? '#fff' : '#3a4560',
+              fontSize: 14, fontWeight: 700, color: hasInput ? '#fff' : '#6b7a99',
               fontFamily: 'inherit', cursor: hasInput ? 'pointer' : 'default',
               transition: 'background 0.15s',
             }}
@@ -683,7 +677,7 @@ function Track5Inner() {
 
       {/* ── LOADING STATE ── */}
       {loading && (
-        <div style={{ maxWidth: 480, margin: '0 auto', padding: '80px 16px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 640, margin: '0 auto', padding: '80px 20px', textAlign: 'center' }}>
           <div style={{
             width: 40, height: 40, borderRadius: '50%',
             border: '3px solid rgba(167,139,250,0.2)',
@@ -691,15 +685,15 @@ function Track5Inner() {
             animation: 'spin 0.9s linear infinite',
             margin: '0 auto 20px',
           }} />
-          <div style={{ fontSize: 14, color: '#6b7a99' }}>Analyzing property…</div>
-          <div style={{ fontSize: 12, color: '#3a4560', marginTop: 6 }}>This takes about 15 seconds</div>
+          <div style={{ fontSize: 15, color: '#f0f4ff', fontWeight: 600 }}>Analyzing property…</div>
+          <div style={{ fontSize: 13, color: '#8fa3b8', marginTop: 6 }}>Pulling Redfin data + running Grok intelligence · ~15 sec</div>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       )}
 
       {/* ── RESULTS STATE ── */}
       {hasAnyData && !loading && (
-        <div style={{ maxWidth: 560, margin: '0 auto', padding: '24px 16px 80px' }}>
+        <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 20px 80px' }}>
 
           {/* Context bar */}
           <div style={{
@@ -713,7 +707,7 @@ function Track5Inner() {
                 {address}
               </div>
               {data?.current_status && (
-                <div style={{ fontSize: 11, color: '#6b7a99', marginTop: 1 }}>
+                <div style={{ fontSize: 12, color: '#8fa3b8', marginTop: 2 }}>
                   {data.current_status.toUpperCase()}
                   {data.bedrooms != null && ` · ${data.bedrooms}bd`}
                   {data.bathrooms != null && `/${data.bathrooms}ba`}
@@ -724,9 +718,9 @@ function Track5Inner() {
             <button
               onClick={() => { setData(null); setError(null); }}
               style={{
-                background: 'transparent', border: '1px solid rgba(255,255,255,0.07)',
+                background: 'transparent', border: '1px solid rgba(255,255,255,0.12)',
                 borderRadius: 7, padding: '5px 10px',
-                fontSize: 11, fontWeight: 600, color: '#6b7a99',
+                fontSize: 11, fontWeight: 600, color: '#8fa3b8',
                 cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
               }}
             >
@@ -750,33 +744,33 @@ function Track5Inner() {
 
             {/* Big score */}
             <div style={{
-              fontFamily: "'Syne', system-ui, sans-serif",
+              fontFamily: 'var(--font-syne), system-ui, sans-serif',
               fontSize: 72, fontWeight: 800, lineHeight: 1,
-              color: hasIndex ? scoreColor(indexScore) : '#3a4560',
+              color: hasIndex ? scoreColor(indexScore) : '#6b7a99',
               marginBottom: 6,
             }}>
               {hasIndex ? indexScore : '—'}
-              {hasIndex && <span style={{ fontSize: 22, color: '#6b7a99' }}>/100</span>}
+              {hasIndex && <span style={{ fontSize: 22, color: '#8fa3b8' }}>/100</span>}
             </div>
 
             <div style={{
-              fontFamily: "'Syne', system-ui, sans-serif",
+              fontFamily: 'var(--font-syne), system-ui, sans-serif',
               fontSize: 18, fontWeight: 700,
-              color: hasIndex ? '#00e87a' : '#3a4560',
+              color: hasIndex ? '#00e87a' : '#8fa3b8',
               marginBottom: hasIndex ? 6 : 4,
             }}>
               {hasIndex ? indexVerdict : (hasDeep ? 'Scoring…' : 'Partial score')}
             </div>
 
             {!hasIndex && (
-              <div style={{ fontSize: 12, color: '#6b7a99', marginBottom: 16, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 13, color: '#8fa3b8', marginBottom: 16, lineHeight: 1.5 }}>
                 {incomeNum == null
-                  ? 'Add your income above to unlock L2, or run Full Market Analysis for L3–L5.'
+                  ? 'Enter your income in the bar below to unlock L2 · Run Full Analysis for L3–L5.'
                   : 'Run Full Market Analysis to complete your score.'}
               </div>
             )}
             {hasIndex && (
-              <div style={{ fontSize: 12, color: '#6b7a99', marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: '#8fa3b8', marginBottom: 16 }}>
                 {Object.values(scores).filter(v => v != null).length} of 5 levels scored
               </div>
             )}
@@ -803,13 +797,13 @@ function Track5Inner() {
                       cursor: 'pointer', transition: 'all 0.15s',
                     }}
                   >
-                    <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b7a99', marginBottom: 4 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8fa3b8', marginBottom: 4 }}>
                       {label}
                     </div>
                     <div style={{
-                      fontFamily: "'Syne', system-ui, sans-serif",
+                      fontFamily: 'var(--font-syne), system-ui, sans-serif',
                       fontSize: 16, fontWeight: 800,
-                      color: s != null ? color : '#3a4560',
+                      color: s != null ? color : '#6b7a99',
                     }}>
                       {s ?? '—'}
                     </div>
@@ -872,28 +866,46 @@ function Track5Inner() {
             </div>
           )}
 
-          {/* ── INCOME INPUT (inline when missing) ── */}
-          {hasAnyData && !incomeNum && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              background: 'rgba(245,158,11,0.06)',
-              border: '1px solid rgba(245,158,11,0.15)',
-              borderRadius: 10, padding: '12px 14px', marginBottom: 20,
-            }}>
-              <span style={{ fontSize: 13, color: '#6b7a99', flexShrink: 0 }}>Add income for L2 score:</span>
+          {/* ── PERSONALIZATION BAR (always visible) ── */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr',
+            gap: 10, marginBottom: 20,
+          }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8fa3b8', marginBottom: 5 }}>
+                Annual Income <span style={{ color: incomeNum ? '#00e87a' : '#f59e0b', fontWeight: 800 }}>{incomeNum ? '✓' : '← required for L2'}</span>
+              </div>
               <input
                 value={income}
                 onChange={e => setIncome(e.target.value)}
-                placeholder="e.g. $180,000"
+                placeholder="e.g. 180 or $180,000"
                 style={{
-                  flex: 1, background: '#141b28',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: 7, padding: '7px 10px',
-                  color: '#f0f4ff', fontSize: 13, fontFamily: 'inherit', outline: 'none',
+                  width: '100%', background: '#0e1420',
+                  border: `1px solid ${incomeNum ? 'rgba(0,232,122,0.25)' : 'rgba(255,255,255,0.13)'}`,
+                  borderRadius: 8, padding: '10px 14px',
+                  color: '#f0f4ff', fontSize: 14, fontFamily: 'inherit', outline: 'none',
+                  boxSizing: 'border-box',
                 }}
               />
             </div>
-          )}
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8fa3b8', marginBottom: 5 }}>
+                Down Payment %
+              </div>
+              <input
+                value={downPct}
+                onChange={e => setDownPct(e.target.value)}
+                placeholder="20"
+                style={{
+                  width: '100%', background: '#0e1420',
+                  border: '1px solid rgba(255,255,255,0.13)',
+                  borderRadius: 8, padding: '10px 14px',
+                  color: '#f0f4ff', fontSize: 14, fontFamily: 'inherit', outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          </div>
 
           {/* ── THE 5 LEVEL CARDS ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1136,7 +1148,7 @@ function Track5Inner() {
                 flex: 1, background: 'transparent',
                 border: '1px solid rgba(255,255,255,0.13)',
                 borderRadius: 10, padding: '13px 18px',
-                fontSize: 13, fontWeight: 600, color: '#6b7a99',
+                fontSize: 13, fontWeight: 600, color: '#8fa3b8',
                 textDecoration: 'none', textAlign: 'center',
                 display: 'block', minWidth: 140,
               }}
