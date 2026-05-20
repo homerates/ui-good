@@ -136,8 +136,8 @@ function scoreL5(piti: number | null, listPrice: number | null): number | null {
 
 function computeDecisionIndex(s: Scores): number | null {
   const entries: [number, number][] = [];
-  if (s.l1 != null) entries.push([s.l1, 0.25]);
-  if (s.l2 != null) entries.push([s.l2, 0.30]);
+  if (s.l1 != null) entries.push([s.l1, 0.30]); // L1 Financial — highest weight
+  if (s.l2 != null) entries.push([s.l2, 0.25]); // L2 Property
   if (s.l3 != null) entries.push([s.l3, 0.20]);
   if (s.l4 != null) entries.push([s.l4, 0.15]);
   if (s.l5 != null) entries.push([s.l5, 0.10]);
@@ -414,7 +414,7 @@ function Track5Inner() {
 
       if (cd?.cached && cd.result) {
         setData(cd.result);
-        setOpenLevel('l1');
+        setOpenLevel('l2'); // address entered → open Property level first
         setLoading(false);
         return;
       }
@@ -483,7 +483,7 @@ function Track5Inner() {
             const ev = JSON.parse(t.slice(6));
             if (ev.done && ev.result) {
               setData(ev.result);
-              setOpenLevel('l1');
+              setOpenLevel('l2'); // address entered → open Property level first
               setLoading(false);
             }
             if (ev.error) { setError(ev.error); setLoading(false); }
@@ -544,14 +544,14 @@ function Track5Inner() {
     finally { setDeepLoading(false); }
   }, [address, data]);
 
-  // Compute scores
+  // Compute scores — L1=Financial (DTI), L2=Property (AVM), L3=Market, L4=Community, L5=Wealth
   const incomeNum = fmtIncome(income);
   const scores: Scores = {
-    l1: data ? scoreL1(data) : null,
-    l2: data && incomeNum ? scoreL2(data.estimated_piti, incomeNum) : null,
-    l3: data ? scoreL3(data) : null,
-    l4: null, // Community: future L4 data
-    l5: data ? scoreL5(data.estimated_piti, data.current_list_price) : null,
+    l1: data && incomeNum ? scoreL2(data.estimated_piti, incomeNum) : null, // Financial (DTI)
+    l2: data ? scoreL1(data) : null,                                         // Property (AVM)
+    l3: data ? scoreL3(data) : null,                                         // Market
+    l4: null,                                                                 // Community: pending
+    l5: data ? scoreL5(data.estimated_piti, data.current_list_price) : null, // Wealth
   };
   const indexScore  = computeDecisionIndex(scores);
   const indexVerdict = verdict(indexScore);
@@ -568,10 +568,10 @@ function Track5Inner() {
       .sort((a, b) => (scores[a] ?? 100) - (scores[b] ?? 100))[0];
     if (!lowest) return null;
     const msgs: Record<string, string> = {
-      l1: 'L1 Property: listed above estimated value — review comps before making an offer.',
-      l2: 'L2 Financial: DTI is above the comfort range — ask your LO about rate buydown options.',
+      l1: 'L1 Financial: DTI is above the comfort range — ask your LO about a rate buydown.',
+      l2: 'L2 Property: listed above estimated value — review comps before making an offer.',
       l3: 'L3 Market: this market is competitive — act quickly or risk losing this home.',
-      l5: 'L5 Wealth: rent vs buy break-even is long — review the full wealth report.',
+      l5: 'L5 Wealth: rent vs buy break-even is long — review the full wealth analysis.',
     };
     return msgs[lowest] ?? null;
   })();
@@ -604,7 +604,7 @@ function Track5Inner() {
             <span style={{ color: '#00e87a' }}>decision.</span>
           </h1>
           <p style={{ fontSize: 15, color: '#8fa3b8', marginBottom: 36, lineHeight: 1.65 }}>
-            5 intelligence levels. One verdict.<br />Property, financial, market, community, wealth.
+            5 intelligence levels. One verdict.<br />Financial · Property · Market · Community · Wealth
           </p>
 
           {/* Address input */}
@@ -777,11 +777,11 @@ function Track5Inner() {
             {/* 5 level pills */}
             <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
               {([
-                { id: 'l1', label: 'L1', color: '#3d8bff' },
-                { id: 'l2', label: 'L2', color: '#00e87a' },
-                { id: 'l3', label: 'L3', color: '#ff8c42' },
-                { id: 'l4', label: 'L4', color: '#a78bfa' },
-                { id: 'l5', label: 'L5', color: '#f59e0b' },
+                { id: 'l1', label: 'L1', color: '#00e87a' }, // Financial — green
+                { id: 'l2', label: 'L2', color: '#3d8bff' }, // Property  — blue
+                { id: 'l3', label: 'L3', color: '#ff8c42' }, // Market    — orange
+                { id: 'l4', label: 'L4', color: '#a78bfa' }, // Community — purple
+                { id: 'l5', label: 'L5', color: '#f59e0b' }, // Wealth    — amber
               ] as const).map(({ id, label, color }) => {
                 const s = scores[id as keyof Scores];
                 const active = openLevel === id;
@@ -908,59 +908,9 @@ function Track5Inner() {
           {/* ── THE 5 LEVEL CARDS ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 
-            {/* L1 — Property */}
+            {/* L1 — Financial (foundation: what can you afford?) */}
             <LevelCard
-              id="l1" badge="L1" badgeColor="#3d8bff"
-              name="Property Intelligence"
-              tagline={
-                data?.zillow_estimate || data?.redfin_estimate
-                  ? (() => {
-                      const avm = data.zillow_estimate ?? data.redfin_estimate!;
-                      const list = data.current_list_price ?? 0;
-                      const pct = ((list - avm) / avm * 100).toFixed(1);
-                      return `${Number(pct) < 0 ? pct + '% below' : '+' + pct + '% above'} AVM · ${data.days_on_market ?? '—'} days on market`;
-                    })()
-                  : data?.comparable_sales?.length
-                    ? `${data.comparable_sales.length} comps · ${fmt$(data.current_list_price)}`
-                    : `Listed at ${fmt$(data?.current_list_price)}`
-              }
-              score={scores.l1}
-              ready={scores.l1 != null}
-              open={openLevel === 'l1'}
-              onToggle={() => toggleLevel('l1')}
-              address={address}
-              proLabel="Ask your Agent"
-            >
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
-                <KMetric label="List Price" value={fmt$(data?.current_list_price)} sub={data?.current_status ?? undefined} />
-                <KMetric
-                  label="AVM Estimate"
-                  value={fmt$(data?.zillow_estimate ?? data?.redfin_estimate)}
-                  sub={data?.zillow_estimate ? 'Zillow' : data?.redfin_estimate ? 'Redfin' : 'No estimate'}
-                  color={data?.zillow_estimate || data?.redfin_estimate ? '#00e87a' : undefined}
-                />
-                <KMetric
-                  label="Days on Market"
-                  value={data?.days_on_market != null ? `${data.days_on_market}d` : '—'}
-                  sub={data?.market_median_dom != null ? `Avg ${data.market_median_dom}d` : undefined}
-                />
-              </div>
-              {data?.comparable_sales && data.comparable_sales.length > 0 && (
-                <VerdictLine tone={scores.l1 != null && scores.l1 >= 75 ? 'good' : scores.l1 != null && scores.l1 >= 55 ? 'warn' : 'caution'}>
-                  {data.comparable_sales.length} comparable{data.comparable_sales.length > 1 ? 's' : ''} found —{' '}
-                  <strong style={{ color: '#f0f4ff' }}>
-                    avg {fmt$(data.comparable_sales.reduce((s, c) => s + c.sold_price, 0) / data.comparable_sales.length)}
-                  </strong>
-                  {data.days_on_market != null && data.market_median_dom != null && (
-                    <> · This home at {data.days_on_market}d vs {data.market_median_dom}d area average</>
-                  )}
-                </VerdictLine>
-              )}
-            </LevelCard>
-
-            {/* L2 — Financial */}
-            <LevelCard
-              id="l2" badge="L2" badgeColor="#00e87a"
+              id="l1" badge="L1" badgeColor="#00e87a"
               name="Financial Intelligence"
               tagline={
                 incomeNum && data?.estimated_piti
@@ -969,14 +919,14 @@ function Track5Inner() {
                       return `DTI ${dti}% · PITI ${fmt$(data.estimated_piti)}/mo`;
                     })()
                   : data?.estimated_piti
-                    ? `PITI ${fmt$(data.estimated_piti)}/mo · Add income to score`
-                    : 'Add income to unlock L2 score'
+                    ? `PITI ${fmt$(data.estimated_piti)}/mo · Enter income to score`
+                    : 'Enter income above to unlock your affordability score'
               }
-              score={scores.l2}
-              ready={scores.l2 != null}
-              open={openLevel === 'l2'}
-              onToggle={() => toggleLevel('l2')}
-              pendingMsg={!incomeNum ? 'Enter your annual income above to unlock L2 Financial score.' : undefined}
+              score={scores.l1}
+              ready={scores.l1 != null}
+              open={openLevel === 'l1'}
+              onToggle={() => toggleLevel('l1')}
+              pendingMsg={!incomeNum ? 'Enter your annual income in the bar above to unlock your L1 Financial score.' : undefined}
               address={address}
               proLabel="Ask your LO"
             >
@@ -984,7 +934,7 @@ function Track5Inner() {
                 <KMetric
                   label="Monthly PITI"
                   value={fmt$(data?.estimated_piti)}
-                  sub={data?.rate_used != null ? `${data.rate_used}% rate` : undefined}
+                  sub={data?.rate_used != null ? `@ ${data.rate_used}% 30-yr` : undefined}
                   color={incomeNum && data?.estimated_piti && data.estimated_piti / (incomeNum / 12) > 0.36 ? '#f59e0b' : '#f0f4ff'}
                 />
                 <KMetric
@@ -1006,12 +956,62 @@ function Track5Inner() {
                 />
               </div>
               {incomeNum && data?.estimated_piti && (
-                <VerdictLine tone={scores.l2 != null && scores.l2 >= 75 ? 'good' : scores.l2 != null && scores.l2 >= 55 ? 'warn' : 'caution'}>
+                <VerdictLine tone={scores.l1 != null && scores.l1 >= 75 ? 'good' : scores.l1 != null && scores.l1 >= 55 ? 'warn' : 'caution'}>
                   DTI of {(data.estimated_piti / (incomeNum / 12) * 100).toFixed(1)}%{' '}
                   {data.estimated_piti / (incomeNum / 12) <= 0.36
-                    ? <><strong style={{ color: '#f0f4ff' }}>within conventional range</strong> (≤43%).</>
-                    : <><strong style={{ color: '#f59e0b' }}>above comfort zone</strong> — ask your LO about a rate buydown.</>
+                    ? <><strong style={{ color: '#f0f4ff' }}>within conventional range</strong> (≤43%). This home fits your income.</>
+                    : <><strong style={{ color: '#f59e0b' }}>above the comfort zone.</strong> Ask your LO about a rate buydown or larger down payment.</>
                   }
+                </VerdictLine>
+              )}
+            </LevelCard>
+
+            {/* L2 — Property (is this specific home worth it?) */}
+            <LevelCard
+              id="l2" badge="L2" badgeColor="#3d8bff"
+              name="Property Intelligence"
+              tagline={
+                data?.zillow_estimate || data?.redfin_estimate
+                  ? (() => {
+                      const avm = data.zillow_estimate ?? data.redfin_estimate!;
+                      const list = data.current_list_price ?? 0;
+                      const pct = ((list - avm) / avm * 100).toFixed(1);
+                      return `${Number(pct) < 0 ? pct + '% below' : '+' + pct + '% above'} AVM · ${data.days_on_market ?? '—'} days on market`;
+                    })()
+                  : data?.comparable_sales?.length
+                    ? `${data.comparable_sales.length} comps · ${fmt$(data.current_list_price)}`
+                    : `Listed at ${fmt$(data?.current_list_price)}`
+              }
+              score={scores.l2}
+              ready={scores.l2 != null}
+              open={openLevel === 'l2'}
+              onToggle={() => toggleLevel('l2')}
+              address={address}
+              proLabel="Ask your Agent"
+            >
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
+                <KMetric label="List Price" value={fmt$(data?.current_list_price)} sub={data?.current_status ?? undefined} />
+                <KMetric
+                  label="AVM Estimate"
+                  value={fmt$(data?.zillow_estimate ?? data?.redfin_estimate)}
+                  sub={data?.zillow_estimate ? 'Zillow' : data?.redfin_estimate ? 'Redfin' : 'No estimate'}
+                  color={data?.zillow_estimate || data?.redfin_estimate ? '#00e87a' : undefined}
+                />
+                <KMetric
+                  label="Days on Market"
+                  value={data?.days_on_market != null ? `${data.days_on_market}d` : '—'}
+                  sub={data?.market_median_dom != null ? `Avg ${data.market_median_dom}d` : undefined}
+                />
+              </div>
+              {data?.comparable_sales && data.comparable_sales.length > 0 && (
+                <VerdictLine tone={scores.l2 != null && scores.l2 >= 75 ? 'good' : scores.l2 != null && scores.l2 >= 55 ? 'warn' : 'caution'}>
+                  {data.comparable_sales.length} comparable{data.comparable_sales.length > 1 ? 's' : ''} found —{' '}
+                  <strong style={{ color: '#f0f4ff' }}>
+                    avg {fmt$(data.comparable_sales.reduce((s, c) => s + c.sold_price, 0) / data.comparable_sales.length)}
+                  </strong>
+                  {data.days_on_market != null && data.market_median_dom != null && (
+                    <> · This home at {data.days_on_market}d vs {data.market_median_dom}d area average</>
+                  )}
                 </VerdictLine>
               )}
             </LevelCard>
