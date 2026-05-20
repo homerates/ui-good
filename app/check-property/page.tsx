@@ -709,6 +709,58 @@ function CheckPropertyInner() {
                         </div>
                     </Section>
 
+                    {/* ── Forward paths — Property Intel + Track 5 ─────── */}
+                    {resolved && (
+                        <div style={{ marginTop: 8, marginBottom: 14 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#334155', marginBottom: 10 }}>
+                                Take this further
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                {/* Property Intelligence */}
+                                <a
+                                    href={`/property-intel?address=${encodeURIComponent(resolved)}`}
+                                    target="_blank" rel="noopener noreferrer"
+                                    style={{ display: 'block', textDecoration: 'none', background: '#0d1117', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px', transition: 'border-color 0.15s' }}
+                                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)')}
+                                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
+                                >
+                                    <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Property Intelligence →</div>
+                                    <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.5 }}>AI comps, AVM, market data, and Grok 4 deep analysis on this exact property</div>
+                                </a>
+                                {/* Track 5 */}
+                                {(() => {
+                                    const propAvm   = propData?.estimatedValue ?? null;
+                                    const propPrice = propData?.price ?? null;
+                                    let t5href = '/track5';
+                                    let t5sub  = 'Score your buying decision across 4 dimensions';
+                                    if (propAvm && propPrice) {
+                                        const prem    = (propPrice - propAvm) / propAvm;
+                                        const l3Score = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76 : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
+                                        const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
+                                        const l3Sum   = `${resolved} — Listed $${Math.round(propPrice / 1000)}K vs AVM $${Math.round(propAvm / 1000)}K (${premStr}).`;
+                                        t5href = `/track5?l3_score=${l3Score}&l3_summary=${encodeURIComponent(l3Sum)}`;
+                                        t5sub  = `L3 scored ${l3Score}/100 — combine with your L1 financial score`;
+                                    }
+                                    return (
+                                        <a
+                                            href={t5href}
+                                            target="_blank" rel="noopener noreferrer"
+                                            style={{ display: 'block', textDecoration: 'none', background: '#0d1117', border: '1px solid rgba(74,222,128,0.15)', borderRadius: 12, padding: '14px 16px', transition: 'border-color 0.15s' }}
+                                            onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(74,222,128,0.3)')}
+                                            onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(74,222,128,0.15)')}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                                                <span style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 4, padding: '2px 6px', color: '#4ade80' }}>Track 5</span>
+                                            </div>
+                                            <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Decision Score →</div>
+                                            <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.5 }}>{t5sub}</div>
+                                        </a>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    )}
+
                     {/* ── LO CTA — bottom of discovery ──────────────────── */}
                     <div style={{
                         background: '#0d1117', border: `1px solid ${theme.accentBorder}`,
