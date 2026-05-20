@@ -415,11 +415,45 @@ function Track5Inner() {
         return;
       }
 
-      // 2 — cache miss: run basic Grok analysis (POST, no deep)
+      // 2 — cache miss: pull Redfin MLS facts first (same pipeline as property-intel)
+      let redfin: Record<string, unknown> | null = null;
+      try {
+        const lr = await fetch('/api/property/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: addr.trim() }),
+        });
+        const lj = await lr.json();
+        if (lr.ok && lj.ok && lj.data) {
+          const d = lj.data;
+          const statusMap: Record<string, string> = {
+            'Active': 'For Sale', 'active': 'For Sale',
+            'Pending': 'Pending', 'pending': 'Pending',
+            'Sold': 'Sold', 'sold': 'Sold',
+            'Off Market': 'Off Market',
+          };
+          redfin = {
+            current_status:     statusMap[d.listingStatus] ?? d.listingStatus ?? null,
+            current_list_price: d.price ?? null,
+            bedrooms:           d.beds ?? null,
+            bathrooms:          d.baths ?? null,
+            sqft:               d.sqft ?? null,
+            year_built:         d.yearBuilt ?? null,
+            days_on_market:     d.daysOnMarket ?? null,
+            last_sold_price:    d.lastSalePrice ?? null,
+            last_sold_date:     d.lastSaleDate ?? null,
+            lot_size_sqft:      d.lotSqft ?? null,
+            tax_rate_effective: d.taxRateEffective ?? null,
+            hoa_monthly:        d.hoaMonthly ?? null,
+          };
+        }
+      } catch { /* proceed without Redfin data — Grok will use training knowledge */ }
+
+      // 3 — stream Grok with Redfin facts as authoritative context
       const postRes = await fetch('/api/beta/grok-property', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: addr.trim() }),
+        body: JSON.stringify({ address: addr.trim(), redfin }),
       });
 
       if (!postRes.ok || !postRes.body) {
