@@ -186,7 +186,6 @@ function ScoreBadge({ score, size = 20 }: { score: number | null; size?: number 
   const c = scoreColor(score);
   return (
     <span style={{
-      fontFamily: 'var(--font-syne), system-ui, sans-serif',
       fontSize: size, fontWeight: 800,
       color: score != null ? c : '#6b7a99',
     }}>
@@ -332,6 +331,7 @@ function LevelCard({ id, badge, badgeColor, name, tagline, score, ready, open, o
             {ready && (
               <Link
                 href={`/property-intel?address=${encodeURIComponent(address)}`}
+                target="_blank" rel="noopener noreferrer"
                 style={{
                   flex: 1, background: '#141b28',
                   border: '1px solid rgba(255,255,255,0.13)',
@@ -341,11 +341,12 @@ function LevelCard({ id, badge, badgeColor, name, tagline, score, ready, open, o
                   display: 'block',
                 }}
               >
-                View Full Report →
+                View Full Report ↗
               </Link>
             )}
             <Link
               href="/messages"
+              target="_blank" rel="noopener noreferrer"
               style={{
                 flex: ready ? 'none' : 1,
                 background: 'transparent',
@@ -583,6 +584,7 @@ function Track5Inner() {
 
   return (
     <div className="page-standalone t5-root" style={{ background: '#080c12', minHeight: '100vh' }}>
+      <style>{`.t5-root{font-family:var(--font-dm-sans,'DM Sans',system-ui,sans-serif);color:#f0f4ff;}`}</style>
       <AppNav mode="standard" />
 
       {/* ── COLD STATE ── */}
@@ -595,7 +597,6 @@ function Track5Inner() {
             Track 5 · HomeRates.AI
           </div>
           <h1 style={{
-            fontFamily: 'var(--font-syne), system-ui, sans-serif',
             fontSize: 'clamp(28px, 7vw, 44px)', fontWeight: 800,
             lineHeight: 1.1, color: '#f0f4ff', marginBottom: 12,
           }}>
@@ -744,7 +745,6 @@ function Track5Inner() {
 
             {/* Big score */}
             <div style={{
-              fontFamily: 'var(--font-syne), system-ui, sans-serif',
               fontSize: 72, fontWeight: 800, lineHeight: 1,
               color: hasIndex ? scoreColor(indexScore) : '#6b7a99',
               marginBottom: 6,
@@ -754,7 +754,6 @@ function Track5Inner() {
             </div>
 
             <div style={{
-              fontFamily: 'var(--font-syne), system-ui, sans-serif',
               fontSize: 18, fontWeight: 700,
               color: hasIndex ? '#00e87a' : '#8fa3b8',
               marginBottom: hasIndex ? 6 : 4,
@@ -801,7 +800,6 @@ function Track5Inner() {
                       {label}
                     </div>
                     <div style={{
-                      fontFamily: 'var(--font-syne), system-ui, sans-serif',
                       fontSize: 16, fontWeight: 800,
                       color: s != null ? color : '#6b7a99',
                     }}>
@@ -1133,6 +1131,7 @@ function Track5Inner() {
           <div style={{ display: 'flex', gap: 8, marginTop: 24, flexWrap: 'wrap' }}>
             <Link
               href={`/chat?sq=${encodeURIComponent(`I'm looking at buying ${address}${data?.current_list_price ? ` listed at ${fmt$(data.current_list_price)}` : ''}. Current 30-year rate is ${data?.rate_used ?? '—'}%.`)}`}
+              target="_blank" rel="noopener noreferrer"
               style={{
                 flex: 1, background: '#00e87a', color: '#050a0a',
                 borderRadius: 10, padding: '13px 18px',
@@ -1140,10 +1139,11 @@ function Track5Inner() {
                 textAlign: 'center', display: 'block', minWidth: 140,
               }}
             >
-              Run My Numbers →
+              Run My Numbers ↗
             </Link>
             <Link
               href={`/property-intel?address=${encodeURIComponent(address)}`}
+              target="_blank" rel="noopener noreferrer"
               style={{
                 flex: 1, background: 'transparent',
                 border: '1px solid rgba(255,255,255,0.13)',
@@ -1153,7 +1153,7 @@ function Track5Inner() {
                 display: 'block', minWidth: 140,
               }}
             >
-              Full Intelligence Report →
+              Full Intelligence Report ↗
             </Link>
           </div>
 
