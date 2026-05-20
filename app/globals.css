@@ -2175,7 +2175,7 @@ body:has(.page-standalone) { display: block !important; height: auto !important;
 .property-stat:not(:last-child)::after {
   content: '·';
   margin-left: 14px;
-  color: #1e293b;
+  color: #475569;
 }
 
 .property-tax-note {

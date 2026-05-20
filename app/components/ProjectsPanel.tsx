@@ -1,4 +1,4 @@
-// ==== REPLACE ENTIRE FILE: app/components/ProjectsPanel.tsx ====
+﻿// ==== REPLACE ENTIRE FILE: app/components/ProjectsPanel.tsx ====
 'use client';
 
 import * as React from "react";
@@ -306,7 +306,7 @@ export default function ProjectsPanel({
                                                     background: "transparent",
                                                     padding: "4px 6px",
                                                     cursor: "pointer",
-                                                    color: "#1e293b",
+                                                    color: "#64748b",
                                                     fontSize: 13,
                                                     fontWeight: 500,
                                                 }}

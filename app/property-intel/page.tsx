@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -413,7 +413,7 @@ function PropertyIntelInner() {
               <div className="spin" style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid rgba(255,255,255,0.08)', borderTopColor: '#4ade80' }} />
               <div style={{ fontSize: '0.88rem', color: '#64748b' }}>{loadingMsg}</div>
               {loadingMsg.includes('Grok') && (
-                <div style={{ fontSize: '0.72rem', color: '#334155', maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
+                <div style={{ fontSize: '0.72rem', color: '#64748b', maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
                   Grok 4 is researching comps, market context, and buyer intelligence. This takes 30–60 seconds on first run.
                 </div>
               )}
@@ -592,7 +592,7 @@ function PropertyIntelInner() {
                           ? <div className="fi" style={{ fontSize: i === 3 ? '1.5rem' : '2rem', fontWeight: 800, color, lineHeight: 1 }}>{fmtFn(val as number)}</div>
                           : loading
                             ? <div style={{ display: 'flex', justifyContent: 'center' }}><Sk w={52} h={34} /></div>
-                            : <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#1e293b', lineHeight: 1 }}>—</div>
+                            : <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#64748b', lineHeight: 1 }}>—</div>
                         }
                         {sub && <div className="fi" style={{ fontSize: '0.59rem', color: '#64748b', marginTop: 3 }}>{sub}</div>}
                         <div style={{ fontSize: '0.59rem', color: '#475569', marginTop: 5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
@@ -610,7 +610,7 @@ function PropertyIntelInner() {
                       ].map(({ val, fmt: fmtFn, color, label }, i) => val != null ? (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
                           <div style={{ fontSize: '1.1rem', fontWeight: 700, color, lineHeight: 1 }}>{fmtFn(val)}</div>
-                          <div style={{ fontSize: '0.56rem', color: '#334155', marginTop: 4, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
+                          <div style={{ fontSize: '0.56rem', color: '#64748b', marginTop: 4, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
                         </div>
                       ) : null)}
                     </div>
@@ -684,17 +684,17 @@ function PropertyIntelInner() {
                       {step}
                     </div>
                   ))}
-                  <div style={{ marginTop: 12, fontSize: '0.68rem', color: '#334155' }}>Takes 60–90 seconds. You can navigate away — your report will be cached when ready.</div>
+                  <div style={{ marginTop: 12, fontSize: '0.68rem', color: '#64748b' }}>Takes 60–90 seconds. You can navigate away — your report will be cached when ready.</div>
                 </div>
               )}
 
               {/* ── Freshness footer ──────────────────────────────────────── */}
               <div style={{ padding: '10px 28px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                 {d.data_freshness
-                  ? <span className="fi" style={{ fontSize: '0.63rem', color: '#334155' }}>{d.data_freshness}</span>
+                  ? <span className="fi" style={{ fontSize: '0.63rem', color: '#64748b' }}>{d.data_freshness}</span>
                   : <Sk w={190} h={11} />
                 }
-                <span style={{ fontSize: '0.6rem', color: '#1e293b' }}>Powered by Grok-4 · HomeRates.AI</span>
+                <span style={{ fontSize: '0.6rem', color: '#64748b' }}>Powered by Grok-4 · HomeRates.AI</span>
               </div>
 
               {/* ── CTA bar ───────────────────────────────────────────────── */}

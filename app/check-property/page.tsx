@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -712,7 +712,7 @@ function CheckPropertyInner() {
                     {/* ── Forward paths — Property Intel + Track 5 ─────── */}
                     {resolved && (
                         <div style={{ marginTop: 8, marginBottom: 14 }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#334155', marginBottom: 10 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#64748b', marginBottom: 10 }}>
                                 Take this further
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>

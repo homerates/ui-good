@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useRef, Suspense } from 'react';
 import { useUser, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
@@ -317,14 +317,14 @@ function CardPropertyIntel({ d }: { d: AnalysisData }) {
             {d.mortgageOriginationDate && <div className="mh-stat"><div className="mh-stat-label">Originated</div><div className="mh-stat-value" style={{ fontSize: '0.82rem' }}>{new Date(d.mortgageOriginationDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div></div>}
           </div>
           {d.mortgageSource === 'attom' && (
-            <div style={{ marginTop: 8, fontSize: '0.62rem', color: '#334155' }}>Source: Public records</div>
+            <div style={{ marginTop: 8, fontSize: '0.62rem', color: '#64748b' }}>Source: Public records</div>
           )}
         </div>
       )}
       {(d.avmDate || d.attomCheckedAt) && (
-        <div style={{ marginTop: hasMortgage ? 10 : 14, fontSize: '0.6rem', color: '#334155' }}>
+        <div style={{ marginTop: hasMortgage ? 10 : 14, fontSize: '0.6rem', color: '#64748b' }}>
           Data as of {new Date(d.avmDate ?? d.attomCheckedAt!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          {d.avmSource && <span style={{ marginLeft: 6, color: '#1e293b' }}>· {d.avmSource === 'attom' ? 'AVM estimate' : d.avmSource === 'fhfa' ? 'FHFA model' : 'assessed'}</span>}
+          {d.avmSource && <span style={{ marginLeft: 6, color: '#64748b' }}>· {d.avmSource === 'attom' ? 'AVM estimate' : d.avmSource === 'fhfa' ? 'FHFA model' : 'assessed'}</span>}
         </div>
       )}
       {d.address && (
@@ -347,7 +347,7 @@ function CardComps({ d }: { d: AnalysisData }) {
     <div className="mh-card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div className="mh-card-label" style={{ marginBottom: 0 }}>Comparable Sales</div>
-        <div style={{ fontSize: '0.62rem', color: '#334155' }}>0.5 mi · last 2 yrs</div>
+        <div style={{ fontSize: '0.62rem', color: '#64748b' }}>0.5 mi · last 2 yrs</div>
       </div>
       {subjectPsf && (
         <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.15)', borderRadius: 8, fontSize: '0.72rem', color: '#94a3b8' }}>
@@ -1017,7 +1017,7 @@ function CardMyPayment({ d }: { d: AnalysisData }) {
           })}
         </tbody>
       </table>
-      <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, fontSize: '0.68rem', color: '#334155' }}>
+      <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, fontSize: '0.68rem', color: '#64748b' }}>
         Down payment: ${Math.round(askPrice * 0.20).toLocaleString()} · Loan amount: ${Math.round(askPrice * 0.80).toLocaleString()}
       </div>
     </div>
@@ -1070,7 +1070,7 @@ function CardCompDelta({ d, nearbySales }: { d: AnalysisData; nearbySales?: Near
             <div style={{ fontSize: '0.75rem', color: '#64748b', maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address}</div>
             <div style={{ display: 'flex', gap: 12 }}>
               <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f1f5f9' }}>{fmt(s.price)}</span>
-              {s.pricePerSqft && <span style={{ fontSize: '0.72rem', color: '#334155' }}>${s.pricePerSqft}/sf</span>}
+              {s.pricePerSqft && <span style={{ fontSize: '0.72rem', color: '#64748b' }}>${s.pricePerSqft}/sf</span>}
             </div>
           </div>
         ))}
@@ -1124,7 +1124,7 @@ function CardTrueCost({ d }: { d: AnalysisData }) {
           </div>
         ))}
       </div>
-      <div style={{ marginTop: 12, fontSize: '0.65rem', color: '#334155', lineHeight: 1.5 }}>
+      <div style={{ marginTop: 12, fontSize: '0.65rem', color: '#64748b', lineHeight: 1.5 }}>
         Assumes 20% down, 30yr fixed, 1.1% tax, 0.5% insurance, 4.2%/yr appreciation (FHFA historical avg).
       </div>
     </div>
@@ -1175,7 +1175,7 @@ function CardOfferSignal({ d, nearbySales }: { d: AnalysisData; nearbySales?: Ne
       </div>
       {factors.length > 0 && (
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14 }}>
-          <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#334155', marginBottom: 10 }}>Key Factors</div>
+          <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#64748b', marginBottom: 10 }}>Key Factors</div>
           {factors.map((f, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
               <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{f.label}</span>

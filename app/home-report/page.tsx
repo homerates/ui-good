@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -195,7 +195,7 @@ function HomeReportInner() {
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', opacity: 0.7 }}>Home Intelligence Report</span>
-            <span style={{ fontSize: '0.72rem', color: '#334155' }}>{today}</span>
+            <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{today}</span>
           </div>
         </div>
 
@@ -205,7 +205,7 @@ function HomeReportInner() {
             <div style={{ textAlign: 'center', padding: '8rem 0', color: '#64748b' }}>
               <div className="hr-spinner" style={{ margin: '0 auto 16px' }} />
               <div style={{ fontSize: '0.9rem' }}>Fetching property intelligence…</div>
-              <div style={{ fontSize: '0.75rem', color: '#334155', marginTop: 8 }}>Searching Redfin for {address}</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 8 }}>Searching Redfin for {address}</div>
             </div>
           )}
 
@@ -265,7 +265,7 @@ function HomeReportInner() {
                 {!heroSrc && !staticMapUrl && (
                   <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
                     <div style={{ fontSize: '2.5rem', opacity: 0.15 }}>🏠</div>
-                    <div style={{ fontSize: '0.72rem', color: '#334155', letterSpacing: '0.05em' }}>No street view available</div>
+                    <div style={{ fontSize: '0.72rem', color: '#64748b', letterSpacing: '0.05em' }}>No street view available</div>
                   </div>
                 )}
                 {/* Gradient + address overlay */}
@@ -502,9 +502,9 @@ function HomeReportInner() {
               </div>
 
               {/* ── DISCLAIMER ── */}
-              <div style={{ fontSize: '0.68rem', color: '#1e293b', lineHeight: 1.6, paddingTop: 16, borderTop: '1px solid #0f172a' }}>
+              <div style={{ fontSize: '0.68rem', color: '#64748b', lineHeight: 1.6, paddingTop: 16, borderTop: '1px solid #0f172a' }}>
                 HomeRates.ai is an independent educational tool and is not a mortgage broker or lender. Estimates are based on public records and FHFA appreciation models. Not financial advice.{' '}
-                <Link href="/legal" style={{ color: '#1e293b' }}>Terms & Disclosures</Link>
+                <Link href="/legal" style={{ color: '#64748b' }}>Terms & Disclosures</Link>
               </div>
             </>
           )}
@@ -536,7 +536,7 @@ const HR_CSS = `
   .hr-section-label{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#475569}
 
   .hr-table{width:100%;border-collapse:collapse;font-size:.85rem}
-  .hr-table th{text-align:left;font-size:.65rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#334155;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,0.06)}
+  .hr-table th{text-align:left;font-size:.65rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#64748b;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,0.06)}
   .hr-table td{padding:.6rem 0;border-bottom:1px solid rgba(255,255,255,0.04);color:#f1f5f9;font-weight:600}
   .hr-table th:not(:first-child),.hr-table td:not(:first-child){text-align:right}
   .hr-table td:last-child,.hr-table th:last-child{text-align:right}
