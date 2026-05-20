@@ -381,7 +381,7 @@ function Track5Inner() {
   const params  = useSearchParams();
   const router  = useRouter();
 
-  const [address,     setAddress]     = useState(params.get('address') ?? '');
+  const [address,     setAddress]     = useState(params?.get('address') ?? '');
   const [income,      setIncome]      = useState('');
   const [downPct,     setDownPct]     = useState('20');
   const [data,        setData]        = useState<PropResult | null>(null);
@@ -393,7 +393,7 @@ function Track5Inner() {
 
   // Fetch basic grok cache on mount if address in URL
   useEffect(() => {
-    const addr = params.get('address');
+    const addr = params?.get('address');
     if (addr) { setAddress(addr); fetchData(addr); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
