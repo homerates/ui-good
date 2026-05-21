@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/org/claim/[token]/page.tsx
 // Corporate invite claim page — pre-filled from admin invitation
 // Standalone ps-root pattern, no app chrome conflict
@@ -312,7 +312,7 @@ export default function OrgClaimPage({ params }: { params: Promise<{ token: stri
         .oc-form { display: flex; flex-direction: column; gap: 20px; }
         .oc-field { display: flex; flex-direction: column; gap: 5px; }
         .oc-label { font-size: 0.78rem; font-weight: 600; color: #8fa3b8; text-transform: uppercase; letter-spacing: 0.05em; }
-        .oc-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #3a4560; }
+        .oc-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #eaf8f7; }
         .oc-input {
           padding: 11px 14px; background: #141b28;
           border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;

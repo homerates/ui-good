@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // app/components/RefiIntelligenceCard.tsx
 // Refi Intelligence Card — dual-mode (Simple + Deep Dive AI)
@@ -207,19 +207,19 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
         <style>{`
           @keyframes ri-pulse{0%,100%{opacity:1}50%{opacity:.4}}
           .ri-live-dot{width:6px;height:6px;border-radius:50%;background:#00e87a;box-shadow:0 0 6px #00e87a;animation:ri-pulse 2s infinite;flex-shrink:0}
-          .ri-mode-btn{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 12px;border-radius:5px;border:none;cursor:pointer;background:transparent;color:#3a4560;transition:all .15s}
+          .ri-mode-btn{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 12px;border-radius:5px;border:none;cursor:pointer;background:transparent;color: #eaf8f7;transition:all .15s}
           .ri-mode-btn.active-simple{background:#0d1f35;color:#60a5fa}
           .ri-mode-btn.active-deep{background:#1a0d2e;color:#a78bfa}
           .ri-s-btn-primary{width:100%;background:#00e87a;color:#07100f;font-size:14px;font-weight:800;border:none;border-radius:12px;padding:15px 16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
           .ri-s-btn-secondary{flex:1;background:rgba(255,255,255,0.04);color:#8b949e;font-size:12px;font-weight:700;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:11px 10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
           .ri-s-btn-heloc{flex:1;background:rgba(99,179,237,0.07);color:#63b3ed;font-size:12px;font-weight:700;border:1px solid rgba(99,179,237,0.18);border-radius:10px;padding:11px 10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
-          .ri-scen-chip{font-size:10px;font-weight:700;color:#6b7a99;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:4px 12px;cursor:pointer;white-space:nowrap}
-          .ri-back{display:flex;align-items:center;gap:6px;padding:10px 16px 0;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#3a4560;cursor:pointer}
+          .ri-scen-chip{font-size:10px;font-weight:700;color: #94a3b8;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:4px 12px;cursor:pointer;white-space:nowrap}
+          .ri-back{display:flex;align-items:center;gap:6px;padding:10px 16px 0;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color: #eaf8f7;cursor:pointer}
           .ri-back:hover{color:#60a5fa}
           .ri-deepdive-trigger{margin:0 16px 16px;background:linear-gradient(135deg,rgba(139,92,246,0.06),rgba(99,179,237,0.04));border:1px solid rgba(139,92,246,0.18);border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .15s}
           .ri-deepdive-trigger:hover{border-color:rgba(139,92,246,0.35);background:rgba(139,92,246,0.1)}
           .ri-heloc-row::before{content:'✓';color:#00e87a;font-weight:700;flex-shrink:0;font-size:10px;margin-top:1px}
-          .ri-heloc-row-x::before{content:'·';color:#3a4560}
+          .ri-heloc-row-x::before{content:'·';color: #eaf8f7}
         `}</style>
 
         {/* ── Topbar ── */}

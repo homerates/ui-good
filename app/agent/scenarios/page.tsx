@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/agent/scenarios/page.tsx
 // Agent board — home-buying context only. Financial/loan fields are stripped
 // server-side before this page receives them.
@@ -471,7 +471,7 @@ export default function AgentScenariosPage() {
 
         .ag-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 2rem; }
         .ag-filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-        .ag-filter-label { font-size: 0.72rem; font-weight: 700; color: #3a4560; text-transform: uppercase; letter-spacing: 0.07em; margin-right: 2px; }
+        .ag-filter-label { font-size: 0.72rem; font-weight: 700; color: #eaf8f7; text-transform: uppercase; letter-spacing: 0.07em; margin-right: 2px; }
         .ag-chip {
           padding: 5px 13px; border-radius: 99px;
           border: 1px solid rgba(255,255,255,0.08); background: transparent;
@@ -517,17 +517,17 @@ export default function AgentScenariosPage() {
           font-size: 0.68rem; font-weight: 600; padding: 2px 8px; border-radius: 99px;
           color: #8fa3b8; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
         }
-        .ag-card-time { font-size: 0.72rem; color: #3a4560; white-space: nowrap; }
+        .ag-card-time { font-size: 0.72rem; color: #eaf8f7; white-space: nowrap; }
 
         .ag-card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 0.75rem; }
-        .ag-field-label { font-size: 0.68rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+        .ag-field-label { font-size: 0.68rem; color: #eaf8f7; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
         .ag-field-value { font-size: 0.88rem; font-weight: 600; color: #f0f4ff; }
         .ag-card-note { font-size: 0.8rem; color: #8fa3b8; font-style: italic; margin: 0 0 0.75rem; line-height: 1.45; }
 
         .ag-card-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); }
-        .ag-responses { font-size: 0.75rem; color: #3a4560; }
+        .ag-responses { font-size: 0.75rem; color: #eaf8f7; }
         .ag-timeleft { font-size: 0.72rem; color: #ff8c42; margin-top: 2px; }
-        .ag-full-badge { font-size: 0.75rem; color: #3a4560; }
+        .ag-full-badge { font-size: 0.75rem; color: #eaf8f7; }
         .ag-responded-badge { font-size: 0.78rem; color: #00e87a; font-weight: 600; }
         .ag-respond-btn {
           padding: 7px 18px; background: #00e87a; color: #080c12;
@@ -551,7 +551,7 @@ export default function AgentScenariosPage() {
         .ag-modal-title { font-family: 'DM Sans', sans-serif; font-size: 1.2rem; font-weight: 700; margin: 0 0 3px; }
         .ag-modal-sub { font-size: 0.82rem; color: #8fa3b8; margin: 0; }
         .ag-modal-timeleft { color: #ff8c42; }
-        .ag-modal-x { background: none; border: none; color: #3a4560; font-size: 1.1rem; cursor: pointer; padding: 4px; }
+        .ag-modal-x { background: none; border: none; color: #eaf8f7; font-size: 1.1rem; cursor: pointer; padding: 4px; }
         .ag-modal-x:hover { color: #f0f4ff; }
 
         .ag-modal-context {
@@ -560,10 +560,10 @@ export default function AgentScenariosPage() {
         }
         .ag-mc-header {
           font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
-          text-transform: uppercase; color: #3a4560; margin-bottom: 0.75rem;
+          text-transform: uppercase; color: #eaf8f7; margin-bottom: 0.75rem;
         }
         .ag-mc-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 0.5rem; }
-        .ag-mc-label { display: block; font-size: 0.68rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+        .ag-mc-label { display: block; font-size: 0.68rem; color: #eaf8f7; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
         .ag-mc-val { font-size: 0.9rem; font-weight: 600; color: #f0f4ff; }
         .ag-mc-note { font-size: 0.82rem; color: #8fa3b8; font-style: italic; margin: 0.75rem 0 0; line-height: 1.5; }
         .ag-mc-slots {
@@ -585,8 +585,8 @@ export default function AgentScenariosPage() {
         .ag-input:focus, .ag-textarea:focus { border-color: rgba(0,232,122,0.4); }
         .ag-textarea { resize: vertical; line-height: 1.5; }
         .ag-mf-footer { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-top: 5px; }
-        .ag-mf-hint { font-size: 0.75rem; color: #3a4560; line-height: 1.4; }
-        .ag-mf-count { font-size: 0.72rem; color: #3a4560; white-space: nowrap; flex-shrink: 0; }
+        .ag-mf-hint { font-size: 0.75rem; color: #eaf8f7; line-height: 1.4; }
+        .ag-mf-count { font-size: 0.72rem; color: #eaf8f7; white-space: nowrap; flex-shrink: 0; }
 
         .ag-modal-error {
           font-size: 0.85rem; color: #ff5f5f;

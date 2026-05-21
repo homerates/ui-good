@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/lo/scenarios/page.tsx
 // LO board: see anonymous borrower scenarios and respond
 
@@ -344,7 +344,7 @@ export default function LOScenariosPage() {
                 <div style={{ fontFamily: "var(--font-dm-sans, sans-serif)", fontSize: "1.1rem", fontWeight: 700, color: "#f0f4ff", marginBottom: 8 }}>For registered professionals</div>
                 <div style={{ fontSize: "0.85rem", color: "#8fa3b8", marginBottom: 20, lineHeight: 1.5 }}>Create a free account to see live borrower scenarios and respond directly in your area.</div>
                 <Link href="/sign-up" style={{ display: "inline-block", background: "#00e87a", color: "#080c12", fontWeight: 700, fontSize: "0.9rem", borderRadius: 999, padding: "10px 28px", textDecoration: "none" }}>Create free account →</Link>
-                <div style={{ marginTop: 10, fontSize: "0.78rem", color: "#3a4560" }}>Already have an account? <Link href="/sign-in?redirect_url=/lo/scenarios" style={{ color: "#3d8bff" }}>Sign in</Link></div>
+                <div style={{ marginTop: 10, fontSize: "0.78rem", color: "#eaf8f7" }}>Already have an account? <Link href="/sign-in?redirect_url=/lo/scenarios" style={{ color: "#3d8bff" }}>Sign in</Link></div>
               </div>
             </div>
           </div>
@@ -677,7 +677,7 @@ export default function LOScenariosPage() {
                       ? { label: "Shortlisted", color: "#3d8bff", bg: "rgba(61,139,255,0.1)", border: "rgba(61,139,255,0.3)" }
                       : isActive
                       ? { label: "Pending", color: "#8fa3b8", bg: "rgba(143,163,184,0.08)", border: "rgba(143,163,184,0.2)" }
-                      : { label: "Closed", color: "#3a4560", bg: "rgba(58,69,96,0.15)", border: "rgba(58,69,96,0.3)" };
+                      : { label: "Closed", color: "#eaf8f7", bg: "rgba(58,69,96,0.15)", border: "rgba(58,69,96,0.3)" };
 
                     return (
                       <div
@@ -720,7 +720,7 @@ export default function LOScenariosPage() {
                         <div className="los-card-footer">
                           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                             {isActive && sb.closes_at && <span className="los-card-timeleft">{timeLeft(sb.closes_at)}</span>}
-                            {isActive && <span style={{ fontSize: "0.72rem", color: "#3a4560" }}>{(sb.max_responses ?? 3) - sb.response_count} slot{(sb.max_responses ?? 3) - sb.response_count !== 1 ? "s" : ""} left</span>}
+                            {isActive && <span style={{ fontSize: "0.72rem", color: "#eaf8f7" }}>{(sb.max_responses ?? 3) - sb.response_count} slot{(sb.max_responses ?? 3) - sb.response_count !== 1 ? "s" : ""} left</span>}
                           </div>
                           {isActive && (
                             <button
@@ -1036,7 +1036,7 @@ export default function LOScenariosPage() {
         .los-refresh-bar {
           display: flex; align-items: center; gap: 8px;
           margin-bottom: 1.75rem;
-          font-size: 0.75rem; color: #3a4560;
+          font-size: 0.75rem; color: #eaf8f7;
         }
         .los-refresh-dot {
           width: 6px; height: 6px; border-radius: 50%;
@@ -1049,7 +1049,7 @@ export default function LOScenariosPage() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
         }
-        .los-refresh-text { color: #3a4560; }
+        .los-refresh-text { color: #eaf8f7; }
         .los-refresh-btn {
           margin-left: auto; background: none; border: none;
           color: #3d8bff; font-size: 0.75rem; cursor: pointer;
@@ -1060,7 +1060,7 @@ export default function LOScenariosPage() {
 
         .los-loading, .los-empty { text-align: center; padding: 4rem 0; color: #8fa3b8; }
         .los-empty-icon { font-size: 2rem; margin-bottom: 0.75rem; }
-        .los-empty-sub { font-size: 0.82rem; color: #3a4560; margin-top: 0.5rem; max-width: 340px; margin-left: auto; margin-right: auto; }
+        .los-empty-sub { font-size: 0.82rem; color: #eaf8f7; margin-top: 0.5rem; max-width: 340px; margin-left: auto; margin-right: auto; }
 
         .los-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
 
@@ -1116,12 +1116,12 @@ export default function LOScenariosPage() {
         }
         .los-card-state { font-size: 0.82rem; font-weight: 600; color: #f0f4ff; }
         .los-card-purpose { font-size: 0.75rem; color: #8fa3b8; }
-        .los-card-time { font-size: 0.72rem; color: #3a4560; margin-left: auto; }
+        .los-card-time { font-size: 0.72rem; color: #eaf8f7; margin-left: auto; }
 
         .los-card-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
         .los-card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 0.75rem; }
         .los-card-field { display: flex; flex-direction: column; }
-        .los-cf-label { font-size: 0.68rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+        .los-cf-label { font-size: 0.68rem; color: #eaf8f7; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
         .los-cf-value { font-size: 0.88rem; font-weight: 600; color: #f0f4ff; }
 
         .los-card-ai-badge {
@@ -1136,9 +1136,9 @@ export default function LOScenariosPage() {
         .los-card-note { font-size: 0.8rem; color: #8fa3b8; font-style: italic; margin: 0 0 0.75rem; line-height: 1.45; }
 
         .los-card-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); }
-        .los-card-responses { font-size: 0.75rem; color: #3a4560; }
+        .los-card-responses { font-size: 0.75rem; color: #eaf8f7; }
         .los-card-timeleft { font-size: 0.72rem; color: #ff8c42; margin-top: 2px; }
-        .los-full-badge { font-size: 0.75rem; color: #3a4560; }
+        .los-full-badge { font-size: 0.75rem; color: #eaf8f7; }
         .los-respond-btn {
           padding: 7px 18px; background: #00e87a; color: #080c12;
           border: none; border-radius: 999px;
@@ -1184,7 +1184,7 @@ export default function LOScenariosPage() {
         .los-modal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.25rem; }
         .los-modal-title { font-family: 'DM Sans', sans-serif; font-size: 1.2rem; font-weight: 700; margin: 0 0 3px; }
         .los-modal-sub { font-size: 0.82rem; color: #8fa3b8; margin: 0; }
-        .los-modal-x { background: none; border: none; color: #3a4560; font-size: 1.1rem; cursor: pointer; padding: 4px; }
+        .los-modal-x { background: none; border: none; color: #eaf8f7; font-size: 1.1rem; cursor: pointer; padding: 4px; }
         .los-modal-x:hover { color: #f0f4ff; }
 
         .los-modal-scenario {
@@ -1209,10 +1209,10 @@ export default function LOScenariosPage() {
         }
         .los-ms-header {
           font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
-          text-transform: uppercase; color: #3a4560; margin-bottom: 0.75rem;
+          text-transform: uppercase; color: #eaf8f7; margin-bottom: 0.75rem;
         }
         .los-ms-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 0.75rem; }
-        .los-ms-label { display: block; font-size: 0.68rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+        .los-ms-label { display: block; font-size: 0.68rem; color: #eaf8f7; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
         .los-ms-val { font-size: 0.88rem; font-weight: 600; color: #f0f4ff; }
         .los-ms-note { font-size: 0.82rem; color: #8fa3b8; font-style: italic; margin: 0.75rem 0 0; line-height: 1.5; }
         .los-ms-slots {
@@ -1234,9 +1234,9 @@ export default function LOScenariosPage() {
         }
         .los-input:focus, .los-textarea:focus { border-color: rgba(0,232,122,0.4); }
         .los-textarea { resize: vertical; line-height: 1.5; }
-        .los-mf-hint { font-size: 0.75rem; color: #3a4560; line-height: 1.4; }
+        .los-mf-hint { font-size: 0.75rem; color: #eaf8f7; line-height: 1.4; }
         .los-mf-footer { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-top: 5px; }
-        .los-mf-count { font-size: 0.72rem; color: #3a4560; white-space: nowrap; flex-shrink: 0; }
+        .los-mf-count { font-size: 0.72rem; color: #eaf8f7; white-space: nowrap; flex-shrink: 0; }
 
         .los-modal-error {
           font-size: 0.85rem; color: #ff5f5f;

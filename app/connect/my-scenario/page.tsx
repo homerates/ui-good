@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/connect/my-scenario/page.tsx
 // Borrower's view: their active scenario + LO responses + invite flow
 
@@ -443,14 +443,14 @@ export default function MyScenarioPage() {
           border: 1px solid rgba(61,139,255,0.25);
         }
         .ms-state { font-size: 0.85rem; color: #f0f4ff; font-weight: 500; }
-        .ms-time { font-size: 0.78rem; color: #3a4560; }
+        .ms-time { font-size: 0.78rem; color: #eaf8f7; }
         .ms-closes-in { font-size: 0.75rem; font-weight: 600; color: #ffa040; background: rgba(255,160,64,0.10); border: 1px solid rgba(255,160,64,0.25); border-radius: 99px; padding: 2px 10px; }
         .ms-scenario-status-row { display: flex; align-items: center; gap: 12px; }
         .ms-status-active { font-size: 0.78rem; color: #00e87a; font-weight: 600; }
         .ms-status-matched { font-size: 0.78rem; color: #3d8bff; font-weight: 600; }
-        .ms-status-closed { font-size: 0.78rem; color: #3a4560; }
+        .ms-status-closed { font-size: 0.78rem; color: #eaf8f7; }
         .ms-close-btn {
-          font-size: 0.75rem; color: #3a4560; background: none; border: none;
+          font-size: 0.75rem; color: #eaf8f7; background: none; border: none;
           cursor: pointer; text-decoration: underline; padding: 0;
         }
         .ms-close-btn:hover { color: #8fa3b8; }
@@ -459,7 +459,7 @@ export default function MyScenarioPage() {
           display: grid; grid-template-columns: repeat(3, 1fr);
           gap: 14px; margin-bottom: 1rem;
         }
-        .ms-field-label { font-size: 0.7rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+        .ms-field-label { font-size: 0.7rem; color: #eaf8f7; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
         .ms-field-value { font-size: 0.9rem; font-weight: 600; color: #f0f4ff; }
         .ms-notes {
           font-size: 0.85rem; color: #8fa3b8; font-style: italic;
@@ -497,7 +497,7 @@ export default function MyScenarioPage() {
           font-weight: 700; font-size: 0.9rem; flex-shrink: 0;
         }
         .ms-lo-name { font-weight: 600; font-size: 0.95rem; color: #f0f4ff; }
-        .ms-lo-nmls { font-size: 0.75rem; color: #3a4560; font-family: 'DM Mono', monospace; }
+        .ms-lo-nmls { font-size: 0.75rem; color: #eaf8f7; font-family: 'DM Mono', monospace; }
 
         .ms-rate-pill {
           font-size: 0.9rem; font-weight: 700; color: #00e87a;
@@ -512,7 +512,7 @@ export default function MyScenarioPage() {
         }
 
         .ms-response-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-        .ms-response-time { font-size: 0.75rem; color: #3a4560; }
+        .ms-response-time { font-size: 0.75rem; color: #eaf8f7; }
 
         .ms-invite-btn {
           padding: 8px 20px; background: #00e87a; color: #080c12;

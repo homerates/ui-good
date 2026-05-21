@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // app/components/InteractiveSliderCard.tsx
 // Conventional · FHA · VA · Jumbo — dark theme rebuild with slider drawer UX
@@ -497,7 +497,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                                         onChange={e => { setCountyQuery(e.target.value); setCountySelected(''); }}
                                         style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,0.12)', fontSize: 13, outline: 'none', background: 'rgba(255,255,255,0.06)', color: '#c4cfe0', boxSizing: 'border-box', fontFamily: 'inherit' }}
                                     />
-                                    {countyMsg && <div style={{ fontSize: 11, color: '#6b7a99', marginTop: 3 }}>{countyMsg}</div>}
+                                    {countyMsg && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>{countyMsg}</div>}
                                     {countyResults.length > 0 && (
                                         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30, background: '#1a2035', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.4)', marginTop: 4, maxHeight: 220, overflowY: 'auto' }}>
                                             {countyResults.map((r, i) => (
@@ -711,8 +711,8 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc-hero { padding:18px 16px 14px; border-bottom:1px solid rgba(255,255,255,0.06); }
                 .isc-hero-payment { display:flex; align-items:baseline; gap:6px; margin-bottom:4px; }
                 .isc-hero-amount { font-size:clamp(2rem,5vw,2.6rem); font-weight:800; color:#f0f4ff; letter-spacing:-.04em; font-variant-numeric:tabular-nums; transition:color .15s; }
-                .isc-hero-per { font-size:.9rem; color:#6b7a99; font-weight:500; }
-                .isc-hero-sub { font-size:11px; color:#6b7a99; font-weight:500; margin-bottom:10px; }
+                .isc-hero-per { font-size:.9rem; color: #94a3b8; font-weight:500; }
+                .isc-hero-sub { font-size:11px; color: #94a3b8; font-weight:500; margin-bottom:10px; }
 
                 /* badges */
                 .isc-badge { font-size:11px; font-weight:600; border-radius:6px; padding:5px 10px; margin-bottom:10px; letter-spacing:.01em; }
@@ -727,15 +727,15 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc-legend { display:flex; flex-wrap:wrap; gap:5px 12px; }
                 .isc-legend-item { display:flex; align-items:center; gap:4px; }
                 .isc-legend-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
-                .isc-legend-name { font-size:10px; font-weight:600; color:#6b7a99; text-transform:uppercase; letter-spacing:.04em; }
+                .isc-legend-name { font-size:10px; font-weight:600; color: #94a3b8; text-transform:uppercase; letter-spacing:.04em; }
                 .isc-legend-val  { font-size:11px; font-weight:700; color:#c4cfe0; font-variant-numeric:tabular-nums; }
 
                 /* buydown table */
                 .isc-bd-table { border:1px solid rgba(255,255,255,0.08); border-radius:10px; overflow:hidden; margin:10px 0 8px; font-size:12px; }
-                .isc-bd-thead { display:grid; grid-template-columns:50px 60px 80px 80px 1fr; gap:6px; background:rgba(255,255,255,0.05); padding:6px 10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#6b7a99; }
+                .isc-bd-thead { display:grid; grid-template-columns:50px 60px 80px 80px 1fr; gap:6px; background:rgba(255,255,255,0.05); padding:6px 10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color: #94a3b8; }
                 .isc-bd-trow { display:grid; grid-template-columns:50px 60px 80px 80px 1fr; gap:6px; padding:7px 10px; font-weight:600; font-variant-numeric:tabular-nums; border-top:1px solid rgba(255,255,255,0.04); }
                 .isc-bd-trow--reduced { background:rgba(0,232,122,0.06); color:#00e87a; }
-                .isc-bd-trow--note { background:rgba(255,255,255,0.02); color:#6b7a99; }
+                .isc-bd-trow--note { background:rgba(255,255,255,0.02); color: #94a3b8; }
                 .isc-bd-green { color:#00e87a; font-weight:700; }
                 .isc-bd-muted { color:#8fa3b8; font-style:italic; }
                 .isc-bd-cost-row { display:flex; align-items:center; gap:10px; padding:7px 10px; border-top:1px solid rgba(255,255,255,0.07); background:rgba(255,255,255,0.03); font-size:12px; font-weight:600; color:#8fa3b8; }
@@ -751,11 +751,11 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc-trigger-left { display:flex; align-items:center; gap:10px; }
                 .isc-trigger-title { font-size:13px; font-weight:700; color:#c4cfe0; text-align:left; }
                 .isc-trigger-sub { font-size:10px; color:#00e87a; margin-top:1px; }
-                .isc-trigger-arrow { font-size:11px; color:#6b7a99; flex-shrink:0; }
+                .isc-trigger-arrow { font-size:11px; color: #94a3b8; flex-shrink:0; }
                 .isc-drawer { max-height:0; overflow:hidden; transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
                 .isc-drawer.open { max-height:1400px; }
                 .isc-drawer-cta { padding:4px 16px 12px; }
-                .isc-drawer-hint { font-size:12px; color:#6b7a99; font-style:italic; }
+                .isc-drawer-hint { font-size:12px; color: #94a3b8; font-style:italic; }
                 .isc-drawer-done { font-size:12px; color:#00e87a; font-weight:700; }
                 .isc-drawer-run { width:100%; padding:11px 0; background:rgba(0,232,122,0.08); color:#00e87a; border:1.5px solid rgba(0,232,122,0.3); border-radius:10px; font-size:14px; font-weight:800; cursor:pointer; font-family:inherit; letter-spacing:.01em; transition:all .15s; animation:iscRunPulse 1.8s ease-in-out infinite; }
                 .isc-drawer-run:hover { background:rgba(0,232,122,0.15); border-color:rgba(0,232,122,0.55); animation:none; }
@@ -764,14 +764,14 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc-exp { padding:12px 16px; background:rgba(255,255,255,0.015); display:flex; flex-direction:column; gap:16px; }
                 .isc-exp-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
                 .isc-exp-stat { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:8px; text-align:center; }
-                .isc-exp-stat-label { font-size:10px; color:#6b7a99; margin-bottom:3px; }
+                .isc-exp-stat-label { font-size:10px; color: #94a3b8; margin-bottom:3px; }
                 .isc-exp-stat-val { font-size:12px; font-weight:700; color:#c4cfe0; }
 
                 /* row / term toggle */
                 .isc-row { display:flex; flex-direction:column; gap:8px; }
                 .isc-row-hdr { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; }
                 .isc-row-name { font-size:13px; font-weight:700; color:#c4cfe0; }
-                .isc-row-val  { font-size:12px; font-weight:600; color:#6b7a99; }
+                .isc-row-val  { font-size:12px; font-weight:600; color: #94a3b8; }
                 .isc-terms { display:flex; gap:6px; }
                 .isc-term { flex:1; background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; padding:7px 0; font-size:12px; font-weight:600; color:#8fa3b8; cursor:pointer; font-family:inherit; transition:all .15s; text-align:center; }
                 .isc-term.on      { border-color:rgba(0,232,122,0.35);  color:#00e87a; background:rgba(0,232,122,0.08); }
@@ -811,7 +811,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
                 /* note */
                 .isc-note { padding:4px 16px 12px; }
-                .isc-note p { font-size:10px; color:#6b7a99; line-height:1.5; }
+                .isc-note p { font-size:10px; color: #94a3b8; line-height:1.5; }
 
                 @media (max-width: 480px) {
                     .isc-hero-amount { font-size:1.9rem; }

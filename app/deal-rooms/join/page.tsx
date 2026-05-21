@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -45,7 +45,7 @@ export default function JoinDealRoomPage() {
             <p style={{ fontFamily:"'Syne',sans-serif", fontSize:20, fontWeight:700, color:"#f0f4ff", marginBottom:8 }}>
               Joining Deal Room
             </p>
-            <p style={{ fontSize:14, color:"#6b7a99" }}>
+            <p style={{ fontSize:14, color: "#94a3b8" }}>
               {status === "loading" ? "Verifying your invite…" : "Setting up your access…"}
             </p>
           </>
@@ -56,7 +56,7 @@ export default function JoinDealRoomPage() {
             <p style={{ fontFamily:"'Syne',sans-serif", fontSize:20, fontWeight:700, color:"#00e87a", marginBottom:8 }}>
               You&apos;re in
             </p>
-            <p style={{ fontSize:14, color:"#6b7a99" }}>Redirecting to the room…</p>
+            <p style={{ fontSize:14, color: "#94a3b8" }}>Redirecting to the room…</p>
           </>
         )}
         {status === "error" && (
@@ -65,7 +65,7 @@ export default function JoinDealRoomPage() {
             <p style={{ fontFamily:"'Syne',sans-serif", fontSize:20, fontWeight:700, color:"#ff5f5f", marginBottom:8 }}>
               Invite Error
             </p>
-            <p style={{ fontSize:14, color:"#6b7a99", marginBottom:24 }}>{errorMsg}</p>
+            <p style={{ fontSize:14, color: "#94a3b8", marginBottom:24 }}>{errorMsg}</p>
             <button
               onClick={() => router.replace("/deal-rooms")}
               style={{ background:"#00e87a", color:"#080c12", border:"none", borderRadius:8, padding:"10px 20px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}

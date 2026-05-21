@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/components/AppNav.tsx
 // Shared sticky nav for standalone pages (messages, profile, library, etc.)
 // Provides logo, desktop nav links, and a slide-out mobile drawer.
@@ -148,7 +148,7 @@ function ensureStyles() {
     }
     .an-drawer-label {
       font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
-      text-transform: uppercase; color: #3a4560;
+      text-transform: uppercase; color: #eaf8f7;
       padding: 8px 8px 4px;
     }
 

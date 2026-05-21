@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/connect/post/page.tsx
 // Borrower posts an anonymous scenario brief — 2-step form
 // Path A: arrived from a LenderChecklistCard with scenario context (params pre-fill form)
@@ -741,7 +741,7 @@ function PostScenarioContent() {
         }
         .post-hard-gate-ghost:hover { color: #f0f4ff; }
         .post-hard-gate-note {
-          font-size: 0.75rem; color: #3a4560;
+          font-size: 0.75rem; color: #eaf8f7;
           margin: 1.5rem 0 0; line-height: 1.5;
         }
 
@@ -783,7 +783,7 @@ function PostScenarioContent() {
         }
         .post-scenario-field {}
         .post-scenario-label {
-          font-size: 0.68rem; color: #3a4560;
+          font-size: 0.68rem; color: #eaf8f7;
           text-transform: uppercase; letter-spacing: 0.06em;
           margin-bottom: 1px;
         }
@@ -829,13 +829,13 @@ function PostScenarioContent() {
         }
         .post-prog-step {
           display: flex; align-items: center; gap: 8px;
-          font-size: 0.82rem; color: #3a4560; font-weight: 500;
+          font-size: 0.82rem; color: #eaf8f7; font-weight: 500;
           white-space: nowrap;
         }
         .post-prog-step.active { color: #f0f4ff; }
         .post-prog-step span {
           width: 22px; height: 22px; border-radius: 50%;
-          background: rgba(255,255,255,0.07); color: #3a4560;
+          background: rgba(255,255,255,0.07); color: #eaf8f7;
           display: flex; align-items: center; justify-content: center;
           font-size: 0.75rem; font-weight: 600; flex-shrink: 0;
         }
@@ -860,8 +860,8 @@ function PostScenarioContent() {
           color: #8fa3b8; text-transform: uppercase; letter-spacing: 0.06em;
           margin-bottom: 0.75rem;
         }
-        .post-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #3a4560; }
-        .post-field-hint { display: block; font-size: 0.75rem; color: #3a4560; margin-top: 7px; line-height: 1.45; }
+        .post-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #eaf8f7; }
+        .post-field-hint { display: block; font-size: 0.75rem; color: #eaf8f7; margin-top: 7px; line-height: 1.45; }
 
         /* ── Matching preferences section ── */
         .post-matching-section {
@@ -905,7 +905,7 @@ function PostScenarioContent() {
           line-height: 1.5; box-sizing: border-box;
         }
         .post-textarea:focus { border-color: rgba(0,232,122,0.4); }
-        .post-char-count { font-size: 0.75rem; color: #3a4560; text-align: right; margin-top: 4px; }
+        .post-char-count { font-size: 0.75rem; color: #eaf8f7; text-align: right; margin-top: 4px; }
 
         .post-review-grid {
           display: grid; grid-template-columns: 1fr 1fr;
@@ -913,7 +913,7 @@ function PostScenarioContent() {
           background: #141b28; border-radius: 12px; padding: 1.25rem;
           border: 1px solid rgba(255,255,255,0.07);
         }
-        .post-review-label { font-size: 0.72rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+        .post-review-label { font-size: 0.72rem; color: #eaf8f7; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
         .post-review-value { font-size: 0.9rem; font-weight: 600; color: #f0f4ff; }
 
         /* Visibility toggle */

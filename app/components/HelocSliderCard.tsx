@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // app/components/HelocSliderCard.tsx
 // HELOC Intelligence Card — dual-mode (Summary + Deep Dive)
@@ -39,7 +39,7 @@ const DRAW_PERIOD_MO = 120; // 10yr standard draw period
 
 // ── Verdict ──────────────────────────────────────────────────────────────────
 function helocVerdict(cltv80: number, draw: number, maxLine80: number): { emoji: string; text: string; color: string } {
-    if (draw === 0) return { emoji: '📐', color: '#6b7a99', text: 'Adjust the draw amount to see your HELOC payment and qualification window.' };
+    if (draw === 0) return { emoji: '📐', color: '#94a3b8', text: 'Adjust the draw amount to see your HELOC payment and qualification window.' };
     if (cltv80 <= 75) return { emoji: '✅', color: '#00e87a', text: `Strong equity — CLTV ${cltv80.toFixed(0)}%. Most lenders will compete for this file. Draw up to ${fmt$(maxLine80, true)} at 80% CLTV.` };
     if (cltv80 <= 80) return { emoji: '⚡', color: '#fbbf24', text: `At the 80% CLTV ceiling. This is the standard qualification limit — reduce draw slightly for rate negotiation leverage.` };
     if (cltv80 <= 85) return { emoji: '⚠️', color: '#f97316', text: `Over 80% CLTV. Some lenders allow 85% but at higher rates. Reduce draw to ${fmt$(maxLine80, true)} to stay within the standard window.` };
@@ -126,13 +126,13 @@ export default function HelocSliderCard(props: HelocSliderParams) {
         <style>{`
           @keyframes hc-pulse{0%,100%{opacity:1}50%{opacity:.4}}
           .hc-dot{width:6px;height:6px;border-radius:50%;background:#2dd4bf;box-shadow:0 0 6px #2dd4bf;animation:hc-pulse 2s infinite;flex-shrink:0}
-          .hc-mode{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 12px;border-radius:5px;border:none;cursor:pointer;background:transparent;color:#3a4560;transition:all .15s}
+          .hc-mode{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 12px;border-radius:5px;border:none;cursor:pointer;background:transparent;color: #eaf8f7;transition:all .15s}
           .hc-mode.active{background:rgba(45,212,191,0.1);color:#2dd4bf}
-          .hc-chip{font-size:10px;font-weight:700;color:#6b7a99;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:4px 12px;cursor:pointer;white-space:nowrap}
+          .hc-chip{font-size:10px;font-weight:700;color: #94a3b8;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:4px 12px;cursor:pointer;white-space:nowrap}
           .hc-chip:hover{background:rgba(255,255,255,0.07);color:#e6edf3}
           .hc-dive{margin:0 16px 16px;background:linear-gradient(135deg,rgba(45,212,191,0.06),rgba(96,165,250,0.04));border:1px solid rgba(45,212,191,0.18);border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .15s}
           .hc-dive:hover{border-color:rgba(45,212,191,0.35);background:rgba(45,212,191,0.09)}
-          .hc-back{display:flex;align-items:center;gap:6px;padding:10px 16px 0;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#3a4560;cursor:pointer;border:none;background:transparent}
+          .hc-back{display:flex;align-items:center;gap:6px;padding:10px 16px 0;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color: #eaf8f7;cursor:pointer;border:none;background:transparent}
           .hc-back:hover{color:#2dd4bf}
           .hc-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px}
           .hc-row:last-child{border-bottom:none}

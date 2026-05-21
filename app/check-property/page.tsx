@@ -292,7 +292,7 @@ function CheckPropertyInner() {
                 <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#f0f4ff', letterSpacing: '-0.5px' }}>
                     Does this property fit your price range?
                 </h1>
-                <p style={{ margin: '6px 0 0', fontSize: 13, color: '#6b7a99', lineHeight: 1.5 }}>
+                <p style={{ margin: '6px 0 0', fontSize: 13, color: '#94a3b8', lineHeight: 1.5 }}>
                     Paste any address or Redfin/Zillow link below and hit <strong style={{ color: '#c4cfe0' }}>Run Numbers</strong> — we pull real tax data and show you exactly where you stand.
                 </p>
             </div>
@@ -407,7 +407,7 @@ function CheckPropertyInner() {
                         {lookupErr}
                     </div>
                 )}
-                <div style={{ marginTop: 8, fontSize: 11, color: '#3a4560', lineHeight: 1.4 }}>
+                <div style={{ marginTop: 8, fontSize: 11, color: '#eaf8f7', lineHeight: 1.4 }}>
                     Supports any street address · Redfin · Zillow · Realtor.com links
                 </div>
             </div>
@@ -442,7 +442,7 @@ function CheckPropertyInner() {
                             <div style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '12px 14px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
                                     <div>
-                                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#3a4560', marginBottom: 3 }}>AVM Estimate</div>
+                                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 3 }}>AVM Estimate</div>
                                         <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(avm)}</div>
                                         {propData.estimatedValueLow && propData.estimatedValueHigh && (
                                             <div style={{ fontSize: 11, color: '#4b6080', marginTop: 2 }}>
@@ -451,7 +451,7 @@ function CheckPropertyInner() {
                                         )}
                                     </div>
                                     <div>
-                                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#3a4560', marginBottom: 3 }}>List Price</div>
+                                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 3 }}>List Price</div>
                                         <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(listPrice)}</div>
                                     </div>
                                     {badge && (
@@ -527,11 +527,11 @@ function CheckPropertyInner() {
                                     {/* Row 1: Price */}
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
                                         <div style={col()}>
-                                            <div style={{ fontSize: 9, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Your Budget</div>
+                                            <div style={{ fontSize: 9, color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Your Budget</div>
                                             <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(sc.price)}</div>
                                         </div>
                                         <div style={col()}>
-                                            <div style={{ fontSize: 9, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Listed At</div>
+                                            <div style={{ fontSize: 9, color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Listed At</div>
                                             <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(actualPrice)}</div>
                                         </div>
                                         <div style={{ ...col(true, fbg(priceDelta)) }}>
@@ -544,12 +544,12 @@ function CheckPropertyInner() {
                                     {/* Row 2: Monthly payment */}
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
                                         <div style={col()}>
-                                            <div style={{ fontSize: 9, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Monthly Payment</div>
+                                            <div style={{ fontSize: 9, color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Monthly Payment</div>
                                             <div style={{ fontSize: 18, fontWeight: 800, color: '#f0f4ff' }}>{fmt$(Math.round(scenTotalMo))}<span style={{ fontSize: 11, color: '#4b6080', fontWeight: 400 }}>/mo</span></div>
                                             <div style={{ fontSize: 10, color: '#4b6080', marginTop: 2 }}>{sc.monthlyDebt > 0 ? 'PITI + other debts' : 'PITI'}</div>
                                         </div>
                                         <div style={col()}>
-                                            <div style={{ fontSize: 9, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Monthly Payment</div>
+                                            <div style={{ fontSize: 9, color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Monthly Payment</div>
                                             <div style={{ fontSize: 18, fontWeight: 800, color: '#f0f4ff' }}>{fmt$(Math.round(actualTotalMo))}<span style={{ fontSize: 11, color: '#4b6080', fontWeight: 400 }}>/mo</span></div>
                                             <div style={{ fontSize: 10, color: '#4b6080', marginTop: 2 }}>{sc.monthlyDebt > 0 ? 'PITI + other debts' : 'PITI'}</div>
                                         </div>
@@ -563,14 +563,14 @@ function CheckPropertyInner() {
                                     {/* Row 3: Income to qualify */}
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
                                         <div style={col()}>
-                                            <div style={{ fontSize: 9, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Income to Qualify</div>
+                                            <div style={{ fontSize: 9, color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Income to Qualify</div>
                                             <div style={{ fontSize: 16, fontWeight: 800, color: '#f0f4ff' }}>{fmt$(scenIncome)}<span style={{ fontSize: 11, color: '#4b6080', fontWeight: 400 }}>/yr</span></div>
-                                            <div style={{ fontSize: 10, color: '#3a4560', marginTop: 2 }}>at {dtiLabel} DTI</div>
+                                            <div style={{ fontSize: 10, color: '#eaf8f7', marginTop: 2 }}>at {dtiLabel} DTI</div>
                                         </div>
                                         <div style={col()}>
-                                            <div style={{ fontSize: 9, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Income to Qualify</div>
+                                            <div style={{ fontSize: 9, color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Income to Qualify</div>
                                             <div style={{ fontSize: 16, fontWeight: 800, color: '#f0f4ff' }}>{fmt$(actualIncome)}<span style={{ fontSize: 11, color: '#4b6080', fontWeight: 400 }}>/yr</span></div>
-                                            <div style={{ fontSize: 10, color: '#3a4560', marginTop: 2 }}>at {dtiLabel} DTI</div>
+                                            <div style={{ fontSize: 10, color: '#eaf8f7', marginTop: 2 }}>at {dtiLabel} DTI</div>
                                         </div>
                                         <div style={{ ...col(true, fbg(incomeDelta)) }}>
                                             <div style={{ fontSize: 9, color: fc(incomeDelta), textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4, opacity: 0.7 }}>Income Gap</div>
@@ -584,7 +584,7 @@ function CheckPropertyInner() {
                                 {Math.abs(downGap) > 500 && (
                                     <div style={{ background: statusBg, border: `1px solid ${statusBdr}`, borderRadius: 9, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div>
-                                            <div style={{ fontSize: 11, color: '#6b7a99' }}>Down payment at {sc.dp}%</div>
+                                            <div style={{ fontSize: 11, color: '#94a3b8' }}>Down payment at {sc.dp}%</div>
                                             <div style={{ fontSize: 12, color: '#c4cfe0', marginTop: 2 }}>
                                                 {fmtK(Math.round(sc.price * sc.dp / 100))} on your scenario → {fmtK(Math.round(actualPrice * sc.dp / 100))} on this property
                                             </div>
@@ -610,7 +610,7 @@ function CheckPropertyInner() {
                                 Updated PITI — with real tax data
                             </div>
                             <div style={{ fontSize: 36, fontWeight: 800, color: theme.accent, letterSpacing: '-1px' }}>
-                                {fmt$(Math.round(actualPITI))}<span style={{ fontSize: 16, fontWeight: 600, color: '#6b7a99' }}>/mo</span>
+                                {fmt$(Math.round(actualPITI))}<span style={{ fontSize: 16, fontWeight: 600, color: '#94a3b8' }}>/mo</span>
                             </div>
                             {realAnnTax && (
                                 <div style={{ fontSize: 12, color: '#8fa3b8', marginTop: 6 }}>
@@ -628,11 +628,11 @@ function CheckPropertyInner() {
                         </KVGrid>
                         <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                             <div style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '10px 12px' }}>
-                                <div style={{ fontSize: 10, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 3 }}>Income @ {sc.lt === 'jumbo' ? '38%' : sc.lt === 'va' ? '41%' : '43%'} DTI</div>
+                                <div style={{ fontSize: 10, color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 3 }}>Income @ {sc.lt === 'jumbo' ? '38%' : sc.lt === 'va' ? '41%' : '43%'} DTI</div>
                                 <div style={{ fontSize: 16, fontWeight: 800, color: theme.accent }}>{fmt$(sc.lt === 'jumbo' ? realIncome38 : sc.lt === 'va' ? realIncome41 : realIncome43)}<span style={{ fontSize: 11, fontWeight: 600, color: '#4b6080' }}>/yr</span></div>
                             </div>
                             <div style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '10px 12px' }}>
-                                <div style={{ fontSize: 10, color: '#3a4560', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 3 }}>Income @ 36% DTI</div>
+                                <div style={{ fontSize: 10, color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 3 }}>Income @ 36% DTI</div>
                                 <div style={{ fontSize: 16, fontWeight: 800, color: '#c4cfe0' }}>{fmt$(Math.round((actualPITI / 0.36) * 12))}<span style={{ fontSize: 11, fontWeight: 600, color: '#4b6080' }}>/yr</span></div>
                             </div>
                         </div>
@@ -671,7 +671,7 @@ function CheckPropertyInner() {
                                 </div>
                             </div>
                         )}
-                        <div style={{ marginTop: 8, fontSize: 11, color: '#3a4560', lineHeight: 1.5 }}>
+                        <div style={{ marginTop: 8, fontSize: 11, color: '#eaf8f7', lineHeight: 1.5 }}>
                             Closing costs are estimated at {(closingPct * 100).toFixed(1)}% for {theme.label} loans — actual costs depend on lender, title company, and state. Prepaid escrow covers your initial tax and insurance setup with the lender.
                         </div>
                     </Section>
@@ -683,17 +683,17 @@ function CheckPropertyInner() {
                                 <div key={years} style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '14px 14px' }}>
                                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 8 }}>{years}-Year Horizon</div>
                                     <div style={{ marginBottom: 6 }}>
-                                        <div style={{ fontSize: 10, color: '#3a4560', marginBottom: 2 }}>Total Out of Pocket</div>
+                                        <div style={{ fontSize: 10, color: '#eaf8f7', marginBottom: 2 }}>Total Out of Pocket</div>
                                         <div style={{ fontSize: 18, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(oc.totalPaid)}</div>
                                     </div>
                                     <div style={{ marginBottom: 6 }}>
-                                        <div style={{ fontSize: 10, color: '#3a4560', marginBottom: 2 }}>Equity Built (payments)</div>
+                                        <div style={{ fontSize: 10, color: '#eaf8f7', marginBottom: 2 }}>Equity Built (payments)</div>
                                         <div style={{ fontSize: 16, fontWeight: 700, color: '#00e87a' }}>{fmtK(Math.round(oc.equityBuilt))}</div>
                                     </div>
                                     <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, marginTop: 4 }}>
-                                        <div style={{ fontSize: 10, color: '#3a4560', marginBottom: 2 }}>Net Cost of Ownership</div>
+                                        <div style={{ fontSize: 10, color: '#eaf8f7', marginBottom: 2 }}>Net Cost of Ownership</div>
                                         <div style={{ fontSize: 16, fontWeight: 800, color: theme.accent }}>{fmtK(Math.round(oc.netCost))}</div>
-                                        <div style={{ fontSize: 10, color: '#3a4560', marginTop: 2 }}>{fmtK(Math.round(oc.netCost / years))}/yr avg</div>
+                                        <div style={{ fontSize: 10, color: '#eaf8f7', marginTop: 2 }}>{fmtK(Math.round(oc.netCost / years))}/yr avg</div>
                                     </div>
                                 </div>
                             ))}
@@ -704,7 +704,7 @@ function CheckPropertyInner() {
                             <KV k="Interest paid (10yr)" v={fmtK(Math.round(oc10.piPaid - (actualLoanAmt - loanBalanceAfter(actualLoanAmt, sc.rate, sc.term * 12, 120))))} />
                             <KV k="Tax paid (10yr)" v={fmtK(Math.round(oc10.taxPaid))} />
                         </KVGrid>
-                        <div style={{ marginTop: 10, fontSize: 11, color: '#3a4560', lineHeight: 1.5 }}>
+                        <div style={{ marginTop: 10, fontSize: 11, color: '#eaf8f7', lineHeight: 1.5 }}>
                             Net cost = total out of pocket minus equity built through principal paydown. Does not assume any appreciation — equity upside from price growth is separate.
                         </div>
                     </Section>
@@ -772,7 +772,7 @@ function CheckPropertyInner() {
                         <div style={{ fontSize: 18, fontWeight: 800, color: '#f0f4ff', marginBottom: 6 }}>
                             Ready to lock in a rate?
                         </div>
-                        <div style={{ fontSize: 13, color: '#6b7a99', lineHeight: 1.5, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px' }}>
+                        <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px' }}>
                             You know your real PITI, cash to close, and cost of ownership. Most buyers don't walk in this prepared. Connect with a {theme.label.toLowerCase()} specialist who can run your exact scenario.
                         </div>
                         <a
@@ -785,7 +785,7 @@ function CheckPropertyInner() {
                         >
                             Get Matched with a {theme.label} Specialist →
                         </a>
-                        <div style={{ marginTop: 10, fontSize: 11, color: '#3a4560' }}>
+                        <div style={{ marginTop: 10, fontSize: 11, color: '#eaf8f7' }}>
                             No commitment · Free · Your scenario is pre-loaded
                         </div>
                     </div>
@@ -794,7 +794,7 @@ function CheckPropertyInner() {
 
             {/* empty state */}
             {!propData && !loading && (
-                <div style={{ textAlign: 'center', padding: '40px 16px', color: '#3a4560' }}>
+                <div style={{ textAlign: 'center', padding: '40px 16px', color: '#eaf8f7' }}>
                     <div style={{ fontSize: 32, marginBottom: 10 }}>🏠</div>
                     <div style={{ fontSize: 13 }}>Enter an address above to pull real tax data and run your full scenario</div>
                 </div>
@@ -822,7 +822,7 @@ function Section({ title, icon, accent, children }: { title: string; icon: strin
 function StatTile({ label, value }: { label: string; value: string }) {
     return (
         <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 9, padding: '8px 10px' }}>
-            <div style={{ fontSize: 10, color: '#3a4560', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</div>
+            <div style={{ fontSize: 10, color: '#eaf8f7', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#c4cfe0' }}>{value}</div>
         </div>
     );

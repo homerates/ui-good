@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/professionals/[id]/page.tsx
 // Public profile page for a single pro — shareable URL, works for any pro_type
 
@@ -137,11 +137,11 @@ export default function ProProfilePage() {
 
         .pp-shell{max-width:720px;margin:0 auto;padding:28px 20px 80px;}
 
-        .pp-back{display:inline-flex;align-items:center;gap:5px;font-size:0.85rem;font-weight:500;color:#6b7a99;text-decoration:none;margin-bottom:20px;transition:color 0.15s;}
+        .pp-back{display:inline-flex;align-items:center;gap:5px;font-size:0.85rem;font-weight:500;color: #94a3b8;text-decoration:none;margin-bottom:20px;transition:color 0.15s;}
         .pp-back:hover{color:#f0f4ff;}
 
         .pp-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:24px 28px;margin-bottom:16px;}
-        .pp-label{font-size:11px;font-weight:700;color:#3a4560;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px;}
+        .pp-label{font-size:11px;font-weight:700;color: #eaf8f7;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px;}
         .pp-divider{border:none;border-top:1px solid rgba(255,255,255,0.07);margin:20px 0;}
 
         @media(max-width:560px){
@@ -166,12 +166,12 @@ export default function ProProfilePage() {
           <Link href="/professionals" className="pp-back">← Directory</Link>
 
           {loading && (
-            <div style={{ textAlign: "center", padding: "80px 0", color: "#3a4560" }}>Loading…</div>
+            <div style={{ textAlign: "center", padding: "80px 0", color: "#eaf8f7" }}>Loading…</div>
           )}
 
           {!loading && notFound && (
             <div style={{ textAlign: "center", padding: "80px 0" }}>
-              <div style={{ fontSize: 32, marginBottom: 12, color: "#3a4560" }}>Not found</div>
+              <div style={{ fontSize: 32, marginBottom: 12, color: "#eaf8f7" }}>Not found</div>
               <Link href="/professionals" style={{ color: "#3d8bff", fontSize: 14 }}>Browse the directory</Link>
             </div>
           )}
@@ -211,7 +211,7 @@ export default function ProProfilePage() {
                       )}
                     </div>
                     {pro.company_name && (
-                      <div style={{ color: "#6b7a99", fontSize: 14, marginBottom: 8 }}>{pro.company_name}</div>
+                      <div style={{ color: "#94a3b8", fontSize: 14, marginBottom: 8 }}>{pro.company_name}</div>
                     )}
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                       <span style={{
@@ -222,7 +222,7 @@ export default function ProProfilePage() {
                         {PRO_TYPE_LABEL[pro.pro_type] ?? pro.pro_type}
                       </span>
                       {(pro.city || pro.state) && (
-                        <span style={{ color: "#6b7a99", fontSize: 13 }}>
+                        <span style={{ color: "#94a3b8", fontSize: 13 }}>
                           📍 {[pro.city, pro.state].filter(Boolean).join(", ")}{pro.zip ? ` ${pro.zip}` : ""}
                         </span>
                       )}
@@ -277,25 +277,25 @@ export default function ProProfilePage() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 20px" }}>
                   {pro.license_type && (
                     <div>
-                      <div style={{ color: "#3a4560", fontSize: 11, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.06em" }}>Type</div>
+                      <div style={{ color: "#eaf8f7", fontSize: 11, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.06em" }}>Type</div>
                       <div style={{ fontSize: 13, color: "#8fa3b8" }}>{pro.license_type}</div>
                     </div>
                   )}
                   {pro.license_status && (
                     <div>
-                      <div style={{ color: "#3a4560", fontSize: 11, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.06em" }}>Status</div>
+                      <div style={{ color: "#eaf8f7", fontSize: 11, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.06em" }}>Status</div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: statusColor(pro.license_status) }}>{pro.license_status}</div>
                     </div>
                   )}
                   {pro.source !== "self" && pro.source_id && (
                     <div>
-                      <div style={{ color: "#3a4560", fontSize: 11, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{SOURCE_LABEL[pro.source] ?? pro.source} #</div>
-                      <div style={{ fontSize: 12, fontFamily: "monospace", color: "#6b7a99" }}>{pro.source_id.replace(/^co_/, "")}</div>
+                      <div style={{ color: "#eaf8f7", fontSize: 11, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{SOURCE_LABEL[pro.source] ?? pro.source} #</div>
+                      <div style={{ fontSize: 12, fontFamily: "monospace", color: "#94a3b8" }}>{pro.source_id.replace(/^co_/, "")}</div>
                     </div>
                   )}
                   <div>
-                    <div style={{ color: "#3a4560", fontSize: 11, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.06em" }}>Source</div>
-                    <div style={{ fontSize: 13, color: "#6b7a99" }}>{SOURCE_LABEL[pro.source] ?? pro.source}</div>
+                    <div style={{ color: "#eaf8f7", fontSize: 11, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.06em" }}>Source</div>
+                    <div style={{ fontSize: 13, color: "#94a3b8" }}>{SOURCE_LABEL[pro.source] ?? pro.source}</div>
                   </div>
                 </div>
               </div>
@@ -311,7 +311,7 @@ export default function ProProfilePage() {
                     <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, color: "#f0f4ff" }}>
                       {isLO ? "Get a mortgage quote" : "Connect with this agent"}
                     </div>
-                    <div style={{ color: "#6b7a99", fontSize: 13 }}>
+                    <div style={{ color: "#94a3b8", fontSize: 13 }}>
                       {isLO
                         ? "Run your numbers on our AI mortgage calculator."
                         : "Search listings and connect with a licensed professional."}
@@ -337,7 +337,7 @@ export default function ProProfilePage() {
                       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, color: "#f0f4ff" }}>
                         Is this your profile?
                       </div>
-                      <div style={{ color: "#6b7a99", fontSize: 13, lineHeight: 1.6 }}>
+                      <div style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.6 }}>
                         Add your photo, bio, and contact details. Takes 2 minutes — free.
                       </div>
                     </div>
@@ -356,14 +356,14 @@ export default function ProProfilePage() {
 
                   {/* Section 2 — Know this pro? */}
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: "#6b7a99", marginBottom: 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: "#94a3b8", marginBottom: 10 }}>
                       Know this professional? Send them a link to claim it.
                     </div>
 
                     {/* Signed out */}
                     {userLoaded && !user && (
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ color: "#3a4560", fontSize: 13 }}>Sign in to send an invite.</span>
+                        <span style={{ color: "#eaf8f7", fontSize: 13 }}>Sign in to send an invite.</span>
                         <Link href={`/sign-in?redirect_url=/professionals/${pro.id}`} style={{
                           color: "#3d8bff", fontSize: 13, fontWeight: 600,
                         }}>
@@ -420,7 +420,7 @@ export default function ProProfilePage() {
               )}
 
               {/* Footer note */}
-              <p style={{ color: "#3a4560", fontSize: 11, textAlign: "center", lineHeight: 1.7, marginTop: 24 }}>
+              <p style={{ color: "#eaf8f7", fontSize: 11, textAlign: "center", lineHeight: 1.7, marginTop: 24 }}>
                 License data sourced from {SOURCE_LABEL[pro.source] ?? pro.source}.
                 Verify credentials independently before entering a business relationship.
               </p>

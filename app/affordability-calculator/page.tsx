@@ -1,4 +1,4 @@
-// app/affordability-calculator/page.tsx
+﻿// app/affordability-calculator/page.tsx
 // SEO landing page — /affordability-calculator
 // Target keyword: "mortgage affordability calculator" (18,000/mo) + "how much house can I afford" (27,000/mo)
 // KD: 40 | CPC: $12 | Audience: first-time buyers, research stage
@@ -544,7 +544,7 @@ export default function AffordabilityCalculatorPage() {
                 .breadcrumb ol {
                     display: flex; gap: 6px; list-style: none;
                     padding: 0; margin: 0 0 2rem; font-size: 13px;
-                    color: #3a4560; font-family: 'DM Mono', monospace;
+                    color: #eaf8f7; font-family: 'DM Mono', monospace;
                 }
                 .breadcrumb a { color: inherit; text-decoration: none; }
                 .breadcrumb a:hover { color: #8fa3b8; }
@@ -591,7 +591,7 @@ export default function AffordabilityCalculatorPage() {
                     display: flex; flex-wrap: wrap; gap: 8px;
                     align-items: center; margin-bottom: 1rem;
                 }
-                .seed-label { font-size: 12px; color: #3a4560; font-family: 'DM Mono', monospace; }
+                .seed-label { font-size: 12px; color: #eaf8f7; font-family: 'DM Mono', monospace; }
                 .seed-chip {
                     font-size: 13px; padding: 5px 13px;
                     background: #141b28; border-radius: 99px;
@@ -614,7 +614,7 @@ export default function AffordabilityCalculatorPage() {
                 .cta-button:hover { opacity: 0.88; transform: translateY(-1px); }
                 .cta-sub {
                     margin: 10px 0 0; font-size: 13px;
-                    color: #3a4560;
+                    color: #eaf8f7;
                 }
                 .cta-sub a { color: #00e87a; }
 
@@ -657,7 +657,7 @@ export default function AffordabilityCalculatorPage() {
                 }
                 .example-table th {
                     text-align: left; font-size: 0.75rem; font-weight: 600;
-                    color: #3a4560; padding: 8px 12px;
+                    color: #eaf8f7; padding: 8px 12px;
                     border-bottom: 1px solid rgba(255,255,255,0.07);
                     background: #0e1420;
                     text-transform: uppercase; letter-spacing: 0.08em;
@@ -667,7 +667,7 @@ export default function AffordabilityCalculatorPage() {
                 .example-table tr:last-child td { border-bottom: none; }
                 .income-cell { font-weight: 600; color: #f0f4ff !important; }
                 .price-cell { font-weight: 600; color: #00e87a !important; }
-                .table-note { font-size: 0.8rem; color: #3a4560; margin: 0; line-height: 1.5; font-family: 'DM Mono', monospace; }
+                .table-note { font-size: 0.8rem; color: #eaf8f7; margin: 0; line-height: 1.5; font-family: 'DM Mono', monospace; }
 
                 /* How it works */
                 .how-it-works { margin-bottom: 3rem; }
@@ -694,8 +694,8 @@ export default function AffordabilityCalculatorPage() {
                 .author-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; color: #f0f4ff; }
                 .author-cred { font-size: 0.82rem; color: #8fa3b8; margin-bottom: 0.4rem; }
                 .author-bio { font-size: 0.88rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
-                .last-updated { font-size: 0.8rem; color: #3a4560; margin: 0 0 0.5rem; font-family: 'DM Mono', monospace; }
-                .disclaimer { font-size: 0.8rem; color: #3a4560; margin: 0; line-height: 1.55; }
+                .last-updated { font-size: 0.8rem; color: #eaf8f7; margin: 0 0 0.5rem; font-family: 'DM Mono', monospace; }
+                .disclaimer { font-size: 0.8rem; color: #eaf8f7; margin: 0; line-height: 1.55; }
 
                 /* FAQ */
                 .faq-section { margin-bottom: 3rem; }
@@ -714,7 +714,7 @@ export default function AffordabilityCalculatorPage() {
                     color: #f0f4ff;
                 }
                 .faq-question::-webkit-details-marker { display: none; }
-                .faq-question::after { content: '+'; font-size: 1.2rem; color: #3a4560; }
+                .faq-question::after { content: '+'; font-size: 1.2rem; color: #eaf8f7; }
                 details[open] .faq-question::after { content: '−'; }
                 .faq-answer {
                     padding: 0.75rem 1.25rem 1rem; margin: 0;

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/admin/brokerage/[id]/page.tsx
 // Admin read-only view of any brokerage — reached from /admin/corporate "View org →"
 
@@ -18,7 +18,7 @@ const ORG_LABELS: Record<string, string> = {
 function planBadge(plan: string) {
   if (plan === "pro")  return { label: "Pro",  bg: "rgba(0,232,122,0.12)",   color: "#00e87a", border: "rgba(0,232,122,0.3)" };
   if (plan === "plus") return { label: "Plus", bg: "rgba(61,139,255,0.12)",  color: "#3d8bff", border: "rgba(61,139,255,0.3)" };
-  return                       { label: "Free", bg: "rgba(255,255,255,0.05)", color: "#6b7a99", border: "rgba(255,255,255,0.1)" };
+  return                       { label: "Free", bg: "rgba(255,255,255,0.05)", color: "#94a3b8", border: "rgba(255,255,255,0.1)" };
 }
 
 interface Member {
@@ -79,7 +79,7 @@ export default function AdminBrokeragePage({ params }: { params: Promise<{ id: s
             <Link href="/admin/corporate" style={{ fontSize: "0.85rem", color: "#8fa3b8", textDecoration: "none" }}>
               ← Corporate accounts
             </Link>
-            <span style={{ fontSize: "0.75rem", color: "#3a4560", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", padding: "2px 10px", borderRadius: 999 }}>
+            <span style={{ fontSize: "0.75rem", color: "#eaf8f7", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", padding: "2px 10px", borderRadius: 999 }}>
               Admin view · read-only
             </span>
           </div>
@@ -137,7 +137,7 @@ export default function AdminBrokeragePage({ params }: { params: Promise<{ id: s
                 <div className="bk-section-title">Members</div>
                 <div className="bk-member-list">
                   {org.members.length === 0 ? (
-                    <p style={{ color: "#3a4560", fontSize: "0.875rem", margin: 0 }}>No members yet — owner hasn&apos;t invited their team.</p>
+                    <p style={{ color: "#eaf8f7", fontSize: "0.875rem", margin: 0 }}>No members yet — owner hasn&apos;t invited their team.</p>
                   ) : org.members.map(m => {
                     const pb = planBadge(m.plan);
                     return (
@@ -189,7 +189,7 @@ export default function AdminBrokeragePage({ params }: { params: Promise<{ id: s
                           }}>
                             {pb.label}
                           </span>
-                          <span style={{ fontSize: "0.72rem", color: "#3a4560", whiteSpace: "nowrap" }}>
+                          <span style={{ fontSize: "0.72rem", color: "#eaf8f7", whiteSpace: "nowrap" }}>
                             {new Date(m.joined_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                           </span>
                         </div>
@@ -278,7 +278,7 @@ export default function AdminBrokeragePage({ params }: { params: Promise<{ id: s
         .bk-member-stats { display: flex; gap: 20px; flex-shrink: 0; }
         .bk-member-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
         .bk-member-stat-value { font-size: 0.95rem; font-weight: 700; color: #f0f4ff; }
-        .bk-member-stat-label { font-size: 0.65rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.05em; }
+        .bk-member-stat-label { font-size: 0.65rem; color: #eaf8f7; text-transform: uppercase; letter-spacing: 0.05em; }
 
         .bk-badge-owner { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: rgba(0,232,122,0.12); color: #00e87a; border: 1px solid rgba(0,232,122,0.25); }
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/admin/corporate/page.tsx
 // Admin: send corporate invitations, view nominations, track org onboarding status
 
@@ -29,7 +29,7 @@ const NOM_STATUS_STYLE: Record<string, { bg: string; color: string }> = {
   pending:   { bg: "rgba(245,158,11,0.12)",  color: "#f59e0b" },
   contacted: { bg: "rgba(61,139,255,0.12)",  color: "#3d8bff" },
   converted: { bg: "rgba(0,232,122,0.12)",   color: "#00e87a" },
-  dismissed: { bg: "rgba(255,255,255,0.06)", color: "#6b7a99" },
+  dismissed: { bg: "rgba(255,255,255,0.06)", color: "#94a3b8" },
 };
 
 interface Invitation {
@@ -118,7 +118,7 @@ export default function AdminCorporatePage() {
 
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const badge = (status: string, map: Record<string, { bg: string; color: string }>) => {
-    const s = map[status] ?? { bg: "rgba(255,255,255,0.06)", color: "#6b7a99" };
+    const s = map[status] ?? { bg: "rgba(255,255,255,0.06)", color: "#94a3b8" };
     return (
       <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: s.bg, color: s.color, letterSpacing: "0.05em", textTransform: "capitalize" as const }}>
         {status}
@@ -197,16 +197,16 @@ export default function AdminCorporatePage() {
                     <div style={{ flex: "1 1 auto", minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                         <span style={{ fontWeight: 600, color: "#f0f4ff", fontSize: "0.9rem" }}>{inv.org_name}</span>
-                        <span style={{ fontSize: "0.72rem", color: "#3a4560" }}>{ORG_LABEL[inv.org_type]}</span>
+                        <span style={{ fontSize: "0.72rem", color: "#eaf8f7" }}>{ORG_LABEL[inv.org_type]}</span>
                       </div>
                       <div style={{ fontSize: "0.78rem", color: "#8fa3b8", marginTop: 2 }}>
                         {inv.contact_name ? `${inv.contact_name} · ` : ""}{inv.contact_email}
                       </div>
-                      {inv.notes && <div style={{ fontSize: "0.72rem", color: "#3a4560", marginTop: 2, fontStyle: "italic" }}>{inv.notes}</div>}
+                      {inv.notes && <div style={{ fontSize: "0.72rem", color: "#eaf8f7", marginTop: 2, fontStyle: "italic" }}>{inv.notes}</div>}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                       {badge(inv.status, INV_STATUS_STYLE)}
-                      <span style={{ fontSize: "0.72rem", color: "#3a4560" }}>{fmtDate(inv.created_at)}</span>
+                      <span style={{ fontSize: "0.72rem", color: "#eaf8f7" }}>{fmtDate(inv.created_at)}</span>
                       {inv.status === "pending" && (
                         <button className="ac-ghost-btn" onClick={() => updateStatus(inv.id, "invitation", "declined")}>Decline</button>
                       )}
@@ -234,15 +234,15 @@ export default function AdminCorporatePage() {
                     <div style={{ flex: "1 1 auto", minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                         <span style={{ fontWeight: 600, color: "#f0f4ff", fontSize: "0.9rem" }}>{nom.org_name}</span>
-                        <span style={{ fontSize: "0.72rem", color: "#3a4560" }}>{ORG_LABEL[nom.org_type]}</span>
+                        <span style={{ fontSize: "0.72rem", color: "#eaf8f7" }}>{ORG_LABEL[nom.org_type]}</span>
                       </div>
                       {nom.contact_email && <div style={{ fontSize: "0.78rem", color: "#8fa3b8", marginTop: 2 }}>{nom.contact_email}</div>}
-                      {nom.website && <div style={{ fontSize: "0.72rem", color: "#3a4560", marginTop: 1 }}>{nom.website}</div>}
-                      {nom.notes && <div style={{ fontSize: "0.72rem", color: "#3a4560", marginTop: 2, fontStyle: "italic" }}>{nom.notes}</div>}
+                      {nom.website && <div style={{ fontSize: "0.72rem", color: "#eaf8f7", marginTop: 1 }}>{nom.website}</div>}
+                      {nom.notes && <div style={{ fontSize: "0.72rem", color: "#eaf8f7", marginTop: 2, fontStyle: "italic" }}>{nom.notes}</div>}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                       {badge(nom.status, NOM_STATUS_STYLE)}
-                      <span style={{ fontSize: "0.72rem", color: "#3a4560" }}>{fmtDate(nom.created_at)}</span>
+                      <span style={{ fontSize: "0.72rem", color: "#eaf8f7" }}>{fmtDate(nom.created_at)}</span>
                       {nom.status === "pending" && (
                         <>
                           <button className="ac-ghost-btn" onClick={() => updateStatus(nom.id, "nomination", "contacted")}>Mark contacted</button>
@@ -352,7 +352,7 @@ export default function AdminCorporatePage() {
         .ac-row-item:last-child { border-bottom: none; }
 
         .ac-loading { color: #8fa3b8; font-size: 0.875rem; padding: 1rem 0; }
-        .ac-empty { color: #3a4560; font-size: 0.875rem; margin: 0; padding: 0.5rem 0; }
+        .ac-empty { color: #eaf8f7; font-size: 0.875rem; margin: 0; padding: 0.5rem 0; }
 
         .ac-error {
           padding: 10px 14px; background: rgba(255,95,95,0.08);

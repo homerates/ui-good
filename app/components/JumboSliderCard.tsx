@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
@@ -557,11 +557,11 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 .jbs-arm-compare { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
                 .jbs-arm-col { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:10px 12px; }
                 .jbs-arm-col--on { background:var(--jbs-bg); border-color:var(--jbs-border); }
-                .jbs-arm-col-label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#6b7a99; margin-bottom:6px; }
+                .jbs-arm-col-label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color: #94a3b8; margin-bottom:6px; }
                 .jbs-arm-col--on .jbs-arm-col-label { color:var(--jbs-color); }
                 .jbs-arm-col-amount { font-size:20px; font-weight:800; color:#c4cfe0; letter-spacing:-0.5px; }
                 .jbs-arm-col--on .jbs-arm-col-amount { color:var(--jbs-color); }
-                .jbs-arm-col-note { font-size:10px; color:#6b7a99; margin-top:3px; }
+                .jbs-arm-col-note { font-size:10px; color: #94a3b8; margin-top:3px; }
                 .jbs-arm-savings { background:rgba(0,232,122,0.05); border:1px solid rgba(0,232,122,0.15); border-radius:8px; padding:8px 12px; font-size:12px; color:#8fa3b8; margin-bottom:10px; line-height:1.5; }
                 .jbs-arm-savings strong { color:#00e87a; }
                 .jbs-arm-cap-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:12px; }

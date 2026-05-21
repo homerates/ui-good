@@ -1,4 +1,4 @@
-// app/lo/[slug]/page.tsx
+﻿// app/lo/[slug]/page.tsx
 // Public LO profile page — shareable URL by NMLS number (/lo/12345678)
 // Server component for SEO + OG tags; no auth required
 
@@ -104,14 +104,14 @@ export default async function LoProfilePage({ params }: { params: Promise<{ slug
         .lo-shell{max-width:680px;margin:0 auto;padding:36px 20px 80px;}
 
         .lo-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:28px;margin-bottom:16px;}
-        .lo-label{font-size:11px;font-weight:700;color:#3a4560;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px;}
+        .lo-label{font-size:11px;font-weight:700;color: #eaf8f7;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px;}
 
         .lo-hero{display:flex;align-items:center;gap:20px;}
         .lo-avatar{width:72px;height:72px;border-radius:50%;object-fit:cover;flex-shrink:0;}
         .lo-avatar-fallback{width:72px;height:72px;border-radius:50%;background:rgba(61,139,255,0.12);border:1px solid rgba(61,139,255,0.2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;color:#3d8bff;flex-shrink:0;}
         .lo-name{font-size:1.4rem;font-weight:700;color:#f0f4ff;line-height:1.2;}
-        .lo-title-company{font-size:0.9rem;color:#6b7a99;margin-top:4px;}
-        .lo-nmls{font-size:0.8rem;color:#3a4560;margin-top:6px;font-family:monospace;}
+        .lo-title-company{font-size:0.9rem;color: #94a3b8;margin-top:4px;}
+        .lo-nmls{font-size:0.8rem;color: #eaf8f7;margin-top:6px;font-family:monospace;}
 
         .lo-badge{display:inline-block;background:rgba(61,139,255,0.12);color:#3d8bff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:.06em;margin-top:8px;}
 

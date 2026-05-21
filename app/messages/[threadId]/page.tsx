@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/messages/[threadId]/page.tsx
 // Private async chat between borrower and professional
 // Compliance: rate disclosure auto-appended server-side, PII blocked server-side
@@ -850,14 +850,14 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         }
         .ch-share-card-label {
           font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
-          text-transform: uppercase; color: #3a4560; margin-bottom: 4px;
+          text-transform: uppercase; color: #eaf8f7; margin-bottom: 4px;
         }
         .ch-share-card-value {
           font-size: 0.875rem; font-weight: 600; color: #f0f4ff;
           word-break: break-all;
         }
         .ch-share-card-phone { font-weight: 400; color: #8fa3b8; font-size: 0.82rem; margin-top: 2px; }
-        .ch-share-arrow { color: #3a4560; font-size: 1rem; flex-shrink: 0; }
+        .ch-share-arrow { color: #eaf8f7; font-size: 1rem; flex-shrink: 0; }
 
         /* ── Professional contact card ── */
         .ch-pro-card {
@@ -911,7 +911,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           border-radius: 6px; padding: 2px 8px;
         }
         .ch-pro-card-office {
-          font-size: 0.73rem; color: #3a4560;
+          font-size: 0.73rem; color: #eaf8f7;
         }
 
         /* ── Messages scroll area ── */
@@ -924,7 +924,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           scrollbar-color: rgba(255,255,255,0.08) transparent;
         }
         .ch-loading, .ch-empty {
-          text-align: center; color: #3a4560;
+          text-align: center; color: #eaf8f7;
           padding: 3rem; font-size: 0.875rem;
         }
 
@@ -1100,7 +1100,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         }
         .ch-share-btn:hover { text-decoration: underline; }
 
-        .ch-closed-msg { text-align: center; color: #3a4560; font-size: 0.85rem; padding: 0.75rem 0; }
+        .ch-closed-msg { text-align: center; color: #eaf8f7; font-size: 0.85rem; padding: 0.75rem 0; }
 
         /* Compose box */
         .ch-compose { display: flex; flex-direction: column; gap: 8px; }
@@ -1124,7 +1124,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         .ch-compose-bottom {
           display: flex; align-items: center; justify-content: flex-end; gap: 10px;
         }
-        .ch-char-count { font-size: 0.7rem; color: #3a4560; }
+        .ch-char-count { font-size: 0.7rem; color: #eaf8f7; }
         .ch-send-error { font-size: 0.78rem; color: #ff5f5f; flex: 1; }
         .ch-send-btn {
           padding: 9px 24px;

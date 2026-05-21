@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/components/NewsletterCapture.tsx
 // Inline email capture for article pages — dark design, matches mna-root palette.
 
@@ -115,7 +115,7 @@ export default function NewsletterCapture({ source }: { source: string }) {
               {errorMsg}
             </p>
           )}
-          <p style={{ margin: "10px 0 0", fontSize: "0.72rem", color: "#3a4560" }}>
+          <p style={{ margin: "10px 0 0", fontSize: "0.72rem", color: "#eaf8f7" }}>
             No spam. Unsubscribe any time.
           </p>
         </>

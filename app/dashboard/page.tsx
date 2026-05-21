@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx
+﻿// app/dashboard/page.tsx
 // Unified dashboard — same 2-column shell, different cards per user type
 // Types: borrower (default) | lo (loan_officers record found) | agent (future)
 
@@ -259,7 +259,7 @@ export default async function DashboardPage() {
             Welcome back, {displayName}
           </h1>
           {userType === "lo" && loRecord?.lender && (
-            <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#3a4560" }}>
+            <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#eaf8f7" }}>
               {loRecord.lender}
             </p>
           )}
@@ -581,7 +581,7 @@ export default async function DashboardPage() {
                         }}>{badge}</span>
                       ) : null}
                     </span>
-                    <span style={{ color: "#3a4560", fontSize: "0.75rem" }}>→</span>
+                    <span style={{ color: "#eaf8f7", fontSize: "0.75rem" }}>→</span>
                   </Link>
                 ))}
               </div>

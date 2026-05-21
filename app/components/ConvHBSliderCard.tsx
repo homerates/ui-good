@@ -604,15 +604,15 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 .chb-header-left { display:flex; align-items:center; gap:10px; }
                 .chb-hicon { width:32px; height:32px; border-radius:9px; background:var(--chb-bg); border:1px solid var(--chb-border); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
                 .chb-title { font-size:15px; font-weight:700; color:#f0f4ff; }
-                .chb-sub   { font-size:11px; color:#6b7a99; margin-top:1px; }
+                .chb-sub   { font-size:11px; color: #94a3b8; margin-top:1px; }
                 .chb-zone-badge { font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:4px 10px; border-radius:20px; background:var(--chb-bg); color:var(--chb-color); border:1px solid var(--chb-border); flex-shrink:0; white-space:nowrap; }
 
                 /* Hero */
                 .chb-hero { margin:0 12px 12px; background:#0e1420; border:1px solid var(--chb-border); border-radius:12px; padding:16px; display:grid; grid-template-columns:1.4fr 1fr; gap:16px; align-items:center; }
                 .chb-hero-label { font-size:10px; font-weight:700; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px; }
                 .chb-hero-amount { font-size:30px; font-weight:800; color:var(--chb-color); letter-spacing:-.5px; line-height:1; }
-                .chb-hero-mo { font-size:16px; font-weight:600; color:#6b7a99; }
-                .chb-hero-sub { font-size:11px; color:#6b7a99; margin-top:4px; }
+                .chb-hero-mo { font-size:16px; font-weight:600; color: #94a3b8; }
+                .chb-hero-sub { font-size:11px; color: #94a3b8; margin-top:4px; }
                 .chb-hero-stats { display:flex; flex-direction:column; gap:10px; padding-left:16px; border-left:1px solid rgba(255,255,255,0.05); }
                 .chb-hsl { font-size:9px; color:#8fa3b8; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:2px; }
                 .chb-hsv { font-size:13px; font-weight:700; color:#f0f4ff; }
@@ -640,11 +640,11 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 .chb-loc-input { width:100%; padding:9px 14px 9px 32px; border:1.5px solid rgba(255,255,255,0.1); border-radius:8px; font-size:13px; font-weight:500; color:#f0f4ff; font-family:inherit; background:rgba(255,255,255,0.04); outline:none; transition:border-color .15s; box-sizing:border-box; }
                 .chb-loc-input:focus { border-color:#00e87a; background:rgba(0,232,122,0.06); }
                 .chb-loc-pin { position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:12px; pointer-events:none; }
-                .chb-loc-hint { font-size:10px; color:#3a4560; margin-top:5px; }
+                .chb-loc-hint { font-size:10px; color: #eaf8f7; margin-top:5px; }
 
                 /* DP chips */
                 .chb-dp-chips { display:flex; gap:6px; flex-wrap:wrap; margin:-4px 0 14px; }
-                .chb-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:11px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; transition:all .12s; }
+                .chb-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:11px; font-weight:600; color: #94a3b8; cursor:pointer; font-family:inherit; transition:all .12s; }
                 .chb-dp-chip.active { border-color:var(--chb-color); color:var(--chb-color); background:var(--chb-bg); }
                 .chb-dp-chip:hover:not(.active) { border-color:rgba(255,255,255,0.2); }
 
@@ -655,7 +655,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 /* Term buttons */
                 .chb-term-label { font-size:13px; font-weight:600; color:#8fa3b8; margin:4px 0 8px; }
                 .chb-terms { display:flex; gap:8px; margin-bottom:4px; }
-                .chb-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:13px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
+                .chb-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:13px; font-weight:600; color: #94a3b8; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
                 .chb-term--on { border-color:var(--chb-color); color:var(--chb-color); background:var(--chb-bg); }
                 .chb-term:hover:not(.chb-term--on) { border-color:rgba(255,255,255,0.2); }
 
@@ -719,8 +719,8 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 .chb-rate-note p { font-size:12px; color:#8fa3b8; line-height:1.5; margin:0; }
                 .chb-rate-note strong { color:#00e87a; }
                 .chb-disc { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:12px 14px; }
-                .chb-disc p { font-size:11px; color:#6b7a99; line-height:1.6; margin:0; }
-                .chb-disc strong { color:#6b7a99; font-weight:600; }
+                .chb-disc p { font-size:11px; color: #94a3b8; line-height:1.6; margin:0; }
+                .chb-disc strong { color: #94a3b8; font-weight:600; }
 
                 @media (max-width:480px) {
                     .chb-hero { grid-template-columns:1fr; }

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // app/components/AffordabilitySliderCard.tsx
 // Redesigned affordability card — 3 program accordions (FHA 3.5%, Conv 3%, Conv 20%)
@@ -702,8 +702,8 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 }
                 .afc-topbar-l { display: flex; align-items: center; gap: 6px; }
                 .afc-dot { width: 7px; height: 7px; border-radius: 50%; background: #00e87a; }
-                .afc-tl { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6b7a99; }
-                .afc-tr { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #3a4560; }
+                .afc-tl { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #94a3b8; }
+                .afc-tr { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #eaf8f7; }
 
                 /* summary */
                 .afc-sum { padding: 16px 16px 0; }
@@ -715,7 +715,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     flex-shrink: 0; color: #00e87a;
                 }
                 .afc-sum-title { font-size: 15px; font-weight: 700; color: #f0f4ff; }
-                .afc-sum-sub { font-size: 11px; color: #6b7a99; margin-top: 1px; }
+                .afc-sum-sub { font-size: 11px; color: #94a3b8; margin-top: 1px; }
                 .afc-tiles {
                     display: grid; grid-template-columns: repeat(4,1fr); gap: 6px;
                     margin-bottom: 14px;
@@ -725,7 +725,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     text-align: center;
                 }
                 .afc-tile-icon { margin-bottom: 5px; display: flex; justify-content: center; }
-                .afc-tile-label { font-size: 10px; color: #6b7a99; margin-bottom: 3px; }
+                .afc-tile-label { font-size: 10px; color: #94a3b8; margin-bottom: 3px; }
                 .afc-tile-value { font-size: 12px; font-weight: 700; color: #f0f4ff; }
 
                 /* programs */
@@ -756,7 +756,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
 
                 .afc-pt { flex: 1; min-width: 0; }
                 .afc-pt-name { font-size: 13px; font-weight: 700; color: #f0f4ff; }
-                .afc-pt-sub  { font-size: 11px; color: #6b7a99; margin-top: 1px; }
+                .afc-pt-sub  { font-size: 11px; color: #94a3b8; margin-top: 1px; }
 
                 .afc-badge {
                     font-size: 9px; font-weight: 800; padding: 3px 8px;
@@ -772,7 +772,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     background: rgba(255,255,255,0.04);
                     display: flex; align-items: center; justify-content: center;
                     flex-shrink: 0; transition: transform .2s, background .15s;
-                    color: #3a4560;
+                    color: #eaf8f7;
                 }
                 .afc-pc--open .afc-chev {
                     transform: rotate(180deg);
@@ -787,15 +787,15 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 }
                 .afc-sc { padding: 9px 12px; }
                 .afc-sc:not(:last-child) { border-right: 1px solid rgba(255,255,255,0.04); }
-                .afc-sc-label { font-size: 9px; color: #3a4560; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; font-weight: 600; }
+                .afc-sc-label { font-size: 9px; color: #eaf8f7; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; font-weight: 600; }
                 .afc-sc-val   { font-size: 13px; font-weight: 700; color: #f0f4ff; }
 
                 .afc-pcnote {
                     padding: 7px 14px 9px;
                     display: flex; align-items: flex-start; gap: 6px;
                 }
-                .afc-note-icon { font-size: 11px; color: #3a4560; flex-shrink: 0; margin-top: 1px; }
-                .afc-note-text { font-size: 11px; color: #6b7a99; line-height: 1.45; }
+                .afc-note-icon { font-size: 11px; color: #eaf8f7; flex-shrink: 0; margin-top: 1px; }
+                .afc-note-text { font-size: 11px; color: #94a3b8; line-height: 1.45; }
 
                 /* drawer */
                 .afc-drawer {
@@ -806,7 +806,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 .afc-ds { margin-bottom: 14px; }
                 .afc-ds:last-child { margin-bottom: 0; }
                 .afc-dl {
-                    font-size: 9px; font-weight: 800; color: #3a4560;
+                    font-size: 9px; font-weight: 800; color: #eaf8f7;
                     text-transform: uppercase; letter-spacing: .1em; margin-bottom: 7px;
                 }
                 .afc-kv {
@@ -829,7 +829,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     border-radius: 8px; padding: 10px 12px; margin-top: 10px;
                     display: flex; align-items: center; justify-content: space-between;
                 }
-                .afc-qualify-label { font-size: 11px; color: #6b7a99; }
+                .afc-qualify-label { font-size: 11px; color: #94a3b8; }
                 .afc-qualify-check { font-size: 11px; color: #4a6e58; margin-top: 2px; }
                 .afc-qualify-val   { font-size: 13px; font-weight: 700; color: #00e87a; }
 
@@ -851,7 +851,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     background: rgba(0,232,122,0.08);
                     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
                 }
-                .afc-pick-label { font-size: 12px; color: #6b7a99; flex: 1; }
+                .afc-pick-label { font-size: 12px; color: #94a3b8; flex: 1; }
                 .afc-pick-val   { font-size: 12px; font-weight: 700; color: #00e87a; }
 
                 /* comparison toggle */
@@ -881,7 +881,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 .afc-comp-table table { width: 100%; border-collapse: collapse; }
                 .afc-comp-table thead th {
                     padding: 9px 10px; text-align: left;
-                    font-size: 10px; font-weight: 700; color: #3a4560;
+                    font-size: 10px; font-weight: 700; color: #eaf8f7;
                     text-transform: uppercase; letter-spacing: .07em;
                     border-bottom: 1px solid rgba(255,255,255,0.05);
                     background: rgba(0,0,0,0.2);
@@ -923,7 +923,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 .afc-term {
                     flex: 1; padding: 10px 0; border-radius: 8px;
                     border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
-                    font-size: 13px; font-weight: 600; color: #6b7a99;
+                    font-size: 13px; font-weight: 600; color: #94a3b8;
                     cursor: pointer; font-family: inherit; text-align: center;
                     transition: all .15s;
                 }
@@ -937,7 +937,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 .afc-exp-stat { flex: 1; min-width: 100px; }
                 .afc-exp-stat-label {
                     font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
-                    color: #3a4560; font-weight: 700; margin-bottom: 3px;
+                    color: #eaf8f7; font-weight: 700; margin-bottom: 3px;
                 }
                 .afc-exp-stat-val { font-size: 14px; font-weight: 700; color: #f0f4ff; }
 
@@ -986,8 +986,8 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     border: 1px solid rgba(255,255,255,0.05);
                     border-radius: 10px; padding: 12px 14px;
                 }
-                .afc-disc p { font-size: 11px; color: #3a4560; line-height: 1.6; }
-                .afc-disc strong { color: #6b7a99; font-weight: 600; }
+                .afc-disc p { font-size: 11px; color: #eaf8f7; line-height: 1.6; }
+                .afc-disc strong { color: #94a3b8; font-weight: 600; }
 
                 /* ── Slider Drawer ── */
                 @keyframes afcTriggerPulse {

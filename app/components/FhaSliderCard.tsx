@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
@@ -544,7 +544,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-header-left { display:flex; align-items:center; gap:10px; }
                 .fha-hicon { width:32px; height:32px; border-radius:9px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
                 .fha-title { font-size:15px; font-weight:700; color:#f0f4ff; }
-                .fha-sub   { font-size:11px; color:#6b7a99; margin-top:2px; }
+                .fha-sub   { font-size:11px; color: #94a3b8; margin-top:2px; }
                 .fha-zone-badge { font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:4px 10px; border-radius:20px; flex-shrink:0; white-space:nowrap; }
                 .fha-zone-badge--within   { background:rgba(0,232,122,0.1);  color:#00e87a; border:1px solid rgba(0,232,122,0.25); }
                 .fha-zone-badge--highcost { background:rgba(245,158,11,0.1); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); }
@@ -563,7 +563,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-band-desc { font-size:11px; color:#8fa3b8; line-height:1.4; }
                 .fha-strong { color:#f0f4ff; }
                 .fha-band-r { font-size:10px; color:#8fa3b8; flex-shrink:0; text-align:right; }
-                .fha-band-r span { display:block; font-size:11px; color:#6b7a99; font-weight:600; margin-top:2px; }
+                .fha-band-r span { display:block; font-size:11px; color: #94a3b8; font-weight:600; margin-top:2px; }
 
                 /* Hero */
                 .fha-hero { margin:0 12px 12px; background:#0e1420; border:1px solid rgba(245,158,11,0.22); border-radius:14px; padding:18px 20px 14px; display:grid; grid-template-columns:1.4fr 1fr; gap:16px; align-items:center; }
@@ -608,10 +608,10 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-unit-row { margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,0.05); }
                 .fha-unit-label { font-size:13px; font-weight:600; color:#8fa3b8; margin-bottom:8px; }
                 .fha-unit-chips { display:flex; gap:6px; margin-bottom:6px; }
-                .fha-unit-chip { flex:1; padding:8px 0; border-radius:8px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:12px; font-weight:700; color:#6b7a99; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
+                .fha-unit-chip { flex:1; padding:8px 0; border-radius:8px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:12px; font-weight:700; color: #94a3b8; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
                 .fha-unit-chip.active { border-color:#f59e0b; color:#f59e0b; background:rgba(245,158,11,0.1); }
                 .fha-unit-chip:hover:not(.active) { border-color:rgba(255,255,255,0.2); }
-                .fha-unit-note { font-size:10px; color:#3a4560; }
+                .fha-unit-note { font-size:10px; color: #eaf8f7; }
 
                 /* FRED tag */
                 .fha-rate-wrap { position:relative; }
@@ -619,16 +619,16 @@ export default function FhaSliderCard(props: FhaSliderParams) {
 
                 /* DP chips */
                 .fha-dp-chips { display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 8px; }
-                .fha-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:11px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; transition:all .12s; }
+                .fha-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:11px; font-weight:600; color: #94a3b8; cursor:pointer; font-family:inherit; transition:all .12s; }
                 .fha-dp-chip.active { border-color:#f59e0b; color:#f59e0b; background:rgba(245,158,11,0.1); }
                 .fha-dp-chip:hover:not(.active) { border-color:rgba(255,255,255,0.2); }
                 .fha-dp-chip-note { font-size:9px; font-weight:600; margin-left:3px; opacity:.8; }
-                .fha-dp-note { font-size:10px; color:#3a4560; margin:-4px 0 12px; }
+                .fha-dp-note { font-size:10px; color: #eaf8f7; margin:-4px 0 12px; }
 
                 /* Term */
                 .fha-term-label { font-size:13px; font-weight:600; color:#8fa3b8; margin:4px 0 8px; }
                 .fha-terms { display:flex; gap:8px; }
-                .fha-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:13px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
+                .fha-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:13px; font-weight:600; color: #94a3b8; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
                 .fha-term--on { border-color:#f59e0b; color:#f59e0b; background:rgba(245,158,11,0.1); }
                 .fha-term:hover:not(.fha-term--on) { border-color:rgba(255,255,255,0.2); }
 
@@ -699,8 +699,8 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-rate-note p { font-size:12px; color:#8fa3b8; line-height:1.5; margin:0; }
                 .fha-rate-note strong { color:#f59e0b; }
                 .fha-disc { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:12px 14px; }
-                .fha-disc p { font-size:11px; color:#6b7a99; line-height:1.6; margin:0; }
-                .fha-disc strong { color:#6b7a99; font-weight:600; }
+                .fha-disc p { font-size:11px; color: #94a3b8; line-height:1.6; margin:0; }
+                .fha-disc strong { color: #94a3b8; font-weight:600; }
 
                 @media (max-width:480px) {
                     .fha-hero { grid-template-columns:1fr; }

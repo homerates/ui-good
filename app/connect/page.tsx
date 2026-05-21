@@ -1,4 +1,4 @@
-// app/connect/page.tsx
+﻿// app/connect/page.tsx
 // "Lender Match" — borrower-facing landing page
 // Borrowers post anonymous scenarios; LOs compete; borrower chooses
 
@@ -434,7 +434,7 @@ export default async function ConnectPage() {
         .cn-step p { font-size: 0.9rem; color: #8fa3b8; line-height: 1.65; margin: 0; }
         .cn-step-divider {
           padding: 0 12px; align-self: center;
-          color: #3a4560; font-size: 1.5rem; font-weight: 300;
+          color: #eaf8f7; font-size: 1.5rem; font-weight: 300;
           flex-shrink: 0;
         }
 
@@ -497,14 +497,14 @@ export default async function ConnectPage() {
           gap: 12px; margin-bottom: 1.25rem;
         }
         .cn-sample-field { }
-        .cn-field-label { font-size: 0.72rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+        .cn-field-label { font-size: 0.72rem; color: #eaf8f7; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
         .cn-field-value { font-size: 0.95rem; font-weight: 600; color: #f0f4ff; }
         .cn-sample-note {
           font-size: 0.88rem; color: #8fa3b8;
           border-top: 1px solid rgba(255,255,255,0.07);
           padding-top: 1rem; font-style: italic;
         }
-        .cn-sample-caption { font-size: 0.88rem; color: #3a4560; margin: 0; }
+        .cn-sample-caption { font-size: 0.88rem; color: #eaf8f7; margin: 0; }
 
         /* Response demo */
         .cn-responses-demo { display: flex; flex-direction: column; gap: 12px; max-width: 680px; margin: 2rem auto 0; }
@@ -532,7 +532,7 @@ export default async function ConnectPage() {
           padding: 6rem 1.5rem;
           background: linear-gradient(to bottom, #080c12, #0a1019);
         }
-        .cn-cta-sub { font-size: 0.82rem; color: #3a4560; margin-top: 1rem; }
+        .cn-cta-sub { font-size: 0.82rem; color: #eaf8f7; margin-top: 1rem; }
 
         /* Disclosure */
         .cn-disclosure {

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
@@ -557,14 +557,14 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq-topbar { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid rgba(255,255,255,0.05); background:rgba(255,255,255,0.02); }
                 .iq-topbar-l { display:flex; align-items:center; gap:6px; }
                 .iq-dot { width:7px; height:7px; border-radius:50%; background:#3d8bff; }
-                .iq-tl { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#6b7a99; }
-                .iq-tr { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#3a4560; }
+                .iq-tl { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color: #94a3b8; }
+                .iq-tr { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: #eaf8f7; }
 
                 /* header */
                 .iq-header { display:flex; align-items:center; gap:12px; padding:16px 16px 12px; }
                 .iq-header-icon { width:36px; height:36px; border-radius:10px; background:rgba(61,139,255,0.12); border:1px solid rgba(61,139,255,0.2); display:flex; align-items:center; justify-content:center; color:#3d8bff; flex-shrink:0; }
                 .iq-header-title { font-size:15px; font-weight:700; color:#f0f4ff; }
-                .iq-header-sub { font-size:11px; color:#6b7a99; margin-top:2px; }
+                .iq-header-sub { font-size:11px; color: #94a3b8; margin-top:2px; }
 
                 /* hero */
                 .iq-hero { margin:0 12px 12px; background:#0a111d; border:1px solid rgba(61,139,255,0.2); border-radius:14px; padding:20px 20px 16px; text-align:center; }
@@ -575,7 +575,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq-hero-grid { display:grid; grid-template-columns:repeat(3,1fr); margin-top:14px; border-top:1px solid rgba(255,255,255,0.06); padding-top:12px; }
                 .iq-hero-stat { text-align:center; padding:0 8px; border-right:1px solid rgba(255,255,255,0.06); }
                 .iq-hero-stat:last-child { border-right:none; }
-                .iq-hero-sl { font-size:9px; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:4px; }
+                .iq-hero-sl { font-size:9px; color: #eaf8f7; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:4px; }
                 .iq-hero-sv { font-size:13px; font-weight:700; color:#f0f4ff; }
 
                 /* debt section */
@@ -584,21 +584,21 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
                 /* DTI grid */
                 .iq-dti-section { padding:12px 16px; border-top:1px solid rgba(255,255,255,0.05); }
-                .iq-dti-head { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#6b7a99; margin-bottom:8px; }
+                .iq-dti-head { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color: #94a3b8; margin-bottom:8px; }
                 .iq-dti-grid { display:flex; flex-direction:column; gap:4px; }
                 .iq-dti-row { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:9px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); }
                 .iq-dti-row--active { background:rgba(61,139,255,0.06); border-color:rgba(61,139,255,0.22); }
                 .iq-dti-pct { font-size:13px; font-weight:800; color:#f0f4ff; min-width:34px; }
                 .iq-dti-row--active .iq-dti-pct { color:#3d8bff; }
-                .iq-dti-label { font-size:11px; color:#6b7a99; flex:1; }
+                .iq-dti-label { font-size:11px; color: #94a3b8; flex:1; }
                 .iq-dti-row--active .iq-dti-label { color:#8fa3b8; }
-                .iq-dti-val { font-size:13px; font-weight:700; color:#6b7a99; }
+                .iq-dti-val { font-size:13px; font-weight:700; color: #94a3b8; }
                 .iq-dti-val--blue { color:#3d8bff; font-size:14px; }
                 .iq-dti-badge { font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:2px 8px; border-radius:20px; background:rgba(61,139,255,0.12); color:#3d8bff; border:1px solid rgba(61,139,255,0.25); flex-shrink:0; }
 
                 /* explorer */
                 .iq-exp { padding:12px 16px; border-top:1px solid rgba(255,255,255,0.05); background:rgba(255,255,255,0.015); }
-                .iq-exp-head { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#6b7a99; margin-bottom:12px; }
+                .iq-exp-head { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color: #94a3b8; margin-bottom:12px; }
                 .iq-dp-chips { display:flex; gap:6px; margin:-4px 0 12px; }
                 .iq-dp-chip { background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px; font-size:12px; font-weight:600; color:#8fa3b8; cursor:pointer; font-family:inherit; transition:all .15s; }
                 .iq-dp-chip.active { background:rgba(0,232,122,0.1); border-color:rgba(0,232,122,0.35); color:#00e87a; }
@@ -610,7 +610,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq-term:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
                 .iq-exp-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:2px; }
                 .iq-exp-stat { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:8px; text-align:center; }
-                .iq-exp-stat-label { font-size:10px; color:#6b7a99; margin-bottom:3px; }
+                .iq-exp-stat-label { font-size:10px; color: #94a3b8; margin-bottom:3px; }
                 .iq-exp-stat-val { font-size:12px; font-weight:700; color:#c4cfe0; }
 
                 /* breakdown */
@@ -627,7 +627,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq-kv-v--green { color:#3d8bff; }
                 .iq-kv--total .iq-kv-k { font-weight:700; color:#c4cfe0; font-size:13px; }
                 .iq-kv--total .iq-kv-v { font-weight:800; color:#f0f4ff; font-size:13px; }
-                .iq-kv-s { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#6b7a99; padding:10px 0 4px; }
+                .iq-kv-s { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: #94a3b8; padding:10px 0 4px; }
 
                 /* actions */
                 .iq-actions { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.05); flex-wrap:wrap; }
@@ -650,7 +650,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
                 /* disclosures */
                 .iq-disc { padding:0 16px 16px; }
-                .iq-disc p { font-size:10px; color:#3a4560; line-height:1.5; }
+                .iq-disc p { font-size:10px; color: #eaf8f7; line-height:1.5; }
 
                 /* FHA amber theme overrides */
                 .iq--fha .iq-dot { background:#f59e0b; }
@@ -684,7 +684,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq-reserves-item { padding:10px 14px; border-right:1px solid rgba(255,255,255,0.05); }
                 .iq-reserves-item:last-child { border-right:none; }
                 .iq-reserves-item--hi { background:rgba(139,92,246,0.04); }
-                .iq-reserves-label { font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#6b7a99; margin-bottom:4px; }
+                .iq-reserves-label { font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color: #94a3b8; margin-bottom:4px; }
                 .iq-reserves-val { font-size:18px; font-weight:800; color:#c4cfe0; letter-spacing:-0.5px; }
                 .iq-reserves-val--hi { color:#8b5cf6; }
                 .iq-reserves-note { font-size:10px; color:#4b6080; margin-top:3px; line-height:1.4; }
@@ -749,11 +749,11 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq-trigger-left { display:flex; align-items:center; gap:10px; }
                 .iq-trigger-title { font-size:13px; font-weight:700; color:#c4cfe0; text-align:left; }
                 .iq-trigger-sub { font-size:10px; color:#3d8bff; margin-top:1px; }
-                .iq-trigger-arrow { font-size:11px; color:#6b7a99; flex-shrink:0; }
+                .iq-trigger-arrow { font-size:11px; color: #94a3b8; flex-shrink:0; }
                 .iq-drawer { max-height:0; overflow:hidden; transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
                 .iq-drawer.open { max-height:900px; }
                 .iq-drawer-cta { padding:4px 16px 12px; }
-                .iq-drawer-hint { font-size:12px; color:#6b7a99; font-style:italic; }
+                .iq-drawer-hint { font-size:12px; color: #94a3b8; font-style:italic; }
                 .iq-drawer-done { font-size:12px; color:#3d8bff; font-weight:700; }
                 .iq-drawer-run { width:100%; padding:11px 0; background:rgba(61,139,255,0.1); color:#3d8bff; border:1.5px solid rgba(61,139,255,0.35); border-radius:10px; font-size:14px; font-weight:800; cursor:pointer; font-family:inherit; letter-spacing:.01em; transition:all .15s; animation:iqRunPulse 1.8s ease-in-out infinite; }
                 .iq-drawer-run:hover { background:rgba(61,139,255,0.18); border-color:rgba(61,139,255,0.6); animation:none; }

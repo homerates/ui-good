@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -495,7 +495,7 @@ export default function DealRoomPage() {
         html:has(.dr-root){height:auto!important;overflow:visible!important;}
       `}</style>
       <div className="dr-root" style={{ background:"#080c12", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'DM Sans',sans-serif" }}>
-        <p style={{ color:"#6b7a99", fontSize:14 }}>Loading room…</p>
+        <p style={{ color: "#94a3b8", fontSize:14 }}>Loading room…</p>
       </div>
     </>
   );
@@ -590,14 +590,14 @@ export default function DealRoomPage() {
 
         /* ── Tabs ── */
         .dr-tabs { display:flex; gap:4px; margin-bottom:16px; flex-wrap:wrap; }
-        .dr-tab { background:none; border:none; color:#6b7a99; font-size:13px; font-weight:500; padding:8px 14px; cursor:pointer; border-radius:8px; font-family:inherit; transition:color .15s,background .15s; }
+        .dr-tab { background:none; border:none; color: #94a3b8; font-size:13px; font-weight:500; padding:8px 14px; cursor:pointer; border-radius:8px; font-family:inherit; transition:color .15s,background .15s; }
         .dr-tab:hover { color:#f0f4ff; }
         .dr-tab.active { color:#f0f4ff; background:rgba(255,255,255,0.07); }
 
         /* ── Property data grid ── */
         .pd-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:14px; }
         .pd-item { background:#141b28; border-radius:8px; padding:12px 14px; }
-        .pd-label { font-size:10px; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:4px; }
+        .pd-label { font-size:10px; color: #eaf8f7; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:4px; }
         .pd-value { font-size:15px; font-weight:600; color:#f0f4ff; }
 
         /* ── Gap alert ── */
@@ -640,15 +640,15 @@ export default function DealRoomPage() {
           display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px;
         }
         .fin-cell { background:#141b28; border-radius:8px; padding:10px 12px; }
-        .fin-cell-label { font-size:10px; color:#3a4560; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:3px; }
+        .fin-cell-label { font-size:10px; color: #eaf8f7; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:3px; }
         .fin-cell-value { font-size:14px; font-weight:600; color:#f0f4ff; }
 
         .mod-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
         @media(max-width:480px){ .mod-row { grid-template-columns:1fr; } }
         .dr-input { background:#141b28; border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#f0f4ff; font-size:14px; padding:10px 12px; width:100%; outline:none; font-family:inherit; }
         .dr-input:focus { border-color:#00e87a; }
-        .dr-input::placeholder { color:#3a4560; }
-        .dr-lbl { font-size:11px; color:#6b7a99; text-transform:uppercase; letter-spacing:.06em; font-weight:500; margin-bottom:5px; display:block; }
+        .dr-input::placeholder { color: #eaf8f7; }
+        .dr-lbl { font-size:11px; color: #94a3b8; text-transform:uppercase; letter-spacing:.06em; font-weight:500; margin-bottom:5px; display:block; }
         .dr-select { background:#141b28; border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#f0f4ff; font-size:14px; padding:10px 12px; width:100%; outline:none; font-family:inherit; appearance:none; cursor:pointer; }
         .dr-select:focus { border-color:#00e87a; }
 
@@ -660,36 +660,36 @@ export default function DealRoomPage() {
         }
         .scen-card-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
         .scen-actions { display:flex; gap:6px; }
-        .scen-btn { background:transparent; border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; color:#6b7a99; transition:color .12s, border-color .12s; }
+        .scen-btn { background:transparent; border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; color: #94a3b8; transition:color .12s, border-color .12s; }
         .scen-btn:hover { color:#f0f4ff; border-color:rgba(255,255,255,0.2); }
         .scen-btn.load:hover { color:#00e87a; border-color:rgba(0,232,122,0.35); }
         .scen-btn.del:hover { color:#f87171; border-color:rgba(248,113,113,0.35); }
 
         /* ── Messages ── */
         .dr-thread { min-height:280px; max-height:460px; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
-        .msg-sys { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:20px; padding:6px 14px; font-size:12px; color:#6b7a99; text-align:center; margin:0 auto; max-width:90%; }
+        .msg-sys { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:20px; padding:6px 14px; font-size:12px; color: #94a3b8; text-align:center; margin:0 auto; max-width:90%; }
         .msg-self { background:rgba(0,232,122,0.1); border:1px solid rgba(0,232,122,0.15); border-radius:10px; padding:10px 14px; max-width:75%; margin-left:auto; }
         .msg-other { background:#141b28; border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:10px 14px; max-width:75%; }
         .dr-compose { display:flex; gap:10px; align-items:flex-end; background:#0e1420; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:10px; margin-top:10px; }
         .dr-compose textarea { flex:1; background:none; border:none; color:#f0f4ff; font-size:14px; font-family:inherit; resize:none; outline:none; line-height:1.5; max-height:120px; }
-        .dr-compose textarea::placeholder { color:#3a4560; }
+        .dr-compose textarea::placeholder { color: #eaf8f7; }
 
         /* ── Buttons ── */
         .dr-btn { background:#00e87a; color:#080c12; border:none; border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
         .dr-btn:hover { background:#00c96a; }
         .dr-btn:disabled { opacity:.5; cursor:not-allowed; }
-        .dr-ghost { background:transparent; color:#6b7a99; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px 14px; font-size:13px; cursor:pointer; font-family:inherit; }
+        .dr-ghost { background:transparent; color: #94a3b8; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px 14px; font-size:13px; cursor:pointer; font-family:inherit; }
         .dr-ghost:hover { color:#f0f4ff; border-color:rgba(255,255,255,0.15); }
 
         /* ── Member pill ── */
         .member-pill { display:flex; align-items:center; gap:10px; padding:10px 12px; background:#141b28; border-radius:8px; margin-bottom:6px; }
 
         /* ── Invite link ── */
-        .invite-url { background:#141b28; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:9px 12px; font-size:11px; color:#6b7a99; font-family:'DM Mono',monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+        .invite-url { background:#141b28; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:9px 12px; font-size:11px; color: #94a3b8; font-family:'DM Mono',monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
 
         /* ── Right rail ── */
         .rail-card { background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:16px; margin-bottom:12px; }
-        .rail-label { font-size:10px; color:#6b7a99; text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; display:block; }
+        .rail-label { font-size:10px; color: #94a3b8; text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; display:block; }
 
         /* ── Footer ── */
         .dr-footer { border-top:1px solid rgba(255,255,255,0.06); padding:20px 24px; text-align:center; font-size:12px; color:rgba(185,208,192,0.35); }
@@ -707,7 +707,7 @@ export default function DealRoomPage() {
             <div className="dr-header-sep" />
             <button
               onClick={() => router.push("/deal-rooms")}
-              style={{ background:"none", border:"none", color:"#6b7a99", cursor:"pointer", fontSize:18, flexShrink:0, padding:"2px 0", lineHeight:1 }}
+              style={{ background:"none", border:"none", color: "#94a3b8", cursor:"pointer", fontSize:18, flexShrink:0, padding:"2px 0", lineHeight:1 }}
             >←</button>
             <span className="dr-header-addr">{room.property_address}</span>
             {isCreator && !isRoomLocked ? (
@@ -740,7 +740,7 @@ export default function DealRoomPage() {
               </p>
               <button
                 onClick={() => { localStorage.setItem(`dr_ack_${roomId}`, "1"); setDiscAcked(true); }}
-                style={{ background:"none", border:"none", color:"#6b7a99", cursor:"pointer", fontSize:16, padding:0, flexShrink:0, lineHeight:1 }}
+                style={{ background:"none", border:"none", color: "#94a3b8", cursor:"pointer", fontSize:16, padding:0, flexShrink:0, lineHeight:1 }}
               >✕</button>
             </div>
           )}
@@ -820,7 +820,7 @@ export default function DealRoomPage() {
                         <p style={{ fontSize:13, fontWeight:600, color:txColor, marginBottom:4 }}>
                           {over ? "⚠ Listed above AVM" : "✓ Listed below AVM"} — {Math.abs(gapPct).toFixed(1)}% {over?"premium":"discount"}
                         </p>
-                        <p style={{ fontSize:13, color:"#6b7a99" }}>
+                        <p style={{ fontSize:13, color: "#94a3b8" }}>
                           {over
                             ? `List price is ${fmt(gap)} above the estimated value. Negotiate or request concessions.`
                             : `List price is ${fmt(Math.abs(gap))} below estimated value. Stronger buying position.`}
@@ -850,7 +850,7 @@ export default function DealRoomPage() {
                         {pd.annualTaxes     && <PdCell label="Annual Taxes"       value={`$${pd.annualTaxes.toLocaleString()}`} />}
                       </div>
                       {room.target_close_date && (
-                        <p style={{ fontSize:12, color:"#6b7a99", marginTop:16, borderTop:"1px solid rgba(255,255,255,0.05)", paddingTop:12 }}>
+                        <p style={{ fontSize:12, color: "#94a3b8", marginTop:16, borderTop:"1px solid rgba(255,255,255,0.05)", paddingTop:12 }}>
                           Target close: <span style={{ color:"#f0f4ff", fontWeight:500 }}>
                             {new Date(room.target_close_date).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}
                           </span>
@@ -859,7 +859,7 @@ export default function DealRoomPage() {
                     </div>
                   ) : (
                     <div className="dr-card">
-                      <p style={{ fontSize:14, color:"#6b7a99", textAlign:"center", padding:"32px 0" }}>
+                      <p style={{ fontSize:14, color: "#94a3b8", textAlign:"center", padding:"32px 0" }}>
                         No property data loaded yet.
                       </p>
                     </div>
@@ -893,7 +893,7 @@ export default function DealRoomPage() {
                       <p style={{ fontSize: 13, fontWeight: 600, color: shareFinancials ? "#00e87a" : "#6b7a99", marginBottom: 2 }}>
                         {shareFinancials ? "Buyer authorized — financing shared with agent" : "Financing not shared with agent — awaiting buyer authorization"}
                       </p>
-                      <p style={{ fontSize: 11, color: "#3a4560", lineHeight: 1.4 }}>
+                      <p style={{ fontSize: 11, color: "#eaf8f7", lineHeight: 1.4 }}>
                         {shareFinancials
                           ? "Buyer has permitted the LO to share financing scenarios with the agent."
                           : viewerRole === "buyer"
@@ -925,7 +925,7 @@ export default function DealRoomPage() {
                     <span style={{ fontSize:16 }}>📈</span>
                     {liveRate
                       ? <><strong>{liveRate.toFixed(2)}%</strong>&nbsp;30Y Fixed&nbsp;<span style={{ color:"#4a6e58", fontSize:12 }}>· FRED national avg — not a rate lock or offer</span></>
-                      : <span style={{ color:"#6b7a99" }}>Loading live rate…</span>
+                      : <span style={{ color: "#94a3b8" }}>Loading live rate…</span>
                     }
                   </div>}
 
@@ -934,7 +934,7 @@ export default function DealRoomPage() {
                     <div className="dr-card" style={{ textAlign:"center", padding:"32px 20px" }}>
                       <div style={{ fontSize:28, marginBottom:12 }}>🔒</div>
                       <p style={{ fontSize:14, fontWeight:600, color:"#f0f4ff", marginBottom:6 }}>Financing not shared yet</p>
-                      <p style={{ fontSize:13, color:"#6b7a99", lineHeight:1.6 }}>
+                      <p style={{ fontSize:13, color: "#94a3b8", lineHeight:1.6 }}>
                         The buyer hasn&apos;t authorized sharing of financing scenarios with the agent.<br />
                         They can enable this in the Financing tab.
                       </p>
@@ -945,11 +945,11 @@ export default function DealRoomPage() {
                   {!isLO && (!isAgent || shareFinancials) && (
                     <div>
                       <div className="dr-card" style={{ marginBottom:14 }}>
-                        <p style={{ fontSize:11, color:"#6b7a99", textTransform:"uppercase", letterSpacing:".08em", marginBottom:14 }}>
+                        <p style={{ fontSize:11, color: "#94a3b8", textTransform:"uppercase", letterSpacing:".08em", marginBottom:14 }}>
                           Financing Scenarios · Prepared by Loan Officer
                         </p>
                         {scenarios.length === 0 ? (
-                          <p style={{ fontSize:14, color:"#3a4560", textAlign:"center", padding:"24px 0" }}>
+                          <p style={{ fontSize:14, color: "#eaf8f7", textAlign:"center", padding:"24px 0" }}>
                             No financing scenarios shared yet. Check back after your loan officer models the deal.
                           </p>
                         ) : (
@@ -965,16 +965,16 @@ export default function DealRoomPage() {
                                         <p style={{ fontSize:13, fontWeight:600, color:"#f0f4ff" }}>
                                           {s.label ?? (s.offer_price ? `Offer at ${fmt(s.offer_price)}` : "Scenario")}
                                         </p>
-                                        <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:4, background:"rgba(255,255,255,0.05)", color:"#3a4560", letterSpacing:".06em" }}>EST</span>
+                                        <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:4, background:"rgba(255,255,255,0.05)", color: "#eaf8f7", letterSpacing:".06em" }}>EST</span>
                                         {s.loan_type && s.loan_type !== "conventional" && (
                                           <span style={{ fontSize:10, fontWeight:700, padding:"1px 6px", borderRadius:4, background:"rgba(167,139,250,0.1)", color:"#a78bfa", letterSpacing:".06em", textTransform:"uppercase" }}>{s.loan_type}</span>
                                         )}
                                       </div>
                                       <div style={{ display:"flex", flexWrap:"wrap", gap:"4px 12px", marginBottom:8 }}>
-                                        {s.offer_price && <span style={{ fontSize:12, color:"#6b7a99" }}>{fmt(s.offer_price)}</span>}
-                                        {s.down_pct != null && <span style={{ fontSize:12, color:"#6b7a99" }}>{s.down_pct}% down</span>}
-                                        {s.rate && <span style={{ fontSize:12, color:"#6b7a99" }}>{s.rate}% rate</span>}
-                                        <span style={{ fontSize:12, color:"#3a4560" }}>{timeAgo(s.created_at)}</span>
+                                        {s.offer_price && <span style={{ fontSize:12, color: "#94a3b8" }}>{fmt(s.offer_price)}</span>}
+                                        {s.down_pct != null && <span style={{ fontSize:12, color: "#94a3b8" }}>{s.down_pct}% down</span>}
+                                        {s.rate && <span style={{ fontSize:12, color: "#94a3b8" }}>{s.rate}% rate</span>}
+                                        <span style={{ fontSize:12, color: "#eaf8f7" }}>{timeAgo(s.created_at)}</span>
                                       </div>
                                       {/* Full PITI breakdown for read-only view */}
                                       <div style={{ display:"flex", flexWrap:"wrap", gap:"4px 14px" }}>
@@ -986,9 +986,9 @@ export default function DealRoomPage() {
                                         {rj.hoa   > 0 && <span style={{ fontSize:12, color:"#8b949e" }}>HOA ${rj.hoa?.toLocaleString()}</span>}
                                       </div>
                                       {rj.cashToClose > 0 && (
-                                        <p style={{ fontSize:12, color:"#6b7a99", marginTop:6 }}>
+                                        <p style={{ fontSize:12, color: "#94a3b8", marginTop:6 }}>
                                           Est. cash to close: <span style={{ color:"#f0f4ff", fontWeight:600 }}>${rj.cashToClose?.toLocaleString()}</span>
-                                          <span style={{ color:"#3a4560" }}> · actual costs vary</span>
+                                          <span style={{ color: "#eaf8f7" }}> · actual costs vary</span>
                                         </p>
                                       )}
                                     </div>
@@ -1006,7 +1006,7 @@ export default function DealRoomPage() {
                             })}
                           </div>
                         )}
-                        <p style={{ fontSize:11, color:"#3a4560", marginTop:14, lineHeight:1.5 }}>
+                        <p style={{ fontSize:11, color: "#eaf8f7", marginTop:14, lineHeight:1.5 }}>
                           Estimates are for illustrative purposes only — not a Loan Estimate or commitment to lend under RESPA/TRID.
                           {loNmls ? <> Prepared by {loDisplayName ?? "Loan Officer"} · NMLS #{loNmls}.</> : null}
                         </p>
@@ -1018,8 +1018,8 @@ export default function DealRoomPage() {
                   {/* PITI hero — reflects active modeler values */}
                   {isLO && modPiti ? (
                     <div className="fin-hero">
-                      <p style={{ fontSize:11, color:"#6b7a99", textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>
-                        Est. Payment — {scenDown}% dn · {scenTerm}Y · {scenRate}% · <span style={{ color:"#3a4560" }}>Illustration only</span>
+                      <p style={{ fontSize:11, color: "#94a3b8", textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>
+                        Est. Payment — {scenDown}% dn · {scenTerm}Y · {scenRate}% · <span style={{ color: "#eaf8f7" }}>Illustration only</span>
                       </p>
                       <p style={{ fontSize:36, fontFamily:"'Syne',sans-serif", fontWeight:700, color:"#00e87a", lineHeight:1 }}>
                         {fmtMo(modPiti.total)}
@@ -1054,13 +1054,13 @@ export default function DealRoomPage() {
                           <p className="fin-cell-value" style={{ color:"#00e87a" }}>${modPiti.total.toLocaleString()}</p>
                         </div>
                       </div>
-                      <p style={{ fontSize:11, color:"#3a4560", marginTop:12 }}>
+                      <p style={{ fontSize:11, color: "#eaf8f7", marginTop:12 }}>
                         Loan amount: {fmt(modPiti.loan)} · {modPiti.taxes > 0 ? "taxes from property record" : "taxes estimated at 1.2%"} · insurance at 0.3%{modPiti.pmi > 0 ? " · PMI included (<20% down)" : ""}
                       </p>
                     </div>
                   ) : isLO ? (
                     <div className="dr-card" style={{ marginBottom:14 }}>
-                      <p style={{ fontSize:13, color:"#6b7a99", textAlign:"center", padding:"20px 0" }}>Enter price, rate, and down payment below to see the PITI preview.</p>
+                      <p style={{ fontSize:13, color: "#94a3b8", textAlign:"center", padding:"20px 0" }}>Enter price, rate, and down payment below to see the PITI preview.</p>
                     </div>
                   ) : null}
 
@@ -1079,9 +1079,9 @@ export default function DealRoomPage() {
                     {/* Import picker */}
                     {showImport && (
                       <div style={{ background:"#141b28", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:12, marginBottom:14 }}>
-                        {importLoading && <p style={{ fontSize:12, color:"#6b7a99" }}>Loading your scenarios…</p>}
+                        {importLoading && <p style={{ fontSize:12, color: "#94a3b8" }}>Loading your scenarios…</p>}
                         {!importLoading && importScens.length === 0 && (
-                          <p style={{ fontSize:12, color:"#6b7a99" }}>No scenarios with card data found. Save a scenario in the LO portal first.</p>
+                          <p style={{ fontSize:12, color: "#94a3b8" }}>No scenarios with card data found. Save a scenario in the LO portal first.</p>
                         )}
                         {importScens.map((s: any) => (
                           <div
@@ -1097,7 +1097,7 @@ export default function DealRoomPage() {
                                 {s.card_price ? `$${Number(s.card_price).toLocaleString()}` : s.price_range}
                               </span>
                             </div>
-                            <span style={{ fontSize:12, color:"#6b7a99" }}>
+                            <span style={{ fontSize:12, color: "#94a3b8" }}>
                               {s.card_dp_pct}% dn · {s.card_rate}% · ${Number(s.card_monthly ?? 0).toLocaleString()}/mo
                             </span>
                           </div>
@@ -1158,12 +1158,12 @@ export default function DealRoomPage() {
                       )}
                     </div>
                     {scenLoanType === "va" && (
-                      <p style={{ fontSize:11, color:"#6b7a99", marginTop:-8, marginBottom:12 }}>
+                      <p style={{ fontSize:11, color: "#94a3b8", marginTop:-8, marginBottom:12 }}>
                         Auto-calculated · 0% if service-connected disability — override as needed
                       </p>
                     )}
                     {scenLoanType === "fha" && (
-                      <p style={{ fontSize:11, color:"#6b7a99", marginBottom:12 }}>
+                      <p style={{ fontSize:11, color: "#94a3b8", marginBottom:12 }}>
                         FHA: 1.75% upfront MIP rolled into loan · 0.55% annual MIP included in monthly
                       </p>
                     )}
@@ -1171,7 +1171,7 @@ export default function DealRoomPage() {
                     {/* Advanced toggle */}
                     <button
                       onClick={() => setShowAdvanced(!showAdvanced)}
-                      style={{ background:"none", border:"none", color:"#6b7a99", fontSize:12, cursor:"pointer", fontFamily:"inherit", padding:"0 0 12px", display:"flex", alignItems:"center", gap:4 }}
+                      style={{ background:"none", border:"none", color: "#94a3b8", fontSize:12, cursor:"pointer", fontFamily:"inherit", padding:"0 0 12px", display:"flex", alignItems:"center", gap:4 }}
                     >
                       {showAdvanced ? "▾" : "▸"} Seller credit &amp; closing costs
                     </button>
@@ -1192,7 +1192,7 @@ export default function DealRoomPage() {
                     {/* Live preview */}
                     {modPiti && (
                       <div style={{ background:"rgba(0,232,122,0.05)", border:"1px solid rgba(0,232,122,0.12)", borderRadius:10, padding:"12px 14px", marginBottom:14 }}>
-                        <span style={{ fontSize:10, fontWeight:700, letterSpacing:".08em", color:"#3a4560", textTransform:"uppercase", display:"block", marginBottom:6 }}>Estimate — not a Loan Estimate</span>
+                        <span style={{ fontSize:10, fontWeight:700, letterSpacing:".08em", color: "#eaf8f7", textTransform:"uppercase", display:"block", marginBottom:6 }}>Estimate — not a Loan Estimate</span>
                         <div style={{ display:"flex", alignItems:"baseline", gap:8, marginBottom:6 }}>
                           <span style={{ fontSize:24, fontFamily:"'Syne',sans-serif", fontWeight:700, color:"#00e87a" }}>${modPiti.total.toLocaleString()}/mo</span>
                           <span style={{ fontSize:12, color:"#4a6e58" }}>total PITI</span>
@@ -1201,12 +1201,12 @@ export default function DealRoomPage() {
                           </span>
                         </div>
                         <div style={{ display:"flex", flexWrap:"wrap", gap:"6px 16px", marginBottom: (modPiti.fundingFee > 0 || modPiti.mip > 0 || modPiti.cashToClose !== modPiti.downPayment) ? 8 : 0 }}>
-                          <span style={{ fontSize:12, color:"#6b7a99" }}>P&I ${modPiti.pi.toLocaleString()}</span>
-                          <span style={{ fontSize:12, color:"#6b7a99" }}>Tax ${modPiti.taxes.toLocaleString()}</span>
-                          <span style={{ fontSize:12, color:"#6b7a99" }}>Ins ${modPiti.ins.toLocaleString()}</span>
+                          <span style={{ fontSize:12, color: "#94a3b8" }}>P&I ${modPiti.pi.toLocaleString()}</span>
+                          <span style={{ fontSize:12, color: "#94a3b8" }}>Tax ${modPiti.taxes.toLocaleString()}</span>
+                          <span style={{ fontSize:12, color: "#94a3b8" }}>Ins ${modPiti.ins.toLocaleString()}</span>
                           {modPiti.pmi > 0 && <span style={{ fontSize:12, color:"#fbbf24" }}>PMI ${modPiti.pmi.toLocaleString()}</span>}
                           {modPiti.mip > 0 && <span style={{ fontSize:12, color:"#fbbf24" }}>MIP ${modPiti.mip.toLocaleString()}</span>}
-                          {modPiti.hoa > 0 && <span style={{ fontSize:12, color:"#6b7a99" }}>HOA ${modPiti.hoa.toLocaleString()}</span>}
+                          {modPiti.hoa > 0 && <span style={{ fontSize:12, color: "#94a3b8" }}>HOA ${modPiti.hoa.toLocaleString()}</span>}
                         </div>
                         {modPiti.fundingFee > 0 && (
                           <p style={{ fontSize:11, color:"#a78bfa", marginBottom:6 }}>
@@ -1218,7 +1218,7 @@ export default function DealRoomPage() {
                             <p style={{ fontSize:12, fontWeight:600, color:"#f0f4ff", marginBottom:3 }}>
                               Est. Cash to Close: <span style={{ color:"#00e87a" }}>${modPiti.cashToClose.toLocaleString()}</span>
                             </p>
-                            <p style={{ fontSize:11, color:"#6b7a99" }}>
+                            <p style={{ fontSize:11, color: "#94a3b8" }}>
                               Down ${modPiti.downPayment.toLocaleString()}
                               {modCC > 0 ? ` + Closing ${fmt(modCC)}` : ""}
                               {modCredit > 0 ? ` − Seller Credit ${fmt(modCredit)}` : ""}
@@ -1241,7 +1241,7 @@ export default function DealRoomPage() {
 
                     {isRoomLocked ? (
                       <div style={{ background:"rgba(107,122,153,0.05)", border:"1px solid rgba(107,122,153,0.12)", borderRadius:8, padding:"10px 14px", textAlign:"center" }}>
-                        <p style={{ fontSize:12, color:"#3a4560" }}>Scenario saving is disabled — this room is {room.status}.</p>
+                        <p style={{ fontSize:12, color: "#eaf8f7" }}>Scenario saving is disabled — this room is {room.status}.</p>
                       </div>
                     ) : (
                       <button className="dr-btn" style={{ width:"100%" }} onClick={saveScenario} disabled={savingScen || !modPiti}>
@@ -1254,8 +1254,8 @@ export default function DealRoomPage() {
                   {isLO && scenarios.length > 0 && (
                     <div style={{ marginTop:14 }}>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                        <p style={{ fontSize:11, color:"#3a4560", textTransform:"uppercase", letterSpacing:".08em" }}>Saved Scenarios</p>
-                        <span style={{ fontSize:10, color:"#3a4560" }}>Payment estimates only</span>
+                        <p style={{ fontSize:11, color: "#eaf8f7", textTransform:"uppercase", letterSpacing:".08em" }}>Saved Scenarios</p>
+                        <span style={{ fontSize:10, color: "#eaf8f7" }}>Payment estimates only</span>
                       </div>
                       <div className="scen-list">
                         {scenarios.map((s) => {
@@ -1269,14 +1269,14 @@ export default function DealRoomPage() {
                                     <p style={{ fontSize:13, fontWeight:500, color:"#f0f4ff" }}>
                                       {s.label ?? (s.offer_price ? `Offer at ${fmt(s.offer_price)}` : "Scenario")}
                                     </p>
-                                    <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:4, background:"rgba(255,255,255,0.05)", color:"#3a4560", letterSpacing:".06em" }}>EST</span>
+                                    <span style={{ fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:4, background:"rgba(255,255,255,0.05)", color: "#eaf8f7", letterSpacing:".06em" }}>EST</span>
                                   </div>
                                   <div style={{ display:"flex", flexWrap:"wrap", gap:"4px 12px" }}>
-                                    {s.offer_price && <span style={{ fontSize:12, color:"#6b7a99" }}>{fmt(s.offer_price)}</span>}
-                                    {s.down_pct != null && <span style={{ fontSize:12, color:"#6b7a99" }}>{s.down_pct}% dn</span>}
-                                    {s.rate        && <span style={{ fontSize:12, color:"#6b7a99" }}>{s.rate}%</span>}
-                                    {s.loan_type && s.loan_type !== "conventional" && <span style={{ fontSize:11, color:"#6b7a99", textTransform:"uppercase" }}>{s.loan_type}</span>}
-                                    <span style={{ fontSize:12, color:"#3a4560" }}>{timeAgo(s.created_at)}</span>
+                                    {s.offer_price && <span style={{ fontSize:12, color: "#94a3b8" }}>{fmt(s.offer_price)}</span>}
+                                    {s.down_pct != null && <span style={{ fontSize:12, color: "#94a3b8" }}>{s.down_pct}% dn</span>}
+                                    {s.rate        && <span style={{ fontSize:12, color: "#94a3b8" }}>{s.rate}%</span>}
+                                    {s.loan_type && s.loan_type !== "conventional" && <span style={{ fontSize:11, color: "#94a3b8", textTransform:"uppercase" }}>{s.loan_type}</span>}
+                                    <span style={{ fontSize:12, color: "#eaf8f7" }}>{timeAgo(s.created_at)}</span>
                                   </div>
                                 </div>
                                 <div style={{ textAlign:"right", flexShrink:0 }}>
@@ -1315,7 +1315,7 @@ export default function DealRoomPage() {
                           );
                         })}
                       </div>
-                      <p style={{ fontSize:11, color:"#3a4560", marginTop:10, lineHeight:1.5 }}>
+                      <p style={{ fontSize:11, color: "#eaf8f7", marginTop:10, lineHeight:1.5 }}>
                         Estimates are for illustrative purposes only. Not a commitment to lend or a Loan Estimate under RESPA/TRID.
                         {loNmls
                           ? <> Prepared by {loDisplayName ?? "Loan Officer"} · NMLS #{loNmls}.</>
@@ -1337,13 +1337,13 @@ export default function DealRoomPage() {
                       <p style={{ fontSize:13, fontWeight:600, color:"#f0f4ff" }}>Deal Room AI</p>
                       <span style={{ fontSize:11, color:"#4a6e58", marginLeft:2 }}>full context · {room.property_address.split(",")[0]}</span>
                     </div>
-                    <p style={{ fontSize:11, color:"#3a4560", marginTop:6 }}>AI responses are educational estimates — not financial, legal, or mortgage advice.</p>
+                    <p style={{ fontSize:11, color: "#eaf8f7", marginTop:6 }}>AI responses are educational estimates — not financial, legal, or mortgage advice.</p>
                   </div>
 
                   {/* Suggested prompts — only before first message */}
                   {aiMessages.length === 0 && (
                     <div style={{ padding:"16px 18px 0" }}>
-                      <p style={{ fontSize:12, color:"#6b7a99", marginBottom:10 }}>Ask anything about this deal</p>
+                      <p style={{ fontSize:12, color: "#94a3b8", marginBottom:10 }}>Ask anything about this deal</p>
                       <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
                         {[
                           pd?.price && pd?.estimatedValue ? "Is this priced fairly?" : "What should we offer?",
@@ -1414,17 +1414,17 @@ export default function DealRoomPage() {
                   {/* ── Rate Monitor Alert Strip ── */}
                   {(liveRate || scenarios.length > 0) && (
                     <div style={{ background:"#0e1420", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, padding:"12px 16px", marginBottom:12 }}>
-                      <p style={{ fontSize:10, color:"#3a4560", textTransform:"uppercase", letterSpacing:".08em", marginBottom:8 }}>Rate Monitor</p>
+                      <p style={{ fontSize:10, color: "#eaf8f7", textTransform:"uppercase", letterSpacing:".08em", marginBottom:8 }}>Rate Monitor</p>
                       <div style={{ display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
                         {liveRate && (
                           <div>
-                            <span style={{ fontSize:11, color:"#6b7a99" }}>30Y FRED&nbsp;</span>
+                            <span style={{ fontSize:11, color: "#94a3b8" }}>30Y FRED&nbsp;</span>
                             <span style={{ fontSize:15, fontWeight:700, color:"#f0f4ff" }}>{liveRate.toFixed(2)}%</span>
                           </div>
                         )}
                         {scenarios[0]?.rate && (
                           <div>
-                            <span style={{ fontSize:11, color:"#6b7a99" }}>Latest scenario&nbsp;</span>
+                            <span style={{ fontSize:11, color: "#94a3b8" }}>Latest scenario&nbsp;</span>
                             <span style={{ fontSize:15, fontWeight:700, color:"#f0f4ff" }}>{scenarios[0].rate}%</span>
                           </div>
                         )}
@@ -1442,7 +1442,7 @@ export default function DealRoomPage() {
                         {!showAlertForm && (
                           <button
                             onClick={() => setShowAlertForm(true)}
-                            style={{ marginLeft:"auto", background:"transparent", border:"1px solid rgba(255,255,255,0.08)", borderRadius:6, padding:"4px 10px", fontSize:11, color:"#6b7a99", cursor:"pointer", fontFamily:"inherit" }}
+                            style={{ marginLeft:"auto", background:"transparent", border:"1px solid rgba(255,255,255,0.08)", borderRadius:6, padding:"4px 10px", fontSize:11, color: "#94a3b8", cursor:"pointer", fontFamily:"inherit" }}
                           >
                             Set Rate Alert
                           </button>
@@ -1454,7 +1454,7 @@ export default function DealRoomPage() {
                         <div style={{ marginTop:10, borderTop:"1px solid rgba(255,255,255,0.06)", paddingTop:10 }}>
                           <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"flex-end" }}>
                             <div>
-                              <span style={{ fontSize:10, color:"#6b7a99", display:"block", marginBottom:4 }}>Alert when rate drops below (%)</span>
+                              <span style={{ fontSize:10, color: "#94a3b8", display:"block", marginBottom:4 }}>Alert when rate drops below (%)</span>
                               <input
                                 type="number" step="0.01"
                                 placeholder={liveRate ? (liveRate - 0.25).toFixed(2) : "6.50"}
@@ -1464,7 +1464,7 @@ export default function DealRoomPage() {
                               />
                             </div>
                             <div style={{ flex:1, minWidth:140 }}>
-                              <span style={{ fontSize:10, color:"#6b7a99", display:"block", marginBottom:4 }}>Notify email</span>
+                              <span style={{ fontSize:10, color: "#94a3b8", display:"block", marginBottom:4 }}>Notify email</span>
                               <input
                                 type="email"
                                 placeholder="you@email.com"
@@ -1482,12 +1482,12 @@ export default function DealRoomPage() {
                             </button>
                             <button
                               onClick={() => setShowAlertForm(false)}
-                              style={{ background:"transparent", border:"none", color:"#6b7a99", fontSize:12, cursor:"pointer", fontFamily:"inherit", padding:"7px 6px" }}
+                              style={{ background:"transparent", border:"none", color: "#94a3b8", fontSize:12, cursor:"pointer", fontFamily:"inherit", padding:"7px 6px" }}
                             >
                               Cancel
                             </button>
                           </div>
-                          <p style={{ fontSize:11, color:"#3a4560", marginTop:8 }}>
+                          <p style={{ fontSize:11, color: "#eaf8f7", marginTop:8 }}>
                             You&apos;ll receive an email when the 30Y FRED rate drops to your target. Checked daily.
                           </p>
                         </div>
@@ -1498,7 +1498,7 @@ export default function DealRoomPage() {
                   <div className="dr-card" style={{ padding:0 }}>
                     <div className="dr-thread">
                       {messages.length === 0 && (
-                        <p style={{ color:"#6b7a99", fontSize:13, textAlign:"center", margin:"auto" }}>
+                        <p style={{ color: "#94a3b8", fontSize:13, textAlign:"center", margin:"auto" }}>
                           Start the conversation with your team.
                         </p>
                       )}
@@ -1517,7 +1517,7 @@ export default function DealRoomPage() {
                             <div className={isSelf ? "msg-self" : "msg-other"}>
                               <p style={{ fontSize:14, lineHeight:1.5 }}>{msg.content}</p>
                             </div>
-                            <p style={{ fontSize:11, color:"#3a4560", marginTop:3 }}>{timeAgo(msg.created_at)}</p>
+                            <p style={{ fontSize:11, color: "#eaf8f7", marginTop:3 }}>{timeAgo(msg.created_at)}</p>
                           </div>
                         );
                       })}
@@ -1526,7 +1526,7 @@ export default function DealRoomPage() {
                   </div>
                   {isRoomLocked ? (
                     <div style={{ background:"rgba(107,122,153,0.05)", border:"1px solid rgba(107,122,153,0.12)", borderRadius:10, padding:"12px 14px", marginTop:10, textAlign:"center" }}>
-                      <p style={{ fontSize:13, color:"#3a4560" }}>Messaging is disabled — this room is {room.status}.</p>
+                      <p style={{ fontSize:13, color: "#eaf8f7" }}>Messaging is disabled — this room is {room.status}.</p>
                     </div>
                   ) : (
                     <div className="dr-compose">
@@ -1564,11 +1564,11 @@ export default function DealRoomPage() {
 
                   {isRoomLocked && (
                     <div style={{ background:"rgba(107,122,153,0.05)", border:"1px solid rgba(107,122,153,0.12)", borderRadius:8, padding:"10px 14px", marginTop:16, textAlign:"center" }}>
-                      <p style={{ fontSize:12, color:"#3a4560" }}>Invites are disabled — this room is {room.status}.</p>
+                      <p style={{ fontSize:12, color: "#eaf8f7" }}>Invites are disabled — this room is {room.status}.</p>
                     </div>
                   )}
                   {!isRoomLocked && <div style={{ marginTop:20, borderTop:"1px solid rgba(255,255,255,0.05)", paddingTop:16 }}>
-                    <p style={{ fontSize:12, color:"#6b7a99", marginBottom:14 }}>Invite team members</p>
+                    <p style={{ fontSize:12, color: "#94a3b8", marginBottom:14 }}>Invite team members</p>
                     {(["buyer","lo","agent"] as const).map((role) => {
                       const m      = members.find((x) => x.role === role);
                       const link   = inviteLinks[role];
@@ -1656,7 +1656,7 @@ export default function DealRoomPage() {
                       fontSize:28, fontFamily:"'Syne',sans-serif", fontWeight:700, lineHeight:1,
                       color: scoreData.score >= 75 ? "#00e87a" : scoreData.score >= 50 ? "#fbbf24" : "#f87171",
                     }}>{scoreData.score}</p>
-                    <p style={{ fontSize:11, color:"#6b7a99", lineHeight:1.4 }}>out of<br/>100</p>
+                    <p style={{ fontSize:11, color: "#94a3b8", lineHeight:1.4 }}>out of<br/>100</p>
                   </div>
                   <p style={{ fontSize:11, color:"#4a6e58", marginTop:4 }}>
                     {scoreData.score >= 75 ? "Strong position" : scoreData.score >= 50 ? "Moderate" : "Needs attention"}
@@ -1741,7 +1741,7 @@ export default function DealRoomPage() {
                 >
                   <span className="rail-label">Scenarios</span>
                   <p style={{ fontSize:15, fontWeight:600, color:"#f0f4ff" }}>{scenarios.length} saved</p>
-                  <p style={{ fontSize:11, color:"#6b7a99", marginTop:2 }}>
+                  <p style={{ fontSize:11, color: "#94a3b8", marginTop:2 }}>
                     Best: ${Math.min(...scenarios.filter(s=>s.piti).map(s=>s.piti!)).toLocaleString()}/mo
                   </p>
                 </div>
@@ -1788,7 +1788,7 @@ function OfferScoreCard({
         <button
           onClick={onLoad}
           disabled={loading}
-          style={{ background:"none", border:"none", color:"#6b7a99", fontSize:12, cursor:"pointer", fontFamily:"inherit", padding:0 }}
+          style={{ background:"none", border:"none", color: "#94a3b8", fontSize:12, cursor:"pointer", fontFamily:"inherit", padding:0 }}
         >
           {loading ? "Analyzing…" : scoreData ? "↻ Refresh" : "Run analysis"}
         </button>
@@ -1797,7 +1797,7 @@ function OfferScoreCard({
       {/* Loading state */}
       {loading && !scoreData && (
         <div style={{ padding:"24px 0", textAlign:"center" }}>
-          <p style={{ fontSize:13, color:"#6b7a99" }}>Running AI analysis…</p>
+          <p style={{ fontSize:13, color: "#94a3b8" }}>Running AI analysis…</p>
           <div style={{ width:"100%", height:3, background:"rgba(255,255,255,0.04)", borderRadius:99, marginTop:12, overflow:"hidden" }}>
             <div style={{ width:"60%", height:"100%", background:"linear-gradient(90deg,transparent,#00e87a,transparent)", animation:"score-scan 1.4s ease-in-out infinite" }} />
           </div>
@@ -1809,7 +1809,7 @@ function OfferScoreCard({
       {!loading && !scoreData && (
         <div style={{ padding:"20px 0", textAlign:"center" }}>
           <p style={{ fontSize:22, marginBottom:8 }}>🏠</p>
-          <p style={{ fontSize:13, color:"#6b7a99", marginBottom:14, lineHeight:1.5 }}>
+          <p style={{ fontSize:13, color: "#94a3b8", marginBottom:14, lineHeight:1.5 }}>
             Get an AI-powered confidence score for this deal — price position, market timing, financing readiness, and more.
           </p>
           <button
@@ -1834,7 +1834,7 @@ function OfferScoreCard({
                 <span style={{ fontSize:15, fontWeight:600, color:ringColor, fontFamily:"'Syne',sans-serif" }}>
                   {scoreData.score >= 75 ? "Strong Position" : scoreData.score >= 50 ? "Moderate" : scoreData.score >= 25 ? "Caution" : "Weak Position"}
                 </span>
-                <span style={{ fontSize:12, color:"#6b7a99" }}>{scoreData.score}/100</span>
+                <span style={{ fontSize:12, color: "#94a3b8" }}>{scoreData.score}/100</span>
               </div>
               <div className="score-bar-track">
                 <div className="score-bar-fill" style={{ width:`${scoreData.score}%`, background:ringColor }} />
@@ -1852,9 +1852,9 @@ function OfferScoreCard({
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
                     <span style={{ fontSize:12, fontWeight:500, color:"#f0f4ff" }}>{sig.label}</span>
-                    <span style={{ fontSize:11, color:"#6b7a99", flexShrink:0, marginLeft:8 }}>{sig.points}/{sig.max}</span>
+                    <span style={{ fontSize:11, color: "#94a3b8", flexShrink:0, marginLeft:8 }}>{sig.points}/{sig.max}</span>
                   </div>
-                  <p style={{ fontSize:11, color:"#6b7a99", marginTop:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  <p style={{ fontSize:11, color: "#94a3b8", marginTop:1, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
                     {sig.detail}
                   </p>
                 </div>
@@ -1873,7 +1873,7 @@ function OfferScoreCard({
 function SnapStat({ label, value, accent }: { label:string; value:string; accent?:boolean }) {
   return (
     <div>
-      <p style={{ fontSize:10, color:"#3a4560", textTransform:"uppercase", letterSpacing:".06em", marginBottom:2 }}>{label}</p>
+      <p style={{ fontSize:10, color: "#eaf8f7", textTransform:"uppercase", letterSpacing:".06em", marginBottom:2 }}>{label}</p>
       <p style={{ fontSize:14, fontWeight:600, color:accent?"#00e87a":"#f0f4ff" }}>{value}</p>
     </div>
   );

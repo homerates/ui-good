@@ -239,7 +239,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     <div className="refi-hero-val" style={{ color: calc.savings >= 0 ? '#00e87a' : '#ef4444' }}>
                         {calc.savings >= 0 ? '+' : '−'}{fmt$(calc.savings)}
                     </div>
-                    <div style={{ fontSize: 10, color: '#3a4560', marginTop: 2, fontWeight: 500 }}>Monthly savings</div>
+                    <div style={{ fontSize: 10, color: '#eaf8f7', marginTop: 2, fontWeight: 500 }}>Monthly savings</div>
                 </div>
 
                 {/* Break-even */}
@@ -250,7 +250,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     <div className="refi-hero-val" style={{ color: beC.text }}>
                         {beLabel}
                     </div>
-                    <div style={{ fontSize: 10, color: '#3a4560', marginTop: 2, fontWeight: 500 }}>Break-even</div>
+                    <div style={{ fontSize: 10, color: '#eaf8f7', marginTop: 2, fontWeight: 500 }}>Break-even</div>
                 </div>
 
                 {/* 5-yr net */}
@@ -262,17 +262,17 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     <div className="refi-hero-val" style={{ color: calc.net5yr >= 0 ? '#00e87a' : '#ef4444' }}>
                         {calc.net5yr >= 0 ? '+' : '−'}{fmt$(calc.net5yr)}
                     </div>
-                    <div style={{ fontSize: 10, color: '#3a4560', marginTop: 2, fontWeight: 500 }}>5-yr net</div>
+                    <div style={{ fontSize: 10, color: '#eaf8f7', marginTop: 2, fontWeight: 500 }}>5-yr net</div>
                 </div>
             </div>
 
             {/* ── Payment comparison bars ── */}
             <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#3a4560', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#eaf8f7', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     P&amp;I Payment
                 </div>
                 {[
-                    { label: 'Now', val: calc.oldPI, color: '#6b7a99' },
+                    { label: 'Now', val: calc.oldPI, color: '#94a3b8' },
                     { label: 'New', val: calc.newPI, color: calc.savings >= 0 ? '#10b981' : '#ef4444' },
                 ].map(({ label, val, color }) => (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
@@ -321,7 +321,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     trackColor="#ef4444" theme="dark"
                     style={{ minWidth: 0 }}
                 />
-                <div className="refi-rate-arrow" style={{ textAlign: 'center', paddingBottom: 6, fontSize: 12, color: '#3a4560', fontWeight: 700 }}>→</div>
+                <div className="refi-rate-arrow" style={{ textAlign: 'center', paddingBottom: 6, fontSize: 12, color: '#eaf8f7', fontWeight: 700 }}>→</div>
                 <SliderField
                     label={`New Rate${noCost ? ' +0.25%' : ''}`} value={newRate}
                     min={3} max={12} step={0.125}
@@ -386,16 +386,16 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                 marginBottom: 12, fontSize: 12,
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span style={{ color: '#6b7a99' }}>Remaining interest (current loan)</span>
+                    <span style={{ color: '#94a3b8' }}>Remaining interest (current loan)</span>
                     <span style={{ fontWeight: 700, color: '#ef4444' }}>{fmt$(calc.oldTotalInt)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span style={{ color: '#6b7a99' }}>Total interest (new {termYears}yr loan)</span>
+                    <span style={{ color: '#94a3b8' }}>Total interest (new {termYears}yr loan)</span>
                     <span style={{ fontWeight: 700, color: '#f0f4ff' }}>{fmt$(calc.newTotalInt)}</span>
                 </div>
                 {termYears === 30 && calc.int20saved > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                        <span style={{ color: '#6b7a99' }}>20yr alt @ {fmtRate(effNewRate)} saves vs 30yr</span>
+                        <span style={{ color: '#94a3b8' }}>20yr alt @ {fmtRate(effNewRate)} saves vs 30yr</span>
                         <span style={{ fontWeight: 700, color: '#0ea5e9' }}>+{fmt$(calc.int20saved)}</span>
                     </div>
                 )}
@@ -411,7 +411,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
 
             {/* ── Footer stats ── */}
             <div style={{
-                display: 'flex', gap: 14, fontSize: 11, color: '#6b7a99',
+                display: 'flex', gap: 14, fontSize: 11, color: '#94a3b8',
                 marginBottom: isDirty ? 12 : 0, flexWrap: 'wrap',
             }}>
                 <span>Balance <strong style={{ color: '#eaf8f7' }}>{fmt$(balance)}</strong></span>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 
@@ -39,7 +39,7 @@ export default function ShareBar({ url, title }: ShareBarProps) {
           font-weight: 600;
           letter-spacing: 0.12em;
           text-transform: uppercase;
-          color: #3a4560;
+          color: #eaf8f7;
           margin-right: 4px;
         }
         .sharebar-btn {

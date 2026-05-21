@@ -1,4 +1,4 @@
-// app/for-pros/page.tsx
+﻿// app/for-pros/page.tsx
 // Public landing page for loan officers and agents
 // Explains the scenario board value prop and drives sign-up / sign-in
 
@@ -281,7 +281,7 @@ export default function ForProsPage() {
         .fp-btn-ghost:hover { border-color: rgba(255,255,255,0.35); }
         .fp-trust-bar {
           display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;
-          font-size: 0.8rem; color: #3a4560;
+          font-size: 0.8rem; color: #eaf8f7;
         }
 
         /* SECTIONS */
@@ -374,7 +374,7 @@ export default function ForProsPage() {
         }
         .fp-cta-sub { font-size: 1rem; color: #8fa3b8; line-height: 1.65; margin: 0 0 2rem; }
         .fp-cta-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
-        .fp-cta-fine { font-size: 0.78rem; color: #3a4560; line-height: 1.5; }
+        .fp-cta-fine { font-size: 0.78rem; color: #eaf8f7; line-height: 1.5; }
 
         @media (max-width: 640px) {
           .fp-nav { padding: 14px 20px; }

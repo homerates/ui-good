@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/messages/page.tsx
 // Unified inbox for borrowers and professionals — thread list
 
@@ -156,7 +156,7 @@ export default function MessagesPage() {
           text-align: center;
         }
 
-        .mb-loading { color: #3a4560; padding: 3rem 0; text-align: center; }
+        .mb-loading { color: #eaf8f7; padding: 3rem 0; text-align: center; }
 
         .mb-empty { text-align: center; padding: 4rem 0; }
         .mb-empty-icon { font-size: 2.5rem; margin-bottom: 1rem; }
@@ -202,7 +202,7 @@ export default function MessagesPage() {
           font-weight: 700; font-size: 0.95rem; color: #f0f4ff;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        .mb-thread-time { font-size: 0.72rem; color: #3a4560; flex-shrink: 0; }
+        .mb-thread-time { font-size: 0.72rem; color: #eaf8f7; flex-shrink: 0; }
 
         .mb-thread-meta { display: flex; align-items: center; gap: 8px; }
         .mb-thread-role { font-size: 0.75rem; color: #8fa3b8; }
@@ -212,7 +212,7 @@ export default function MessagesPage() {
           font-weight: 600;
         }
         .mb-thread-closed {
-          font-size: 0.7rem; color: #3a4560;
+          font-size: 0.7rem; color: #eaf8f7;
           background: rgba(255,255,255,0.05); border-radius: 99px; padding: 1px 8px;
         }
 

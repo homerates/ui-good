@@ -133,10 +133,10 @@ function DebugPanel({ meta, raw }: { meta: any; raw: any }) {
                 <span style={{ color: '#5060a0', fontWeight: 600, fontSize: 10, letterSpacing: '0.05em' }}>
                     DEBUG
                 </span>
-                <span style={{ color: '#303050', fontSize: 10 }}>
+                <span style={{ color: '#94a3b8', fontSize: 10 }}>
                     {meta?.path ?? meta?.route ?? ''} · {debug.servedModel ?? debug.requestedModel ?? ''}
                 </span>
-                <span style={{ marginLeft: 'auto', fontSize: 10, color: '#404060' }}>
+                <span style={{ marginLeft: 'auto', fontSize: 10, color: '#94a3b8' }}>
                     {open ? '▲' : '▼'}
                 </span>
             </div>

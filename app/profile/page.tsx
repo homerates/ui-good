@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/profile/page.tsx
 // Role-aware profile editor — LOs/agents see license + company fields
 
@@ -494,7 +494,7 @@ export default function ProfilePage() {
                     </div>
                     <div style={{ fontSize: "0.78rem", color: "#8fa3b8", marginTop: 4 }}>credits available</div>
                   </div>
-                  <div style={{ fontSize: "0.82rem", color: "#6b7a99", lineHeight: 1.5, maxWidth: 280 }}>
+                  <div style={{ fontSize: "0.82rem", color: "#94a3b8", lineHeight: 1.5, maxWidth: 280 }}>
                     50 credits = 1 extra scenario post beyond your plan limit (max 3/mo)
                   </div>
                 </div>
@@ -795,10 +795,10 @@ export default function ProfilePage() {
           background: rgba(255,255,255,0.02);
           border: 1px solid rgba(255,255,255,0.05);
           border-radius: 10px;
-          color: #3a4560; font-size: 0.9rem;
+          color: #eaf8f7; font-size: 0.9rem;
         }
 
-        .pr-hint { font-size: 0.75rem; color: #3a4560; line-height: 1.4; }
+        .pr-hint { font-size: 0.75rem; color: #eaf8f7; line-height: 1.4; }
         .pr-verify-link { color: #00e87a; text-decoration: none; font-weight: 500; }
         .pr-verify-link:hover { text-decoration: underline; }
 
@@ -821,7 +821,7 @@ export default function ProfilePage() {
         }
         .pr-role-chip.locked:hover { border-color: rgba(255,255,255,0.06); color: #8fa3b8; }
         .pr-chip-lock { font-size: 0.7rem; }
-        .pr-section-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #3a4560; font-size: 0.7rem; }
+        .pr-section-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #eaf8f7; font-size: 0.7rem; }
 
         .pr-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -91,13 +91,13 @@ export default function DealRoomsPage() {
         .dr-btn { background:#00e87a; color:#080c12; border:none; border-radius:8px; padding:10px 20px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
         .dr-btn:hover { background:#00c96a; }
         .dr-btn:disabled { opacity:.5; cursor:not-allowed; }
-        .dr-ghost { background:transparent; color:#6b7a99; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:9px 16px; font-size:13px; cursor:pointer; font-family:inherit; }
+        .dr-ghost { background:transparent; color: #94a3b8; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:9px 16px; font-size:13px; cursor:pointer; font-family:inherit; }
         .dr-ghost:hover { color:#f0f4ff; border-color:rgba(255,255,255,0.15); }
         .dr-input { background:#141b28; border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#f0f4ff; font-size:14px; padding:11px 14px; width:100%; outline:none; font-family:inherit; }
         .dr-input:focus { border-color:#00e87a; }
-        .dr-input::placeholder { color:#3a4560; }
-        .dr-lbl { font-size:11px; color:#6b7a99; text-transform:uppercase; letter-spacing:.06em; font-weight:500; margin-bottom:6px; display:block; }
-        .dr-sec { font-size:11px; color:#3a4560; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; font-weight:500; }
+        .dr-input::placeholder { color: #eaf8f7; }
+        .dr-lbl { font-size:11px; color: #94a3b8; text-transform:uppercase; letter-spacing:.06em; font-weight:500; margin-bottom:6px; display:block; }
+        .dr-sec { font-size:11px; color: #eaf8f7; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; font-weight:500; }
       `}</style>
 
       {/* Page header */}
@@ -106,7 +106,7 @@ export default function DealRoomsPage() {
           <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:22, fontWeight:700, color:"#f0f4ff", margin:0 }}>
             Deal Rooms
           </h1>
-          <p style={{ fontSize:14, color:"#6b7a99", marginTop:4 }}>
+          <p style={{ fontSize:14, color: "#94a3b8", marginTop:4 }}>
             AI workspace for every transaction — property, team, and financing in one place
           </p>
         </div>
@@ -141,7 +141,7 @@ export default function DealRoomsPage() {
       )}
 
       {/* Loading */}
-      {loading && <p style={{ color:"#6b7a99", fontSize:14, textAlign:"center", padding:"60px 0" }}>Loading…</p>}
+      {loading && <p style={{ color: "#94a3b8", fontSize:14, textAlign:"center", padding:"60px 0" }}>Loading…</p>}
 
       {/* Free account with invited rooms — show their rooms, no upgrade prompt */}
       {!loading && !isPro && rooms.length > 0 && (
@@ -164,7 +164,7 @@ export default function DealRoomsPage() {
         <div style={{ textAlign:"center", padding:"72px 0" }}>
           <div style={{ fontSize:32, marginBottom:14 }}>🏠</div>
           <p style={{ fontSize:16, fontWeight:500, color:"#f0f4ff", margin:"0 0 8px" }}>No deal rooms yet</p>
-          <p style={{ fontSize:14, color:"#6b7a99", margin:"0 0 0", lineHeight:1.7 }}>
+          <p style={{ fontSize:14, color: "#94a3b8", margin:"0 0 0", lineHeight:1.7 }}>
             Deal rooms are created by your loan officer.<br />
             You&apos;ll receive an invite link when your LO opens a room for your transaction.
           </p>
@@ -176,7 +176,7 @@ export default function DealRoomsPage() {
         <div style={{ textAlign:"center", padding:"72px 0" }}>
           <div style={{ fontSize:32, marginBottom:14 }}>🏠</div>
           <p style={{ fontSize:16, fontWeight:500, color:"#f0f4ff", margin:"0 0 6px" }}>No deal rooms yet</p>
-          <p style={{ fontSize:14, color:"#6b7a99", margin:"0 0 22px" }}>
+          <p style={{ fontSize:14, color: "#94a3b8", margin:"0 0 22px" }}>
             Create a room for a property and invite your buyer, agent, or loan officer.
           </p>
           <button className="dr-btn" onClick={() => setShowNew(true)}>Create First Room</button>
@@ -215,10 +215,10 @@ function RoomCard({ room, onClick }: { room: Room; onClick: () => void }) {
             {room.property_address}
           </p>
           <div style={{ display:"flex", gap:14, marginTop:5 }}>
-            <span style={{ fontSize:12, color:"#6b7a99" }}>{joined}/{total} member{total!==1?"s":""}</span>
-            {room.offer_price && <span style={{ fontSize:12, color:"#6b7a99" }}>${(room.offer_price/1000).toFixed(0)}k offer</span>}
+            <span style={{ fontSize:12, color: "#94a3b8" }}>{joined}/{total} member{total!==1?"s":""}</span>
+            {room.offer_price && <span style={{ fontSize:12, color: "#94a3b8" }}>${(room.offer_price/1000).toFixed(0)}k offer</span>}
             {room.target_close_date && (
-              <span style={{ fontSize:12, color:"#6b7a99" }}>
+              <span style={{ fontSize:12, color: "#94a3b8" }}>
                 Close {new Date(room.target_close_date).toLocaleDateString("en-US",{month:"short",day:"numeric"})}
               </span>
             )}

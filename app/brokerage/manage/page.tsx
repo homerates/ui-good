@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/brokerage/manage/page.tsx
 // Organization admin dashboard — Mortgage Brokerage / Lender / Credit Union / RE Brokerage
 // Individuals manage their own subscriptions; this dashboard tracks team activity only.
@@ -23,7 +23,7 @@ function orgLabel(t: string) {
 function planBadge(plan: string) {
   if (plan === "pro")  return { label: "Pro",  bg: "rgba(0,232,122,0.12)",  color: "#00e87a",  border: "rgba(0,232,122,0.3)" };
   if (plan === "plus") return { label: "Plus", bg: "rgba(61,139,255,0.12)", color: "#3d8bff",  border: "rgba(61,139,255,0.3)" };
-  return                       { label: "Free", bg: "rgba(255,255,255,0.05)", color: "#6b7a99", border: "rgba(255,255,255,0.1)" };
+  return                       { label: "Free", bg: "rgba(255,255,255,0.05)", color: "#94a3b8", border: "rgba(255,255,255,0.1)" };
 }
 
 interface Member {
@@ -298,7 +298,7 @@ export default function BrokerageManagePage() {
                           }}>
                             {pb.label}
                           </span>
-                          <span style={{ fontSize: "0.72rem", color: "#3a4560", whiteSpace: "nowrap" }}>
+                          <span style={{ fontSize: "0.72rem", color: "#eaf8f7", whiteSpace: "nowrap" }}>
                             {new Date(m.joined_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                           </span>
                           {m.role !== "owner" && (
@@ -316,7 +316,7 @@ export default function BrokerageManagePage() {
                     );
                   })}
                 </div>
-                <p style={{ fontSize: "0.75rem", color: "#3a4560", margin: "12px 0 0" }}>
+                <p style={{ fontSize: "0.75rem", color: "#eaf8f7", margin: "12px 0 0" }}>
                   Each member is responsible for their own subscription. Plans shown are individual and billed directly to each user.
                 </p>
               </div>
@@ -488,7 +488,7 @@ export default function BrokerageManagePage() {
           font-size: 0.95rem; font-weight: 700; color: #f0f4ff;
         }
         .bk-member-stat-label {
-          font-size: 0.65rem; color: #3a4560; text-transform: uppercase; letter-spacing: 0.05em;
+          font-size: 0.65rem; color: #eaf8f7; text-transform: uppercase; letter-spacing: 0.05em;
         }
 
         .bk-badge-owner {

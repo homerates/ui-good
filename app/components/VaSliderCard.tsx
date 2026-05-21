@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
@@ -499,7 +499,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                 .va-header-left { display:flex; align-items:center; gap:10px; }
                 .va-hicon { width:32px; height:32px; border-radius:9px; background:rgba(20,184,166,0.1); border:1px solid rgba(20,184,166,0.25); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
                 .va-title { font-size:15px; font-weight:700; color:#f0f4ff; }
-                .va-sub   { font-size:11px; color:#6b7a99; margin-top:2px; }
+                .va-sub   { font-size:11px; color: #94a3b8; margin-top:2px; }
                 .va-nopmi-badge { font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:4px 10px; border-radius:20px; flex-shrink:0; white-space:nowrap; background:rgba(20,184,166,0.1); color:#14b8a6; border:1px solid rgba(20,184,166,0.25); }
 
                 /* Hero */
@@ -554,16 +554,16 @@ export default function VaSliderCard(props: VaSliderParams) {
 
                 /* DP chips */
                 .va-dp-chips { display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 8px; }
-                .va-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:11px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; transition:all .12s; }
+                .va-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:11px; font-weight:600; color: #94a3b8; cursor:pointer; font-family:inherit; transition:all .12s; }
                 .va-dp-chip.active { border-color:#14b8a6; color:#14b8a6; background:rgba(20,184,166,0.1); }
                 .va-dp-chip:hover:not(.active) { border-color:rgba(255,255,255,0.2); }
                 .va-dp-chip-note { font-size:9px; font-weight:600; margin-left:3px; opacity:.8; }
-                .va-dp-note { font-size:10px; color:#3a4560; margin:-4px 0 12px; }
+                .va-dp-note { font-size:10px; color: #eaf8f7; margin:-4px 0 12px; }
 
                 /* Term */
                 .va-term-label { font-size:13px; font-weight:600; color:#8fa3b8; margin:4px 0 8px; }
                 .va-terms { display:flex; gap:8px; }
-                .va-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:13px; font-weight:600; color:#6b7a99; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
+                .va-term { flex:1; padding:10px 0; border-radius:8px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:13px; font-weight:600; color: #94a3b8; cursor:pointer; font-family:inherit; text-align:center; transition:all .15s; }
                 .va-term--on { border-color:#14b8a6; color:#14b8a6; background:rgba(20,184,166,0.1); }
                 .va-term:hover:not(.va-term--on) { border-color:rgba(255,255,255,0.2); }
 
@@ -632,8 +632,8 @@ export default function VaSliderCard(props: VaSliderParams) {
                 .va-rate-note p { font-size:12px; color:#8fa3b8; line-height:1.5; margin:0; }
                 .va-rate-note strong { color:#14b8a6; }
                 .va-disc { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:12px 14px; }
-                .va-disc p { font-size:11px; color:#6b7a99; line-height:1.6; margin:0; }
-                .va-disc strong { color:#6b7a99; font-weight:600; }
+                .va-disc p { font-size:11px; color: #94a3b8; line-height:1.6; margin:0; }
+                .va-disc strong { color: #94a3b8; font-weight:600; }
 
                 @media (max-width:480px) {
                     .va-hero { grid-template-columns:1fr; }

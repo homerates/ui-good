@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // app/components/PropertyPreviewCard.tsx
 // Displays a scraped property listing snapshot — photo, address, price, beds/baths/sqft, tax note.
@@ -134,11 +134,11 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
                     </div>
                 ) : (
                     <div style={{ background: 'linear-gradient(135deg, #0e1420 0%, #141b28 100%)', padding: '18px 18px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7a99', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
                             Homeowner Analysis · Rentcast AVM
                         </div>
                         <div style={{ fontSize: 15, fontWeight: 700, color: '#f0f4ff', lineHeight: 1.3 }}>{data.address}</div>
-                        <div style={{ fontSize: 12, color: '#6b7a99', marginTop: 3 }}>
+                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3 }}>
                             {[data.beds != null && `${data.beds}bd`, data.baths != null && `${data.baths}ba`, data.sqft != null && `${data.sqft.toLocaleString()} sqft`].filter(Boolean).join(' · ')}
                             {' · '}
                             <span style={{ color: '#94a3b8' }}>Off Market</span>
@@ -149,32 +149,32 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
                 {/* ── AVM value + equity hero ── */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr 1px 1fr', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                     <div style={{ textAlign: 'center', padding: '12px 8px' }}>
-                        <div style={{ fontSize: 10, color: '#6b7a99', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>AVM Value</div>
+                        <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>AVM Value</div>
                         <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{valFmt}</div>
                         {data.estimatedValueLow && data.estimatedValueHigh && (
-                            <div style={{ fontSize: 10, color: '#3a4560', marginTop: 2 }}>
+                            <div style={{ fontSize: 10, color: '#eaf8f7', marginTop: 2 }}>
                                 ${Math.round((data.estimatedValueLow) / 1_000)}k–${Math.round((data.estimatedValueHigh) / 1_000)}k
                             </div>
                         )}
                     </div>
                     <div style={{ background: 'rgba(255,255,255,0.06)', height: 40 }} />
                     <div style={{ textAlign: 'center', padding: '12px 8px' }}>
-                        <div style={{ fontSize: 10, color: '#6b7a99', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Est. Equity</div>
+                        <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Est. Equity</div>
                         <div style={{ fontSize: 20, fontWeight: 800, color: '#00e87a' }}>{equityFmt}</div>
-                        {equityPct !== null && <div style={{ fontSize: 10, color: '#6b7a99', marginTop: 2 }}>{equityPct}% owned</div>}
+                        {equityPct !== null && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{equityPct}% owned</div>}
                     </div>
                     <div style={{ background: 'rgba(255,255,255,0.06)', height: 40 }} />
                     <div style={{ textAlign: 'center', padding: '12px 8px' }}>
-                        <div style={{ fontSize: 10, color: '#6b7a99', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Est. Balance</div>
+                        <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Est. Balance</div>
                         <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{balFmt}</div>
-                        {ltvPct !== null && <div style={{ fontSize: 10, color: '#6b7a99', marginTop: 2 }}>{ltvPct}% LTV</div>}
+                        {ltvPct !== null && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{ltvPct}% LTV</div>}
                     </div>
                 </div>
 
                 {/* ── Equity bar ── */}
                 {equityPct !== null && (
                     <div style={{ padding: '10px 18px 8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 10, color: '#6b7a99' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 10, color: '#94a3b8' }}>
                             <span style={{ color: '#00e87a', fontWeight: 700 }}>{equityPct}% equity</span>
                             <span>{ltvPct}% remaining balance</span>
                         </div>
@@ -186,16 +186,16 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
 
                 {/* ── Purchase history ── */}
                 {data.lastSaleDate && data.lastSalePrice && (
-                    <div style={{ margin: '0 18px 14px', padding: '9px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', fontSize: 12, color: '#6b7a99', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div style={{ margin: '0 18px 14px', padding: '9px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', fontSize: 12, color: '#94a3b8', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                         <span>Purchased</span>
                         <span style={{ color: '#94a3b8', fontWeight: 600 }}>{data.lastSaleDate}</span>
                         <span>for</span>
                         <span style={{ color: '#f0f4ff', fontWeight: 700 }}>{fmtPrice(data.lastSalePrice)}</span>
                         {data.purchaseRate && (
-                            <><span style={{ color: '#3a4560' }}>·</span><span>~{data.purchaseRate}% rate est.</span></>
+                            <><span style={{ color: '#eaf8f7' }}>·</span><span>~{data.purchaseRate}% rate est.</span></>
                         )}
                         {data.remainingMonths && (
-                            <><span style={{ color: '#3a4560' }}>·</span><span>{Math.round(data.remainingMonths / 12)}yr remaining</span></>
+                            <><span style={{ color: '#eaf8f7' }}>·</span><span>{Math.round(data.remainingMonths / 12)}yr remaining</span></>
                         )}
                     </div>
                 )}
@@ -212,7 +212,7 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
                 )}
 
                 {/* ── Footer ── */}
-                <div style={{ padding: '7px 18px', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: 10, color: '#3a4560', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ padding: '7px 18px', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: 10, color: '#eaf8f7', display: 'flex', justifyContent: 'space-between' }}>
                     <span>HomeRates.ai · Rentcast AVM · Educational only</span>
                     <span style={{ color: '#00e87a', fontWeight: 600 }}>Live estimate</span>
                 </div>

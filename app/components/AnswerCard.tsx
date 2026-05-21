@@ -1,4 +1,4 @@
-// app/components/AnswerCard.tsx
+﻿// app/components/AnswerCard.tsx
 'use client';
 
 import * as React from 'react';
@@ -92,7 +92,7 @@ export default function AnswerCard({
                         <div
                             style={{
                                 fontSize: 12,
-                                color: '#3a4560',
+                                color: '#eaf8f7',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 6,
@@ -120,7 +120,7 @@ export default function AnswerCard({
                                 </span>
                             )}
                             {generatedAt && (
-                                <span style={{ color: '#3a4560' }}>
+                                <span style={{ color: '#eaf8f7' }}>
                                     · {new Date(generatedAt).toLocaleDateString()}
                                 </span>
                             )}
@@ -204,7 +204,7 @@ export default function AnswerCard({
                             style={{
                                 fontSize: 11,
                                 fontWeight: 600,
-                                color: '#3a4560',
+                                color: '#eaf8f7',
                                 marginBottom: 4,
                                 fontFamily: "'DM Mono', monospace",
                                 letterSpacing: '0.08em',
@@ -233,7 +233,7 @@ export default function AnswerCard({
                             style={{
                                 fontSize: 11,
                                 fontWeight: 600,
-                                color: '#3a4560',
+                                color: '#eaf8f7',
                                 fontFamily: "'DM Mono', monospace",
                                 letterSpacing: '0.06em',
                                 textTransform: 'uppercase',

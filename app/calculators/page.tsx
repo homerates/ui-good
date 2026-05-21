@@ -1,4 +1,4 @@
-// app/calculators/page.tsx
+﻿// app/calculators/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import AppNav from "../components/AppNav";
@@ -119,28 +119,28 @@ export default function CalculatorsPage() {
 
                 .calc-eyebrow{font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#3d8bff;margin-bottom:0.5rem;}
                 .calc-h1{font-size:clamp(1.75rem,4vw,2.6rem);font-weight:800;letter-spacing:-0.03em;color:#f0f4ff;margin:0 0 1rem;line-height:1.15;}
-                .calc-lead{font-size:1rem;color:#6b7a99;max-width:640px;margin:0 0 3rem;line-height:1.65;}
+                .calc-lead{font-size:1rem;color: #94a3b8;max-width:640px;margin:0 0 3rem;line-height:1.65;}
 
                 .calc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:3.5rem;}
                 .calc-card{display:flex;flex-direction:column;padding:1.5rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;text-decoration:none;color:#f0f4ff;transition:border-color 0.15s,background 0.15s;}
                 .calc-card:hover{border-color:rgba(0,232,122,0.3);background:rgba(0,232,122,0.03);}
                 .calc-card-icon{font-size:1.75rem;margin-bottom:0.75rem;}
                 .calc-card-title{font-weight:700;font-size:1rem;margin-bottom:0.5rem;}
-                .calc-card-desc{font-size:0.85rem;color:#6b7a99;line-height:1.6;margin-bottom:1rem;flex:1;}
+                .calc-card-desc{font-size:0.85rem;color: #94a3b8;line-height:1.6;margin-bottom:1rem;flex:1;}
                 .calc-card-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1rem;}
-                .calc-card-tag{font-size:11px;padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:99px;border:1px solid rgba(255,255,255,0.08);color:#6b7a99;}
+                .calc-card-tag{font-size:11px;padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:99px;border:1px solid rgba(255,255,255,0.08);color: #94a3b8;}
                 .calc-card-cta{font-size:0.85rem;font-weight:600;color:#00e87a;}
 
                 .calc-section-title{font-size:0.78rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8fa3b8;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(255,255,255,0.06);}
                 .calc-h2{font-size:clamp(1.1rem,2.5vw,1.5rem);font-weight:700;color:#f0f4ff;margin:0 0 0.5rem;letter-spacing:-0.02em;}
-                .calc-section-lead{font-size:0.92rem;color:#6b7a99;margin:0 0 1.25rem;max-width:640px;line-height:1.65;}
+                .calc-section-lead{font-size:0.92rem;color: #94a3b8;margin:0 0 1.25rem;max-width:640px;line-height:1.65;}
 
                 .calc-income-grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:3.5rem;}
                 .calc-income-card{padding:8px 18px;border:1px solid rgba(255,255,255,0.08);border-radius:99px;text-decoration:none;color:#8fa3b8;font-size:0.88rem;background:rgba(255,255,255,0.03);font-weight:500;transition:border-color 0.15s,color 0.15s;}
                 .calc-income-card:hover{border-color:rgba(0,232,122,0.3);color:#00e87a;}
 
                 .calc-about{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:1.5rem;}
-                .calc-about p{font-size:0.88rem;color:#6b7a99;margin:0 0 0.75rem;line-height:1.65;}
+                .calc-about p{font-size:0.88rem;color: #94a3b8;margin:0 0 0.75rem;line-height:1.65;}
                 .calc-about p:last-child{margin-bottom:0;}
                 .calc-disclaimer{font-size:0.8rem!important;color:#8fa3b8!important;}
 
@@ -189,7 +189,7 @@ export default function CalculatorsPage() {
                                 </div>
                                 <div style={{ display: 'flex', gap: 10, marginTop: 'auto', paddingTop: 12 }}>
                                     <Link href={calc.href} className="calc-card-cta" style={{ flex: 1 }}>Open calculator →</Link>
-                                    <Link href={`/chat?sq=${encodeURIComponent(calc.chatSeed)}`} style={{ fontSize: '0.82rem', fontWeight: 600, color: '#6b7a99', textDecoration: 'none' }}>Chat →</Link>
+                                    <Link href={`/chat?sq=${encodeURIComponent(calc.chatSeed)}`} style={{ fontSize: '0.82rem', fontWeight: 600, color: '#94a3b8', textDecoration: 'none' }}>Chat →</Link>
                                 </div>
                             </div>
                         ))}

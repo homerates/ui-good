@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // app/welcome/page.tsx
 // Post sign-up role selection — protected route, runs once per new user
 
@@ -306,14 +306,14 @@ export default function WelcomePage() {
         .wl-field { display: flex; flex-direction: column; gap: 6px; }
         .wl-field label { font-size: 0.78rem; font-weight: 600; color: #8fa3b8; text-transform: uppercase; letter-spacing: 0.06em; }
         .wl-req { color: #ff5f5f; }
-        .wl-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #3a4560; }
+        .wl-optional { font-weight: 400; text-transform: none; letter-spacing: 0; color: #eaf8f7; }
         .wl-input {
           padding: 10px 14px; background: #141b28; border: 1px solid rgba(255,255,255,0.08);
           border-radius: 10px; color: #f0f4ff; font-size: 0.9rem;
           outline: none; font-family: inherit; width: 100%; box-sizing: border-box;
         }
         .wl-input:focus { border-color: rgba(0,232,122,0.4); }
-        .wl-field-note { font-size: 0.78rem; color: #3a4560; margin: 0; line-height: 1.5; }
+        .wl-field-note { font-size: 0.78rem; color: #eaf8f7; margin: 0; line-height: 1.5; }
         .wl-error {
           font-size: 0.875rem; color: #ff5f5f;
           background: rgba(255,95,95,0.08); border: 1px solid rgba(255,95,95,0.2);
