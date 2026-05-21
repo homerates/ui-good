@@ -306,7 +306,7 @@ export default function ProjectsPanel({
                                                     background: "transparent",
                                                     padding: "4px 6px",
                                                     cursor: "pointer",
-                                                    color: "#64748b",
+                                                    color: "#eaf8f7",
                                                     fontSize: 13,
                                                     fontWeight: 500,
                                                 }}

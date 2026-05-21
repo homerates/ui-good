@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 // app/track5/page.tsx — Track 5 Decision Dashboard
 // Read-only decision scorecard. No input. Data fed in via URL params from tools.
 // Entry points: chat (affordability, market analysis), property-intel, future location tool.
@@ -121,7 +121,7 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
           borderRight: '1px solid rgba(255,255,255,0.05)',
         }}>
           {/* Level number — readable dim label */}
-          <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', color: '#64748b', marginBottom: 8 }}>
+          <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', color: '#eaf8f7', marginBottom: 8 }}>
             {num}
           </div>
           <div style={{ position: 'relative', width: 48, height: 48 }}>
@@ -166,7 +166,7 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
                   background: score >= 70 ? '#4ade80' : score >= 50 ? '#fbbf24' : '#f87171',
                 }} />
               </div>
-              <span style={{ fontSize: '0.62rem', color: '#64748b', whiteSpace: 'nowrap' }}>{score} / 100</span>
+              <span style={{ fontSize: '0.62rem', color: '#eaf8f7', whiteSpace: 'nowrap' }}>{score} / 100</span>
             </div>
           )}
         </div>
@@ -177,7 +177,7 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
             <span style={{
               display: 'inline-block', padding: '8px 14px', borderRadius: 8,
               fontSize: '0.72rem', fontWeight: 700, fontStyle: 'italic',
-              background: 'transparent', color: '#475569',
+              background: 'transparent', color: '#eaf8f7',
               border: '1px solid rgba(255,255,255,0.07)',
             }}>Coming Soon</span>
           ) : (
@@ -224,7 +224,7 @@ function IndexGauge({ score }: { score: number }) {
         <span style={{ fontSize: '2.1rem', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em', color: v.color }}>
           {score}
         </span>
-        <span style={{ fontSize: '0.65rem', color: '#64748b', marginTop: 2 }}>/100</span>
+        <span style={{ fontSize: '0.65rem', color: '#eaf8f7', marginTop: 2 }}>/100</span>
       </div>
     </div>
   );
@@ -281,7 +281,7 @@ function Track5Inner() {
           <h1 style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#f1f5f9', marginBottom: 4 }}>
             Your Buying Decision Score
           </h1>
-          <p style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.6 }}>
+          <p style={{ fontSize: '0.8rem', color: '#eaf8f7', lineHeight: 1.6 }}>
             Four independent analyses. One clear verdict. Run each tool — your score updates automatically.
           </p>
         </div>
@@ -300,7 +300,7 @@ function Track5Inner() {
               <div style={{ fontSize: '1.35rem', fontWeight: 800, color: v!.color, letterSpacing: '-0.02em', marginBottom: 5 }}>
                 {v!.label}
               </div>
-              <div style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: 1.65, marginBottom: 12 }}>
+              <div style={{ fontSize: '0.82rem', color: '#eaf8f7', lineHeight: 1.65, marginBottom: 12 }}>
                 Based on {scoredN} of 4 levels.{' '}
                 {scoredN < 4 ? 'Complete remaining analyses to sharpen your score.' : 'All levels scored.'}
               </div>
@@ -313,7 +313,7 @@ function Track5Inner() {
                     fontSize: '0.65rem', fontWeight: 600,
                     background: 'rgba(255,255,255,0.04)',
                     border: '1px solid rgba(255,255,255,0.07)',
-                    borderRadius: 6, padding: '3px 8px', color: '#64748b',
+                    borderRadius: 6, padding: '3px 8px', color: '#eaf8f7',
                   }}>
                     <span style={{ color: '#94a3b8', fontWeight: 700 }}>{t.split(' ')[0]}</span>
                     {' '}{t.split(' ').slice(1).join(' ')}
@@ -332,7 +332,7 @@ function Track5Inner() {
             <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#94a3b8', marginBottom: 6 }}>
               No analyses run yet
             </div>
-            <div style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.65 }}>
+            <div style={{ fontSize: '0.8rem', color: '#eaf8f7', lineHeight: 1.65 }}>
               Run any tool below. Your Decision Index appears here once you have at least one score.
               Each analysis can be run independently — start wherever makes sense for you.
             </div>
@@ -349,14 +349,14 @@ function Track5Inner() {
                 transition: 'width 0.6s ease',
               }} />
             </div>
-            <span style={{ fontSize: '0.6rem', color: '#64748b', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '0.6rem', color: '#eaf8f7', whiteSpace: 'nowrap' }}>
               {weightPct}% of index scored
             </span>
           </div>
         )}
 
         {/* ── Section label ── */}
-        <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 12 }}>
+        <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 12 }}>
           4 Decision Levels
         </div>
 
@@ -394,7 +394,7 @@ function Track5Inner() {
               Wealth Monitor
             </span>
           </div>
-          <div style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.6, marginBottom: 14 }}>
+          <div style={{ fontSize: '0.78rem', color: '#eaf8f7', lineHeight: 1.6, marginBottom: 14 }}>
             Not part of your buying score — but essential after you own. Track refi timing, equity position, and market factors impacting your investment.
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
@@ -418,7 +418,7 @@ function Track5Inner() {
               >
                 <div style={{ fontSize: '1.1rem', marginBottom: 7 }}>{tile.icon}</div>
                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginBottom: 4 }}>{tile.label}</div>
-                <div style={{ fontSize: '0.68rem', color: '#64748b', lineHeight: 1.5 }}>{tile.sub}</div>
+                <div style={{ fontSize: '0.68rem', color: '#eaf8f7', lineHeight: 1.5 }}>{tile.sub}</div>
                 <div style={{ fontSize: '0.65rem', color: '#60a5fa', marginTop: 8, fontWeight: 600 }}>{tile.link}</div>
               </a>
             ))}

@@ -712,7 +712,7 @@ function CheckPropertyInner() {
                     {/* ── Forward paths — Property Intel + Track 5 ─────── */}
                     {resolved && (
                         <div style={{ marginTop: 8, marginBottom: 14 }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#64748b', marginBottom: 10 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 10 }}>
                                 Take this further
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -725,7 +725,7 @@ function CheckPropertyInner() {
                                     onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
                                 >
                                     <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Property Intelligence →</div>
-                                    <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.5 }}>AI comps, AVM, market data, and Grok 4 deep analysis on this exact property</div>
+                                    <div style={{ fontSize: 11, color: '#eaf8f7', lineHeight: 1.5 }}>AI comps, AVM, market data, and Grok 4 deep analysis on this exact property</div>
                                 </a>
                                 {/* Track 5 */}
                                 {(() => {
@@ -753,7 +753,7 @@ function CheckPropertyInner() {
                                                 <span style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 4, padding: '2px 6px', color: '#4ade80' }}>Track 5</span>
                                             </div>
                                             <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Decision Score →</div>
-                                            <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.5 }}>{t5sub}</div>
+                                            <div style={{ fontSize: 11, color: '#eaf8f7', lineHeight: 1.5 }}>{t5sub}</div>
                                         </a>
                                     );
                                 })()}

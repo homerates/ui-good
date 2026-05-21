@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 // app/error.tsx — global error boundary for unexpected runtime errors
 
 import { useEffect } from 'react';
@@ -42,7 +42,7 @@ export default function Error({
       <p
         style={{
           fontSize: '0.9rem',
-          color: '#64748b',
+          color: '#eaf8f7',
           margin: '0 0 28px',
           maxWidth: '340px',
           lineHeight: 1.6,

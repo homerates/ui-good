@@ -363,7 +363,7 @@ function PropertyIntelInner() {
         <div style={{ maxWidth: 560, margin: '0 auto', padding: '80px 20px 60px', textAlign: 'center' }}>
           <div style={{ fontSize: '3.5rem', marginBottom: 16 }}>🏠</div>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 8 }}>Property Intelligence</h2>
-          <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: 1.6 }}>
+          <p style={{ color: '#eaf8f7', fontSize: '0.9rem', lineHeight: 1.6 }}>
             Search for a property using{' '}
             <Link href="/" style={{ color: '#4ade80' }}>Property Lookup</Link>
             {' '}from the home page, or open it from{' '}
@@ -411,9 +411,9 @@ function PropertyIntelInner() {
           {loading && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '90px 20px', gap: 20 }}>
               <div className="spin" style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid rgba(255,255,255,0.08)', borderTopColor: '#4ade80' }} />
-              <div style={{ fontSize: '0.88rem', color: '#64748b' }}>{loadingMsg}</div>
+              <div style={{ fontSize: '0.88rem', color: '#eaf8f7' }}>{loadingMsg}</div>
               {loadingMsg.includes('Grok') && (
-                <div style={{ fontSize: '0.72rem', color: '#64748b', maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
+                <div style={{ fontSize: '0.72rem', color: '#eaf8f7', maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
                   Grok 4 is researching comps, market context, and buyer intelligence. This takes 30–60 seconds on first run.
                 </div>
               )}
@@ -498,9 +498,9 @@ function PropertyIntelInner() {
                         ? <div className="fi" style={{ fontSize: '1.9rem', fontWeight: 800, color: '#4ade80', lineHeight: 1 }}>{fmt$(d.estimated_piti)}/mo</div>
                         : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><Sk w={130} h={38} /></div>
                       }
-                      <div style={{ fontSize: '0.66rem', color: '#64748b', marginTop: 4, letterSpacing: '0.06em' }}>EST. MONTHLY PITI</div>
+                      <div style={{ fontSize: '0.66rem', color: '#eaf8f7', marginTop: 4, letterSpacing: '0.06em' }}>EST. MONTHLY PITI</div>
                       {d.rate_used != null && (
-                        <div className="fi" style={{ fontSize: '0.64rem', color: '#475569', marginTop: 2 }}>
+                        <div className="fi" style={{ fontSize: '0.64rem', color: '#eaf8f7', marginTop: 2 }}>
                           @ {d.rate_used.toFixed(2)}% · 20% down
                         </div>
                       )}
@@ -519,7 +519,7 @@ function PropertyIntelInner() {
                   { val: d.lot_size_sqft != null ? `${Number(d.lot_size_sqft).toLocaleString()} sqft lot` : null, icon: 'fa-expand',      sk: 84 },
                 ].map(({ val, icon, sk }, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.82rem', color: '#94a3b8' }}>
-                    <i className={`fa-solid ${icon}`} style={{ color: '#475569', fontSize: '0.7rem', width: 14, textAlign: 'center' }} />
+                    <i className={`fa-solid ${icon}`} style={{ color: '#eaf8f7', fontSize: '0.7rem', width: 14, textAlign: 'center' }} />
                     {val != null ? <span className="fi">{val}</span> : <Sk w={sk} h={13} />}
                   </div>
                 ))}
@@ -550,7 +550,7 @@ function PropertyIntelInner() {
 
                   {/* Key Highlights */}
                   <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20 }}>
-                    <div style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#475569', marginBottom: 14 }}>Key Highlights</div>
+                    <div style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 14 }}>Key Highlights</div>
                     {d.key_highlights?.length ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {d.key_highlights.map((h, i) => (
@@ -592,10 +592,10 @@ function PropertyIntelInner() {
                           ? <div className="fi" style={{ fontSize: i === 3 ? '1.5rem' : '2rem', fontWeight: 800, color, lineHeight: 1 }}>{fmtFn(val as number)}</div>
                           : loading
                             ? <div style={{ display: 'flex', justifyContent: 'center' }}><Sk w={52} h={34} /></div>
-                            : <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#64748b', lineHeight: 1 }}>—</div>
+                            : <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#eaf8f7', lineHeight: 1 }}>—</div>
                         }
-                        {sub && <div className="fi" style={{ fontSize: '0.59rem', color: '#64748b', marginTop: 3 }}>{sub}</div>}
-                        <div style={{ fontSize: '0.59rem', color: '#475569', marginTop: 5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
+                        {sub && <div className="fi" style={{ fontSize: '0.59rem', color: '#eaf8f7', marginTop: 3 }}>{sub}</div>}
+                        <div style={{ fontSize: '0.59rem', color: '#eaf8f7', marginTop: 5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
                       </div>
                     ))}
                   </div>
@@ -610,7 +610,7 @@ function PropertyIntelInner() {
                       ].map(({ val, fmt: fmtFn, color, label }, i) => val != null ? (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
                           <div style={{ fontSize: '1.1rem', fontWeight: 700, color, lineHeight: 1 }}>{fmtFn(val)}</div>
-                          <div style={{ fontSize: '0.56rem', color: '#64748b', marginTop: 4, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
+                          <div style={{ fontSize: '0.56rem', color: '#eaf8f7', marginTop: 4, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
                         </div>
                       ) : null)}
                     </div>
@@ -621,13 +621,13 @@ function PropertyIntelInner() {
                     <div className="fi" style={{ display: 'flex', gap: 8 }}>
                       {d.zillow_estimate != null && (
                         <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.65rem', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Zillow Est.</span>
+                          <span style={{ fontSize: '0.65rem', color: '#eaf8f7', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Zillow Est.</span>
                           <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#60a5fa' }}>{fmt$(d.zillow_estimate)}</span>
                         </div>
                       )}
                       {d.redfin_estimate != null && (
                         <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.65rem', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Redfin Est.</span>
+                          <span style={{ fontSize: '0.65rem', color: '#eaf8f7', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Redfin Est.</span>
                           <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f87171' }}>{fmt$(d.redfin_estimate)}</span>
                         </div>
                       )}
@@ -636,13 +636,13 @@ function PropertyIntelInner() {
 
                   {/* Comps */}
                   <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20, flex: 1 }}>
-                    <div style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#475569', marginBottom: 14 }}>Recent Comps</div>
+                    <div style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 14 }}>Recent Comps</div>
                     {d.comparable_sales?.length ? (
                       <div>
                         {d.comparable_sales.map((c, i) => (
                           <div key={i} className="fi" style={{ padding: '10px 0', borderBottom: i < d.comparable_sales!.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
                             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{c.address}</div>
-                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: '0.71rem', color: '#64748b' }}>
+                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: '0.71rem', color: '#eaf8f7' }}>
                               <span style={{ color: '#4ade80', fontWeight: 700 }}>{fmt$(c.sold_price)}</span>
                               <span>{c.sold_date}</span>
                               {c.sqft        && <span>{Number(c.sqft).toLocaleString()} sf</span>}
@@ -660,7 +660,7 @@ function PropertyIntelInner() {
 
                   {/* Confidence */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10 }}>
-                    <span style={{ fontSize: '0.78rem', color: '#475569' }}>Confidence</span>
+                    <span style={{ fontSize: '0.78rem', color: '#eaf8f7' }}>Confidence</span>
                     {d.confidence
                       ? <span className="fi" style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.67rem', fontWeight: 700, background: confCfg.bg, color: confCfg.color, border: `1px solid ${confCfg.border}` }}>
                           {d.confidence.charAt(0).toUpperCase() + d.confidence.slice(1)}
@@ -684,17 +684,17 @@ function PropertyIntelInner() {
                       {step}
                     </div>
                   ))}
-                  <div style={{ marginTop: 12, fontSize: '0.68rem', color: '#64748b' }}>Takes 60–90 seconds. You can navigate away — your report will be cached when ready.</div>
+                  <div style={{ marginTop: 12, fontSize: '0.68rem', color: '#eaf8f7' }}>Takes 60–90 seconds. You can navigate away — your report will be cached when ready.</div>
                 </div>
               )}
 
               {/* ── Freshness footer ──────────────────────────────────────── */}
               <div style={{ padding: '10px 28px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                 {d.data_freshness
-                  ? <span className="fi" style={{ fontSize: '0.63rem', color: '#64748b' }}>{d.data_freshness}</span>
+                  ? <span className="fi" style={{ fontSize: '0.63rem', color: '#eaf8f7' }}>{d.data_freshness}</span>
                   : <Sk w={190} h={11} />
                 }
-                <span style={{ fontSize: '0.6rem', color: '#64748b' }}>Powered by Grok-4 · HomeRates.AI</span>
+                <span style={{ fontSize: '0.6rem', color: '#eaf8f7' }}>Powered by Grok-4 · HomeRates.AI</span>
               </div>
 
               {/* ── CTA bar ───────────────────────────────────────────────── */}
@@ -845,7 +845,7 @@ function PropertyIntelInner() {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: '1rem', fontWeight: 900, color: avgScore >= 70 ? '#4ade80' : avgScore >= 50 ? '#fbbf24' : '#f87171' }}>{avgScore}</span>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>View ↗</span>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#eaf8f7' }}>View ↗</span>
                       </div>
                     </a>
                   );

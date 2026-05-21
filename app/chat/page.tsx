@@ -1,4 +1,4 @@
-// HR-Build: HRB-2025-11-10-d994b21 | File-Ref: HRF-0004-25F8FCE9 | SHA256: 25F8FCE98F4D90CE
+﻿// HR-Build: HRB-2025-11-10-d994b21 | File-Ref: HRF-0004-25F8FCE9 | SHA256: 25F8FCE98F4D90CE
 // <HR-GUARD> Home chat = borrower mode only. Do NOT reintroduce Borrower/Public, Intent, or "Loan (optional)" controls.
 // ==== REPLACE ENTIRE FILE: app/page.tsx ====
 'use client';
@@ -3135,7 +3135,7 @@ export default function Page() {
                                                                     </div>
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                                                         <span style={{ fontSize: '1rem', fontWeight: 900, color: l1Score >= 70 ? '#4ade80' : l1Score >= 50 ? '#fbbf24' : '#f87171' }}>{l1Score}</span>
-                                                                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>View ↗</span>
+                                                                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#eaf8f7' }}>View ↗</span>
                                                                     </div>
                                                                 </a>
                                                             );
@@ -3264,12 +3264,12 @@ export default function Page() {
                                                                                 <span style={{ fontSize: 16, flexShrink: 0, width: 22, textAlign: 'center' }}>{mod.icon}</span>
                                                                                 <div>
                                                                                     <div style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9' }}>{mod.label}</div>
-                                                                                    <div style={{ fontSize: 10, color: '#475569', marginTop: 1 }}>{mod.tag}</div>
+                                                                                    <div style={{ fontSize: 10, color: '#eaf8f7', marginTop: 1 }}>{mod.tag}</div>
                                                                                 </div>
                                                                             </div>
                                                                             {/* Right col: scenario + Run */}
                                                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 14 }}>
-                                                                                <span style={{ fontSize: 12, color: '#64748b' }}>{mod.desc}</span>
+                                                                                <span style={{ fontSize: 12, color: '#eaf8f7' }}>{mod.desc}</span>
                                                                                 <span style={{ fontSize: 11, color: '#00e87a', opacity: 0.8, flexShrink: 0, marginLeft: 12 }}>Run →</span>
                                                                             </div>
                                                                         </button>

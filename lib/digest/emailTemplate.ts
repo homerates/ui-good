@@ -1,4 +1,4 @@
-// lib/digest/emailTemplate.ts
+﻿// lib/digest/emailTemplate.ts
 // Premium dark homeowner intelligence digest email — no shared shell, fully self-contained.
 // 6 sections: Alerts · Value & Equity · Mortgage Intelligence · HELOC Power · Economy Snapshot · Equity Milestones
 
@@ -819,8 +819,8 @@ export function digestEmailHtml(data: DigestEmailData): string {
               ${data.loPhoto ? `<td style="padding-right:12px;vertical-align:middle;"><img src="${data.loPhoto}" alt="${data.loName}" width="44" height="44" style="border-radius:50%;display:block;object-fit:cover;"></td>` : ''}
               <td style="vertical-align:middle;">
                 <div style="font-size:13px;font-weight:800;color:#f1f5f9;">${data.loName}</div>
-                <div style="font-size:11px;color:#64748b;margin-top:2px;">${[data.loTitle, data.loLender].filter(Boolean).join(' · ')}</div>
-                ${data.loNmls ? `<div style="font-size:10px;color:#334155;margin-top:1px;">NMLS# ${data.loNmls}</div>` : ''}
+                <div style="font-size:11px;color:#eaf8f7;margin-top:2px;">${[data.loTitle, data.loLender].filter(Boolean).join(' · ')}</div>
+                ${data.loNmls ? `<div style="font-size:10px;color:#eaf8f7;margin-top:1px;">NMLS# ${data.loNmls}</div>` : ''}
               </td>
             </tr></table>
           </td>

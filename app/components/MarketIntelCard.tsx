@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // app/components/MarketIntelCard.tsx
 // Renders the structured 3-engine Market Intelligence report in a rich card UI.
@@ -177,8 +177,8 @@ export default function MarketIntelCard({ report, address, onClose }: Props) {
                     Price Gap Alert
                   </div>
                   <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                    {listPrice && <div><div style={{ fontSize: '0.58rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>List Price</div><div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#93c5fd' }}>{fmt(listPrice)}</div></div>}
-                    {avm && <div><div style={{ fontSize: '0.58rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Redfin AVM</div><div style={{ fontSize: '1.05rem', fontWeight: 700, color: gapPct > 0 ? '#f87171' : '#4ade80' }}>{fmt(avm)}</div></div>}
+                    {listPrice && <div><div style={{ fontSize: '0.58rem', color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>List Price</div><div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#93c5fd' }}>{fmt(listPrice)}</div></div>}
+                    {avm && <div><div style={{ fontSize: '0.58rem', color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Redfin AVM</div><div style={{ fontSize: '1.05rem', fontWeight: 700, color: gapPct > 0 ? '#f87171' : '#4ade80' }}>{fmt(avm)}</div></div>}
                   </div>
                 </div>
                 <div style={{

@@ -303,28 +303,28 @@ function CardPropertyIntel({ d }: { d: AnalysisData }) {
         </div>
       )}
       {d.propertyType && (
-        <div style={{ marginTop: 10, fontSize: '0.72rem', color: '#475569' }}>
+        <div style={{ marginTop: 10, fontSize: '0.72rem', color: '#eaf8f7' }}>
           Property type: <span style={{ color: '#94a3b8', textTransform: 'capitalize' }}>{d.propertyType.replace('_', ' ')}</span>
           {d.apn && <span style={{ marginLeft: 12 }}>APN: <span style={{ color: '#94a3b8' }}>{d.apn}</span></span>}
         </div>
       )}
       {hasMortgage && (
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
-          <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 10 }}>Recorded Mortgage</div>
+          <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 10 }}>Recorded Mortgage</div>
           <div className="mh-stat-row" style={{ flexWrap: 'wrap', gap: 12 }}>
             {d.mortgageLender && <div className="mh-stat"><div className="mh-stat-label">Lender</div><div className="mh-stat-value" style={{ fontSize: '0.85rem' }}>{d.mortgageLender}</div></div>}
             {d.mortgageOriginalAmount && <div className="mh-stat"><div className="mh-stat-label">Original Loan</div><div className="mh-stat-value">{fmt(d.mortgageOriginalAmount)}</div></div>}
             {d.mortgageOriginationDate && <div className="mh-stat"><div className="mh-stat-label">Originated</div><div className="mh-stat-value" style={{ fontSize: '0.82rem' }}>{new Date(d.mortgageOriginationDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</div></div>}
           </div>
           {d.mortgageSource === 'attom' && (
-            <div style={{ marginTop: 8, fontSize: '0.62rem', color: '#64748b' }}>Source: Public records</div>
+            <div style={{ marginTop: 8, fontSize: '0.62rem', color: '#eaf8f7' }}>Source: Public records</div>
           )}
         </div>
       )}
       {(d.avmDate || d.attomCheckedAt) && (
-        <div style={{ marginTop: hasMortgage ? 10 : 14, fontSize: '0.6rem', color: '#64748b' }}>
+        <div style={{ marginTop: hasMortgage ? 10 : 14, fontSize: '0.6rem', color: '#eaf8f7' }}>
           Data as of {new Date(d.avmDate ?? d.attomCheckedAt!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          {d.avmSource && <span style={{ marginLeft: 6, color: '#64748b' }}>· {d.avmSource === 'attom' ? 'AVM estimate' : d.avmSource === 'fhfa' ? 'FHFA model' : 'assessed'}</span>}
+          {d.avmSource && <span style={{ marginLeft: 6, color: '#eaf8f7' }}>· {d.avmSource === 'attom' ? 'AVM estimate' : d.avmSource === 'fhfa' ? 'FHFA model' : 'assessed'}</span>}
         </div>
       )}
       {d.address && (
@@ -347,7 +347,7 @@ function CardComps({ d }: { d: AnalysisData }) {
     <div className="mh-card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div className="mh-card-label" style={{ marginBottom: 0 }}>Comparable Sales</div>
-        <div style={{ fontSize: '0.62rem', color: '#64748b' }}>0.5 mi · last 2 yrs</div>
+        <div style={{ fontSize: '0.62rem', color: '#eaf8f7' }}>0.5 mi · last 2 yrs</div>
       </div>
       {subjectPsf && (
         <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.15)', borderRadius: 8, fontSize: '0.72rem', color: '#94a3b8' }}>
@@ -358,17 +358,17 @@ function CardComps({ d }: { d: AnalysisData }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
           <thead>
             <tr>{['Address', 'Sold', 'Price', 'Bd/Ba', 'Sqft', '$/sqft'].map(h => (
-              <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#475569', borderBottom: '1px solid #1e293b', whiteSpace: 'nowrap' }}>{h}</th>
+              <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#eaf8f7', borderBottom: '1px solid #1e293b', whiteSpace: 'nowrap' }}>{h}</th>
             ))}</tr>
           </thead>
           <tbody>
             {comps.map((c, i) => (
               <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                 <td style={{ padding: '8px 8px', color: '#94a3b8', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.address}</td>
-                <td style={{ padding: '8px 8px', color: '#64748b', whiteSpace: 'nowrap' }}>{c.saleDate ? new Date(c.saleDate).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) : '—'}</td>
+                <td style={{ padding: '8px 8px', color: '#eaf8f7', whiteSpace: 'nowrap' }}>{c.saleDate ? new Date(c.saleDate).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) : '—'}</td>
                 <td style={{ padding: '8px 8px', color: '#f1f5f9', fontWeight: 700, whiteSpace: 'nowrap' }}>{c.salePrice ? `$${Math.round(c.salePrice / 1000)}K` : '—'}</td>
-                <td style={{ padding: '8px 8px', color: '#64748b', whiteSpace: 'nowrap' }}>{c.beds ?? '—'}/{c.baths ?? '—'}</td>
-                <td style={{ padding: '8px 8px', color: '#64748b', whiteSpace: 'nowrap' }}>{c.sqft ? c.sqft.toLocaleString() : '—'}</td>
+                <td style={{ padding: '8px 8px', color: '#eaf8f7', whiteSpace: 'nowrap' }}>{c.beds ?? '—'}/{c.baths ?? '—'}</td>
+                <td style={{ padding: '8px 8px', color: '#eaf8f7', whiteSpace: 'nowrap' }}>{c.sqft ? c.sqft.toLocaleString() : '—'}</td>
                 <td style={{ padding: '8px 8px', whiteSpace: 'nowrap', color: c.pricePerSqft && subjectPsf ? (c.pricePerSqft > subjectPsf ? '#22c55e' : c.pricePerSqft < subjectPsf * 0.9 ? '#f87171' : '#94a3b8') : '#94a3b8', fontWeight: 600 }}>
                   {c.pricePerSqft ? `$${c.pricePerSqft}` : '—'}
                 </td>
@@ -428,12 +428,12 @@ function CardEquity({ d, nearbySales, onEdit }: { d: AnalysisData; nearbySales?:
         </div>
         <div className="mh-stat">
           <div className="mh-stat-label">Est. Equity</div>
-          <div className="mh-stat-value">{d.estimatedEquity ? fmt(d.estimatedEquity) : missingBalance && onEdit ? <button onClick={onEdit} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#64748b', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '3px 8px' }}>Add balance →</button> : '—'}</div>
+          <div className="mh-stat-value">{d.estimatedEquity ? fmt(d.estimatedEquity) : missingBalance && onEdit ? <button onClick={onEdit} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#eaf8f7', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '3px 8px' }}>Add balance →</button> : '—'}</div>
           <div className="mh-stat-sub">{pct(d.equityPct)} of value</div>
         </div>
         <div className="mh-stat">
           <div className="mh-stat-label">LTV Ratio</div>
-          <div className="mh-stat-value">{d.ltv !== null ? pct(d.ltv) : missingBalance && onEdit ? <button onClick={onEdit} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#64748b', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '3px 8px' }}>Add balance →</button> : '—'}</div>
+          <div className="mh-stat-value">{d.ltv !== null ? pct(d.ltv) : missingBalance && onEdit ? <button onClick={onEdit} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#eaf8f7', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '3px 8px' }}>Add balance →</button> : '—'}</div>
           <div className="mh-stat-sub">{d.estimatedBalance ? fmt(d.estimatedBalance) + ' balance' : ''}</div>
         </div>
       </div>
@@ -960,7 +960,7 @@ function CardMarketPosition({ d, onFeelingLucky }: { d: AnalysisData; nearbySale
         </div>
       )}
       {d.beds || d.baths || d.sqft ? (
-        <div style={{ marginTop: 12, fontSize: '0.78rem', color: '#475569' }}>
+        <div style={{ marginTop: 12, fontSize: '0.78rem', color: '#eaf8f7' }}>
           {[d.beds && `${d.beds} bd`, d.baths && `${d.baths} ba`, d.sqft && `${d.sqft.toLocaleString()} sqft`].filter(Boolean).join(' · ')}
         </div>
       ) : null}
@@ -992,7 +992,7 @@ function CardMyPayment({ d }: { d: AnalysisData }) {
   return (
     <div className="mh-card">
       <div className="mh-card-label">My Payment at Ask Price</div>
-      <div style={{ fontSize: '0.75rem', color: '#475569', marginBottom: 16 }}>
+      <div style={{ fontSize: '0.75rem', color: '#eaf8f7', marginBottom: 16 }}>
         {fmt(askPrice)} · 20% down · P&amp;I + taxes + insurance
       </div>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -1017,7 +1017,7 @@ function CardMyPayment({ d }: { d: AnalysisData }) {
           })}
         </tbody>
       </table>
-      <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, fontSize: '0.68rem', color: '#64748b' }}>
+      <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, fontSize: '0.68rem', color: '#eaf8f7' }}>
         Down payment: ${Math.round(askPrice * 0.20).toLocaleString()} · Loan amount: ${Math.round(askPrice * 0.80).toLocaleString()}
       </div>
     </div>
@@ -1067,10 +1067,10 @@ function CardCompDelta({ d, nearbySales }: { d: AnalysisData; nearbySales?: Near
       <div style={{ marginTop: 16 }}>
         {valid.slice(0, 4).map((s, i) => (
           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address}</div>
+            <div style={{ fontSize: '0.75rem', color: '#eaf8f7', maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address}</div>
             <div style={{ display: 'flex', gap: 12 }}>
               <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f1f5f9' }}>{fmt(s.price)}</span>
-              {s.pricePerSqft && <span style={{ fontSize: '0.72rem', color: '#64748b' }}>${s.pricePerSqft}/sf</span>}
+              {s.pricePerSqft && <span style={{ fontSize: '0.72rem', color: '#eaf8f7' }}>${s.pricePerSqft}/sf</span>}
             </div>
           </div>
         ))}
@@ -1106,7 +1106,7 @@ function CardTrueCost({ d }: { d: AnalysisData }) {
   return (
     <div className="mh-card">
       <div className="mh-card-label">True Cost of Ownership</div>
-      <div style={{ fontSize: '0.72rem', color: '#475569', marginBottom: 16 }}>At {rate.toFixed(2)}% · 20% down · 4.2%/yr appreciation</div>
+      <div style={{ fontSize: '0.72rem', color: '#eaf8f7', marginBottom: 16 }}>At {rate.toFixed(2)}% · 20% down · 4.2%/yr appreciation</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         {([{ label: '5 Years', h: h5 }, { label: '10 Years', h: h10 }] as const).map(({ label, h }) => (
           <div key={label} style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10 }}>
@@ -1117,14 +1117,14 @@ function CardTrueCost({ d }: { d: AnalysisData }) {
               { label: 'Equity Built',  value: fmt(h.equity),     color: '#22c55e' },
             ].map(s => (
               <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: '0.72rem', color: '#475569' }}>{s.label}</span>
+                <span style={{ fontSize: '0.72rem', color: '#eaf8f7' }}>{s.label}</span>
                 <span style={{ fontSize: '0.78rem', fontWeight: 700, color: s.color }}>{s.value}</span>
               </div>
             ))}
           </div>
         ))}
       </div>
-      <div style={{ marginTop: 12, fontSize: '0.65rem', color: '#64748b', lineHeight: 1.5 }}>
+      <div style={{ marginTop: 12, fontSize: '0.65rem', color: '#eaf8f7', lineHeight: 1.5 }}>
         Assumes 20% down, 30yr fixed, 1.1% tax, 0.5% insurance, 4.2%/yr appreciation (FHFA historical avg).
       </div>
     </div>
@@ -1169,16 +1169,16 @@ function CardOfferSignal({ d, nearbySales }: { d: AnalysisData; nearbySales?: Ne
           {priceReason && <div style={{ fontSize: '0.88rem', color: '#e2e8f0', marginBottom: 6 }}>{priceReason}</div>}
           {domSignal === 'slow'   && <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>On market {dom} days — sellers may be more open to offers</div>}
           {domSignal === 'hot'    && <div style={{ fontSize: '0.78rem', color: '#fbbf24' }}>Fresh listing — expect competition, move quickly</div>}
-          {domSignal === 'normal' && <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Normal market pace ({dom} days on market)</div>}
-          {!delta && <div style={{ fontSize: '0.78rem', color: '#475569' }}>Limited AVM or comp data for a precise signal — use chat CMA for deeper analysis</div>}
+          {domSignal === 'normal' && <div style={{ fontSize: '0.78rem', color: '#eaf8f7' }}>Normal market pace ({dom} days on market)</div>}
+          {!delta && <div style={{ fontSize: '0.78rem', color: '#eaf8f7' }}>Limited AVM or comp data for a precise signal — use chat CMA for deeper analysis</div>}
         </div>
       </div>
       {factors.length > 0 && (
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14 }}>
-          <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#64748b', marginBottom: 10 }}>Key Factors</div>
+          <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 10 }}>Key Factors</div>
           {factors.map((f, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{f.label}</span>
+              <span style={{ fontSize: '0.75rem', color: '#eaf8f7' }}>{f.label}</span>
               <span style={{ fontSize: '0.78rem', fontWeight: 700, color: f.ok ? '#22c55e' : '#f87171' }}>{f.value}</span>
             </div>
           ))}
@@ -2134,7 +2134,7 @@ function MyHomePageInner() {
                               <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#60a5fa', lineHeight: 1 }}>
                                 {analysis.listPrice ? `$${Math.round(analysis.listPrice).toLocaleString()}` : (analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—')}
                               </div>
-                              <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#475569', marginTop: 4 }}>List Price</div>
+                              <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#eaf8f7', marginTop: 4 }}>List Price</div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
                               {analysis.estimatedValue && (
@@ -2143,7 +2143,7 @@ function MyHomePageInner() {
                                     {`$${Math.round(analysis.estimatedValue).toLocaleString()}`}
                                     {analysis.daysOnMarket != null && <span style={{ fontSize: '0.78rem', color: '#f59e0b', marginLeft: 8, fontWeight: 600 }}>{analysis.daysOnMarket}d</span>}
                                   </div>
-                                  <div style={{ fontSize: '0.65rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Redfin AVM · Days on Mkt</div>
+                                  <div style={{ fontSize: '0.65rem', color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Redfin AVM · Days on Mkt</div>
                                 </>
                               )}
                             </div>
@@ -2155,7 +2155,7 @@ function MyHomePageInner() {
                                 <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#00e87a', lineHeight: 1 }}>
                                   {analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—'}
                                 </div>
-                                <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#475569', marginTop: 4 }}>
+                                <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#eaf8f7', marginTop: 4 }}>
                                   {analysis.avmSource === 'attom' ? 'ATTOM AVM' : analysis.avmSource === 'attom_assessed' ? 'ATTOM Assessed' : 'Est. Value'}
                                 </div>
                               </div>
@@ -2166,10 +2166,10 @@ function MyHomePageInner() {
                                       <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f1f5f9' }}>{fmt(analysis.estimatedEquity)}</span>
                                       {analysis.appreciationPct != null && <span style={{ fontSize: '0.78rem', color: '#00e87a', marginLeft: 6, fontWeight: 600 }}>+{analysis.appreciationPct}%</span>}
                                     </div>
-                                    <div style={{ fontSize: '0.65rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Total Equity</div>
+                                    <div style={{ fontSize: '0.65rem', color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Total Equity</div>
                                   </>
                                 ) : analysis.estimatedEquity == null && !borrowerId ? (
-                                  <button onClick={openLoanEditor} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#64748b', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '6px 12px', lineHeight: 1.4 }}>Add balance →</button>
+                                  <button onClick={openLoanEditor} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#eaf8f7', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '6px 12px', lineHeight: 1.4 }}>Add balance →</button>
                                 ) : null}
                               </div>
                             </div>
@@ -2180,8 +2180,8 @@ function MyHomePageInner() {
                                   <div style={{ height: '100%', width: `${Math.min(analysis.equityPct, 100)}%`, background: 'linear-gradient(90deg,#00e87a,#00b459)', borderRadius: 999 }} />
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, fontSize: '0.65rem' }}>
-                                  <span style={{ color: '#475569' }}>{analysis.equityPct}% equity</span>
-                                  <span style={{ color: '#475569' }}>
+                                  <span style={{ color: '#eaf8f7' }}>{analysis.equityPct}% equity</span>
+                                  <span style={{ color: '#eaf8f7' }}>
                                     {analysis.estimatedBalance ? `${fmt(analysis.estimatedBalance)} ${analysis.balanceIsEstimated ? 'est.' : ''} balance` : ''}
                                     {analysis.balanceIsEstimated && !borrowerId && (
                                       <> · <button onClick={openLoanEditor} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00e87a', fontWeight: 600, fontSize: '0.65rem', padding: 0 }}>Enter actual →</button></>
@@ -2474,7 +2474,7 @@ function MyHomePageInner() {
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                                       <div>
                                         <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f1f5f9', marginBottom: 2 }}>Alert me when 30-year rates drop to:</div>
-                                        <div style={{ fontSize: '0.72rem', color: '#475569' }}>
+                                        <div style={{ fontSize: '0.72rem', color: '#eaf8f7' }}>
                                           Current 30Y fixed: <span style={{ color: '#00e87a', fontWeight: 700 }}>{(analysis.liveRate ?? 6.65).toFixed(2)}%</span> · You control when to act.
                                         </div>
                                       </div>
@@ -2485,7 +2485,7 @@ function MyHomePageInner() {
                                             placeholder={`e.g. ${((analysis.liveRate ?? 6.65) - 1).toFixed(2)}`}
                                             style={{ width: 80, padding: '7px 10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#fff', fontSize: '0.88rem', fontFamily: 'inherit' }}
                                           />
-                                          <span style={{ color: '#475569', fontSize: '0.82rem' }}>%</span>
+                                          <span style={{ color: '#eaf8f7', fontSize: '0.82rem' }}>%</span>
                                           <button onClick={saveAlert} disabled={alertSaving || alertSaved || !alertRate}
                                             style={{ padding: '7px 16px', borderRadius: 999, background: alertSaved ? 'rgba(0,232,122,0.15)' : '#00e87a', border: 'none', color: alertSaved ? '#00e87a' : '#07100f', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit' }}>
                                             {alertSaved ? '✓ Alert Set' : alertSaving ? 'Saving…' : 'Set Alert'}

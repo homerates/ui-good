@@ -82,9 +82,9 @@ const RATE_SCENARIOS = [5.5, 5.99, 6.5, 6.99, 7.5];
 function StatBox({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
     <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '16px 20px', flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 6 }}>{label}</div>
       <div style={{ fontSize: '1.55rem', fontWeight: 800, color: color ?? '#f1f5f9', lineHeight: 1.1 }}>{value}</div>
-      {sub && <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 4 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: '0.7rem', color: '#eaf8f7', marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
@@ -195,17 +195,17 @@ function HomeReportInner() {
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#00e87a', opacity: 0.7 }}>Home Intelligence Report</span>
-            <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{today}</span>
+            <span style={{ fontSize: '0.72rem', color: '#eaf8f7' }}>{today}</span>
           </div>
         </div>
 
         <div className="hr-body">
           {/* ── LOADING ── */}
           {loading && (
-            <div style={{ textAlign: 'center', padding: '8rem 0', color: '#64748b' }}>
+            <div style={{ textAlign: 'center', padding: '8rem 0', color: '#eaf8f7' }}>
               <div className="hr-spinner" style={{ margin: '0 auto 16px' }} />
               <div style={{ fontSize: '0.9rem' }}>Fetching property intelligence…</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 8 }}>Searching Redfin for {address}</div>
+              <div style={{ fontSize: '0.75rem', color: '#eaf8f7', marginTop: 8 }}>Searching Redfin for {address}</div>
             </div>
           )}
 
@@ -220,7 +220,7 @@ function HomeReportInner() {
           {/* ── NO ADDRESS ── */}
           {!loading && !err && !address && (
             <div style={{ textAlign: 'center', padding: '6rem 0' }}>
-              <div style={{ color: '#64748b', marginBottom: 12 }}>No address provided.</div>
+              <div style={{ color: '#eaf8f7', marginBottom: 12 }}>No address provided.</div>
               <Link href="/homeowner" style={{ color: '#00e87a', fontSize: '0.85rem' }}>← Enter your home address</Link>
             </div>
           )}
@@ -255,7 +255,7 @@ function HomeReportInner() {
                         const ph = document.createElement('div');
                         ph.className = 'hr-sv-ph';
                         ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;';
-                        ph.innerHTML = '<div style="font-size:2.5rem;opacity:0.2">🏠</div><div style="font-size:0.72rem;color:#475569;letter-spacing:0.05em;">No street view available</div>';
+                        ph.innerHTML = '<div style="font-size:2.5rem;opacity:0.2">🏠</div><div style="font-size:0.72rem;color:#eaf8f7;letter-spacing:0.05em;">No street view available</div>';
                         wrap.appendChild(ph);
                       }
                     }}
@@ -265,7 +265,7 @@ function HomeReportInner() {
                 {!heroSrc && !staticMapUrl && (
                   <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
                     <div style={{ fontSize: '2.5rem', opacity: 0.15 }}>🏠</div>
-                    <div style={{ fontSize: '0.72rem', color: '#64748b', letterSpacing: '0.05em' }}>No street view available</div>
+                    <div style={{ fontSize: '0.72rem', color: '#eaf8f7', letterSpacing: '0.05em' }}>No street view available</div>
                   </div>
                 )}
                 {/* Gradient + address overlay */}
@@ -296,7 +296,7 @@ function HomeReportInner() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap', marginTop: 16 }}>
                     {eqPct >= 0 && <CircleGauge pct={eqPct} label="Equity" sublabel={`${fmtK(equity)} in equity`} />}
                     <div style={{ flex: 1, minWidth: 220 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#64748b', marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#eaf8f7', marginBottom: 8 }}>
                         <span style={{ color: '#00e87a' }}>{fmtK(equity)} equity ({eqPct}%)</span>
                         <span>{fmtK(balance)} remaining</span>
                       </div>
@@ -306,26 +306,26 @@ function HomeReportInner() {
                       {val && (
                         <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
                           <div>
-                            <div style={{ fontSize: '0.65rem', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>HELOC Available</div>
+                            <div style={{ fontSize: '0.65rem', color: '#eaf8f7', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>HELOC Available</div>
                             <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#00e87a', marginTop: 3 }}>
                               {balance && val ? fmtK(Math.max(0, Math.round(val * 0.85 - balance))) : '—'}
                             </div>
-                            <div style={{ fontSize: '0.65rem', color: '#475569', marginTop: 2 }}>At 85% CLTV</div>
+                            <div style={{ fontSize: '0.65rem', color: '#eaf8f7', marginTop: 2 }}>At 85% CLTV</div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.65rem', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Cash-Out Alt.</div>
+                            <div style={{ fontSize: '0.65rem', color: '#eaf8f7', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Cash-Out Alt.</div>
                             <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f1f5f9', marginTop: 3 }}>
                               {balance && val ? fmtK(Math.max(0, Math.round(val * 0.80 - balance))) : '—'}
                             </div>
-                            <div style={{ fontSize: '0.65rem', color: '#475569', marginTop: 2 }}>At 80% LTV</div>
+                            <div style={{ fontSize: '0.65rem', color: '#eaf8f7', marginTop: 2 }}>At 80% LTV</div>
                           </div>
                           {data.lastSalePrice && val && (
                             <div>
-                              <div style={{ fontSize: '0.65rem', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Value Gained</div>
+                              <div style={{ fontSize: '0.65rem', color: '#eaf8f7', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Value Gained</div>
                               <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#00e87a', marginTop: 3 }}>
                                 {fmtK(Math.round(val - data.lastSalePrice))}
                               </div>
-                              <div style={{ fontSize: '0.65rem', color: '#475569', marginTop: 2 }}>Since purchase</div>
+                              <div style={{ fontSize: '0.65rem', color: '#eaf8f7', marginTop: 2 }}>Since purchase</div>
                             </div>
                           )}
                         </div>
@@ -340,19 +340,19 @@ function HomeReportInner() {
               {projections.length > 1 && (
                 <div className="hr-card" style={{ marginBottom: 20 }}>
                   <div className="hr-section-label">5-Year Value Projection</div>
-                  <div style={{ fontSize: '0.72rem', color: '#475569', marginBottom: 16, marginTop: 4 }}>At 4.2% annual appreciation (national historical avg)</div>
+                  <div style={{ fontSize: '0.72rem', color: '#eaf8f7', marginBottom: 16, marginTop: 4 }}>At 4.2% annual appreciation (national historical avg)</div>
                   <AppreciationChart projections={projections} />
                   <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
                     <div>
-                      <div style={{ fontSize: '0.65rem', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Today</div>
+                      <div style={{ fontSize: '0.65rem', color: '#eaf8f7', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Today</div>
                       <div style={{ fontSize: '1rem', fontWeight: 700, color: '#94a3b8', marginTop: 2 }}>{fmtK(val)}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.65rem', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>In 5 Years</div>
+                      <div style={{ fontSize: '0.65rem', color: '#eaf8f7', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>In 5 Years</div>
                       <div style={{ fontSize: '1rem', fontWeight: 700, color: '#00e87a', marginTop: 2 }}>{fmtK(projections[5]?.val)}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.65rem', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Projected Gain</div>
+                      <div style={{ fontSize: '0.65rem', color: '#eaf8f7', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Projected Gain</div>
                       <div style={{ fontSize: '1rem', fontWeight: 700, color: '#00e87a', marginTop: 2 }}>
                         {val && projections[5] ? fmtK(Math.round(projections[5].val - val)) : '—'}
                       </div>
@@ -365,7 +365,7 @@ function HomeReportInner() {
               {rateScenarios.length > 0 && (
                 <div className="hr-card" style={{ marginBottom: 20 }}>
                   <div className="hr-section-label">Monthly Payment at Various Rates</div>
-                  <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 4, marginBottom: 16 }}>
+                  <div style={{ fontSize: '0.72rem', color: '#eaf8f7', marginTop: 4, marginBottom: 16 }}>
                     Based on {fmtK(balance)} estimated balance · Includes est. taxes &amp; insurance
                   </div>
                   <table className="hr-table">
@@ -401,7 +401,7 @@ function HomeReportInner() {
               {sales.length > 0 && (
                 <div className="hr-card" style={{ marginBottom: 20 }}>
                   <div className="hr-section-label">Recent Nearby Sales</div>
-                  <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 4, marginBottom: 14 }}>Comparable homes sold recently in your area</div>
+                  <div style={{ fontSize: '0.72rem', color: '#eaf8f7', marginTop: 4, marginBottom: 14 }}>Comparable homes sold recently in your area</div>
                   <table className="hr-table">
                     <thead>
                       <tr>
@@ -416,11 +416,11 @@ function HomeReportInner() {
                         <tr key={i}>
                           <td style={{ color: '#94a3b8', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address || '—'}</td>
                           <td style={{ fontWeight: 700, color: '#00e87a' }}>{fmtK(s.price)}</td>
-                          <td style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                          <td style={{ color: '#eaf8f7', fontSize: '0.75rem' }}>
                             {[s.beds && `${s.beds}bd`, s.baths && `${s.baths}ba`, s.sqft && `${s.sqft.toLocaleString()}sf`].filter(Boolean).join(' · ')}
                             {s.pricePerSqft && ` · $${s.pricePerSqft}/sqft`}
                           </td>
-                          <td style={{ color: '#475569', fontSize: '0.75rem' }}>{s.date}</td>
+                          <td style={{ color: '#eaf8f7', fontSize: '0.75rem' }}>{s.date}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -436,7 +436,7 @@ function HomeReportInner() {
                     <div style={{ fontWeight: 700, color: '#f1f5f9', fontSize: '0.9rem', marginBottom: 3 }}>
                       Alert me when 30-year rates drop to:
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#475569' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#eaf8f7' }}>
                       Current 30Y fixed: <span style={{ color: '#00e87a', fontWeight: 700 }}>{liveRate.toFixed(2)}%</span> · You control when to act, we just alert you.
                     </div>
                   </div>
@@ -449,7 +449,7 @@ function HomeReportInner() {
                         placeholder={`e.g. ${(liveRate - 1).toFixed(2)}`}
                         style={{ width: 90, padding: '8px 10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#fff', fontSize: '0.9rem', fontFamily: 'inherit' }}
                       />
-                      <span style={{ color: '#475569', fontSize: '0.85rem' }}>%</span>
+                      <span style={{ color: '#eaf8f7', fontSize: '0.85rem' }}>%</span>
                       <button
                         onClick={saveAlert}
                         disabled={alertSaving || alertSaved || !alertRate}
@@ -502,9 +502,9 @@ function HomeReportInner() {
               </div>
 
               {/* ── DISCLAIMER ── */}
-              <div style={{ fontSize: '0.68rem', color: '#64748b', lineHeight: 1.6, paddingTop: 16, borderTop: '1px solid #0f172a' }}>
+              <div style={{ fontSize: '0.68rem', color: '#eaf8f7', lineHeight: 1.6, paddingTop: 16, borderTop: '1px solid #0f172a' }}>
                 HomeRates.ai is an independent educational tool and is not a mortgage broker or lender. Estimates are based on public records and FHFA appreciation models. Not financial advice.{' '}
-                <Link href="/legal" style={{ color: '#64748b' }}>Terms & Disclosures</Link>
+                <Link href="/legal" style={{ color: '#eaf8f7' }}>Terms & Disclosures</Link>
               </div>
             </>
           )}
@@ -533,10 +533,10 @@ const HR_CSS = `
   .hr-body{max-width:780px;margin:0 auto;padding:2.5rem 1.5rem 6rem}
 
   .hr-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px 24px}
-  .hr-section-label{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#475569}
+  .hr-section-label{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#eaf8f7}
 
   .hr-table{width:100%;border-collapse:collapse;font-size:.85rem}
-  .hr-table th{text-align:left;font-size:.65rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#64748b;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,0.06)}
+  .hr-table th{text-align:left;font-size:.65rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#eaf8f7;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,0.06)}
   .hr-table td{padding:.6rem 0;border-bottom:1px solid rgba(255,255,255,0.04);color:#f1f5f9;font-weight:600}
   .hr-table th:not(:first-child),.hr-table td:not(:first-child){text-align:right}
   .hr-table td:last-child,.hr-table th:last-child{text-align:right}

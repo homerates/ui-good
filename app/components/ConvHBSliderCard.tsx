@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
@@ -430,7 +430,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                     minLabel="None" maxLabel="$5k/mo"
                     trackColor={zc.color} theme="dark"
                 />
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: -4 }}>Car payments, student loans, credit cards, child support, etc.</div>
+                <div style={{ fontSize: 11, color: '#eaf8f7', marginTop: -4 }}>Car payments, student loans, credit cards, child support, etc.</div>
             </div>
 
             {/* Income qualify table */}

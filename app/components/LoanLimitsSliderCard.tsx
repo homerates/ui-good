@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // app/components/LoanLimitsSliderCard.tsx
 // Nationwide 2026 Loan Limits interactive explorer
@@ -599,7 +599,7 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
                     letter-spacing: -0.02em;
                     font-variant-numeric: tabular-nums;
                 }
-                .ll-loan-mo { font-size: 13px; font-weight: 500; color: #64748b; }
+                .ll-loan-mo { font-size: 13px; font-weight: 500; color: #eaf8f7; }
                 .ll-loan-lbl { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
                 .ll-loan-piti { text-align: right; }
 
@@ -662,7 +662,7 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
                 .ll-legend__dot--std  { background: #22c55e; }
                 .ll-legend__dot--hb   { background: #eab308; }
                 .ll-legend__dot--jmb  { background: #ef4444; }
-                .ll-legend__txt { font-size: 11px; color: #64748b; margin-right: 6px; }
+                .ll-legend__txt { font-size: 11px; color: #eaf8f7; margin-right: 6px; }
 
                 /* Limits table */
                 .ll-limits-table {
@@ -686,7 +686,7 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
                 .ll-limits-row--jmb  { background: #fef2f2; }
                 .ll-limits-zone { flex: 1; font-weight: 600; color: #374151; white-space: nowrap; }
                 .ll-limits-amt  { color: #0f172a; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 80px; text-align: right; }
-                .ll-limits-rate { color: #64748b; min-width: 80px; text-align: right; font-size: 11px; }
+                .ll-limits-rate { color: #eaf8f7; min-width: 80px; text-align: right; font-size: 11px; }
 
                 /* Stay conforming callout */
                 .ll-callout {
@@ -730,7 +730,7 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
                     text-align: left;
                     padding: 4px 8px;
                     background: #f8fafc;
-                    color: #64748b;
+                    color: #eaf8f7;
                     font-weight: 600;
                     border-bottom: 1px solid #e2e8f0;
                 }
@@ -760,7 +760,7 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
                     border-radius: 99px;
                     font-size: 12px;
                     font-weight: 500;
-                    color: #1e293b;
+                    color: #eaf8f7;
                     cursor: pointer;
                     transition: border-color 0.12s, background 0.12s;
                     font-family: inherit;
@@ -783,7 +783,7 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
                     padding: 7px 12px;
                     font-size: 12px;
                     font-weight: 600;
-                    color: #475569;
+                    color: #eaf8f7;
                     cursor: pointer;
                     font-family: inherit;
                     width: 100%;

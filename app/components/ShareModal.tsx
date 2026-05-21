@@ -1,4 +1,4 @@
-// app/components/ShareModal.tsx
+﻿// app/components/ShareModal.tsx
 'use client';
 
 import * as React from 'react';
@@ -186,7 +186,7 @@ export function ShareModal({ isOpen, onClose, onShare, onSocialShare }: ShareMod
                 {/* Social share */}
                 {onSocialShare && (
                     <div style={{ marginBottom: 20 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#eaf8f7', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
                             Share to social
                         </div>
                         <div style={{ display: 'flex', gap: 10 }}>

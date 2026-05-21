@@ -1,4 +1,4 @@
-// app/not-found.tsx
+﻿// app/not-found.tsx
 import Link from "next/link";
 
 export const metadata = {
@@ -46,7 +46,7 @@ export default function NotFound() {
       <p
         style={{
           fontSize: "0.95rem",
-          color: "#64748b",
+          color: "#eaf8f7",
           margin: "0 0 32px",
           maxWidth: "360px",
           lineHeight: 1.6,

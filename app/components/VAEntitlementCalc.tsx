@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // app/components/VAEntitlementCalc.tsx
 // Interactive VA Entitlement Calculator — first use + subsequent use toggle
@@ -95,22 +95,22 @@ export default function VAEntitlementCalc({ countyLimit: initLimit = BASELINE }:
             .vac__tab { flex:1; padding:8px 0; border-radius:8px; border:1.5px solid #1e293b; background:transparent; color:#94a3b8; font-size:.82rem; font-weight:600; cursor:pointer; transition:.15s; }
             .vac__tab--on { background:#1e40af; border-color:#3b82f6; color:#fff; }
             .vac__section { background:#1e293b; border-radius:10px; padding:16px; margin-bottom:12px; }
-            .vac__section-title { font-size:.78rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:12px; }
+            .vac__section-title { font-size:.78rem; font-weight:700; color:#eaf8f7; text-transform:uppercase; letter-spacing:.06em; margin-bottom:12px; }
             .vac__row { margin-bottom:14px; }
             .vac__row:last-child { margin-bottom:0; }
             .vac__row-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
             .vac__row-label { font-size:.82rem; color:#94a3b8; }
             .vac__row-val { font-size:.9rem; font-weight:700; color:#f1f5f9; }
             .vac__range { width:100%; accent-color:#3b82f6; height:4px; cursor:pointer; }
-            .vac__row-ends { display:flex; justify-content:space-between; font-size:.72rem; color:#475569; margin-top:2px; }
+            .vac__row-ends { display:flex; justify-content:space-between; font-size:.72rem; color:#eaf8f7; margin-top:2px; }
             .vac__toggle-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
             .vac__toggle-label { font-size:.82rem; color:#94a3b8; }
             .vac__check { accent-color:#3b82f6; width:16px; height:16px; cursor:pointer; }
             .vac__results { background:#0f172a; border:1.5px solid #1e293b; border-radius:10px; padding:16px; margin-top:4px; }
-            .vac__results-title { font-size:.78rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:12px; }
+            .vac__results-title { font-size:.78rem; font-weight:700; color:#eaf8f7; text-transform:uppercase; letter-spacing:.06em; margin-bottom:12px; }
             .vac__grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
             .vac__stat { background:#1e293b; border-radius:8px; padding:10px 12px; }
-            .vac__stat-label { font-size:.72rem; color:#64748b; margin-bottom:2px; }
+            .vac__stat-label { font-size:.72rem; color:#eaf8f7; margin-bottom:2px; }
             .vac__stat-val { font-size:.95rem; font-weight:700; color:#f1f5f9; }
             .vac__stat--highlight .vac__stat-val { color:#34d399; }
             .vac__stat--warn .vac__stat-val { color:#f59e0b; }
@@ -124,7 +124,7 @@ export default function VAEntitlementCalc({ countyLimit: initLimit = BASELINE }:
             .vac__badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:.72rem; font-weight:700; }
             .vac__badge--ok { background:#064e3b; color:#34d399; }
             .vac__badge--warn { background:#451a03; color:#f59e0b; }
-            .vac__note { font-size:.75rem; color:#64748b; margin-top:12px; line-height:1.5; }
+            .vac__note { font-size:.75rem; color:#eaf8f7; margin-top:12px; line-height:1.5; }
             @media(max-width:480px){ .vac__grid{ grid-template-columns:1fr; } }
             `}</style>
 

@@ -414,7 +414,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                 display: 'flex', gap: 14, fontSize: 11, color: '#6b7a99',
                 marginBottom: isDirty ? 12 : 0, flexWrap: 'wrap',
             }}>
-                <span>Balance <strong style={{ color: '#64748b' }}>{fmt$(balance)}</strong></span>
+                <span>Balance <strong style={{ color: '#eaf8f7' }}>{fmt$(balance)}</strong></span>
                 <span>Rate drop <strong style={{ color: rateDrop > 0 ? '#059669' : '#dc2626' }}>
                     {rateDrop > 0 ? `↓` : `↑`}{Math.abs(rateDrop).toFixed(3)}%
                 </strong></span>
