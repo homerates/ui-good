@@ -67,6 +67,14 @@ const PILLARS = [
     href: '/consumer-mortgage-platform',
     accent: '#ff8c42',
   },
+  {
+    icon: '🎯',
+    eyebrow: 'Decision Intelligence',
+    title: 'Track 5 — Five Signals That Tell You Whether to Buy, Wait, or Walk Away',
+    summary: 'Affordability, market conditions, value gap, and location intelligence — four scored data signals that replace gut-feel with a data-grounded buying verdict before you make an offer.',
+    href: '/track5-intelligence',
+    accent: '#a78bfa',
+  },
 ];
 
 export default function PlatformPage() {

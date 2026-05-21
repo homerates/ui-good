@@ -382,49 +382,6 @@ function Track5Inner() {
           cta={{ label: address ? 'Open Property Intel ↗' : 'Search a Property ↗', href: piUrl }}
         />
 
-        {/* ── Wealth Monitor ── */}
-        <div style={{ marginTop: 36 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <span style={{
-              fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
-              background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)',
-              borderRadius: 4, padding: '2px 7px', color: '#60a5fa',
-            }}>Ongoing</span>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#94a3b8' }}>
-              Wealth Monitor
-            </span>
-          </div>
-          <div style={{ fontSize: '0.78rem', color: '#eaf8f7', lineHeight: 1.6, marginBottom: 14 }}>
-            Not part of your buying score — but essential after you own. Track refi timing, equity position, and market factors impacting your investment.
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-            {[
-              { icon: '📉', label: 'Refi Intelligence',  sub: 'Current rate vs. your rate. Break-even on a new loan.', link: 'Run in Chat ↗', href: '/chat?sq=Should+I+refinance+my+mortgage+now' },
-              { icon: '🏠', label: 'Equity & HELOC',     sub: 'Estimated equity position and HELOC potential.',         link: 'My Properties ↗', href: '/my-home' },
-              { icon: '📊', label: 'Market Impact',      sub: 'Local factors affecting your asset value over time.',    link: 'Run in Chat ↗', href: '/chat?sq=How+is+the+real+estate+market+impacting+my+home+value' },
-            ].map(tile => (
-              <a
-                key={tile.label}
-                href={tile.href} target="_blank" rel="noopener noreferrer"
-                style={{
-                  display: 'block', textDecoration: 'none',
-                  background: '#0d1117',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: 10, padding: '14px 16px',
-                  transition: 'border-color 0.15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(96,165,250,0.2)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)')}
-              >
-                <div style={{ fontSize: '1.1rem', marginBottom: 7 }}>{tile.icon}</div>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginBottom: 4 }}>{tile.label}</div>
-                <div style={{ fontSize: '0.68rem', color: '#eaf8f7', lineHeight: 1.5 }}>{tile.sub}</div>
-                <div style={{ fontSize: '0.65rem', color: '#60a5fa', marginTop: 8, fontWeight: 600 }}>{tile.link}</div>
-              </a>
-            ))}
-          </div>
-        </div>
-
       </div>
     </div>
   );
