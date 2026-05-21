@@ -236,8 +236,8 @@ export default function ReportPage() {
     const CARD    = '#0f172a';
     const CARD2   = '#1e293b';
     const TEXT    = '#f1f5f9';
-    const MUTED   = '#64748b';
-    const DIM     = '#334155';
+    const MUTED   = '#eaf8f7';
+    const DIM     = '#334155'; // border/bg use only — text uses inline #eaf8f7
     const GREEN   = '#00e87a';
     const GREEN2  = '#00b459';
 
@@ -278,7 +278,7 @@ export default function ReportPage() {
                             <div style={{ fontSize: '0.75rem', color: MUTED, marginTop: 1 }}>
                                 {[lo.title, lo.lender].filter(Boolean).join(' · ')}
                             </div>
-                            {lo.nmls && <div style={{ fontSize: '0.72rem', color: DIM, marginTop: 1 }}>NMLS# {lo.nmls}</div>}
+                            {lo.nmls && <div style={{ fontSize: '0.72rem', color: '#eaf8f7', marginTop: 1 }}>NMLS# {lo.nmls}</div>}
                         </div>
                     </div>
                     <div style={{ textAlign: 'right', fontSize: '0.78rem', color: MUTED, lineHeight: 1.8 }}>
@@ -528,7 +528,7 @@ export default function ReportPage() {
                             <div style={{ fontSize: '0.75rem', color: MUTED, marginTop: 2 }}>
                                 {[lo.lender, lo.nmls ? `NMLS# ${lo.nmls}` : null].filter(Boolean).join(' · ')}
                             </div>
-                            {lo.office_address && <div style={{ fontSize: '0.7rem', color: DIM, marginTop: 2 }}>{lo.office_address}</div>}
+                            {lo.office_address && <div style={{ fontSize: '0.7rem', color: '#eaf8f7', marginTop: 2 }}>{lo.office_address}</div>}
                         </div>
                     </div>
                     <div className="rp-lo-contact" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -546,7 +546,7 @@ export default function ReportPage() {
                 </div>
 
                 {/* ── Disclaimer ───────────────────────────────────── */}
-                <div style={{ fontSize: '0.62rem', color: DIM, lineHeight: 1.8, padding: '0 4px' }}>
+                <div style={{ fontSize: '0.62rem', color: '#eaf8f7', lineHeight: 1.8, padding: '0 4px' }}>
                     <strong>Current as of {today}.</strong> This report is provided for informational and educational purposes only and does not constitute a loan commitment, guarantee, or offer to lend.
                     Rates and terms are subject to change without notice. Estimated values, equity, and projections are based on third-party automated valuation models and historical averages; actual values may differ.
                     This document should not be construed as investment or mortgage advice. For actual terms and rate information, please contact your loan officer directly.

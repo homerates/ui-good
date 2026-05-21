@@ -386,7 +386,7 @@ function HomeReportInner() {
                               {s.rate}% {s.isCurrent && <span style={{ fontSize: '0.65rem', color: '#00e87a', marginLeft: 4 }}>← today</span>}
                             </td>
                             <td style={{ fontWeight: 700 }}>${s.piti.toLocaleString()}/mo</td>
-                            <td style={{ color: diff < 0 ? '#00e87a' : diff > 0 ? '#f97066' : '#64748b', fontSize: '0.8rem' }}>
+                            <td style={{ color: diff < 0 ? '#00e87a' : diff > 0 ? '#f97066' : '#eaf8f7', fontSize: '0.8rem' }}>
                               {diff === 0 ? '—' : `${diff > 0 ? '+' : ''}$${Math.abs(diff).toLocaleString()}/mo`}
                             </td>
                           </tr>

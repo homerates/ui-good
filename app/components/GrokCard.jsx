@@ -174,7 +174,7 @@ function ModernTable({ headers, rows }) {
                         {headers.map((h, i) => (
                             <div key={`h-${i}`} style={{
                                 padding: "9px 12px", fontSize: 11, fontWeight: 700, textTransform: "uppercase",
-                                letterSpacing: "0.06em", color: "#475569",
+                                letterSpacing: "0.06em", color: "#eaf8f7",
                                 textAlign: i === 0 ? "left" : numericCols.has(i) ? "right" : "left",
                                 borderRight: i < colCount - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
                             }}>{h}</div>
@@ -324,7 +324,7 @@ function buildComponents(isAiResponse = false) {
                         background: "rgba(255,255,255,0.03)", borderRadius: 8,
                         borderLeft: "2px solid rgba(0,232,122,0.2)",
                     }}>
-                        <span style={{ fontSize: 12, color: "#64748b", flexShrink: 0, paddingRight: 12 }}>{label}</span>
+                        <span style={{ fontSize: 12, color: "#eaf8f7", flexShrink: 0, paddingRight: 12 }}>{label}</span>
                         <span style={{ fontSize: 14, fontWeight: 700, color: isGreen ? "#00e87a" : "#f1f5f9", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
                             {mainVal}
                             {sub && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginLeft: 6 }}>{sub}</span>}
@@ -412,7 +412,7 @@ export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 padding: "10px 16px 0",
                 fontSize: 10, fontWeight: 700, letterSpacing: "0.07em",
-                textTransform: "uppercase", color: "#334155",
+                textTransform: "uppercase", color: "#eaf8f7",
             }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <span style={{ color: accentColor, fontSize: 8 }}>●</span>
@@ -444,7 +444,7 @@ export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
                 borderTop: "1px solid rgba(255,255,255,0.06)",
                 display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12,
             }}>
-                <div style={{ fontSize: 11, color: "#334155", lineHeight: 1.5, flex: "1 1 auto" }}>
+                <div style={{ fontSize: 11, color: "#eaf8f7", lineHeight: 1.5, flex: "1 1 auto" }}>
                     ⓘ Educational only — not financial advice or a commitment to lend. Verify rates and eligibility with a licensed lender.
                 </div>
                 {onSaveToVault && (

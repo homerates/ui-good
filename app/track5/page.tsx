@@ -130,8 +130,8 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
               position: 'absolute', inset: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '0.8rem', fontWeight: 800,
-              /* unscored dash uses #475569 so it's visible but clearly inactive */
-              color: ringColor ?? '#475569',
+              /* unscored dash uses #94a3b8 so it's visible but clearly inactive */
+              color: ringColor ?? '#94a3b8',
             }}>
               {score != null ? score : '—'}
             </div>
@@ -153,7 +153,7 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
           <div style={{
             fontSize: '0.78rem', lineHeight: 1.65,
             /* scored summary: bright; unscored placeholder: dim but readable */
-            color: scored ? '#94a3b8' : '#64748b',
+            color: scored ? '#94a3b8' : '#eaf8f7',
             fontStyle: scored ? 'normal' : 'italic',
           }}>
             {summary ?? (scored ? '' : `Not yet analyzed — run the tool to score this level.`)}
@@ -187,7 +187,7 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
                 display: 'inline-block', padding: '8px 14px', borderRadius: 8,
                 fontSize: '0.72rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap',
                 background: scored ? 'rgba(255,255,255,0.04)' : 'rgba(74,222,128,0.08)',
-                color:      scored ? '#64748b'                : '#4ade80',
+                color:      scored ? '#eaf8f7'                : '#4ade80',
                 border:     scored ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(74,222,128,0.2)',
               }}
             >

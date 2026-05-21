@@ -679,7 +679,7 @@ function PropertyIntelInner() {
                     <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#a78bfa' }}>Full Market Analysis in Progress</span>
                   </div>
                   {DEEP_STEPS.map((step, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', opacity: i <= deepStep ? 1 : 0.25, animation: i === deepStep ? 'pulseGlow 2s ease infinite' : 'none', fontSize: '0.78rem', color: i < deepStep ? '#4ade80' : i === deepStep ? '#e2e8f0' : '#334155', transition: 'opacity 0.4s' }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', opacity: i <= deepStep ? 1 : 0.25, animation: i === deepStep ? 'pulseGlow 2s ease infinite' : 'none', fontSize: '0.78rem', color: i < deepStep ? '#4ade80' : i === deepStep ? '#e2e8f0' : '#eaf8f7', transition: 'opacity 0.4s' }}>
                       <span style={{ fontSize: '0.6rem', width: 14, textAlign: 'center', flexShrink: 0 }}>{i < deepStep ? '✓' : i === deepStep ? '●' : '○'}</span>
                       {step}
                     </div>

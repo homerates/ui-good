@@ -1007,9 +1007,9 @@ function CardMyPayment({ d }: { d: AnalysisData }) {
             const diff = p - base;
             return (
               <tr key={i} style={{ background: row.highlight ? 'rgba(99,179,237,0.06)' : 'transparent', borderRadius: 6 }}>
-                <td style={{ fontSize: '0.82rem', color: row.highlight ? '#93c5fd' : '#64748b', padding: '8px 0', fontWeight: row.highlight ? 700 : 400 }}>{row.label}</td>
+                <td style={{ fontSize: '0.82rem', color: row.highlight ? '#93c5fd' : '#eaf8f7', padding: '8px 0', fontWeight: row.highlight ? 700 : 400 }}>{row.label}</td>
                 <td style={{ fontSize: '1rem', fontWeight: 700, color: row.highlight ? '#f1f5f9' : '#94a3b8', padding: '8px 0' }}>${p.toLocaleString()}/mo</td>
-                <td style={{ fontSize: '0.82rem', color: diff < 0 ? '#22c55e' : diff > 0 ? '#f87171' : '#64748b', padding: '8px 0' }}>
+                <td style={{ fontSize: '0.82rem', color: diff < 0 ? '#22c55e' : diff > 0 ? '#f87171' : '#eaf8f7', padding: '8px 0' }}>
                   {row.highlight ? '—' : `${diff < 0 ? '−' : '+'}$${Math.abs(diff).toLocaleString()}`}
                 </td>
               </tr>
