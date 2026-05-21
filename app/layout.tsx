@@ -5,6 +5,7 @@ import { Inter } from "next/font/google";
 import { Syne, DM_Mono, DM_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import LegalLinks from "./components/LegalLinks";
+import ColorDebugOverlay from "./components/ColorDebugOverlay";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -112,6 +113,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           style={{ background: '#080c12', color: '#f0f4ff' }}
         >
           {children}
+          <ColorDebugOverlay />
           <Analytics />
           <SpeedInsights />
 
