@@ -1,5 +1,5 @@
 // app/platform/page.tsx
-// Hub page for all 7 Platform Intelligence pillar pages
+// Hub page for all Platform Intelligence pillar pages
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import AppNav from "../components/AppNav";
@@ -74,6 +74,22 @@ const PILLARS = [
     summary: 'Affordability, market conditions, value gap, and location intelligence — four scored data signals that replace gut-feel with a data-grounded buying verdict before you make an offer.',
     href: '/track5-intelligence',
     accent: '#a78bfa',
+  },
+  {
+    icon: '🔬',
+    eyebrow: 'Under the Hood',
+    title: 'How Property Intelligence Cards Are Built — Grok, Tavily, Redfin & FRED',
+    summary: 'The full 6-step pipeline: Redfin data extraction → FRED live rates → deterministic PITI math → Tavily AI search → Grok-4 deep reasoning → structured card output. Every number, traced to its source.',
+    href: '/property-intelligence',
+    accent: '#38bdf8',
+  },
+  {
+    icon: '🎙️',
+    eyebrow: 'Consumer Empowerment',
+    title: 'AI Coach — Engineered Prompts to Interview Your LO and Agent',
+    summary: 'Six LO interview questions. Six agent interview questions. Four AI prompt modes. Stop getting talked into the wrong loan — arrive prepared with the exact questions that expose conflicts of interest.',
+    href: '/ai-coach',
+    accent: '#fb923c',
   },
 ];
 
