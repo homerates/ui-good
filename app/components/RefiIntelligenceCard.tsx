@@ -183,8 +183,8 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
         purple: '#a78bfa',
         amber:  '#fbbf24',
         red:    '#ef4444',
-        muted:  '#6b7a99',
-        dim:    '#3a4560',
+        muted: '#94a3b8',
+        dim: '#eaf8f7',
         text:   '#e6edf3',
         sub:    '#8b949e',
     } as const;

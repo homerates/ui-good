@@ -49,12 +49,12 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 function statusColor(s: string | null) {
-  if (!s) return "#6b7a99";
+  if (!s) return "#94a3b8";
   const lc = s.toLowerCase();
   if (lc === "licensed" || lc === "active")  return "#00e87a";
   if (lc === "flagged")                       return "#ff5f5f";
   if (lc === "expired" || lc === "inactive") return "#ff8c42";
-  return "#6b7a99";
+  return "#94a3b8";
 }
 
 function formatPhone(p: string) {

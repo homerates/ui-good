@@ -1,4 +1,4 @@
-// app/market-news/page.tsx
+﻿// app/market-news/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { marketNewsArticles } from './articles';
@@ -127,7 +127,7 @@ export default async function MarketNewsPage() {
           --border-bright: rgba(255,255,255,0.13);
           --text: #f0f4ff;
           --text-muted: #8fa3b8;
-          --text-dim: #3a4560;
+          --text-dim: #eaf8f7;
           --green: #00e87a;
           --green-dim: rgba(0,232,122,0.10);
           --blue: #3d8bff;

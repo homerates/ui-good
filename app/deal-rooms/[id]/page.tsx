@@ -38,7 +38,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 const STATUS_COLOR: Record<string, string> = {
   shopping:"#3d8bff", offer:"#ff8c42", contract:"#a78bfa",
-  processing:"#fbbf24", closed:"#00e87a", cancelled:"#6b7a99",
+  processing:"#fbbf24", closed:"#00e87a", cancelled:"#94a3b8",
 };
 const ROLE_LABELS: Record<string, string> = { buyer:"Buyer", lo:"Loan Officer", agent:"Agent" };
 const ROLE_COLORS: Record<string, string> = { buyer:"#3d8bff", lo:"#00e87a", agent:"#a78bfa" };
@@ -502,7 +502,7 @@ export default function DealRoomPage() {
 
   if (!room) return null;
 
-  const color     = STATUS_COLOR[room.status] ?? "#6b7a99";
+  const color     = STATUS_COLOR[room.status] ?? "#94a3b8";
   const pd        = room.property_data;
   const isCreator = room.created_by === userId;
   const viewerMember = members.find(m => m.user_id === userId);
@@ -890,7 +890,7 @@ export default function DealRoomPage() {
                       {shareFinancials && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#00e87a" }} />}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: shareFinancials ? "#00e87a" : "#6b7a99", marginBottom: 2 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: shareFinancials ? "#00e87a" : "#94a3b8", marginBottom: 2 }}>
                         {shareFinancials ? "Buyer authorized — financing shared with agent" : "Financing not shared with agent — awaiting buyer authorization"}
                       </p>
                       <p style={{ fontSize: 11, color: "#eaf8f7", lineHeight: 1.4 }}>
@@ -955,7 +955,7 @@ export default function DealRoomPage() {
                         ) : (
                           <div className="scen-list" style={{ marginTop:0 }}>
                             {scenarios.map((s) => {
-                              const rc = ROLE_COLORS[s.created_by_role] ?? "#6b7a99";
+                              const rc = ROLE_COLORS[s.created_by_role] ?? "#94a3b8";
                               const rj = s.result_json ?? {};
                               return (
                                 <div key={s.id} className="scen-card">
@@ -1259,7 +1259,7 @@ export default function DealRoomPage() {
                       </div>
                       <div className="scen-list">
                         {scenarios.map((s) => {
-                          const rc = ROLE_COLORS[s.created_by_role] ?? "#6b7a99";
+                          const rc = ROLE_COLORS[s.created_by_role] ?? "#94a3b8";
                           const isOwn = s.created_by === userId;
                           return (
                             <div key={s.id} className="scen-card">
@@ -1506,7 +1506,7 @@ export default function DealRoomPage() {
                         const isSelf = msg.sender_id === userId;
                         const isSys  = msg.sender_role === "system";
                         if (isSys) return <div key={msg.id} className="msg-sys">{msg.content}</div>;
-                        const rc = ROLE_COLORS[msg.sender_role] ?? "#6b7a99";
+                        const rc = ROLE_COLORS[msg.sender_role] ?? "#94a3b8";
                         return (
                           <div key={msg.id} style={{ display:"flex", flexDirection:"column", alignItems:isSelf?"flex-end":"flex-start" }}>
                             {!isSelf && (
@@ -1550,11 +1550,11 @@ export default function DealRoomPage() {
               {activeTab === "team" && (
                 <div className="dr-card">
                   {members.map((m) => {
-                    const rc = ROLE_COLORS[m.role] ?? "#6b7a99";
+                    const rc = ROLE_COLORS[m.role] ?? "#94a3b8";
                     return (
                       <div key={m.id} className="member-pill">
                         <span style={{ width:8, height:8, borderRadius:"50%", background:m.joined_at?rc:"#3a4560", display:"inline-block", flexShrink:0 }} />
-                        <span style={{ flex:1, fontSize:13, color:m.joined_at?"#f0f4ff":"#6b7a99" }}>
+                        <span style={{ flex:1, fontSize:13, color:m.joined_at?"#f0f4ff":"#94a3b8" }}>
                           {m.display_name ?? (m.joined_at ? ROLE_LABELS[m.role] : `${ROLE_LABELS[m.role]} — invite pending`)}
                         </span>
                         <span style={{ fontSize:11, color:rc, fontWeight:600 }}>{ROLE_LABELS[m.role]}</span>
@@ -1686,7 +1686,7 @@ export default function DealRoomPage() {
                   return (
                     <div key={role} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
                       <span style={{ width:6, height:6, borderRadius:"50%", background:m?.joined_at?rc:"#3a4560", display:"inline-block", flexShrink:0 }} />
-                      <span style={{ fontSize:13, color:m?.joined_at?"#f0f4ff":"#6b7a99", flex:1 }}>{ROLE_LABELS[role]}</span>
+                      <span style={{ fontSize:13, color:m?.joined_at?"#f0f4ff":"#94a3b8", flex:1 }}>{ROLE_LABELS[role]}</span>
                     </div>
                   );
                 })}
@@ -1711,7 +1711,7 @@ export default function DealRoomPage() {
                   return (
                     <div key={s} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
                       <span style={{ width:6, height:6, borderRadius:"50%", flexShrink:0, display:"inline-block", background: done?"#00e87a" : active? STATUS_COLOR[s] : "#3a4560" }} />
-                      <span style={{ fontSize:12, color: active?"#f0f4ff" : done?"#6b7a99" : "#3a4560", fontWeight:active?600:400 }}>
+                      <span style={{ fontSize:12, color: active?"#f0f4ff" : done?"#94a3b8" : "#eaf8f7", fontWeight:active?600:400 }}>
                         {STATUS_LABELS[s]}
                       </span>
                     </div>
@@ -1778,7 +1778,7 @@ function OfferScoreCard({
 
   const ringColor = scoreData
     ? scoreData.score >= 75 ? '#00e87a' : scoreData.score >= 50 ? '#fbbf24' : '#f87171'
-    : '#3a4560';
+    : '#eaf8f7';
 
   return (
     <div className="score-card">

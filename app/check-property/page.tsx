@@ -312,7 +312,7 @@ function CheckPropertyInner() {
                     </div>
                     <button
                         onClick={() => { setEditing(e => !e); setEditPrice(String(sc.price)); setEditDp(String(sc.dp)); setEditRate(String(sc.rate)); }}
-                        style={{ fontSize: 12, fontWeight: 700, color: editing ? theme.accent : '#6b7a99', background: editing ? theme.accentFaint : 'transparent', border: `1px solid ${editing ? theme.accentBorder : 'rgba(255,255,255,0.08)'}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                        style={{ fontSize: 12, fontWeight: 700, color: editing ? theme.accent : '#94a3b8', background: editing ? theme.accentFaint : 'transparent', border: `1px solid ${editing ? theme.accentBorder : 'rgba(255,255,255,0.08)'}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
                     >
                         {editing ? '✕ Cancel' : '✎ Edit'}
                     </button>
@@ -812,7 +812,7 @@ function Section({ title, icon, accent, children }: { title: string; icon: strin
         <div style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '18px 18px 16px', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                 <span style={{ fontSize: 16 }}>{icon}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: accent ?? '#6b7a99' }}>{title}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: accent ?? '#94a3b8' }}>{title}</span>
             </div>
             {children}
         </div>
@@ -851,7 +851,7 @@ function KV({ k, v, total, highlight }: { k: string; v: string; total?: boolean;
             padding: total ? '8px 0 0' : '5px 0',
             borderTop: total ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.04)',
         }}>
-            <span style={{ fontSize: 12, color: total ? '#c4cfe0' : '#6b7a99', fontWeight: total ? 700 : 400 }}>{k}</span>
+            <span style={{ fontSize: 12, color: total ? '#c4cfe0' : '#94a3b8', fontWeight: total ? 700 : 400 }}>{k}</span>
             <span style={{ fontSize: 12, fontWeight: total ? 800 : 600, color: highlight ? '#00e87a' : total ? '#f0f4ff' : '#c4cfe0' }}>{v}</span>
         </div>
     );

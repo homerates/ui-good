@@ -20,7 +20,7 @@ const STATUS_COLOR: Record<string, string> = {
   contract:   "#a78bfa",
   processing: "#fbbf24",
   closed:     "#00e87a",
-  cancelled:  "#6b7a99",
+  cancelled:  "#94a3b8",
 };
 
 type Room = {
@@ -203,7 +203,7 @@ export default function DealRoomsPage() {
 }
 
 function RoomCard({ room, onClick }: { room: Room; onClick: () => void }) {
-  const color   = STATUS_COLOR[room.status] ?? "#6b7a99";
+  const color   = STATUS_COLOR[room.status] ?? "#94a3b8";
   const joined  = room.members.filter((m) => m.joined_at).length;
   const total   = room.members.length;
 

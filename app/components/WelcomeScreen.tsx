@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 // app/components/WelcomeScreen.tsx
 // Phase-2 welcome screen — value-first scenario previews + live rate hero
 
@@ -345,7 +345,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     font-family: var(--font-dm-mono, 'DM Mono', monospace);
                     font-size: 10px;
                     font-weight: 500;
-                    color: var(--text-dim, #3a4560);
+                    color: var(--text-dim, #eaf8f7);
                     letter-spacing: 0.16em;
                     text-transform: uppercase;
                     margin-bottom: 16px;
@@ -492,7 +492,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     font-family: var(--font-dm-mono, 'DM Mono', monospace);
                     font-size: 9px;
                     font-weight: 500;
-                    color: var(--text-dim, #3a4560);
+                    color: var(--text-dim, #eaf8f7);
                     letter-spacing: 0.16em;
                     text-transform: uppercase;
                     margin-bottom: 10px;
@@ -512,7 +512,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     box-shadow: 0 0 0 4px rgba(61, 139, 255, 0.1);
                 }
                 .hr-price-check__icon {
-                    color: var(--text-dim, #3a4560);
+                    color: var(--text-dim, #eaf8f7);
                     flex-shrink: 0;
                     display: flex;
                     align-items: center;
@@ -535,7 +535,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                     outline: none;
                 }
                 .hr-price-check__input::placeholder {
-                    color: var(--text-dim, #3a4560);
+                    color: var(--text-dim, #eaf8f7);
                 }
                 .hr-price-check__go {
                     flex-shrink: 0;
@@ -558,7 +558,7 @@ export default function WelcomeScreen({ onSend, onMount, onPriceCheck }: Welcome
                 .hr-price-check__hint {
                     font-family: var(--font-dm-mono, 'DM Mono', monospace);
                     font-size: 10px;
-                    color: var(--text-dim, #3a4560);
+                    color: var(--text-dim, #eaf8f7);
                     letter-spacing: 0.06em;
                     margin-top: 8px;
                 }

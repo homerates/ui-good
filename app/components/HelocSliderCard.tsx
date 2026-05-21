@@ -50,7 +50,7 @@ function helocVerdict(cltv80: number, draw: number, maxLine80: number): { emoji:
 const C = {
     bg:    '#0d1117', card:  '#0a111e', green: '#00e87a',
     blue:  '#60a5fa', teal:  '#2dd4bf', amber: '#fbbf24',
-    red:   '#ef4444', muted: '#6b7a99', dim:   '#3a4560',
+    red:   '#ef4444', muted: '#94a3b8', dim: '#eaf8f7',
     text:  '#e6edf3', sub:   '#8b949e',
 } as const;
 

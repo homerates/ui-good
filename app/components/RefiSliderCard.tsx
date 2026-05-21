@@ -203,7 +203,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                         fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
                         border: `1px solid ${noCost ? '#059669' : 'rgba(255,255,255,0.12)'}`,
                         background: noCost ? 'rgba(5,150,105,0.12)' : 'rgba(255,255,255,0.04)',
-                        color: noCost ? '#059669' : '#6b7a99',
+                        color: noCost ? '#059669' : '#94a3b8',
                         cursor: 'pointer',
                     }}
                 >
@@ -373,7 +373,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                                 cursor: 'pointer',
                                 border: termYears === yr ? '2px solid #10b981' : '1.5px solid rgba(255,255,255,0.1)',
                                 background: termYears === yr ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)',
-                                color: termYears === yr ? '#10b981' : '#6b7a99',
+                                color: termYears === yr ? '#10b981' : '#94a3b8',
                             }}
                         >{yr}yr</button>
                     ))}
