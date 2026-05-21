@@ -2842,6 +2842,25 @@ export default function Page() {
 
                         {/* Right controls */}
                         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {/* New Chat button */}
+                            <button
+                                type="button"
+                                onClick={() => newChat()}
+                                title="New Chat (Cmd+N)"
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: 34, height: 34, borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)',
+                                    background: 'transparent', cursor: 'pointer', color: '#e2e8f0',
+                                    flexShrink: 0, transition: 'background 0.15s, border-color 0.15s',
+                                }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,232,122,0.08)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,232,122,0.3)'; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)'; }}
+                            >
+                                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M11.854 1.146a.5.5 0 0 0-.707 0L3.5 8.793V11.5h2.707l7.647-7.646a.5.5 0 0 0 0-.708l-2-2ZM4.5 10.5v-1.293l6.5-6.5L12.293 4l-6.5 6.5H4.5Z" fill="currentColor"/>
+                                    <path d="M1 13.5a.5.5 0 0 1 .5-.5h12a.5.5 0 0 1 0 1h-12a.5.5 0 0 1-.5-.5Z" fill="currentColor" opacity=".4"/>
+                                </svg>
+                            </button>
                             <AlertBell />
                             <SettingsPanel />
                             <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
