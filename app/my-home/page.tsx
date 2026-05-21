@@ -1024,7 +1024,7 @@ function CardMyPayment({ d }: { d: AnalysisData }) {
   );
 }
 
-function CardCompDelta({ d, nearbySales }: { d: AnalysisData; nearbySales?: NearbySale[] }) {
+function CardCompDelta({ d, nearbySales, grokSource }: { d: AnalysisData; nearbySales?: NearbySale[]; grokSource?: boolean }) {
   const askPrice   = d.listPrice ?? d.estimatedValue;
   const askPsf     = (askPrice && d.sqft) ? Math.round(askPrice / d.sqft) : null;
   const valid      = (nearbySales ?? []).filter(s => s.price > 0);
@@ -1033,18 +1033,40 @@ function CardCompDelta({ d, nearbySales }: { d: AnalysisData; nearbySales?: Near
   const avgPsf     = psfComps.length ? Math.round(psfComps.reduce((s, c) => s + (c.pricePerSqft ?? 0), 0) / psfComps.length) : null;
   const priceDelta = (askPrice && avgPrice) ? Math.round((askPrice - avgPrice) / avgPrice * 100) : null;
   const psfDelta   = (askPsf && avgPsf) ? Math.round((askPsf - avgPsf) / avgPsf * 100) : null;
+  const reportUrl  = `/property-intel?address=${encodeURIComponent(d.address ?? '')}`;
+
   if (valid.length < 3) return (
     <div className="mh-card">
       <div className="mh-card-label">Comp Analysis</div>
-      <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', textAlign: 'center', padding: '28px 0' }}>
-        Not enough local sales data (need ≥ 3 recent comps).<br />
-        <a href={buildCMAUrl(d)} style={{ color: '#93c5fd', textDecoration: 'none', marginTop: 8, display: 'inline-block' }}>Run a full CMA in chat →</a>
+      <div style={{ textAlign: 'center', padding: '24px 0' }}>
+        <div style={{ fontSize: '1.6rem', marginBottom: 10 }}>🔬</div>
+        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', marginBottom: 14, lineHeight: 1.6 }}>
+          No cached comps yet for this property.<br />Generate a full Intelligence Report to see real recent sales.
+        </div>
+        <a href={reportUrl} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          background: 'rgba(0,232,122,0.1)', border: '1px solid rgba(0,232,122,0.3)',
+          color: '#00e87a', textDecoration: 'none', fontSize: '0.82rem', fontWeight: 600,
+          padding: '8px 16px', borderRadius: 8,
+        }}>
+          View Full Intelligence Report →
+        </a>
       </div>
     </div>
   );
+
   return (
     <div className="mh-card">
-      <div className="mh-card-label">Comp Analysis · {valid.length} Nearby Sales</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div className="mh-card-label" style={{ margin: 0 }}>Comp Analysis · {valid.length} Sales</div>
+        {grokSource && (
+          <span style={{
+            fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+            color: '#a78bfa', background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)',
+            borderRadius: 5, padding: '2px 7px',
+          }}>Grok AI</span>
+        )}
+      </div>
       <div className="mh-stat-row">
         <div className="mh-stat">
           <div className="mh-stat-label">This Home (Ask)</div>
@@ -1052,7 +1074,7 @@ function CardCompDelta({ d, nearbySales }: { d: AnalysisData; nearbySales?: Near
           <div className="mh-stat-sub">{askPsf ? `$${askPsf}/sqft` : ''}</div>
         </div>
         <div className="mh-stat">
-          <div className="mh-stat-label">Avg Nearby Sale</div>
+          <div className="mh-stat-label">Avg Comp Sale</div>
           <div className="mh-stat-value">{avgPrice ? fmt(avgPrice) : '—'}</div>
           <div className="mh-stat-sub">{avgPsf ? `$${avgPsf}/sqft` : ''}</div>
         </div>
@@ -1065,19 +1087,22 @@ function CardCompDelta({ d, nearbySales }: { d: AnalysisData; nearbySales?: Near
         </div>
       </div>
       <div style={{ marginTop: 16 }}>
-        {valid.slice(0, 4).map((s, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-            <div style={{ fontSize: '0.75rem', color: '#eaf8f7', maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address}</div>
-            <div style={{ display: 'flex', gap: 12 }}>
+        {valid.slice(0, 6).map((s, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: i < valid.slice(0, 6).length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '0.75rem', color: '#eaf8f7', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address}</div>
+              {s.date && <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>Sold {s.date}</div>}
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexShrink: 0, marginLeft: 8 }}>
               <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f1f5f9' }}>{fmt(s.price)}</span>
               {s.pricePerSqft && <span style={{ fontSize: '0.72rem', color: '#eaf8f7' }}>${s.pricePerSqft}/sf</span>}
             </div>
           </div>
         ))}
       </div>
-      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(99,179,237,0.12)' }}>
-        <a href={buildCMAUrl(d)} className="mh-cta-link" style={{ color: '#93c5fd' }}>
-          Run a full CMA with full market data →
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(0,232,122,0.1)' }}>
+        <a href={reportUrl} style={{ color: '#00e87a', textDecoration: 'none', fontSize: '0.82rem', fontWeight: 600 }}>
+          View Full Intelligence Report →
         </a>
       </div>
     </div>
@@ -1421,8 +1446,10 @@ function MyHomePageInner() {
   const [alertSaving, setAlertSaving] = useState(false);
   const [showAlertBox, setShowAlertBox] = useState(false);
 
-  // Nearby sales
+  // Nearby sales (legacy Rentcast endpoint)
   const [nearbySales, setNearbySales] = useState<NearbySale[]>([]);
+  // Grok cache comps — for buyer mode (FOR_SALE / PENDING)
+  const [grokComps, setGrokComps] = useState<NearbySale[]>([]);
 
   // Market Intelligence modal
   const [marketIntelResult, setMarketIntelResult] = useState<any>(null);
@@ -1696,6 +1723,34 @@ function MyHomePageInner() {
       .then(d => { if (d.sales?.length) setNearbySales(d.sales); })
       .catch(() => {});
   }, [analysis?.address]);
+
+  // Load Grok cache comps in buyer mode (FOR_SALE / PENDING)
+  useEffect(() => {
+    const addr = analysis?.address;
+    const status = analysis?.listingStatus;
+    if (!addr || (status !== 'FOR_SALE' && status !== 'PENDING')) return;
+    setGrokComps([]); // reset on address change
+    fetch(`/api/beta/grok-property?address=${encodeURIComponent(addr)}`)
+      .then(r => r.json())
+      .then(d => {
+        const raw = (d.grok_result?.comparable_sales ?? []) as Array<{
+          address: string; sold_price: number; sold_date: string;
+          sqft: number | null; price_per_sqft: number | null;
+        }>;
+        if (raw.length) {
+          setGrokComps(raw.map(c => ({
+            address: c.address,
+            price: c.sold_price,
+            sqft: c.sqft,
+            beds: null,
+            baths: null,
+            date: c.sold_date,
+            pricePerSqft: c.price_per_sqft,
+          })));
+        }
+      })
+      .catch(() => {});
+  }, [analysis?.address, analysis?.listingStatus]);
 
   async function saveAlert() {
     const rate = parseFloat(alertRate);
@@ -2457,11 +2512,19 @@ function MyHomePageInner() {
                           <>
                             {isBuyer ? (
                               <>
-                                {activeBuyerChip === 'position' && <CardMarketPosition d={analysis} nearbySales={nearbySales} onFeelingLucky={handleMarketIntel} />}
-                                {activeBuyerChip === 'payment'  && <CardMyPayment      d={analysis} />}
-                                {activeBuyerChip === 'comps'    && <CardCompDelta       d={analysis} nearbySales={nearbySales} />}
-                                {activeBuyerChip === 'cost'     && <CardTrueCost        d={analysis} />}
-                                {activeBuyerChip === 'signal'   && <CardOfferSignal     d={analysis} nearbySales={nearbySales} />}
+                                {(() => {
+                                  // Prefer Grok cache comps; fall back to legacy nearby-sales
+                                  const effectiveComps = grokComps.length > 0 ? grokComps : nearbySales;
+                                  return (
+                                    <>
+                                      {activeBuyerChip === 'position' && <CardMarketPosition d={analysis} onFeelingLucky={handleMarketIntel} />}
+                                      {activeBuyerChip === 'payment'  && <CardMyPayment      d={analysis} />}
+                                      {activeBuyerChip === 'comps'    && <CardCompDelta       d={analysis} nearbySales={effectiveComps} grokSource={grokComps.length > 0} />}
+                                      {activeBuyerChip === 'cost'     && <CardTrueCost        d={analysis} />}
+                                      {activeBuyerChip === 'signal'   && <CardOfferSignal     d={analysis} nearbySales={effectiveComps} />}
+                                    </>
+                                  );
+                                })()}
                               </>
                             ) : (
                               <>
