@@ -4,7 +4,7 @@
 // Entry points: chat (affordability, market analysis), property-intel, future location tool.
 
 import { Suspense, useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
@@ -234,74 +234,92 @@ function IndexGauge({ score }: { score: number }) {
 // ─── Inner Page ───────────────────────────────────────────────────────────────
 
 function Track5Inner() {
-  const params = useSearchParams();
+  // ── Hooks — all declared first so sessionData is available before derived values ──
+  const params         = useSearchParams();
+  const router         = useRouter();
+  const { isSignedIn } = useUser();
 
-  // Read scores + summaries from URL params.
-  // Clamp every score to 0–100 — guards against bad/oversized values from any source.
+  const saveAttemptedRef              = useRef(false);
+  const [sessionId, setSessionId]     = useState<string | null>(null);
+  const [saved,     setSaved]         = useState(false);
+  // sessionData: loaded from DB when ?session=<id> is in URL, or after auto-save
+  const [sessionData, setSessionData] = useState<Record<string, unknown> | null>(null);
+
+  // ── Clamp helper ──────────────────────────────────────────────────────────
   function clampScore(raw: string | null | undefined): number | null {
     if (!raw) return null;
     const n = Number(raw);
     if (!isFinite(n)) return null;
     return Math.min(100, Math.max(0, Math.round(n)));
   }
-  const levels: Levels = {
-    l1: {
-      score:   clampScore(params?.get('l1_score')),
-      summary: params?.get('l1_summary') ?? null,
-    },
-    l2: {
-      score:   clampScore(params?.get('l2_score')),
-      summary: params?.get('l2_summary') ?? null,
-    },
-    l3: {
-      score:   clampScore(params?.get('l3_score')),
-      summary: params?.get('l3_summary') ?? null,
-    },
-    l4: {
-      score:   clampScore(params?.get('l4_score')),
-      summary: params?.get('l4_summary') ?? null,
-    },
+
+  // ── Levels — session data wins over URL params ────────────────────────────
+  const levels: Levels = sessionData ? {
+    l1: { score: (sessionData.l1_score as number) ?? null, summary: (sessionData.l1_summary as string) ?? null },
+    l2: { score: (sessionData.l2_score as number) ?? null, summary: (sessionData.l2_summary as string) ?? null },
+    l3: { score: (sessionData.l3_score as number) ?? null, summary: (sessionData.l3_summary as string) ?? null },
+    l4: { score: (sessionData.l4_score as number) ?? null, summary: (sessionData.l4_summary as string) ?? null },
+  } : {
+    l1: { score: clampScore(params?.get('l1_score')), summary: params?.get('l1_summary') ?? null },
+    l2: { score: clampScore(params?.get('l2_score')), summary: params?.get('l2_summary') ?? null },
+    l3: { score: clampScore(params?.get('l3_score')), summary: params?.get('l3_summary') ?? null },
+    l4: { score: clampScore(params?.get('l4_score')), summary: params?.get('l4_summary') ?? null },
   };
 
-  // Extract address from l3_summary if present ("ADDRESS — Listed ...")
+  // ── Extract address from l3_summary if present ("ADDRESS — Listed ...") ──
   const address = levels.l3.summary?.split(' — ')[0]?.trim() ?? null;
   const piUrl   = address ? `/property-intel?address=${encodeURIComponent(address)}` : '/property-intel';
 
-  // Purchase scenario context (passed from scenario cards via ctx_* params)
-  const ctxPrice = params?.get('ctx_price') ? Number(params.get('ctx_price')) : null;
-  const ctxDp    = params?.get('ctx_dp')    ? Number(params.get('ctx_dp'))    : null;
-  const ctxLt    = params?.get('ctx_lt')    ?? null;
-  const ctxRate  = params?.get('ctx_rate')  ? Number(params.get('ctx_rate'))  : null;
-  const ctxPiti  = params?.get('ctx_piti')  ? Number(params.get('ctx_piti'))  : null;
+  // ── Purchase scenario context — session wins over URL params ─────────────
+  const sj       = (sessionData?.scenario_json ?? null) as Record<string, unknown> | null;
+  const ctxPrice = (sj?.price as number)   ?? (params?.get('ctx_price') ? Number(params.get('ctx_price')) : null);
+  const ctxDp    = (sj?.dp_pct as number)  ?? (params?.get('ctx_dp')    ? Number(params.get('ctx_dp'))    : null);
+  const ctxLt    = (sj?.lt as string)      ?? params?.get('ctx_lt')    ?? null;
+  const ctxRate  = (sj?.rate as number)    ?? (params?.get('ctx_rate')  ? Number(params.get('ctx_rate'))  : null);
+  const ctxPiti  = (sj?.piti as number)    ?? (params?.get('ctx_piti')  ? Number(params.get('ctx_piti'))  : null);
   const hasPurchaseCtx = !!(ctxPrice && ctxLt);
 
-  // Pre-seeded chat URLs for L2/L3 when purchase context is available
   function fmtK(n: number) {
     if (n >= 1_000_000) return `$${(n/1_000_000).toFixed(2).replace(/\.?0+$/,'')}M`;
     if (n >= 100_000)   return `$${Math.round(n/1000)}K`;
     return `$${n.toLocaleString()}`;
   }
   const ltLabel  = ctxLt === 'jumbo' ? 'Jumbo' : ctxLt === 'fha' ? 'FHA' : ctxLt === 'va' ? 'VA' : 'Conv.';
-  const incomeQ  = hasPurchaseCtx
-    ? `/chat?sq=${encodeURIComponent(`What income do I need to qualify for a ${ltLabel} loan on ${fmtK(ctxPrice!)} with ${ctxDp}% down at ${ctxRate?.toFixed(2)}%? Show me the full income qualification card.`)}`
-    : '/chat?sq=I+want+to+run+an+income+qualification+analysis.+Show+me+the+full+income+qualify+card.';
-  const propIntelUrl = address ? piUrl
-    : hasPurchaseCtx ? `/check-property?price=${ctxPrice}&dp=${ctxDp}&rate=${ctxRate}&term=30&lt=${ctxLt}`
+  // sid4cta: carries the session ID forward into every CTA so all downstream pages
+  // PATCH the same session instead of creating a new disconnected one.
+  const sid4cta  = sessionId ? `&sid=${sessionId}` : '';
+  const propIntelUrl = address
+    ? `${piUrl}${sid4cta}`   // piUrl = /property-intel?address=... so &sid appends cleanly
+    : hasPurchaseCtx
+    ? `/check-property?price=${ctxPrice}&dp=${ctxDp}&rate=${ctxRate}&term=30&lt=${ctxLt}${sid4cta}`
     : '/property-intel';
 
-  const idx      = computeIndex(levels);
-  const v        = idx ? verdict(idx.score) : null;
+  const idx       = computeIndex(levels);
+  const v         = idx ? verdict(idx.score) : null;
   const scoredN   = Object.values(levels).filter(l => l.score != null).length;
   const weightPct = idx ? Math.round(idx.pct * 100) : 0;
 
-  // ── Session persistence ────────────────────────────────────────────────────
-  const { isSignedIn } = useUser();
-  const saveAttemptedRef              = useRef(false);
-  const [sessionId, setSessionId]     = useState<string | null>(null);
-  const [saved,     setSaved]         = useState(false);
-
-  // Auto-save when navigated from a scenario chip (l1_score in URL + signed in)
+  // ── Effect 1: Load from ?session=<id> — restores all scores + scenario context ──
   useEffect(() => {
+    const sid = params?.get('session');
+    if (!sid) return;
+    fetch(`/api/buyer-sessions/${sid}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.session) {
+          setSessionData(d.session);
+          setSessionId(d.session.id);
+          setSaved(true);
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Effect 2: Auto-save when navigated from chip (l1_score in URL + signed in) ──
+  // After saving, updates URL to ?session=<id> so back-navigation restores state.
+  useEffect(() => {
+    if (params?.get('session')) return; // already loading from session — don't double-save
     if (!isSignedIn) return;
     if (saveAttemptedRef.current) return;
     if (levels.l1.score == null) return;
@@ -325,7 +343,12 @@ function Track5Inner() {
     })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (d?.session?.id) { setSessionId(d.session.id); setSaved(true); }
+        if (d?.session?.id) {
+          setSessionId(d.session.id);
+          setSaved(true);
+          // Replace URL with session ID — browser back button now restores full session
+          router.replace(`/track5?session=${d.session.id}`, { scroll: false });
+        }
       })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -479,7 +502,7 @@ function Track5Inner() {
           data={levels.l2}
           cta={{
             label: address ? 'Property Intelligence ↗' : 'Run Property Intel ↗',
-            href: address ? piUrl : '/property-intel',
+            href: propIntelUrl,
           }}
         />
         <LevelCard
@@ -495,7 +518,7 @@ function Track5Inner() {
           data={levels.l4}
           cta={{
             label: address ? 'Open Property Intel ↗' : (hasPurchaseCtx ? 'Run Location Check ↗' : 'Search a Property ↗'),
-            href:  address ? piUrl : (hasPurchaseCtx ? propIntelUrl : '/property-intel'),
+            href:  hasPurchaseCtx || address ? propIntelUrl : '/property-intel',
           }}
         />
 

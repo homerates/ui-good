@@ -116,7 +116,11 @@ function PropertyIntelInner() {
   // ── Session persistence — L2 + L3 + L4 auto-save ────────────────────────────
   // Fires when deep analysis completes. Uses the same formulas already in the
   // Track 5 CTA block below — no new scoring logic, just a parallel DB write.
+  // If ?sid=<id> is in the URL (coming from Track 5 or check-property), PATCH
+  // that session so all three pages are linked as one evaluation.
   const { isSignedIn }  = useUser();
+  const incomingSid     = searchParams?.get('sid') ?? null; // session ID threaded from Track 5
+  const [piSessionId, setPiSessionId] = useState<string | null>(null);
   const deepSavedRef    = useRef(''); // tracks last saved address (deep analysis)
 
   useEffect(() => {
@@ -190,11 +194,24 @@ function PropertyIntelInner() {
     if (l4Score != null) { payload.l4_score = l4Score; payload.l4_summary = l4Summary; }
 
     deepSavedRef.current = address;
-    fetch('/api/buyer-sessions', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
-    }).catch(() => {});
+
+    // PATCH the linked session if we arrived with ?sid=, else POST (upsert by address).
+    const savePromise = incomingSid
+      ? fetch(`/api/buyer-sessions/${incomingSid}`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload),
+        })
+      : fetch('/api/buyer-sessions', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload),
+        });
+
+    savePromise
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.session?.id) setPiSessionId(d.session.id); })
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn, finalResult, address]);
 
@@ -903,7 +920,10 @@ function PropertyIntelInner() {
                   if (l3Score != null && l3Summary) { urlp.set('l3_score', String(l3Score)); urlp.set('l3_summary', l3Summary); }
                   if (l2Score != null && l2Summary) { urlp.set('l2_score', String(l2Score)); urlp.set('l2_summary', l2Summary); }
                   if (l4Score != null && l4Summary) { urlp.set('l4_score', String(l4Score)); urlp.set('l4_summary', l4Summary); }
-                  const href = `/track5?${urlp.toString()}`;
+                  // If a linked session exists (saved from deep analysis or threaded from Track 5),
+                  // navigate directly to it so all levels reunite in one evaluation.
+                  const linkedSessionId = piSessionId || incomingSid;
+                  const href = linkedSessionId ? `/track5?session=${linkedSessionId}` : `/track5?${urlp.toString()}`;
 
                   const allScores = [l3Score, l2Score, l4Score].filter((s): s is number => s != null);
                   const avgScore  = Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);

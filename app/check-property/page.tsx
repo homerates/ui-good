@@ -125,7 +125,11 @@ function CheckPropertyInner() {
     // Fires when propData lands after a lookup. Uses the same scoring formulas
     // already computed in the JSX Track 5 block — no logic duplication, just a
     // parallel DB write so the session is addressable from /evaluations.
-    const { isSignedIn }   = useUser();
+    // If ?sid=<id> is in the URL (coming from Track 5), PATCH that session so the
+    // two paths are linked rather than creating a new disconnected session.
+    const { isSignedIn }        = useUser();
+    const incomingSid           = sp?.get('sid') ?? null;  // session ID threaded from Track 5
+    const [checkPropSessionId, setCheckPropSessionId] = useState<string | null>(null);
     const sessionSavedRef  = useRef(''); // tracks last saved resolved address
 
     useEffect(() => {
@@ -161,11 +165,25 @@ function CheckPropertyInner() {
         }
 
         sessionSavedRef.current = resolved;
-        fetch('/api/buyer-sessions', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(payload),
-        }).catch(() => {});
+
+        // If we arrived from Track 5 with a ?sid=, PATCH that session to link it.
+        // Otherwise POST a new session (upsert by address).
+        const savePromise = incomingSid
+            ? fetch(`/api/buyer-sessions/${incomingSid}`, {
+                method:  'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(payload),
+              })
+            : fetch('/api/buyer-sessions', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(payload),
+              });
+
+        savePromise
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d?.session?.id) setCheckPropSessionId(d.session.id); })
+            .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSignedIn, propData, resolved]);
 
@@ -834,9 +852,13 @@ function CheckPropertyInner() {
                                         t5href = `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(l1Sum)}&l3_score=${l3Score}&l3_summary=${encodeURIComponent(l3Sum)}`;
                                         t5sub  = `L1 ${l1Score}/100 · L3 ${l3Score}/100 — pre-loaded from this analysis`;
                                     }
+                                    // If we have a linked session, navigate directly to it (restores all scores)
+                                    const finalT5href = (checkPropSessionId || incomingSid)
+                                        ? `/track5?session=${checkPropSessionId ?? incomingSid}`
+                                        : t5href;
                                     return (
                                         <a
-                                            href={t5href}
+                                            href={finalT5href}
                                             target="_blank" rel="noopener noreferrer"
                                             style={{ display: 'block', textDecoration: 'none', background: '#0d1117', border: '1px solid rgba(74,222,128,0.15)', borderRadius: 12, padding: '14px 16px', transition: 'border-color 0.15s' }}
                                             onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(74,222,128,0.3)')}
