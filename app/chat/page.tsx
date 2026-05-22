@@ -2944,7 +2944,7 @@ export default function Page() {
                                         <Bubble role={m.role}>
                                             {m.role === 'assistant' ? (
                                                 // If this is a Grok-style answer with markdown, use GrokCard
-                                                m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
+                                                m.meta && (m.meta.grok || m.meta.answerMarkdown || m.meta.evaluationCard) ? (
                                                     <>
                                                         {/* GrokCard:
                                                             - For non-affordability: always shown
@@ -2952,7 +2952,7 @@ export default function Page() {
                                                               (gives typewriter effect without flashing old table content)
                                                             - For affordability after typing: suppressed (card takes over)
                                                         */}
-                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
+                                                        {!m.meta.evaluationCard && ((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
