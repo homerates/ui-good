@@ -1425,12 +1425,15 @@ ${gapLine}`;
     ).join('\n');
 
     // ── DEBT / PATH FORWARD NOTE ────────────────────────────────────────────
-    const debtNote = r.monthlyDebts > 200
-        ? `\n💳 **Your ${f$(r.monthlyDebts)}/mo in debt is costing you buying power.** Paying it off would add ~${f$(Math.round(r.monthlyDebts * 220))} to your max home price.\n`
-        : '';
-
     // ── PATH FORWARD ─────────────────────────────────────────────────────────
     const s0 = r.scenarios[0]; // first scenario (FHA or lowest down)
+
+    // Derive additional buying power from the first scenario's own price/payment ratio
+    // (debt/monthlyFactor = extra home price) — do NOT use a hardcoded multiplier
+    const debtMultiplier = s0.totalMonthly > 0 ? s0.homePrice / s0.totalMonthly : 130;
+    const debtNote = r.monthlyDebts > 200
+        ? `\n💳 **Your ${f$(r.monthlyDebts)}/mo in debt is costing you buying power.** Paying it off would add ~${f$(Math.round(r.monthlyDebts * debtMultiplier))} to your max home price.\n`
+        : '';
     const sFast = r.scenarios.reduce((best, sc) =>
         sc.savingsGap < best.savingsGap ? sc : best, r.scenarios[0]);
     const fastestPath = sFast.savingsGap <= 0

@@ -81,15 +81,19 @@ function calcProgram(
     const tax      = (maxPrice * taxRate) / 12;
     const ins      = (maxPrice * insRate) / 12;
     let pmi = 0;
-    if (loanType === 'conventional' && ltv > 80) pmi = (loan * 0.008) / 12;
+    if (loanType === 'conventional' && ltv > 80) pmi = (loan * 0.0055) / 12; // 0.55%/yr — matches cardBuilders
     else if (loanType === 'fha') pmi = (loan * 0.0055) / 12;
     const pi           = calcPI(loan, rate, term);
     const total        = pi + tax + ins + pmi;
     const closing      = maxPrice * (loanType === 'fha' ? 0.03 : 0.025);
     const totalCash    = down + closing;
     const savingsGap   = Math.max(0, totalCash - savings);
-    const incomeToQualify = Math.ceil((total / 0.43) * 12 / 100) * 100;
-    return { maxPrice, down, baseLoan, ufmip, loan, pi, tax, ins, pmi, total, closing, totalCash, savingsGap, incomeToQualify, qualifies: annualIncome >= incomeToQualify };
+    // incomeToQualify must include existing monthly debts — otherwise it
+    // understates the income barrier and misleads users with high debt loads
+    const incomeToQualify = Math.ceil(((total + monthlyDebts) / 0.43) * 12 / 100) * 100;
+    // qualifies: use a small tolerance ($600) to absorb rounding at the edge
+    const qualifies = annualIncome >= incomeToQualify - 600;
+    return { maxPrice, down, baseLoan, ufmip, loan, pi, tax, ins, pmi, total, closing, totalCash, savingsGap, incomeToQualify, qualifies };
 }
 
 // ── Formatting ──────────────────────────────────────────────────────────────
@@ -179,10 +183,13 @@ function ProgramDrawer({ calc, loanType, annualIncome }: DrawerProps) {
             {/* Income to Qualify */}
             <div className="afc-qualify">
                 <div>
-                    <div className="afc-qualify-label">Income to Qualify (43% DTI)</div>
-                    {calc.qualifies && (
-                        <div className="afc-qualify-check">✓ Your {fmtK(annualIncome)}/yr income qualifies</div>
-                    )}
+                    <div className="afc-qualify-label">
+                        Income to Qualify (43% DTI{monthlyDebts > 0 ? ` + ${fmt$(monthlyDebts)}/mo debt` : ''})
+                    </div>
+                    {calc.qualifies
+                        ? <div className="afc-qualify-check">✓ Your {fmtK(annualIncome)}/yr qualifies</div>
+                        : <div style={{ fontSize: '0.72rem', color: '#f87171', marginTop: 2 }}>⚠ Debt reduces buying power</div>
+                    }
                 </div>
                 <div className="afc-qualify-val">{fmtK(calc.incomeToQualify)}/yr</div>
             </div>
