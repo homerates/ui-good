@@ -237,8 +237,13 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   const contactShared = thread?.status === "contact_shared" || !!contactShare;
   const hasDock = isBorrower;
 
-  // Derive which chip questions have already been sent (from thread messages)
-  const sentChipIds = messages
+  // Find the last scenario_reset marker — anything before it belongs to the previous scenario
+  const lastResetIdx = messages.reduce((acc, m, i) =>
+    m.metadata?.type === "scenario_reset" ? i : acc, -1);
+  const messagesAfterReset = lastResetIdx >= 0 ? messages.slice(lastResetIdx + 1) : messages;
+
+  // Derive which chip questions have already been sent (only for the current scenario)
+  const sentChipIds = messagesAfterReset
     .filter(m => m.metadata?.type === "discover_chip")
     .map(m => (m.metadata as { chipId?: string })?.chipId ?? "")
     .filter(Boolean);
@@ -247,11 +252,11 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   const loRepliedChipIds: string[] = [];
   const loReplies: Record<string, string> = {};
   for (const chipId of sentChipIds) {
-    const chipMsg = messages.find(
+    const chipMsg = messagesAfterReset.find(
       m => m.metadata?.type === "discover_chip" && (m.metadata as { chipId?: string })?.chipId === chipId
     );
     if (!chipMsg) continue;
-    const loReply = messages.find(m => m.sender_role === "professional" && m.created_at > chipMsg.created_at);
+    const loReply = messagesAfterReset.find(m => m.sender_role === "professional" && m.created_at > chipMsg.created_at);
     if (loReply) {
       loRepliedChipIds.push(chipId);
       loReplies[chipId] = loReply.content;
@@ -483,6 +488,15 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                         <div className="ch-benchmark-value">{m.metadata?.ai_value ?? m.content}</div>
                         {m.metadata?.ai_sub && <div className="ch-benchmark-sub">{m.metadata.ai_sub}</div>}
                         <div className="ch-benchmark-time">{fmt(m.created_at)}</div>
+                      </div>
+                    );
+                  }
+                  if (type === "scenario_reset") {
+                    return (
+                      <div key={m.id} className="ch-scenario-divider">
+                        <span className="ch-scenario-divider-line" />
+                        <span className="ch-scenario-divider-label">New scenario started</span>
+                        <span className="ch-scenario-divider-line" />
                       </div>
                     );
                   }
@@ -976,6 +990,20 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           padding: 10px 16px;
           font-size: 0.8rem; color: #8fa3b8; line-height: 1.6;
           max-width: 85%;
+        }
+        /* Scenario reset divider */
+        .ch-scenario-divider {
+          display: flex; align-items: center; gap: 10px;
+          align-self: stretch; margin: 6px 0;
+        }
+        .ch-scenario-divider-line {
+          flex: 1; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(139,92,246,0.25), transparent);
+        }
+        .ch-scenario-divider-label {
+          font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em;
+          text-transform: uppercase; color: rgba(139,92,246,0.55);
+          white-space: nowrap; flex-shrink: 0;
         }
         /* Discover scenario header line */
         .ch-scenario-header {

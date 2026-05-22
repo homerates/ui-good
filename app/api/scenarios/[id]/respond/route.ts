@@ -150,13 +150,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { data: existingThread } = await sb
       .from("conversation_threads")
-      .select("id, unread_borrower")
+      .select("id, unread_borrower, scenario_id")
       .eq("borrower_id", scenarioFull.borrower_id)
       .eq("professional_id", userId)
       .maybeSingle();
 
     if (existingThread) {
       threadId = existingThread.id;
+
+      // Scenario changed on an existing thread — insert a reset marker so the Discover
+      // dock knows to ignore chip messages from the previous scenario.
+      if (existingThread.scenario_id && existingThread.scenario_id !== id) {
+        await sb.from("messages").insert({
+          thread_id: existingThread.id,
+          sender_role: "system",
+          content: "New scenario — conversation context updated.",
+          metadata: { type: "scenario_reset", scenario_id: id },
+        });
+      }
+
       // Always keep scenario_id current so the Discover dock loads the right card data
       await sb.from("conversation_threads")
         .update({ scenario_id: id })
