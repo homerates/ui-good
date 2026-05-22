@@ -34,15 +34,30 @@ export async function POST(
       return NextResponse.json({ error: 'session not found' }, { status: 404 });
     }
 
-    // Guard: don't fire the same chip twice into the same thread
-    const { data: existing } = await supabase
+    // Guard: don't fire the same chip twice within the same scenario context.
+    // If the thread has been reused for a new scenario (scenario_reset marker present),
+    // only look for duplicates AFTER the last reset — chips from prior scenarios don't count.
+    const { data: lastReset } = await supabase
+      .from('messages')
+      .select('created_at')
+      .eq('thread_id', threadId)
+      .eq('metadata->>type', 'scenario_reset')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let dupQuery = supabase
       .from('messages')
       .select('id')
       .eq('thread_id', threadId)
       .eq('metadata->>type', 'discover_chip')
-      .eq('metadata->>chipId', questionId)
-      .limit(1)
-      .maybeSingle();
+      .eq('metadata->>chipId', questionId);
+
+    if (lastReset?.created_at) {
+      dupQuery = dupQuery.gt('created_at', lastReset.created_at);
+    }
+
+    const { data: existing } = await dupQuery.limit(1).maybeSingle();
 
     if (existing) {
       return NextResponse.json({ ok: true, already_fired: true });
