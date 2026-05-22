@@ -146,6 +146,14 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   const [aiNoteLoading, setAiNoteLoading] = useState<Record<string, boolean>>({});
   const [followUpSent, setFollowUpSent]   = useState<Set<string>>(new Set());
 
+  // ── Full Grok Scorecard (auto-fires when all 4 chips replied) ─────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [fullAnalysis, setFullAnalysis]       = useState<Record<string, any> | null>(null);
+  const [fullAnalysisLoading, setFullAnalysisLoading] = useState(false);
+  const [fullAnalysisError, setFullAnalysisError]     = useState('');
+  const [scorecardQSent, setScorecardQSent]   = useState<Set<number>>(new Set());
+  const scorecardTriggeredRef = useRef(false);
+
   // ─────────────────────────────────────────────────────────────────────────
   // Auto-create session when scenario is available
   // ─────────────────────────────────────────────────────────────────────────
@@ -181,6 +189,51 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!activeScenario]);
+
+  // Auto-trigger full Grok scorecard when all 4 chips have LO replies
+  useEffect(() => {
+    if (loRepliedChipIds.length < questions.length) return;
+    if (!threadId || scorecardTriggeredRef.current || fullAnalysis) return;
+    scorecardTriggeredRef.current = true;
+    fetchFullScorecard();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loRepliedChipIds.length, threadId]);
+
+  async function fetchFullScorecard() {
+    if (!threadId) return;
+    setFullAnalysisLoading(true);
+    setFullAnalysisError('');
+    try {
+      const res = await fetch('/api/discover/full-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          threadId,
+          loanType: activeLoanType,
+          scenario: activeScenario,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setFullAnalysisError(data.error ?? 'Analysis failed'); return; }
+      setFullAnalysis(data.analysis ?? null);
+    } catch {
+      setFullAnalysisError('Could not reach AI');
+    } finally {
+      setFullAnalysisLoading(false);
+    }
+  }
+
+  async function sendScorecardQuestion(index: number, question: string) {
+    if (!threadId || scorecardQSent.has(index)) return;
+    setScorecardQSent(prev => new Set([...prev, index]));
+    try {
+      await fetch(`/api/messages/${threadId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: question.trim() }),
+      });
+    } catch { /* silent */ }
+  }
 
   // Auto-extract lender answers from LO's chat replies — always sets something
   // so the borrower never needs to manually enter or press anything.
@@ -636,6 +689,169 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
               })}
             </div>
 
+            {/* ── Full AI Scorecard — auto-renders when all 4 chips answered ── */}
+            {(fullAnalysisLoading || fullAnalysis || fullAnalysisError) && (
+              <div className="da-shell">
+                <div className="da-header">
+                  <span style={{ fontSize: 14 }}>🤖</span>
+                  <span className="da-header-title">AI Full Scorecard</span>
+                  <span className="da-header-sub">Grok · all 4 chips analyzed</span>
+                  {!fullAnalysisLoading && !fullAnalysis && (
+                    <button className="da-retry-btn" onClick={() => { scorecardTriggeredRef.current = false; setFullAnalysisError(''); fetchFullScorecard(); }}>
+                      Retry
+                    </button>
+                  )}
+                </div>
+
+                {fullAnalysisLoading && (
+                  <div className="da-loading">
+                    <span className="dd-dots"><span /><span /><span /></span>
+                    Grok is analyzing all 4 lender responses…
+                  </div>
+                )}
+
+                {fullAnalysisError && !fullAnalysisLoading && (
+                  <div className="da-error">{fullAnalysisError}</div>
+                )}
+
+                {fullAnalysis && !fullAnalysisLoading && (() => {
+                  const a = fullAnalysis;
+                  const score: number = a.decision_score ?? 0;
+                  const scoreCol = score >= 70 ? '#00e87a' : score >= 50 ? '#fbbf24' : '#f87171';
+                  const scoreLabel = score >= 70 ? 'Proceed' : score >= 50 ? 'Negotiate' : 'Shop Around';
+                  const strengths: string[] = a.key_strengths ?? [];
+                  const concerns: string[]  = a.key_concerns ?? [];
+                  const mc = a.market_context ?? {};
+                  const scenarios: Array<Record<string, unknown>> = a.personalized_scenarios ?? [];
+                  const risks = a.risk_assessment ?? {};
+                  const questions_nxt: string[] = a.next_best_questions ?? [];
+                  const wealth: string = a.wealth_building_tie_in ?? '';
+
+                  return (
+                    <div className="da-body">
+                      {/* Score + recommendation */}
+                      <div className="da-score-row">
+                        <div className="da-score-badge" style={{ background: `${scoreCol}12`, border: `2px solid ${scoreCol}40`, color: scoreCol }}>
+                          <span className="da-score-num">{score}</span>
+                          <span className="da-score-lbl">{scoreLabel}</span>
+                        </div>
+                        <div className="da-score-meta">
+                          <div className="da-confidence">{a.confidence ?? ''} confidence</div>
+                          <div className="da-recommendation">{a.overall_recommendation ?? ''}</div>
+                        </div>
+                      </div>
+
+                      {/* Strengths / Concerns */}
+                      {(strengths.length > 0 || concerns.length > 0) && (
+                        <div className="da-two-col">
+                          {strengths.length > 0 && (
+                            <div className="da-col">
+                              <div className="da-col-hdr da-green">✓ Strengths</div>
+                              {strengths.map((s, i) => (
+                                <div key={i} className="da-bullet da-bullet-green">· {s}</div>
+                              ))}
+                            </div>
+                          )}
+                          {concerns.length > 0 && (
+                            <div className="da-col">
+                              <div className="da-col-hdr da-yellow">⚠ Concerns</div>
+                              {concerns.map((c, i) => (
+                                <div key={i} className="da-bullet da-bullet-yellow">· {c}</div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Market context */}
+                      {mc.quoted_vs_market && (
+                        <div className="da-market">
+                          <div className="da-market-lbl">📊 Market Context</div>
+                          <div className="da-market-row">
+                            {mc.quoted_rate && <span className="da-market-val">Quoted <strong>{mc.quoted_rate}%</strong></span>}
+                            <span className="da-market-val">Market <strong>{mc.current_market_rate}%</strong></span>
+                            <span className="da-market-val" style={{ color: parseFloat(String(mc.quoted_vs_market)) > 0 ? '#fbbf24' : '#00e87a' }}>
+                              {mc.quoted_vs_market} vs market
+                            </span>
+                          </div>
+                          {mc.monthly_impact > 0 && (
+                            <div className="da-market-impact">
+                              ≈ <strong style={{ color: '#fbbf24' }}>${mc.monthly_impact}/mo</strong> above market rate
+                            </div>
+                          )}
+                          {mc.lock_strategy && (
+                            <div className="da-market-lock">🔒 {mc.lock_strategy}</div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Scenarios */}
+                      {scenarios.length >= 2 && (
+                        <div className="da-scenarios">
+                          <div className="da-section-lbl">💡 Scenarios</div>
+                          <div className="da-scen-grid">
+                            {scenarios.map((sc, i) => (
+                              <div key={i} className={`da-scen-card ${i === 1 ? 'da-scen-better' : ''}`}>
+                                <div className="da-scen-name">{String(sc.scenario_name ?? '')}</div>
+                                {sc.monthly_pi != null && (
+                                  <div className="da-scen-val">${Number(sc.monthly_pi).toLocaleString()}/mo</div>
+                                )}
+                                {sc.savings_per_month != null && (
+                                  <div className="da-scen-save">saves ${Number(sc.savings_per_month).toLocaleString()}/mo</div>
+                                )}
+                                {(sc['5yr_savings'] ?? sc.total_interest_5yrs) && (
+                                  <div className="da-scen-sub">
+                                    {sc['5yr_savings'] ? `${sc['5yr_savings']} saved over 5yr` : `${sc.total_interest_5yrs} interest 5yr`}
+                                  </div>
+                                )}
+                                {sc.notes && <div className="da-scen-note">{String(sc.notes)}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Risk assessment */}
+                      {Object.keys(risks).length > 0 && (
+                        <div className="da-risks">
+                          <div className="da-section-lbl">⚡ Risk Assessment</div>
+                          {Object.values(risks).filter(Boolean).map((r, i) => (
+                            <div key={i} className="da-risk-item">· {String(r)}</div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Next best questions — clickable send buttons */}
+                      {questions_nxt.length > 0 && (
+                        <div className="da-nextqs">
+                          <div className="da-section-lbl">💬 Ask Your Lender Next</div>
+                          {questions_nxt.map((q, i) => (
+                            <button
+                              key={i}
+                              className={`da-q-btn${scorecardQSent.has(i) ? ' sent' : ''}`}
+                              onClick={() => sendScorecardQuestion(i, q)}
+                              disabled={scorecardQSent.has(i)}
+                            >
+                              {scorecardQSent.has(i) ? `✓ Sent` : `Send → `}
+                              <span className="da-q-text">{q}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Wealth tie-in */}
+                      {wealth && (
+                        <div className="da-wealth">
+                          <span className="da-wealth-icon">🏡</span>
+                          <span>{wealth}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
             {/* Ask AI section */}
             <div className="dd-ask-ai">
               <button className="dd-ask-ai-hdr" onClick={() => setAskAiOpen(v => !v)}>
@@ -1001,10 +1217,130 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
           flex-shrink: 0;
         }
 
+        /* ── Full AI Scorecard ── */
+        .da-shell {
+          margin: 0 10px 10px;
+          border: 1px solid rgba(99,102,241,0.28);
+          border-radius: 12px; overflow: hidden;
+          background: rgba(99,102,241,0.04);
+        }
+        .da-header {
+          display: flex; align-items: center; gap: 7px;
+          padding: 10px 13px;
+          background: rgba(99,102,241,0.08);
+          border-bottom: 1px solid rgba(99,102,241,0.15);
+          flex-shrink: 0;
+        }
+        .da-header-title { font-size: 12px; font-weight: 700; color: #c7d2fe; }
+        .da-header-sub   { font-size: 10px; color: rgba(148,163,184,0.45); flex: 1; }
+        .da-retry-btn {
+          font-size: 10px; font-weight: 700; color: #a78bfa;
+          background: rgba(139,92,246,0.10);
+          border: 1px solid rgba(139,92,246,0.25);
+          border-radius: 6px; padding: 2px 9px;
+          cursor: pointer; font-family: inherit;
+        }
+        .da-loading {
+          display: flex; align-items: center; gap: 8px;
+          padding: 14px; font-size: 11.5px; color: rgba(196,181,253,0.70);
+          font-style: italic;
+        }
+        .da-error { padding: 12px 14px; font-size: 11px; color: #f87171; }
+        .da-body  { padding: 12px 13px; display: flex; flex-direction: column; gap: 12px; }
+
+        /* Score row */
+        .da-score-row { display: flex; gap: 12px; align-items: flex-start; }
+        .da-score-badge {
+          flex-shrink: 0; width: 64px; height: 64px; border-radius: 12px;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 1px;
+        }
+        .da-score-num { font-size: 26px; font-weight: 800; line-height: 1; }
+        .da-score-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.75; }
+        .da-score-meta { flex: 1; min-width: 0; }
+        .da-confidence { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(148,163,184,0.50); margin-bottom: 4px; }
+        .da-recommendation { font-size: 11.5px; color: rgba(185,208,192,0.80); line-height: 1.55; }
+
+        /* Strengths / Concerns */
+        .da-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .da-col { display: flex; flex-direction: column; gap: 3px; }
+        .da-col-hdr { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 2px; }
+        .da-col-hdr.da-green  { color: rgba(0,232,122,0.65); }
+        .da-col-hdr.da-yellow { color: rgba(251,191,36,0.65); }
+        .da-bullet { font-size: 10.5px; line-height: 1.45; }
+        .da-bullet-green  { color: rgba(157,232,188,0.75); }
+        .da-bullet-yellow { color: rgba(253,230,138,0.75); }
+
+        /* Market context */
+        .da-market {
+          background: rgba(0,0,0,0.20); border: 1px solid rgba(148,163,184,0.10);
+          border-radius: 9px; padding: 10px 12px;
+          display: flex; flex-direction: column; gap: 5px;
+        }
+        .da-market-lbl { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(148,163,184,0.45); margin-bottom: 2px; }
+        .da-market-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .da-market-val { font-size: 11.5px; color: rgba(185,208,192,0.65); }
+        .da-market-val strong { color: #f0f4ff; }
+        .da-market-impact { font-size: 11.5px; color: rgba(185,208,192,0.65); }
+        .da-market-lock { font-size: 10.5px; color: rgba(148,163,184,0.55); font-style: italic; line-height: 1.45; margin-top: 2px; }
+
+        /* Scenarios */
+        .da-section-lbl { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(148,163,184,0.40); margin-bottom: 4px; }
+        .da-scen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+        .da-scen-card {
+          background: rgba(255,255,255,0.03); border: 1px solid rgba(148,163,184,0.12);
+          border-radius: 8px; padding: 8px 10px;
+          display: flex; flex-direction: column; gap: 2px;
+        }
+        .da-scen-card.da-scen-better {
+          background: rgba(0,232,122,0.04); border-color: rgba(0,232,122,0.18);
+        }
+        .da-scen-name { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(148,163,184,0.50); margin-bottom: 3px; }
+        .da-scen-val  { font-size: 15px; font-weight: 800; color: #f0f4ff; }
+        .da-scen-save { font-size: 10.5px; color: #00e87a; font-weight: 600; }
+        .da-scen-sub  { font-size: 9.5px; color: rgba(148,163,184,0.50); margin-top: 1px; }
+        .da-scen-note { font-size: 10px; color: rgba(185,208,192,0.55); line-height: 1.4; margin-top: 2px; }
+
+        /* Risk assessment */
+        .da-risks { display: flex; flex-direction: column; gap: 4px; }
+        .da-risk-item { font-size: 11px; color: rgba(185,208,192,0.65); line-height: 1.5; padding-left: 4px; }
+
+        /* Next best questions */
+        .da-nextqs { display: flex; flex-direction: column; gap: 5px; }
+        .da-q-btn {
+          display: flex; align-items: flex-start; gap: 6px;
+          padding: 7px 10px; border-radius: 7px;
+          background: rgba(99,102,241,0.07);
+          border: 1px solid rgba(99,102,241,0.20);
+          color: #c7d2fe; font-size: 10.5px;
+          text-align: left; cursor: pointer;
+          font-family: inherit; line-height: 1.45;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .da-q-btn:hover:not(:disabled):not(.sent) {
+          background: rgba(99,102,241,0.14); border-color: rgba(99,102,241,0.32);
+        }
+        .da-q-btn.sent {
+          background: rgba(0,232,122,0.06); border-color: rgba(0,232,122,0.20);
+          color: #9de8bc; cursor: default;
+        }
+        .da-q-text { flex: 1; }
+
+        /* Wealth tie-in */
+        .da-wealth {
+          display: flex; gap: 7px; align-items: flex-start;
+          background: rgba(0,232,122,0.05); border: 1px solid rgba(0,232,122,0.14);
+          border-radius: 8px; padding: 9px 11px;
+          font-size: 11px; color: #9de8bc; line-height: 1.55;
+        }
+        .da-wealth-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+
         /* Mobile adjustments */
         @media (max-width: 700px) {
           .dd-setup-fields { grid-template-columns: 1fr; }
           .dd-expand-grid  { grid-template-columns: 1fr 1fr; }
+          .da-two-col      { grid-template-columns: 1fr; }
+          .da-scen-grid    { grid-template-columns: 1fr; }
         }
       `}</style>
     </>
