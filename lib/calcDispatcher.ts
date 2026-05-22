@@ -761,8 +761,8 @@ export function dispatch(
 
     // ── 2. FHA vs CONVENTIONAL ──
     if (isFHAvsConvQuestion(q)) {
-        const price = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
-        if (!price) {
+        const _rawFvC = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
+        if (!_rawFvC) {
             return { type: 'fha_needs_input', params: { parsedPrice: null, parsedRate: null }, confidence: 0, assumptions: [] };
         }
         const rate = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
@@ -773,6 +773,10 @@ export function dispatch(
         const convRate = allRates.length > 1 ? allRates[1] : rate;
         const { fhaLimit, confLimit } = detectLoanLimits(q + ' ' + hist);
         if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+        // Use the smaller down % to back-calculate so purchase price is as generous as possible
+        const _fvcDown = Math.min(fhaDown, convDown);
+        const price = isLoanAmountInput(q) ? Math.round(_rawFvC / (1 - _fvcDown / 100)) : _rawFvC;
+        if (isLoanAmountInput(q)) assumptions.push('purchase price back-calculated from stated loan amount');
 
         return {
             type: 'fha_vs_conv',
@@ -804,9 +808,9 @@ export function dispatch(
             return { type: 'mip_duration_knowledge', params: null, confidence: 1.0, assumptions: [] };
         }
 
-        let price = extractPrice(q);
-        if (!price) price = pullFromHistory(hist, extractPrice);
-        if (!price) {
+        let rawFHA = extractPrice(q);
+        if (!rawFHA) rawFHA = pullFromHistory(hist, extractPrice);
+        if (!rawFHA) {
             return { type: 'fha_needs_input', params: { parsedPrice: null, parsedRate: extractRate(q) ?? null } as FHANeedsInput, confidence: 0, assumptions: [] };
         }
 
@@ -816,6 +820,10 @@ export function dispatch(
 
         let downPct = extractDownPct(q) ?? extractDownPct(hist) ?? 3.5;
         if (downPct === 3.5) assumptions.push('down payment assumed 3.5% (FHA minimum)');
+
+        // Back-calculate purchase price when user stated a loan amount
+        const price = isLoanAmountInput(q) ? Math.round(rawFHA / (1 - downPct / 100)) : rawFHA;
+        if (isLoanAmountInput(q)) assumptions.push('purchase price back-calculated from stated loan amount');
 
         const { fhaLimit } = detectLoanLimits(q + ' ' + hist);
 
@@ -838,9 +846,9 @@ export function dispatch(
 
     // ── 4. DSCR / INVESTMENT ──
     if (isDSCRQuestion(q)) {
-        const price = extractPrice(q);
+        const rawDSCR = extractPrice(q);
         const rent = extractRentAmount(q);
-        if (!price || !rent) {
+        if (!rawDSCR || !rent) {
             return { type: 'dscr_needs_input', params: null, confidence: 0, assumptions: [] };
         }
         const _dscrExtractedRate = extractRate(q);
@@ -852,6 +860,8 @@ export function dispatch(
         const taxRate = extractTaxRate(q);
         if (_dscrExtractedRate == null) assumptions.push(`rate ${rate}% (FRED 30yr avg + 0.5% DSCR premium)`);
         if (downPct === 25) assumptions.push('down payment assumed 25% (DSCR standard)');
+        const price = isLoanAmountInput(q) ? Math.round(rawDSCR / (1 - downPct / 100)) : rawDSCR;
+        if (isLoanAmountInput(q)) assumptions.push('purchase price back-calculated from stated loan amount');
 
         return {
             type: 'dscr',
@@ -870,11 +880,14 @@ export function dispatch(
 
     // ── 4b. SELLER CREDIT ALLOCATOR — before VA so "VA purchase with $55K seller credit" routes here ──
     if (isSellerCreditQuestion(q) && !isAffordabilityQuestion(q) && !isRefiQuestion(q)) {
-        const price  = extractPrice(q) ?? pullFromHistory(hist, extractPrice) ?? null;
+        const _rawSC  = extractPrice(q) ?? pullFromHistory(hist, extractPrice) ?? null;
         const credit = extractSellerCredit(q) ?? extractSellerCredit(hist) ?? null;
         const rate   = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
         const vaHint = isVAQuestion(q) || /\bva\b.*(?:loan|purchase)|veteran/i.test(hist);
         const downPct = extractDownPct(q) ?? (vaHint ? 0 : 20);
+        // Back-calculate purchase price when user stated a loan amount
+        const price = (_rawSC && isLoanAmountInput(q)) ? Math.round(_rawSC / (1 - downPct / 100)) : _rawSC;
+        if (isLoanAmountInput(q) && _rawSC) assumptions.push('purchase price back-calculated from stated loan amount');
         const loanAmt = price ? Math.round(price * (1 - downPct / 100) * (vaHint ? 1.0215 : 1.0)) : null;
         if (price && credit && loanAmt) {
             if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
@@ -898,11 +911,14 @@ export function dispatch(
 
     // ── 4c. BUYDOWN ANALYZER — before VA so "VA 2/1 buydown" routes here ──
     if (isBuydownQuestion(q) && !isAffordabilityQuestion(q) && !isRefiQuestion(q)) {
-        const price  = extractPrice(q) ?? pullFromHistory(hist, extractPrice) ?? null;
+        const _rawBD  = extractPrice(q) ?? pullFromHistory(hist, extractPrice) ?? null;
         const rate   = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
         const credit = extractSellerCredit(q) ?? extractSellerCredit(hist) ?? undefined;
         const vaHint = isVAQuestion(q) || /\bva\b.*(?:loan|purchase)|veteran/i.test(hist);
         const downPct = extractDownPct(q) ?? (vaHint ? 0 : 20);
+        // Back-calculate purchase price when user stated a loan amount
+        const price = (_rawBD && isLoanAmountInput(q)) ? Math.round(_rawBD / (1 - downPct / 100)) : _rawBD;
+        if (isLoanAmountInput(q) && _rawBD) assumptions.push('purchase price back-calculated from stated loan amount');
         const loanAmt = price ? Math.round(price * (1 - downPct / 100) * (vaHint ? 1.0215 : 1.0)) : null;
         if (price && loanAmt) {
             if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
@@ -928,7 +944,7 @@ export function dispatch(
 
     // ── 5a. VA ENTITLEMENT (subsequent use) — must precede generic VA ──
     if (isVAEntitlementQuestion(q)) {
-        const price  = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
+        const _rawVAE = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
         const rate   = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
         // Extract prior balance from text: "prior balance of $500k", "still owe $400k", "balance of $X"
         const priorMatch = q.match(/(?:prior|previous|existing|current|owe|balance|outstanding)[^\d$]*\$?\s*([\d,]+)\s*[kKmM]?/i)
@@ -936,6 +952,8 @@ export function dispatch(
         const priorRaw = priorMatch ? parseFloat(priorMatch[1].replace(/,/g, '')) : null;
         const priorMult = priorMatch?.[0]?.match(/[kK]/) ? 1000 : priorMatch?.[0]?.match(/[mM]/) ? 1000000 : 1;
         const priorBalance = priorRaw ? priorRaw * priorMult : null;
+        // VA entitlement is typically 0% down so price ≈ loan amount; still correct for partial-down VA
+        const price = (_rawVAE && isLoanAmountInput(q)) ? Math.round(_rawVAE / 1.0) : _rawVAE; // 0% down → same
 
         if (!price || priorBalance === null) {
             return { type: 'va_entitlement_needs_input', params: { price: price ?? null, priorBalance }, confidence: 0, assumptions: [] };
@@ -952,8 +970,8 @@ export function dispatch(
 
     // ── 5. VA ──
     if (isVAQuestion(q)) {
-        const price = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
-        if (!price) {
+        const rawVA = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
+        if (!rawVA) {
             return { type: 'va_needs_input', params: null, confidence: 0, assumptions: [] };
         }
         const rate    = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
@@ -961,6 +979,11 @@ export function dispatch(
         const exempt  = /exempt|disability|disabled/i.test(q);
         if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
         if (downPct === 0) assumptions.push('no down payment (VA default)');
+        // Back-calculate purchase price; for 0% down loan amount = purchase price (no change)
+        const price = (isLoanAmountInput(q) && downPct > 0)
+            ? Math.round(rawVA / (1 - downPct / 100))
+            : rawVA;
+        if (isLoanAmountInput(q) && downPct > 0) assumptions.push('purchase price back-calculated from stated loan amount');
 
         return {
             type: 'va',
@@ -985,13 +1008,16 @@ export function dispatch(
 
     // ── 7. JUMBO ──
     if (isJumboQuestion(q) && !isAffordabilityQuestion(q)) {
-        const price = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
-        if (!price) {
+        const rawJumbo = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
+        if (!rawJumbo) {
             return { type: 'jumbo_needs_input', params: null, confidence: 0, assumptions: [] };
         }
         const _jumboExtractedRate = extractRate(q) ?? pullFromHistory(hist, extractRate);
         const rate    = _jumboExtractedRate ?? fallbackRate;
         const downPct = Math.max(20, extractDownPct(q) ?? 20);
+        // Back-calculate purchase price when user stated a loan amount
+        const price = isLoanAmountInput(q) ? Math.round(rawJumbo / (1 - downPct / 100)) : rawJumbo;
+        if (isLoanAmountInput(q)) assumptions.push('purchase price back-calculated from stated loan amount');
         const loanAmt = price * (1 - downPct / 100);
         // If loan is conforming, fall through to conventional even if user said "jumbo".
         // Above $832,750 with explicit "jumbo" keyword → honour the request and route to jumbo card.
