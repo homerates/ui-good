@@ -340,6 +340,33 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 <div className="jbs-income-row jbs-income-row--dim"><span className="jbs-income-lbl">50% DTI — Stretch</span><span className="jbs-income-val">{fmt$(Math.round(income50 / 1000) * 1000)}/yr</span></div>
             </div>
 
+            {/* Full Income Analysis chip */}
+            {props.onRunScenario && (
+                <button
+                    style={{
+                        display: 'block', width: 'calc(100% - 40px)', margin: '12px 20px 4px',
+                        padding: '9px 0', background: 'none',
+                        border: `1px solid ${z.color}40`, borderRadius: 8,
+                        color: z.color, fontSize: 13, fontWeight: 700,
+                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+                        letterSpacing: '0.02em', transition: 'all .15s',
+                    }}
+                    onClick={() => props.onRunScenario!(
+                        'Full Income Analysis',
+                        {
+                            isIncomeQualify: true,
+                            purchasePrice:   price,
+                            downPaymentPct:  downPct,
+                            annualRatePct:   rate,
+                            termYears:       termYrs,
+                            loanType:        'jumbo',
+                        },
+                    )}
+                >
+                    💰 Full Income Analysis →
+                </button>
+            )}
+
             {/* CTAs */}
             <div className="jbs-cta-row">
                 <button className="jbs-btn-check" onClick={handleCheckProperty}>Check Property ↗</button>

@@ -339,6 +339,33 @@ export default function VaSliderCard(props: VaSliderParams) {
                 <div className="va-qualify-note">VA also applies a residual income test — strong residual income can qualify borrowers above 41% DTI.</div>
             </div>
 
+            {/* Full Income Analysis chip */}
+            {props.onRunScenario && (
+                <button
+                    style={{
+                        display: 'block', width: 'calc(100% - 24px)', margin: '0 12px 10px',
+                        padding: '9px 0', background: 'none',
+                        border: '1px solid rgba(20,184,166,0.25)', borderRadius: 8,
+                        color: '#14b8a6', fontSize: 13, fontWeight: 700,
+                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+                        letterSpacing: '0.02em', transition: 'all .15s',
+                    }}
+                    onClick={() => props.onRunScenario!('Full Income Analysis', {
+                        isIncomeQualify: true,
+                        purchasePrice:    price,
+                        downPaymentPct:   downPct,
+                        annualRatePct:    rate,
+                        termYears:        termYrs,
+                        loanType:         'va',
+                        vaFundingFeeExempt: ffTier === 'exempt',
+                        ...(ffTier !== 'exempt' ? { customFundingFeePct: ffPct } : {}),
+                        ...(debts > 0 ? { monthlyDebts: debts } : {}),
+                    })}
+                >
+                    💰 Full Income Analysis →
+                </button>
+            )}
+
             {/* Residual income */}
             <div className="va-residual">
                 <div className="va-residual-head">

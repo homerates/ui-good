@@ -454,6 +454,31 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 </table>
             </div>
 
+            {/* Full Income Analysis chip */}
+            {props.onRunScenario && (
+                <button
+                    style={{
+                        display: 'block', width: 'calc(100% - 24px)', margin: '0 12px 10px',
+                        padding: '9px 0', background: 'none',
+                        border: `1px solid ${zc.color}40`, borderRadius: 8,
+                        color: zc.color, fontSize: 13, fontWeight: 700,
+                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+                        letterSpacing: '0.02em', transition: 'all .15s',
+                    }}
+                    onClick={() => props.onRunScenario!('Full Income Analysis', {
+                        isIncomeQualify: true,
+                        purchasePrice:   price,
+                        downPaymentPct:  downPct,
+                        annualRatePct:   rate,
+                        termYears:       termYrs,
+                        loanType:        'conventional',
+                        ...(debts > 0 ? { monthlyDebts: debts } : {}),
+                    })}
+                >
+                    💰 Full Income Analysis →
+                </button>
+            )}
+
             {/* CTAs */}
             <div className="chb-cta-row">
                 <button className="chb-cta-prop" onClick={handleCheckProperty}>🏠 Check a Property</button>
