@@ -478,10 +478,8 @@ function Track5Inner() {
           num="L2" title="Market Conditions" weight="25%"
           data={levels.l2}
           cta={{
-            label: 'Run Market Analysis ↗',
-            href: hasPurchaseCtx
-              ? `/chat?sq=${encodeURIComponent(`What are the current market conditions for buying a ${ltLabel} home around ${fmtK(ctxPrice!)}? Show me market trends, days on market, and price dynamics.`)}`
-              : '/chat?sq=Run+a+full+market+conditions+analysis+for+my+area',
+            label: address ? 'Property Intelligence ↗' : 'Run Property Intel ↗',
+            href: address ? piUrl : '/property-intel',
           }}
         />
         <LevelCard
