@@ -149,6 +149,14 @@ export function detectLoanLimits(text: string): {
 // PARAM EXTRACTORS — regex only, no LLM
 // ─────────────────────────────────────────────
 
+/** Returns true when the user states a loan amount rather than a purchase price.
+ *  e.g. "$832,750 loan amount", "loan amount of $950k", "borrowing $800k"
+ *  When true, callers must back-calculate purchasePrice = loanAmount / (1 - down%).
+ */
+function isLoanAmountInput(text: string): boolean {
+    return /\b(?:loan\s+amount|loan\s+of\s+\$|loan\s+size|borrow(?:ing)?)\b/i.test(text);
+}
+
 function extractPrice(text: string): number | undefined {
     const t = text.toLowerCase();
     // "$2M" / "$1.5M" / "$1.5m" / "$2.5m" — million shorthand
@@ -1018,13 +1026,18 @@ export function dispatch(
     //    Loans in the $832k–$1.249M range may qualify as High Balance in many CA counties —
     //    route those to conventional (convHBSlider) so the card can prompt for county.
     if (!isAffordabilityQuestion(q)) {
-        const _impliedPrice = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
-        if (_impliedPrice && _impliedPrice > 833_000) {
+        const _rawImplied = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
+        if (_rawImplied && _rawImplied > 833_000) {
             const _impliedDown = Math.max(20, extractDownPct(q) ?? 20);
+            // If user stated a loan amount, back-calculate purchase price
+            const _impliedPrice = isLoanAmountInput(q)
+                ? Math.round(_rawImplied / (1 - _impliedDown / 100))
+                : _rawImplied;
             const _impliedLoan = _impliedPrice * (1 - _impliedDown / 100);
             if (_impliedLoan > 1_249_125) {
                 const _iRate = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
                 if (_iRate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+                if (isLoanAmountInput(q)) assumptions.push(`purchase price back-calculated from stated loan amount`);
                 return {
                     type: 'jumbo',
                     params: {
@@ -1045,11 +1058,18 @@ export function dispatch(
 
     // ── 8. CONVENTIONAL ──
     if (isConventionalQuestion(q)) {
-        const price = extractPrice(q);
-        if (!price) return { type: 'conventional' as CalcType, params: null, confidence: 0, assumptions: [] };
+        const rawPrice = extractPrice(q);
+        if (!rawPrice) return { type: 'conventional' as CalcType, params: null, confidence: 0, assumptions: [] };
         const rate = extractRate(q) ?? fallbackRate;
         const downPct = extractDownPct(q) ?? 20;
-        if (rate === downPct ? false : rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+        // If user stated a loan amount rather than a purchase price, back-calculate:
+        //   purchasePrice = loanAmount / (1 - downPct/100)
+        const loanAmtStated = isLoanAmountInput(q);
+        const price = loanAmtStated
+            ? Math.round(rawPrice / (1 - downPct / 100))
+            : rawPrice;
+        if (loanAmtStated) assumptions.push(`purchase price back-calculated from stated loan amount`);
+        if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
         if (downPct === 20) assumptions.push('down payment assumed 20%');
 
         return {
