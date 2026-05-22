@@ -112,6 +112,7 @@ function CheckPropertyInner() {
     const [loading,   setLoading]   = useState(false);
     const [propData,  setPropData]  = useState<PropData | null>(null);
     const [lookupErr, setLookupErr] = useState<string | null>(null);
+    const [degraded,  setDegraded]  = useState(false);   // true = ran in fallback mode (no property data)
     const [resolved,  setResolved]  = useState('');
 
     const [editing,   setEditing]   = useState(false);
@@ -134,6 +135,7 @@ function CheckPropertyInner() {
         setLoading(true);
         setLookupErr(null);
         setPropData(null);
+        setDegraded(false);
         try {
             const isUrl = /^https?:\/\/|redfin\.com|zillow\.com|realtor\.com|trulia\.com/i.test(raw);
             const res = await fetch('/api/property/lookup', {
@@ -142,8 +144,14 @@ function CheckPropertyInner() {
                 body:    JSON.stringify(isUrl ? { url: raw } : { address: raw }),
             });
             const json = await res.json();
-            if (!json.ok || !json.data) { setLookupErr('Could not load property data — try a different address or paste a Redfin link.'); }
-            else {
+            if (!json.ok || !json.data) {
+                // Fallback mode: property data unavailable (pending/off-market/de-indexed)
+                // but we can still run the full financial analysis using the URL params
+                setDegraded(true);
+                setResolved(raw);
+                setPropData({});   // empty object signals "no property data" but enables results render
+                setLookupErr(null);
+            } else {
                 const d = json.data;
                 setPropData(d);
                 setResolved(d.address ?? raw);
@@ -407,6 +415,14 @@ function CheckPropertyInner() {
                         {lookupErr}
                     </div>
                 )}
+                {degraded && (
+                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'flex-start', gap: 8, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8, padding: '8px 12px' }}>
+                        <span style={{ fontSize: 14, flexShrink: 0 }}>⚠️</span>
+                        <div style={{ fontSize: 11, color: '#fbbf24', lineHeight: 1.5 }}>
+                            <strong>Property data unavailable</strong> — this address may be pending, off-market, or de-indexed from public listings. Financial analysis below uses your scenario rates. AVM, tax records, and listing details will show as N/A.
+                        </div>
+                    </div>
+                )}
                 <div style={{ marginTop: 8, fontSize: 11, color: '#eaf8f7', lineHeight: 1.4 }}>
                     Supports any street address · Redfin · Zillow · Realtor.com links
                 </div>
@@ -430,48 +446,59 @@ function CheckPropertyInner() {
                                 {resolved}
                             </div>
                         )}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8, marginBottom: 12 }}>
-                            {propData.beds    && <StatTile label="Beds"      value={String(propData.beds)} />}
-                            {propData.baths   && <StatTile label="Baths"     value={String(propData.baths)} />}
-                            {propData.sqft    && <StatTile label="Sq Ft"     value={propData.sqft.toLocaleString()} />}
-                            {propData.yearBuilt && <StatTile label="Year Built" value={String(propData.yearBuilt)} />}
-                            {propData.sqft    && <StatTile label="$/sq ft"   value={`$${Math.round(actualPrice / propData.sqft)}`} />}
-                            {propData.listingStatus && <StatTile label="Status" value={propData.listingStatus.replace('_', ' ')} />}
-                        </div>
-                        {avm && (
-                            <div style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '12px 14px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-                                    <div>
-                                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 3 }}>AVM Estimate</div>
-                                        <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(avm)}</div>
-                                        {propData.estimatedValueLow && propData.estimatedValueHigh && (
-                                            <div style={{ fontSize: 11, color: '#4b6080', marginTop: 2 }}>
-                                                Range: {fmtK(propData.estimatedValueLow)} – {fmtK(propData.estimatedValueHigh)}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 3 }}>List Price</div>
-                                        <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(listPrice)}</div>
-                                    </div>
-                                    {badge && (
-                                        <div style={{ fontSize: 12, fontWeight: 700, color: badge.color, alignSelf: 'flex-end', paddingBottom: 2 }}>
-                                            {badge.text}
-                                        </div>
-                                    )}
+                        {degraded ? (
+                            /* Degraded mode — no listing data available */
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 4 }}>
+                                {(['Beds', 'Baths', 'Sq Ft', 'Year Built', '$/sq ft', 'Status'] as const).map(label => (
+                                    <StatTile key={label} label={label} value="—" />
+                                ))}
+                            </div>
+                        ) : (
+                            <>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8, marginBottom: 12 }}>
+                                    {propData.beds    && <StatTile label="Beds"      value={String(propData.beds)} />}
+                                    {propData.baths   && <StatTile label="Baths"     value={String(propData.baths)} />}
+                                    {propData.sqft    && <StatTile label="Sq Ft"     value={propData.sqft.toLocaleString()} />}
+                                    {propData.yearBuilt && <StatTile label="Year Built" value={String(propData.yearBuilt)} />}
+                                    {propData.sqft    && <StatTile label="$/sq ft"   value={`$${Math.round(actualPrice / propData.sqft)}`} />}
+                                    {propData.listingStatus && <StatTile label="Status" value={propData.listingStatus.replace('_', ' ')} />}
                                 </div>
-                            </div>
-                        )}
-                        {propData.lastSalePrice && (
-                            <div style={{ marginTop: 8, fontSize: 12, color: '#4b6080' }}>
-                                Last sold: {propData.lastSaleDate ?? '—'}  for {fmtK(propData.lastSalePrice)}
-                                {propData.lastSalePrice ? ` · ${pct(((actualPrice - propData.lastSalePrice) / propData.lastSalePrice) * 100, 1)} ${actualPrice >= propData.lastSalePrice ? 'appreciation' : 'discount vs last sale'}` : ''}
-                            </div>
+                                {avm && (
+                                    <div style={{ background: '#0a0f1a', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '12px 14px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                                            <div>
+                                                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 3 }}>AVM Estimate</div>
+                                                <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(avm)}</div>
+                                                {propData.estimatedValueLow && propData.estimatedValueHigh && (
+                                                    <div style={{ fontSize: 11, color: '#4b6080', marginTop: 2 }}>
+                                                        Range: {fmtK(propData.estimatedValueLow)} – {fmtK(propData.estimatedValueHigh)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 3 }}>List Price</div>
+                                                <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f4ff' }}>{fmtK(listPrice)}</div>
+                                            </div>
+                                            {badge && (
+                                                <div style={{ fontSize: 12, fontWeight: 700, color: badge.color, alignSelf: 'flex-end', paddingBottom: 2 }}>
+                                                    {badge.text}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                {propData.lastSalePrice && (
+                                    <div style={{ marginTop: 8, fontSize: 12, color: '#4b6080' }}>
+                                        Last sold: {propData.lastSaleDate ?? '—'}  for {fmtK(propData.lastSalePrice)}
+                                        {propData.lastSalePrice ? ` · ${pct(((actualPrice - propData.lastSalePrice) / propData.lastSalePrice) * 100, 1)} ${actualPrice >= propData.lastSalePrice ? 'appreciation' : 'discount vs last sale'}` : ''}
+                                    </div>
+                                )}
+                            </>
                         )}
                     </Section>
 
-                    {/* ② Gap analysis — 3-column comparison */}
-                    {(() => {
+                    {/* ② Gap analysis — 3-column comparison (hidden in degraded mode) */}
+                    {!degraded && (() => {
                         const canAfford   = pitiGap <= 0;
                         const statusColor = canAfford ? '#00e87a' : '#f59e0b';
                         const statusBg    = canAfford ? 'rgba(0,232,122,0.06)' : 'rgba(245,158,11,0.06)';
@@ -604,23 +631,28 @@ function CheckPropertyInner() {
                     })()}
 
                     {/* ③ Real numbers */}
-                    <Section title={`This Property's Real Numbers — ${fmtK(actualPrice)}`} icon="📊" accent={theme.accent}>
+                    <Section title={degraded ? `Scenario Analysis — ${fmtK(sc.price)}` : `This Property's Real Numbers — ${fmtK(actualPrice)}`} icon="📊" accent={theme.accent}>
                         <div style={{ background: theme.accentFaint, border: `1px solid ${theme.accentBorder}`, borderRadius: 12, padding: '16px 18px', marginBottom: 12 }}>
                             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: theme.accent, marginBottom: 6 }}>
-                                Updated PITI — with real tax data
+                                {degraded ? 'Estimated PITI — using scenario rates' : 'Updated PITI — with real tax data'}
                             </div>
                             <div style={{ fontSize: 36, fontWeight: 800, color: theme.accent, letterSpacing: '-1px' }}>
                                 {fmt$(Math.round(actualPITI))}<span style={{ fontSize: 16, fontWeight: 600, color: '#94a3b8' }}>/mo</span>
                             </div>
-                            {realAnnTax && (
+                            {realAnnTax && !degraded && (
                                 <div style={{ fontSize: 12, color: '#8fa3b8', marginTop: 6 }}>
                                     Est. taxes: {fmt$(Math.round(realAnnTax))}/yr
+                                </div>
+                            )}
+                            {degraded && (
+                                <div style={{ fontSize: 12, color: '#8fa3b8', marginTop: 6 }}>
+                                    Est. taxes at {pct(sc.taxRate * 100, 2)} · insurance at {pct(sc.insRate * 100, 2)} (from your scenario)
                                 </div>
                             )}
                         </div>
                         <KVGrid>
                             <KV k="Principal & Interest" v={fmt$(Math.round(actualPI))} />
-                            <KV k="Est. Property Tax" v={fmt$(Math.round(realMonthTax)) + '/mo'} highlight={!!realAnnTax} />
+                            <KV k="Est. Property Tax" v={fmt$(Math.round(realMonthTax)) + '/mo'} highlight={!!realAnnTax && !degraded} />
                             <KV k="Homeowner's Insurance" v={fmt$(Math.round(actualIns)) + '/mo'} />
                             {sc.lt === 'va' && <KV k="PMI" v="None — VA benefit" highlight />}
                             {hoaMonthly > 0 && <KV k="HOA (detected)" v={fmt$(hoaMonthly) + '/mo'} />}
@@ -725,21 +757,33 @@ function CheckPropertyInner() {
                                     onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
                                 >
                                     <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Property Intelligence →</div>
-                                    <div style={{ fontSize: 11, color: '#eaf8f7', lineHeight: 1.5 }}>AI comps, AVM, market data, and Grok 4 deep analysis on this exact property</div>
+                                    <div style={{ fontSize: 11, color: '#eaf8f7', lineHeight: 1.5 }}>
+                                        {degraded
+                                            ? 'Run AI market analysis, comps, and AVM — Grok 4 deep analysis on this address'
+                                            : 'AI comps, AVM, market data, and Grok 4 deep analysis on this exact property'}
+                                    </div>
                                 </a>
-                                {/* Track 5 */}
+                                {/* Track 5 — always available; L3 only if AVM available */}
                                 {(() => {
                                     const propAvm   = propData?.estimatedValue ?? null;
                                     const propPrice = propData?.price ?? null;
-                                    let t5href = '/track5';
-                                    let t5sub  = 'Score your buying decision across 4 dimensions';
-                                    if (propAvm && propPrice) {
+                                    // L1 from scenario (ltv + loan type)
+                                    const ltv = (1 - sc.dp / 100) * 100;
+                                    const lt  = sc.lt;
+                                    const l1Score = lt === 'va' ? (ltv <= 80 ? 88 : 78)
+                                        : lt === 'fha' ? (ltv <= 90 ? 72 : ltv <= 95 ? 65 : 58)
+                                        : (ltv <= 80 ? 85 : ltv <= 85 ? 75 : ltv <= 90 ? 65 : ltv <= 95 ? 55 : 45);
+                                    const l1Sum = `${theme.label} ${sc.dp}% down · ${pct(ltv, 1)} LTV · ${sc.rate.toFixed(2)}% rate`;
+
+                                    let t5href = `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(l1Sum)}`;
+                                    let t5sub  = `L1 scored ${l1Score}/100 from your scenario — add L3 market score`;
+                                    if (!degraded && propAvm && propPrice) {
                                         const prem    = (propPrice - propAvm) / propAvm;
                                         const l3Score = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76 : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
                                         const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
                                         const l3Sum   = `${resolved} — Listed $${Math.round(propPrice / 1000)}K vs AVM $${Math.round(propAvm / 1000)}K (${premStr}).`;
-                                        t5href = `/track5?l3_score=${l3Score}&l3_summary=${encodeURIComponent(l3Sum)}`;
-                                        t5sub  = `L3 scored ${l3Score}/100 — combine with your L1 financial score`;
+                                        t5href = `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(l1Sum)}&l3_score=${l3Score}&l3_summary=${encodeURIComponent(l3Sum)}`;
+                                        t5sub  = `L1 ${l1Score}/100 · L3 ${l3Score}/100 — pre-loaded from this analysis`;
                                     }
                                     return (
                                         <a
