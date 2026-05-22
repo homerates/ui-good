@@ -393,6 +393,31 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 </div>
             )}
 
+            {/* Evaluate This Purchase chip */}
+            {props.onRunScenario && (
+                <button
+                    className="jbs-eval-chip"
+                    onClick={() => props.onRunScenario!('Evaluate this purchase', {
+                        isEvaluation:    true,
+                        purchasePrice:   price,
+                        downPaymentPct:  downPct,
+                        annualRatePct:   rate,
+                        termYears:       termYrs,
+                        loanType:        'jumbo',
+                        taxRate:         props.taxRate,
+                        insRate:         props.insRate,
+                        monthlyPiti:     Math.round(total),
+                        loanAmt:         Math.round(loanAmt),
+                        ltv:             Math.round(ltv * 10) / 10,
+                        hasPmi:          false,
+                        income43:        Math.round(income43),
+                        reserves6mo:     Math.round(reserves6mo),
+                    })}
+                >
+                    📋 Evaluate This Purchase →
+                </button>
+            )}
+
             {/* Drawer trigger */}
             <button className={`jbs-dtrigger${drawerOpen ? ' open' : ''}`} onClick={() => setDrawerOpen(o => !o)}>
                 <span className="jbs-dtrigger-lbl">Loan Zone · Reserves · Underwriting · Full Summary</span>
@@ -618,6 +643,8 @@ export default function JumboSliderCard(props: JumboSliderParams) {
 
                 /* cross-fire chip */
                 .jbs-xchip-row { padding:8px 20px 0; }
+                .jbs-eval-chip { display:block; width:calc(100% - 40px); margin:10px 20px 0; padding:10px 0; background:rgba(126,244,244,0.05); border:1px solid rgba(126,244,244,0.22); border-radius:9px; color:#7ef4f4; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; text-align:center; letter-spacing:.03em; transition:all .15s; }
+                .jbs-eval-chip:hover { background:rgba(126,244,244,0.1); border-color:rgba(126,244,244,0.45); }
                 .jbs-xchip { width:100%; padding:10px 14px; border-radius:10px; font-size:0.8rem; font-weight:600; cursor:pointer; text-align:center; background:rgba(255,140,66,0.07); border:1px solid rgba(255,140,66,0.25); color:#ff8c42; font-family:inherit; transition:opacity 0.15s; }
                 .jbs-xchip:hover { opacity:0.82; }
 

@@ -27,6 +27,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
 import BuydownSliderCard from '@/components/BuydownSliderCard';
 import ConvHBSliderCard from '@/components/ConvHBSliderCard';
+import PropertyEvaluationCard from '@/components/PropertyEvaluationCard';
 import IncomeQualifySliderCard from '@/components/IncomeQualifySliderCard';
 import FhaSliderCard from '@/components/FhaSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
@@ -401,6 +402,13 @@ type ApiResponse = {
     fhaSlider?: {
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number;
+    } | null;
+    evaluationCard?: {
+        purchasePrice: number; listPrice?: number; downPct: number; rate: number; termYrs: number;
+        loanType: 'conventional' | 'fha' | 'va' | 'jumbo'; taxRate: number; insRate: number;
+        monthlyPiti: number; loanAmt: number; ltv: number; hasPmi: boolean;
+        pmiMonthly?: number; income43: number; reserves6mo?: number;
+        address?: string; avm?: number;
     } | null;
     affordabilitySlider?: {
         annualIncome: number; monthlyDebts: number; savings: number;
@@ -3020,6 +3028,14 @@ export default function Page() {
                                                             <ConvHBSliderCard
                                                                 {...m.meta.convHBSlider}
                                                                 onRunScenario={(seed, overrides) => {
+                                                                    if ((overrides as any).isEvaluation) {
+                                                                        const ov = overrides as any;
+                                                                        setMessages(prev => [...prev,
+                                                                            { id: uid(), role: 'user' as const, content: seed },
+                                                                            { id: uid(), role: 'assistant' as const, content: 'Here\'s your purchase evaluation summary.', meta: { evaluationCard: { purchasePrice: ov.purchasePrice, downPct: ov.downPaymentPct, rate: ov.annualRatePct, termYrs: ov.termYears ?? 30, loanType: ov.loanType, taxRate: ov.taxRate, insRate: ov.insRate, monthlyPiti: ov.monthlyPiti, loanAmt: ov.loanAmt, ltv: ov.ltv, hasPmi: ov.hasPmi, pmiMonthly: ov.pmiMonthly, income43: ov.income43, reserves6mo: ov.reserves6mo, address: ov.address, avm: ov.avm } } } as any,
+                                                                        ] as any);
+                                                                        return;
+                                                                    }
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
@@ -3042,6 +3058,14 @@ export default function Page() {
                                                             <FhaSliderCard
                                                                 {...m.meta.fhaSlider}
                                                                 onRunScenario={(seed, overrides) => {
+                                                                    if ((overrides as any).isEvaluation) {
+                                                                        const ov = overrides as any;
+                                                                        setMessages(prev => [...prev,
+                                                                            { id: uid(), role: 'user' as const, content: seed },
+                                                                            { id: uid(), role: 'assistant' as const, content: 'Here\'s your purchase evaluation summary.', meta: { evaluationCard: { purchasePrice: ov.purchasePrice, downPct: ov.downPaymentPct, rate: ov.annualRatePct, termYrs: ov.termYears ?? 30, loanType: ov.loanType, taxRate: ov.taxRate, insRate: ov.insRate, monthlyPiti: ov.monthlyPiti, loanAmt: ov.loanAmt, ltv: ov.ltv, hasPmi: ov.hasPmi, pmiMonthly: ov.pmiMonthly, income43: ov.income43, reserves6mo: ov.reserves6mo, address: ov.address, avm: ov.avm } } } as any,
+                                                                        ] as any);
+                                                                        return;
+                                                                    }
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
@@ -3053,6 +3077,14 @@ export default function Page() {
                                                             <JumboSliderCard
                                                                 {...m.meta.jumboSlider}
                                                                 onRunScenario={(seed, overrides) => {
+                                                                    if ((overrides as any).isEvaluation) {
+                                                                        const ov = overrides as any;
+                                                                        setMessages(prev => [...prev,
+                                                                            { id: uid(), role: 'user' as const, content: seed },
+                                                                            { id: uid(), role: 'assistant' as const, content: 'Here\'s your purchase evaluation summary.', meta: { evaluationCard: { purchasePrice: ov.purchasePrice, downPct: ov.downPaymentPct, rate: ov.annualRatePct, termYrs: ov.termYears ?? 30, loanType: ov.loanType, taxRate: ov.taxRate, insRate: ov.insRate, monthlyPiti: ov.monthlyPiti, loanAmt: ov.loanAmt, ltv: ov.ltv, hasPmi: ov.hasPmi, pmiMonthly: ov.pmiMonthly, income43: ov.income43, reserves6mo: ov.reserves6mo, address: ov.address, avm: ov.avm } } } as any,
+                                                                        ] as any);
+                                                                        return;
+                                                                    }
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
@@ -3063,6 +3095,25 @@ export default function Page() {
                                                         {m.meta.vaSlider && !loading && typingId === null && (
                                                             <VaSliderCard
                                                                 {...m.meta.vaSlider}
+                                                                onRunScenario={(seed, overrides) => {
+                                                                    if ((overrides as any).isEvaluation) {
+                                                                        const ov = overrides as any;
+                                                                        setMessages(prev => [...prev,
+                                                                            { id: uid(), role: 'user' as const, content: seed },
+                                                                            { id: uid(), role: 'assistant' as const, content: 'Here\'s your purchase evaluation summary.', meta: { evaluationCard: { purchasePrice: ov.purchasePrice, downPct: ov.downPaymentPct, rate: ov.annualRatePct, termYrs: ov.termYears ?? 30, loanType: ov.loanType, taxRate: ov.taxRate, insRate: ov.insRate, monthlyPiti: ov.monthlyPiti, loanAmt: ov.loanAmt, ltv: ov.ltv, hasPmi: ov.hasPmi, pmiMonthly: ov.pmiMonthly, income43: ov.income43, reserves6mo: ov.reserves6mo, address: ov.address, avm: ov.avm } } } as any,
+                                                                        ] as any);
+                                                                        return;
+                                                                    }
+                                                                    pendingParamOverridesRef.current = overrides;
+                                                                    setPendingParamOverrides(overrides);
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {/* Purchase Evaluation card — instant, no API call */}
+                                                        {m.meta.evaluationCard && !loading && typingId === null && (
+                                                            <PropertyEvaluationCard
+                                                                {...m.meta.evaluationCard}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);

@@ -503,6 +503,31 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 </div>
             )}
 
+            {/* Evaluate This Purchase chip */}
+            {props.onRunScenario && (
+                <button
+                    className="chb-eval-chip"
+                    onClick={() => props.onRunScenario!('Evaluate this purchase', {
+                        isEvaluation:   true,
+                        purchasePrice:  price,
+                        downPaymentPct: downPct,
+                        annualRatePct:  rate,
+                        termYears:      termYrs,
+                        loanType:       'conventional',
+                        taxRate:        props.taxRate,
+                        insRate:        props.insRate,
+                        monthlyPiti:    Math.round(total),
+                        loanAmt:        Math.round(loanAmt),
+                        ltv:            Math.round(ltv * 10) / 10,
+                        hasPmi:         ltv > 80,
+                        pmiMonthly:     Math.round(pmi),
+                        income43:       Math.round(q43),
+                    })}
+                >
+                    📋 Evaluate This Purchase →
+                </button>
+            )}
+
             {/* Drawer trigger */}
             <button className="chb-dtrigger" onClick={() => setDrawerOpen(o => !o)}>
                 <span className="chb-dtrigger-left">
@@ -708,6 +733,8 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 .chb-xchip-row { padding:0 12px 8px; }
                 .chb-xchip { width:100%; padding:10px 14px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; text-align:center; background:rgba(255,95,95,0.06); border:1.5px solid rgba(255,95,95,0.2); color:#ff5f5f; font-family:inherit; transition:opacity .15s; }
                 .chb-xchip:hover { opacity:.82; }
+                .chb-eval-chip { display:block; width:calc(100% - 24px); margin:8px 12px 0; padding:10px 0; background:rgba(126,244,244,0.05); border:1px solid rgba(126,244,244,0.22); border-radius:9px; color:#7ef4f4; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; text-align:center; letter-spacing:.03em; transition:all .15s; }
+                .chb-eval-chip:hover { background:rgba(126,244,244,0.1); border-color:rgba(126,244,244,0.45); }
 
                 /* Drawer trigger */
                 .chb-dtrigger { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 18px; background:var(--chb-bg); border:none; border-top:1px solid var(--chb-border); border-bottom:1px solid var(--chb-border); cursor:pointer; font-family:inherit; transition:opacity .15s; }

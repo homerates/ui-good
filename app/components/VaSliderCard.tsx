@@ -422,6 +422,38 @@ export default function VaSliderCard(props: VaSliderParams) {
                 Get Matched with a VA Lender →
             </button>
 
+            {/* Evaluate This Purchase chip */}
+            {props.onRunScenario && (
+                <button
+                    style={{
+                        display: 'block', width: 'calc(100% - 24px)', margin: '0 12px 10px',
+                        padding: '10px 0', background: 'rgba(126,244,244,0.05)',
+                        border: '1px solid rgba(126,244,244,0.22)', borderRadius: 9,
+                        color: '#7ef4f4', fontSize: 12, fontWeight: 700,
+                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+                        letterSpacing: '0.03em', transition: 'all .15s',
+                    }}
+                    onClick={() => props.onRunScenario!('Evaluate this purchase', {
+                        isEvaluation:       true,
+                        purchasePrice:      price,
+                        downPaymentPct:     downPct,
+                        annualRatePct:      rate,
+                        termYears:          termYrs,
+                        loanType:           'va',
+                        taxRate:            props.taxRate,
+                        insRate:            props.insRate,
+                        monthlyPiti:        Math.round(piti),
+                        loanAmt:            Math.round(loanAmt),
+                        ltv:                Math.round(ltv * 10) / 10,
+                        hasPmi:             false,
+                        income43:           Math.round(q43),
+                        vaFundingFeeExempt: ffTier === 'exempt',
+                    })}
+                >
+                    📋 Evaluate This Purchase →
+                </button>
+            )}
+
             {/* Deep analysis drawer */}
             <button className="va-dtrigger" onClick={() => setDrawerOpen(o => !o)}>
                 <span className="va-dtrigger-left">
