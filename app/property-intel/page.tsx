@@ -796,11 +796,12 @@ function PropertyIntelInner() {
                   let l4Summary: string | null = null;
                   if (school != null || walk != null || commute != null || apprec != null) {
                     const subs: number[] = [];
-                    if (school  != null) subs.push(Math.min(100, school * 10));
-                    if (walk    != null) subs.push(walk);
+                    if (school  != null) subs.push(Math.min(100, Math.max(0, school * 10)));
+                    // walk_score must be clamped — Grok occasionally returns a non-0-100 value
+                    if (walk    != null) subs.push(Math.min(100, Math.max(0, walk)));
                     if (commute != null) subs.push(commute <= 15 ? 90 : commute <= 25 ? 80 : commute <= 35 ? 70 : commute <= 45 ? 58 : commute <= 60 ? 44 : 30);
                     if (apprec  != null) subs.push(apprec >= 12 ? 92 : apprec >= 7 ? 84 : apprec >= 3 ? 72 : apprec >= 0 ? 55 : 35);
-                    l4Score = Math.round(subs.reduce((a, b) => a + b, 0) / subs.length);
+                    l4Score = Math.min(100, Math.max(0, Math.round(subs.reduce((a, b) => a + b, 0) / subs.length)));
                     const pts: string[] = [];
                     if (school  != null) pts.push(`Schools ${school}/10`);
                     if (walk    != null) pts.push(`Walk ${walk}`);

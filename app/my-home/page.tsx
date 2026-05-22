@@ -649,11 +649,13 @@ function CardRefi({ d, onEdit, plan, isLo }: { d: AnalysisData; onEdit: () => vo
             href={(() => {
               const rawBal = d.estimatedBalance ?? (d.estimatedValue ? Math.round(d.estimatedValue * 0.65) : null);
               const effectiveRate = d.purchaseRate ?? d.liveRate;
-              const balNote  = d.estimatedBalance ? '' : ' (approximate — based on estimated home value, adjust as needed)';
-              const rateNote = d.purchaseRate     ? '' : ' (using today\'s market rate as reference — update if you know your actual rate)';
+              // Seed must match the homeowner-analysis regex so the answers route
+              // fires the RefiIntelligenceCard instead of a plain Grok text reply.
+              // Format: "Run a complete homeowner analysis for ADDRESS — ..."
+              const addr = d.address ?? 'my property';
               const q = rawBal
-                ? `I have a $${Math.round(rawBal).toLocaleString('en-US')} balance${balNote} at ${effectiveRate.toFixed(2)}%${rateNote}, market rate is ${d.liveRate.toFixed(2)}%. Should I refinance? Show monthly savings and break-even.`
-                : `I have a mortgage at ${effectiveRate.toFixed(2)}%${rateNote}, market rate is ${d.liveRate.toFixed(2)}%. Should I refinance? What is the break-even point?`;
+                ? `Run a complete homeowner analysis for ${addr} — refi check: balance $${Math.round(rawBal).toLocaleString('en-US')} at ${effectiveRate.toFixed(2)}%, market rate ${d.liveRate.toFixed(2)}%. Show monthly savings and break-even.`
+                : `Run a complete homeowner analysis for ${addr} — refi check at ${effectiveRate.toFixed(2)}%, market rate ${d.liveRate.toFixed(2)}%. Should I refinance?`;
               return `/chat?sq=${encodeURIComponent(q)}&from=%2Fmy-home&fromLabel=My+Properties`;
             })()}
             className="mh-cta-link"

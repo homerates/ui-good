@@ -235,22 +235,29 @@ function IndexGauge({ score }: { score: number }) {
 function Track5Inner() {
   const params = useSearchParams();
 
-  // Read scores + summaries from URL params
+  // Read scores + summaries from URL params.
+  // Clamp every score to 0–100 — guards against bad/oversized values from any source.
+  function clampScore(raw: string | null): number | null {
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!isFinite(n)) return null;
+    return Math.min(100, Math.max(0, Math.round(n)));
+  }
   const levels: Levels = {
     l1: {
-      score:   params?.get('l1_score')   ? Number(params.get('l1_score'))   : null,
+      score:   clampScore(params?.get('l1_score')),
       summary: params?.get('l1_summary') ?? null,
     },
     l2: {
-      score:   params?.get('l2_score')   ? Number(params.get('l2_score'))   : null,
+      score:   clampScore(params?.get('l2_score')),
       summary: params?.get('l2_summary') ?? null,
     },
     l3: {
-      score:   params?.get('l3_score')   ? Number(params.get('l3_score'))   : null,
+      score:   clampScore(params?.get('l3_score')),
       summary: params?.get('l3_summary') ?? null,
     },
     l4: {
-      score:   params?.get('l4_score')   ? Number(params.get('l4_score'))   : null,
+      score:   clampScore(params?.get('l4_score')),
       summary: params?.get('l4_summary') ?? null,
     },
   };
