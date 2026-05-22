@@ -722,7 +722,8 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                   const strengths: string[] = a.key_strengths ?? [];
                   const concerns: string[]  = a.key_concerns ?? [];
                   const mc = a.market_context ?? {};
-                  const scenarios: Array<Record<string, unknown>> = a.personalized_scenarios ?? [];
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const scenarios: Array<Record<string, any>> = a.personalized_scenarios ?? [];
                   const risks = a.risk_assessment ?? {};
                   const questions_nxt: string[] = a.next_best_questions ?? [];
                   const wealth: string = a.wealth_building_tie_in ?? '';
