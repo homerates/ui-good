@@ -1,7 +1,8 @@
 ﻿'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import AppNav from '@/components/AppNav';
@@ -119,6 +120,54 @@ function CheckPropertyInner() {
     const [editPrice, setEditPrice] = useState(String(sc.price));
     const [editDp,    setEditDp]    = useState(String(sc.dp));
     const [editRate,  setEditRate]  = useState(String(sc.rate));
+
+    // ── Session persistence — L1 + L3 auto-save ───────────────────────────────
+    // Fires when propData lands after a lookup. Uses the same scoring formulas
+    // already computed in the JSX Track 5 block — no logic duplication, just a
+    // parallel DB write so the session is addressable from /evaluations.
+    const { isSignedIn }   = useUser();
+    const sessionSavedRef  = useRef(''); // tracks last saved resolved address
+
+    useEffect(() => {
+        if (!isSignedIn) return;
+        if (!resolved || propData === null) return;          // wait for lookup to complete
+        if (sessionSavedRef.current === resolved) return;   // already saved for this address
+
+        const avm       = (propData as any)?.estimatedValue ?? null;
+        const listPrice = (propData as any)?.price ?? sc.price;
+
+        // L1 — from scenario (same formula as JSX lines below)
+        const ltv     = (1 - sc.dp / 100) * 100;
+        const l1Score = sc.lt === 'va'  ? (ltv <= 80 ? 88 : 78)
+                      : sc.lt === 'fha' ? (ltv <= 90 ? 72 : ltv <= 95 ? 65 : 58)
+                      : (ltv <= 80 ? 85 : ltv <= 85 ? 75 : ltv <= 90 ? 65 : ltv <= 95 ? 55 : 45);
+        const l1Sum   = `${theme.label} ${sc.dp}% down · ${pct(ltv, 1)} LTV · ${sc.rate.toFixed(2)}% rate`;
+
+        const payload: Record<string, unknown> = {
+            property_address: resolved,
+            l1_score:         l1Score,
+            l1_summary:       l1Sum,
+            scenario_json:    { price: sc.price, dp_pct: sc.dp, lt: sc.lt, rate: sc.rate, term: 30 },
+        };
+
+        // L3 — only when real AVM data is available (not degraded)
+        if (!degraded && avm && listPrice) {
+            const prem    = (listPrice - avm) / avm;
+            const l3Score = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
+                          : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
+            const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
+            payload.l3_score   = l3Score;
+            payload.l3_summary = `${resolved} — Listed $${Math.round(listPrice / 1000)}K vs AVM $${Math.round(avm / 1000)}K (${premStr}).`;
+        }
+
+        sessionSavedRef.current = resolved;
+        fetch('/api/buyer-sessions', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(payload),
+        }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSignedIn, propData, resolved]);
 
     function applyScenarioEdits() {
         const newP = new URLSearchParams(sp.toString());

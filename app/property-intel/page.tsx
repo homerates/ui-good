@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
+import { SignInButton, SignedIn, SignedOut, useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
 import { normalizeListingStatus } from '@/prefetchGrokProperty';
@@ -110,8 +110,93 @@ function PropertyIntelInner() {
   const [deepLoading, setDeepLoading] = useState(false);
   const [deepStep,    setDeepStep]    = useState(0);
 
-  const abortRef   = useRef<AbortController | null>(null);
+  const abortRef     = useRef<AbortController | null>(null);
   const deepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Session persistence — L2 + L3 + L4 auto-save ────────────────────────────
+  // Fires when deep analysis completes. Uses the same formulas already in the
+  // Track 5 CTA block below — no new scoring logic, just a parallel DB write.
+  const { isSignedIn }  = useUser();
+  const deepSavedRef    = useRef(''); // tracks last saved address (deep analysis)
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+    if (!finalResult?.deep_analysis) return;     // wait for deep analysis
+    if (!address) return;
+    if (deepSavedRef.current === address) return; // already saved for this address
+
+    const d2 = finalResult;
+    const list = d2.current_list_price;
+
+    // L3 — same formula as JSX CTA block
+    const compsAvg = d2.comparable_sales?.length
+      ? d2.comparable_sales.reduce((s, c) => s + c.sold_price, 0) / d2.comparable_sales.length
+      : null;
+    const avm = d2.zillow_estimate ?? d2.redfin_estimate ?? compsAvg;
+    let l3Score: number | null = null;
+    let l3Summary: string | null = null;
+    if (list && avm) {
+      const prem    = (list - avm) / avm;
+      l3Score       = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
+                    : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
+      const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
+      const compsN  = d2.comparable_sales?.length ?? 0;
+      l3Summary     = `${address} — Listed $${Math.round(list / 1000)}K vs AVM $${Math.round(avm / 1000)}K (${premStr}${compsN > 0 ? `, ${compsN} comps` : ''}).`;
+    }
+
+    // L2 — market conditions (deep analysis only)
+    const dom = d2.market_median_dom;
+    const stl = d2.market_sale_to_list;
+    let l2Score: number | null = null;
+    let l2Summary: string | null = null;
+    if (dom != null || stl != null) {
+      const subs: number[] = [];
+      if (dom != null) subs.push(dom > 90 ? 90 : dom > 60 ? 80 : dom > 45 ? 68 : dom > 30 ? 55 : dom > 15 ? 42 : 32);
+      if (stl != null) subs.push(stl < 0.95 ? 90 : stl < 0.98 ? 80 : stl < 1.00 ? 68 : stl < 1.02 ? 55 : stl < 1.05 ? 42 : 30);
+      l2Score   = Math.round(subs.reduce((a, b) => a + b, 0) / subs.length);
+      const pts: string[] = [];
+      if (dom != null) pts.push(`Median DOM ${dom}d`);
+      if (stl != null) pts.push(`sale-to-list ${(stl * 100).toFixed(1)}%`);
+      l2Summary = pts.join(', ') + '.';
+    }
+
+    // L4 — location intelligence (deep analysis only)
+    const school  = d2.school_score;
+    const walk    = d2.walk_score;
+    const commute = d2.commute_minutes;
+    const apprec  = d2.neighborhood_appreciation_3yr_pct;
+    let l4Score: number | null = null;
+    let l4Summary: string | null = null;
+    if (school != null || walk != null || commute != null || apprec != null) {
+      const subs: number[] = [];
+      if (school  != null) subs.push(Math.min(100, Math.max(0, school * 10)));
+      if (walk    != null) subs.push(Math.min(100, Math.max(0, walk)));
+      if (commute != null) subs.push(commute <= 15 ? 90 : commute <= 25 ? 80 : commute <= 35 ? 70 : commute <= 45 ? 58 : commute <= 60 ? 44 : 30);
+      if (apprec  != null) subs.push(apprec >= 12 ? 92 : apprec >= 7 ? 84 : apprec >= 3 ? 72 : apprec >= 0 ? 55 : 35);
+      l4Score = Math.min(100, Math.max(0, Math.round(subs.reduce((a, b) => a + b, 0) / subs.length)));
+      const pts: string[] = [];
+      if (school  != null) pts.push(`Schools ${school}/10`);
+      if (walk    != null) pts.push(`Walk ${walk}`);
+      if (commute != null) pts.push(`${commute}min commute`);
+      if (apprec  != null) pts.push(`${apprec >= 0 ? '+' : ''}${apprec}% 3yr appreciation`);
+      l4Summary = pts.join(', ') + '.';
+    }
+
+    if (l2Score == null && l3Score == null && l4Score == null) return; // nothing to save
+
+    const payload: Record<string, unknown> = { property_address: address };
+    if (l2Score != null) { payload.l2_score = l2Score; payload.l2_summary = l2Summary; }
+    if (l3Score != null) { payload.l3_score = l3Score; payload.l3_summary = l3Summary; }
+    if (l4Score != null) { payload.l4_score = l4Score; payload.l4_summary = l4Summary; }
+
+    deepSavedRef.current = address;
+    fetch('/api/buyer-sessions', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn, finalResult, address]);
 
   const d: Partial<PropResult> = finalResult ?? {};
 
