@@ -393,30 +393,20 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 </div>
             )}
 
-            {/* Evaluate This Purchase chip */}
-            {props.onRunScenario && (
-                <button
-                    className="jbs-eval-chip"
-                    onClick={() => props.onRunScenario!('Evaluate this purchase', {
-                        isEvaluation:    true,
-                        purchasePrice:   price,
-                        downPaymentPct:  downPct,
-                        annualRatePct:   rate,
-                        termYears:       termYrs,
-                        loanType:        'jumbo',
-                        taxRate:         props.taxRate,
-                        insRate:         props.insRate,
-                        monthlyPiti:     Math.round(total),
-                        loanAmt:         Math.round(loanAmt),
-                        ltv:             Math.round(ltv * 10) / 10,
-                        hasPmi:          false,
-                        income43:        Math.round(income43),
-                        reserves6mo:     Math.round(reserves6mo),
-                    })}
-                >
-                    📋 Evaluate This Purchase →
-                </button>
-            )}
+            {/* Evaluate This Purchase — opens Track 5 in new tab with L1 pre-loaded */}
+            <button
+                className="jbs-eval-chip"
+                onClick={() => {
+                    const ltvVal = Math.round(ltv * 10) / 10;
+                    const l1 = ltvVal <= 80 ? 85 : ltvVal <= 85 ? 75 : ltvVal <= 90 ? 65 : ltvVal <= 95 ? 55 : 45;
+                    const eq  = ltvVal <= 80 ? 'Strong equity' : ltvVal <= 90 ? 'Moderate equity' : 'High LTV';
+                    const sum = `Jumbo ${ltvVal}% LTV · ${eq} · ${rate.toFixed(2)}% rate`;
+                    const url = `/track5?l1_score=${l1}&l1_summary=${encodeURIComponent(sum)}&ctx_price=${Math.round(price)}&ctx_dp=${downPct}&ctx_lt=jumbo&ctx_rate=${rate}&ctx_piti=${Math.round(total)}`;
+                    window.open(url, '_blank');
+                }}
+            >
+                📋 Score This Purchase →
+            </button>
 
             {/* Drawer trigger */}
             <button className={`jbs-dtrigger${drawerOpen ? ' open' : ''}`} onClick={() => setDrawerOpen(o => !o)}>

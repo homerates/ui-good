@@ -266,6 +266,28 @@ function Track5Inner() {
   const address = levels.l3.summary?.split(' — ')[0]?.trim() ?? null;
   const piUrl   = address ? `/property-intel?address=${encodeURIComponent(address)}` : '/property-intel';
 
+  // Purchase scenario context (passed from scenario cards via ctx_* params)
+  const ctxPrice = params?.get('ctx_price') ? Number(params.get('ctx_price')) : null;
+  const ctxDp    = params?.get('ctx_dp')    ? Number(params.get('ctx_dp'))    : null;
+  const ctxLt    = params?.get('ctx_lt')    ?? null;
+  const ctxRate  = params?.get('ctx_rate')  ? Number(params.get('ctx_rate'))  : null;
+  const ctxPiti  = params?.get('ctx_piti')  ? Number(params.get('ctx_piti'))  : null;
+  const hasPurchaseCtx = !!(ctxPrice && ctxLt);
+
+  // Pre-seeded chat URLs for L2/L3 when purchase context is available
+  function fmtK(n: number) {
+    if (n >= 1_000_000) return `$${(n/1_000_000).toFixed(2).replace(/\.?0+$/,'')}M`;
+    if (n >= 100_000)   return `$${Math.round(n/1000)}K`;
+    return `$${n.toLocaleString()}`;
+  }
+  const ltLabel  = ctxLt === 'jumbo' ? 'Jumbo' : ctxLt === 'fha' ? 'FHA' : ctxLt === 'va' ? 'VA' : 'Conv.';
+  const incomeQ  = hasPurchaseCtx
+    ? `/chat?sq=${encodeURIComponent(`What income do I need to qualify for a ${ltLabel} loan on ${fmtK(ctxPrice!)} with ${ctxDp}% down at ${ctxRate?.toFixed(2)}%? Show me the full income qualification card.`)}`
+    : '/chat?sq=I+want+to+run+an+income+qualification+analysis.+Show+me+the+full+income+qualify+card.';
+  const propIntelUrl = address ? piUrl
+    : hasPurchaseCtx ? `/check-property?price=${ctxPrice}&dp=${ctxDp}&rate=${ctxRate}&term=30&lt=${ctxLt}`
+    : '/property-intel';
+
   const idx      = computeIndex(levels);
   const v        = idx ? verdict(idx.score) : null;
   const scoredN  = Object.values(levels).filter(l => l.score != null).length;
@@ -284,7 +306,7 @@ function Track5Inner() {
       <div style={{ maxWidth: 780, margin: '0 auto', padding: '2.5rem 1.5rem 6rem' }}>
 
         {/* ── Page title ── */}
-        <div style={{ marginBottom: 28 }}>
+        <div style={{ marginBottom: hasPurchaseCtx ? 16 : 28 }}>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#f1f5f9', marginBottom: 4 }}>
             Your Buying Decision Score
           </h1>
@@ -292,6 +314,22 @@ function Track5Inner() {
             Four independent analyses. One clear verdict. Run each tool — your score updates automatically.
           </p>
         </div>
+
+        {/* ── Purchase scenario context bar ── */}
+        {hasPurchaseCtx && (
+          <div style={{
+            background: 'rgba(126,244,244,0.04)', border: '1px solid rgba(126,244,244,0.18)',
+            borderRadius: 10, padding: '10px 16px', marginBottom: 24,
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#7ef4f4', flexShrink: 0 }}>
+              Scenario
+            </span>
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#c4cfe0' }}>
+              {fmtK(ctxPrice!)} · {ltLabel} · {ctxDp}% down · {ctxRate?.toFixed(2)}% rate{ctxPiti ? ` · ${fmtK(ctxPiti)}/mo PITI` : ''}
+            </span>
+          </div>
+        )}
 
         {/* ── Decision Index ── */}
         {idx ? (
@@ -371,22 +409,36 @@ function Track5Inner() {
         <LevelCard
           num="L1" title="Financial Readiness" weight="35%"
           data={levels.l1}
-          cta={{ label: 'Run Affordability ↗', href: '/chat?sq=I+want+to+run+an+affordability+analysis.+Show+me+the+affordability+calculator+so+I+can+enter+my+income+and+debts.' }}
+          cta={{
+            label: hasPurchaseCtx ? 'Re-run Scenario ↗' : 'Run Affordability ↗',
+            href:  hasPurchaseCtx
+              ? `/chat?sq=${encodeURIComponent(`Show me a ${ltLabel} purchase payment breakdown for ${fmtK(ctxPrice!)} with ${ctxDp}% down at ${ctxRate?.toFixed(2)}%.`)}`
+              : '/chat?sq=I+want+to+run+an+affordability+analysis.+Show+me+the+affordability+calculator+so+I+can+enter+my+income+and+debts.',
+          }}
         />
         <LevelCard
-          num="L2" title="Market Conditions" weight="25%"
+          num="L2" title={hasPurchaseCtx ? 'Income & DTI' : 'Market Conditions'} weight="25%"
           data={levels.l2}
-          cta={{ label: address ? 'Open Property Intel ↗' : 'Search a Property ↗', href: piUrl }}
+          cta={{
+            label: hasPurchaseCtx ? 'Score My Income ↗' : (address ? 'Open Property Intel ↗' : 'Search a Property ↗'),
+            href:  hasPurchaseCtx ? incomeQ : piUrl,
+          }}
         />
         <LevelCard
           num="L3" title="Property Value" weight="25%"
           data={levels.l3}
-          cta={{ label: address ? 'Open Property Intel ↗' : 'Search a Property ↗', href: piUrl }}
+          cta={{
+            label: address ? 'Open Property Intel ↗' : (hasPurchaseCtx ? 'Check This Property ↗' : 'Search a Property ↗'),
+            href:  propIntelUrl,
+          }}
         />
         <LevelCard
           num="L4" title="Location Intelligence" weight="15%"
           data={levels.l4}
-          cta={{ label: address ? 'Open Property Intel ↗' : 'Search a Property ↗', href: piUrl }}
+          cta={{
+            label: address ? 'Open Property Intel ↗' : (hasPurchaseCtx ? 'Run Location Check ↗' : 'Search a Property ↗'),
+            href:  address ? piUrl : (hasPurchaseCtx ? propIntelUrl : '/property-intel'),
+          }}
         />
 
       </div>

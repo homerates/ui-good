@@ -2944,7 +2944,7 @@ export default function Page() {
                                         <Bubble role={m.role}>
                                             {m.role === 'assistant' ? (
                                                 // If this is a Grok-style answer with markdown, use GrokCard
-                                                m.meta && (m.meta.grok || m.meta.answerMarkdown || m.meta.evaluationCard) ? (
+                                                m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
                                                     <>
                                                         {/* GrokCard:
                                                             - For non-affordability: always shown
@@ -2952,7 +2952,7 @@ export default function Page() {
                                                               (gives typewriter effect without flashing old table content)
                                                             - For affordability after typing: suppressed (card takes over)
                                                         */}
-                                                        {!m.meta.evaluationCard && ((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
+                                                        {((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
@@ -3028,14 +3028,6 @@ export default function Page() {
                                                             <ConvHBSliderCard
                                                                 {...m.meta.convHBSlider}
                                                                 onRunScenario={(seed, overrides) => {
-                                                                    if ((overrides as any).isEvaluation) {
-                                                                        const ov = overrides as any;
-                                                                        setMessages(prev => [...prev,
-                                                                            { id: uid(), role: 'user' as const, content: seed },
-                                                                            { id: uid(), role: 'assistant' as const, content: 'Here\'s your purchase evaluation summary.', meta: { evaluationCard: { purchasePrice: ov.purchasePrice, downPct: ov.downPaymentPct, rate: ov.annualRatePct, termYrs: ov.termYears ?? 30, loanType: ov.loanType, taxRate: ov.taxRate, insRate: ov.insRate, monthlyPiti: ov.monthlyPiti, loanAmt: ov.loanAmt, ltv: ov.ltv, hasPmi: ov.hasPmi, pmiMonthly: ov.pmiMonthly, income43: ov.income43, reserves6mo: ov.reserves6mo, address: ov.address, avm: ov.avm } } } as any,
-                                                                        ] as any);
-                                                                        return;
-                                                                    }
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
@@ -3058,14 +3050,6 @@ export default function Page() {
                                                             <FhaSliderCard
                                                                 {...m.meta.fhaSlider}
                                                                 onRunScenario={(seed, overrides) => {
-                                                                    if ((overrides as any).isEvaluation) {
-                                                                        const ov = overrides as any;
-                                                                        setMessages(prev => [...prev,
-                                                                            { id: uid(), role: 'user' as const, content: seed },
-                                                                            { id: uid(), role: 'assistant' as const, content: 'Here\'s your purchase evaluation summary.', meta: { evaluationCard: { purchasePrice: ov.purchasePrice, downPct: ov.downPaymentPct, rate: ov.annualRatePct, termYrs: ov.termYears ?? 30, loanType: ov.loanType, taxRate: ov.taxRate, insRate: ov.insRate, monthlyPiti: ov.monthlyPiti, loanAmt: ov.loanAmt, ltv: ov.ltv, hasPmi: ov.hasPmi, pmiMonthly: ov.pmiMonthly, income43: ov.income43, reserves6mo: ov.reserves6mo, address: ov.address, avm: ov.avm } } } as any,
-                                                                        ] as any);
-                                                                        return;
-                                                                    }
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
@@ -3077,14 +3061,6 @@ export default function Page() {
                                                             <JumboSliderCard
                                                                 {...m.meta.jumboSlider}
                                                                 onRunScenario={(seed, overrides) => {
-                                                                    if ((overrides as any).isEvaluation) {
-                                                                        const ov = overrides as any;
-                                                                        setMessages(prev => [...prev,
-                                                                            { id: uid(), role: 'user' as const, content: seed },
-                                                                            { id: uid(), role: 'assistant' as const, content: 'Here\'s your purchase evaluation summary.', meta: { evaluationCard: { purchasePrice: ov.purchasePrice, downPct: ov.downPaymentPct, rate: ov.annualRatePct, termYrs: ov.termYears ?? 30, loanType: ov.loanType, taxRate: ov.taxRate, insRate: ov.insRate, monthlyPiti: ov.monthlyPiti, loanAmt: ov.loanAmt, ltv: ov.ltv, hasPmi: ov.hasPmi, pmiMonthly: ov.pmiMonthly, income43: ov.income43, reserves6mo: ov.reserves6mo, address: ov.address, avm: ov.avm } } } as any,
-                                                                        ] as any);
-                                                                        return;
-                                                                    }
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
@@ -3095,25 +3071,6 @@ export default function Page() {
                                                         {m.meta.vaSlider && !loading && typingId === null && (
                                                             <VaSliderCard
                                                                 {...m.meta.vaSlider}
-                                                                onRunScenario={(seed, overrides) => {
-                                                                    if ((overrides as any).isEvaluation) {
-                                                                        const ov = overrides as any;
-                                                                        setMessages(prev => [...prev,
-                                                                            { id: uid(), role: 'user' as const, content: seed },
-                                                                            { id: uid(), role: 'assistant' as const, content: 'Here\'s your purchase evaluation summary.', meta: { evaluationCard: { purchasePrice: ov.purchasePrice, downPct: ov.downPaymentPct, rate: ov.annualRatePct, termYrs: ov.termYears ?? 30, loanType: ov.loanType, taxRate: ov.taxRate, insRate: ov.insRate, monthlyPiti: ov.monthlyPiti, loanAmt: ov.loanAmt, ltv: ov.ltv, hasPmi: ov.hasPmi, pmiMonthly: ov.pmiMonthly, income43: ov.income43, reserves6mo: ov.reserves6mo, address: ov.address, avm: ov.avm } } } as any,
-                                                                        ] as any);
-                                                                        return;
-                                                                    }
-                                                                    pendingParamOverridesRef.current = overrides;
-                                                                    setPendingParamOverrides(overrides);
-                                                                    setTimeout(() => send(seed), 50);
-                                                                }}
-                                                            />
-                                                        )}
-                                                        {/* Purchase Evaluation card — instant, no API call */}
-                                                        {m.meta.evaluationCard && !loading && typingId === null && (
-                                                            <PropertyEvaluationCard
-                                                                {...m.meta.evaluationCard}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
