@@ -71,9 +71,14 @@ function makeRateQuestion(lt: LoanTypeKey): DiscoverQuestion {
       const v = parseFloat(raw);
       if (isNaN(v)) return { status: 'check', note: 'No specific rate quoted yet — reply in chat asking for an exact interest rate' };
       const diff = v - s.rate;
-      if (diff <= 0.25) return { status: 'match', note: `${v.toFixed(3)}% interest rate — within 0.25% of today's FRED average` };
-      if (diff <= 0.50) return { status: 'check', note: `${diff.toFixed(3)}% above FRED average — confirm no hidden points or buydown` };
-      return             { status: 'alert', note: `${diff.toFixed(3)}% above FRED average — ask for a rate sheet and zero-point option` };
+      // Jumbo rates carry a natural 0.35–0.65% premium above FRED conforming.
+      // Apply a 0.50 offset so a 0.60% spread doesn't incorrectly fire as Alert.
+      const premiumOffset = lt === 'jumbo' ? 0.50 : 0;
+      const adjDiff = diff - premiumOffset;
+      const typeCtx = lt === 'jumbo' ? ' (Jumbo portfolio premium applied)' : '';
+      if (adjDiff <= 0.25) return { status: 'match', note: `${v.toFixed(3)}% — competitive${lt === 'jumbo' ? ' for Jumbo' : ' vs today\'s FRED average'}` };
+      if (adjDiff <= 0.50) return { status: 'check', note: `${diff.toFixed(3)}% above FRED${typeCtx} — confirm no hidden points` };
+      return             { status: 'alert', note: `${diff.toFixed(3)}% above FRED${typeCtx} — ask for rate sheet and zero-point option` };
     },
   };
 }

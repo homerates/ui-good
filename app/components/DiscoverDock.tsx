@@ -63,9 +63,18 @@ function extractFromReply(inputType: string, text: string): string {
     const vals    = matches.map(m => parseFloat(m[1].replace(/,/g, ''))).filter(v => v > 1000);
     return vals.length > 0 ? String(Math.max(...vals)) : '';
   }
-  // text chips — extract only a clean day count if present
+  // text chips — first try to extract a day count (process/timeline chips)
   const dayMatch = trimmed.match(/(\d+)[\s-]*(?:to[\s-]*\d+[\s-]*)?days?/i);
-  return dayMatch ? dayMatch[0].trim() : '';
+  if (dayMatch) return dayMatch[0].trim();
+  // For after-close commitment chips — surface key signals so evaluateGap
+  // can produce a match/check/alert instead of staying on pending forever
+  const lower = trimmed.toLowerCase();
+  const signals: string[] = [];
+  if (lower.includes('monitor') || lower.includes('alert') || lower.includes('track') || lower.includes('notify')) signals.push('monitoring');
+  if (lower.includes('no-cost') || lower.includes('no cost') || lower.includes('refi') || lower.includes('refinan')) signals.push('no-cost refi');
+  if (lower.includes('lifetime') || lower.includes('guarantee') || lower.includes('certificate')) signals.push('guarantee');
+  if (signals.length > 0) return signals.join(' + ');
+  return '';
 }
 
 function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTypeKey): ScenarioSnapshot {
@@ -875,6 +884,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         .dd-analysis.check   { background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.18); color: #fde68a; }
         .dd-analysis.alert   { background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.18); color: #fca5a5; }
         .dd-analysis.loading { background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.18); color: rgba(196,181,253,0.70); }
+        .dd-analysis.pending { background: rgba(148,163,184,0.04); border: 1px solid rgba(148,163,184,0.13); color: rgba(185,208,192,0.60); }
         .dd-analysis-icon  { font-size: 11px; flex-shrink: 0; margin-top: 1px; }
 
         .dd-followup-btn {

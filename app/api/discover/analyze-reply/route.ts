@@ -27,6 +27,24 @@ function buildSystemPrompt(params: {
   };
   const label = typeLabel[loanType] ?? loanType.toUpperCase();
 
+  // Loan-type-specific context injected into the system prompt
+  const loanTypeContext: string[] = [];
+  if (loanType === 'jumbo') {
+    loanTypeContext.push(
+      'JUMBO RATE CONTEXT: The FRED 30yr Benchmark is for conforming loans only. Jumbo rates naturally carry a 0.35–0.65% portfolio premium above conforming. A Jumbo rate 0.60% above FRED is within normal range — do NOT flag it as Alert. Only flag as elevated if the spread exceeds 0.90% above FRED after accounting for the Jumbo premium.'
+    );
+  }
+  if (chipTitle.toLowerCase().includes('cost')) {
+    loanTypeContext.push(
+      'ORIGINATION FEE BENCHMARK: Market rate is 0–1% of loan amount. 1.5% is above market and should be flagged as a "check." 2%+ should be flagged as an "alert." If the LO quotes an origination fee percentage, compare it explicitly to this benchmark in your analysis.'
+    );
+  }
+  if (chipTitle.toLowerCase().includes('after') || chipTitle.toLowerCase().includes('future')) {
+    loanTypeContext.push(
+      'COMMITMENT QUALITY: Distinguish between concrete commitments ("we send an email alert when rates drop 0.50%", "we waive all lender fees on a refi") and vague marketing language ("we care about your future", "we have a lifetime guarantee"). Vague commitments with no mechanism or threshold should be flagged as "check" — ask the borrower to request specifics in writing.'
+    );
+  }
+
   return [
     'You are HomeRates AI — an independent mortgage analyst helping a borrower evaluate a loan officer\'s response.',
     '',
@@ -35,13 +53,14 @@ function buildSystemPrompt(params: {
     '',
     'LOAN SCENARIO:',
     `Type: ${label} | Purchase: ${fmt$(scenario.price)} | Loan: ${fmt$(scenario.loanAmount)} | Down: ${scenario.downPct}% | FRED 30yr Benchmark: ${scenario.rate.toFixed(3)}% | LTV: ${(scenario.ltv * 100).toFixed(1)}%`,
+    ...(loanTypeContext.length > 0 ? ['', ...loanTypeContext] : []),
     '',
     'INSTRUCTIONS — stay strictly within the topic above.',
     '1. Evaluate the LO\'s response on two dimensions in 2-3 sentences:',
-    '   (a) COMPETITIVENESS: For any numbers quoted (rate, costs, days), compare directly against the benchmark in the scenario above. State the exact spread and whether it is competitive, within normal range, or above market for this loan type. Be direct — do not hedge.',
+    '   (a) COMPETITIVENESS: For any numbers quoted (rate, costs, days), compare directly against the benchmark in the scenario above, applying the loan-type context above. State the exact spread and whether it is competitive, within normal range, or above market. Be direct — do not hedge.',
     '   (b) COMPLETENESS: Identify any sub-topics from the list above that were NOT addressed. Only flag a sub-topic as missing if it is genuinely absent.',
     '   Combine both into one flowing, plain-English assessment the borrower can act on.',
-    '2. If ANY sub-topic is missing: write ONE focused follow-up question the borrower can send. If ALL sub-topics are fully addressed: set followUp to an empty string.',
+    '2. If ANY sub-topic is missing OR a commitment is vague/unverifiable: write ONE focused follow-up question the borrower can send. If ALL sub-topics are fully and concretely addressed: set followUp to an empty string.',
     '',
     'Return valid JSON only — no markdown, no extra text:',
     '{"analysis":"2-3 sentence assessment combining competitiveness verdict and coverage check","followUp":"One specific follow-up question, or empty string if all sub-topics were addressed"}',
