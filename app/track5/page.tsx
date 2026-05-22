@@ -237,7 +237,7 @@ function Track5Inner() {
 
   // Read scores + summaries from URL params.
   // Clamp every score to 0–100 — guards against bad/oversized values from any source.
-  function clampScore(raw: string | null): number | null {
+  function clampScore(raw: string | null | undefined): number | null {
     if (!raw) return null;
     const n = Number(raw);
     if (!isFinite(n)) return null;
