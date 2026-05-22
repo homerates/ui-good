@@ -139,9 +139,10 @@ interface DrawerProps {
     calc: ProgramCalc;
     loanType: 'fha' | 'conv3' | 'conv20';
     annualIncome: number;
+    monthlyDebts: number;
 }
 
-function ProgramDrawer({ calc, loanType, annualIncome }: DrawerProps) {
+function ProgramDrawer({ calc, loanType, annualIncome, monthlyDebts }: DrawerProps) {
     const pmiLabel = loanType === 'fha' ? 'FHA MIP' : 'PMI';
 
     return (
@@ -371,7 +372,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                                 <span className="afc-note-icon">ⓘ</span>
                                 <span className="afc-note-text">MIP stays unless refinanced — factor this into long-term cost</span>
                             </div>
-                            {openCard === 'fha' && <ProgramDrawer calc={fha} loanType="fha" annualIncome={props.annualIncome} />}
+                            {openCard === 'fha' && <ProgramDrawer calc={fha} loanType="fha" annualIncome={props.annualIncome} monthlyDebts={props.monthlyDebts} />}
                         </>
                     )}
                 </div>
@@ -398,7 +399,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                                 <span className="afc-note-icon">ⓘ</span>
                                 <span className="afc-note-text">{downPct >= 20 ? 'No PMI at this down payment — cleanest long-term structure' : 'PMI drops off at 80% LTV — cleaner long term than FHA'}</span>
                             </div>
-                            {openCard === 'conv3' && <ProgramDrawer calc={conv3} loanType="conv3" annualIncome={props.annualIncome} />}
+                            {openCard === 'conv3' && <ProgramDrawer calc={conv3} loanType="conv3" annualIncome={props.annualIncome} monthlyDebts={props.monthlyDebts} />}
                         </>
                     )}
                 </div>
@@ -425,7 +426,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                                 <span className="afc-note-icon">ⓘ</span>
                                 <span className="afc-note-text">No PMI — highest purchase power but requires far more upfront cash</span>
                             </div>
-                            {openCard === 'conv20' && <ProgramDrawer calc={conv20} loanType="conv20" annualIncome={props.annualIncome} />}
+                            {openCard === 'conv20' && <ProgramDrawer calc={conv20} loanType="conv20" annualIncome={props.annualIncome} monthlyDebts={props.monthlyDebts} />}
                         </>
                     )}
                 </div>
