@@ -3,8 +3,9 @@
 // Read-only decision scorecard. No input. Data fed in via URL params from tools.
 // Entry points: chat (affordability, market analysis), property-intel, future location tool.
 
-import { Suspense } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
 
@@ -290,8 +291,45 @@ function Track5Inner() {
 
   const idx      = computeIndex(levels);
   const v        = idx ? verdict(idx.score) : null;
-  const scoredN  = Object.values(levels).filter(l => l.score != null).length;
+  const scoredN   = Object.values(levels).filter(l => l.score != null).length;
   const weightPct = idx ? Math.round(idx.pct * 100) : 0;
+
+  // ── Session persistence ────────────────────────────────────────────────────
+  const { isSignedIn } = useUser();
+  const saveAttemptedRef              = useRef(false);
+  const [sessionId, setSessionId]     = useState<string | null>(null);
+  const [saved,     setSaved]         = useState(false);
+
+  // Auto-save when navigated from a scenario chip (l1_score in URL + signed in)
+  useEffect(() => {
+    if (!isSignedIn) return;
+    if (saveAttemptedRef.current) return;
+    if (levels.l1.score == null) return;
+    saveAttemptedRef.current = true;
+
+    const payload: Record<string, unknown> = {
+      l1_score:    levels.l1.score,
+      l1_summary:  levels.l1.summary,
+      session_name: ctxPrice
+        ? `${ltLabel} ${fmtK(ctxPrice)} · ${ctxDp}% down`
+        : (levels.l1.summary ?? 'Financial Analysis'),
+    };
+    if (ctxPrice) {
+      payload.scenario_json = { price: ctxPrice, dp_pct: ctxDp, lt: ctxLt, rate: ctxRate, piti: ctxPiti };
+    }
+
+    fetch('/api/buyer-sessions', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.session?.id) { setSessionId(d.session.id); setSaved(true); }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn]);
 
   return (
     <div className="page-standalone t5-root">
@@ -328,6 +366,26 @@ function Track5Inner() {
             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#c4cfe0' }}>
               {fmtK(ctxPrice!)} · {ltLabel} · {ctxDp}% down · {ctxRate?.toFixed(2)}% rate{ctxPiti ? ` · ${fmtK(ctxPiti)}/mo PITI` : ''}
             </span>
+          </div>
+        )}
+
+        {/* ── Saved indicator ── */}
+        {saved && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+            background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.22)',
+            borderRadius: 8, padding: '9px 14px', marginBottom: 16,
+          }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4ade80' }}>
+              ✓ Evaluation saved
+            </span>
+            <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>·</span>
+            <Link href="/evaluations" style={{
+              fontSize: '0.72rem', fontWeight: 600, color: '#4ade80',
+              textDecoration: 'underline', textUnderlineOffset: 2,
+            }}>
+              View My Evaluations →
+            </Link>
           </div>
         )}
 
@@ -417,11 +475,13 @@ function Track5Inner() {
           }}
         />
         <LevelCard
-          num="L2" title={hasPurchaseCtx ? 'Income & DTI' : 'Market Conditions'} weight="25%"
+          num="L2" title="Market Conditions" weight="25%"
           data={levels.l2}
           cta={{
-            label: hasPurchaseCtx ? 'Score My Income ↗' : (address ? 'Open Property Intel ↗' : 'Search a Property ↗'),
-            href:  hasPurchaseCtx ? incomeQ : piUrl,
+            label: 'Run Market Analysis ↗',
+            href: hasPurchaseCtx
+              ? `/chat?sq=${encodeURIComponent(`What are the current market conditions for buying a ${ltLabel} home around ${fmtK(ctxPrice!)}? Show me market trends, days on market, and price dynamics.`)}`
+              : '/chat?sq=Run+a+full+market+conditions+analysis+for+my+area',
           }}
         />
         <LevelCard
