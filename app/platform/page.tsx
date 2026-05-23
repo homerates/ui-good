@@ -91,6 +91,14 @@ const PILLARS = [
     href: '/ai-coach',
     accent: '#fb923c',
   },
+  {
+    icon: '🏆',
+    eyebrow: 'Full Buyer Journey',
+    title: 'From First Number to Final Score — The Complete Decision Journey',
+    summary: 'How a single loan scenario in the AI chat becomes a four-level scored verdict. Affordability → Market Conditions → Value Gap → Location Intelligence — every step connected, every number live, one honest verdict before you make an offer.',
+    href: '/decision-score',
+    accent: '#00e87a',
+  },
 ];
 
 export default function PlatformPage() {
