@@ -3055,6 +3055,11 @@ export default function Page() {
                                                         {m.meta.fhaSlider && !loading && typingId === null && (
                                                             <FhaSliderCard
                                                                 {...m.meta.fhaSlider}
+                                                                journeyAddress={
+                                                                    searchParams?.get('from') === '/my-home' && cmaContextRef.current?.cmaAddress
+                                                                        ? cmaContextRef.current.cmaAddress
+                                                                        : undefined
+                                                                }
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
@@ -3077,6 +3082,11 @@ export default function Page() {
                                                         {m.meta.vaSlider && !loading && typingId === null && (
                                                             <VaSliderCard
                                                                 {...m.meta.vaSlider}
+                                                                journeyAddress={
+                                                                    searchParams?.get('from') === '/my-home' && cmaContextRef.current?.cmaAddress
+                                                                        ? cmaContextRef.current.cmaAddress
+                                                                        : undefined
+                                                                }
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);

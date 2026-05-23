@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
@@ -52,15 +52,20 @@ function fmtK(n: number) {
 // ── Interface ─────────────────────────────────────────────────────────────────
 
 export interface FhaSliderParams {
-    price:         number;
-    downPct:       number;
-    rate:          number;
-    term:          number;
-    taxRate:       number;
-    insRate:       number;
-    monthlyDebts?: number;
+    price:          number;
+    downPct:        number;
+    rate:           number;
+    term:           number;
+    taxRate:        number;
+    insRate:        number;
+    monthlyDebts?:  number;
     onRunScenario?: (seed: string, overrides: Record<string, unknown>) => void;
+    journeyAddress?: string;
 }
+
+function fhaNormKey(a: string) { return a.trim().toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').slice(0,100); }
+function fhaGetSid(a: string): string | null { try { return localStorage.getItem(`pi_sid_${fhaNormKey(a)}`); } catch { return null; } }
+function fhaSetSid(a: string, sid: string)   { try { localStorage.setItem(`pi_sid_${fhaNormKey(a)}`, sid); } catch {} }
 
 type LimitStatus = 'within' | 'highcost' | 'exceeds';
 
@@ -87,6 +92,24 @@ export default function FhaSliderCard(props: FhaSliderParams) {
 
     const { user } = useUser();
     const router   = useRouter();
+
+    // ── Journey: L1 write-back when launched from my-home property context ────
+    const fhaJourneyFired = useRef(false);
+    const [journeySid, setJourneySid] = useState<string | null>(
+        props.journeyAddress ? fhaGetSid(props.journeyAddress) : null,
+    );
+    useEffect(() => {
+        if (!props.journeyAddress || fhaJourneyFired.current) return;
+        fhaJourneyFired.current = true;
+        const ltv      = (1 - props.downPct / 100) * 100;
+        const l1Score  = ltv <= 90 ? 72 : ltv <= 95 ? 65 : 58;
+        const l1Summary = `FHA ${props.downPct}% down · ${ltv.toFixed(1)}% LTV · ${props.rate.toFixed(2)}% rate`;
+        fetch('/api/buyer-sessions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ property_address: props.journeyAddress, l1_score: l1Score, l1_summary: l1Summary, scenario_json: { price: props.price, dp_pct: props.downPct, lt: 'fha', rate: props.rate, term: props.term } }),
+        }).then(r => r.ok ? r.json() : null).then(d => { if (d?.session?.id) { fhaSetSid(props.journeyAddress!, d.session.id); setJourneySid(d.session.id); } }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.journeyAddress]);
 
     // ── Derived values ────────────────────────────────────────────────────────
 
@@ -414,21 +437,24 @@ export default function FhaSliderCard(props: FhaSliderParams) {
 
             {/* CTAs */}
             <div className="fha-cta-row">
-                <button
-                    className="fha-cta-prop"
-                    onClick={() => {
-                        const p = new URLSearchParams({
-                            price:   String(Math.round(price)),
-                            dp:      String(downPct),
-                            rate:    rate.toFixed(3),
-                            term:    String(termYrs),
-                            lt:      'fha',
-                            taxRate: props.taxRate.toFixed(5),
-                            insRate: props.insRate.toFixed(5),
-                        });
-                        router.push(`/check-property?${p.toString()}`);
-                    }}
-                >🏠 Check a Property</button>
+                {props.journeyAddress ? (
+                    <a
+                        href={`/property-intel?address=${encodeURIComponent(props.journeyAddress)}${journeySid ? `&sid=${journeySid}` : ''}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="fha-cta-prop"
+                        style={{ textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                    >
+                        <span>🏠</span><span>Property Intelligence →</span>
+                    </a>
+                ) : (
+                    <button
+                        className="fha-cta-prop"
+                        onClick={() => {
+                            const p = new URLSearchParams({ price: String(Math.round(price)), dp: String(downPct), rate: rate.toFixed(3), term: String(termYrs), lt: 'fha', taxRate: props.taxRate.toFixed(5), insRate: props.insRate.toFixed(5) });
+                            router.push(`/check-property?${p.toString()}`);
+                        }}
+                    >🏠 Check a Property</button>
+                )}
 
                 {props.onRunScenario && (
                     <button

@@ -531,33 +531,26 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
             {/* CTAs */}
             <div className="chb-cta-row">
-                <button className="chb-cta-prop" onClick={handleCheckProperty}>🏠 Check a Property</button>
+                {/* When launched from my-home with a known address: skip check-property (blank form)
+                    and go straight to Property Intelligence with the address pre-loaded */}
+                {props.journeyAddress ? (
+                    <a
+                        href={`/property-intel?address=${encodeURIComponent(props.journeyAddress)}${journeySid ? `&sid=${journeySid}` : ''}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="chb-cta-prop"
+                        style={{ textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                    >
+                        <span>🏠</span><span>Property Intelligence →</span>
+                    </a>
+                ) : (
+                    <button className="chb-cta-prop" onClick={handleCheckProperty}>🏠 Check a Property</button>
+                )}
                 {props.onRunScenario && (
                     <button className="chb-cta-run" onClick={handleRun}>▶ Run My Numbers</button>
                 )}
             </div>
             <button className="chb-cta-full" onClick={handleGetMatched}>Get Matched with a Lender →</button>
-
-            {/* Journey bridge chip — shown when launched from my-home property context */}
-            {props.journeyAddress && (
-                <a
-                    href={`/property-intel?address=${encodeURIComponent(props.journeyAddress)}${journeySid ? `&sid=${journeySid}` : ''}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        margin: '8px 12px 0', padding: '11px 14px', borderRadius: 9,
-                        background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.22)',
-                        textDecoration: 'none',
-                    }}
-                >
-                    <div>
-                        <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 2 }}>L1 Affordability scored ✓</div>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0' }}>View Full Property Analysis →</div>
-                    </div>
-                    <span style={{ fontSize: '1rem', opacity: 0.5 }}>🏠</span>
-                </a>
-            )}
 
             {/* Cross-fire chip — loan above national baseline: suggest running Jumbo card for comparison */}
             {props.onRunScenario && loanAmt > NATIONAL_BASELINE && (

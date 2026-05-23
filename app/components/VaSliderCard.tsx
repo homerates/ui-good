@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
@@ -66,7 +66,12 @@ export interface VaSliderParams {
     vaFundingFeePct?: number;  // 0 = exempt; undefined → default 2.15%
     monthlyDebts?:    number;
     onRunScenario?:   (seed: string, overrides: Record<string, unknown>) => void;
+    journeyAddress?:  string;
 }
+
+function vaNormKey(a: string) { return a.trim().toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').slice(0,100); }
+function vaGetSid(a: string): string | null { try { return localStorage.getItem(`pi_sid_${vaNormKey(a)}`); } catch { return null; } }
+function vaSetSid(a: string, sid: string)   { try { localStorage.setItem(`pi_sid_${vaNormKey(a)}`, sid); } catch {} }
 
 const DP_CHIPS = [0, 5, 10, 20] as const;
 
@@ -84,6 +89,24 @@ export default function VaSliderCard(props: VaSliderParams) {
 
     const { user } = useUser();
     const router   = useRouter();
+
+    // ── Journey: L1 write-back when launched from my-home property context ────
+    const vaJourneyFired = useRef(false);
+    const [journeySid, setJourneySid] = useState<string | null>(
+        props.journeyAddress ? vaGetSid(props.journeyAddress) : null,
+    );
+    useEffect(() => {
+        if (!props.journeyAddress || vaJourneyFired.current) return;
+        vaJourneyFired.current = true;
+        const ltv       = (1 - props.downPct / 100) * 100;
+        const l1Score   = ltv <= 80 ? 88 : 78;
+        const l1Summary = `VA ${props.downPct}% down · ${ltv.toFixed(1)}% LTV · ${props.rate.toFixed(2)}% rate · No PMI`;
+        fetch('/api/buyer-sessions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ property_address: props.journeyAddress, l1_score: l1Score, l1_summary: l1Summary, scenario_json: { price: props.price, dp_pct: props.downPct, lt: 'va', rate: props.rate, term: props.term } }),
+        }).then(r => r.ok ? r.json() : null).then(d => { if (d?.session?.id) { vaSetSid(props.journeyAddress!, d.session.id); setJourneySid(d.session.id); } }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.journeyAddress]);
 
     // ── Derived values ────────────────────────────────────────────────────────
 
@@ -398,21 +421,32 @@ export default function VaSliderCard(props: VaSliderParams) {
 
             {/* CTAs */}
             <div className="va-cta-row">
-                <button
-                    className="va-cta-prop"
-                    onClick={() => {
-                        const p = new URLSearchParams({
-                            price:   String(Math.round(price)),
-                            dp:      String(downPct),
-                            rate:    rate.toFixed(3),
-                            term:    String(termYrs),
-                            lt:      'va',
-                            taxRate: props.taxRate.toFixed(5),
-                            insRate: props.insRate.toFixed(5),
-                        });
-                        router.push(`/check-property?${p.toString()}`);
-                    }}
-                >🏠 Check a Property</button>
+                {props.journeyAddress ? (
+                    <a
+                        href={`/property-intel?address=${encodeURIComponent(props.journeyAddress)}${journeySid ? `&sid=${journeySid}` : ''}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="va-cta-prop"
+                        style={{ textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                    >
+                        <span>🏠</span><span>Property Intelligence →</span>
+                    </a>
+                ) : (
+                    <button
+                        className="va-cta-prop"
+                        onClick={() => {
+                            const p = new URLSearchParams({
+                                price:   String(Math.round(price)),
+                                dp:      String(downPct),
+                                rate:    rate.toFixed(3),
+                                term:    String(termYrs),
+                                lt:      'va',
+                                taxRate: props.taxRate.toFixed(5),
+                                insRate: props.insRate.toFixed(5),
+                            });
+                            router.push(`/check-property?${p.toString()}`);
+                        }}
+                    >🏠 Check a Property</button>
+                )}
 
                 {props.onRunScenario && (
                     <button className="va-cta-run" onClick={handleRun}>▶ Run My Numbers</button>
