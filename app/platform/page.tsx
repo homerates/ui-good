@@ -95,7 +95,7 @@ const PILLARS = [
     icon: '🏆',
     eyebrow: 'Full Buyer Journey',
     title: 'From First Number to Final Score — The Complete Decision Journey',
-    summary: 'How a single loan scenario in the AI chat becomes a four-level scored verdict. Affordability → Market Conditions → Value Gap → Location Intelligence — every step connected, every number live, one honest verdict before you make an offer.',
+    summary: 'Start from My Home, paste a Redfin/Zillow URL in chat, or use Check Property — all three entry points run the same Grok 4 four-level pipeline. L1 (deterministic LTV formula) → L2 (property vs budget + comps) → L3 (live market conditions) → L4 (7-dimension location score). Weighted composite: L1×35% + L2×25% + L3×25% + L4×15%. One honest verdict before you make an offer.',
     href: '/decision-score',
     accent: '#00e87a',
   },

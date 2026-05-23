@@ -10,6 +10,24 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://chat.homerates.ai/decision-score' },
 };
 
+const ENTRY_POINTS = [
+  {
+    icon: '🏠',
+    label: 'My Home → Analyze Buyers',
+    description: 'Already tracking a property in My Home? Tap the "Analyze Buyers" link on your saved property. Your address is pre-filled into the Scenario Card — open the Property Intelligence report in one tap.',
+  },
+  {
+    icon: '🔎',
+    label: 'Check Property Page',
+    description: 'Navigate to /check-property or click "Check a Property" from the AI chat sidebar. Enter any address manually and launch the full four-level analysis from scratch.',
+  },
+  {
+    icon: '🔗',
+    label: 'Paste a Redfin or Zillow URL',
+    description: 'Paste any Redfin or Zillow listing URL directly into the AI chat. HomeRates.AI extracts the address, builds your Scenario Card automatically, and wires the Property Intelligence → button right in the chat.',
+  },
+];
+
 const STEPS = [
   {
     level: 'L1',
@@ -17,44 +35,44 @@ const STEPS = [
     weight: '35% weight',
     title: 'Affordability Signal',
     question: 'Can you actually afford this at today\'s rate?',
-    description: 'You start by telling the AI your income, existing debts, target price, and down payment. HomeRates.AI pulls the live 30-year conforming rate directly from the Federal Reserve (FRED) and runs a deterministic PITI calculation — principal, interest, taxes, and insurance — against your gross income and existing debts. Your L1 score tells you exactly how comfortably the payment fits your finances at the rate available today, not the promotional rate on a lender\'s website.',
-    sources: ['FRED live mortgage rates', 'Income & debts (from chat)', 'PITI engine — P+I+T+I', 'DTI calculation'],
+    description: 'You start by telling the AI your income, existing debts, target price, and down payment. HomeRates.AI pulls the live 30-year conforming rate directly from the Federal Reserve (FRED) and runs a deterministic PITI calculation — principal, interest, taxes, and insurance — against your gross income and existing debts. L1 is scored using a deterministic formula by loan type: Conventional (LTV ≤80 → 85, ≤85 → 78, ≤90 → 70, >90 → 60), FHA (LTV ≤90 → 72, ≤95 → 65, >95 → 58), VA (LTV ≤80 → 88, else → 78), Jumbo (LTV ≤75 → 86, ≤80 → 80, else → 72). This reflects real-world lending risk tolerance, not an opinion.',
+    sources: ['FRED live mortgage rates', 'Loan type + LTV formula', 'PITI engine — P+I+T+I', 'DTI calculation'],
     signal: 'Score above 75 = strong capacity, multiple loan options. Score below 50 = the payment breaks your budget at today\'s rates.',
     accent: '#00e87a',
     icon: '💬',
   },
   {
     level: 'L2',
-    seq: 'Step 2 — Check Property',
+    seq: 'Step 2 — Property Scoring',
     weight: '25% weight',
-    title: 'Market Conditions',
-    question: 'Is this a buyer\'s or seller\'s market right now?',
-    description: 'Paste any address or Zillow/Redfin listing URL into your Scenario Card and tap Check Property. The system scrapes live Redfin data — days on market (DOM) and sale-to-list ratio — and scores the local market in real time. A DOM above 60 days with sale-to-list below 98% means negotiating room. A DOM under 15 days with sale-to-list above 102% means competing offers and waived contingencies.',
-    sources: ['Redfin — days on market', 'Redfin — sale-to-list ratio', 'Live listing activity', 'Local market trend'],
-    signal: 'Score above 70 = market favours buyers. Score below 40 = active seller\'s market, premium pricing likely.',
+    title: 'Property vs. Budget & Comps',
+    question: 'Does this specific property fit your budget — and what do the comps say?',
+    description: 'Once a property address is in context (from any of the 3 entry points), Grok 4 scores the specific property against your qualified monthly budget. Three factors drive the score: (1) PITI vs. your qualified payment — the gap between what you\'re approved for and what this property actually costs month-to-month; (2) List price vs. Redfin/Zillow AVM — how the asking price compares to the automated valuations built from recent comp sales within 0.5 miles; (3) Days on market positioning — a property sitting 60+ days with a price cut is priced differently than a fresh listing. A property that fits the budget and prices at or below AVM scores 80+.',
+    sources: ['Redfin AVM (automated valuation)', 'Zillow estimate cross-check', 'Recent comp sales within 0.5 mi', 'PITI vs. budget gap', 'Days on market', 'Grok 4 scoring engine'],
+    signal: 'Score above 80 = fits budget and priced at or below market. Score below 40 = over budget or significantly overpriced vs. recent comps.',
     accent: '#60a5fa',
     icon: '🏠',
   },
   {
     level: 'L3',
-    seq: 'Step 3 — Property Intelligence',
+    seq: 'Step 3 — Market Conditions',
     weight: '25% weight',
-    title: 'Value Gap',
-    question: 'Is the list price fair, cheap, or overpriced vs. the market?',
-    description: 'Clicking the Track 5 badge in your Scenario Card opens the full Property Intelligence report. Redfin\'s Automated Valuation Model — built from recent comp sales within 0.5 miles — is compared directly against the listing price. A gap more than 5% in your favour is genuine value. More than 12% against you means the seller is anchoring high and comps don\'t support it. Zillow\'s estimate is cross-checked as a second reference point.',
-    sources: ['Redfin AVM (automated valuation)', 'Live listing price', 'Recent comp sales within 0.5 mi', 'Zillow estimate cross-check'],
-    signal: 'Score above 80 = priced below or at market value. Score below 40 = significantly overpriced vs. recent comps.',
+    title: 'Local Market Intelligence',
+    question: 'Is this a buyer\'s or seller\'s market — and what room do you have to negotiate?',
+    description: 'Grok 4 runs a live web search across the local market to score broader conditions independent of the individual property. Three signals determine the score: (1) Median days on market — a DOM above 60 days indicates buyer leverage; under 15 days means active competition; (2) Sale-to-list ratio — offers closing below 100% of list price signal negotiating room; above 102% means waived contingencies; (3) Recent comp velocity — how quickly similar properties are moving. Seller\'s markets with sub-20 DOM and 101%+ sale-to-list score 30–50. Buyer\'s markets with 60+ DOM and sub-98% sale-to-list score 70+.',
+    sources: ['Grok 4 live web search', 'Redfin — median days on market', 'Sale-to-list ratio trend', 'Comp velocity (recent closings)', 'Local inventory levels'],
+    signal: 'Score above 70 = market favours buyers, negotiating room likely. Score below 40 = active seller\'s market, premium pricing and competing offers.',
     accent: '#a78bfa',
     icon: '📊',
   },
   {
     level: 'L4',
-    seq: 'Step 4 — Full Market Analysis (deep mode)',
+    seq: 'Step 4 — Deep Analysis (Property Intelligence)',
     weight: '15% weight',
     title: 'Location Intelligence',
     question: 'Will this neighbourhood support the investment long-term?',
-    description: 'Tapping Run Full Market Analysis inside the Property Intelligence card triggers Grok-4 deep analysis via the xAI Responses API. Tavily searches the live web across Walk Score, Transit Score, school ratings, safety data, commute patterns, 3-year appreciation trends, and wildfire risk. Grok synthesises all seven sub-factors into a composite Location Intelligence score. This is the signal most buyers skip — and the one that most determines resale value, insurance cost, and quality of life over time.',
-    sources: ['Grok-4 via xAI Responses API', 'Tavily live web search', 'Walk Score / Transit Score', 'School ratings (GreatSchools)', 'Wildfire risk factor', '3-year appreciation trend'],
+    description: 'Tapping Run Deep Analysis inside the Property Intelligence page triggers Grok-4 deep analysis via the xAI Responses API. Grok 4 searches the live web and synthesises seven sub-dimensions: Walk Score, Transit Score, Bike Score, Schools (GreatSchools ratings), Safety, Amenities & Commute, and Wildfire Risk. Wildfire Risk uses an inverted scale — a high wildfire danger produces a low sub-score, which pulls the composite down significantly. This is the signal most buyers skip and the one that most determines resale value, insurance premiums, and quality of life over time.',
+    sources: ['Grok-4 via xAI Responses API', 'Tavily live web search', 'Walk / Transit / Bike scores', 'School ratings (GreatSchools)', 'Wildfire risk (inverted scale)', 'Amenities & commute patterns', '3-year appreciation trend'],
     signal: 'Score above 75 = strong fundamentals, appreciating location. Score below 40 = wildfire exposure, long commute, or declining school district.',
     accent: '#f59e0b',
     icon: '🧠',
@@ -75,7 +93,7 @@ const WHY = [
   {
     icon: '🔗',
     title: 'Every step connects',
-    body: 'Your L1 affordability scenario flows directly into the property check. The property check unlocks the deep analysis. The deep analysis feeds the composite verdict. Nothing resets between steps.',
+    body: 'Start from My Home, the Check Property page, or a Redfin/Zillow URL pasted in chat — all three paths wire the same L1 → L2 → L3 → L4 pipeline. L1 flows into the property check, which unlocks deep analysis, which feeds the composite verdict. Nothing resets between steps.',
   },
   {
     icon: '🧠',
@@ -163,6 +181,14 @@ export default function DecisionScorePage() {
           background:rgba(255,255,255,0.02);border-radius:8px;padding:10px 14px;
           border-left:3px solid;}
 
+        /* Entry points */
+        .ds-entry-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:24px;}
+        .ds-entry-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.08);
+          border-radius:14px;padding:20px;}
+        .ds-entry-icon{font-size:1.5rem;margin-bottom:10px;}
+        .ds-entry-label{font-size:0.85rem;font-weight:800;color:#f0f4ff;margin-bottom:7px;}
+        .ds-entry-desc{font-size:0.8rem;color:rgba(185,208,192,0.7);line-height:1.6;}
+
         /* Why grid */
         .ds-why-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-top:24px;}
         .ds-why-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);
@@ -246,15 +272,33 @@ export default function DecisionScorePage() {
             <div className="ds-section-label">How the Journey Works</div>
             <h2 className="ds-section-h2">Four levels. One verdict. No gut-feel required.</h2>
             <p className="ds-section-body">
-              The journey begins the moment you enter a loan scenario in the AI chat — your income, target price, and down payment. From there, each step deepens the analysis: a property address unlocks market and value scoring; a single tap triggers the full deep analysis across location, wildfire risk, and school quality. By the time you see a Track 5 score, four independent data sources have been synthesised into a single, honest verdict.
+              The journey begins the moment you enter a loan scenario in the AI chat — your income, target price, and down payment. From there, each step deepens the analysis: adding a property address (from My Home, the Check Property page, or a Redfin/Zillow URL pasted directly in chat) unlocks property scoring and market conditions; a single tap triggers the full deep analysis across location, wildfire risk, and school quality. By the time you see a Track 5 score, four levels of Grok 4 intelligence have been synthesised into a single, honest verdict.
               <br /><br />
-              There is no opinion here. No agent incentive. No lender margin. The score is what the data says.
+              L1 is a deterministic formula based on your loan type and LTV. L2, L3, and L4 are scored by Grok 4 using live data from Redfin, Tavily web search, and the xAI Responses API. No opinion. No agent incentive. No lender margin.
             </p>
+          </div>
+
+          {/* 3 Entry Points */}
+          <div>
+            <div className="ds-section-label">3 Ways to Start Your Analysis</div>
+            <h2 className="ds-section-h2">Any property. Any entry point. Same four-level verdict.</h2>
+            <p className="ds-section-body">
+              You don&apos;t need to navigate a multi-step wizard to start. HomeRates.AI recognises three paths into property analysis — pick whichever matches how you found the property.
+            </p>
+            <div className="ds-entry-grid">
+              {ENTRY_POINTS.map(ep => (
+                <div key={ep.label} className="ds-entry-card">
+                  <div className="ds-entry-icon">{ep.icon}</div>
+                  <div className="ds-entry-label">{ep.label}</div>
+                  <div className="ds-entry-desc">{ep.description}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* The 4 Steps */}
           <div>
-            <div className="ds-section-label">The Four Steps</div>
+            <div className="ds-section-label">The Four Scoring Levels</div>
             <h2 className="ds-section-h2">What each step scores — and where the data comes from</h2>
             <div className="ds-steps">
               {STEPS.map((s, i) => (
@@ -289,7 +333,7 @@ export default function DecisionScorePage() {
             <div className="ds-verdict" style={{ marginTop: 24 }}>
               <div className="ds-verdict-eyebrow">Track 5 — Composite Score Output</div>
               <p className="ds-verdict-body">
-                Once all four levels are scored, Track 5 calculates a weighted composite and issues a plain-language verdict. This is the number you bring to your agent when you discuss price, contingencies, and negotiating strategy. A score above 70 across all levels is a strong buy signal. A score below 45 on any single level is a red flag worth understanding before you make an offer.
+                Once all four levels are scored, Track 5 computes a weighted composite: <strong style={{ color: '#00e87a' }}>L1×35% + L2×25% + L3×25% + L4×15%</strong>. The final number maps to a plain-language verdict — Ready to Offer, Proceed Carefully, or Hold Off. This is the number you bring to your agent when you discuss price, contingencies, and negotiating strategy. A composite above 70 is a strong buy signal. Any single level below 45 is a red flag worth understanding before you make an offer.
               </p>
               <div className="ds-verdict-levels">
                 {[
