@@ -109,7 +109,11 @@ function CheckPropertyInner() {
 
     const theme = THEME[sc.lt];
 
-    const [address,   setAddress]   = useState('');
+    // Pre-fill address from ?address= param (set by Track 5 back-link for auto-run)
+    const urlAddress = sp?.get('address') ?? '';
+    const autoRunRef = useRef(false);
+
+    const [address,   setAddress]   = useState(urlAddress);
     const [loading,   setLoading]   = useState(false);
     const [propData,  setPropData]  = useState<PropData | null>(null);
     const [lookupErr, setLookupErr] = useState<string | null>(null);
@@ -121,48 +125,80 @@ function CheckPropertyInner() {
     const [editDp,    setEditDp]    = useState(String(sc.dp));
     const [editRate,  setEditRate]  = useState(String(sc.rate));
 
-    // ── Session persistence — L1 + L3 auto-save ───────────────────────────────
-    // Fires when propData lands after a lookup. Uses the same scoring formulas
-    // already computed in the JSX Track 5 block — no logic duplication, just a
-    // parallel DB write so the session is addressable from /evaluations.
-    // If ?sid=<id> is in the URL (coming from Track 5), PATCH that session so the
-    // two paths are linked rather than creating a new disconnected session.
+    // ── Auto-run lookup when arriving from a back-link with ?address= ─────────
     const { isSignedIn }        = useUser();
-    const incomingSid           = sp?.get('sid') ?? null;  // session ID threaded from Track 5
+    const incomingSid           = sp?.get('sid') ?? null;
     const [checkPropSessionId, setCheckPropSessionId] = useState<string | null>(null);
-    const sessionSavedRef  = useRef(''); // tracks last saved resolved address
+    const sessionSavedRef  = useRef('');
 
     useEffect(() => {
+        if (!urlAddress || autoRunRef.current) return;
+        autoRunRef.current = true;
+        // Slight delay so the component fully mounts before triggering
+        const t = setTimeout(() => handleLookup(), 80);
+        return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // ── Session persistence — L1 + L2 auto-save ───────────────────────────────
+    // L2 = Property Evaluation: gap-based score (PITI gap vs scenario budget,
+    // blended with AVM premium when available). Address is in l2_summary prefix.
+    useEffect(() => {
         if (!isSignedIn) return;
-        if (!resolved || propData === null) return;          // wait for lookup to complete
-        if (sessionSavedRef.current === resolved) return;   // already saved for this address
+        if (!resolved || propData === null) return;
+        if (sessionSavedRef.current === resolved) return;
 
         const avm       = (propData as any)?.estimatedValue ?? null;
         const listPrice = (propData as any)?.price ?? sc.price;
 
-        // L1 — from scenario (same formula as JSX lines below)
+        // L1 — scenario financial readiness
         const ltv     = (1 - sc.dp / 100) * 100;
         const l1Score = sc.lt === 'va'  ? (ltv <= 80 ? 88 : 78)
                       : sc.lt === 'fha' ? (ltv <= 90 ? 72 : ltv <= 95 ? 65 : 58)
                       : (ltv <= 80 ? 85 : ltv <= 85 ? 75 : ltv <= 90 ? 65 : ltv <= 95 ? 55 : 45);
         const l1Sum   = `${theme.label} ${sc.dp}% down · ${pct(ltv, 1)} LTV · ${sc.rate.toFixed(2)}% rate`;
 
+        // L2 — Property Evaluation: PITI gap + AVM premium
+        // Recompute PITI from first principles (same formula as JSX block)
+        const rM  = sc.rate / 100 / 12;
+        const nP  = sc.term * 12;
+        const piF = (prin: number) => prin <= 0 ? 0 : rM <= 0 ? prin / nP
+            : (prin * rM * Math.pow(1 + rM, nP)) / (Math.pow(1 + rM, nP) - 1);
+
+        const scenPITI  = piF(sc.price * (1 - sc.dp / 100)) + (sc.price * sc.taxRate) / 12 + (sc.price * sc.insRate) / 12;
+        const realAnnTax = (propData as any)?.annualTaxes ?? ((propData as any)?.taxRateEffective ? listPrice * (propData as any).taxRateEffective : null);
+        const actualPITI = piF(listPrice * (1 - sc.dp / 100))
+            + (realAnnTax ? realAnnTax / 12 : (listPrice * sc.taxRate) / 12)
+            + (listPrice * sc.insRate) / 12
+            + ((propData as any)?.hoaMonthly ?? 0);
+
+        const pitiGapPct = scenPITI > 0 ? ((actualPITI - scenPITI) / scenPITI) * 100 : 0;
+        const gapScore   = pitiGapPct <= 0 ? 90 : pitiGapPct <= 5 ? 80 : pitiGapPct <= 10 ? 70
+                         : pitiGapPct <= 20 ? 58 : pitiGapPct <= 35 ? 44 : 30;
+
+        let l2Score: number;
+        let l2Summary: string;
+        const gapSign = pitiGapPct >= 0 ? '+' : '';
+        if (!degraded && avm && listPrice) {
+            const avmPrem  = (listPrice - avm) / avm;
+            const avmScore = avmPrem < -0.05 ? 92 : avmPrem < 0 ? 84 : avmPrem < 0.03 ? 76
+                           : avmPrem < 0.07 ? 65 : avmPrem < 0.12 ? 52 : avmPrem < 0.20 ? 38 : 22;
+            l2Score   = Math.round(gapScore * 0.65 + avmScore * 0.35);
+            const premStr = `${avmPrem >= 0 ? '+' : ''}${(avmPrem * 100).toFixed(1)}%`;
+            l2Summary = `${resolved} — PITI $${Math.round(actualPITI).toLocaleString()}/mo vs $${Math.round(scenPITI).toLocaleString()} budget (${gapSign}${pitiGapPct.toFixed(0)}%). Listed ${premStr} vs AVM.`;
+        } else {
+            l2Score   = gapScore;
+            l2Summary = `${resolved} — PITI $${Math.round(actualPITI).toLocaleString()}/mo vs $${Math.round(scenPITI).toLocaleString()} budget (${gapSign}${pitiGapPct.toFixed(0)}%).`;
+        }
+
         const payload: Record<string, unknown> = {
             property_address: resolved,
             l1_score:         l1Score,
             l1_summary:       l1Sum,
+            l2_score:         l2Score,
+            l2_summary:       l2Summary,
             scenario_json:    { price: sc.price, dp_pct: sc.dp, lt: sc.lt, rate: sc.rate, term: 30 },
         };
-
-        // L3 — only when real AVM data is available (not degraded)
-        if (!degraded && avm && listPrice) {
-            const prem    = (listPrice - avm) / avm;
-            const l3Score = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
-                          : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
-            const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
-            payload.l3_score   = l3Score;
-            payload.l3_summary = `${resolved} — Listed $${Math.round(listPrice / 1000)}K vs AVM $${Math.round(avm / 1000)}K (${premStr}).`;
-        }
 
         sessionSavedRef.current = resolved;
 

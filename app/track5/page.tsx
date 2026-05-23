@@ -266,8 +266,11 @@ function Track5Inner() {
     l4: { score: clampScore(params?.get('l4_score')), summary: params?.get('l4_summary') ?? null },
   };
 
-  // ── Extract address from l3_summary if present ("ADDRESS — Listed ...") ──
-  const address = levels.l3.summary?.split(' — ')[0]?.trim() ?? null;
+  // ── Extract address from l2_summary (Property Evaluation — "ADDR — ...") ──
+  // Fall back to l3_summary for backward compatibility with older sessions
+  const address = levels.l2.summary?.split(' — ')[0]?.trim()
+               ?? levels.l3.summary?.split(' — ')[0]?.trim()
+               ?? null;
   const piUrl   = address ? `/property-intel?address=${encodeURIComponent(address)}` : '/property-intel';
 
   // ── Purchase scenario context — session wins over URL params ─────────────
@@ -457,14 +460,14 @@ function Track5Inner() {
               : '/chat',
           }}
         />
-        {/* L2 back-link: back to check-property (property value + gap analysis) */}
+        {/* L2 back-link: back to check-property (gap analysis, AVM vs list) */}
         <LevelCard
-          num="L2" title="Property Value" weight="25%"
+          num="L2" title="Property Evaluation" weight="25%"
           data={levels.l2}
           cta={{
             label: address ? 'Back to Property ↗' : 'Check a Property ↗',
-            href:  address && hasPurchaseCtx
-              ? `/check-property?price=${ctxPrice}&dp=${ctxDp}&rate=${ctxRate}&term=30&lt=${ctxLt}${sessionId ? `&sid=${sessionId}` : ''}`
+            href:  hasPurchaseCtx
+              ? `/check-property?price=${ctxPrice}&dp=${ctxDp}&rate=${ctxRate}&term=30&lt=${ctxLt}${address ? `&address=${encodeURIComponent(address)}` : ''}${sessionId ? `&sid=${sessionId}` : ''}`
               : '/check-property',
           }}
         />
@@ -517,14 +520,14 @@ function Track5Inner() {
               <div style={{ fontSize: '0.67rem', color: '#4b6080', marginTop: 6 }}>← Back to scenario</div>
             </a>
 
-            {/* 2 — Property Check */}
+            {/* 2 — Property Evaluation */}
             <a
-              href={address && hasPurchaseCtx
-                ? `/check-property?price=${ctxPrice}&dp=${ctxDp}&rate=${ctxRate}&term=30&lt=${ctxLt}${sessionId ? `&sid=${sessionId}` : ''}`
+              href={hasPurchaseCtx
+                ? `/check-property?price=${ctxPrice}&dp=${ctxDp}&rate=${ctxRate}&term=30&lt=${ctxLt}${address ? `&address=${encodeURIComponent(address)}` : ''}${sessionId ? `&sid=${sessionId}` : ''}`
                 : '/check-property'}
               style={{ display: 'block', textDecoration: 'none', background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 12px' }}
             >
-              <div style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 5 }}>Property Check</div>
+              <div style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 5 }}>Property Evaluation</div>
               <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#c4cfe0', lineHeight: 1.4, marginBottom: 3 }}>
                 {address ? address.split(',')[0] : 'Check Property'}
               </div>

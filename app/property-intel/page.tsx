@@ -186,11 +186,16 @@ function PropertyIntelInner() {
       l4Summary = pts.join(', ') + '.';
     }
 
-    if (l2Score == null && l3Score == null && l4Score == null) return; // nothing to save
+    // In the new level model:
+    //   l2_score = Property Evaluation (gap + AVM) — owned by check-property, not saved here
+    //   l3_score = Market Intelligence (DOM/sale-to-list) — was l2_score here, now l3
+    //   l4_score = Location Intelligence — unchanged
+    if (l2Score == null && l4Score == null) return; // nothing to save (l3Score/AVM skipped)
 
     const payload: Record<string, unknown> = { property_address: address };
-    if (l2Score != null) { payload.l2_score = l2Score; payload.l2_summary = l2Summary; }
-    if (l3Score != null) { payload.l3_score = l3Score; payload.l3_summary = l3Summary; }
+    // Market conditions → l3 in the new naming model
+    if (l2Score != null) { payload.l3_score = l2Score; payload.l3_summary = l2Summary; }
+    // l3Score (AVM from Grok) is NOT saved here — check-property owns L2/AVM
     if (l4Score != null) { payload.l4_score = l4Score; payload.l4_summary = l4Summary; }
 
     deepSavedRef.current = address;
