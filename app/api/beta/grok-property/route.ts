@@ -96,6 +96,7 @@ REQUIRED searches:
 3. Find 4-6 recent comparable sales (past 24 months, within 1 mile) — use web search AND your training knowledge. Real addresses with verified sale prices.
 4. Find ZIP-level market stats — median DOM, median sale price, sale-to-list ratio
 5. life_fit_score 0-100: schools, walkability, commute, neighborhood quality, value vs comps
+6. location_intelligence.sub_scores: You MUST return ALL 7 sub_scores (Walk Score, Transit Score, Bike Score, Schools, Safety, Amenities & Commute, Wildfire Risk) — never return an empty array. Use your knowledge if web data is unavailable. Each sub_score MUST have a numeric score, rating string, and description string.
 
 Return ONLY valid JSON — no markdown, no code fences, no explanation:
 {

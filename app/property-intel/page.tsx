@@ -987,6 +987,11 @@ function PropertyIntelInner() {
                     </div>
 
                     {/* Sub-score grid */}
+                    {regular.length === 0 && !wildfire && (
+                      <div style={{ margin: '0 28px 16px', padding: '14px 18px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, fontSize: '0.78rem', color: '#64748b', textAlign: 'center' }}>
+                        Detailed sub-score breakdown unavailable — click Re-run for a fresh analysis.
+                      </div>
+                    )}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, padding: '0 28px 16px' }} className="li-sub-grid">
                       {regular.map((s, i) => {
                         const accent = metricAccent(s.metric);
