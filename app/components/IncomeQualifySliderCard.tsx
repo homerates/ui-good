@@ -38,7 +38,11 @@ export interface IncomeQualifySliderParams {
     insRate: number;
     loanType?: 'conventional' | 'fha' | 'jumbo' | 'va';
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
+    journeyAddress?: string;
 }
+
+function iqNormKey(a: string) { return a.trim().toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').slice(0,100); }
+function iqGetSid(a: string): string | null { try { return localStorage.getItem(`pi_sid_${iqNormKey(a)}`); } catch { return null; } }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -87,6 +91,11 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
     const { user } = useUser();
     const router   = useRouter();
+
+    // ── Journey: read existing session id set by parent slider card ───────────
+    const [journeySid] = useState<string | null>(
+        props.journeyAddress ? iqGetSid(props.journeyAddress) : null,
+    );
 
     // ── Derived values ──────────────────────────────────────────────────────
 
@@ -472,25 +481,36 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
             {/* Action buttons */}
             <div className="iq-actions">
-                <button
-                    className="iq-btn-property"
-                    onClick={() => {
-                        const lt = isJumbo ? 'jumbo' : isFHA ? 'fha' : isVA ? 'va' : 'conventional';
-                        const p = new URLSearchParams({
-                            price:   String(Math.round(price)),
-                            dp:      String(downPct),
-                            rate:    rate.toFixed(3),
-                            term:    String(termYrs),
-                            lt,
-                            taxRate: props.taxRate.toFixed(5),
-                            insRate: props.insRate.toFixed(5),
-                            ...(monthlyDebt > 0 ? { monthlyDebt: String(Math.round(monthlyDebt)) } : {}),
-                        });
-                        router.push(`/check-property?${p.toString()}`);
-                    }}
-                >
-                    Check a property →
-                </button>
+                {props.journeyAddress ? (
+                    <a
+                        href={`/property-intel?address=${encodeURIComponent(props.journeyAddress)}${journeySid ? `&sid=${journeySid}` : ''}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="iq-btn-property"
+                        style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}
+                    >
+                        <span>🏠</span><span>Property Intelligence →</span>
+                    </a>
+                ) : (
+                    <button
+                        className="iq-btn-property"
+                        onClick={() => {
+                            const lt = isJumbo ? 'jumbo' : isFHA ? 'fha' : isVA ? 'va' : 'conventional';
+                            const p = new URLSearchParams({
+                                price:   String(Math.round(price)),
+                                dp:      String(downPct),
+                                rate:    rate.toFixed(3),
+                                term:    String(termYrs),
+                                lt,
+                                taxRate: props.taxRate.toFixed(5),
+                                insRate: props.insRate.toFixed(5),
+                                ...(monthlyDebt > 0 ? { monthlyDebt: String(Math.round(monthlyDebt)) } : {}),
+                            });
+                            router.push(`/check-property?${p.toString()}`);
+                        }}
+                    >
+                        Check a property →
+                    </button>
+                )}
                 <button className="iq-btn-vault" onClick={handleVault}>
                     <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
                         <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd"/>

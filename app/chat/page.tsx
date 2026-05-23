@@ -3044,6 +3044,11 @@ export default function Page() {
                                                         {m.meta.incomeQualifySlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
                                                                 {...m.meta.incomeQualifySlider}
+                                                                journeyAddress={
+                                                                    searchParams?.get('from') === '/my-home' && cmaContextRef.current?.cmaAddress
+                                                                        ? cmaContextRef.current.cmaAddress
+                                                                        : undefined
+                                                                }
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
