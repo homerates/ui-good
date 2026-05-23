@@ -1018,7 +1018,7 @@ function PropertyIntelInner() {
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                               <span style={{ fontSize: '1.45rem', fontWeight: 900, color: '#f87171', lineHeight: 1 }}>{wildfire.score}</span>
                               <span style={{ fontSize: '0.6rem', color: '#4b6080' }}>/100</span>
-                              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f87171' }}>{wildfire.rating.toUpperCase()}</span>
+                              {wildfire.rating && <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f87171' }}>{wildfire.rating.toUpperCase()}</span>}
                             </div>
                           </div>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
