@@ -422,27 +422,6 @@ export default function VaSliderCard(props: VaSliderParams) {
                 Get Matched with a VA Lender →
             </button>
 
-            {/* Evaluate This Purchase — opens Track 5 in new tab with L1 pre-loaded */}
-            <button
-                style={{
-                    display: 'block', width: 'calc(100% - 24px)', margin: '0 12px 10px',
-                    padding: '10px 0', background: 'rgba(126,244,244,0.05)',
-                    border: '1px solid rgba(126,244,244,0.22)', borderRadius: 9,
-                    color: '#7ef4f4', fontSize: 12, fontWeight: 700,
-                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
-                    letterSpacing: '0.03em', transition: 'all .15s',
-                }}
-                onClick={() => {
-                    const ltvVal = Math.round(ltv * 10) / 10;
-                    const l1  = ltvVal <= 80 ? 88 : 78;
-                    const eq  = ltvVal <= 80 ? 'Strong equity · No PMI' : 'Moderate equity · No PMI';
-                    const sum = `VA ${ltvVal}% LTV · ${eq} · ${rate.toFixed(2)}% rate`;
-                    const url = `/track5?l1_score=${l1}&l1_summary=${encodeURIComponent(sum)}&ctx_price=${Math.round(price)}&ctx_dp=${downPct}&ctx_lt=va&ctx_rate=${rate}&ctx_piti=${Math.round(piti)}`;
-                    window.open(url, '_blank');
-                }}
-            >
-                📋 Score This Purchase →
-            </button>
 
             {/* Deep analysis drawer */}
             <button className="va-dtrigger" onClick={() => setDrawerOpen(o => !o)}>

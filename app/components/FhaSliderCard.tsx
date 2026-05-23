@@ -441,27 +441,6 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 Get Matched with a Lender →
             </button>
 
-            {/* Evaluate This Purchase — opens Track 5 in new tab with L1 pre-loaded */}
-            <button
-                style={{
-                    display: 'block', width: 'calc(100% - 24px)', margin: '0 12px 10px',
-                    padding: '10px 0', background: 'rgba(126,244,244,0.05)',
-                    border: '1px solid rgba(126,244,244,0.22)', borderRadius: 9,
-                    color: '#7ef4f4', fontSize: 12, fontWeight: 700,
-                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
-                    letterSpacing: '0.03em', transition: 'all .15s',
-                }}
-                onClick={() => {
-                    const ltvVal = Math.round(ltv * 10) / 10;
-                    const l1 = ltvVal <= 90 ? 72 : ltvVal <= 95 ? 65 : 58;
-                    const eq  = ltvVal <= 90 ? 'LTV ≤90%' : ltvVal <= 95 ? 'LTV ≤95%' : 'High LTV';
-                    const sum = `FHA ${ltvVal}% LTV · ${eq} · ${rate.toFixed(2)}% rate`;
-                    const url = `/track5?l1_score=${l1}&l1_summary=${encodeURIComponent(sum)}&ctx_price=${Math.round(price)}&ctx_dp=${downPct}&ctx_lt=fha&ctx_rate=${rate}&ctx_piti=${Math.round(total)}`;
-                    window.open(url, '_blank');
-                }}
-            >
-                📋 Score This Purchase →
-            </button>
 
             {/* Deep analysis drawer */}
             <button className="fha-dtrigger" onClick={() => setDrawerOpen(o => !o)}>

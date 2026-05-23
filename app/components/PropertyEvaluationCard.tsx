@@ -108,11 +108,6 @@ export default function PropertyEvaluationCard(props: PropertyEvaluationProps) {
     // L1 score
     const l1 = computeL1(curLtv, props.loanType);
 
-    // Track 5 URL
-    const track5Url = (() => {
-        const p = new URLSearchParams({ l1_score: String(l1.score), l1_summary: l1.summary });
-        return `/track5?${p.toString()}`;
-    })();
 
     // Loan type label
     const loanLabel = props.loanType === 'va' ? 'VA' : props.loanType === 'fha' ? 'FHA' : props.loanType === 'jumbo' ? 'Jumbo' : 'Conv.';
@@ -412,13 +407,6 @@ export default function PropertyEvaluationCard(props: PropertyEvaluationProps) {
                 </div>
             )}
 
-            {/* Score CTA */}
-            <button className="pec-score-cta" onClick={() => router.push(track5Url)}>
-                📊 Score This Purchase →
-            </button>
-            <div className="pec-l1-note">
-                L1 Financial Readiness: {l1.score}/100 · {l1.summary}
-            </div>
 
         </div>
     );

@@ -285,14 +285,7 @@ function Track5Inner() {
     return `$${n.toLocaleString()}`;
   }
   const ltLabel  = ctxLt === 'jumbo' ? 'Jumbo' : ctxLt === 'fha' ? 'FHA' : ctxLt === 'va' ? 'VA' : 'Conv.';
-  // sid4cta: carries the session ID forward into every CTA so all downstream pages
-  // PATCH the same session instead of creating a new disconnected one.
-  const sid4cta  = sessionId ? `&sid=${sessionId}` : '';
-  const propIntelUrl = address
-    ? `${piUrl}${sid4cta}`   // piUrl = /property-intel?address=... so &sid appends cleanly
-    : hasPurchaseCtx
-    ? `/check-property?price=${ctxPrice}&dp=${ctxDp}&rate=${ctxRate}&term=30&lt=${ctxLt}${sid4cta}`
-    : '/property-intel';
+  // piUrl already set above — used in Homeowner Journey back-links
 
   const idx       = computeIndex(levels);
   const v         = idx ? verdict(idx.score) : null;
@@ -316,43 +309,9 @@ function Track5Inner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Effect 2: Auto-save when navigated from chip (l1_score in URL + signed in) ──
-  // After saving, updates URL to ?session=<id> so back-navigation restores state.
-  useEffect(() => {
-    if (params?.get('session')) return; // already loading from session — don't double-save
-    if (!isSignedIn) return;
-    if (saveAttemptedRef.current) return;
-    if (levels.l1.score == null) return;
-    saveAttemptedRef.current = true;
-
-    const payload: Record<string, unknown> = {
-      l1_score:    levels.l1.score,
-      l1_summary:  levels.l1.summary,
-      session_name: ctxPrice
-        ? `${ltLabel} ${fmtK(ctxPrice)} · ${ctxDp}% down`
-        : (levels.l1.summary ?? 'Financial Analysis'),
-    };
-    if (ctxPrice) {
-      payload.scenario_json = { price: ctxPrice, dp_pct: ctxDp, lt: ctxLt, rate: ctxRate, piti: ctxPiti };
-    }
-
-    fetch('/api/buyer-sessions', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d?.session?.id) {
-          setSessionId(d.session.id);
-          setSaved(true);
-          // Replace URL with session ID — browser back button now restores full session
-          router.replace(`/track5?session=${d.session.id}`, { scroll: false });
-        }
-      })
-      .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSignedIn]);
+  // NOTE: Auto-save from URL params removed — Track 5 is now only reachable from
+  // Property Intelligence which saves the session before navigating here.
+  // Session always arrives via ?session=<id> (Effect 1 above handles loading).
 
   return (
     <div className="page-standalone t5-root">
@@ -487,40 +446,106 @@ function Track5Inner() {
         </div>
 
         {/* ── Level Cards ── */}
+        {/* L1 back-link: re-run the scenario in chat */}
         <LevelCard
           num="L1" title="Financial Readiness" weight="35%"
           data={levels.l1}
           cta={{
-            label: hasPurchaseCtx ? 'Re-run Scenario ↗' : 'Run Affordability ↗',
+            label: hasPurchaseCtx ? 'Back to Scenario ↗' : 'Run Scenario ↗',
             href:  hasPurchaseCtx
               ? `/chat?sq=${encodeURIComponent(`Show me a ${ltLabel} purchase payment breakdown for ${fmtK(ctxPrice!)} with ${ctxDp}% down at ${ctxRate?.toFixed(2)}%.`)}`
-              : '/chat?sq=I+want+to+run+an+affordability+analysis.+Show+me+the+affordability+calculator+so+I+can+enter+my+income+and+debts.',
+              : '/chat',
           }}
         />
+        {/* L2 back-link: back to check-property (property value + gap analysis) */}
         <LevelCard
-          num="L2" title="Market Conditions" weight="25%"
+          num="L2" title="Property Value" weight="25%"
           data={levels.l2}
           cta={{
-            label: address ? 'Property Intelligence ↗' : 'Run Property Intel ↗',
-            href: propIntelUrl,
+            label: address ? 'Back to Property ↗' : 'Check a Property ↗',
+            href:  address && hasPurchaseCtx
+              ? `/check-property?price=${ctxPrice}&dp=${ctxDp}&rate=${ctxRate}&term=30&lt=${ctxLt}${sessionId ? `&sid=${sessionId}` : ''}`
+              : '/check-property',
           }}
         />
+        {/* L3 back-link: back to property-intel (market conditions + comps) */}
         <LevelCard
-          num="L3" title="Property Value" weight="25%"
+          num="L3" title="Market Intelligence" weight="25%"
           data={levels.l3}
           cta={{
-            label: address ? 'Open Property Intel ↗' : (hasPurchaseCtx ? 'Check This Property ↗' : 'Search a Property ↗'),
-            href:  propIntelUrl,
+            label: address ? 'Back to Property Intel ↗' : 'Property Intelligence ↗',
+            href:  address ? `${piUrl}${sessionId ? `&sid=${sessionId}` : ''}` : '/property-intel',
           }}
         />
+        {/* L4 back-link: back to property-intel (deep analysis unlocks location) */}
         <LevelCard
           num="L4" title="Location Intelligence" weight="15%"
           data={levels.l4}
           cta={{
-            label: address ? 'Open Property Intel ↗' : (hasPurchaseCtx ? 'Run Location Check ↗' : 'Search a Property ↗'),
-            href:  hasPurchaseCtx || address ? propIntelUrl : '/property-intel',
+            label: levels.l4.score != null
+              ? (address ? 'Back to Property Intel ↗' : 'Property Intelligence ↗')
+              : (address ? 'Run Deep Analysis ↗' : 'Property Intelligence ↗'),
+            href: address ? `${piUrl}${sessionId ? `&sid=${sessionId}` : ''}` : '/property-intel',
           }}
         />
+
+        {/* ── Homeowner Journey — back-nav to source cards ── */}
+        <div style={{
+          marginTop: 24,
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          borderRadius: 12, padding: '16px 18px',
+        }}>
+          <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 12 }}>
+            Homeowner Journey
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {/* 1 — Scenario */}
+            <a
+              href={hasPurchaseCtx
+                ? `/chat?sq=${encodeURIComponent(`Show me a ${ltLabel} purchase payment breakdown for ${fmtK(ctxPrice!)} with ${ctxDp}% down at ${ctxRate?.toFixed(2)}%.`)}`
+                : '/chat'}
+              style={{ display: 'block', textDecoration: 'none', background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 12px' }}
+            >
+              <div style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 5 }}>Scenario</div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#c4cfe0', lineHeight: 1.4, marginBottom: 3 }}>
+                {hasPurchaseCtx ? `${ltLabel} ${fmtK(ctxPrice!)}` : 'Run Scenario'}
+              </div>
+              {hasPurchaseCtx && (
+                <div style={{ fontSize: '0.67rem', color: '#4b6080' }}>{ctxDp}% down · {ctxRate?.toFixed(2)}%</div>
+              )}
+              <div style={{ fontSize: '0.67rem', color: '#4b6080', marginTop: 6 }}>← Back to scenario</div>
+            </a>
+
+            {/* 2 — Property Check */}
+            <a
+              href={address && hasPurchaseCtx
+                ? `/check-property?price=${ctxPrice}&dp=${ctxDp}&rate=${ctxRate}&term=30&lt=${ctxLt}${sessionId ? `&sid=${sessionId}` : ''}`
+                : '/check-property'}
+              style={{ display: 'block', textDecoration: 'none', background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 12px' }}
+            >
+              <div style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 5 }}>Property Check</div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#c4cfe0', lineHeight: 1.4, marginBottom: 3 }}>
+                {address ? address.split(',')[0] : 'Check Property'}
+              </div>
+              {address && (
+                <div style={{ fontSize: '0.67rem', color: '#4b6080' }}>{address.split(',').slice(1).join(',').trim()}</div>
+              )}
+              <div style={{ fontSize: '0.67rem', color: '#4b6080', marginTop: 6 }}>← Back to property</div>
+            </a>
+
+            {/* 3 — Property Intelligence */}
+            <a
+              href={address ? `${piUrl}${sessionId ? `&sid=${sessionId}` : ''}` : '/property-intel'}
+              style={{ display: 'block', textDecoration: 'none', background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 12px' }}
+            >
+              <div style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 5 }}>Property Intel</div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#c4cfe0', lineHeight: 1.4, marginBottom: 3 }}>Full Analysis</div>
+              <div style={{ fontSize: '0.67rem', color: '#4b6080' }}>Grok 4 · comps · deep data</div>
+              <div style={{ fontSize: '0.67rem', color: '#4b6080', marginTop: 6 }}>← Back to intel</div>
+            </a>
+          </div>
+        </div>
 
       </div>
     </div>

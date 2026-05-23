@@ -927,9 +927,10 @@ function PropertyIntelInner() {
 
                   const allScores = [l3Score, l2Score, l4Score].filter((s): s is number => s != null);
                   const avgScore  = Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);
-                  const ctaLabel  = readyCount === 1
-                    ? (l3Score != null ? 'L3 Property Value' : l2Score != null ? 'L2 Market Conditions' : 'L4 Location') + ' score ready'
-                    : `${readyCount} Track 5 levels scored`;
+                  const avgColor  = avgScore >= 70 ? '#4ade80' : avgScore >= 50 ? '#fbbf24' : '#f87171';
+                  const levelsText = readyCount === 1
+                    ? (l3Score != null ? 'Property Value' : l2Score != null ? 'Market Conditions' : 'Location') + ' scored'
+                    : `${readyCount} of 4 levels scored`;
 
                   return (
                     <a
@@ -939,19 +940,24 @@ function PropertyIntelInner() {
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         width: '100%', textDecoration: 'none',
-                        background: 'rgba(255,255,255,0.02)',
-                        border: '1px solid rgba(255,255,255,0.07)',
-                        borderRadius: 10, padding: '10px 14px',
-                        marginTop: 2,
+                        background: 'rgba(74,222,128,0.05)',
+                        border: '1px solid rgba(74,222,128,0.22)',
+                        borderRadius: 10, padding: '12px 16px',
+                        marginTop: 2, gap: 12,
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 4, padding: '2px 6px', color: '#4ade80' }}>Track 5</span>
-                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#94a3b8' }}>{ctaLabel}</span>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+                          <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 4, padding: '2px 7px', color: '#4ade80' }}>Decision Score</span>
+                          <span style={{ fontSize: '0.7rem', color: '#4b6080' }}>{levelsText}</span>
+                        </div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0' }}>
+                          View Your Buying Decision Score →
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: '1rem', fontWeight: 900, color: avgScore >= 70 ? '#4ade80' : avgScore >= 50 ? '#fbbf24' : '#f87171' }}>{avgScore}</span>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#eaf8f7' }}>View ↗</span>
+                      <div style={{ flexShrink: 0, textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.6rem', fontWeight: 900, lineHeight: 1, color: avgColor, letterSpacing: '-0.03em' }}>{avgScore}</div>
+                        <div style={{ fontSize: '0.58rem', color: '#4b6080', marginTop: 2 }}>avg</div>
                       </div>
                     </a>
                   );

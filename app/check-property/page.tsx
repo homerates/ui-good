@@ -808,71 +808,36 @@ function CheckPropertyInner() {
                         </div>
                     </Section>
 
-                    {/* ── Forward paths — Property Intel + Track 5 ─────── */}
+                    {/* ── Homeowner Journey — Property Intelligence is the next step ─ */}
                     {resolved && (
                         <div style={{ marginTop: 8, marginBottom: 14 }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 10 }}>
-                                Take this further
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 10 }}>
+                                Homeowner Journey
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                                {/* Property Intelligence */}
-                                <a
-                                    href={`/property-intel?address=${encodeURIComponent(resolved)}`}
-                                    target="_blank" rel="noopener noreferrer"
-                                    style={{ display: 'block', textDecoration: 'none', background: '#0d1117', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px', transition: 'border-color 0.15s' }}
-                                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)')}
-                                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
-                                >
-                                    <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Property Intelligence →</div>
-                                    <div style={{ fontSize: 11, color: '#eaf8f7', lineHeight: 1.5 }}>
-                                        {degraded
-                                            ? 'Run AI market analysis, comps, and AVM — Grok 4 deep analysis on this address'
-                                            : 'AI comps, AVM, market data, and Grok 4 deep analysis on this exact property'}
+                            {/* Property Intelligence — full-width, primary forward path */}
+                            <a
+                                href={`/property-intel?address=${encodeURIComponent(resolved)}${(checkPropSessionId || incomingSid) ? `&sid=${checkPropSessionId ?? incomingSid}` : ''}`}
+                                target="_blank" rel="noopener noreferrer"
+                                style={{ display: 'block', textDecoration: 'none', background: '#0d1117', border: '1px solid rgba(126,244,244,0.2)', borderRadius: 12, padding: '16px 18px', transition: 'border-color 0.15s' }}
+                                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(126,244,244,0.4)')}
+                                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(126,244,244,0.2)')}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                                    <div>
+                                        <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 5 }}>
+                                            Property Intelligence →
+                                        </div>
+                                        <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>
+                                            {degraded
+                                                ? 'AI market analysis, comps, and AVM — Grok 4 deep analysis on this address'
+                                                : 'AI comps, AVM, market data, and Grok 4 deep analysis on this exact property'}
+                                        </div>
                                     </div>
-                                </a>
-                                {/* Track 5 — always available; L3 only if AVM available */}
-                                {(() => {
-                                    const propAvm   = propData?.estimatedValue ?? null;
-                                    const propPrice = propData?.price ?? null;
-                                    // L1 from scenario (ltv + loan type)
-                                    const ltv = (1 - sc.dp / 100) * 100;
-                                    const lt  = sc.lt;
-                                    const l1Score = lt === 'va' ? (ltv <= 80 ? 88 : 78)
-                                        : lt === 'fha' ? (ltv <= 90 ? 72 : ltv <= 95 ? 65 : 58)
-                                        : (ltv <= 80 ? 85 : ltv <= 85 ? 75 : ltv <= 90 ? 65 : ltv <= 95 ? 55 : 45);
-                                    const l1Sum = `${theme.label} ${sc.dp}% down · ${pct(ltv, 1)} LTV · ${sc.rate.toFixed(2)}% rate`;
-
-                                    let t5href = `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(l1Sum)}`;
-                                    let t5sub  = `L1 scored ${l1Score}/100 from your scenario — add L3 market score`;
-                                    if (!degraded && propAvm && propPrice) {
-                                        const prem    = (propPrice - propAvm) / propAvm;
-                                        const l3Score = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76 : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
-                                        const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
-                                        const l3Sum   = `${resolved} — Listed $${Math.round(propPrice / 1000)}K vs AVM $${Math.round(propAvm / 1000)}K (${premStr}).`;
-                                        t5href = `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(l1Sum)}&l3_score=${l3Score}&l3_summary=${encodeURIComponent(l3Sum)}`;
-                                        t5sub  = `L1 ${l1Score}/100 · L3 ${l3Score}/100 — pre-loaded from this analysis`;
-                                    }
-                                    // If we have a linked session, navigate directly to it (restores all scores)
-                                    const finalT5href = (checkPropSessionId || incomingSid)
-                                        ? `/track5?session=${checkPropSessionId ?? incomingSid}`
-                                        : t5href;
-                                    return (
-                                        <a
-                                            href={finalT5href}
-                                            target="_blank" rel="noopener noreferrer"
-                                            style={{ display: 'block', textDecoration: 'none', background: '#0d1117', border: '1px solid rgba(74,222,128,0.15)', borderRadius: 12, padding: '14px 16px', transition: 'border-color 0.15s' }}
-                                            onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(74,222,128,0.3)')}
-                                            onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(74,222,128,0.15)')}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-                                                <span style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 4, padding: '2px 6px', color: '#4ade80' }}>Track 5</span>
-                                            </div>
-                                            <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Decision Score →</div>
-                                            <div style={{ fontSize: 11, color: '#eaf8f7', lineHeight: 1.5 }}>{t5sub}</div>
-                                        </a>
-                                    );
-                                })()}
-                            </div>
+                                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#7ef4f4', background: 'rgba(126,244,244,0.08)', border: '1px solid rgba(126,244,244,0.2)', borderRadius: 6, padding: '4px 10px', flexShrink: 0 }}>
+                                        Next Step ↗
+                                    </div>
+                                </div>
+                            </a>
                         </div>
                     )}
 
