@@ -3028,9 +3028,11 @@ export default function Page() {
                                                             <ConvHBSliderCard
                                                                 {...m.meta.convHBSlider}
                                                                 journeyAddress={
-                                                                    // Pass journey context when launched from my-home for a specific property
-                                                                    searchParams?.get('from') === '/my-home' && cmaContextRef.current?.cmaAddress
-                                                                        ? cmaContextRef.current.cmaAddress
+                                                                    // Pass journey context when launched from my-home for a specific property.
+                                                                    // Prefer cmaContextRef (set from API chips) but fall back to URL param — it's
+                                                                    // available immediately and is the same address my-home put in the URL.
+                                                                    searchParams?.get('from') === '/my-home'
+                                                                        ? (cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined)
                                                                         : undefined
                                                                 }
                                                                 onRunScenario={(seed, overrides) => {
@@ -3045,8 +3047,8 @@ export default function Page() {
                                                             <IncomeQualifySliderCard
                                                                 {...m.meta.incomeQualifySlider}
                                                                 journeyAddress={
-                                                                    searchParams?.get('from') === '/my-home' && cmaContextRef.current?.cmaAddress
-                                                                        ? cmaContextRef.current.cmaAddress
+                                                                    searchParams?.get('from') === '/my-home'
+                                                                        ? (cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined)
                                                                         : undefined
                                                                 }
                                                                 onRunScenario={(seed, overrides) => {
@@ -3061,8 +3063,8 @@ export default function Page() {
                                                             <FhaSliderCard
                                                                 {...m.meta.fhaSlider}
                                                                 journeyAddress={
-                                                                    searchParams?.get('from') === '/my-home' && cmaContextRef.current?.cmaAddress
-                                                                        ? cmaContextRef.current.cmaAddress
+                                                                    searchParams?.get('from') === '/my-home'
+                                                                        ? (cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined)
                                                                         : undefined
                                                                 }
                                                                 onRunScenario={(seed, overrides) => {
@@ -3088,8 +3090,8 @@ export default function Page() {
                                                             <VaSliderCard
                                                                 {...m.meta.vaSlider}
                                                                 journeyAddress={
-                                                                    searchParams?.get('from') === '/my-home' && cmaContextRef.current?.cmaAddress
-                                                                        ? cmaContextRef.current.cmaAddress
+                                                                    searchParams?.get('from') === '/my-home'
+                                                                        ? (cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined)
                                                                         : undefined
                                                                 }
                                                                 onRunScenario={(seed, overrides) => {
