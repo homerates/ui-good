@@ -492,17 +492,25 @@ export async function POST(req: NextRequest) {
               : existing.grok_result as Record<string, unknown>;
             // Only merge from a basic (non-deep) entry — don't inherit a previous bad deep run
             if (!prev.deep_analysis) {
-              const deepComps = result.comparable_sales as unknown[] | null;
+              const deepComps = result.comparable_sales as Array<Record<string, unknown>> | null;
               const prevComps = prev.comparable_sales as unknown[] | null;
+              // Only count deep comps that have a real sold_price (Grok occasionally returns nulls)
+              const validDeepComps = (deepComps ?? []).filter(c => c.sold_price && Number(c.sold_price) > 0);
               toStore = {
                 ...prev,
                 ...result,
-                // Use deep comps only if >= 2, otherwise keep the basic comps
-                comparable_sales: (deepComps?.length ?? 0) >= 2 ? deepComps : prevComps ?? deepComps ?? [],
+                // Use valid deep comps only if we got at least 2 with real prices;
+                // otherwise fall back to the basic run's quality comps
+                comparable_sales: validDeepComps.length >= 2 ? validDeepComps : prevComps ?? deepComps ?? [],
                 // Preserve non-zero PITI/rate from basic if deep lost it
-                estimated_piti: (result.estimated_piti as number) > 0 ? result.estimated_piti : prev.estimated_piti,
-                rate_used:      result.rate_used ?? prev.rate_used,
-                price_per_sqft: result.price_per_sqft ?? prev.price_per_sqft,
+                estimated_piti:    (result.estimated_piti as number) > 0 ? result.estimated_piti : prev.estimated_piti,
+                rate_used:         result.rate_used      ?? prev.rate_used,
+                price_per_sqft:    result.price_per_sqft ?? prev.price_per_sqft,
+                // Preserve AVM estimates — deep mode sometimes skips these
+                zillow_estimate:   result.zillow_estimate  ?? prev.zillow_estimate,
+                redfin_estimate:   result.redfin_estimate  ?? prev.redfin_estimate,
+                zillow_saves:      result.zillow_saves     ?? prev.zillow_saves,
+                zillow_views:      result.zillow_views     ?? prev.zillow_views,
               };
             }
           }
