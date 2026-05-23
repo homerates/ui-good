@@ -3028,12 +3028,11 @@ export default function Page() {
                                                             <ConvHBSliderCard
                                                                 {...m.meta.convHBSlider}
                                                                 journeyAddress={
-                                                                    // Pass journey context when launched from my-home for a specific property.
-                                                                    // Prefer cmaContextRef (set from API chips) but fall back to URL param — it's
-                                                                    // available immediately and is the same address my-home put in the URL.
-                                                                    searchParams?.get('from') === '/my-home'
-                                                                        ? (cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined)
-                                                                        : undefined
+                                                                    // Show "Property Intelligence →" whenever a property address is in context —
+                                                                    // covers all 3 entry points: my-home, check-property, and direct URL paste in chat.
+                                                                    // cmaContextRef is populated from API chips after property lookup;
+                                                                    // searchParams fallback works immediately when address is in the URL.
+                                                                    cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                 }
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
@@ -3047,9 +3046,7 @@ export default function Page() {
                                                             <IncomeQualifySliderCard
                                                                 {...m.meta.incomeQualifySlider}
                                                                 journeyAddress={
-                                                                    searchParams?.get('from') === '/my-home'
-                                                                        ? (cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined)
-                                                                        : undefined
+                                                                    cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                 }
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
@@ -3063,9 +3060,7 @@ export default function Page() {
                                                             <FhaSliderCard
                                                                 {...m.meta.fhaSlider}
                                                                 journeyAddress={
-                                                                    searchParams?.get('from') === '/my-home'
-                                                                        ? (cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined)
-                                                                        : undefined
+                                                                    cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                 }
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
@@ -3079,9 +3074,7 @@ export default function Page() {
                                                             <JumboSliderCard
                                                                 {...m.meta.jumboSlider}
                                                                 journeyAddress={
-                                                                    searchParams?.get('from') === '/my-home'
-                                                                        ? (cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined)
-                                                                        : undefined
+                                                                    cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                 }
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
@@ -3095,9 +3088,7 @@ export default function Page() {
                                                             <VaSliderCard
                                                                 {...m.meta.vaSlider}
                                                                 journeyAddress={
-                                                                    searchParams?.get('from') === '/my-home'
-                                                                        ? (cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined)
-                                                                        : undefined
+                                                                    cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                 }
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
@@ -3123,9 +3114,7 @@ export default function Page() {
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
                                                                 journeyAddress={
-                                                                    searchParams?.get('from') === '/my-home'
-                                                                        ? (cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined)
-                                                                        : undefined
+                                                                    cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                 }
                                                                 onRunScenario={(seed, sliderParams) => {
                                                                     const overrides = { ...sliderParams, ...(cmaContextRef.current ?? {}) };
