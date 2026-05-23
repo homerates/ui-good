@@ -90,6 +90,45 @@ function Sk({ w, h = 14, r = 5 }: { w?: number | string; h?: number; r?: number 
   );
 }
 
+// ── localStorage cache helpers ─────────────────────────────────────────────────
+// Results are cached client-side so navigating back from Track 5 (or any tab)
+// never re-streams. TTL: 24h for active listings, 7d for sold/off-market.
+
+function normKey(addr: string): string {
+  return addr.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').slice(0, 100);
+}
+
+function lsRead(addr: string): { result: PropResult; mapUrls: MapUrls | null } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`pi_v1_${normKey(addr)}`);
+    if (!raw) return null;
+    const { result, mapUrls: m, cachedAt } = JSON.parse(raw) as {
+      result: PropResult; mapUrls: MapUrls | null; cachedAt: number;
+    };
+    if (!result || !cachedAt) return null;
+    const age = Date.now() - cachedAt;
+    const ttl = /sold|off market|withdrawn/i.test(result.current_status ?? '')
+      ? 7 * 86_400_000 : 86_400_000; // 7d sold, 24h active
+    if (age >= ttl) { localStorage.removeItem(`pi_v1_${normKey(addr)}`); return null; }
+    return { result, mapUrls: m ?? null };
+  } catch { return null; }
+}
+
+function lsWrite(addr: string, result: PropResult, mapUrls: MapUrls | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`pi_v1_${normKey(addr)}`, JSON.stringify({
+      result, mapUrls, cachedAt: Date.now(),
+    }));
+  } catch {}
+}
+
+function lsEvict(addr: string) {
+  if (typeof window === 'undefined') return;
+  try { localStorage.removeItem(`pi_v1_${normKey(addr)}`); } catch {}
+}
+
 // ── Main inner component ───────────────────────────────────────────────────────
 function PropertyIntelInner() {
   const searchParams  = useSearchParams();
@@ -227,7 +266,7 @@ function PropertyIntelInner() {
     : null;
 
   // ── Query ──────────────────────────────────────────────────────────────────
-  const runQuery = useCallback(async () => {
+  const runQuery = useCallback(async (opts?: { force?: boolean }) => {
     if (!address) return;
     abortRef.current?.abort();
     abortRef.current = new AbortController();
@@ -240,17 +279,19 @@ function PropertyIntelInner() {
     setLoading(true);
 
     try {
-      // 1 — try cache (GET)
-      const cd = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(address)}`, { signal: sig })
-        .then(r => r.json()).catch(() => null);
+      // 1 — try DB cache (GET) — skipped on force-refresh so we always stream fresh
+      if (!opts?.force) {
+        const cd = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(address)}`, { signal: sig })
+          .then(r => r.json()).catch(() => null);
 
-      if (cd?.cached) {
-        setCacheHit(true);
-        if (cd.map_urls) setMapUrls(cd.map_urls);
-        setFinalResult(cd.result as PropResult);
-        setSummary(cd.result?.grok_intelligence_summary ?? '');
-        setLoading(false);
-        return;
+        if (cd?.cached) {
+          setCacheHit(true);
+          if (cd.map_urls) setMapUrls(cd.map_urls);
+          setFinalResult(cd.result as PropResult);
+          setSummary(cd.result?.grok_intelligence_summary ?? '');
+          setLoading(false);
+          return;
+        }
       }
 
       // 2 — cache miss: get Redfin facts then stream Grok
@@ -340,10 +381,32 @@ function PropertyIntelInner() {
     }
   }, [address]);
 
+  // ── localStorage check — restore instantly before ever calling the API ─────
+  // Works across tabs (target="_blank" from Track 5), navigations, and restarts.
   useEffect(() => {
-    if (address) runQuery();
+    if (!address) return;
+
+    const cached = lsRead(address);
+    if (cached) {
+      setFinalResult(cached.result);
+      if (cached.mapUrls) setMapUrls(cached.mapUrls);
+      setSummary(cached.result.grok_intelligence_summary ?? '');
+      setCacheHit(true);
+      setLoading(false);
+      return; // skip API entirely
+    }
+
+    runQuery();
     return () => { abortRef.current?.abort(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
+
+  // ── Persist result to localStorage once settled ───────────────────────────
+  useEffect(() => {
+    if (!address || !finalResult) return;
+    lsWrite(address, finalResult, mapUrls);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finalResult, mapUrls]);
 
   const DEEP_STEPS = [
     'Searching Redfin for current listing data…',
@@ -437,6 +500,11 @@ function PropertyIntelInner() {
       setSavedVault(true);
       setTimeout(() => setSavedVault(false), 3000);
     } finally { setSaving(false); }
+  };
+
+  const handleRefresh = () => {
+    lsEvict(address);
+    runQuery({ force: true });
   };
 
   // ── Derived display values ─────────────────────────────────────────────────
@@ -806,6 +874,14 @@ function PropertyIntelInner() {
 
               {/* ── CTA bar ───────────────────────────────────────────────── */}
               <div className="pi-cta-bar" style={{ padding: '18px 28px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', background: 'rgba(255,255,255,0.012)' }}>
+
+                {/* Re-run — evicts local + DB cache, forces fresh Grok stream */}
+                {!loading && finalResult && (
+                  <button onClick={handleRefresh} title="Force a fresh analysis from Grok" style={{ padding: '11px 14px', fontSize: '0.78rem', fontWeight: 600, background: 'transparent', color: '#4b6080', border: '1px solid rgba(75,96,128,0.25)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s' }}>
+                    <i className="fa-solid fa-rotate-right" style={{ fontSize: '0.75rem' }} />
+                    Re-run
+                  </button>
+                )}
 
                 {/* Share — always public */}
                 <button onClick={handleShare} style={{ padding: '11px 20px', fontSize: '0.82rem', fontWeight: 600, background: 'transparent', color: copied ? '#4ade80' : '#94a3b8', border: `1px solid ${copied ? 'rgba(74,222,128,0.35)' : 'rgba(148,163,184,0.22)'}`, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s' }}>

@@ -304,7 +304,8 @@ export async function GET(req: NextRequest) {
   // Fuzzy fallback — match on first meaningful address token (street number + street name)
   if (!data) {
     const tokens = normalizedStrict.split(' ').filter(Boolean);
-    const fuzzyPrefix = tokens.slice(0, 3).join(' '); // e.g. "1131 mataro ct"
+    // 2-token prefix (e.g. "1131 mataro") avoids "ct" vs "court" / "st" vs "street" misses
+    const fuzzyPrefix = tokens.slice(0, 2).join(' ');
     if (fuzzyPrefix.length >= 6) {
       const { data: fuzzyData } = await sb
         .from('grok_property_cache')
