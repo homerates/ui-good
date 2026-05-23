@@ -3114,7 +3114,8 @@ export default function Page() {
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
                                                                 journeyAddress={
-                                                                    cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
+                                                                    // property_lookup path: address is in m.meta.interactiveSlider.cmaAddress (never in URL or cmaContextRef)
+                                                                    m.meta.interactiveSlider?.cmaAddress ?? cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                 }
                                                                 onRunScenario={(seed, sliderParams) => {
                                                                     const overrides = { ...sliderParams, ...(cmaContextRef.current ?? {}) };
