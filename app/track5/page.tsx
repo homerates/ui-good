@@ -284,7 +284,7 @@ function Track5Inner() {
 
   const address =
     // 1. Clean address column from DB session (most reliable)
-    (sessionData?.property_address as string | null)?.trim() || null
+    ((sessionData?.property_address as string | null)?.trim() || null)
     // 2. l2_summary prefix (current format: "ADDR — PITI ...")
     ?? extractAddressFromSummary(levels.l2.summary)
     // 3. l3_summary prefix (backward compat with older sessions)
