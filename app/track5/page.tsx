@@ -266,11 +266,30 @@ function Track5Inner() {
     l4: { score: clampScore(params?.get('l4_score')), summary: params?.get('l4_summary') ?? null },
   };
 
-  // ── Extract address from l2_summary (Property Evaluation — "ADDR — ...") ──
-  // Fall back to l3_summary for backward compatibility with older sessions
-  const address = levels.l2.summary?.split(' — ')[0]?.trim()
-               ?? levels.l3.summary?.split(' — ')[0]?.trim()
-               ?? null;
+  // ── Extract address — prefer property_address from session (always clean) ──
+  // Parsing from summary strings is fragile (old formats, different separators).
+  // Use the explicit property_address column as primary source; fall back to
+  // summary parsing only when no session is loaded (URL-param mode).
+  function extractAddressFromSummary(summary: string | null): string | null {
+    if (!summary) return null;
+    const part = summary.split(' — ')[0]?.trim() ?? null;
+    // Reject if it doesn't look like an address: too long, contains quotes,
+    // or doesn't have the structure of a street address.
+    if (!part) return null;
+    if (part.length > 120) return null;          // descriptions are long
+    if (part.includes('"') || part.includes("'")) return null; // quoted = malformed
+    if (!part.match(/\d/) && !part.match(/,/)) return null;   // no number or comma
+    return part;
+  }
+
+  const address =
+    // 1. Clean address column from DB session (most reliable)
+    (sessionData?.property_address as string | null)?.trim() || null
+    // 2. l2_summary prefix (current format: "ADDR — PITI ...")
+    ?? extractAddressFromSummary(levels.l2.summary)
+    // 3. l3_summary prefix (backward compat with older sessions)
+    ?? extractAddressFromSummary(levels.l3.summary);
+
   const piUrl   = address ? `/property-intel?address=${encodeURIComponent(address)}` : '/property-intel';
 
   // ── Purchase scenario context — session wins over URL params ─────────────
