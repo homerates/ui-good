@@ -3,7 +3,7 @@
 // app/components/InteractiveSliderCard.tsx
 // Conventional · FHA · VA · Jumbo — dark theme rebuild with slider drawer UX
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import PdfDownloadButton from './PdfDownloadButton';
@@ -36,7 +36,12 @@ export interface SliderCardParams {
     cmaTaxRate?: number;
     cmaLiveRate?: number;
     cmaPhotoUrl?: string;
+    journeyAddress?: string;  // set when launched from my-home — enables Property Intelligence CTA
 }
+
+function iscNormKey(a: string) { return a.trim().toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').slice(0,100); }
+function iscGetSid(a: string): string | null { try { return localStorage.getItem(`pi_sid_${iscNormKey(a)}`); } catch { return null; } }
+function iscSetSid(a: string, sid: string)   { try { localStorage.setItem(`pi_sid_${iscNormKey(a)}`, sid); } catch {} }
 
 const VA_FF_OPTIONS = [
     { label: 'Exempt', pct: 0 },
@@ -107,6 +112,28 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
     const { user } = useUser();
     const router   = useRouter();
+
+    // ── Journey: L1 write-back when launched from my-home property context ────
+    const iscJourneyFired = useRef(false);
+    const [journeySid, setJourneySid] = useState<string | null>(
+        props.journeyAddress ? iscGetSid(props.journeyAddress) : null,
+    );
+    useEffect(() => {
+        if (!props.journeyAddress || iscJourneyFired.current) return;
+        iscJourneyFired.current = true;
+        const ltvCalc = (1 - props.downPct / 100) * 100;
+        const l1Score =
+            props.loanType === 'va'    ? (ltvCalc <= 80 ? 88 : 78) :
+            props.loanType === 'fha'   ? (ltvCalc <= 90 ? 72 : ltvCalc <= 95 ? 65 : 58) :
+            props.loanType === 'jumbo' ? (ltvCalc <= 75 ? 86 : ltvCalc <= 80 ? 80 : 72) :
+                                         (ltvCalc <= 80 ? 85 : ltvCalc <= 85 ? 78 : ltvCalc <= 90 ? 70 : 60);
+        const l1Summary = `${props.loanType} ${props.downPct}% down · ${ltvCalc.toFixed(1)}% LTV · ${props.rate.toFixed(2)}% rate`;
+        fetch('/api/buyer-sessions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ property_address: props.journeyAddress, l1_score: l1Score, l1_summary: l1Summary, scenario_json: { price: props.price, dp_pct: props.downPct, lt: props.loanType, rate: props.rate, term: props.term } }),
+        }).then(r => r.ok ? r.json() : null).then(d => { if (d?.session?.id) { iscSetSid(props.journeyAddress!, d.session.id); setJourneySid(d.session.id); } }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.journeyAddress]);
 
     // ── County / ZIP search ──────────────────────────────────────────────────
 
@@ -647,15 +674,26 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 </button>
             </div>
 
-            {/* Check a property */}
+            {/* Check a property / Property Intelligence */}
             <div className="isc-property-row">
-                <button className="isc-btn-property" onClick={() => {
-                    const lt = loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType === 'fha' ? 'fha' : 'conventional';
-                    const p = new URLSearchParams({ price: String(Math.round(price)), dp: String(downPct), rate: rate.toFixed(3), term: String(term), lt, taxRate: props.taxRate.toFixed(5), insRate: props.insRate.toFixed(5) });
-                    router.push(`/check-property?${p.toString()}`);
-                }}>
-                    Check a property →
-                </button>
+                {props.journeyAddress ? (
+                    <a
+                        href={`/property-intel?address=${encodeURIComponent(props.journeyAddress)}${journeySid ? `&sid=${journeySid}` : ''}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="isc-btn-property"
+                        style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                    >
+                        <span>🏠</span><span>Property Intelligence →</span>
+                    </a>
+                ) : (
+                    <button className="isc-btn-property" onClick={() => {
+                        const lt = loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType === 'fha' ? 'fha' : 'conventional';
+                        const p = new URLSearchParams({ price: String(Math.round(price)), dp: String(downPct), rate: rate.toFixed(3), term: String(term), lt, taxRate: props.taxRate.toFixed(5), insRate: props.insRate.toFixed(5) });
+                        router.push(`/check-property?${p.toString()}`);
+                    }}>
+                        Check a property →
+                    </button>
+                )}
             </div>
 
             {/* Full Property Intelligence Report — only when address data is available */}

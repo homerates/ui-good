@@ -3122,6 +3122,11 @@ export default function Page() {
                                                         {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
+                                                                journeyAddress={
+                                                                    searchParams?.get('from') === '/my-home'
+                                                                        ? (cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined)
+                                                                        : undefined
+                                                                }
                                                                 onRunScenario={(seed, sliderParams) => {
                                                                     const overrides = { ...sliderParams, ...(cmaContextRef.current ?? {}) };
                                                                     pendingParamOverridesRef.current = overrides;
