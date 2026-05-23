@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
@@ -85,7 +85,12 @@ export interface JumboSliderParams {
     taxRate:  number;
     insRate:  number;
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
+    journeyAddress?: string;
 }
+
+function jNormKey(a: string) { return a.trim().toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').slice(0,100); }
+function jGetSid(a: string): string | null { try { return localStorage.getItem(`pi_sid_${jNormKey(a)}`); } catch { return null; } }
+function jSetSid(a: string, sid: string)   { try { localStorage.setItem(`pi_sid_${jNormKey(a)}`, sid); } catch {} }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -99,6 +104,24 @@ export default function JumboSliderCard(props: JumboSliderParams) {
 
     const { user } = useUser();
     const router   = useRouter();
+
+    // ── Journey: L1 write-back when launched from my-home property context ────
+    const jJourneyFired = useRef(false);
+    const [journeySid, setJourneySid] = useState<string | null>(
+        props.journeyAddress ? jGetSid(props.journeyAddress) : null,
+    );
+    useEffect(() => {
+        if (!props.journeyAddress || jJourneyFired.current) return;
+        jJourneyFired.current = true;
+        const ltvCalc   = (1 - Math.max(20, props.downPct) / 100) * 100;
+        const l1Score   = ltvCalc <= 75 ? 86 : ltvCalc <= 80 ? 80 : 72;
+        const l1Summary = `Jumbo ${props.downPct}% down · ${ltvCalc.toFixed(1)}% LTV · ${props.rate.toFixed(2)}% rate · No PMI`;
+        fetch('/api/buyer-sessions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ property_address: props.journeyAddress, l1_score: l1Score, l1_summary: l1Summary, scenario_json: { price: props.price, dp_pct: props.downPct, lt: 'jumbo', rate: props.rate, term: props.term ?? 30 } }),
+        }).then(r => r.ok ? r.json() : null).then(d => { if (d?.session?.id) { jSetSid(props.journeyAddress!, d.session.id); setJourneySid(d.session.id); } }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.journeyAddress]);
 
     const DP_CHIPS = [20, 25, 30, 40] as const;
 
@@ -369,7 +392,18 @@ export default function JumboSliderCard(props: JumboSliderParams) {
 
             {/* CTAs */}
             <div className="jbs-cta-row">
-                <button className="jbs-btn-check" onClick={handleCheckProperty}>Check Property ↗</button>
+                {props.journeyAddress ? (
+                    <a
+                        href={`/property-intel?address=${encodeURIComponent(props.journeyAddress)}${journeySid ? `&sid=${journeySid}` : ''}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="jbs-btn-check"
+                        style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                    >
+                        <span>🏠</span><span>Property Intelligence →</span>
+                    </a>
+                ) : (
+                    <button className="jbs-btn-check" onClick={handleCheckProperty}>Check Property ↗</button>
+                )}
                 {props.onRunScenario && <button className="jbs-btn-run" onClick={handleRun}>Run My Numbers →</button>}
             </div>
             <div className="jbs-cta-full">

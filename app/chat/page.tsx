@@ -3078,6 +3078,11 @@ export default function Page() {
                                                         {m.meta.jumboSlider && !loading && typingId === null && (
                                                             <JumboSliderCard
                                                                 {...m.meta.jumboSlider}
+                                                                journeyAddress={
+                                                                    searchParams?.get('from') === '/my-home'
+                                                                        ? (cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined)
+                                                                        : undefined
+                                                                }
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
