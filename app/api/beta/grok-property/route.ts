@@ -129,6 +129,26 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation:
   "walk_score": "0-100 walkability score for this address, or null",
   "commute_minutes": "estimated drive time in minutes to nearest major employment hub or downtown, or null",
   "neighborhood_appreciation_3yr_pct": "% home price appreciation over past 3 years for this neighborhood/ZIP e.g. 8.5 for +8.5%, or null",
+  "location_intelligence": {
+    "overall_score": "0-100 composite location score — factor in wildfire/flood/climate risk heavily; high risk should pull score DOWN significantly",
+    "sub_scores": [
+      { "metric": "Walk Score",            "score": "0-100", "rating": "label e.g. Car-Dependent / Somewhat Walkable / Very Walkable", "description": "1-2 sentences" },
+      { "metric": "Transit Score",         "score": "0-100", "rating": "label e.g. Minimal Transit / Some Transit / Excellent Transit", "description": "1-2 sentences" },
+      { "metric": "Bike Score",            "score": "0-100", "rating": "label e.g. Bikeable / Somewhat Bikeable / Biker's Paradise",   "description": "1-2 sentences" },
+      { "metric": "Schools",               "score": "0-100", "rating": "label e.g. Below Average / Average / Above Average / Excellent", "description": "1-2 sentences citing GreatSchools ratings" },
+      { "metric": "Safety",                "score": "0-100", "rating": "label e.g. Higher Crime / Average / Low Crime / Very Safe",     "description": "1-2 sentences on crime stats" },
+      { "metric": "Amenities & Commute",   "score": "0-100", "rating": "label",                                                         "description": "1-2 sentences on grocery/parks/restaurants + commute time to job centers" },
+      { "metric": "Wildfire Risk",         "score": "0-100 where LOW score = HIGH danger", "rating": "None | Low | Moderate | High | Very High | Extreme",
+        "description": "1-2 sentences citing Fire Factor rating, 30-yr probability, recent fire activity if any",
+        "fire_factor": "number 0-10 from First Street / Redfin, or null",
+        "risk_30yr_pct": "% probability of wildfire impact in next 30 years, or null",
+        "us_risk_percentile": "percentile of US communities with lower risk e.g. 96 means riskier than 96% of US, or null" }
+    ],
+    "narrative": "2-3 sentences: overall location character, key strengths, key risks — written for a buyer",
+    "strengths":      ["up to 3 key location strengths"],
+    "tradeoffs":      ["up to 3 key location trade-offs"],
+    "recommendation": "1-2 actionable sentences: who this location suits best and what buyers should know"
+  },
   "data_freshness": "Live data as of [date]",
   "confidence": "high | medium | low"
 }`;

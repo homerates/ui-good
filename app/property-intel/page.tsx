@@ -16,6 +16,26 @@ interface Comp {
   price_per_sqft: number | null;
 }
 
+interface LocationSubScore {
+  metric:              string;
+  score:               number;
+  rating:              string;
+  description:         string;
+  // Wildfire-specific extras
+  fire_factor?:        number | null;
+  risk_30yr_pct?:      number | null;
+  us_risk_percentile?: number | null;
+}
+
+interface LocationIntelligence {
+  overall_score:  number;
+  sub_scores:     LocationSubScore[];
+  narrative:      string;
+  strengths:      string[];
+  tradeoffs:      string[];
+  recommendation: string;
+}
+
 interface PropResult {
   current_status:            string | null;
   current_list_price:        number | null;
@@ -47,11 +67,13 @@ interface PropResult {
   market_sale_to_list:       number | null;
   market_median_price:       number | null;
   deep_analysis:             boolean | null;
-  // Location Intelligence fields
+  // Location Intelligence fields (simple — used for L4 score computation)
   school_score:                      number | null;
   walk_score:                        number | null;
   commute_minutes:                   number | null;
   neighborhood_appreciation_3yr_pct: number | null;
+  // Rich Location Intelligence (deep analysis only)
+  location_intelligence: LocationIntelligence | null;
 }
 
 interface MapUrls {
@@ -62,6 +84,17 @@ interface MapUrls {
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const fmt$ = (n: number | null | undefined) =>
   n != null ? '$' + Math.round(n).toLocaleString() : '—';
+
+function metricAccent(metric: string): string {
+  const m = metric.toLowerCase();
+  if (m.includes('wildfire') || m.includes('fire')) return '#f87171';
+  if (m.includes('walk'))                            return '#60a5fa';
+  if (m.includes('transit'))                         return '#818cf8';
+  if (m.includes('bike') || m.includes('cycle'))     return '#34d399';
+  if (m.includes('school'))                          return '#4ade80';
+  if (m.includes('safety') || m.includes('crime'))   return '#4ade80';
+  return '#fbbf24'; // amenities, commute, other
+}
 
 const STATUS_CFG: Record<string, { bg: string; color: string; label: string }> = {
   'for sale':   { bg: 'rgba(74,222,128,0.15)',  color: '#4ade80', label: 'FOR SALE'   },
@@ -204,25 +237,35 @@ function PropertyIntelInner() {
     }
 
     // L4 — location intelligence (deep analysis only)
-    const school  = d2.school_score;
-    const walk    = d2.walk_score;
-    const commute = d2.commute_minutes;
-    const apprec  = d2.neighborhood_appreciation_3yr_pct;
+    // Prefer location_intelligence.overall_score (Grok-computed, wildfire-aware)
+    // over our manual formula which doesn't know about wildfire/climate risk.
+    const li = d2.location_intelligence;
     let l4Score: number | null = null;
     let l4Summary: string | null = null;
-    if (school != null || walk != null || commute != null || apprec != null) {
-      const subs: number[] = [];
-      if (school  != null) subs.push(Math.min(100, Math.max(0, school * 10)));
-      if (walk    != null) subs.push(Math.min(100, Math.max(0, walk)));
-      if (commute != null) subs.push(commute <= 15 ? 90 : commute <= 25 ? 80 : commute <= 35 ? 70 : commute <= 45 ? 58 : commute <= 60 ? 44 : 30);
-      if (apprec  != null) subs.push(apprec >= 12 ? 92 : apprec >= 7 ? 84 : apprec >= 3 ? 72 : apprec >= 0 ? 55 : 35);
-      l4Score = Math.min(100, Math.max(0, Math.round(subs.reduce((a, b) => a + b, 0) / subs.length)));
-      const pts: string[] = [];
-      if (school  != null) pts.push(`Schools ${school}/10`);
-      if (walk    != null) pts.push(`Walk ${walk}`);
-      if (commute != null) pts.push(`${commute}min commute`);
-      if (apprec  != null) pts.push(`${apprec >= 0 ? '+' : ''}${apprec}% 3yr appreciation`);
-      l4Summary = pts.join(', ') + '.';
+    if (li?.overall_score != null) {
+      l4Score   = Math.min(100, Math.max(0, Math.round(li.overall_score)));
+      const pts = (li.sub_scores ?? []).slice(0, 3).map(s => `${s.metric}: ${s.rating}`);
+      l4Summary = pts.length ? pts.join(', ') + '.' : `Location score ${l4Score}/100.`;
+    } else {
+      // Fallback: manual computation from individual fields
+      const school  = d2.school_score;
+      const walk    = d2.walk_score;
+      const commute = d2.commute_minutes;
+      const apprec  = d2.neighborhood_appreciation_3yr_pct;
+      if (school != null || walk != null || commute != null || apprec != null) {
+        const subs: number[] = [];
+        if (school  != null) subs.push(Math.min(100, Math.max(0, school * 10)));
+        if (walk    != null) subs.push(Math.min(100, Math.max(0, walk)));
+        if (commute != null) subs.push(commute <= 15 ? 90 : commute <= 25 ? 80 : commute <= 35 ? 70 : commute <= 45 ? 58 : commute <= 60 ? 44 : 30);
+        if (apprec  != null) subs.push(apprec >= 12 ? 92 : apprec >= 7 ? 84 : apprec >= 3 ? 72 : apprec >= 0 ? 55 : 35);
+        l4Score = Math.min(100, Math.max(0, Math.round(subs.reduce((a, b) => a + b, 0) / subs.length)));
+        const pts: string[] = [];
+        if (school  != null) pts.push(`Schools ${school}/10`);
+        if (walk    != null) pts.push(`Walk ${walk}`);
+        if (commute != null) pts.push(`${commute}min commute`);
+        if (apprec  != null) pts.push(`${apprec >= 0 ? '+' : ''}${apprec}% 3yr appreciation`);
+        l4Summary = pts.join(', ') + '.';
+      }
     }
 
     // In the new level model:
@@ -575,6 +618,11 @@ function PropertyIntelInner() {
           .pi-cta-bar > *,
           .pi-cta-bar a   { flex:none !important; width:100% !important; max-width:none !important; }
           .pi-cta-bar button { width:100% !important; justify-content:center !important; }
+          .li-sub-grid    { grid-template-columns:repeat(2,1fr) !important; }
+          .li-str-grid    { grid-template-columns:1fr !important; }
+        }
+        @media (max-width:420px) {
+          .li-sub-grid    { grid-template-columns:1fr !important; }
         }
       `}</style>
 
@@ -863,6 +911,147 @@ function PropertyIntelInner() {
                 </div>
               )}
 
+              {/* ── Location Intelligence ────────────────────────────────── */}
+              {d.location_intelligence && (() => {
+                const li = d.location_intelligence;
+                const liColor = li.overall_score >= 70 ? '#4ade80' : li.overall_score >= 50 ? '#fbbf24' : '#f87171';
+                const circ    = 2 * Math.PI * 26; // r=26
+                const fill    = circ * (li.overall_score / 100);
+                const isWildfire = (s: LocationSubScore) => s.metric.toLowerCase().includes('wildfire') || s.metric.toLowerCase().includes('fire');
+                const regular    = li.sub_scores?.filter(s => !isWildfire(s)) ?? [];
+                const wildfire   = li.sub_scores?.find(s => isWildfire(s)) ?? null;
+                return (
+                  <div className="fi" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(20,184,166,0.02)' }}>
+                    {/* Header */}
+                    <div style={{ padding: '18px 28px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: '1rem' }}>📍</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.93rem', color: '#e2e8f0' }}>Location Intelligence</span>
+                      <span style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'rgba(20,184,166,0.1)', color: '#2dd4bf', border: '1px solid rgba(20,184,166,0.25)', borderRadius: 4, padding: '2px 7px' }}>L4 · Deep Analysis</span>
+                    </div>
+
+                    {/* Overall score */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '14px 18px', margin: '0 28px 16px' }}>
+                      <div style={{ position: 'relative', width: 64, height: 64, flexShrink: 0 }}>
+                        <svg width="64" height="64" viewBox="0 0 64 64" style={{ position: 'absolute', inset: 0 }}>
+                          <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" />
+                          <circle cx="32" cy="32" r="26" fill="none" stroke={liColor} strokeWidth="5"
+                            strokeDasharray={`${fill} ${circ}`} strokeLinecap="round"
+                            transform="rotate(-90 32 32)" style={{ transition: 'stroke-dasharray 0.8s ease' }} />
+                        </svg>
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 900, color: liColor }}>{li.overall_score}</div>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 3 }}>Location Score · 15% of index</div>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: liColor, marginBottom: 4 }}>
+                          {li.overall_score >= 70 ? 'Strong Location' : li.overall_score >= 55 ? 'Good with Trade-offs' : li.overall_score >= 40 ? 'Proceed with Caution' : 'High Risk Location'}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.6 }}>{li.narrative}</div>
+                      </div>
+                    </div>
+
+                    {/* Sub-score grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, padding: '0 28px 16px' }} className="li-sub-grid">
+                      {regular.map((s, i) => {
+                        const accent = metricAccent(s.metric);
+                        return (
+                          <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 5, position: 'relative', overflow: 'hidden' }}>
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: accent }} />
+                            <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#4b6080' }}>{s.metric}</div>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                              <span style={{ fontSize: '1.55rem', fontWeight: 900, lineHeight: 1, color: accent }}>{s.score}</span>
+                              <span style={{ fontSize: '0.6rem', color: '#4b6080' }}>/100</span>
+                            </div>
+                            <div style={{ fontSize: '0.67rem', fontWeight: 700, color: accent }}>{s.rating}</div>
+                            <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${s.score}%`, background: accent, borderRadius: 2 }} />
+                            </div>
+                            <div style={{ fontSize: '0.71rem', color: '#64748b', lineHeight: 1.5 }}>{s.description}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Wildfire risk — full-width danger card */}
+                    {wildfire && (
+                      <div style={{ margin: '0 28px 16px', background: 'rgba(248,113,113,0.04)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 12, padding: 16, position: 'relative', overflow: 'hidden' }}>
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#f87171' }} />
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
+                          <div>
+                            <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#f87171', marginBottom: 4 }}>⚠ {wildfire.metric}</div>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                              <span style={{ fontSize: '1.45rem', fontWeight: 900, color: '#f87171', lineHeight: 1 }}>{wildfire.score}</span>
+                              <span style={{ fontSize: '0.6rem', color: '#4b6080' }}>/100</span>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f87171' }}>{wildfire.rating.toUpperCase()}</span>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {wildfire.fire_factor != null && (
+                              <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 8, padding: '5px 12px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#f87171' }}>{wildfire.fire_factor}/10</div>
+                                <div style={{ fontSize: '0.55rem', color: '#4b6080', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Fire Factor</div>
+                              </div>
+                            )}
+                            {wildfire.risk_30yr_pct != null && (
+                              <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 8, padding: '5px 12px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#f87171' }}>{wildfire.risk_30yr_pct}%</div>
+                                <div style={{ fontSize: '0.55rem', color: '#4b6080', letterSpacing: '0.05em', textTransform: 'uppercase' }}>30-yr Risk</div>
+                              </div>
+                            )}
+                            {wildfire.us_risk_percentile != null && (
+                              <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 8, padding: '5px 12px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#f87171' }}>Top {100 - wildfire.us_risk_percentile}%</div>
+                                <div style={{ fontSize: '0.55rem', color: '#4b6080', letterSpacing: '0.05em', textTransform: 'uppercase' }}>US Risk</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
+                          <div style={{ height: '100%', width: `${wildfire.score}%`, background: '#f87171', borderRadius: 2 }} />
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#fca5a5', lineHeight: 1.6 }}>{wildfire.description}</div>
+                      </div>
+                    )}
+
+                    {/* Strengths / Trade-offs */}
+                    {((li.strengths?.length ?? 0) > 0 || (li.tradeoffs?.length ?? 0) > 0) && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '0 28px 16px' }} className="li-str-grid">
+                        {(li.strengths?.length ?? 0) > 0 && (
+                          <div style={{ background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.15)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 9 }}>
+                            <div style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4ade80', marginBottom: 2 }}>✓ Strengths</div>
+                            {li.strengths.map((s, i) => (
+                              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: '0.78rem', color: '#86efac', lineHeight: 1.5 }}>
+                                <span style={{ color: '#4ade80', fontSize: '0.5rem', marginTop: 5, flexShrink: 0 }}>●</span>{s}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {(li.tradeoffs?.length ?? 0) > 0 && (
+                          <div style={{ background: 'rgba(248,113,113,0.04)', border: '1px solid rgba(248,113,113,0.15)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 9 }}>
+                            <div style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#f87171', marginBottom: 2 }}>⚠ Trade-offs</div>
+                            {li.tradeoffs.map((t, i) => (
+                              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: '0.78rem', color: '#fca5a5', lineHeight: 1.5 }}>
+                                <span style={{ color: '#f87171', fontSize: '0.5rem', marginTop: 5, flexShrink: 0 }}>●</span>{t}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Recommendation */}
+                    {li.recommendation && (
+                      <div style={{ margin: '0 28px 20px', background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 12, padding: '14px 18px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: '1rem', marginTop: 1, flexShrink: 0 }}>💡</span>
+                        <div>
+                          <div style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#fbbf24', marginBottom: 5 }}>Location Recommendation</div>
+                          <div style={{ fontSize: '0.82rem', color: '#fde68a', lineHeight: 1.65 }}>{li.recommendation}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* ── Freshness footer ──────────────────────────────────────── */}
               <div style={{ padding: '10px 28px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                 {d.data_freshness
@@ -971,26 +1160,33 @@ function PropertyIntelInner() {
                   }
 
                   // ── L4: Location Intelligence (deep analysis only) ──────
-                  const school  = d.school_score;
-                  const walk    = d.walk_score;
-                  const commute = d.commute_minutes;
-                  const apprec  = d.neighborhood_appreciation_3yr_pct;
+                  // Prefer location_intelligence.overall_score (wildfire-aware)
+                  const liCta = d.location_intelligence;
                   let l4Score: number | null = null;
                   let l4Summary: string | null = null;
-                  if (school != null || walk != null || commute != null || apprec != null) {
-                    const subs: number[] = [];
-                    if (school  != null) subs.push(Math.min(100, Math.max(0, school * 10)));
-                    // walk_score must be clamped — Grok occasionally returns a non-0-100 value
-                    if (walk    != null) subs.push(Math.min(100, Math.max(0, walk)));
-                    if (commute != null) subs.push(commute <= 15 ? 90 : commute <= 25 ? 80 : commute <= 35 ? 70 : commute <= 45 ? 58 : commute <= 60 ? 44 : 30);
-                    if (apprec  != null) subs.push(apprec >= 12 ? 92 : apprec >= 7 ? 84 : apprec >= 3 ? 72 : apprec >= 0 ? 55 : 35);
-                    l4Score = Math.min(100, Math.max(0, Math.round(subs.reduce((a, b) => a + b, 0) / subs.length)));
-                    const pts: string[] = [];
-                    if (school  != null) pts.push(`Schools ${school}/10`);
-                    if (walk    != null) pts.push(`Walk ${walk}`);
-                    if (commute != null) pts.push(`${commute}min commute`);
-                    if (apprec  != null) pts.push(`${apprec >= 0 ? '+' : ''}${apprec}% 3yr appreciation`);
-                    l4Summary = pts.join(', ') + '.';
+                  if (liCta?.overall_score != null) {
+                    l4Score   = Math.min(100, Math.max(0, Math.round(liCta.overall_score)));
+                    const pts = (liCta.sub_scores ?? []).slice(0, 3).map(s => `${s.metric}: ${s.rating}`);
+                    l4Summary = pts.length ? pts.join(', ') + '.' : `Location score ${l4Score}/100.`;
+                  } else {
+                    const school  = d.school_score;
+                    const walk    = d.walk_score;
+                    const commute = d.commute_minutes;
+                    const apprec  = d.neighborhood_appreciation_3yr_pct;
+                    if (school != null || walk != null || commute != null || apprec != null) {
+                      const subs: number[] = [];
+                      if (school  != null) subs.push(Math.min(100, Math.max(0, school * 10)));
+                      if (walk    != null) subs.push(Math.min(100, Math.max(0, walk)));
+                      if (commute != null) subs.push(commute <= 15 ? 90 : commute <= 25 ? 80 : commute <= 35 ? 70 : commute <= 45 ? 58 : commute <= 60 ? 44 : 30);
+                      if (apprec  != null) subs.push(apprec >= 12 ? 92 : apprec >= 7 ? 84 : apprec >= 3 ? 72 : apprec >= 0 ? 55 : 35);
+                      l4Score = Math.min(100, Math.max(0, Math.round(subs.reduce((a, b) => a + b, 0) / subs.length)));
+                      const pts: string[] = [];
+                      if (school  != null) pts.push(`Schools ${school}/10`);
+                      if (walk    != null) pts.push(`Walk ${walk}`);
+                      if (commute != null) pts.push(`${commute}min commute`);
+                      if (apprec  != null) pts.push(`${apprec >= 0 ? '+' : ''}${apprec}% 3yr appreciation`);
+                      l4Summary = pts.join(', ') + '.';
+                    }
                   }
 
                   // ── Build URL if anything is ready ─────────────────────
