@@ -84,11 +84,13 @@ interface LevelCardProps {
   data:     LevelData;
   cta:      { label: string; href: string };
   comingSoon?: boolean;
+  tooltip?: string; // scoring methodology explanation
 }
 
-function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps) {
+function LevelCard({ num, title, weight, data, cta, comingSoon, tooltip }: LevelCardProps) {
   const { score, summary } = data;
   const scored = score != null;
+  const [tipOpen, setTipOpen] = useState(false);
   const color  = !scored       ? 'rgba(255,255,255,0.06)'
                : score >= 70   ? 'rgba(74,222,128,0.18)'
                : score >= 50   ? 'rgba(251,191,36,0.18)'
@@ -146,11 +148,24 @@ function LevelCard({ num, title, weight, data, cta, comingSoon }: LevelCardProps
             <span style={{
               fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.05em',
               background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 4, padding: '2px 6px',
-              /* weight badge — clear enough to read */
-              color: '#94a3b8',
+              borderRadius: 4, padding: '2px 6px', color: '#94a3b8',
             }}>{weight}</span>
+            {tooltip && (
+              <button
+                onClick={() => setTipOpen(o => !o)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', lineHeight: 1,
+                  fontSize: '0.7rem', color: tipOpen ? '#2dd4bf' : '#4b6080', transition: 'color .15s' }}
+                title="How is this scored?"
+              >ⓘ</button>
+            )}
           </div>
+          {tooltip && tipOpen && (
+            <div style={{ marginBottom: 8, padding: '10px 14px', background: 'rgba(20,184,166,0.06)',
+              border: '1px solid rgba(20,184,166,0.18)', borderRadius: 8, fontSize: '0.75rem',
+              color: '#94a3b8', lineHeight: 1.65 }}>
+              {tooltip}
+            </div>
+          )}
           <div style={{
             fontSize: '0.78rem', lineHeight: 1.65,
             /* scored summary: bright; unscored placeholder: dim but readable */
@@ -472,6 +487,7 @@ function Track5Inner() {
         <LevelCard
           num="L1" title="Financial Readiness" weight="35%"
           data={levels.l1}
+          tooltip="Scored from your loan scenario — loan type, down payment %, and LTV. Formula by type: Conventional (LTV ≤80→85, ≤85→78, ≤90→70, >90→60) · FHA (LTV ≤90→72, ≤95→65, >95→58) · VA (LTV ≤80→88, else→78) · Jumbo (LTV ≤75→86, ≤80→80, else→72). This level contributes 35% of your final Decision Score."
           cta={{
             label: hasPurchaseCtx ? 'Back to Scenario ↗' : 'Run Scenario ↗',
             href:  hasPurchaseCtx
@@ -483,6 +499,7 @@ function Track5Inner() {
         <LevelCard
           num="L2" title="Property Evaluation" weight="25%"
           data={levels.l2}
+          tooltip="Grok 4 scores the property against your budget and market comps. Key factors: PITI vs qualified monthly budget (gap %), list price vs Redfin/Zillow AVM (value gap), and days on market positioning. A property that fits your budget and is priced at or below market value scores 80+. This level contributes 25% of your final Decision Score."
           cta={{
             label: address ? 'Back to Property ↗' : 'Check a Property ↗',
             href:  hasPurchaseCtx
@@ -494,6 +511,7 @@ function Track5Inner() {
         <LevelCard
           num="L3" title="Market Intelligence" weight="25%"
           data={levels.l3}
+          tooltip="Grok 4 live web search scores the local market conditions. Key signals: median days on market (longer = buyer's market = higher score), sale-to-list ratio (below 100% = negotiating room), and recent comp velocity. Competitive seller's markets score 30–50; buyer's markets with slow DOM score 70+. This level contributes 25% of your final Decision Score."
           cta={{
             label: address ? 'Back to Property Intel ↗' : 'Property Intelligence ↗',
             href:  address ? `${piUrl}${sessionId ? `&sid=${sessionId}` : ''}` : '/property-intel',
@@ -503,6 +521,7 @@ function Track5Inner() {
         <LevelCard
           num="L4" title="Location Intelligence" weight="15%"
           data={levels.l4}
+          tooltip="Grok 4 deep analysis scores 7 sub-dimensions: Walk Score, Transit Score, Bike Score, Schools (GreatSchools), Safety, Amenities & Commute, and Wildfire Risk. Wildfire risk uses an inverted scale — low score = high danger — and pulls the composite down significantly in high-risk areas. Run Deep Analysis on the Property Intelligence page to unlock this level. Contributes 15% of your final Decision Score."
           cta={{
             label: levels.l4.score != null
               ? (address ? 'Back to Property Intel ↗' : 'Property Intelligence ↗')
