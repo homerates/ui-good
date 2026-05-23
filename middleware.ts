@@ -69,6 +69,9 @@ const isPublicRoute = createRouteMatcher([
   // Making public here prevents Clerk edge middleware from redirecting email link clicks
   // when the cookie isn't immediately visible at the edge (new tab, email client, etc.)
   "/messages(.*)",
+  // Property Intel — opens in a new tab from slider cards; same new-tab cookie timing issue
+  // as /messages. Page uses <SignedIn>/<SignedOut> for client-side gating.
+  "/property-intel(.*)",
   // OG image generation — must be public so Twitter/LinkedIn crawlers can fetch card images
   "/api/og(.*)",
   // Market intelligence — server-side AI keys only, no user PII; auth guard not needed

@@ -11,6 +11,10 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
+    // Re-throw NEXT_REDIRECT so the router handles it — don't swallow navigation errors
+    if (error?.message === 'NEXT_REDIRECT' || (error as any)?.digest?.startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
     console.error('[HomeRates error boundary]', error);
   }, [error]);
 
