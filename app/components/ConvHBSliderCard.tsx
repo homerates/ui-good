@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import PdfDownloadButton from './PdfDownloadButton';
@@ -126,6 +126,22 @@ export interface ConvHBSliderParams {
     countyLimit?: number;
     monthlyDebts?: number;
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
+    // Journey context — set when launched from my-home "Run My Numbers" for a specific property.
+    // Triggers L1 score persistence to buyer_evaluation_sessions and shows the bridge chip.
+    journeyAddress?: string;
+}
+
+// ── Journey helpers (localStorage bridge between chat and property-intel) ─────
+function journeyNormKey(addr: string): string {
+    return addr.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').slice(0, 100);
+}
+function journeyGetSid(addr: string): string | null {
+    if (typeof window === 'undefined') return null;
+    try { return localStorage.getItem(`pi_sid_${journeyNormKey(addr)}`); } catch { return null; }
+}
+function journeySetSid(addr: string, sid: string): void {
+    if (typeof window === 'undefined') return;
+    try { localStorage.setItem(`pi_sid_${journeyNormKey(addr)}`, sid); } catch {}
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -154,6 +170,40 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
     const { user } = useUser();
     const router   = useRouter();
+
+    // ── Journey: write L1 + bridge chip when launched from my-home property context ──
+    const journeyFiredRef = useRef(false);
+    const [journeySid, setJourneySid] = useState<string | null>(
+        props.journeyAddress ? journeyGetSid(props.journeyAddress) : null,
+    );
+
+    useEffect(() => {
+        if (!props.journeyAddress || journeyFiredRef.current) return;
+        journeyFiredRef.current = true;
+        // L1 = loan readiness score: LTV-based (same formula as check-property)
+        const ltv      = (1 - props.downPct / 100) * 100;
+        const l1Score  = ltv <= 80 ? 85 : ltv <= 85 ? 78 : ltv <= 90 ? 70 : 60;
+        const l1Summary = `Conventional ${props.downPct}% down · ${ltv.toFixed(1)}% LTV · ${props.rate.toFixed(2)}% rate`;
+        fetch('/api/buyer-sessions', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                property_address: props.journeyAddress,
+                l1_score:         l1Score,
+                l1_summary:       l1Summary,
+                scenario_json:    { price: props.price, dp_pct: props.downPct, lt: 'conventional', rate: props.rate, term: props.term },
+            }),
+        })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+            if (d?.session?.id) {
+                journeySetSid(props.journeyAddress!, d.session.id);
+                setJourneySid(d.session.id);
+            }
+        })
+        .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.journeyAddress]);
 
     // ── Derived ───────────────────────────────────────────────────────────────
 
@@ -487,6 +537,27 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 )}
             </div>
             <button className="chb-cta-full" onClick={handleGetMatched}>Get Matched with a Lender →</button>
+
+            {/* Journey bridge chip — shown when launched from my-home property context */}
+            {props.journeyAddress && (
+                <a
+                    href={`/property-intel?address=${encodeURIComponent(props.journeyAddress)}${journeySid ? `&sid=${journeySid}` : ''}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        margin: '8px 12px 0', padding: '11px 14px', borderRadius: 9,
+                        background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.22)',
+                        textDecoration: 'none',
+                    }}
+                >
+                    <div>
+                        <div style={{ fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#00e87a', marginBottom: 2 }}>L1 Affordability scored ✓</div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0' }}>View Full Property Analysis →</div>
+                    </div>
+                    <span style={{ fontSize: '1rem', opacity: 0.5 }}>🏠</span>
+                </a>
+            )}
 
             {/* Cross-fire chip — loan above national baseline: suggest running Jumbo card for comparison */}
             {props.onRunScenario && loanAmt > NATIONAL_BASELINE && (

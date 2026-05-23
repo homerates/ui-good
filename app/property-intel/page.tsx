@@ -191,9 +191,37 @@ function PropertyIntelInner() {
   // If ?sid=<id> is in the URL (coming from Track 5 or check-property), PATCH
   // that session so all three pages are linked as one evaluation.
   const { isSignedIn }  = useUser();
-  const incomingSid     = searchParams?.get('sid') ?? null; // session ID threaded from Track 5
+  const incomingSid     = searchParams?.get('sid') ?? null; // session ID threaded from my-home or Track 5
   const [piSessionId, setPiSessionId] = useState<string | null>(null);
   const deepSavedRef    = useRef(''); // tracks last saved address (deep analysis)
+
+  // ── Existing session fetch — pull L1/L2 written by Run My Numbers ─────────
+  // When arriving with ?sid= or when signed in with a known address, fetch any
+  // pre-existing buyer_evaluation_session so L1 (affordability) from the
+  // my-home → chat journey is included in the Track 5 composite.
+  interface ExistingSession {
+    id: string;
+    l1_score: number | null; l1_summary: string | null;
+    l2_score: number | null; l2_summary: string | null;
+    composite_score: number | null;
+  }
+  const [existingSession, setExistingSession] = useState<ExistingSession | null>(null);
+  const sessionFetchedRef = useRef('');
+
+  useEffect(() => {
+    if (!isSignedIn || !address) return;
+    if (sessionFetchedRef.current === address) return;
+    sessionFetchedRef.current = address;
+
+    const doFetch = incomingSid
+      ? fetch(`/api/buyer-sessions/${incomingSid}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d?.session) setExistingSession(d.session); })
+      : fetch(`/api/buyer-sessions?address=${encodeURIComponent(address)}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d?.session) setExistingSession(d.session); });
+    doFetch.catch(() => {});
+  }, [isSignedIn, address, incomingSid]);
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -297,7 +325,16 @@ function PropertyIntelInner() {
 
     savePromise
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.session?.id) setPiSessionId(d.session.id); })
+      .then(d => {
+        if (d?.session?.id) {
+          setPiSessionId(d.session.id);
+          // Refresh existingSession so L1 (from prior Run My Numbers) is included in composite
+          setExistingSession(prev => d.session.l1_score != null || prev?.l1_score != null
+            ? { ...d.session, l1_score: d.session.l1_score ?? prev?.l1_score ?? null, l1_summary: d.session.l1_summary ?? prev?.l1_summary ?? null }
+            : d.session
+          );
+        }
+      })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn, finalResult, address]);
@@ -1125,8 +1162,12 @@ function PropertyIntelInner() {
                   </SignInButton>
                 </SignedOut>
 
-                {/* Track 5 — L2 + L3 + L4 feed */}
+                {/* Track 5 — L1 (from journey session) + L2 + L3 + L4 feed */}
                 {(() => {
+                  // ── L1: Affordability — from buyer_evaluation_session (my-home → Run My Numbers) ──
+                  const existingL1      = existingSession?.l1_score ?? null;
+                  const existingL1Sum   = existingSession?.l1_summary ?? null;
+
                   // ── L3: Property Value ──────────────────────────────────
                   const list     = d.current_list_price;
                   const compsAvg = d.comparable_sales?.length
@@ -1190,23 +1231,31 @@ function PropertyIntelInner() {
                   }
 
                   // ── Build URL if anything is ready ─────────────────────
-                  const readyCount = [l3Score, l2Score, l4Score].filter(s => s != null).length;
+                  const readyCount = [existingL1, l3Score, l2Score, l4Score].filter(s => s != null).length;
                   if (readyCount === 0) return null;
 
                   const urlp = new URLSearchParams();
+                  if (existingL1 != null && existingL1Sum) { urlp.set('l1_score', String(existingL1)); urlp.set('l1_summary', existingL1Sum); }
                   if (l3Score != null && l3Summary) { urlp.set('l3_score', String(l3Score)); urlp.set('l3_summary', l3Summary); }
                   if (l2Score != null && l2Summary) { urlp.set('l2_score', String(l2Score)); urlp.set('l2_summary', l2Summary); }
                   if (l4Score != null && l4Summary) { urlp.set('l4_score', String(l4Score)); urlp.set('l4_summary', l4Summary); }
-                  // If a linked session exists (saved from deep analysis or threaded from Track 5),
-                  // navigate directly to it so all levels reunite in one evaluation.
-                  const linkedSessionId = piSessionId || incomingSid;
+                  // Navigate directly to session if it exists (all levels reunite in one evaluation)
+                  const linkedSessionId = piSessionId || incomingSid || existingSession?.id || null;
                   const href = linkedSessionId ? `/track5?session=${linkedSessionId}` : `/track5?${urlp.toString()}`;
 
-                  const allScores = [l3Score, l2Score, l4Score].filter((s): s is number => s != null);
-                  const avgScore  = Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);
+                  // Weighted composite using available levels (35/25/25/15)
+                  const weightedEntries = [
+                    { s: existingL1, w: 0.35 }, { s: l2Score, w: 0.25 },
+                    { s: l3Score,    w: 0.25 }, { s: l4Score, w: 0.15 },
+                  ].filter(e => e.s != null);
+                  const totalW   = weightedEntries.reduce((a, e) => a + e.w, 0);
+                  const avgScore = totalW > 0
+                    ? Math.round(weightedEntries.reduce((a, e) => a + e.s! * e.w, 0) / totalW)
+                    : 0;
                   const avgColor  = avgScore >= 70 ? '#4ade80' : avgScore >= 50 ? '#fbbf24' : '#f87171';
-                  const levelsText = readyCount === 1
-                    ? (l3Score != null ? 'Property Value' : l2Score != null ? 'Market Conditions' : 'Location') + ' scored'
+                  const levelsText = readyCount === 4 ? '4 of 4 levels scored'
+                    : readyCount === 1
+                      ? (existingL1 != null ? 'Affordability' : l3Score != null ? 'Property Value' : l2Score != null ? 'Market Conditions' : 'Location') + ' scored'
                     : `${readyCount} of 4 levels scored`;
 
                   return (
@@ -1227,14 +1276,15 @@ function PropertyIntelInner() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
                           <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 4, padding: '2px 7px', color: '#4ade80' }}>Decision Score</span>
                           <span style={{ fontSize: '0.7rem', color: '#4b6080' }}>{levelsText}</span>
+                          {existingL1 != null && <span style={{ fontSize: '0.62rem', color: '#00e87a', fontWeight: 700 }}>· L1 ✓</span>}
                         </div>
                         <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0' }}>
-                          View Your Buying Decision Score →
+                          {readyCount === 4 ? 'All 4 levels scored — View Decision Score →' : 'View Your Buying Decision Score →'}
                         </div>
                       </div>
                       <div style={{ flexShrink: 0, textAlign: 'center' }}>
                         <div style={{ fontSize: '1.6rem', fontWeight: 900, lineHeight: 1, color: avgColor, letterSpacing: '-0.03em' }}>{avgScore}</div>
-                        <div style={{ fontSize: '0.58rem', color: '#4b6080', marginTop: 2 }}>avg</div>
+                        <div style={{ fontSize: '0.58rem', color: '#4b6080', marginTop: 2 }}>{readyCount === 4 ? 'composite' : 'partial'}</div>
                       </div>
                     </a>
                   );

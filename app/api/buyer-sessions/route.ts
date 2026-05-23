@@ -61,11 +61,30 @@ const SEL = [
 
 // ── GET ────────────────────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const supabase = db();
+  const address  = new URL(req.url).searchParams.get('address')?.trim() ?? null;
+
+  // Single-session lookup by address — used by property-intel to pull existing L1/L2
+  if (address) {
+    const { data, error } = await supabase
+      .from('buyer_evaluation_sessions')
+      .select(SEL)
+      .eq('user_id', userId)
+      .eq('property_address', address)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (error) {
+      console.error('[buyer-sessions GET address]', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ session: data ?? null });
+  }
+
+  // List all sessions (existing behaviour)
   const { data, error } = await supabase
     .from('buyer_evaluation_sessions')
     .select(SEL)

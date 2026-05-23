@@ -3027,6 +3027,12 @@ export default function Page() {
                                                         {m.meta.convHBSlider && !loading && typingId === null && (
                                                             <ConvHBSliderCard
                                                                 {...m.meta.convHBSlider}
+                                                                journeyAddress={
+                                                                    // Pass journey context when launched from my-home for a specific property
+                                                                    searchParams?.get('from') === '/my-home' && cmaContextRef.current?.cmaAddress
+                                                                        ? cmaContextRef.current.cmaAddress
+                                                                        : undefined
+                                                                }
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);

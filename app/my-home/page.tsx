@@ -1404,6 +1404,40 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
   };
 }
 
+// ── Journey localStorage bridge ───────────────────────────────────────────────
+// Links the my-home → Run My Numbers → chat → property-intel flow so all four
+// Track 5 levels (L1–L4) converge into one buyer_evaluation_session per address.
+
+function piNormKey(addr: string): string {
+  return addr.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').slice(0, 100);
+}
+function lsGetPiSid(addr: string): string | null {
+  if (!addr || typeof window === 'undefined') return null;
+  try { return localStorage.getItem(`pi_sid_${piNormKey(addr)}`); } catch { return null; }
+}
+function lsSetPiSid(addr: string, sid: string): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(`pi_sid_${piNormKey(addr)}`, sid); } catch {}
+}
+
+// Open chat in new tab, then async-create the journey session in the background.
+// window.open() called synchronously to avoid popup blockers; session creation fires after.
+function openBuyerChat(chatUrl: string, address: string, price: number | null, rate: number, dpPct: number): void {
+  window.open(chatUrl, '_blank', 'noopener,noreferrer');
+  if (!address) return;
+  fetch('/api/buyer-sessions', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({
+      property_address: address,
+      scenario_json: { price: price ?? undefined, dp_pct: dpPct, lt: 'conventional', rate, term: 30 },
+    }),
+  })
+  .then(r => r.ok ? r.json() : null)
+  .then(d => { if (d?.session?.id) lsSetPiSid(address, d.session.id); })
+  .catch(() => {});
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 function MyHomePageInner() {
@@ -2294,9 +2328,9 @@ function MyHomePageInner() {
                             </SignInButton>
                           </SignedOut>
                           {isBuyer ? (
-                            <a
-                              href={(() => {
-                                const a = analysis;
+                            <button
+                              onClick={() => {
+                                const a = analysis!;
                                 const ask = a.listPrice ?? a.estimatedValue;
                                 const parts: string[] = [`I'm looking at buying ${a.address}${ask ? ` listed at $${Math.round(ask).toLocaleString()}` : ''}.`];
                                 parts.push(`Current 30-year rate is ${a.liveRate.toFixed(2)}%.`);
@@ -2318,14 +2352,12 @@ function MyHomePageInner() {
                                   from: '/my-home',
                                   fromLabel: 'My Properties',
                                 });
-                                return `/chat?${p.toString()}`;
-                              })()}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ flex: 1, padding: '9px 0', textAlign: 'center', borderRadius: 8, background: '#3b82f6', color: '#fff', fontWeight: 800, fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
+                                openBuyerChat(`/chat?${p.toString()}`, a.address ?? '', ask ?? null, a.liveRate, 20);
+                              }}
+                              style={{ flex: 1, padding: '9px 0', textAlign: 'center', borderRadius: 8, background: '#3b82f6', color: '#fff', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', border: 'none', fontFamily: 'inherit' }}
                             >
                               Run My Numbers →
-                            </a>
+                            </button>
                           ) : (
                             <a
                               href={(() => {
@@ -2397,15 +2429,20 @@ function MyHomePageInner() {
                             );
                           })()}
                         </div>
-                        {/* Intelligence Report link — use stored property_address to guarantee cache key match */}
-                        {(activeProperty?.property_address || heroAddr) && (
-                          <div style={{ padding: '0 18px 14px' }}>
-                            <Link href={`/property-intel?address=${encodeURIComponent(activeProperty?.property_address || heroAddr)}`} target="_blank" rel="noopener noreferrer"
-                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 0', borderRadius: 8, border: '1px solid rgba(74,222,128,0.2)', color: '#4ade80', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none', background: 'rgba(74,222,128,0.05)' }}>
-                              View Full Intelligence Report →
-                            </Link>
-                          </div>
-                        )}
+                        {/* Intelligence Report link — threads ?sid= if a journey session exists for this address */}
+                        {(activeProperty?.property_address || heroAddr) && (() => {
+                          const reportAddr = activeProperty?.property_address || heroAddr;
+                          const sid = lsGetPiSid(reportAddr);
+                          const reportHref = `/property-intel?address=${encodeURIComponent(reportAddr)}${sid ? `&sid=${sid}` : ''}`;
+                          return (
+                            <div style={{ padding: '0 18px 14px' }}>
+                              <Link href={reportHref} target="_blank" rel="noopener noreferrer"
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 0', borderRadius: 8, border: '1px solid rgba(74,222,128,0.2)', color: '#4ade80', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none', background: 'rgba(74,222,128,0.05)' }}>
+                                {sid ? 'View Full Decision Score →' : 'View Full Intelligence Report →'}
+                              </Link>
+                            </div>
+                          );
+                        })()}
                     </div>
                   );
                 })()}
