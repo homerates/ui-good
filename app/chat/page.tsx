@@ -2158,21 +2158,8 @@ export default function Page() {
                         cmaPhotoUrl: d.photoUrl   ?? undefined,
                     } : null;
 
-                    // Keep the income-qualify chip — the 3 old-style chips were removed, this newer one stays
-                    const priceFmt = d.price ? fmtK(d.price) : 'this home';
-                    const chips: { label: string; seed: string; paramOverrides?: Record<string, any> }[] = d.price ? [
-                        {
-                            label: `What income do I need to qualify?`,
-                            seed: `What income do I need to qualify for a ${priceFmt} home${cityStr}?`,
-                            paramOverrides: {
-                                purchasePrice: d.price,
-                                downPaymentPct: defaultDown,
-                                annualRatePct: liveRate,
-                                propertyTaxRate: taxRate,
-                                ...(isJumboLoan ? { loanType: 'jumbo' } : {}),
-                            },
-                        },
-                    ] : [];
+                    // No chips for property_lookup — income analysis is shown inline via IncomeQualifySliderCard
+                    const chips: { label: string; seed: string; paramOverrides?: Record<string, any> }[] = [];
 
                     const propertyMeta: ApiResponse = {
                         path: 'property_lookup',
@@ -3129,6 +3116,27 @@ export default function Page() {
                                                         {m.meta.affordabilitySlider && !loading && typingId === null && (
                                                             <AffordabilitySliderCard
                                                                 {...m.meta.affordabilitySlider}
+                                                                onRunScenario={(seed, overrides) => {
+                                                                    pendingParamOverridesRef.current = overrides;
+                                                                    setPendingParamOverrides(overrides);
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {/* Income Qualify card — auto-shown inline for property_lookup path
+                                                             (replaces the "What income do I need to qualify?" chip) */}
+                                                        {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.interactiveSlider.cmaAddress && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
+                                                            <IncomeQualifySliderCard
+                                                                price={m.meta.interactiveSlider.price}
+                                                                downPct={m.meta.interactiveSlider.downPct}
+                                                                rate={m.meta.interactiveSlider.rate}
+                                                                term={m.meta.interactiveSlider.term}
+                                                                taxRate={m.meta.interactiveSlider.taxRate}
+                                                                insRate={m.meta.interactiveSlider.insRate}
+                                                                loanType={m.meta.interactiveSlider.loanType}
+                                                                journeyAddress={
+                                                                    m.meta.interactiveSlider.cmaAddress ?? cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
+                                                                }
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);

@@ -696,8 +696,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 )}
             </div>
 
-            {/* Full Property Intelligence Report — only when address data is available */}
-            {props.cmaAddress && props.onRunScenario && (
+            {/* Full Property Intelligence Report — only when address data is available AND no journeyAddress
+                 (journeyAddress means "Property Intelligence →" already covers this; avoid duplicate CTA) */}
+            {props.cmaAddress && props.onRunScenario && !props.journeyAddress && (
                 <div className="isc-property-row" style={{ paddingTop: 0 }}>
                     <button className="isc-btn-report" onClick={() => {
                         const priceFmt = (props.cmaPrice ?? price) >= 1_000_000
