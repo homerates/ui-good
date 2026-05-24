@@ -383,6 +383,17 @@ function CheckPropertyInner() {
             .cp-header-inner{max-width:720px;margin:0 auto;padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;}
             .cp-logo{height:24px;width:auto;display:block;}
             .cp-body{width:100%;max-width:720px;padding:24px 20px 80px;}
+            @keyframes cp-spin{to{transform:rotate(360deg);}}
+            @keyframes cp-fade-up{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+            @keyframes cp-step-glow{0%,100%{opacity:0.25}50%{opacity:1}}
+            .cp-spinner-ring{width:42px;height:42px;border-radius:50%;border:3px solid rgba(255,255,255,0.06);animation:cp-spin 0.85s linear infinite;flex-shrink:0;}
+            .cp-loading-card{animation:cp-fade-up 0.3s ease both;}
+            .cp-analysis-step{display:flex;align-items:center;gap:10px;animation:cp-step-glow 2.2s ease-in-out infinite;}
+            .cp-analysis-step:nth-child(1){animation-delay:0s;}
+            .cp-analysis-step:nth-child(2){animation-delay:0.45s;}
+            .cp-analysis-step:nth-child(3){animation-delay:0.9s;}
+            .cp-analysis-step:nth-child(4){animation-delay:1.35s;}
+            .cp-step-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
         `}</style>
         <div className="ps-root">
             <header className="cp-header">
@@ -533,9 +544,42 @@ function CheckPropertyInner() {
 
             {/* ── Loading state ───────────────────────────────────────────── */}
             {loading && (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: '#4b6080', fontSize: 14 }}>
-                    <div style={{ fontSize: 28, marginBottom: 12 }}>🔍</div>
-                    Pulling property data, tax records, and AVM…
+                <div className="cp-loading-card" style={{
+                    background: '#0d1117',
+                    border: `1px solid ${theme.accentBorder}`,
+                    borderRadius: 16, padding: '28px 24px',
+                }}>
+                    {/* Spinner + title row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 22 }}>
+                        <div className="cp-spinner-ring" style={{ borderTopColor: theme.accent }} />
+                        <div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f0f4ff', marginBottom: 3 }}>
+                                HomeRates.AI is analysing
+                            </div>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em',
+                                textTransform: 'uppercase', color: theme.accent }}>
+                                Financial Gap Analysis
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Step list */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                        {[
+                            { label: 'Pulling property data & tax records',      note: 'Redfin · county assessor' },
+                            { label: 'Running PITI comparison vs your scenario', note: 'P+I · taxes · insurance · HOA' },
+                            { label: 'Calculating income qualification gap',      note: `${sc.lt === 'jumbo' ? '38' : sc.lt === 'va' ? '41' : '43'}% DTI threshold` },
+                            { label: 'Fetching AVM valuation estimate',           note: 'Redfin automated valuation' },
+                        ].map(({ label, note }) => (
+                            <div key={label} className="cp-analysis-step">
+                                <div className="cp-step-dot" style={{ background: theme.accent }} />
+                                <div>
+                                    <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#c4cfe0', lineHeight: 1.2 }}>{label}</div>
+                                    <div style={{ fontSize: '0.67rem', color: '#4b6080', marginTop: 1 }}>{note}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
 
