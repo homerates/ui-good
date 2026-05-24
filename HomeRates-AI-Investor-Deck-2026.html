@@ -105,10 +105,20 @@
 
     /* ── Slide footer ── */
     .slide-footer {
-      margin-top: auto; padding-top: 16px;
+      margin-top: auto; padding-top: 12px;
       border-top: 1px solid rgba(255,255,255,0.05);
       font-size: 0.68rem; color: rgba(185,208,192,0.3);
-      display: flex; justify-content: space-between;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .slide-footer-row {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .slide-footer-attr {
+      font-size: 0.62rem; color: rgba(185,208,192,0.2);
+      letter-spacing: 0.01em;
+    }
+    .slide-footer-attr a {
+      color: rgba(0,232,122,0.4); text-decoration: none;
     }
 
     /* ── Cover / Close ── */
@@ -708,6 +718,21 @@
         'z-index:10'
       ].join(';');
       slide.appendChild(logo);
+    });
+
+    // ── Attribution line on every slide footer ──
+    document.querySelectorAll('.slide-footer').forEach(function (footer) {
+      // Wrap existing children in a row div
+      var row = document.createElement('div');
+      row.className = 'slide-footer-row';
+      while (footer.firstChild) { row.appendChild(footer.firstChild); }
+      footer.appendChild(row);
+
+      // Append attribution line
+      var attr = document.createElement('div');
+      attr.className = 'slide-footer-attr';
+      attr.innerHTML = 'Powered by <a href="https://fred.stlouisfed.org" target="_blank">FRED® Data</a> — Federal Reserve Bank of St. Louis · Intelligence pipeline: multi-model AI orchestration — OpenAI · Grok by xAI · Claude by Anthropic';
+      footer.appendChild(attr);
     });
   });
 </script>
