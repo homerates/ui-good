@@ -587,6 +587,12 @@ function PropertyIntelInner() {
     runQuery({ force: true });
   };
 
+  // ── Linked session — hoisted so both "Run My Numbers" and Track 5 IIFE share it ──
+  // Priority: session created by this page (piSessionId) → incoming ?sid → existing session
+  // from DB for this address. Used to (a) seed the localStorage bridge before navigating
+  // to chat so the slider card PATCHes rather than creates, and (b) build the Track 5 URL.
+  const linkedSessionId = piSessionId || incomingSid || existingSession?.id || null;
+
   // ── Derived display values ─────────────────────────────────────────────────
   const statusKey = (d.current_status ?? '').toLowerCase();
   const statusCfg = STATUS_CFG[statusKey] ?? { bg: 'rgba(148,163,184,0.1)', color: '#94a3b8', label: (d.current_status ?? '').toUpperCase() };
@@ -608,7 +614,12 @@ function PropertyIntelInner() {
     } else {
       sq = `Run homeowner analysis for ${address} at today's ${rate.toFixed(2)}% rate. Show refi savings and break-even.`;
     }
-    return `/chat?${new URLSearchParams({ sq, from: '/property-intel', fromLabel: 'Property Intelligence' }).toString()}`;
+    const p = new URLSearchParams({ sq, from: '/property-intel', fromLabel: 'Property Intelligence' });
+    // Pass the address so chat seeds the slider card with journeyAddress
+    // — this wires the "Property Intelligence →" chip and keeps the analysis anchored
+    // to this property rather than starting from scratch.
+    p.set('cmaAddress', address);
+    return `/chat?${p.toString()}`;
   })();
 
   if (!address) {
@@ -1151,12 +1162,21 @@ function PropertyIntelInner() {
 
                 {/* Run My Numbers — primary CTA */}
                 <SignedIn>
-                  <Link href={chatUrl} style={{ flex: 1, maxWidth: 280, textDecoration: 'none' }}>
-                    <button style={{ width: '100%', padding: '12px 24px', fontSize: '0.88rem', fontWeight: 700, background: '#4ade80', color: '#050812', border: 'none', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s' }}>
-                      <i className="fa-solid fa-calculator" style={{ fontSize: '0.8rem' }} />
-                      Run My Numbers →
-                    </button>
-                  </Link>
+                  <button
+                    onClick={() => {
+                      // Seed the existing session ID into the pi_sid_ localStorage bridge
+                      // so InteractiveSliderCard PATCHes the same session (preserving L2/L3/L4)
+                      // rather than creating a new evaluation from scratch.
+                      if (linkedSessionId) {
+                        try { localStorage.setItem(`pi_sid_${normKey(address)}`, linkedSessionId); } catch {}
+                      }
+                      window.location.href = chatUrl;
+                    }}
+                    style={{ flex: 1, maxWidth: 280, padding: '12px 24px', fontSize: '0.88rem', fontWeight: 700, background: '#4ade80', color: '#050812', border: 'none', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s' }}
+                  >
+                    <i className="fa-solid fa-calculator" style={{ fontSize: '0.8rem' }} />
+                    Run My Numbers →
+                  </button>
                 </SignedIn>
                 <SignedOut>
                   <SignInButton mode="modal">
@@ -1244,8 +1264,7 @@ function PropertyIntelInner() {
                   if (l3Score != null && l3Summary) { urlp.set('l3_score', String(l3Score)); urlp.set('l3_summary', l3Summary); }
                   if (l2Score != null && l2Summary) { urlp.set('l2_score', String(l2Score)); urlp.set('l2_summary', l2Summary); }
                   if (l4Score != null && l4Summary) { urlp.set('l4_score', String(l4Score)); urlp.set('l4_summary', l4Summary); }
-                  // Navigate directly to session if it exists (all levels reunite in one evaluation)
-                  const linkedSessionId = piSessionId || incomingSid || existingSession?.id || null;
+                  // linkedSessionId is hoisted to component scope — navigate to session if it exists
                   const href = linkedSessionId ? `/track5?session=${linkedSessionId}` : `/track5?${urlp.toString()}`;
 
                   // Weighted composite using available levels (35/25/25/15)
