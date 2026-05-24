@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HomeRates.AI — Investor Deck 2026</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', 'DM Sans', Arial, sans-serif;
+      background: #080c12;
+      color: #e0f0e8;
+    }
+
+    @page { size: landscape; margin: 0; }
+
+    @media print {
+      body { background: #080c12; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .slide { page-break-after: always; break-after: page; height: 100vh; overflow: hidden; }
+      .slide:last-child { page-break-after: avoid; break-after: avoid; }
+    }
+
+    /* ── Slide base ── */
+    .slide {
+      width: 100%;
+      min-height: 100vh;
+      padding: 52px 80px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: #080c12;
+      position: relative;
+      border-bottom: 2px solid rgba(0,232,122,0.06);
+    }
+
+    /* ── Typography ── */
+    .eyebrow {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.14em;
+      text-transform: uppercase; color: #00e87a;
+      background: rgba(0,232,122,0.08); border: 1px solid rgba(0,232,122,0.18);
+      border-radius: 5px; padding: 3px 10px; display: inline-block; margin-bottom: 14px;
+    }
+    h1 { font-size: 2.6rem; font-weight: 800; color: #f0f4ff; line-height: 1.1; margin-bottom: 14px; }
+    h2 { font-size: 1.75rem; font-weight: 800; color: #f0f4ff; line-height: 1.2; margin-bottom: 10px; }
+    h3 { font-size: 1rem; font-weight: 700; color: #00e87a; margin-bottom: 6px; }
+    p  { color: rgba(185,208,192,0.8); line-height: 1.6; font-size: 0.88rem; }
+    .green { color: #00e87a; }
+
+    /* ── Cards ── */
+    .card {
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px; padding: 18px 22px;
+    }
+    .card-row { display: flex; gap: 14px; }
+    .card-row .card { flex: 1; }
+    .card.accent { background: rgba(0,232,122,0.05); border-color: rgba(0,232,122,0.2); }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    th {
+      background: rgba(0,232,122,0.09); color: #00e87a;
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 9px 14px; text-align: left;
+    }
+    td { padding: 9px 14px; color: rgba(185,208,192,0.8); font-size: 0.88rem;
+         border-bottom: 1px solid rgba(255,255,255,0.05); }
+    tr:last-child td { border-bottom: none; }
+    .yes-cell { color: #00e87a; font-weight: 700; }
+    .no-cell  { color: rgba(185,208,192,0.3); }
+
+    /* ── Stats ── */
+    .stat-row { display: flex; gap: 0; margin: 24px 0; }
+    .stat { flex: 1; text-align: center; padding: 0 20px; border-right: 1px solid rgba(255,255,255,0.07); }
+    .stat:last-child { border-right: none; }
+    .stat-value { font-size: 2.4rem; font-weight: 800; color: #00e87a; line-height: 1; }
+    .stat-label { font-size: 0.72rem; color: rgba(185,208,192,0.55); text-transform: uppercase;
+                  letter-spacing: 0.07em; margin-top: 6px; line-height: 1.4; }
+
+    /* ── Bullet list ── */
+    ul.checks { list-style: none; margin-top: 10px; }
+    ul.checks li { padding: 5px 0; color: rgba(185,208,192,0.8); font-size: 0.9rem; }
+    ul.checks li::before { content: '✓ '; color: #00e87a; font-weight: 700; }
+
+    /* ── Level grid (Track 5) ── */
+    .level-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-top: 18px; }
+    .level-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 16px 14px; }
+    .level-num   { font-size: 0.65rem; font-weight: 700; color: #00e87a; text-transform: uppercase; letter-spacing: 0.1em; }
+    .level-title { font-size: 0.92rem; font-weight: 700; color: #f0f4ff; margin: 4px 0 2px; }
+    .level-weight { font-size: 1.6rem; font-weight: 800; color: #00e87a; }
+    .level-desc  { font-size: 0.75rem; color: rgba(185,208,192,0.6); margin-top: 6px; line-height: 1.4; }
+
+    /* ── Fund bars ── */
+    .fund-item { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+    .fund-label { font-size: 0.82rem; color: rgba(185,208,192,0.8); width: 220px; flex-shrink:0; }
+    .fund-bar-bg { flex:1; height:7px; background:rgba(255,255,255,0.06); border-radius:4px; }
+    .fund-bar { height:7px; background:#00e87a; border-radius:4px; }
+    .fund-pct { font-size:0.8rem; color:#00e87a; font-weight:700; width:36px; text-align:right; }
+
+    /* ── Team ── */
+    .team-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 18px 20px; }
+    .team-name  { font-size: 1.05rem; font-weight: 700; color: #f0f4ff; }
+    .team-title { font-size: 0.72rem; color: #00e87a; margin: 3px 0 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; }
+    .team-bio   { font-size: 0.82rem; color: rgba(185,208,192,0.7); line-height: 1.55; }
+
+    /* ── Slide footer ── */
+    .slide-footer {
+      margin-top: auto; padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.68rem; color: rgba(185,208,192,0.3);
+      display: flex; justify-content: space-between;
+    }
+
+    /* ── Cover / Close ── */
+    .cover-slide { align-items: center; text-align: center; justify-content: center; gap: 10px; }
+    .cover-slide .slide-footer { position: absolute; bottom: 32px; left: 80px; right: 80px; }
+
+    /* ── Quote ── */
+    .big-quote {
+      font-size: 1.55rem; font-style: italic; color: rgba(185,208,192,0.75);
+      line-height: 1.65; max-width: 720px; text-align: left;
+    }
+    .big-quote .highlight { color: #00e87a; font-style: normal; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════ SLIDE 1 — COVER ══════════════════ -->
+<div class="slide cover-slide">
+  <div style="font-size:2rem;font-weight:900;color:#00e87a;letter-spacing:-0.02em;margin-bottom:6px;">
+    HomeRates.AI
+  </div>
+  <h1 style="font-size:2.8rem;">The Home + Mortgage<br>Intelligence Platform</h1>
+  <p style="font-size:1.1rem;color:rgba(185,208,192,0.6);margin-top:6px;">
+    Property intelligence meets mortgage math — one honest score.
+  </p>
+  <div style="margin-top:36px;font-size:0.92rem;color:rgba(185,208,192,0.45);line-height:1.9;">
+    <div><strong style="color:rgba(185,208,192,0.7);">Rayaan Arif</strong> — Founder &amp; CEO</div>
+    <div>Seed Round · 2026</div>
+    <div>chat.homerates.ai</div>
+  </div>
+  <div style="margin-top:28px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+    <a href="https://youtu.be/x6dgsxYjywc" target="_blank"
+       style="display:inline-flex;align-items:center;gap:10px;background:#00e87a;border-radius:10px;padding:12px 28px;text-decoration:none;color:#080c12;font-weight:800;font-size:0.95rem;">
+      ▶&nbsp;&nbsp;Watch Founder Story
+    </a>
+    <a href="https://chat.homerates.ai" target="_blank"
+       style="display:inline-flex;align-items:center;gap:8px;background:rgba(0,232,122,0.08);border:1px solid rgba(0,232,122,0.3);border-radius:10px;padding:12px 28px;text-decoration:none;color:#00e87a;font-weight:700;font-size:0.95rem;">
+      🚀&nbsp;&nbsp;Try the Live Platform
+    </a>
+  </div>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential &amp; Proprietary</span>
+    <span>rayaan@homerates.ai</span>
+  </div>
+</div>
+
+<!-- ══════════════════ SLIDE 2 — SEE IT LIVE ══════════════════ -->
+<div class="slide">
+  <div class="eyebrow">Live Demo &amp; Resources</div>
+  <h2>See HomeRates.AI in action — every product, live now</h2>
+  <div class="card-row" style="margin-top:18px;">
+    <!-- YouTube thumbnail panel -->
+    <div style="flex:1.3;">
+      <a href="https://youtu.be/x6dgsxYjywc" target="_blank"
+         style="display:block;position:relative;text-decoration:none;border-radius:12px;overflow:hidden;border:2px solid rgba(0,232,122,0.35);">
+        <img src="https://img.youtube.com/vi/x6dgsxYjywc/maxresdefault.jpg"
+             alt="HomeRates.AI Founder Story"
+             style="width:100%;display:block;border-radius:10px;" />
+        <div style="position:absolute;inset:0;background:rgba(8,12,18,0.35);display:flex;align-items:center;justify-content:center;border-radius:10px;">
+          <div style="width:68px;height:68px;background:#00e87a;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+            <div style="width:0;height:0;border-style:solid;border-width:13px 0 13px 26px;border-color:transparent transparent transparent #080c12;margin-left:5px;"></div>
+          </div>
+        </div>
+        <div style="position:absolute;bottom:14px;left:16px;right:16px;font-size:0.88rem;font-weight:700;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,0.9);">
+          ▶&nbsp; Founder Introduction — click to watch on YouTube
+        </div>
+      </a>
+      <div style="margin-top:10px;text-align:center;font-size:0.72rem;color:rgba(185,208,192,0.35);">youtu.be/x6dgsxYjywc</div>
+    </div>
+    <!-- Product links grid -->
+    <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:9px;align-content:start;">
+      <a href="https://chat.homerates.ai" target="_blank" style="text-decoration:none;">
+        <div class="card" style="padding:14px 16px;">
+          <div style="font-size:1.1rem;margin-bottom:5px;">🏠</div>
+          <div style="font-size:0.84rem;font-weight:700;color:#f0f4ff;">Live Platform</div>
+          <div style="font-size:0.7rem;color:rgba(0,232,122,0.75);margin-top:2px;">chat.homerates.ai →</div>
+        </div>
+      </a>
+      <a href="https://chat.homerates.ai/track5-intelligence" target="_blank" style="text-decoration:none;">
+        <div class="card" style="padding:14px 16px;">
+          <div style="font-size:1.1rem;margin-bottom:5px;">🎯</div>
+          <div style="font-size:0.84rem;font-weight:700;color:#f0f4ff;">Track 5</div>
+          <div style="font-size:0.7rem;color:rgba(0,232,122,0.75);margin-top:2px;">Decision Intelligence →</div>
+        </div>
+      </a>
+      <a href="https://chat.homerates.ai/decision-score" target="_blank" style="text-decoration:none;">
+        <div class="card" style="padding:14px 16px;">
+          <div style="font-size:1.1rem;margin-bottom:5px;">📊</div>
+          <div style="font-size:0.84rem;font-weight:700;color:#f0f4ff;">Decision Score</div>
+          <div style="font-size:0.7rem;color:rgba(0,232,122,0.75);margin-top:2px;">Scoring methodology →</div>
+        </div>
+      </a>
+      <a href="https://chat.homerates.ai/check-property" target="_blank" style="text-decoration:none;">
+        <div class="card" style="padding:14px 16px;">
+          <div style="font-size:1.1rem;margin-bottom:5px;">🔍</div>
+          <div style="font-size:0.84rem;font-weight:700;color:#f0f4ff;">Check Property</div>
+          <div style="font-size:0.7rem;color:rgba(0,232,122,0.75);margin-top:2px;">Financial gap analysis →</div>
+        </div>
+      </a>
+      <a href="https://chat.homerates.ai/property-intel" target="_blank" style="text-decoration:none;">
+        <div class="card" style="padding:14px 16px;">
+          <div style="font-size:1.1rem;margin-bottom:5px;">🏡</div>
+          <div style="font-size:0.84rem;font-weight:700;color:#f0f4ff;">Property Intel</div>
+          <div style="font-size:0.7rem;color:rgba(0,232,122,0.75);margin-top:2px;">Intelligence cards →</div>
+        </div>
+      </a>
+      <a href="https://chat.homerates.ai/ai-coach" target="_blank" style="text-decoration:none;">
+        <div class="card" style="padding:14px 16px;">
+          <div style="font-size:1.1rem;margin-bottom:5px;">🎙️</div>
+          <div style="font-size:0.84rem;font-weight:700;color:#f0f4ff;">AI Coach</div>
+          <div style="font-size:0.7rem;color:rgba(0,232,122,0.75);margin-top:2px;">Interview your LO →</div>
+        </div>
+      </a>
+    </div>
+  </div>
+  <div class="card accent" style="margin-top:12px;text-align:center;padding:10px 16px;">
+    <span style="color:rgba(185,208,192,0.45);font-size:0.8rem;">Full platform overview (11 product pillars): </span>
+    <a href="https://chat.homerates.ai/platform" target="_blank"
+       style="color:#00e87a;font-weight:700;font-size:0.88rem;text-decoration:none;">chat.homerates.ai/platform →</a>
+  </div>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span>
+  </div>
+</div>
+
+<!-- ══════════════════ SLIDE 3 — PROBLEM ══════════════════ -->
+<div class="slide">
+  <div class="eyebrow">The Problem</div>
+  <h2>Home search and mortgage are broken —<br>and nobody connects the two</h2>
+  <div class="card-row" style="margin-top:22px;">
+    <div class="card">
+      <h3>🏠 Home Tools Know the Property</h3>
+      <p>Zillow and Redfin show you beautiful listings — but can't tell you if you can actually afford the home, what the true PITI will be, or whether the market is overheated.</p>
+    </div>
+    <div class="card">
+      <h3>💰 Mortgage Tools Sell You Leads</h3>
+      <p>Bankrate and LendingTree show "rates" that are paid lender placements. Every inquiry triggers 4–7 lender calls. Your data is the product — not the advice.</p>
+    </div>
+    <div class="card">
+      <h3>🔗 Nobody Bridges the Gap</h3>
+      <p>No platform combines property intelligence + mortgage math into a single unbiased score. Buyers make $500K decisions switching between broken, conflicted tools.</p>
+    </div>
+  </div>
+  <div class="card accent" style="margin-top:14px;text-align:center;">
+    <span style="color:#f0f4ff;font-weight:700;">The result:</span>
+    <span style="color:rgba(185,208,192,0.7);margin-left:8px;">Consumers fall in love with a home they can't afford, get sold a loan on the wrong terms, and nobody is accountable — because everyone profits from the gap.</span>
+  </div>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span>
+  </div>
+</div>
+
+<!-- ══════════════════ SLIDE 3 — SOLUTION ══════════════════ -->
+<div class="slide">
+  <div class="eyebrow">The Solution</div>
+  <h2>The first platform that unifies home intelligence<br>and mortgage intelligence in one honest score</h2>
+  <div class="card-row" style="margin-top:18px;">
+    <div class="card" style="border-color:rgba(0,232,122,0.2);background:rgba(0,232,122,0.04);">
+      <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#00e87a;margin-bottom:10px;">🏠 Home Intelligence</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="font-size:0.86rem;color:rgba(185,208,192,0.85);">→ AVM property valuation vs. asking price</div>
+        <div style="font-size:0.86rem;color:rgba(185,208,192,0.85);">→ Live market comps via Tavily + Grok AI</div>
+        <div style="font-size:0.86rem;color:rgba(185,208,192,0.85);">→ Days on market &amp; sale-to-list ratio</div>
+        <div style="font-size:0.86rem;color:rgba(185,208,192,0.85);">→ 7-dimension location score</div>
+        <div style="font-size:0.86rem;color:rgba(185,208,192,0.85);">→ Flood, wildfire, schools, walkability</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;font-size:2rem;color:#00e87a;font-weight:900;flex-shrink:0;padding:0 8px;">+</div>
+    <div class="card" style="border-color:rgba(56,189,248,0.2);background:rgba(56,189,248,0.04);">
+      <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#38bdf8;margin-bottom:10px;">💰 Mortgage Intelligence</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="font-size:0.86rem;color:rgba(185,208,192,0.85);">→ Live FRED rates — not lender-paid ads</div>
+        <div style="font-size:0.86rem;color:rgba(185,208,192,0.85);">→ Deterministic PITI, DTI, LTV math</div>
+        <div style="font-size:0.86rem;color:rgba(185,208,192,0.85);">→ Income qualification gap analysis</div>
+        <div style="font-size:0.86rem;color:rgba(185,208,192,0.85);">→ Conventional, FHA, VA, Jumbo scoring</div>
+        <div style="font-size:0.86rem;color:rgba(185,208,192,0.85);">→ Cash-to-close &amp; rate sensitivity</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;font-size:2rem;color:#00e87a;font-weight:900;flex-shrink:0;padding:0 8px;">=</div>
+    <div class="card" style="border-color:rgba(167,139,250,0.25);background:rgba(167,139,250,0.04);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">
+      <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#a78bfa;margin-bottom:10px;">🎯 Track 5 Score</div>
+      <div style="font-size:2rem;font-weight:900;color:#a78bfa;">One Verdict</div>
+      <div style="font-size:0.82rem;color:rgba(185,208,192,0.6);margin-top:6px;line-height:1.5;">Buy · Wait · Walk Away<br>Private vault. Zero lead gen.<br>You own your data.</div>
+    </div>
+  </div>
+  <div class="card accent" style="margin-top:12px;text-align:center;">
+    <strong style="color:#00e87a;">Paste any Redfin or Zillow URL.</strong>
+    <span style="color:rgba(185,208,192,0.6);margin-left:8px;">Get the full Home + Mortgage score in seconds. No email. No forms. No lender calls.</span>
+  </div>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span>
+  </div>
+</div>
+
+<!-- ══════════════════ SLIDE 4 — PRODUCT ══════════════════ -->
+<div class="slide">
+  <div class="eyebrow">Product · Track 5 Decision Intelligence</div>
+  <h2>The only 4-level AI scoring system<br>for home buying decisions</h2>
+  <div class="level-grid">
+    <div class="level-card">
+      <div class="level-num">Level 1</div>
+      <div class="level-title">Affordability</div>
+      <div class="level-weight">35%</div>
+      <div class="level-desc">Deterministic LTV formula by loan type — Conventional, FHA, VA, Jumbo. No guessing.</div>
+    </div>
+    <div class="level-card">
+      <div class="level-num">Level 2</div>
+      <div class="level-title">Property vs. Budget &amp; Comps</div>
+      <div class="level-weight">25%</div>
+      <div class="level-desc">PITI gap analysis, AVM valuation comparison, days on market, income qualification score.</div>
+    </div>
+    <div class="level-card">
+      <div class="level-num">Level 3</div>
+      <div class="level-title">Live Market Conditions</div>
+      <div class="level-weight">25%</div>
+      <div class="level-desc">Median DOM, sale-to-list ratio, comp velocity — live data via Tavily search + Grok reasoning.</div>
+    </div>
+    <div class="level-card">
+      <div class="level-num">Level 4</div>
+      <div class="level-title">Location Intelligence</div>
+      <div class="level-weight">15%</div>
+      <div class="level-desc">7 dimensions: schools, crime, transit, walkability, job proximity, flood zone, wildfire risk.</div>
+    </div>
+  </div>
+  <div class="card accent" style="margin-top:14px;text-align:center;">
+    <span style="color:#f0f4ff;font-weight:700;">Weighted Composite: </span>
+    <span class="green" style="font-weight:700;">L1×35% + L2×25% + L3×25% + L4×15%</span>
+    <span style="color:rgba(185,208,192,0.5);margin-left:14px;">→ One honest verdict before you make an offer</span>
+  </div>
+  <div style="margin-top:10px;text-align:center;font-size:0.8rem;color:rgba(185,208,192,0.4);">
+    3 entry points: My Home · Check Property · Paste any Redfin/Zillow URL in chat
+  </div>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span>
+  </div>
+</div>
+
+<!-- ══════════════════ SLIDE 5 — MARKET SIZE ══════════════════ -->
+<div class="slide">
+  <div class="eyebrow">Market Opportunity</div>
+  <h2>A $50B+ market structurally overdue for disruption</h2>
+  <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:24px 32px;margin-top:20px;">
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-value">$50B+</div>
+        <div class="stat-label">TAM<br>Mortgage Fintech + Proptech<br>+ AI Financial Tools</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">$2.5B</div>
+        <div class="stat-label">SAM<br>LOs + Consumers Actively<br>Using Digital Mortgage Tools</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">$125M</div>
+        <div class="stat-label">SOM<br>5% of SAM<br>Achievable Year 3</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-row" style="margin-top:14px;">
+    <div class="card">
+      <h3>6.5M home purchases annually</h3>
+      <p>Every buyer needs unbiased affordability intelligence before making an offer</p>
+    </div>
+    <div class="card">
+      <h3>450,000+ licensed loan officers</h3>
+      <p>LOs need AI tools to serve clients faster and differentiate from rate-commodity competitors</p>
+    </div>
+    <div class="card">
+      <h3>AI fintech premium</h3>
+      <p>2026 AI SaaS multiples: 8–15× ARR for platforms with proprietary data pipelines and zero lead gen conflict</p>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span>
+  </div>
+</div>
+
+<!-- ══════════════════ SLIDE 6 — BUSINESS MODEL ══════════════════ -->
+<div class="slide">
+  <div class="eyebrow">Business Model</div>
+  <h2>No commissions. No lead gen. Pure subscription.</h2>
+  <div class="card-row" style="margin-top:20px;">
+    <div class="card" style="flex:1.2;">
+      <h3>🏦 LO Pro — B2B Core</h3>
+      <div style="font-size:1.3rem;font-weight:800;color:#f0f4ff;margin:6px 0;">$150–200 / month per LO</div>
+      <p>Full Track 5 access, client intelligence sharing, property cards, private vault, AI coach tools. Primary revenue driver — 450K addressable LOs nationwide.</p>
+    </div>
+    <div class="card">
+      <h3>🏠 Consumer Pro — B2C</h3>
+      <div style="font-size:1.3rem;font-weight:800;color:#f0f4ff;margin:6px 0;">$29 / month</div>
+      <p>Unlimited Track 5 runs, saved scenarios, PDF reports. Zero lead gen — ever.</p>
+    </div>
+    <div class="card">
+      <h3>🏢 Enterprise</h3>
+      <div style="font-size:1.3rem;font-weight:800;color:#f0f4ff;margin:6px 0;">Custom pricing</div>
+      <p>Brokerage team plans, API licensing, white-label for mortgage CRM platforms.</p>
+    </div>
+  </div>
+  <div class="card accent" style="margin-top:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <span style="color:rgba(185,208,192,0.6);font-size:0.82rem;">Revenue path:</span>
+        <span class="green" style="font-weight:700;margin-left:8px;">$0 → $350K (Yr 1) → $1.2M (Yr 2) → $4.0M (Yr 3)</span>
+      </div>
+      <div style="font-size:0.78rem;color:rgba(185,208,192,0.4);">Near breakeven Yr 2 · Profitable Yr 3</div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span>
+  </div>
+</div>
+
+<!-- ══════════════════ SLIDE 7 — TRACTION ══════════════════ -->
+<div class="slide">
+  <div class="eyebrow">Traction</div>
+  <h2>Full AI platform built in 12 months on $10,000</h2>
+  <div class="card-row" style="margin-top:20px;">
+    <div style="flex:1.4;">
+      <ul class="checks">
+        <li>Live platform deployed at chat.homerates.ai</li>
+        <li>6 core product modules built and operational</li>
+        <li>Track 5 proprietary 4-level AI scoring algorithm live</li>
+        <li>Grok 4 + Tavily + FRED data pipeline operational</li>
+        <li>11 SEO platform marketing pages live and indexed</li>
+        <li>Private vault (Supabase + Clerk auth) in production</li>
+        <li>3 documented trade secrets protecting core IP</li>
+        <li>YCombinator application submitted</li>
+        <li>$0 customer acquisition cost to date — 100% organic</li>
+      </ul>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+      <div class="card accent" style="text-align:center;flex:1;display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-size:3rem;font-weight:900;color:#00e87a;">$10K</div>
+        <div style="font-size:0.78rem;color:rgba(185,208,192,0.5);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">Total founder capital invested</div>
+        <div style="font-size:0.85rem;color:rgba(185,208,192,0.65);margin-top:10px;line-height:1.5;">Complete AI platform, live infrastructure, proprietary IP — before raising a single dollar</div>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:0.78rem;color:rgba(185,208,192,0.5);text-transform:uppercase;letter-spacing:0.08em;">Capital efficiency signal</div>
+        <div style="font-size:0.9rem;color:#f0f4ff;margin-top:6px;font-weight:600;">Proves execution discipline<br>before the raise</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span>
+  </div>
+</div>
+
+<!-- ══════════════════ SLIDE 8 — COMPETITION ══════════════════ -->
+<div class="slide">
+  <div class="eyebrow">Competitive Landscape</div>
+  <h2>Only platform with zero structural conflict of interest</h2>
+  <table style="margin-top:16px;">
+    <tr>
+      <th>Capability</th>
+      <th style="color:#00e87a;background:rgba(0,232,122,0.15);">HomeRates.AI</th>
+      <th>Bankrate / LendingTree</th>
+      <th>Zillow Mortgage</th>
+      <th>Traditional LO Tools</th>
+    </tr>
+    <tr>
+      <td>Revenue model</td>
+      <td class="yes-cell">Subscription</td>
+      <td class="no-cell">Lead gen commissions</td>
+      <td class="no-cell">Lender placements</td>
+      <td class="no-cell">Relationship / referral</td>
+    </tr>
+    <tr>
+      <td>Consumer data sold?</td>
+      <td class="yes-cell">Never</td>
+      <td class="no-cell">Always</td>
+      <td class="no-cell">Yes</td>
+      <td class="no-cell">Often</td>
+    </tr>
+    <tr>
+      <td>Rates source</td>
+      <td class="yes-cell">FRED (Federal Reserve)</td>
+      <td class="no-cell">Lender-paid</td>
+      <td class="no-cell">Lender-paid</td>
+      <td class="no-cell">Varies</td>
+    </tr>
+    <tr>
+      <td>AI 4-level scoring</td>
+      <td class="yes-cell">✅ Proprietary</td>
+      <td class="no-cell">❌ None</td>
+      <td class="no-cell">❌ None</td>
+      <td class="no-cell">❌ None</td>
+    </tr>
+    <tr>
+      <td>Private vault</td>
+      <td class="yes-cell">✅</td>
+      <td class="no-cell">❌</td>
+      <td class="no-cell">❌</td>
+      <td class="no-cell">❌</td>
+    </tr>
+    <tr>
+      <td>Structurally consumer-aligned?</td>
+      <td class="yes-cell">✅ By design</td>
+      <td class="no-cell">❌ Structurally opposed</td>
+      <td class="no-cell">❌ Structurally opposed</td>
+      <td class="no-cell">❌ Commission-driven</td>
+    </tr>
+  </table>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span>
+  </div>
+</div>
+
+<!-- ══════════════════ SLIDE 9 — TEAM ══════════════════ -->
+<div class="slide">
+  <div class="eyebrow">Team</div>
+  <h2>Domain expertise + execution track record</h2>
+  <div class="card-row" style="margin-top:20px;">
+    <div class="team-card" style="flex:1.5;">
+      <div class="team-name">Rayaan Arif</div>
+      <div class="team-title">Founder &amp; CEO</div>
+      <div class="team-bio" style="margin-bottom:10px;">
+        20+ year mortgage industry veteran and licensed loan officer. Built HomeRates.AI from direct experience watching consumers be systematically misled by the mortgage lead-gen industry.
+      </div>
+      <div class="team-bio">
+        <strong style="color:rgba(185,208,192,0.8);">3 prior exits:</strong>
+        FundingTree — acquired by VC firm ($200K exit) ·
+        RMS Data UK — bootstrapped, sold ($600K exit) ·
+        Konectcity — sold to partners
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+      <div class="team-card">
+        <div class="team-name">Christopher Lipscomb</div>
+        <div class="team-title">Project Manager</div>
+        <div class="team-bio">Operations and project execution. Platform delivery milestones and team coordination.</div>
+      </div>
+      <div class="team-card">
+        <div class="team-name">William Vleet</div>
+        <div class="team-title">Business Development</div>
+        <div class="team-bio">LO network relationships and strategic partnership development across the mortgage industry.</div>
+      </div>
+    </div>
+  </div>
+  <div class="card accent" style="margin-top:14px;text-align:center;padding:12px;">
+    <span style="color:rgba(185,208,192,0.55);font-size:0.82rem;">Actively hiring: </span>
+    <span class="green" style="font-weight:700;">Full-stack engineer</span>
+    <span style="color:rgba(185,208,192,0.3);margin:0 10px;">·</span>
+    <span class="green" style="font-weight:700;">Growth &amp; marketing lead</span>
+    <span style="color:rgba(185,208,192,0.4);font-size:0.78rem;margin-left:12px;">(funded from seed round)</span>
+  </div>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span>
+  </div>
+</div>
+
+<!-- ══════════════════ SLIDE 10 — FINANCIALS ══════════════════ -->
+<div class="slide">
+  <div class="eyebrow">Financial Projections</div>
+  <h2>Near breakeven Year 2 · Profitable Year 3</h2>
+  <table style="margin-top:16px;">
+    <tr>
+      <th></th>
+      <th>Yr 0 · 2026</th>
+      <th>Yr 1 · 2027</th>
+      <th>Yr 2 · 2028</th>
+      <th>Yr 3 · 2029</th>
+    </tr>
+    <tr>
+      <td>Revenue</td>
+      <td class="no-cell">$0</td>
+      <td>$350K</td>
+      <td>$1.2M</td>
+      <td class="yes-cell">$4.0M</td>
+    </tr>
+    <tr>
+      <td>Total Expenses</td>
+      <td>$16K</td>
+      <td>$495K</td>
+      <td>$1.18M</td>
+      <td>$2.23M</td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;">Net</td>
+      <td class="no-cell">-$16K</td>
+      <td class="no-cell">-$145K</td>
+      <td class="yes-cell">+$20K</td>
+      <td class="yes-cell">+$1.77M</td>
+    </tr>
+    <tr>
+      <td>LO Subscribers</td>
+      <td class="no-cell">0</td>
+      <td>~150</td>
+      <td>~450</td>
+      <td class="yes-cell">~1,000+</td>
+    </tr>
+  </table>
+  <div class="card-row" style="margin-top:14px;">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:0.72rem;color:rgba(185,208,192,0.45);text-transform:uppercase;letter-spacing:0.08em;">AI Variable Cost Model</div>
+      <div style="font-size:1rem;color:#f0f4ff;font-weight:700;margin-top:6px;">~$0.10 per full Track 5 analysis</div>
+      <div style="font-size:0.8rem;color:rgba(185,208,192,0.5);margin-top:3px;">Scales predictably — modeled at 100K+ analyses/month by Yr 3</div>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:0.72rem;color:rgba(185,208,192,0.45);text-transform:uppercase;letter-spacing:0.08em;">Capital Efficiency Proof</div>
+      <div style="font-size:1rem;color:#f0f4ff;font-weight:700;margin-top:6px;">Full platform for $10K invested</div>
+      <div style="font-size:0.8rem;color:rgba(185,208,192,0.5);margin-top:3px;">Execution discipline demonstrated before the raise</div>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:0.72rem;color:rgba(185,208,192,0.45);text-transform:uppercase;letter-spacing:0.08em;">Series A Trigger</div>
+      <div style="font-size:1rem;color:#f0f4ff;font-weight:700;margin-top:6px;">150+ LO subscribers = proof point</div>
+      <div style="font-size:0.8rem;color:rgba(185,208,192,0.5);margin-top:3px;">$3M Series A at month 18</div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span>
+  </div>
+</div>
+
+<!-- ══════════════════ SLIDE 11 — THE ASK ══════════════════ -->
+<div class="slide">
+  <div class="eyebrow">The Investment</div>
+  <h2>Raising $1M Seed · $5M Pre-Money Valuation</h2>
+  <div class="card-row" style="margin-top:20px;">
+    <div style="flex:1.2;">
+      <h3 style="margin-bottom:14px;font-size:0.85rem;">Use of Funds — 18 Month Runway</h3>
+      <div class="fund-item">
+        <div class="fund-label">New Hires (engineer + growth)</div>
+        <div class="fund-bar-bg"><div class="fund-bar" style="width:40%;"></div></div>
+        <div class="fund-pct">40%</div>
+      </div>
+      <div class="fund-item">
+        <div class="fund-label">Founder Salary</div>
+        <div class="fund-bar-bg"><div class="fund-bar" style="width:20%;"></div></div>
+        <div class="fund-pct">20%</div>
+      </div>
+      <div class="fund-item">
+        <div class="fund-label">Marketing &amp; LO Network</div>
+        <div class="fund-bar-bg"><div class="fund-bar" style="width:20%;"></div></div>
+        <div class="fund-pct">20%</div>
+      </div>
+      <div class="fund-item">
+        <div class="fund-label">Product &amp; AI Infrastructure</div>
+        <div class="fund-bar-bg"><div class="fund-bar" style="width:15%;"></div></div>
+        <div class="fund-pct">15%</div>
+      </div>
+      <div class="fund-item">
+        <div class="fund-label">IP / Legal / Professional</div>
+        <div class="fund-bar-bg"><div class="fund-bar" style="width:5%;"></div></div>
+        <div class="fund-pct">5%</div>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+      <div class="card accent" style="text-align:center;flex:1;display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-size:0.72rem;color:rgba(185,208,192,0.45);text-transform:uppercase;letter-spacing:0.08em;">Primary Exit Strategy</div>
+        <div style="font-size:1.05rem;color:#f0f4ff;font-weight:700;margin-top:6px;">Strategic Acquisition · 5–7 Years</div>
+        <div style="font-size:0.8rem;color:rgba(185,208,192,0.5);margin-top:4px;">ICE Mortgage Technology · CoStar · Black Knight · Zillow</div>
+      </div>
+      <div class="card" style="text-align:center;flex:1;display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-size:0.72rem;color:rgba(185,208,192,0.45);text-transform:uppercase;letter-spacing:0.08em;">Target Investor Return</div>
+        <div style="font-size:2.4rem;font-weight:900;color:#00e87a;">10×</div>
+        <div style="font-size:0.8rem;color:rgba(185,208,192,0.5);margin-top:3px;">$5M pre-money → $50M+ exit</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span>
+  </div>
+</div>
+
+<!-- ══════════════════ SLIDE 12 — CLOSE ══════════════════ -->
+<div class="slide cover-slide">
+  <div class="big-quote">
+    "For 30 years, home search and mortgage<br>have been two broken, disconnected tools.<br><br>
+    <span class="highlight">We built the first platform that combines both —<br>Home + Mortgage intelligence — for smarter decisions.</span>"
+  </div>
+  <div style="margin-top:44px;">
+    <div style="font-size:1.6rem;font-weight:900;color:#00e87a;letter-spacing:-0.02em;">chat.homerates.ai</div>
+    <div style="margin-top:8px;font-size:1rem;color:rgba(185,208,192,0.55);">Rayaan Arif · rayaan@homerates.ai</div>
+  </div>
+  <div style="margin-top:28px;font-size:0.72rem;color:rgba(185,208,192,0.25);max-width:560px;text-align:center;line-height:1.6;">
+    HomeRates.AI is an educational tool. It does not constitute financial advice, mortgage brokerage, or lending services. All financial projections are forward-looking estimates.
+  </div>
+  <div class="slide-footer">
+    <span>HomeRates.AI — Confidential &amp; Proprietary</span>
+    <span>rayaan@homerates.ai</span>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.slide').forEach(function (slide) {
+      var logo = document.createElement('img');
+      logo.src = '/assets/homerates-email-logo.png';
+      logo.alt = 'HomeRates.AI';
+      logo.style.cssText = [
+        'position:absolute',
+        'top:20px',
+        'left:80px',
+        'height:22px',
+        'width:auto',
+        'opacity:0.90',
+        'pointer-events:none',
+        'z-index:10'
+      ].join(';');
+      slide.appendChild(logo);
+    });
+  });
+</script>
+</body>
+</html>
