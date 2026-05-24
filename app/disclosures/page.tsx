@@ -11,7 +11,7 @@ export default function DisclosuresPage() {
   return (
     <PageShell backHref="/" backLabel="Home" maxWidth={760}>
       <h1>Terms &amp; Disclosures</h1>
-      <span className="page-updated">Last Updated: April 2026</span>
+      <span className="page-updated">Last Updated: May 2026</span>
 
       <p>HomeRates.ai is an independent educational platform designed to help consumers and professionals understand general mortgage concepts, terminology, affordability factors, and market dynamics. HomeRates.ai is <strong>not</strong> a mortgage lender, mortgage broker, or financial institution, and does <strong>not</strong> originate loans, provide credit decisions, or issue commitments to lend.</p>
       <p>By using HomeRates.ai, you acknowledge and agree to the following Terms &amp; Disclosures. If you do not agree with these terms, you should not use the service.</p>
@@ -141,7 +141,27 @@ export default function DisclosuresPage() {
       </section>
 
       <section>
-        <h2>18. AI Model Accuracy — You're Part of What Makes This Better</h2>
+        <h2>18. Data Sources — FRED® Economic Data</h2>
+        <p>HomeRates.ai uses mortgage rate and economic data provided by the <strong>Federal Reserve Bank of St. Louis</strong> through its <a href="https://fred.stlouisfed.org" target="_blank" rel="noopener noreferrer">FRED® (Federal Reserve Economic Data)</a> service. FRED data is used to power rate benchmarks, affordability calculations, and market intelligence features displayed throughout the platform.</p>
+        <p>FRED® is a registered trademark of the Federal Reserve Bank of St. Louis. HomeRates.ai is not affiliated with, endorsed by, or sponsored by the Federal Reserve Bank of St. Louis or the Federal Reserve System.</p>
+        <p>FRED data is provided for educational and informational purposes only. Rate data may have a publication lag and should not be used as a substitute for current rate quotes from a licensed mortgage lender.</p>
+      </section>
+
+      <section>
+        <h2>19. AI Orchestration — How the Platform Intelligence Is Built</h2>
+        <p>HomeRates.ai's intelligence pipeline is developed and operated using a <strong>multi-model AI orchestration</strong> approach. Rather than relying on a single AI provider, the platform employs three leading AI systems — <strong>OpenAI</strong>, <strong>Grok by xAI</strong>, and <strong>Claude by Anthropic</strong> — working in concert to develop, test, and validate the platform's logic, analysis outputs, and reasoning pathways.</p>
+        <p>In this orchestration model, each AI system contributes distinct capabilities, and their outputs are cross-validated against one another before being deployed into the platform. This approach is designed to reduce single-model error, improve reasoning accuracy, and produce more robust, balanced outputs than any single AI system could achieve alone.</p>
+        <ul>
+          <li><strong>OpenAI</strong> — general reasoning, natural language understanding, and structured data analysis.</li>
+          <li><strong>Grok by xAI</strong> — real-time market intelligence, web-grounded search, and scenario analysis.</li>
+          <li><strong>Claude by Anthropic</strong> — long-context reasoning, instruction adherence, and output review.</li>
+        </ul>
+        <p>The use of AI in this manner is part of HomeRates.ai's ongoing commitment to building the most accurate and reliable mortgage intelligence platform available. AI-generated outputs are reviewed, tested, and refined continuously.</p>
+        <p><em>AI orchestration is a development and quality methodology. All content produced by the platform remains subject to the educational-use disclaimers in Sections 2 and 18.</em></p>
+      </section>
+
+      <section>
+        <h2>20. AI Model Accuracy — You're Part of What Makes This Better</h2>
         <p>HomeRates.ai uses some of the most advanced AI reasoning models available today. The scenario analysis engine, card routing logic, and memory system that personalizes your experience represent genuinely new technology — the kind that is still maturing, still learning, and still improving with every conversation.</p>
         <p>What that means in practice: the system is exceptionally good at the vast majority of mortgage calculations, rate analysis, and scenario comparisons it handles every day. But like any frontier AI, it can occasionally drift — selecting the wrong card type, misrouting a scenario, or carrying stale context from an earlier part of a conversation that leads it down the wrong path.</p>
         <p><strong>When that happens, here is what to do:</strong></p>
@@ -155,12 +175,12 @@ export default function DisclosuresPage() {
       </section>
 
       <section>
-        <h2>19. Changes to These Terms</h2>
+        <h2>21. Changes to These Terms</h2>
         <p>HomeRates.ai may update these Terms from time to time. The most current version will always be available on this page. Continued use constitutes acceptance of the updated terms.</p>
       </section>
 
       <section>
-        <h2>20. Contact</h2>
+        <h2>22. Contact</h2>
         <p><strong>HomeRatesAi LLC</strong><br />
         1401 Pennsylvania Ave Suite 105A PMB 70722<br />
         Wilmington, DE 19806<br />

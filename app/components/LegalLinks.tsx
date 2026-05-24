@@ -30,7 +30,24 @@ export default function LegalLinks() {
                 </span>
             </div>
 
-            {/* Line 2 */}
+            {/* Line 2 — data + AI attribution */}
+            <div className="legal-links-row">
+                <span>
+                    Powered by{" "}
+                    <a
+                        href="https://fred.stlouisfed.org"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="legal-link"
+                    >
+                        FRED® Data
+                    </a>
+                    {" "}— Federal Reserve Bank of St. Louis.{" "}
+                    Intelligence pipeline built on multi-model AI orchestration: OpenAI · Grok by xAI · Claude by Anthropic.
+                </span>
+            </div>
+
+            {/* Line 3 */}
             <div className="legal-links-row legal-links-row-bottom">
                 <span>Educational only, not financial advice.</span>
 
@@ -53,7 +70,7 @@ export default function LegalLinks() {
                 </Link>
 
                 <span className="footer-separator">•</span>
-                <span>Build: Legal-2026.01</span>
+                <span>Build: Legal-2026.02</span>
             </div>
         </div>
     );

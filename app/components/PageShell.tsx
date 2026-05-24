@@ -116,12 +116,21 @@ export default function PageShell({
           border-top: 1px solid rgba(255,255,255,0.06);
           padding: 20px 24px;
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
           flex-wrap: wrap;
-          gap: 8px;
+          gap: 6px;
           font-size: 0.78rem;
           color: rgba(185,208,192,0.4);
+          text-align: center;
+        }
+        .ps-footer-row {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 8px;
+          justify-content: center;
         }
         .ps-footer-sep { opacity: 0.4; }
         .ps-footer-link {
@@ -220,11 +229,22 @@ export default function PageShell({
         </main>
 
         <footer className="ps-footer">
-          <span>HomeRates.ai — educational tool, not a mortgage lender.</span>
-          <span className="ps-footer-sep">•</span>
-          <Link href="/disclosures" className="ps-footer-link">Terms</Link>
-          <span className="ps-footer-sep">•</span>
-          <Link href="/privacy" className="ps-footer-link">Privacy</Link>
+          <div className="ps-footer-row">
+            <span>HomeRates.ai — educational tool, not a mortgage lender.</span>
+          </div>
+          <div className="ps-footer-row">
+            <span>
+              Powered by{" "}
+              <a href="https://fred.stlouisfed.org" target="_blank" rel="noopener noreferrer" className="ps-footer-link">FRED® Data</a>
+              {" "}— Federal Reserve Bank of St. Louis.{" "}
+              Intelligence pipeline: multi-model AI orchestration — OpenAI · Grok by xAI · Claude by Anthropic.
+            </span>
+          </div>
+          <div className="ps-footer-row">
+            <Link href="/disclosures" className="ps-footer-link">Terms &amp; Disclosures</Link>
+            <span className="ps-footer-sep">•</span>
+            <Link href="/privacy" className="ps-footer-link">Privacy</Link>
+          </div>
         </footer>
       </div>
     </>
