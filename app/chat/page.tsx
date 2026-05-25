@@ -2271,6 +2271,27 @@ export default function Page() {
                                 }
                                 if (!deepResult) return;
 
+                                // Compute L2 from deep analysis — fills in when property lookup had no AVM
+                                // Uses same fallback chain as property-intel: zillow → redfin → comps average
+                                let dsL2ScoreFinal = _dsL2Score;
+                                let dsL2SummaryFinal = _dsL2Summary;
+                                if (dsL2ScoreFinal == null && _dsPrice) {
+                                    const comps = deepResult.comparable_sales as Array<{ sold_price: number }> | null | undefined;
+                                    const compsAvg = comps && comps.length > 0
+                                        ? comps.reduce((s: number, c) => s + c.sold_price, 0) / comps.length
+                                        : null;
+                                    const deepAvm = (deepResult.zillow_estimate as number | null | undefined)
+                                        ?? (deepResult.redfin_estimate as number | null | undefined)
+                                        ?? compsAvg;
+                                    if (deepAvm) {
+                                        const prem = (_dsPrice - deepAvm) / deepAvm;
+                                        dsL2ScoreFinal = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
+                                                       : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
+                                        const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
+                                        dsL2SummaryFinal = `Listed ${premStr} vs AVM $${Math.round(deepAvm / 1000)}K`;
+                                    }
+                                }
+
                                 // Compute L3 — market conditions (median DOM + sale-to-list)
                                 const dom = deepResult.market_median_dom as number | null | undefined;
                                 const stl = deepResult.market_sale_to_list as number | null | undefined;
@@ -2307,10 +2328,10 @@ export default function Page() {
                                     }
                                 }
 
-                                // Composite score
+                                // Composite score — use final L2 (deep fallback applied)
                                 const dsEntries = [
-                                    { s: _dsL1Score, w: 0.35 }, { s: _dsL2Score, w: 0.25 },
-                                    { s: dsL3Score,  w: 0.25 }, { s: dsL4Score,  w: 0.15 },
+                                    { s: _dsL1Score,      w: 0.35 }, { s: dsL2ScoreFinal, w: 0.25 },
+                                    { s: dsL3Score,       w: 0.25 }, { s: dsL4Score,       w: 0.15 },
                                 ].filter(e => e.s != null) as { s: number; w: number }[];
                                 const dsComposite = dsEntries.length >= 2
                                     ? Math.round(dsEntries.reduce((a, e) => a + e.s * e.w, 0) / dsEntries.reduce((a, e) => a + e.w, 0))
@@ -2325,10 +2346,10 @@ export default function Page() {
                                             headers: { 'Content-Type': 'application/json' },
                                             body:    JSON.stringify({
                                                 property_address: _dsAddress,
-                                                l1_score: _dsL1Score,  l1_summary: _dsL1Summary,
-                                                l2_score: _dsL2Score,  l2_summary: _dsL2Summary,
-                                                l3_score: dsL3Score,   l3_summary: dsL3Summary,
-                                                l4_score: dsL4Score,   l4_summary: dsL4Summary,
+                                                l1_score: _dsL1Score,        l1_summary: _dsL1Summary,
+                                                l2_score: dsL2ScoreFinal,    l2_summary: dsL2SummaryFinal,
+                                                l3_score: dsL3Score,         l3_summary: dsL3Summary,
+                                                l4_score: dsL4Score,         l4_summary: dsL4Summary,
                                                 scenario_json: { price: _dsPrice, dp_pct: _dsDown, lt: _dsLoanType, rate: _dsRate },
                                             }),
                                         });
@@ -2349,8 +2370,8 @@ export default function Page() {
                                                     address:        _dsAddress,
                                                     l1Score:        _dsL1Score,
                                                     l1Summary:      _dsL1Summary,
-                                                    l2Score:        _dsL2Score,
-                                                    l2Summary:      _dsL2Summary,
+                                                    l2Score:        dsL2ScoreFinal,
+                                                    l2Summary:      dsL2SummaryFinal,
                                                     l3Score:        dsL3Score,
                                                     l3Summary:      dsL3Summary,
                                                     l4Score:        dsL4Score,
