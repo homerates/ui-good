@@ -29,6 +29,7 @@ import BuydownSliderCard from '@/components/BuydownSliderCard';
 import ConvHBSliderCard from '@/components/ConvHBSliderCard';
 import PropertyEvaluationCard from '@/components/PropertyEvaluationCard';
 import IncomeQualifySliderCard from '@/components/IncomeQualifySliderCard';
+import DecisionScoreCard from '@/components/DecisionScoreCard';
 import FhaSliderCard from '@/components/FhaSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
 import DSCRSliderCard from '@/components/DSCRSliderCard';
@@ -490,6 +491,7 @@ type ApiResponse = {
     } | null;
     proGate?: ProGatePayload | null;
     labModules?: Array<{ icon: string; label: string; tag: string; desc: string; seed: string }> | null;
+    decisionScoreCard?: import('./components/DecisionScoreCard').DecisionScoreData | null;
 };
 
 
@@ -2161,6 +2163,24 @@ export default function Page() {
                     // No chips for property_lookup — income analysis is shown inline via IncomeQualifySliderCard
                     const chips: { label: string; seed: string; paramOverrides?: Record<string, any> }[] = [];
 
+                    // ── Autonomous Decision Score — L1 + L2 computed immediately ───────────
+                    const dsLtv = 1 - defaultDown / 100; // 0.80 with 20% down default
+                    const dsL1Score = sliderLoanType === 'jumbo'
+                        ? (dsLtv <= 0.75 ? 86 : dsLtv <= 0.80 ? 80 : 72)
+                        : (dsLtv <= 0.80 ? 85 : dsLtv <= 0.85 ? 78 : dsLtv <= 0.90 ? 70 : 60);
+                    const dsL1Summary = `${sliderLoanType === 'jumbo' ? 'Jumbo' : 'Conventional'} · ${defaultDown}% down · LTV ${Math.round(dsLtv * 100)}%`;
+
+                    const dsAvm = d.estimatedValue ?? d.estimatedValueLow ?? null;
+                    let dsL2Score: number | null = null;
+                    let dsL2Summary = 'AVM data unavailable';
+                    if (d.price && dsAvm) {
+                        const prem = (d.price - dsAvm) / dsAvm;
+                        dsL2Score = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
+                                  : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
+                        const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
+                        dsL2Summary = `Listed ${premStr} vs AVM $${Math.round(dsAvm / 1000)}K`;
+                    }
+
                     const propertyMeta: ApiResponse = {
                         path: 'property_lookup',
                         usedFRED: false,
@@ -2170,6 +2190,14 @@ export default function Page() {
                         propertyCard: d,
                         interactiveSlider,
                         follow_up_chips: chips,
+                        decisionScoreCard: {
+                            state: 'computing',
+                            address: d.address ?? '',
+                            l1Score: dsL1Score,
+                            l1Summary: dsL1Summary,
+                            l2Score: dsL2Score,
+                            l2Summary: dsL2Summary,
+                        },
                     };
 
                     setMessages((prev) =>
@@ -2188,6 +2216,154 @@ export default function Page() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ address: d.address }),
                         });
+                    }
+
+                    // ── Background: L3 + L4 via Grok deep analysis ───────────────────────
+                    // Fires silently — existing cards render at full speed, this is additive.
+                    // When complete, updates the decisionScoreCard meta to 'complete' state.
+                    if (d.address) {
+                        const _dsAnswerId    = answerId;
+                        const _dsL1Score     = dsL1Score;
+                        const _dsL1Summary   = dsL1Summary;
+                        const _dsL2Score     = dsL2Score;
+                        const _dsL2Summary   = dsL2Summary;
+                        const _dsAddress     = d.address;
+                        const _dsPrice       = d.price;
+                        const _dsLoanType    = sliderLoanType;
+                        const _dsDown        = defaultDown;
+                        const _dsRate        = liveRate;
+                        void (async () => {
+                            try {
+                                const postRes = await fetch('/api/beta/grok-property', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        address: _dsAddress,
+                                        deep: true,
+                                        redfin: {
+                                            current_status:     'FOR_SALE',
+                                            current_list_price: _dsPrice ?? undefined,
+                                            bedrooms:           d.beds   ?? undefined,
+                                            bathrooms:          d.baths  ?? undefined,
+                                            sqft:               d.sqft   ?? undefined,
+                                        },
+                                    }),
+                                });
+                                if (!postRes.ok || !postRes.body) return;
+                                const reader = postRes.body.getReader();
+                                const dec    = new TextDecoder();
+                                let buf      = '';
+                                let deepResult: Record<string, unknown> | null = null;
+                                while (true) {
+                                    const { done, value } = await reader.read();
+                                    if (done) break;
+                                    buf += dec.decode(value, { stream: true });
+                                    const lines = buf.split('\n');
+                                    buf = lines.pop() ?? '';
+                                    for (const line of lines) {
+                                        const t = line.trim();
+                                        if (!t.startsWith('data: ')) continue;
+                                        try {
+                                            const ev = JSON.parse(t.slice(6));
+                                            if (ev.done && ev.result) deepResult = ev.result as Record<string, unknown>;
+                                        } catch { /* ignore partial lines */ }
+                                    }
+                                }
+                                if (!deepResult) return;
+
+                                // Compute L3 — market conditions (median DOM + sale-to-list)
+                                const dom = deepResult.market_median_dom as number | null | undefined;
+                                const stl = deepResult.market_sale_to_list as number | null | undefined;
+                                let dsL3Score: number | null = null;
+                                let dsL3Summary = '';
+                                if (dom != null || stl != null) {
+                                    const subs: number[] = [];
+                                    if (dom != null) subs.push(dom > 90 ? 90 : dom > 60 ? 80 : dom > 45 ? 68 : dom > 30 ? 55 : dom > 15 ? 42 : 32);
+                                    if (stl != null) subs.push(stl < 0.95 ? 90 : stl < 0.98 ? 80 : stl < 1.00 ? 68 : stl < 1.02 ? 55 : stl < 1.05 ? 42 : 30);
+                                    dsL3Score   = Math.round(subs.reduce((a, b) => a + b, 0) / subs.length);
+                                    const pts: string[] = [];
+                                    if (dom != null) pts.push(`Median DOM ${dom}d`);
+                                    if (stl != null) pts.push(`sale-to-list ${((stl as number) * 100).toFixed(1)}%`);
+                                    dsL3Summary = pts.join(', ');
+                                }
+
+                                // Compute L4 — location intelligence
+                                const li = deepResult.location_intelligence as { overall_score?: number; sub_scores?: Array<{ metric: string; rating: string }> } | null | undefined;
+                                let dsL4Score: number | null = null;
+                                let dsL4Summary = '';
+                                if (li?.overall_score != null) {
+                                    dsL4Score   = Math.min(100, Math.max(0, Math.round(li.overall_score)));
+                                    const pts   = (li.sub_scores ?? []).slice(0, 2).map(s => `${s.metric}: ${s.rating}`);
+                                    dsL4Summary = pts.length ? pts.join(', ') : `Location ${dsL4Score}/100`;
+                                } else {
+                                    const school = deepResult.school_score as number | null | undefined;
+                                    const walk   = deepResult.walk_score   as number | null | undefined;
+                                    if (school != null || walk != null) {
+                                        const subs: number[] = [];
+                                        if (school != null) subs.push(school >= 8 ? 90 : school >= 6 ? 75 : school >= 4 ? 55 : 35);
+                                        if (walk   != null) subs.push(Math.min(100, Math.max(0, walk)));
+                                        dsL4Score   = Math.round(subs.reduce((a, b) => a + b, 0) / subs.length);
+                                        dsL4Summary = [school != null ? `Schools ${school}/10` : null, walk != null ? `Walk ${walk}` : null].filter(Boolean).join(', ');
+                                    }
+                                }
+
+                                // Composite score
+                                const dsEntries = [
+                                    { s: _dsL1Score, w: 0.35 }, { s: _dsL2Score, w: 0.25 },
+                                    { s: dsL3Score,  w: 0.25 }, { s: dsL4Score,  w: 0.15 },
+                                ].filter(e => e.s != null) as { s: number; w: number }[];
+                                const dsComposite = dsEntries.length >= 2
+                                    ? Math.round(dsEntries.reduce((a, e) => a + e.s * e.w, 0) / dsEntries.reduce((a, e) => a + e.w, 0))
+                                    : null;
+
+                                // Save session if signed in
+                                let dsSessionId: string | null = null;
+                                if (user?.id) {
+                                    try {
+                                        const sr = await fetch('/api/buyer-sessions', {
+                                            method:  'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body:    JSON.stringify({
+                                                property_address: _dsAddress,
+                                                l1_score: _dsL1Score,  l1_summary: _dsL1Summary,
+                                                l2_score: _dsL2Score,  l2_summary: _dsL2Summary,
+                                                l3_score: dsL3Score,   l3_summary: dsL3Summary,
+                                                l4_score: dsL4Score,   l4_summary: dsL4Summary,
+                                                scenario_json: { price: _dsPrice, dp_pct: _dsDown, lt: _dsLoanType, rate: _dsRate },
+                                            }),
+                                        });
+                                        const sd = await sr.json();
+                                        dsSessionId = (sd.session?.id as string | null) ?? null;
+                                    } catch { /* session save is best-effort */ }
+                                }
+
+                                // Update card to complete state — no effect if message is gone
+                                setMessages(prev => prev.map(m =>
+                                    m.id === _dsAnswerId
+                                        ? {
+                                            ...m,
+                                            meta: {
+                                                ...m.meta,
+                                                decisionScoreCard: {
+                                                    state:          'complete' as const,
+                                                    address:        _dsAddress,
+                                                    l1Score:        _dsL1Score,
+                                                    l1Summary:      _dsL1Summary,
+                                                    l2Score:        _dsL2Score,
+                                                    l2Summary:      _dsL2Summary,
+                                                    l3Score:        dsL3Score,
+                                                    l3Summary:      dsL3Summary,
+                                                    l4Score:        dsL4Score,
+                                                    l4Summary:      dsL4Summary,
+                                                    compositeScore: dsComposite ?? undefined,
+                                                    sessionId:      dsSessionId ?? undefined,
+                                                },
+                                            },
+                                        }
+                                        : m
+                                ));
+                            } catch { /* silently ignore — background task, non-critical */ }
+                        })();
                     }
                     } // close FOR_SALE else
                 } else {
@@ -3143,6 +3319,10 @@ export default function Page() {
                                                                     setTimeout(() => send(seed), 50);
                                                                 }}
                                                             />
+                                                        )}
+                                                        {/* Decision Score card — auto-fires after property URL paste */}
+                                                        {m.meta.decisionScoreCard && (
+                                                            <DecisionScoreCard data={m.meta.decisionScoreCard} />
                                                         )}
                                                         {/* DSCR slider card — investment property answers */}
                                                         {m.meta.dscrSlider && !loading && typingId === null && (
