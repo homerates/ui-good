@@ -674,49 +674,15 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 </button>
             </div>
 
-            {/* Check a property / Property Intelligence */}
-            <div className="isc-property-row">
-                {props.journeyAddress ? (
-                    <a
-                        href={`/property-intel?address=${encodeURIComponent(props.journeyAddress)}${journeySid ? `&sid=${journeySid}` : ''}`}
-                        target="_blank" rel="noopener noreferrer"
-                        className="isc-btn-property"
-                        style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
-                    >
-                        <span>🏠</span><span>Property Intelligence →</span>
-                    </a>
-                ) : (
+            {/* Check a property — only in standalone (no journeyAddress) context */}
+            {!props.journeyAddress && (
+                <div className="isc-property-row">
                     <button className="isc-btn-property" onClick={() => {
                         const lt = loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType === 'fha' ? 'fha' : 'conventional';
                         const p = new URLSearchParams({ price: String(Math.round(price)), dp: String(downPct), rate: rate.toFixed(3), term: String(term), lt, taxRate: props.taxRate.toFixed(5), insRate: props.insRate.toFixed(5) });
                         router.push(`/check-property?${p.toString()}`);
                     }}>
                         Check a property →
-                    </button>
-                )}
-            </div>
-
-            {/* Full Property Intelligence Report — only when address data is available AND no journeyAddress
-                 (journeyAddress means "Property Intelligence →" already covers this; avoid duplicate CTA) */}
-            {props.cmaAddress && props.onRunScenario && !props.journeyAddress && (
-                <div className="isc-property-row" style={{ paddingTop: 0 }}>
-                    <button className="isc-btn-report" onClick={() => {
-                        const priceFmt = (props.cmaPrice ?? price) >= 1_000_000
-                            ? `$${((props.cmaPrice ?? price) / 1_000_000).toFixed(1)}M`
-                            : `$${Math.round((props.cmaPrice ?? price) / 1000)}k`;
-                        props.onRunScenario!(
-                            `Property intelligence report: ${props.cmaAddress} listed at ${priceFmt}${props.cmaCity ? ` in ${props.cmaCity}` : ''}`,
-                            {
-                                cmaAddress: props.cmaAddress, cmaCity: props.cmaCity ?? '',
-                                cmaState: props.cmaState ?? '', cmaZip: props.cmaZip ?? '',
-                                cmaPrice: props.cmaPrice ?? price, cmaBeds: props.cmaBeds ?? 0,
-                                cmaBaths: props.cmaBaths ?? 0, cmaSqft: props.cmaSqft ?? 0,
-                                cmaTaxAnnual: props.cmaTaxAnnual ?? 0, cmaTaxRate: props.cmaTaxRate ?? 0.011,
-                                cmaLiveRate: props.cmaLiveRate ?? props.rate, cmaPhotoUrl: props.cmaPhotoUrl ?? '',
-                            }
-                        );
-                    }}>
-                        Full Property Intelligence Report →
                     </button>
                 </div>
             )}

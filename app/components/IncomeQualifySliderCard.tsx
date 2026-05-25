@@ -481,16 +481,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
             {/* Action buttons */}
             <div className="iq-actions">
-                {props.journeyAddress ? (
-                    <a
-                        href={`/property-intel?address=${encodeURIComponent(props.journeyAddress)}${journeySid ? `&sid=${journeySid}` : ''}`}
-                        target="_blank" rel="noopener noreferrer"
-                        className="iq-btn-property"
-                        style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}
-                    >
-                        <span>🏠</span><span>Property Intelligence →</span>
-                    </a>
-                ) : (
+                {!props.journeyAddress && (
                     <button
                         className="iq-btn-property"
                         onClick={() => {
@@ -525,9 +516,6 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                         loanType: isFHA ? 'fha' : 'conventional',
                     })}
                 />
-                <button className="iq-btn-match" onClick={() => router.push(getMatchedUrl())}>
-                    Get Matched →
-                </button>
             </div>
 
             {/* Rate note */}

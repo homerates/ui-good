@@ -235,7 +235,7 @@ export default function DecisionScoreCard({ data }: Props) {
             onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
             onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
           >
-            View Full Score &amp; Get Matched →
+            View Score →
           </a>
           <a
             href={`/property-intel?address=${encodeURIComponent(address)}`}
