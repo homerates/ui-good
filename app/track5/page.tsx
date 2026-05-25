@@ -246,6 +246,15 @@ function IndexGauge({ score }: { score: number }) {
   );
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function loanTypeLabel(lt: string | null | undefined): string {
+  if (lt === 'fha')   return 'FHA';
+  if (lt === 'va')    return 'VA';
+  if (lt === 'jumbo') return 'Jumbo';
+  return 'Conv.';
+}
+
 // ─── Inner Page ───────────────────────────────────────────────────────────────
 
 function Track5Inner() {
@@ -259,6 +268,13 @@ function Track5Inner() {
   const [saved,     setSaved]         = useState(false);
   // sessionData: loaded from DB when ?session=<id> is in URL, or after auto-save
   const [sessionData, setSessionData] = useState<Record<string, unknown> | null>(null);
+
+  // ── Get Matched state ──────────────────────────────────────────────────────
+  type MatchState = 'idle' | 'modal' | 'sending' | 'confirmed' | 'matched';
+  const [matchState,      setMatchState]      = useState<MatchState>('idle');
+  const [matchConsent,    setMatchConsent]    = useState(false);
+  const [matchScenarioId, setMatchScenarioId] = useState<string | null>(null);
+  const [matchError,      setMatchError]      = useState<string | null>(null);
 
   // ── Clamp helper ──────────────────────────────────────────────────────────
   function clampScore(raw: string | null | undefined): number | null {
@@ -306,6 +322,33 @@ function Track5Inner() {
     ?? extractAddressFromSummary(levels.l3.summary);
 
   const piUrl   = address ? `/property-intel?address=${encodeURIComponent(address)}` : '/property-intel';
+
+  // ── Match helpers ──────────────────────────────────────────────────────────
+  function extractZip(addr: string): string | null {
+    const m = addr.match(/\b(\d{5})(?:-\d{4})?\b/);
+    return m ? m[1] : null;
+  }
+  const matchZip = address ? extractZip(address) : null;
+
+  async function handleMatch() {
+    if (!sessionId || !matchConsent) return;
+    setMatchState('sending');
+    setMatchError(null);
+    try {
+      const res = await fetch('/api/track5/match', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ sessionId }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? 'Request failed');
+      setMatchScenarioId(d.scenarioId ?? null);
+      setMatchState('confirmed');
+    } catch (e: unknown) {
+      setMatchError(e instanceof Error ? e.message : 'Something went wrong');
+      setMatchState('modal'); // bounce back to modal so user can retry
+    }
+  }
 
   // ── Purchase scenario context — session wins over URL params ─────────────
   const sj       = (sessionData?.scenario_json ?? null) as Record<string, unknown> | null;
@@ -589,6 +632,259 @@ function Track5Inner() {
         </div>
 
       </div>
+
+        {/* ── Get Matched section — only when session + address + composite exist ── */}
+        {isSignedIn && sessionId && address && idx && matchZip && matchState !== 'matched' && (
+          <div style={{
+            marginTop: 28,
+            background: 'rgba(0,232,122,0.03)',
+            border: '1px solid rgba(0,232,122,0.15)',
+            borderRadius: 14,
+            padding: '22px 22px 20px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 18 }}>
+              <div style={{
+                width: 44, height: 44, flexShrink: 0,
+                background: 'rgba(0,232,122,0.1)', border: '1px solid rgba(0,232,122,0.22)',
+                borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.25rem',
+              }}>🎯</div>
+              <div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f1f5f9', marginBottom: 4, letterSpacing: '-0.02em' }}>
+                  Get Matched with a Local Expert
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.55 }}>
+                  Share your Decision Score with vetted loan officers in your area. Your name and address stay private — only your score and ZIP are shared at first.
+                </div>
+              </div>
+            </div>
+
+            {/* What gets shared preview */}
+            <div style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
+              <div style={{ padding: '8px 14px', background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#4b6080' }}>
+                What professionals see at match time
+              </div>
+              {[
+                { dot: '#4ade80', label: 'Decision Score', val: `${idx.score} · ${v?.label}` },
+                { dot: '#4ade80', label: 'ZIP Code',       val: matchZip },
+                { dot: '#4ade80', label: 'Loan scenario',  val: [ctxLt ? loanTypeLabel(ctxLt) : null, ctxPrice ? fmtK(ctxPrice) : null, ctxDp ? `${ctxDp}% down` : null].filter(Boolean).join(' · ') || 'From scenario' },
+                { dot: '#f87171', label: 'Full address',   val: null },
+                { dot: '#f87171', label: 'Your name & contact', val: null },
+              ].map(row => (
+                <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: row.dot, flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', flex: 1 }}>{row.label}</span>
+                  {row.val
+                    ? <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#e2e8f0' }}>{row.val}</span>
+                    : <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b6080' }}>🔒 Hidden until you accept</span>
+                  }
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: 'rgba(126,244,244,0.04)', border: '1px solid rgba(126,244,244,0.12)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: '0.73rem', color: '#94a3b8', lineHeight: 1.55 }}>
+              <span style={{ flexShrink: 0, marginTop: 1 }}>🛡️</span>
+              <span>Professionals respond to your score — you stay anonymous. Only after <strong style={{ color: '#e2e8f0' }}>you choose to connect</strong> does your full information get shared.</span>
+            </div>
+
+            <button
+              onClick={() => { setMatchState('modal'); setMatchConsent(false); setMatchError(null); }}
+              style={{ width: '100%', background: '#00e87a', color: '#060d08', border: 'none', borderRadius: 10, padding: '13px 20px', fontSize: '0.95rem', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.01em' }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+              onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+            >
+              Get Matched →
+            </button>
+          </div>
+        )}
+
+        {/* ── Already matched badge ── */}
+        {matchState === 'matched' && (
+          <div style={{
+            marginTop: 28,
+            background: 'rgba(0,232,122,0.04)', border: '1px solid rgba(0,232,122,0.18)',
+            borderRadius: 14, padding: '18px 20px',
+            display: 'flex', alignItems: 'center', gap: 14,
+          }}>
+            <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>✅</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#4ade80', marginBottom: 3 }}>Match request sent</div>
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                Loan officers in <strong style={{ color: '#e2e8f0' }}>ZIP {matchZip}</strong> have been notified. You&apos;ll hear back in your HomeRates inbox.
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/messages')}
+              style={{ flexShrink: 0, background: 'rgba(0,232,122,0.08)', border: '1px solid rgba(0,232,122,0.22)', color: '#00e87a', borderRadius: 8, padding: '8px 14px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' as const }}
+            >
+              View Inbox →
+            </button>
+          </div>
+        )}
+
+      </div>
+
+      {/* ── Consent Modal ── */}
+      {(matchState === 'modal' || matchState === 'sending' || matchState === 'confirmed') && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget && matchState === 'modal') setMatchState('idle'); }}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)',
+            zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div style={{
+            background: '#0d1117',
+            border: '1px solid rgba(0,232,122,0.2)',
+            borderRadius: 18,
+            width: '100%', maxWidth: 460,
+            overflow: 'hidden',
+          }}>
+
+            {/* State: consent gate */}
+            {matchState === 'modal' && (
+              <>
+                <div style={{ padding: '22px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#00e87a', marginBottom: 6 }}>Track 5 · Matching</div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.02em', marginBottom: 5 }}>Connect with a local loan officer</div>
+                  <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.55 }}>Review exactly what gets shared. Your address and identity stay private until you choose to reveal them.</div>
+                </div>
+
+                <div style={{ padding: '18px 24px' }}>
+                  {/* Score strip */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.15)', borderRadius: 10, padding: '14px 16px', marginBottom: 18 }}>
+                    <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
+                      <ScoreRing score={idx?.score ?? null} size={52} />
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.05rem', fontWeight: 900, color: v?.color ?? '#4ade80' }}>
+                        {idx?.score ?? '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.92rem', fontWeight: 800, color: v?.color ?? '#4ade80', marginBottom: 2 }}>{v?.label}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{address?.split(',').slice(0, 2).join(',') ?? address} · ZIP {matchZip}</div>
+                    </div>
+                  </div>
+
+                  {/* Sharing table */}
+                  <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#4b6080', marginBottom: 8 }}>Shared with matched professionals now</div>
+                  <div style={{ marginBottom: 16 }}>
+                    {[
+                      { icon: '📊', label: 'Decision Score + level breakdown', val: `${idx?.score} / ${v?.label}` },
+                      { icon: '📍', label: 'ZIP code',       val: matchZip ?? '' },
+                      { icon: '🏠', label: 'Loan scenario',  val: [ctxLt ? loanTypeLabel(ctxLt) : null, ctxPrice ? fmtK(ctxPrice) : null, ctxDp ? `${ctxDp}% dn` : null].filter(Boolean).join(' · ') || 'From scenario' },
+                      { icon: '🔒', label: 'Full property address', val: null },
+                      { icon: '🔒', label: 'Your name & contact info', val: null },
+                    ].map(row => (
+                      <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        <span style={{ fontSize: '0.85rem', width: 20, textAlign: 'center' as const, flexShrink: 0 }}>{row.icon}</span>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', flex: 1 }}>{row.label}</span>
+                        {row.val
+                          ? <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#e2e8f0' }}>{row.val}</span>
+                          : <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4b6080' }}>Hidden — revealed only if you accept</span>
+                        }
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Reveal timeline */}
+                  <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+                    <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#4b6080', marginBottom: 10 }}>How the reveal works</div>
+                    {[
+                      { n: '1', text: <><strong style={{ color: '#e2e8f0' }}>Now:</strong> ZIP + score + scenario shared. Pro sees your readiness, not who you are.</> },
+                      { n: '2', text: <><strong style={{ color: '#e2e8f0' }}>Pro responds:</strong> You get a message in your HomeRates inbox. Still anonymous.</> },
+                      { n: '3', text: <><strong style={{ color: '#e2e8f0' }}>You accept:</strong> Full address + contact shared. You stay in control the whole time.</> },
+                    ].map(step => (
+                      <div key={step.n} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+                        <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,232,122,0.1)', border: '1px solid rgba(0,232,122,0.22)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 800, color: '#00e87a' }}>{step.n}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.5, paddingTop: 1 }}>{step.text}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Consent checkbox */}
+                  <div
+                    onClick={() => setMatchConsent(c => !c)}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', background: matchConsent ? 'rgba(0,232,122,0.04)' : 'rgba(255,255,255,0.02)', border: `1.5px solid ${matchConsent ? 'rgba(0,232,122,0.3)' : 'rgba(255,255,255,0.07)'}`, borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s', marginBottom: 16, userSelect: 'none' as const }}
+                  >
+                    <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${matchConsent ? '#00e87a' : 'rgba(255,255,255,0.2)'}`, background: matchConsent ? '#00e87a' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1, transition: 'all 0.15s' }}>
+                      {matchConsent && <span style={{ fontSize: '0.65rem', color: '#060d08', fontWeight: 900 }}>✓</span>}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.55 }}>
+                      I understand that my <strong style={{ color: '#e2e8f0' }}>ZIP code, Decision Score, and loan scenario</strong> will be shared with matched professionals. My name, address, and contact info remain private until I choose to connect.
+                    </div>
+                  </div>
+
+                  {matchError && (
+                    <div style={{ fontSize: '0.75rem', color: '#f87171', marginBottom: 12, padding: '8px 12px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 8 }}>
+                      {matchError}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ padding: '0 24px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button
+                    onClick={handleMatch}
+                    disabled={!matchConsent}
+                    style={{ width: '100%', background: '#00e87a', color: '#060d08', border: 'none', borderRadius: 10, padding: '13px 20px', fontSize: '0.9rem', fontWeight: 800, cursor: matchConsent ? 'pointer' : 'default', fontFamily: 'inherit', opacity: matchConsent ? 1 : 0.4, transition: 'opacity 0.15s' }}
+                  >
+                    Send Match Request →
+                  </button>
+                  <button
+                    onClick={() => setMatchState('idle')}
+                    style={{ width: '100%', background: 'transparent', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 20px', fontSize: '0.83rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* State: sending */}
+            {matchState === 'sending' && (
+              <div style={{ padding: '48px 24px', textAlign: 'center' as const }}>
+                <div style={{ width: 44, height: 44, border: '3px solid rgba(0,232,122,0.15)', borderTopColor: '#00e87a', borderRadius: '50%', animation: 't5spin 0.9s linear infinite', margin: '0 auto 16px' }} />
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#e2e8f0', marginBottom: 5 }}>Sending your match request…</div>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Finding loan officers in ZIP {matchZip}</div>
+              </div>
+            )}
+
+            {/* State: confirmed */}
+            {matchState === 'confirmed' && (
+              <div style={{ padding: '40px 24px 32px', textAlign: 'center' as const }}>
+                <div style={{ width: 60, height: 60, background: 'rgba(0,232,122,0.1)', border: '2px solid rgba(0,232,122,0.3)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px', fontSize: '1.6rem' }}>✅</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f1f5f9', marginBottom: 6, letterSpacing: '-0.02em' }}>Match request sent</div>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.6, marginBottom: 20 }}>
+                  Loan officers serving <strong style={{ color: '#e2e8f0' }}>ZIP {matchZip}</strong> have been notified with your score summary. You&apos;ll receive their responses in your HomeRates inbox — you&apos;re still anonymous until you accept.
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '12px 14px', textAlign: 'left' as const, marginBottom: 20 }}>
+                  {[
+                    { k: 'Shared with pros', v: `ZIP ${matchZip} · Score ${idx?.score}`, green: true },
+                    { k: 'Your identity',    v: '🔒 Still private' },
+                    { k: 'Next step',        v: 'Check your inbox for responses' },
+                  ].map(row => (
+                    <div key={row.k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.75rem' }}>
+                      <span style={{ color: '#94a3b8' }}>{row.k}</span>
+                      <span style={{ fontWeight: 700, color: row.green ? '#4ade80' : '#e2e8f0' }}>{row.v}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setMatchState('matched')}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '11px 20px', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Done — back to my score
+                </button>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* ── Spinner keyframe ── */}
+      <style>{`
+        @keyframes t5spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
