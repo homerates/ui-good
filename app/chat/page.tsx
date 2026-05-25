@@ -528,17 +528,29 @@ function extractListingUrl(text: string): string | null {
 
 /** Detect a plain US street address typed by the user (not a listing URL).
  *  Must START with the house number so chip seeds like "Property intelligence
- *  report: 3277 Main St..." are never mistaken for a standalone address. */
+ *  report: 3277 Main St..." are never mistaken for a standalone address.
+ *
+ *  Two-tier detection:
+ *  1. Street-type keyword match (high precision, handles standard abbreviations)
+ *  2. City + State + ZIP suffix match (catches non-standard/Spanish street names
+ *     like "Sandy Crst", "Vereda Mar Del Sol", "Camino Del Sur", etc.) */
 function extractPlainAddress(text: string): string | null {
     const t = text.trim();
     // Skip if text contains a URL or a known listing domain
     if (/https?:\/\//i.test(t) || /(?:redfin|zillow|realtor|trulia|homes)\.com/i.test(t)) return null;
     // Must START with a house number (digit) — rules out question/sentence inputs
     if (!/^\d/.test(t)) return null;
-    // Must contain a street type keyword
-    const ok = /\d{1,6}\s+[A-Za-z0-9][A-Za-z0-9 ]{1,50}\s+(?:st(?:reet)?|ave(?:nue)?|blvd|boulevard|dr(?:ive)?|ln|lane|rd|road|way|ct|court|pl|place|ter(?:race)?|cir(?:cle)?|hwy|highway|pkwy|parkway|loop|trail|run|pass|grove|ridge|bend|crossing|heights|vista|walk|sq(?:uare)?)\b/i;
-    if (!ok.test(t)) return null;
-    return t;
+
+    // Tier 1: explicit street-type keyword (original logic — fast path)
+    const hasStreetType = /\d{1,6}\s+[A-Za-z0-9][A-Za-z0-9 ]{1,50}\s+(?:st(?:reet)?|ave(?:nue)?|blvd|boulevard|dr(?:ive)?|ln|lane|rd|road|way|ct|court|pl|place|ter(?:race)?|cir(?:cle)?|hwy|highway|pkwy|parkway|loop|trail|run|pass|grove|ridge|bend|crossing|heights|vista|walk|sq(?:uare)?|crest|crst|vw|view|mdws|meadow|gln|glen|hls|hill|knl|knoll|lndg|landing|fwy|freeway|expy|expressway|trl|trace|vereda|camino|via|paseo|avenida|calle|corte|ranchero|rancho)\b/i.test(t);
+    if (hasStreetType) return t;
+
+    // Tier 2: ends with ", City, ST 12345" pattern — catches non-standard street types
+    // Allows 1–3 word city names (e.g. "San Diego", "Los Angeles", "La Jolla")
+    const hasCityStateZip = /^\d{1,6}\s+.{3,60},\s*[A-Za-z][A-Za-z\s]{1,20},\s*[A-Z]{2}\s+\d{5}\b/.test(t);
+    if (hasCityStateZip) return t;
+
+    return null;
 }
 
 /* =========================
