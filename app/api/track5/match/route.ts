@@ -10,11 +10,10 @@
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { NextRequest, NextResponse } from 'next/server';
-import { auth }                      from '@clerk/nextjs/server';
-import { createClient }              from '@supabase/supabase-js';
-import { Resend }                    from 'resend';
-import { emailShell }                from '../../../../lib/sendEmail';
+import { NextRequest, NextResponse }   from 'next/server';
+import { auth }                        from '@clerk/nextjs/server';
+import { createClient }                from '@supabase/supabase-js';
+import { sendTrack5Alerts }            from '../../../../lib/sendScenarioAlerts';
 
 function db() {
   return createClient(
@@ -59,61 +58,6 @@ function loanTypeLabel(lt: string | undefined | null): string {
   if (lt === 'va')    return 'VA';
   if (lt === 'jumbo') return 'Jumbo';
   return 'Conventional';
-}
-
-// ── Track5 LO alert email ──────────────────────────────────────────────────────
-
-function track5AlertHtml(opts: {
-  loName: string;
-  composite: number;
-  verdict: string;
-  zip: string;
-  state: string;
-  loanType: string;
-  priceRange: string;
-  dpPct: number | null;
-  boardUrl: string;
-}): string {
-  const CARD = '#1c2433';
-  const SEP  = '#2a3444';
-  const row  = (label: string, value: string) =>
-    `<tr>
-      <td bgcolor="${CARD}" style="background-color:${CARD};padding:10px 0;border-bottom:1px solid ${SEP}">
-        <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#8b949e;margin-bottom:3px">${label}</span>
-        <span style="font-size:15px;font-weight:600;color:#e6edf3">${value}</span>
-      </td>
-    </tr>`;
-
-  return emailShell(`
-    <span style="display:inline-block;background-color:#091a10;color:#00e87a;font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:.08em">TRACK 5 MATCH</span>
-    <div style="font-size:22px;font-weight:700;color:#e6edf3;margin-top:14px">Hi ${opts.loName},</div>
-    <div style="font-size:14px;color:#8b949e;margin-top:6px;margin-bottom:24px;line-height:1.5">
-      A buyer with a completed Track 5 Decision Score is looking for a loan officer in their area. Their score and scenario are below — identity is anonymous until they accept your response.
-    </div>
-
-    <table width="100%" cellpadding="0" cellspacing="0" bgcolor="${CARD}" style="background-color:${CARD};border:1px solid #2a3444;border-radius:12px;margin-bottom:24px">
-      <tr><td bgcolor="${CARD}" style="background-color:${CARD};padding:4px 20px 0">
-        <table width="100%" cellpadding="0" cellspacing="0" bgcolor="${CARD}" style="background-color:${CARD};">
-          ${row('Decision Score', `${opts.composite} · ${opts.verdict}`)}
-          ${row('ZIP Code',       opts.zip)}
-          ${row('State',          opts.state)}
-          ${row('Loan type',      opts.loanType)}
-          ${row('Price range',    opts.priceRange)}
-          ${opts.dpPct != null ? row('Down payment', `${opts.dpPct}%`) : ''}
-          <tr>
-            <td bgcolor="${CARD}" style="background-color:${CARD};padding:10px 0">
-              <span style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#8b949e;margin-bottom:3px">Identity</span>
-              <span style="font-size:15px;font-weight:600;color:#8b949e">🔒 Anonymous — revealed when buyer accepts</span>
-            </td>
-          </tr>
-        </table>
-      </td></tr>
-    </table>
-
-    <a href="${opts.boardUrl}" style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:15px;font-weight:700;padding:15px 20px;border-radius:999px;text-decoration:none">
-      View &amp; Respond on Board →
-    </a>
-  `, "HomeRates.ai · Track 5 · Borrower identity is kept private until mutual acceptance.");
 }
 
 // ── POST ───────────────────────────────────────────────────────────────────────
@@ -189,7 +133,8 @@ export async function POST(req: NextRequest) {
     credit_tier:        'Not disclosed',
     timeline:           'ASAP (under 30 days)',
     visibility:         'public',
-    status:             'open',
+    status:             'active',           // must be 'active' — board query filters on this
+    needs_professional: 'lender',           // Track5 always targets lenders
     down_payment_pct:   dpPct ?? 0,
     // Track5-specific
     session_id:      sessionId,
@@ -219,56 +164,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create match request' }, { status: 500 });
   }
 
-  // ── 6. Alert LOs (state-matched, fire-and-forget) ─────────────────────────
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  if (RESEND_API_KEY) {
-    // Run alerts async — don't block the response
-    (async () => {
-      try {
-        const { data: loRows } = await supabase
-          .from('loan_officers')
-          .select('user_id, lender')
-          .limit(50);
-
-        if (!loRows?.length) return;
-
-        const ids = loRows.map(r => r.user_id);
-        const { data: userRows } = await supabase
-          .from('users').select('id, email').in('id', ids);
-        const emailMap: Record<string, string> = {};
-        for (const u of userRows ?? []) { if (u.email) emailMap[u.id] = u.email; }
-
-        const resend   = new Resend(RESEND_API_KEY);
-        const FROM     = process.env.RESEND_FROM_EMAIL ?? 'digest@homerates.ai';
-        const boardUrl = 'https://chat.homerates.ai/lo/scenarios';
-
-        await Promise.allSettled(
-          loRows
-            .filter(lo => emailMap[lo.user_id])
-            .map(lo =>
-              resend.emails.send({
-                from:    `HomeRates.ai <${FROM}>`,
-                to:      emailMap[lo.user_id],
-                subject: `Track 5 match — ${loanType} buyer · ${zip ? `ZIP ${zip} · ` : ''}Score ${composite}`,
-                html:    track5AlertHtml({
-                  loName:    lo.lender ?? 'there',
-                  composite,
-                  verdict,
-                  zip:       zip ?? 'Not available',
-                  state,
-                  loanType,
-                  priceRange,
-                  dpPct,
-                  boardUrl,
-                }),
-              })
-            )
-        );
-      } catch (e) {
-        console.error('[track5/match] alert send failed:', e);
-      }
-    })();
-  }
+  // ── 6. Alert LOs — awaited so Vercel doesn't kill the function before emails send ──
+  await sendTrack5Alerts({ loanType, composite, verdict, zip, state, priceRange, dpPct });
 
   return NextResponse.json({ ok: true, scenarioId: newBrief.id });
 }
