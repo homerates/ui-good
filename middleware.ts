@@ -89,6 +89,30 @@ const isPublicRoute = createRouteMatcher([
   "/track5(.*)",
   // Autonomous Intelligence Engine — public marketing explainer
   "/autonomous-intelligence",
+  // Platform Intelligence Hub + all 11 marketing pillar pages
+  "/platform",
+  "/decision-score",
+  "/best-dscr-calculator-2026",
+  "/best-mortgage-ai-platform",
+  "/compare-mortgage-quotes",
+  "/consumer-mortgage-platform",
+  "/private-vault-mortgage",
+  "/property-intelligence-cards",
+  "/unbiased-mortgage-rates",
+  "/track5-intelligence",
+  "/ai-coach",
+  "/property-intelligence",
+  // Tools — public with client-side auth gating
+  "/check-property(.*)",
+  "/jumbo-calculator(.*)",
+  "/va-calculator(.*)",
+  // Other public pages already in sitemap
+  "/homeowner(.*)",
+  "/why-homerates(.*)",
+  "/support(.*)",
+  "/compare(.*)",
+  "/loan-limits(.*)",
+  "/founding(.*)",
 ]);
 
 export default clerkMiddleware((auth, req) => {
