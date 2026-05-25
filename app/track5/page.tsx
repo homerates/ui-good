@@ -631,8 +631,6 @@ function Track5Inner() {
           </div>
         </div>
 
-      </div>
-
         {/* ── Get Matched section — only when session + address + composite exist ── */}
         {isSignedIn && sessionId && address && idx && matchZip && matchState !== 'matched' && (
           <div style={{
