@@ -1194,6 +1194,8 @@ export default function Page() {
 
     // Seed composer once if we came from a shared-link card
     const hasSeededFromShareRef = React.useRef<string | null>(null); // tracks last processed sq value
+    // Prevents Auto-Score from firing more than once per session (guards against re-fires on follow-up messages)
+    const autoScoreFiredRef = React.useRef(false);
     const searchParams = useSearchParams();
 
     // borrower-only mode fixed
@@ -2687,7 +2689,180 @@ export default function Page() {
                 )
             );
 
+            // ── Auto-Score: CMA-seeded chat (My Home buyer cards → ?cmaAddress + ?cmaPrice) ──────
+            // Fires when chat is seeded from buildCMAUrl() — address + price known at mount time.
+            // Only fires once per session. Homeowner refi seeds don't set cmaPrice so they're safe.
+            {
+                const _cmaAddr  = searchParams?.get('cmaAddress') ?? null;
+                const _cmaPrice = searchParams?.get('cmaPrice')   ?? null;
+                if (!autoScoreFiredRef.current && _cmaAddr && _cmaPrice && defaultDown != null) {
+                    autoScoreFiredRef.current = true;
 
+                    const _dsAddress  = _cmaAddr;
+                    const _dsPrice    = parseFloat(_cmaPrice);
+                    const _dsLoanType = sliderLoanType ?? 'conventional';
+                    const _dsDown     = defaultDown;
+                    const _dsAnswerIdCma = answerId;
+
+                    // L1 — instant from LTV formula (same as URL-paste path)
+                    const _dsLtv      = 1 - _dsDown / 100;
+                    const _dsL1Score  = _dsLoanType === 'jumbo'
+                        ? (_dsLtv <= 0.75 ? 86 : _dsLtv <= 0.80 ? 80 : 72)
+                        : (_dsLtv <= 0.80 ? 85 : _dsLtv <= 0.85 ? 78 : _dsLtv <= 0.90 ? 70 : 60);
+                    const _dsL1Summary = `${_dsLoanType === 'jumbo' ? 'Jumbo' : 'Conventional'} · ${_dsDown}% down · LTV ${Math.round(_dsLtv * 100)}%`;
+
+                    // Inject computing-state card (L2 null — AVM not in cmaAddress params, resolves from Grok)
+                    setMessages(prev => prev.map(m =>
+                        m.id === _dsAnswerIdCma && m.role === 'assistant' && m.meta
+                            ? { ...m, meta: { ...m.meta, decisionScoreCard: {
+                                state:    'computing' as const,
+                                address:  _dsAddress,
+                                l1Score:  _dsL1Score,
+                                l1Summary: _dsL1Summary,
+                                l2Score:  null,
+                                l2Summary: 'Fetching AVM...',
+                            } as DecisionScoreData } }
+                            : m
+                    ));
+
+                    // Background: L2 AVM + L3 + L4 via Grok deep analysis — non-blocking
+                    void (async () => {
+                        try {
+                            // Fetch live rate in parallel with Grok deep analysis
+                            const [tickerR, deepResp] = await Promise.all([
+                                fetch('/api/ticker', { cache: 'no-store' }).catch(() => null),
+                                fetch('/api/beta/grok-property', {
+                                    method:  'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body:    JSON.stringify({ address: _dsAddress, price: _dsPrice, deep: true }),
+                                }),
+                            ]);
+
+                            let _dsRate = 6.65; // FRED fallback
+                            if (tickerR?.ok) {
+                                try {
+                                    const tj = await tickerR.json();
+                                    const r30 = tj?.items?.find((i: any) => i.label === '30Y FIXED');
+                                    if (r30?.value) {
+                                        const p = parseFloat(String(r30.value).replace('%', ''));
+                                        if (Number.isFinite(p) && p > 3 && p < 12) _dsRate = p;
+                                    }
+                                } catch { /* ignore */ }
+                            }
+
+                            if (!deepResp.ok || !deepResp.body) return;
+                            const reader = deepResp.body.getReader();
+                            const dec = new TextDecoder();
+                            let deepResult: Record<string, any> | null = null;
+                            let buf = '';
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+                                buf += dec.decode(value, { stream: true });
+                                const lines = buf.split('\n');
+                                buf = lines.pop() ?? '';
+                                for (const line of lines) {
+                                    if (!line.startsWith('data: ')) continue;
+                                    try { const p = JSON.parse(line.slice(6)); if (p.done && p.result) deepResult = p.result; }
+                                    catch { /* ignore */ }
+                                }
+                            }
+                            if (!deepResult) return;
+
+                            // L2 from deep analysis AVM (same fallback chain as FOR-SALE path)
+                            let dsL2ScoreFinal: number | null = null;
+                            let dsL2SummaryFinal = 'AVM data unavailable';
+                            const deepAvm = deepResult.zillow_estimate ?? deepResult.redfin_estimate
+                                ?? (Array.isArray(deepResult.comparable_sales) && deepResult.comparable_sales.length > 0
+                                    ? Math.round(deepResult.comparable_sales.reduce((s: number, c: any) => s + (c.sale_price ?? 0), 0) / deepResult.comparable_sales.length)
+                                    : null);
+                            if (_dsPrice && deepAvm) {
+                                const prem = (_dsPrice - deepAvm) / deepAvm;
+                                dsL2ScoreFinal = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
+                                    : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
+                                const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
+                                dsL2SummaryFinal = `Listed ${premStr} vs AVM ${Math.round(deepAvm / 1000)}K`;
+                            }
+
+                            // L3 — market conditions (same scoring as FOR-SALE path)
+                            let dsL3Score: number | null = null;
+                            let dsL3Summary = '';
+                            const dom = deepResult.market_median_dom ?? null;
+                            const s2l = deepResult.market_sale_to_list ?? null;
+                            if (dom != null || s2l != null) {
+                                const domS = dom == null ? 75 : dom <= 10 ? 40 : dom <= 21 ? 55 : dom <= 30 ? 65 : dom <= 45 ? 75 : dom <= 60 ? 82 : 90;
+                                const s2lS = s2l == null ? 75 : s2l >= 1.03 ? 30 : s2l >= 1.01 ? 45 : s2l >= 0.99 ? 65 : s2l >= 0.97 ? 78 : 90;
+                                dsL3Score   = Math.round((domS + s2lS) / 2);
+                                dsL3Summary = [dom != null ? `DOM ${dom}d` : null, s2l != null ? `S/L ${(s2l * 100).toFixed(0)}%` : null].filter(Boolean).join(' · ');
+                            }
+
+                            // L4 — location intelligence (same scoring as FOR-SALE path)
+                            let dsL4Score: number | null = null;
+                            let dsL4Summary = '';
+                            const locIntel = deepResult.location_intelligence;
+                            if (locIntel) {
+                                if (locIntel.overall_score != null) {
+                                    dsL4Score   = Math.round(locIntel.overall_score);
+                                    dsL4Summary = locIntel.summary ?? 'Location score';
+                                } else {
+                                    const scores = [locIntel.school_score, locIntel.walk_score, locIntel.transit_score, locIntel.safety_score].filter((s): s is number => s != null);
+                                    if (scores.length > 0) {
+                                        dsL4Score   = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+                                        dsL4Summary = 'Schools · Walk · Transit · Safety';
+                                    }
+                                }
+                            }
+
+                            // Composite (same formula as FOR-SALE path)
+                            const dsEntries = [
+                                { s: _dsL1Score,     w: 0.35 }, { s: dsL2ScoreFinal, w: 0.25 },
+                                { s: dsL3Score,      w: 0.25 }, { s: dsL4Score,      w: 0.15 },
+                            ].filter(e => e.s != null) as { s: number; w: number }[];
+                            const dsComposite = dsEntries.length >= 2
+                                ? Math.round(dsEntries.reduce((a, e) => a + e.s * e.w, 0) / dsEntries.reduce((a, e) => a + e.w, 0))
+                                : null;
+
+                            // Session save (best-effort, only when signed in)
+                            let dsSessionId: string | null = null;
+                            if (user?.id) {
+                                try {
+                                    const sr = await fetch('/api/buyer-sessions', {
+                                        method:  'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body:    JSON.stringify({
+                                            property_address: _dsAddress,
+                                            l1_score: _dsL1Score,      l1_summary: _dsL1Summary,
+                                            l2_score: dsL2ScoreFinal,  l2_summary: dsL2SummaryFinal,
+                                            l3_score: dsL3Score,       l3_summary: dsL3Summary,
+                                            l4_score: dsL4Score,       l4_summary: dsL4Summary,
+                                            scenario_json: { price: _dsPrice, dp_pct: _dsDown, lt: _dsLoanType, rate: _dsRate },
+                                        }),
+                                    });
+                                    const sd = await sr.json();
+                                    dsSessionId = (sd.session?.id as string | null) ?? null;
+                                } catch { /* best-effort */ }
+                            }
+
+                            // Update card to complete state
+                            setMessages(prev => prev.map(m =>
+                                m.id === _dsAnswerIdCma && m.role === 'assistant'
+                                    ? { ...m, meta: { ...m.meta!, decisionScoreCard: {
+                                        state:          'complete' as const,
+                                        address:        _dsAddress,
+                                        l1Score:        _dsL1Score,     l1Summary:      _dsL1Summary,
+                                        l2Score:        dsL2ScoreFinal, l2Summary:      dsL2SummaryFinal,
+                                        l3Score:        dsL3Score,      l3Summary:      dsL3Summary,
+                                        l4Score:        dsL4Score,      l4Summary:      dsL4Summary,
+                                        compositeScore: dsComposite ?? undefined,
+                                        sessionId:      dsSessionId ?? undefined,
+                                    } as DecisionScoreData } }
+                                    : m
+                            ));
+                        } catch { /* fire and forget — any error is silent */ }
+                    })();
+                }
+            }
+            // ── End Auto-Score: CMA-seeded chat ──────────────────────────────────────────
 
             const friendly =
                 meta.message ??
