@@ -545,10 +545,10 @@ function extractPlainAddress(text: string): string | null {
     const hasStreetType = /\d{1,6}\s+[A-Za-z0-9][A-Za-z0-9 ]{1,50}\s+(?:st(?:reet)?|ave(?:nue)?|blvd|boulevard|dr(?:ive)?|ln|lane|rd|road|way|ct|court|pl|place|ter(?:race)?|cir(?:cle)?|hwy|highway|pkwy|parkway|loop|trail|run|pass|grove|ridge|bend|crossing|heights|vista|walk|sq(?:uare)?|crest|crst|vw|view|mdws|meadow|gln|glen|hls|hill|knl|knoll|lndg|landing|fwy|freeway|expy|expressway|trl|trace|vereda|camino|via|paseo|avenida|calle|corte|ranchero|rancho)\b/i.test(t);
     if (hasStreetType) return t;
 
-    // Tier 2: ends with ", City, ST 12345" pattern — catches non-standard street types
-    // Allows 1–3 word city names (e.g. "San Diego", "Los Angeles", "La Jolla")
-    const hasCityStateZip = /^\d{1,6}\s+.{3,60},\s*[A-Za-z][A-Za-z\s]{1,20},\s*[A-Z]{2}\s+\d{5}\b/.test(t);
-    if (hasCityStateZip) return t;
+    // Tier 2: ", City, ST [ZIP]" suffix — catches non-standard/Spanish street types.
+    // ZIP is optional so "4654 Vereda Mar Del Sol, San Diego, CA" also routes correctly.
+    const hasCityState = /^\d{1,6}\s+.{3,60},\s*[A-Za-z][A-Za-z\s]{1,20},\s*[A-Z]{2}(?:\s+\d{5})?\b/.test(t);
+    if (hasCityState) return t;
 
     return null;
 }
