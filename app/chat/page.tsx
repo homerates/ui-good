@@ -29,7 +29,7 @@ import BuydownSliderCard from '@/components/BuydownSliderCard';
 import ConvHBSliderCard from '@/components/ConvHBSliderCard';
 import PropertyEvaluationCard from '@/components/PropertyEvaluationCard';
 import IncomeQualifySliderCard from '@/components/IncomeQualifySliderCard';
-import DecisionScoreCard from '@/components/DecisionScoreCard';
+import DecisionScoreCard, { type DecisionScoreData } from '@/components/DecisionScoreCard';
 import FhaSliderCard from '@/components/FhaSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
 import DSCRSliderCard from '@/components/DSCRSliderCard';
@@ -491,7 +491,7 @@ type ApiResponse = {
     } | null;
     proGate?: ProGatePayload | null;
     labModules?: Array<{ icon: string; label: string; tag: string; desc: string; seed: string }> | null;
-    decisionScoreCard?: import('./components/DecisionScoreCard').DecisionScoreData | null;
+    decisionScoreCard?: DecisionScoreData | null;
 };
 
 
@@ -2339,7 +2339,7 @@ export default function Page() {
 
                                 // Update card to complete state — no effect if message is gone
                                 setMessages(prev => prev.map(m =>
-                                    m.id === _dsAnswerId
+                                    m.id === _dsAnswerId && m.role === 'assistant'
                                         ? {
                                             ...m,
                                             meta: {
