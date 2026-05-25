@@ -2343,7 +2343,7 @@ export default function Page() {
                                         ? {
                                             ...m,
                                             meta: {
-                                                ...m.meta,
+                                                ...m.meta!,
                                                 decisionScoreCard: {
                                                     state:          'complete' as const,
                                                     address:        _dsAddress,
