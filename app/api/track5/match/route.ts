@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
 
   // ── 5. Create anonymous scenario brief (ZIP only, identity hidden) ─────────
   const brief = {
-    buyer_user_id:   userId,
+    borrower_id:     userId,
     // Standard scenario_briefs fields (anonymized at match time)
     loan_type:       loanType,
     state,
