@@ -2695,13 +2695,15 @@ export default function Page() {
             {
                 const _cmaAddr  = searchParams?.get('cmaAddress') ?? null;
                 const _cmaPrice = searchParams?.get('cmaPrice')   ?? null;
-                if (!autoScoreFiredRef.current && _cmaAddr && _cmaPrice && defaultDown != null) {
+                if (!autoScoreFiredRef.current && _cmaAddr && _cmaPrice) {
                     autoScoreFiredRef.current = true;
 
                     const _dsAddress  = _cmaAddr;
                     const _dsPrice    = parseFloat(_cmaPrice);
-                    const _dsLoanType = sliderLoanType ?? 'conventional';
-                    const _dsDown     = defaultDown;
+                    // Down payment + loan type: compute same way as property-lookup path (20% default)
+                    const _dsDown     = 20;
+                    const _dsLoanAmt  = _dsPrice * 0.80;
+                    const _dsLoanType: 'conventional' | 'jumbo' = _dsLoanAmt > 832_750 ? 'jumbo' : 'conventional';
                     const _dsAnswerIdCma = answerId;
 
                     // L1 — instant from LTV formula (same as URL-paste path)
