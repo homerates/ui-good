@@ -87,6 +87,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/investor-intel(.*)",
   // Track 5 Decision Dashboard — public consumer portal
   "/track5(.*)",
+  // Autonomous Intelligence Engine — public marketing explainer
+  "/autonomous-intelligence",
 ]);
 
 export default clerkMiddleware((auth, req) => {
