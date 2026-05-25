@@ -271,16 +271,8 @@ export async function POST(req: NextRequest) {
     }, { status: 400 });
   }
 
-  // Duplicate detection: same loan_type + loan_purpose + state already active
-  const duplicate = live.find(
-    s => s.loan_type === loan_type && s.loan_purpose === (loan_purpose ?? "purchase").toLowerCase() && s.state === state
-  );
-  if (duplicate) {
-    return NextResponse.json({
-      error: "You already have an active scenario with the same loan type, purpose, and state. Close or update that one instead.",
-      existing_id: duplicate.id,
-    }, { status: 400 });
-  }
+  // Note: duplicate detection removed — users may legitimately post similar scenarios
+  // for different properties. Cap of 3 active is the only gate.
 
   const { data, error } = await sb
     .from("scenario_briefs")

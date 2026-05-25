@@ -281,15 +281,20 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
     function getMatchedUrl() {
         const lt = loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType === 'fha' ? 'fha' : 'conventional';
-        const p = new URLSearchParams({
+        // Extract state from journey address if available (e.g. "…, CA 92130")
+        const stateFromAddr = props.journeyAddress
+            ? (props.journeyAddress.match(/,\s*([A-Z]{2})(?:\s+\d{5})?(?:\s*$|,)/)?.[1] ?? '')
+            : '';
+        const params: Record<string, string> = {
             from: 'scenario', lt,
             price: String(Math.round(price)),
             dp: String(downPct),
             rate: rate.toFixed(2),
             monthly: String(Math.round(total)),
             term: String(term),
-        });
-        return `/connect/post?${p.toString()}`;
+        };
+        if (stateFromAddr) params.state = stateFromAddr;
+        return `/connect/post?${new URLSearchParams(params).toString()}`;
     }
 
     async function handleVault() {
