@@ -222,36 +222,42 @@ export default function DecisionScoreCard({ data }: Props) {
 
       {/* ── Footer ── */}
       {complete ? (
-        <div style={{ padding: '11px 20px 15px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: 8 }}>
-          <a
-            href={track5Url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              background: '#00e87a', color: '#080c12', fontWeight: 800, fontSize: '0.85rem',
-              borderRadius: 10, padding: '10px 16px', textDecoration: 'none',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-          >
-            View Score →
-          </a>
-          <a
-            href={`/property-intel?address=${encodeURIComponent(address)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(0,232,122,0.07)', border: '1px solid rgba(0,232,122,0.2)',
-              color: '#00e87a', fontWeight: 700, fontSize: '0.77rem',
-              borderRadius: 10, padding: '10px 14px', textDecoration: 'none', whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.13)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.07)')}
-          >
-            Full Analysis ↗
-          </a>
+        <div style={{ padding: '12px 20px 16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          {/* Get Matched prompt */}
+          <div style={{ fontSize: '0.76rem', color: 'rgba(185,208,192,0.55)', marginBottom: 9, lineHeight: 1.5 }}>
+            Ready to move on this property? Connect with a loan officer who can match your scenario.
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <a
+              href={track5Url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                background: '#00e87a', color: '#080c12', fontWeight: 800, fontSize: '0.85rem',
+                borderRadius: 10, padding: '10px 16px', textDecoration: 'none',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+              onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+            >
+              Get Matched →
+            </a>
+            <a
+              href={`/property-intel?address=${encodeURIComponent(address)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(0,232,122,0.07)', border: '1px solid rgba(0,232,122,0.2)',
+                color: '#00e87a', fontWeight: 700, fontSize: '0.77rem',
+                borderRadius: 10, padding: '10px 14px', textDecoration: 'none', whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.13)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.07)')}
+            >
+              Full Analysis ↗
+            </a>
+          </div>
         </div>
       ) : (
         <div style={{ padding: '11px 20px 13px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
