@@ -26,6 +26,9 @@ interface Message {
     icon?: string;
     ai_value?: string;
     ai_sub?: string;
+    // lo_prompt fields
+    prompt_id?: string;
+    options?: Array<{ group: string; choices: string[] }>;
   } | null;
 }
 
@@ -85,6 +88,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   const [showDebug, setShowDebug] = useState(false);
   const [viewerRole, setViewerRole] = useState<'borrower' | 'agent'>('borrower');
   const [fredRate, setFredRate] = useState<number | null>(null);
+  const [loPromptSelections, setLoPromptSelections] = useState<Record<string, string>>({});
   const fredFetchedRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -205,6 +209,31 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
       await load();
     }
     setSharing(false);
+  }
+
+  async function sendLOPrompt() {
+    if (sending) return;
+    setSending(true);
+    setSendError("");
+    const res = await fetch(`/api/messages/${threadId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "To give you the most accurate rate quote, could you share your credit score tier and income range? Your answers help me tailor the offer — tap your selections below.",
+        metadata: {
+          type: "lo_prompt",
+          prompt_id: "credit_income",
+          options: [
+            { group: "Credit Score", choices: ["740+ (Excellent)", "700–739 (Good)", "660–699 (Fair)", "Below 660"] },
+            { group: "Income Range", choices: ["Under $80k", "$80k–$150k", "$150k–$200k", "$200k+"] },
+          ],
+        },
+      }),
+    });
+    const data = await res.json();
+    if (res.ok) setMessages(prev => [...prev, data.message]);
+    else setSendError(data.error ?? "Failed to send");
+    setSending(false);
   }
 
   function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -473,6 +502,21 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
             <div className="ch-messages-wrap">
               {loading && <div className="ch-loading">Loading conversation…</div>}
 
+              {/* ── AI Guide — borrower advisory, always visible ── */}
+              {!loading && isBorrower && (
+                <div className="ch-ai-guide">
+                  <div className="ch-ai-guide-icon">🤖</div>
+                  <div className="ch-ai-guide-body">
+                    <div className="ch-ai-guide-title">Two things drive your rate</div>
+                    <div className="ch-ai-guide-text">
+                      Your <strong>credit score</strong> and <strong>income</strong> are the most influential factors in what your loan officer can offer you.
+                      The stronger both are, the more competitive your quote will be.
+                      Share them early for a precise picture — or your LO will work from standard qualifying assumptions and adjust when you&apos;re ready.
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {!loading && messages.length === 0 && (
                 <div className="ch-empty">Start the conversation below.</div>
               )}
@@ -525,6 +569,68 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                   );
                 }
 
+                // LO structured prompt — borrower sees tappable chip groups, LO sees sent bubble
+                if (type === 'lo_prompt') {
+                  if (!isBorrower) {
+                    return (
+                      <div key={m.id} className="ch-bubble-row ch-mine">
+                        <div className="ch-bubble ch-bubble-mine">
+                          <div className="ch-bubble-content">{m.content}</div>
+                          <div className="ch-bubble-time">{fmt(m.created_at)}</div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  const promptId = m.metadata?.prompt_id ?? 'credit_income';
+                  const options = m.metadata?.options;
+                  return (
+                    <div key={m.id} className="ch-lo-prompt">
+                      <div className="ch-lo-prompt-label">
+                        <span className="ch-lo-prompt-via">Your Loan Officer</span>
+                      </div>
+                      <div className="ch-lo-prompt-text">{m.content}</div>
+                      {options?.map(group => {
+                        const selKey = `${promptId}:${group.group}`;
+                        return (
+                          <div key={group.group} className="ch-lo-prompt-group">
+                            <div className="ch-lo-prompt-group-label">{group.group}</div>
+                            <div className="ch-lo-prompt-chips">
+                              {group.choices.map(choice => {
+                                const selected = loPromptSelections[selKey] === choice;
+                                return (
+                                  <button
+                                    key={choice}
+                                    className={`ch-lo-chip${selected ? ' ch-lo-chip-selected' : ''}`}
+                                    onClick={() => {
+                                      const newSel = { ...loPromptSelections, [selKey]: choice };
+                                      setLoPromptSelections(newSel);
+                                      // Build a draft from all current selections
+                                      const parts = Object.entries(newSel).map(([k, v]) => {
+                                        const grp = k.split(':').slice(1).join(':');
+                                        return `${grp}: ${v}`;
+                                      });
+                                      setDraft(parts.join('\n'));
+                                      setTimeout(() => textareaRef.current?.focus(), 50);
+                                    }}
+                                  >
+                                    {choice}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {Object.keys(loPromptSelections).length > 0 && (
+                        <div className="ch-lo-prompt-reply">
+                          ✓ Selections pre-filled below — review and send when ready.
+                        </div>
+                      )}
+                      <div className="ch-lo-prompt-time">{fmt(m.created_at)}</div>
+                    </div>
+                  );
+                }
+
                 const mine = (isBorrower && m.sender_role === "borrower") || (!isBorrower && m.sender_role === "professional");
                 return (
                   <div key={m.id} className={`ch-bubble-row ${mine ? "ch-mine" : "ch-theirs"}`}>
@@ -570,9 +676,16 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
               )}
 
               {!isBorrower && (
-                <div className="ch-lo-disclaimer">
-                  <strong style={{ color: '#4a6e58' }}>Pre-application education only</strong> — no application has been submitted, no credit has been pulled, and no Loan Estimate obligation is created by responding. You may share the same program information you would publish on your website or present at an open house. A rate disclosure is auto-appended whenever you mention a rate.
-                </div>
+                <>
+                  <div className="ch-lo-disclaimer">
+                    <strong style={{ color: '#4a6e58' }}>Pre-application education only</strong> — no application has been submitted, no credit has been pulled, and no Loan Estimate obligation is created by responding. You may share the same program information you would publish on your website or present at an open house. A rate disclosure is auto-appended whenever you mention a rate.
+                  </div>
+                  {!isClosed && (
+                    <button className="ch-lo-ask-btn" onClick={sendLOPrompt} disabled={sending}>
+                      🎯 Ask Credit &amp; Income →
+                    </button>
+                  )}
+                </>
               )}
 
               {isBorrower && !contactShared && !isClosed && messages.length >= 2 && (
@@ -1402,6 +1515,107 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           .ch-share-cards { flex-direction: column; }
           .ch-share-arrow { transform: rotate(90deg); }
         }
+
+        /* ── AI Guide banner (borrower — top of messages) ── */
+        .ch-ai-guide {
+          display: flex; align-items: flex-start; gap: 10px;
+          background: rgba(61,139,255,0.05);
+          border: 1px solid rgba(61,139,255,0.16);
+          border-radius: 12px; padding: 12px 14px;
+          margin-bottom: 4px;
+          flex-shrink: 0;
+        }
+        .ch-ai-guide-icon {
+          font-size: 18px; flex-shrink: 0; line-height: 1.2;
+        }
+        .ch-ai-guide-body { flex: 1; }
+        .ch-ai-guide-title {
+          font-size: 0.65rem; font-weight: 800; color: #60a5fa;
+          letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 4px;
+        }
+        .ch-ai-guide-text {
+          font-size: 0.78rem; color: #8fa3b8; line-height: 1.6;
+        }
+        .ch-ai-guide-text strong { color: #93c5fd; font-weight: 700; }
+
+        /* ── LO structured prompt (borrower view) ── */
+        .ch-lo-prompt {
+          align-self: flex-start;
+          background: rgba(61,139,255,0.05);
+          border: 1px solid rgba(61,139,255,0.16);
+          border-left: 3px solid rgba(61,139,255,0.45);
+          border-radius: 0 12px 12px 0;
+          padding: 12px 14px;
+          max-width: 92%;
+        }
+        .ch-lo-prompt-label {
+          margin-bottom: 5px;
+        }
+        .ch-lo-prompt-via {
+          font-size: 0.62rem; font-weight: 800; letter-spacing: 0.09em;
+          color: #3d8bff; text-transform: uppercase;
+        }
+        .ch-lo-prompt-text {
+          font-size: 0.875rem; color: #c8d8f0; line-height: 1.55;
+          margin-bottom: 10px;
+        }
+        .ch-lo-prompt-group {
+          margin-bottom: 8px;
+        }
+        .ch-lo-prompt-group-label {
+          font-size: 0.65rem; font-weight: 700; color: rgba(148,163,184,0.60);
+          letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 5px;
+        }
+        .ch-lo-prompt-chips {
+          display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .ch-lo-chip {
+          padding: 5px 12px;
+          background: rgba(61,139,255,0.08);
+          border: 1px solid rgba(61,139,255,0.20);
+          border-radius: 99px;
+          font-size: 0.8rem; font-weight: 600; color: #8fa3b8;
+          cursor: pointer; font-family: 'DM Sans', system-ui, sans-serif;
+          transition: all 0.15s;
+        }
+        .ch-lo-chip:hover {
+          background: rgba(61,139,255,0.15);
+          border-color: rgba(61,139,255,0.38);
+          color: #c8d8f0;
+        }
+        .ch-lo-chip-selected {
+          background: rgba(61,139,255,0.18) !important;
+          border-color: rgba(61,139,255,0.55) !important;
+          color: #60a5fa !important;
+          font-weight: 700;
+        }
+        .ch-lo-prompt-reply {
+          font-size: 0.72rem; color: #60a5fa;
+          margin-top: 8px; font-style: italic;
+        }
+        .ch-lo-prompt-time {
+          font-size: 0.62rem; color: rgba(255,255,255,0.18);
+          margin-top: 6px; text-align: right;
+        }
+
+        /* ── LO "Ask Credit & Income" footer button ── */
+        .ch-lo-ask-btn {
+          display: inline-flex; align-items: center; gap: 5px;
+          padding: 7px 16px; border-radius: 99px;
+          background: rgba(61,139,255,0.09);
+          border: 1px solid rgba(61,139,255,0.26);
+          color: #60a5fa;
+          font-size: 0.78rem; font-weight: 700;
+          font-family: 'DM Sans', system-ui, sans-serif;
+          cursor: pointer; margin-bottom: 8px;
+          transition: all 0.15s;
+        }
+        .ch-lo-ask-btn:hover:not(:disabled) {
+          background: rgba(61,139,255,0.16);
+          border-color: rgba(61,139,255,0.42);
+          color: #93c5fd;
+        }
+        .ch-lo-ask-btn:disabled { opacity: 0.38; cursor: not-allowed; }
       `}</style>
     </>
   );

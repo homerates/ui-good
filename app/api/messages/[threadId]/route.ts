@@ -257,25 +257,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
   }
 
   const body = await req.json();
-  const { message } = body;
+  const { message, metadata: rawMetadata } = body;
 
   if (!message?.trim()) {
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
   }
-  if (message.trim().length > 1000) {
-    return NextResponse.json({ error: "Message must be 1000 characters or less" }, { status: 400 });
-  }
-
-  // PII guard
-  if (containsPII(message)) {
-    return NextResponse.json({
-      error: "Your message appears to contain sensitive information (SSN, date of birth, or card numbers). Please do not share this over chat.",
-      pii_blocked: true,
-    }, { status: 400 });
-  }
 
   const isBorrower = thread.borrower_id === userId;
   const senderRole = isBorrower ? "borrower" : "professional";
+
+  // Structured prompts (lo_prompt) sent by professionals are exempt from length/PII checks
+  const isStructuredPrompt = !isBorrower && rawMetadata?.type === 'lo_prompt';
+
+  if (!isStructuredPrompt) {
+    if (message.trim().length > 1000) {
+      return NextResponse.json({ error: "Message must be 1000 characters or less" }, { status: 400 });
+    }
+    // PII guard
+    if (containsPII(message)) {
+      return NextResponse.json({
+        error: "Your message appears to contain sensitive information (SSN, date of birth, or card numbers). Please do not share this over chat.",
+        pii_blocked: true,
+      }, { status: 400 });
+    }
+  }
+
+  // Metadata: only professionals can attach it, only for known structured types
+  const allowedMetaTypes = ['lo_prompt'];
+  const metadata = (!isBorrower && rawMetadata && allowedMetaTypes.includes(rawMetadata.type))
+    ? rawMetadata
+    : null;
 
   // Auto-append rate disclosure if professional mentions a rate
   const finalContent = appendRateDisclosure(message.trim(), senderRole);
@@ -286,6 +297,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
       thread_id: threadId,
       sender_role: senderRole,
       content: finalContent,
+      ...(metadata ? { metadata } : {}),
     })
     .select()
     .single();
