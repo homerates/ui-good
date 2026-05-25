@@ -338,7 +338,8 @@ function Track5Inner() {
       const res = await fetch('/api/track5/match', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ sessionId }),
+        // Send composite from UI state as fallback for race where DB session hasn't been updated yet
+        body:    JSON.stringify({ sessionId, composite: idx?.score ?? null }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? 'Request failed');
@@ -631,8 +632,8 @@ function Track5Inner() {
           </div>
         </div>
 
-        {/* ── Get Matched section — only when session + address + composite exist ── */}
-        {isSignedIn && sessionId && address && idx && matchZip && matchState !== 'matched' && (
+        {/* ── Get Matched section — shown when session + address + composite exist (ZIP not required) ── */}
+        {isSignedIn && sessionId && address && idx && matchState !== 'matched' && (
           <div style={{
             marginTop: 28,
             background: 'rgba(0,232,122,0.03)',

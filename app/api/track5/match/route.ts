@@ -123,7 +123,9 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const body = await req.json().catch(() => ({})) as Record<string, unknown>;
-  const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : null;
+  const sessionId      = typeof body.sessionId  === 'string' ? body.sessionId.trim() : null;
+  // Accept composite from frontend as fallback when DB session hasn't been updated yet
+  const bodyComposite  = typeof body.composite  === 'number' ? body.composite  : null;
 
   if (!sessionId) {
     return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
@@ -143,18 +145,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
 
-  if (!session.composite_score) {
-    return NextResponse.json({ error: 'Score not yet computed' }, { status: 422 });
-  }
-
   // ── 2. Extract ZIP + state from property address ───────────────────────────
   const address = (session.property_address as string | null) ?? '';
-  const zip     = extractZip(address);
+  const zip     = extractZip(address);   // nullable — property_zip column allows null
   const state   = extractState(address) ?? 'CA';
-
-  if (!zip) {
-    return NextResponse.json({ error: 'Could not extract ZIP from property address' }, { status: 422 });
-  }
 
   // ── 3. Build scenario context from session ─────────────────────────────────
   const sj        = (session.scenario_json ?? {}) as Record<string, unknown>;
@@ -164,9 +158,10 @@ export async function POST(req: NextRequest) {
   const rate      = typeof sj.rate === 'number' ? sj.rate : null;
   const term      = typeof sj.term === 'number' ? sj.term : 30;
 
-  const composite = session.composite_score as number;
-  const verdict   = verdictLabel(composite);
-  const loanType  = loanTypeLabel(lt);
+  // Use DB score; fall back to value sent from frontend (handles race where UI has score but DB save is in-flight)
+  const composite  = (session.composite_score ?? bodyComposite ?? 0) as number;
+  const verdict    = verdictLabel(composite);
+  const loanType   = loanTypeLabel(lt);
   const priceRange = price ? priceToRange(price) : 'Not specified';
 
   // ── 4. Check for existing Track5 brief for this session (prevent duplicates) ──
@@ -254,12 +249,12 @@ export async function POST(req: NextRequest) {
               resend.emails.send({
                 from:    `HomeRates.ai <${FROM}>`,
                 to:      emailMap[lo.user_id],
-                subject: `Track 5 match — ${loanType} buyer · ZIP ${zip} · Score ${composite}`,
+                subject: `Track 5 match — ${loanType} buyer · ${zip ? `ZIP ${zip} · ` : ''}Score ${composite}`,
                 html:    track5AlertHtml({
                   loName:    lo.lender ?? 'there',
                   composite,
                   verdict,
-                  zip,
+                  zip:       zip ?? 'Not available',
                   state,
                   loanType,
                   priceRange,
