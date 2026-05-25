@@ -189,10 +189,11 @@ export async function POST(req: NextRequest) {
     loan_type:       loanType,
     state,
     price_range:     priceRange,
-    credit_tier:     'Not disclosed',   // not collected; LO sees score instead
-    timeline:        'ASAP (under 30 days)',
-    visibility:      'public',
-    status:          'open',
+    credit_tier:        'Not disclosed',   // not collected; LO sees score instead
+    timeline:           'ASAP (under 30 days)',
+    visibility:         'public',
+    status:             'open',
+    down_payment_pct:   dpPct ?? 0,       // NOT NULL col; use card dp% or 0 if unknown
     // Track5-specific
     session_id:      sessionId,
     property_zip:    zip,
