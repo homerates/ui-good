@@ -89,6 +89,8 @@ const isPublicRoute = createRouteMatcher([
   "/track5(.*)",
   // Autonomous Intelligence Engine — public marketing explainer
   "/autonomous-intelligence",
+  // Property Report — shareable PDF/print report; opens in new tab from property-intel
+  "/property-report(.*)",
   // Platform Intelligence Hub + all 11 marketing pillar pages
   "/platform",
   "/decision-score",

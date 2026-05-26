@@ -1143,6 +1143,19 @@ function PropertyIntelInner() {
                   {copied ? 'Copied!' : 'Share Report'}
                 </button>
 
+                {/* Build Report — opens dynamic PDF report in new tab */}
+                {finalResult && (
+                  <a
+                    href={`/property-report?address=${encodeURIComponent(address)}&down=20&rate=${d.rate_used ?? 6.875}&chatUrl=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ padding: '11px 20px', fontSize: '0.82rem', fontWeight: 600, background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.28)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s', textDecoration: 'none' }}
+                  >
+                    <i className="fa-solid fa-file-pdf" style={{ fontSize: '0.8rem' }} />
+                    Build Report ↗
+                  </a>
+                )}
+
                 {/* Save to Vault */}
                 <SignedIn>
                   <button onClick={handleSave} disabled={saving || savedVault} style={{ padding: '11px 20px', fontSize: '0.82rem', fontWeight: 600, background: 'transparent', color: savedVault ? '#4ade80' : 'rgba(74,222,128,0.85)', border: `1px solid ${savedVault ? 'rgba(74,222,128,0.4)' : 'rgba(74,222,128,0.22)'}`, borderRadius: 10, cursor: saving ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s', opacity: saving ? 0.65 : 1 }}>
