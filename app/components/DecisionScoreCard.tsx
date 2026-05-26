@@ -77,6 +77,8 @@ export default function DecisionScoreCard({ data }: Props) {
 
   const composite = data.compositeScore ?? computeComposite(l1Score, l2Score, l3Score, l4Score);
   const v         = composite != null ? verdict(composite) : null;
+  // Only colour the ring/badge once we have an actual composite score
+  const hasScore  = complete && composite != null;
   const circ      = 163; // 2π × r=26
   const ringFill  = composite != null ? circ - (composite / 100) * circ : circ;
 
@@ -93,12 +95,12 @@ export default function DecisionScoreCard({ data }: Props) {
     { num: 'L4', name: 'Location',  weight: '15%', score: l4Score ?? null, done: complete && l4Score != null },
   ];
 
-  const accentColor = complete ? (v?.color ?? '#00e87a') : 'rgba(255,255,255,0.12)';
+  const accentColor = hasScore ? (v?.color ?? '#00e87a') : 'rgba(255,255,255,0.12)';
 
   return (
     <div style={{
-      background:    complete ? 'rgba(0,232,122,0.04)' : 'rgba(255,255,255,0.025)',
-      border:        `1px solid ${complete ? 'rgba(0,232,122,0.18)' : 'rgba(255,255,255,0.1)'}`,
+      background:    hasScore ? 'rgba(0,232,122,0.04)' : 'rgba(255,255,255,0.025)',
+      border:        `1px solid ${hasScore ? 'rgba(0,232,122,0.18)' : 'rgba(255,255,255,0.1)'}`,
       borderRadius:  16,
       overflow:      'hidden',
       marginTop:     10,
@@ -125,21 +127,21 @@ export default function DecisionScoreCard({ data }: Props) {
             </svg>
             <div style={{
               position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize:   complete && composite != null ? '1.15rem' : '0.72rem',
+              fontSize:   hasScore ? '1.15rem' : '0.72rem',
               fontWeight: 900,
-              color:      complete ? (v?.color ?? '#00e87a') : 'rgba(185,208,192,0.3)',
+              color:      hasScore ? (v?.color ?? '#00e87a') : 'rgba(185,208,192,0.3)',
               transition: 'color 0.5s ease',
             }}>
-              {complete && composite != null ? composite : '···'}
+              {hasScore ? composite : '···'}
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: '0.6rem', fontWeight: 700, color: complete ? '#00e87a' : 'rgba(185,208,192,0.28)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2, transition: 'color 0.4s ease' }}>
+            <div style={{ fontSize: '0.6rem', fontWeight: 700, color: hasScore ? '#00e87a' : 'rgba(185,208,192,0.28)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2, transition: 'color 0.4s ease' }}>
               Track 5 · Decision Score
             </div>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f0f4ff', lineHeight: 1.2 }}>
-              {complete && v ? v.label : 'Analyzing property…'}
+              {hasScore && v ? v.label : complete ? 'Scoring complete' : 'Analyzing property…'}
             </div>
             <div style={{ fontSize: '0.73rem', color: 'rgba(185,208,192,0.48)', marginTop: 2 }}>
               {complete ? (address?.split(',').slice(0, 2).join(',') ?? address) : 'Running market & location intelligence'}
@@ -150,16 +152,16 @@ export default function DecisionScoreCard({ data }: Props) {
         {/* Badge */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
-          background: complete ? `${(v?.color ?? '#00e87a')}1a` : 'rgba(255,255,255,0.04)',
-          border:     `1px solid ${complete ? `${(v?.color ?? '#00e87a')}38` : 'rgba(255,255,255,0.08)'}`,
+          background: hasScore ? `${(v?.color ?? '#00e87a')}1a` : 'rgba(255,255,255,0.04)',
+          border:     `1px solid ${hasScore ? `${(v?.color ?? '#00e87a')}38` : 'rgba(255,255,255,0.08)'}`,
           borderRadius: 20, padding: '4px 12px',
           fontSize: '0.68rem', fontWeight: 700,
-          color:    complete ? (v?.color ?? '#00e87a') : 'rgba(185,208,192,0.32)',
+          color:    hasScore ? (v?.color ?? '#00e87a') : 'rgba(185,208,192,0.32)',
           whiteSpace: 'nowrap',
           transition: 'all 0.5s ease',
         }}>
           <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />
-          {complete ? 'Ready' : 'Computing'}
+          {hasScore ? 'Ready' : complete ? 'Scored' : 'Computing'}
         </div>
       </div>
 
@@ -192,6 +194,9 @@ export default function DecisionScoreCard({ data }: Props) {
                       ? `width 0.9s cubic-bezier(0.34,1.56,0.64,1) ${isImmediate ? i * 0.12 : 0.15 + (i - 2) * 0.14}s`
                       : 'none',
                   }} />
+                ) : complete ? (
+                  /* Scored but data unavailable — flat empty bar */
+                  <div style={{ height: '100%', borderRadius: 3, background: 'rgba(255,255,255,0.04)', width: '100%' }} />
                 ) : (
                   /* Shimmer while loading */
                   <div style={{
@@ -208,6 +213,9 @@ export default function DecisionScoreCard({ data }: Props) {
                 <div style={{ fontSize: '0.79rem', fontWeight: 700, color: '#f0f4ff', width: 30, textAlign: 'right', flexShrink: 0 }}>
                   {level.score}
                 </div>
+              ) : complete ? (
+                /* Scored but data unavailable — show dash */
+                <div style={{ fontSize: '0.75rem', color: 'rgba(185,208,192,0.2)', width: 30, textAlign: 'right', flexShrink: 0 }}>—</div>
               ) : (
                 <div style={{ display: 'flex', gap: 3, width: 30, justifyContent: 'flex-end' }}>
                   {[0, 1, 2].map(j => (

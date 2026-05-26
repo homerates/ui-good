@@ -2293,17 +2293,30 @@ export default function Page() {
                                 if (dsL2ScoreFinal == null && _dsPrice) {
                                     const comps = deepResult.comparable_sales as Array<{ sold_price: number }> | null | undefined;
                                     const compsAvg = comps && comps.length > 0
-                                        ? comps.reduce((s: number, c) => s + c.sold_price, 0) / comps.length
+                                        ? comps.reduce((s: number, c) => s + (c.sold_price ?? 0), 0) / comps.length
                                         : null;
                                     const deepAvm = (deepResult.zillow_estimate as number | null | undefined)
                                         ?? (deepResult.redfin_estimate as number | null | undefined)
-                                        ?? compsAvg;
+                                        ?? (compsAvg && compsAvg > 0 ? compsAvg : null);
                                     if (deepAvm) {
                                         const prem = (_dsPrice - deepAvm) / deepAvm;
                                         dsL2ScoreFinal = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
                                                        : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
                                         const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
                                         dsL2SummaryFinal = `Listed ${premStr} vs AVM $${Math.round(deepAvm / 1000)}K`;
+                                    }
+                                }
+                                // Final L2 fallback — use market median price or neutral score so L2 never stays null
+                                if (dsL2ScoreFinal == null) {
+                                    const medP = deepResult.market_median_price as number | null | undefined;
+                                    if (_dsPrice && medP && (medP as number) > 0) {
+                                        const prem = (_dsPrice - (medP as number)) / (medP as number);
+                                        dsL2ScoreFinal = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
+                                                       : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
+                                        dsL2SummaryFinal = `Listed ${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}% vs area median`;
+                                    } else {
+                                        dsL2ScoreFinal = 65;
+                                        dsL2SummaryFinal = 'AVM limited — visit Property Intel for full analysis';
                                     }
                                 }
 
@@ -2321,6 +2334,18 @@ export default function Page() {
                                     if (dom != null) pts.push(`Median DOM ${dom}d`);
                                     if (stl != null) pts.push(`sale-to-list ${((stl as number) * 100).toFixed(1)}%`);
                                     dsL3Summary = pts.join(', ');
+                                }
+                                // Final L3 fallback — use subject DOM or neutral score so L3 never stays null
+                                if (dsL3Score == null) {
+                                    const subDom = deepResult.days_on_market as number | null | undefined;
+                                    if (subDom != null && (subDom as number) >= 0) {
+                                        const d = subDom as number;
+                                        dsL3Score = d > 90 ? 90 : d > 60 ? 80 : d > 45 ? 68 : d > 30 ? 55 : d > 15 ? 42 : 32;
+                                        dsL3Summary = `Property at ${d}d on market (area stats pending)`;
+                                    } else {
+                                        dsL3Score = 65;
+                                        dsL3Summary = 'Market data limited — visit Property Intel';
+                                    }
                                 }
 
                                 // Compute L4 — location intelligence
@@ -2785,18 +2810,35 @@ export default function Page() {
                             if (!deepResult) return;
 
                             // L2 from deep analysis AVM (same fallback chain as FOR-SALE path)
+                            // Fix: use sold_price (Grok schema field), not sale_price
                             let dsL2ScoreFinal: number | null = null;
                             let dsL2SummaryFinal = 'AVM data unavailable';
-                            const deepAvm = deepResult.zillow_estimate ?? deepResult.redfin_estimate
-                                ?? (Array.isArray(deepResult.comparable_sales) && deepResult.comparable_sales.length > 0
-                                    ? Math.round(deepResult.comparable_sales.reduce((s: number, c: any) => s + (c.sale_price ?? 0), 0) / deepResult.comparable_sales.length)
-                                    : null);
+                            const compsArr = Array.isArray(deepResult.comparable_sales) ? deepResult.comparable_sales : [];
+                            const compsAvgAF = compsArr.length > 0
+                                ? Math.round(compsArr.reduce((s: number, c: any) => s + (c.sold_price ?? 0), 0) / compsArr.length)
+                                : null;
+                            const deepAvm = (deepResult.zillow_estimate as number | null | undefined)
+                                ?? (deepResult.redfin_estimate as number | null | undefined)
+                                ?? (compsAvgAF && compsAvgAF > 0 ? compsAvgAF : null);
                             if (_dsPrice && deepAvm) {
                                 const prem = (_dsPrice - deepAvm) / deepAvm;
                                 dsL2ScoreFinal = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
                                     : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
                                 const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
-                                dsL2SummaryFinal = `Listed ${premStr} vs AVM ${Math.round(deepAvm / 1000)}K`;
+                                dsL2SummaryFinal = `Listed ${premStr} vs AVM $${Math.round(deepAvm / 1000)}K`;
+                            }
+                            // Final L2 fallback — use market median price or neutral score so L2 never stays null
+                            if (dsL2ScoreFinal == null) {
+                                const medP = (deepResult.market_median_price as number | null | undefined);
+                                if (_dsPrice && medP && medP > 0) {
+                                    const prem = (_dsPrice - medP) / medP;
+                                    dsL2ScoreFinal = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
+                                        : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
+                                    dsL2SummaryFinal = `Listed ${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}% vs area median`;
+                                } else {
+                                    dsL2ScoreFinal = 65;
+                                    dsL2SummaryFinal = 'AVM limited — visit Property Intel for full analysis';
+                                }
                             }
 
                             // L3 — market conditions (same scoring as FOR-SALE path)
@@ -2809,6 +2851,17 @@ export default function Page() {
                                 const s2lS = s2l == null ? 75 : s2l >= 1.03 ? 30 : s2l >= 1.01 ? 45 : s2l >= 0.99 ? 65 : s2l >= 0.97 ? 78 : 90;
                                 dsL3Score   = Math.round((domS + s2lS) / 2);
                                 dsL3Summary = [dom != null ? `DOM ${dom}d` : null, s2l != null ? `S/L ${(s2l * 100).toFixed(0)}%` : null].filter(Boolean).join(' · ');
+                            }
+                            // Final L3 fallback — use subject DOM or neutral score so L3 never stays null
+                            if (dsL3Score == null) {
+                                const subDomAF = (deepResult.days_on_market as number | null | undefined);
+                                if (subDomAF != null && subDomAF >= 0) {
+                                    dsL3Score = subDomAF > 90 ? 90 : subDomAF > 60 ? 80 : subDomAF > 45 ? 68 : subDomAF > 30 ? 55 : subDomAF > 15 ? 42 : 32;
+                                    dsL3Summary = `Property at ${subDomAF}d on market (area stats pending)`;
+                                } else {
+                                    dsL3Score = 65;
+                                    dsL3Summary = 'Market data limited — visit Property Intel';
+                                }
                             }
 
                             // L4 — location intelligence (same scoring as FOR-SALE path)
