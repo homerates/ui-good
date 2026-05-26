@@ -420,7 +420,15 @@ function PropertyIntelInner() {
             lot_size_sqft:      d.lotSqft ?? null,
             tax_rate_effective: d.taxRateEffective ?? null,
             hoa_monthly:        d.hoaMonthly ?? null,
+            photo_url:          (d.photoUrl as string | null) ?? null,
           };
+          // Use Redfin CDN photo immediately while Grok streams (overwritten by Google Maps if available)
+          if (d.photoUrl) {
+            setMapUrls(prev => ({
+              street_view_url: prev?.street_view_url ?? (d.photoUrl as string),
+              static_map_url:  prev?.static_map_url  ?? null,
+            }));
+          }
         }
       } catch { /* proceed without Redfin data */ }
 
@@ -736,6 +744,11 @@ function PropertyIntelInner() {
                       alt=""
                       style={{ display: 'none' }}
                       onLoad={() => setPhotoReady(true)}
+                      onError={() => {
+                        // Street View 404 or blocked — clear map URLs so we don't shimmer forever
+                        setMapUrls(prev => prev ? { ...prev, street_view_url: null } : null);
+                        setPhotoReady(false);
+                      }}
                     />
                     {photoReady && (
                       <div style={{ position: 'absolute', inset: 0, backgroundImage: `url('${photoUrl}')`, backgroundSize: 'cover', backgroundPosition: 'center', animation: 'photoFade 0.6s ease forwards' }} />

@@ -240,6 +240,7 @@ export interface RedfinFacts {
   lot_size_sqft?:      number | null;
   tax_rate_effective?: number | null;
   hoa_monthly?:        number | null;
+  photo_url?:          string | null; // Redfin CDN listing photo — persisted to Supabase cache
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -291,6 +292,8 @@ function mergeResult(
     if (redfin.current_list_price && redfin.sqft && redfin.sqft > 0) {
       base.price_per_sqft = Math.round(redfin.current_list_price / redfin.sqft);
     }
+    // Persist listing photo so share links have a photo without Google Maps API
+    if (redfin.photo_url) base.photo_url = redfin.photo_url;
   }
 
   return base;

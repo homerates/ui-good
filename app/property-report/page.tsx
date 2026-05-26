@@ -177,7 +177,9 @@ function ReportInner() {
     // 1. Try the property-intel localStorage cache first — fast & rich
     const cached = piLsRead(address);
     if (cached) {
-      const d = { ...cached.result, photoUrl: cached.mapUrls?.street_view_url ?? null };
+      // photo priority: Google Street View → Redfin CDN (stored in result.photo_url after fix)
+      const photo = cached.mapUrls?.street_view_url ?? (cached.result as any).photo_url ?? null;
+      const d = { ...cached.result, photoUrl: photo };
       setData(d);
       setLoading(false);
       return;
@@ -189,7 +191,9 @@ function ReportInner() {
       .then(j => {
         if (j?.cached && j?.result) {
           // Supabase hit — result already has current_list_price, bedrooms, etc.
-          setData({ ...j.result as PropData, photoUrl: j.map_urls?.street_view_url ?? null });
+          // photo_url = Redfin CDN (stored in Supabase via mergeResult); map_urls = Google Maps (generated at request time)
+          const photo = (j.result as any)?.photo_url ?? j.map_urls?.street_view_url ?? null;
+          setData({ ...j.result as PropData, photoUrl: photo });
           setLoading(false);
           return;
         }
@@ -376,7 +380,12 @@ function ReportInner() {
         {/* Hero */}
         <div className="rp-hero">
           {data.photoUrl
-            ? <img src={data.photoUrl} className="rp-hero-img" alt="Property" />
+            ? <img
+                src={data.photoUrl}
+                className="rp-hero-img"
+                alt="Property"
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
             : <div className="rp-hero-ph">🏡</div>
           }
           <div className="rp-hero-grad" />
