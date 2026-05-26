@@ -712,20 +712,30 @@ export default function LandingPage() {
         .lp-footer-links a:hover { color: var(--text); }
 
         /* MOBILE HAMBURGER BUTTON */
-        .lp-mobile-ham {
-          display: none;
-          background: none;
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 8px;
-          cursor: pointer;
-          padding: 8px 10px;
-          color: var(--text-muted);
-          align-items: center;
+        /* Hamburger — always visible (replaces Open chat on desktop) */
+        .lp-nav-ham {
+          display: flex;
+          flex-direction: column;
           justify-content: center;
           gap: 5px;
-          font-size: 18px;
-          line-height: 1;
+          background: none;
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 8px;
+          cursor: pointer;
+          padding: 9px 11px;
+          width: 40px; height: 40px;
+          box-sizing: border-box;
+          transition: border-color 0.15s, background 0.15s;
         }
+        .lp-nav-ham:hover { border-color: rgba(0,232,122,0.4); background: rgba(0,232,122,0.05); }
+        .lp-nav-ham span {
+          display: block; width: 100%; height: 2px;
+          background: rgba(255,255,255,0.7); border-radius: 2px;
+          transition: background 0.15s;
+        }
+        .lp-nav-ham:hover span { background: #00e87a; }
+        /* Legacy class — keep for any stale references */
+        .lp-mobile-ham { display: none; }
 
         /* MOBILE FULL-SCREEN MENU */
         .lp-mobile-menu {
@@ -741,21 +751,24 @@ export default function LandingPage() {
         .lp-mobile-menu-head {
           display: flex;
           align-items: center;
-          justify-content: space-between;
+          gap: 12px;
           padding: 14px 20px;
           border-bottom: 1px solid rgba(255,255,255,0.07);
           flex-shrink: 0;
         }
         .lp-mobile-menu-close {
+          flex-shrink: 0;
           background: none;
           border: 1px solid rgba(255,255,255,0.1);
           border-radius: 8px;
           cursor: pointer;
           color: var(--text-muted);
-          font-size: 20px;
-          padding: 6px 12px;
+          font-size: 18px;
+          padding: 5px 11px;
           line-height: 1;
+          transition: border-color 0.15s, color 0.15s;
         }
+        .lp-mobile-menu-close:hover { border-color: rgba(255,255,255,0.3); color: #f0f4ff; }
         .lp-mobile-menu-body {
           flex: 1;
           overflow-y: auto;
@@ -830,7 +843,6 @@ export default function LandingPage() {
           .lp-nav { padding: 14px 20px; }
           .lp-nav-links { display: none; }
           .lp-btn-ghost { display: none; }
-          .lp-mobile-ham { display: flex; }
           .lp-hero { padding: 40px 20px; }
           .lp-headline { font-size: 38px; }
           .lp-sub { font-size: 15px; margin-bottom: 32px; }
@@ -871,7 +883,7 @@ export default function LandingPage() {
             <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <ul className="lp-nav-links">
-            <li><Link href="/chat">How it works</Link></li>
+            <li><Link href="/chat">Open Chat</Link></li>
             <li><Link href="/chat">Scenario Engine</Link></li>
             <li><Link href="/lab">HomeRates Lab</Link></li>
             <li><Link href="/homeowner">Home Value</Link></li>
@@ -903,25 +915,31 @@ export default function LandingPage() {
               <Link href="/chat" className="lp-btn-primary">Try free</Link>
             </SignedOut>
             <SignedIn>
-              <Link href="/chat" className="lp-btn-primary">Open chat</Link>
               <UserButton afterSignOutUrl="/" />
             </SignedIn>
-            {/* Hamburger — mobile only */}
-            <button className="lp-mobile-ham" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">
-              ☰
+            {/* Hamburger — desktop (always) + mobile (signed out) */}
+            <button className="lp-nav-ham" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">
+              <span /><span /><span />
             </button>
           </div>
         </nav>
 
-        {/* MOBILE FULL-SCREEN MENU */}
+        {/* FULL-SCREEN MENU (desktop + mobile) */}
         <div className={`lp-mobile-menu${mobileMenuOpen ? ' lp-menu-open' : ''}`}>
           <div className="lp-mobile-menu-head">
+            <button className="lp-mobile-menu-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">✕</button>
             <Link href="/" className="lp-nav-logo" onClick={() => setMobileMenuOpen(false)}>
               <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
             </Link>
-            <button className="lp-mobile-menu-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">✕</button>
           </div>
           <div className="lp-mobile-menu-body">
+            <Link href="/" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">🏠</span>
+              <div className="lp-mobile-menu-link-inner">
+                <span>Home</span>
+                <span className="lp-mobile-menu-link-sub">HomeRates.ai</span>
+              </div>
+            </Link>
             <div className="lp-mobile-menu-section-label">Platform</div>
             <Link href="/chat" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
               <span className="lp-mobile-menu-link-icon">💬</span>
