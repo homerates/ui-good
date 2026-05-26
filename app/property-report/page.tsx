@@ -269,6 +269,9 @@ function ReportInner() {
         </div>
       </div>
 
+      {/* ── 4 portrait pages — centred column ────────────────────────────────── */}
+      <div className="rp-book">
+
       {/* ═══════════════════════════════════════════════════════════════
           PAGE 1 — PROPERTY SNAPSHOT
       ═══════════════════════════════════════════════════════════════ */}
@@ -868,6 +871,8 @@ function ReportInner() {
           <span className="rp-footer-right">Page 4 of 4</span>
         </div>
       </div>
+
+      </div>{/* end rp-book */}
     </>
   );
 }
@@ -877,9 +882,12 @@ const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
   @page { size: A4 portrait; margin: 0; }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html { background: #000; }
-  body { font-family: 'DM Sans', sans-serif; background: #080c12; color: #f0f4ff; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 13px; line-height: 1.5; width: 794px; margin: 0 auto; }
-  @media print { html { background: #000; } body { margin: 0; } .no-print { display: none !important; } }
+  body { font-family: 'DM Sans', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 13px; line-height: 1.5; }
+  @media print { .no-print { display: none !important; } }
+
+  /* Centred column wrapper — 794px = A4 portrait at 96 dpi */
+  .rp-book { width: 794px; margin: 0 auto; display: flex; flex-direction: column; background: #080c12; padding-top: 52px; }
+  @media print { .rp-book { padding-top: 0; width: 100%; } }
 
   /* Action bar */
   .rp-action-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 999; background: #0d1117; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -894,8 +902,6 @@ const CSS = `
   /* Pages */
   .rp-page { width: 794px; min-height: 1123px; position: relative; overflow: hidden; padding-bottom: 50px; break-after: page; page-break-after: always; background: #080c12; }
   .rp-page + .rp-page { border-top: 3px solid #000; }
-  body { padding-top: 52px; }
-  @media print { body { padding-top: 0; } }
 
   /* Watermarks */
   .rp-watermark { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
@@ -1025,7 +1031,8 @@ const CSS = `
 // ── Export ─────────────────────────────────────────────────────────────────────
 export default function PropertyReportPage() {
   return (
-    <>
+    // page-standalone triggers globals.css :has() rule that resets body to display:block + overflow:visible
+    <div className="page-standalone" style={{ background: '#000', minHeight: '100vh' }}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <Suspense fallback={
         <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#080c12', color: '#8fa3b8', fontFamily: 'sans-serif' }}>
@@ -1034,6 +1041,6 @@ export default function PropertyReportPage() {
       }>
         <ReportInner />
       </Suspense>
-    </>
+    </div>
   );
 }
