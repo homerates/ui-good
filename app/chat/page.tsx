@@ -526,29 +526,65 @@ function extractListingUrl(text: string): string | null {
     return /^https?:\/\//i.test(url) ? url : 'https://' + url;
 }
 
-/** Detect a plain US street address typed by the user (not a listing URL).
- *  Must START with the house number so chip seeds like "Property intelligence
- *  report: 3277 Main St..." are never mistaken for a standalone address.
+/** Strip trailing sentence noise from a raw regex address capture. */
+function cleanAddressMatch(raw: string): string {
+    return raw
+        .replace(/\s*[.?!]\s*$/, '')                      // trailing punctuation
+        .replace(/\s*[—–‐].*$/, '')         // em/en dash and everything after
+        .replace(/\s*-{2,}.*$/, '')                        // double-dash and everything after
+        .replace(/,?\s*(?:USA|United States)\s*$/i, '')    // Google Places country suffix
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+/** Detect a plain US street address typed anywhere in a message (not a listing URL).
  *
- *  Two-tier detection:
- *  1. Street-type keyword match (high precision, handles standard abbreviations)
- *  2. City + State + ZIP suffix match (catches non-standard/Spanish street names
- *     like "Sandy Crst", "Vereda Mar Del Sol", "Camino Del Sur", etc.) */
+ *  Three-tier detection — T3 runs FIRST to prevent T1 from truncating comma-free
+ *  full addresses to just the street portion.
+ *
+ *  T3: comma-free full address (requires street-type + city words + state + ZIP)
+ *      "123 Main St Los Angeles CA 90001"
+ *  T1: standard comma format with explicit street-type keyword
+ *      "123 Main St, Los Angeles, CA 90001"  /  "Can you check 123 Oak Ave, Irvine, CA?"
+ *  T2: non-standard / Spanish street name with comma city+state suffix
+ *      "4654 Vereda Mar Del Sol, San Diego, CA 92130" */
 function extractPlainAddress(text: string): string | null {
     const t = text.trim();
     // Skip if text contains a URL or a known listing domain
     if (/https?:\/\//i.test(t) || /(?:redfin|zillow|realtor|trulia|homes)\.com/i.test(t)) return null;
-    // Must START with a house number (digit) — rules out question/sentence inputs
-    if (!/^\d/.test(t)) return null;
 
-    // Tier 1: explicit street-type keyword (original logic — fast path)
-    const hasStreetType = /\d{1,6}\s+[A-Za-z0-9][A-Za-z0-9 ]{1,50}\s+(?:st(?:reet)?|ave(?:nue)?|blvd|boulevard|dr(?:ive)?|ln|lane|rd|road|way|ct|court|pl|place|ter(?:race)?|cir(?:cle)?|hwy|highway|pkwy|parkway|loop|trail|run|pass|grove|ridge|bend|crossing|heights|vista|walk|sq(?:uare)?|crest|crst|vw|view|mdws|meadow|gln|glen|hls|hill|knl|knoll|lndg|landing|fwy|freeway|expy|expressway|trl|trace|vereda|camino|via|paseo|avenida|calle|corte|ranchero|rancho)\b/i.test(t);
-    if (hasStreetType) return t;
+    const ST =
+        'st(?:reet)?|ave(?:nue)?|blvd|boulevard|dr(?:ive)?|ln|lane|rd|road|way|wy' +
+        '|ct|court|pl(?:ace)?|ter(?:race)?|cir(?:cle)?|hwy|highway|pkwy|parkway' +
+        '|loop|trail|trl|run|pass|grove|ridge|bend|xing|crossing|heights|vista|walk' +
+        '|sq(?:uare)?|crest|crst|vw|view|mdws|meadow|gln|glen|hls|hill|knl|knoll' +
+        '|lndg|landing|fwy|freeway|expy|expressway|trace|spur|commons|pike|alley|aly' +
+        '|vereda|camino|via|paseo|avenida|calle|corte|ranchero|rancho';
 
-    // Tier 2: ", City, ST [ZIP]" suffix — catches non-standard/Spanish street types.
-    // ZIP is optional so "4654 Vereda Mar Del Sol, San Diego, CA" also routes correctly.
-    const hasCityState = /^\d{1,6}\s+.{3,60},\s*[A-Za-z][A-Za-z\s]{1,20},\s*[A-Z]{2}(?:\s+\d{5})?\b/.test(t);
-    if (hasCityState) return t;
+    const UNIT = '(?:\\s+(?:apt\\.?|unit|suite|ste\\.?|#)[\\s.#]*[A-Za-z0-9-]+)?';
+    const CSV  = '(?:,\\s*[A-Za-z][A-Za-z\\s]{1,25},\\s*[A-Za-z]{2}(?:\\s+\\d{5}(?:-\\d{4})?)?)?';
+
+    // T3 FIRST: comma-free full address (street-type + city words + 2-letter state + 5-digit ZIP)
+    const t3 = new RegExp(
+        `(\\d{1,6}\\s+[A-Za-z0-9][A-Za-z0-9 ]{1,50}\\s+(?:${ST})\\b${UNIT}` +
+        `\\s+(?:[A-Za-z]+(?:\\s+[A-Za-z]+){0,3})\\s+[A-Za-z]{2}\\s+\\d{5}(?:-\\d{4})?)`,
+        'i'
+    );
+    let m = t.match(t3);
+    if (m) return cleanAddressMatch(m[1]);
+
+    // T1: standard comma-format with explicit street-type keyword — extracts match only
+    const t1 = new RegExp(
+        `(\\d{1,6}\\s+[A-Za-z0-9][A-Za-z0-9 ]{1,50}\\s+(?:${ST})\\b${UNIT}${CSV})`,
+        'i'
+    );
+    m = t.match(t1);
+    if (m) return cleanAddressMatch(m[1]);
+
+    // T2: non-standard street name + ", City, State [ZIP]" — case-insensitive state, ZIP-4 supported
+    const t2 = /(\d{1,6}\s+[^,\n]{3,60},\s*[A-Za-z][A-Za-z\s]{1,25},\s*[A-Za-z]{2}(?:\s+\d{5}(?:-\d{4})?)?)\b/i;
+    m = t.match(t2);
+    if (m) return cleanAddressMatch(m[1]);
 
     return null;
 }
