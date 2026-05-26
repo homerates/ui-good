@@ -1516,13 +1516,32 @@ export default function Page() {
 
     // persist
     useEffect(() => {
+        const payload = JSON.stringify({ threads, history, activeId, memoryThreadByChatId });
         try {
-            localStorage.setItem(
-                LS_KEY,
-                JSON.stringify({ threads, history, activeId, memoryThreadByChatId })
-            );
-        } catch (e) {
-            console.warn('hr.chat save failed', e);
+            localStorage.setItem(LS_KEY, payload);
+        } catch {
+            // Quota exceeded — first evict any cached property intel blobs to reclaim space
+            try {
+                Object.keys(localStorage)
+                    .filter(k => k.startsWith('pi_v1_') || k.startsWith('pi_sid_'))
+                    .forEach(k => localStorage.removeItem(k));
+                localStorage.setItem(LS_KEY, payload);
+            } catch {
+                // Still full — store a trimmed snapshot (last 4 messages per thread, last 10 threads)
+                try {
+                    const trimmedThreads = Object.fromEntries(
+                        Object.entries(threads).slice(-10).map(([id, msgs]) =>
+                            [id, (msgs as ChatMsg[]).slice(-4)]
+                        )
+                    );
+                    localStorage.setItem(
+                        LS_KEY,
+                        JSON.stringify({ threads: trimmedThreads, history: history.slice(-20), activeId, memoryThreadByChatId })
+                    );
+                } catch {
+                    console.warn('hr.chat save failed — localStorage full');
+                }
+            }
         }
     }, [threads, history, activeId, memoryThreadByChatId]);
 

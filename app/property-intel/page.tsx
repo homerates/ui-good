@@ -151,11 +151,19 @@ function lsRead(addr: string): { result: PropResult; mapUrls: MapUrls | null } |
 
 function lsWrite(addr: string, result: PropResult, mapUrls: MapUrls | null) {
   if (typeof window === 'undefined') return;
+  const key     = `pi_v1_${normKey(addr)}`;
+  const payload = JSON.stringify({ result, mapUrls, cachedAt: Date.now() });
   try {
-    localStorage.setItem(`pi_v1_${normKey(addr)}`, JSON.stringify({
-      result, mapUrls, cachedAt: Date.now(),
-    }));
-  } catch {}
+    localStorage.setItem(key, payload);
+  } catch {
+    // Quota exceeded — evict ALL cached property intel entries, then retry once
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('pi_v1_') || k.startsWith('pi_sid_'))
+        .forEach(k => localStorage.removeItem(k));
+      localStorage.setItem(key, payload);
+    } catch {}
+  }
 }
 
 function lsEvict(addr: string) {

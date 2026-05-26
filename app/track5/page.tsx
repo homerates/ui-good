@@ -347,7 +347,21 @@ function Track5Inner() {
       setMatchState('confirmed');
       // Persist so returning to the page doesn't show Get Matched again
       if (sessionId && typeof window !== 'undefined') {
-        localStorage.setItem(`t5m_${sessionId}`, '1');
+        const t5key = `t5m_${sessionId}`;
+        try {
+          localStorage.setItem(t5key, '1');
+        } catch {
+          // localStorage full — evict property intel blobs and retry
+          try {
+            Object.keys(localStorage)
+              .filter(k => k.startsWith('pi_v1_') || k.startsWith('pi_sid_'))
+              .forEach(k => localStorage.removeItem(k));
+            localStorage.setItem(t5key, '1');
+          } catch {
+            // Still no space — sessionStorage is enough for this tab
+            try { sessionStorage.setItem(t5key, '1'); } catch {}
+          }
+        }
       }
     } catch (e: unknown) {
       setMatchError(e instanceof Error ? e.message : 'Something went wrong');
@@ -381,8 +395,9 @@ function Track5Inner() {
   useEffect(() => {
     const sid = params?.get('session');
     if (!sid) return;
-    // Restore matched state from localStorage so returning users can't re-submit
-    if (typeof window !== 'undefined' && localStorage.getItem(`t5m_${sid}`) === '1') {
+    // Restore matched state from localStorage (or sessionStorage fallback) so returning users can't re-submit
+    if (typeof window !== 'undefined' &&
+        (localStorage.getItem(`t5m_${sid}`) === '1' || sessionStorage.getItem(`t5m_${sid}`) === '1')) {
       setMatchState('matched');
     }
     fetch(`/api/buyer-sessions/${sid}`)
