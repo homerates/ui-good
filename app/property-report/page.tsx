@@ -160,10 +160,12 @@ function piLsRead(addr: string): { result: PropData; mapUrls: { street_view_url:
 // ── Main report inner ──────────────────────────────────────────────────────────
 function ReportInner() {
   const params = useSearchParams();
-  const address  = params?.get('address') ?? '';
-  const downPct  = Number(params?.get('down')  ?? 20);
-  const rateOver = Number(params?.get('rate')  ?? 0);
-  const chatUrl  = params?.get('chatUrl') ?? '';   // optional back-link to specific chat session
+  const address    = params?.get('address') ?? '';
+  const downPct    = Number(params?.get('down')  ?? 20);
+  const rateOver   = Number(params?.get('rate')  ?? 0);
+  const chatUrl    = params?.get('chatUrl') ?? '';   // optional back-link to specific chat session
+  // photo passed directly from property-intel Build Report link — highest priority
+  const photoParam = params?.get('photo') ?? null;
 
   const [data,         setData]         = useState<PropData | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -171,7 +173,7 @@ function ReportInner() {
   const [copied,       setCopied]       = useState(false);
   const [printing,     setPrinting]     = useState(false);
   // Separate hero photo state — survives if primary URL 404s
-  const [heroPhoto,    setHeroPhoto]    = useState<string | null>(null);
+  const [heroPhoto,    setHeroPhoto]    = useState<string | null>(photoParam);
   const [heroFallback, setHeroFallback] = useState<string | null>(null);
 
   useEffect(() => {
@@ -195,13 +197,14 @@ function ReportInner() {
       const redfinCdn = (cached.result as any).photo_url as string | null ?? null;
       const googleMaps = cached.mapUrls?.street_view_url ?? null;
       const primary = redfinCdn ?? googleMaps;
-      setHeroPhoto(primary);
-      if (googleMaps && !redfinCdn) setHeroFallback(null); // Google is primary, no fallback yet
-      const d = { ...cached.result, photoUrl: primary };
+      // photoParam (from URL) takes precedence over anything in cache
+      if (!photoParam) setHeroPhoto(primary);
+      else if (primary && primary !== photoParam) setHeroFallback(primary);
+      const d = { ...cached.result, photoUrl: photoParam ?? primary };
       setData(d);
       setLoading(false);
       // Background: if no Redfin CDN photo in cache, fetch it as fallback for Google Maps failures
-      if (!redfinCdn) fetchRedfinPhoto();
+      if (!redfinCdn && !photoParam) fetchRedfinPhoto();
       return;
     }
 
@@ -215,11 +218,13 @@ function ReportInner() {
           const redfinCdn = (j.result as any)?.photo_url as string | null ?? null;
           const googleMaps = j.map_urls?.street_view_url as string | null ?? null;
           const primary = redfinCdn ?? googleMaps;
-          setHeroPhoto(primary);
-          setData({ ...j.result as PropData, photoUrl: primary });
+          // photoParam (from URL) takes precedence
+          if (!photoParam) setHeroPhoto(primary);
+          else if (primary && primary !== photoParam) setHeroFallback(primary);
+          setData({ ...j.result as PropData, photoUrl: photoParam ?? primary });
           setLoading(false);
           // Background: if no Redfin CDN photo, fetch for fallback
-          if (!redfinCdn) fetchRedfinPhoto();
+          if (!redfinCdn && !photoParam) fetchRedfinPhoto();
           return;
         }
 
@@ -261,9 +266,9 @@ function ReportInner() {
               walk_score:         null,
               neighborhood_appreciation_3yr_pct: null,
               location_intelligence: null,
-              photoUrl:           (d.photoUrl as string) ?? null,
+              photoUrl:           photoParam ?? (d.photoUrl as string) ?? null,
             });
-            if (d.photoUrl) setHeroPhoto(d.photoUrl as string);
+            if (!photoParam && d.photoUrl) setHeroPhoto(d.photoUrl as string);
             setLoading(false);
           });
       })
