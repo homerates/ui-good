@@ -1346,6 +1346,7 @@ export default function Page() {
     }, [searchParams]);
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [rightMenuOpen, setRightMenuOpen] = useState(false);
 
     useEffect(() => {
         setSidebarOpen(window.innerWidth >= 1024);
@@ -3213,6 +3214,9 @@ export default function Page() {
                             </a>
                         </div>
 
+                        {/* Left sidebar toggle — between logo and nav */}
+                        <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
+
                         {/* Nav — same as landing page */}
                         <nav className="app-nav">
                             <a href="/" className="app-nav-link">Home</a>
@@ -3225,7 +3229,16 @@ export default function Page() {
                         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                             <AlertBell />
                             <SettingsPanel />
-                            <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
+                            {/* Right sidebar toggle — plain ≡, never becomes ✕ */}
+                            <button
+                                type="button"
+                                aria-label="Open menu"
+                                className="hamburger"
+                                onClick={() => setRightMenuOpen(o => !o)}
+                                style={{ marginLeft: 4 }}
+                            >
+                                <span /><span /><span />
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -4432,6 +4445,73 @@ export default function Page() {
                     </div>
                 )}
             </section>
+
+            {/* ── Right sidebar overlay ── */}
+            {rightMenuOpen && (
+                <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 498, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' }}
+                    onClick={() => setRightMenuOpen(false)}
+                />
+            )}
+
+            {/* ── Right sidebar panel ── */}
+            <div style={{
+                position: 'fixed', top: 0, right: 0, bottom: 0, width: 300, maxWidth: '88vw',
+                zIndex: 499, background: '#0d1117',
+                display: rightMenuOpen ? 'flex' : 'none', flexDirection: 'column',
+                boxShadow: '-8px 0 48px rgba(0,0,0,0.6)',
+                borderLeft: '1px solid rgba(255,255,255,0.07)',
+                overflow: 'hidden',
+            }}>
+                {/* Panel header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
+                    <button
+                        onClick={() => setRightMenuOpen(false)}
+                        style={{ flexShrink: 0, background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, cursor: 'pointer', color: 'rgba(143,163,184,0.8)', fontSize: 18, padding: '5px 11px', lineHeight: 1 }}
+                    >✕</button>
+                    <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+                        <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" style={{ height: 28, width: 'auto' }} />
+                    </a>
+                </div>
+                {/* Panel body */}
+                <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 24 }}>
+                    <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Platform</div>
+                    {[
+                        { href: '/chat',       icon: '💬', label: 'AI Chat',         sub: 'Ask any mortgage question' },
+                        { href: '/chat',       icon: '⚡', label: 'Scenario Engine', sub: 'Payment breakdowns & comparisons' },
+                        { href: '/lab',        icon: '🧠', label: 'HomeRates Lab',   sub: 'Policy & guideline answers' },
+                        { href: '/homeowner',  icon: '🏡', label: 'Home Value',       sub: 'Estimate & refi readiness' },
+                        { href: '/track5',     icon: '🎯', label: 'Get Matched',      sub: 'Connect with a loan officer' },
+                    ].map(item => (
+                        <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
+                                <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 1 }}>{item.sub}</span>
+                            </div>
+                        </a>
+                    ))}
+                    <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Resources</div>
+                    {[
+                        { href: '/market-news',   icon: '📰', label: 'Market News' },
+                        { href: '/knowledge-hub', icon: '📚', label: 'Knowledge Hub' },
+                        { href: '/loan-limits',   icon: '🏠', label: 'Loan Limits 2026' },
+                        { href: '/calculators',   icon: '🧮', label: 'Calculators' },
+                        { href: '/platform',      icon: '🔬', label: 'Platform Intelligence' },
+                    ].map(item => (
+                        <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                            <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
+                        </a>
+                    ))}
+                </div>
+                {/* Panel footer CTA */}
+                <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
+                    <a href="/chat" onClick={() => setRightMenuOpen(false)} style={{ display: 'block', width: '100%', padding: 14, background: '#00e87a', color: '#000', fontWeight: 600, fontSize: 14, textAlign: 'center', borderRadius: 10, textDecoration: 'none' }}>
+                        Try free — no sign up required
+                    </a>
+                </div>
+            </div>
         </>
     );
 }
