@@ -14,6 +14,7 @@ interface Comp {
   sold_date: string;
   sqft: number | null;
   price_per_sqft: number | null;
+  days_on_market?: number | null;
 }
 
 interface LocationSubScore {
@@ -251,7 +252,7 @@ function PropertyIntelInner() {
     // L2 — market conditions (deep analysis only)
     // DOM: prefer market_median_dom → average comp DOMs → property's own DOM
     const compDoms = (d2.comparable_sales ?? [])
-      .map((c: { days_on_market?: number | null }) => c.days_on_market)
+      .map(c => c.days_on_market)
       .filter((n): n is number => n != null);
     const compDomAvg = compDoms.length >= 2
       ? Math.round(compDoms.reduce((a: number, b: number) => a + b, 0) / compDoms.length)
