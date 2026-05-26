@@ -138,6 +138,25 @@ function ScoreRing({ score, size = 100 }: { score: number; size?: number }) {
   );
 }
 
+// ── Shared localStorage helpers (mirror property-intel) ───────────────────────
+const piNormKey = (a: string) =>
+  a.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').slice(0, 100);
+
+function piLsRead(addr: string): { result: PropData; mapUrls: { street_view_url: string | null } | null } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`pi_v1_${piNormKey(addr)}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { result: PropData; mapUrls: { street_view_url: string | null } | null; cachedAt: number };
+    if (!parsed?.result || !parsed.cachedAt) return null;
+    const age = Date.now() - parsed.cachedAt;
+    const ttl = /sold|off market|withdrawn/i.test(parsed.result.current_status ?? '')
+      ? 7 * 86_400_000 : 86_400_000;
+    if (age >= ttl) return null;
+    return { result: parsed.result, mapUrls: parsed.mapUrls ?? null };
+  } catch { return null; }
+}
+
 // ── Main report inner ──────────────────────────────────────────────────────────
 function ReportInner() {
   const params = useSearchParams();
@@ -154,8 +173,19 @@ function ReportInner() {
 
   useEffect(() => {
     if (!address) { setError('No address provided.'); setLoading(false); return; }
-    fetch(`/api/beta/grok-property?address=${encodeURIComponent(address)}&deep=false`)
-      .then(r => r.json())
+
+    // 1. Try the property-intel localStorage cache first — fast & rich
+    const cached = piLsRead(address);
+    if (cached) {
+      const d = { ...cached.result, photoUrl: cached.mapUrls?.street_view_url ?? null };
+      setData(d);
+      setLoading(false);
+      return;
+    }
+
+    // 2. Cache miss — call the proper lookup endpoint (same as property-intel uses)
+    fetch(`/api/property/lookup?address=${encodeURIComponent(address)}&deep=false`)
+      .then(r => r.ok ? r.json() : Promise.reject('lookup failed'))
       .then(j => { setData(j); setLoading(false); })
       .catch(() => { setError('Failed to load property data.'); setLoading(false); });
   }, [address]);
