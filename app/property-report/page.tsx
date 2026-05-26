@@ -141,10 +141,10 @@ function ScoreRing({ score, size = 100 }: { score: number; size?: number }) {
 // ── Main report inner ──────────────────────────────────────────────────────────
 function ReportInner() {
   const params = useSearchParams();
-  const address  = params.get('address') ?? '';
-  const downPct  = Number(params.get('down')  ?? 20);
-  const rateOver = Number(params.get('rate')  ?? 0);
-  const chatUrl  = params.get('chatUrl') ?? '';   // optional back-link to specific chat session
+  const address  = params?.get('address') ?? '';
+  const downPct  = Number(params?.get('down')  ?? 20);
+  const rateOver = Number(params?.get('rate')  ?? 0);
+  const chatUrl  = params?.get('chatUrl') ?? '';   // optional back-link to specific chat session
 
   const [data,    setData]    = useState<PropData | null>(null);
   const [loading, setLoading] = useState(true);
