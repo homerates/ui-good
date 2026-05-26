@@ -345,6 +345,10 @@ function Track5Inner() {
       if (!res.ok) throw new Error(d.error ?? 'Request failed');
       setMatchScenarioId(d.scenarioId ?? null);
       setMatchState('confirmed');
+      // Persist so returning to the page doesn't show Get Matched again
+      if (sessionId && typeof window !== 'undefined') {
+        localStorage.setItem(`t5m_${sessionId}`, '1');
+      }
     } catch (e: unknown) {
       setMatchError(e instanceof Error ? e.message : 'Something went wrong');
       setMatchState('modal'); // bounce back to modal so user can retry
@@ -377,6 +381,10 @@ function Track5Inner() {
   useEffect(() => {
     const sid = params?.get('session');
     if (!sid) return;
+    // Restore matched state from localStorage so returning users can't re-submit
+    if (typeof window !== 'undefined' && localStorage.getItem(`t5m_${sid}`) === '1') {
+      setMatchState('matched');
+    }
     fetch(`/api/buyer-sessions/${sid}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
@@ -737,19 +745,21 @@ function Track5Inner() {
             border: '1px solid rgba(0,232,122,0.2)',
             borderRadius: 18,
             width: '100%', maxWidth: 460,
+            display: 'flex', flexDirection: 'column',
+            maxHeight: 'calc(100vh - 48px)',
             overflow: 'hidden',
           }}>
 
             {/* State: consent gate */}
             {matchState === 'modal' && (
               <>
-                <div style={{ padding: '22px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ padding: '22px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
                   <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#00e87a', marginBottom: 6 }}>Track 5 · Matching</div>
                   <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.02em', marginBottom: 5 }}>Connect with a local loan officer</div>
                   <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.55 }}>Review exactly what gets shared. Your address and identity stay private until you choose to reveal them.</div>
                 </div>
 
-                <div style={{ padding: '18px 24px' }}>
+                <div style={{ padding: '18px 24px', overflowY: 'auto', flex: 1 }}>
                   {/* Score strip */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.15)', borderRadius: 10, padding: '14px 16px', marginBottom: 18 }}>
                     <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
@@ -820,7 +830,7 @@ function Track5Inner() {
                   )}
                 </div>
 
-                <div style={{ padding: '0 24px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ padding: '12px 24px 22px', display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                   <button
                     onClick={handleMatch}
                     disabled={!matchConsent}
