@@ -165,23 +165,43 @@ function ReportInner() {
   const rateOver = Number(params?.get('rate')  ?? 0);
   const chatUrl  = params?.get('chatUrl') ?? '';   // optional back-link to specific chat session
 
-  const [data,    setData]    = useState<PropData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState('');
-  const [copied,  setCopied]  = useState(false);
-  const [printing, setPrinting] = useState(false);
+  const [data,         setData]         = useState<PropData | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState('');
+  const [copied,       setCopied]       = useState(false);
+  const [printing,     setPrinting]     = useState(false);
+  // Separate hero photo state — survives if primary URL 404s
+  const [heroPhoto,    setHeroPhoto]    = useState<string | null>(null);
+  const [heroFallback, setHeroFallback] = useState<string | null>(null);
 
   useEffect(() => {
     if (!address) { setError('No address provided.'); setLoading(false); return; }
 
+    // ── Helper: fetch Redfin photo in background and set as fallback ──────────
+    const fetchRedfinPhoto = () =>
+      fetch('/api/property/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(lj => { if (lj?.ok && lj.data?.photoUrl) setHeroFallback(lj.data.photoUrl as string); })
+        .catch(() => {});
+
     // 1. Try the property-intel localStorage cache first — fast & rich
     const cached = piLsRead(address);
     if (cached) {
-      // photo priority: Google Street View → Redfin CDN (stored in result.photo_url after fix)
-      const photo = cached.mapUrls?.street_view_url ?? (cached.result as any).photo_url ?? null;
-      const d = { ...cached.result, photoUrl: photo };
+      // Prefer Redfin CDN (reliable) over Google Maps Street View (may 404)
+      const redfinCdn = (cached.result as any).photo_url as string | null ?? null;
+      const googleMaps = cached.mapUrls?.street_view_url ?? null;
+      const primary = redfinCdn ?? googleMaps;
+      setHeroPhoto(primary);
+      if (googleMaps && !redfinCdn) setHeroFallback(null); // Google is primary, no fallback yet
+      const d = { ...cached.result, photoUrl: primary };
       setData(d);
       setLoading(false);
+      // Background: if no Redfin CDN photo in cache, fetch it as fallback for Google Maps failures
+      if (!redfinCdn) fetchRedfinPhoto();
       return;
     }
 
@@ -191,10 +211,15 @@ function ReportInner() {
       .then(j => {
         if (j?.cached && j?.result) {
           // Supabase hit — result already has current_list_price, bedrooms, etc.
-          // photo_url = Redfin CDN (stored in Supabase via mergeResult); map_urls = Google Maps (generated at request time)
-          const photo = (j.result as any)?.photo_url ?? j.map_urls?.street_view_url ?? null;
-          setData({ ...j.result as PropData, photoUrl: photo });
+          // Prefer Redfin CDN (photo_url from mergeResult) over Google Maps
+          const redfinCdn = (j.result as any)?.photo_url as string | null ?? null;
+          const googleMaps = j.map_urls?.street_view_url as string | null ?? null;
+          const primary = redfinCdn ?? googleMaps;
+          setHeroPhoto(primary);
+          setData({ ...j.result as PropData, photoUrl: primary });
           setLoading(false);
+          // Background: if no Redfin CDN photo, fetch for fallback
+          if (!redfinCdn) fetchRedfinPhoto();
           return;
         }
 
@@ -238,6 +263,7 @@ function ReportInner() {
               location_intelligence: null,
               photoUrl:           (d.photoUrl as string) ?? null,
             });
+            if (d.photoUrl) setHeroPhoto(d.photoUrl as string);
             setLoading(false);
           });
       })
@@ -379,12 +405,20 @@ function ReportInner() {
 
         {/* Hero */}
         <div className="rp-hero">
-          {data.photoUrl
+          {(heroPhoto ?? data.photoUrl)
             ? <img
-                src={data.photoUrl}
+                src={heroPhoto ?? data.photoUrl ?? ''}
                 className="rp-hero-img"
                 alt="Property"
-                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                onError={e => {
+                  const img = e.currentTarget as HTMLImageElement;
+                  // If primary (Google Maps) fails, try Redfin CDN fallback
+                  if (heroFallback && img.src !== heroFallback) {
+                    img.src = heroFallback;
+                  } else {
+                    img.style.display = 'none';
+                  }
+                }}
               />
             : <div className="rp-hero-ph">🏡</div>
           }

@@ -59,6 +59,7 @@ interface PropResult {
   buyer_strategy:            string   | null;
   confidence:                string   | null;
   data_freshness:            string   | null;
+  photo_url:                 string   | null;
   // Deep analysis fields
   zillow_estimate:           number | null;
   redfin_estimate:           number | null;
@@ -176,9 +177,10 @@ function PropertyIntelInner() {
   const searchParams  = useSearchParams();
   const address       = (searchParams?.get('address') ?? '').trim();
 
-  const [finalResult, setFinalResult] = useState<PropResult | null>(null);
-  const [mapUrls,     setMapUrls]     = useState<MapUrls | null>(null);
-  const [photoReady,  setPhotoReady]  = useState(false);
+  const [finalResult,    setFinalResult]    = useState<PropResult | null>(null);
+  const [mapUrls,        setMapUrls]        = useState<MapUrls | null>(null);
+  const [redfinPhotoUrl, setRedfinPhotoUrl] = useState<string | null>(null);
+  const [photoReady,     setPhotoReady]     = useState(false);
   const [mapView,     setMapView]     = useState<'street' | 'satellite'>('street');
   const [cacheHit,    setCacheHit]    = useState(false);
   const [loading,     setLoading]     = useState(false);
@@ -361,9 +363,10 @@ function PropertyIntelInner() {
 
   const d: Partial<PropResult> = finalResult ?? {};
 
-  const photoUrl = mapUrls
-    ? (mapView === 'street' ? mapUrls.street_view_url : mapUrls.static_map_url)
-    : null;
+  // photoUrl: for street view, fall back to Redfin CDN photo when Google Maps is unavailable
+  const photoUrl = mapView === 'street'
+    ? (mapUrls?.street_view_url ?? redfinPhotoUrl ?? null)
+    : (mapUrls?.static_map_url ?? null);
 
   // ── Query ──────────────────────────────────────────────────────────────────
   const runQuery = useCallback(async (opts?: { force?: boolean }) => {
@@ -372,7 +375,7 @@ function PropertyIntelInner() {
     abortRef.current = new AbortController();
     const sig = abortRef.current.signal;
 
-    setFinalResult(null); setMapUrls(null);
+    setFinalResult(null); setMapUrls(null); setRedfinPhotoUrl(null);
     setPhotoReady(false); setCacheHit(false);
     setSummary(''); setError('');
     setLoadingMsg('Checking for cached report…');
@@ -387,9 +390,22 @@ function PropertyIntelInner() {
         if (cd?.cached) {
           setCacheHit(true);
           if (cd.map_urls) setMapUrls(cd.map_urls);
+          const cachedPhoto: string | null = (cd.result as any)?.photo_url ?? null;
+          if (cachedPhoto) setRedfinPhotoUrl(cachedPhoto);
           setFinalResult(cd.result as PropResult);
           setSummary(cd.result?.grok_intelligence_summary ?? '');
           setLoading(false);
+          // Background: fetch Redfin photo if not already cached (for older Supabase entries)
+          if (!cachedPhoto) {
+            fetch('/api/property/lookup', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ address }),
+            })
+              .then(r => r.ok ? r.json() : null)
+              .then(lj => { if (lj?.ok && lj.data?.photoUrl) setRedfinPhotoUrl(lj.data.photoUrl as string); })
+              .catch(() => {});
+          }
           return;
         }
       }
@@ -422,12 +438,9 @@ function PropertyIntelInner() {
             hoa_monthly:        d.hoaMonthly ?? null,
             photo_url:          (d.photoUrl as string | null) ?? null,
           };
-          // Use Redfin CDN photo immediately while Grok streams (overwritten by Google Maps if available)
+          // Store Redfin CDN photo as independent fallback (survives meta_early overwrite)
           if (d.photoUrl) {
-            setMapUrls(prev => ({
-              street_view_url: prev?.street_view_url ?? (d.photoUrl as string),
-              static_map_url:  prev?.static_map_url  ?? null,
-            }));
+            setRedfinPhotoUrl(d.photoUrl as string);
           }
         }
       } catch { /* proceed without Redfin data */ }
@@ -498,9 +511,24 @@ function PropertyIntelInner() {
     if (cached) {
       setFinalResult(cached.result);
       if (cached.mapUrls) setMapUrls(cached.mapUrls);
+      // Use cached Redfin photo as fallback for Street View failures
+      const lsPhoto: string | null = (cached.result as any).photo_url
+        ?? cached.mapUrls?.street_view_url ?? null;
+      if (lsPhoto) setRedfinPhotoUrl(lsPhoto);
       setSummary(cached.result.grok_intelligence_summary ?? '');
       setCacheHit(true);
       setLoading(false);
+      // Background: if no Redfin CDN photo stored, do quick lookup to get it
+      if (!(cached.result as any).photo_url) {
+        fetch('/api/property/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address }),
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then(lj => { if (lj?.ok && lj.data?.photoUrl) setRedfinPhotoUrl(lj.data.photoUrl as string); })
+          .catch(() => {});
+      }
       return; // skip API entirely
     }
 
@@ -745,8 +773,13 @@ function PropertyIntelInner() {
                       style={{ display: 'none' }}
                       onLoad={() => setPhotoReady(true)}
                       onError={() => {
-                        // Street View 404 or blocked — clear map URLs so we don't shimmer forever
-                        setMapUrls(prev => prev ? { ...prev, street_view_url: null } : null);
+                        if (photoUrl === redfinPhotoUrl) {
+                          // Redfin CDN photo also failed — clear both so spinner stops
+                          setRedfinPhotoUrl(null);
+                        } else {
+                          // Google Maps Street View 404 — clear it; photoUrl falls back to redfinPhotoUrl
+                          setMapUrls(prev => prev ? { ...prev, street_view_url: null } : null);
+                        }
                         setPhotoReady(false);
                       }}
                     />
