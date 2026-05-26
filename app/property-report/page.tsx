@@ -183,10 +183,14 @@ function ReportInner() {
       return;
     }
 
-    // 2. Cache miss — call the proper lookup endpoint (same as property-intel uses)
-    fetch(`/api/property/lookup?address=${encodeURIComponent(address)}&deep=false`)
+    // 2. Cache miss — call the proper lookup endpoint (POST, same as property-intel uses)
+    fetch('/api/property/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address }),
+    })
       .then(r => r.ok ? r.json() : Promise.reject('lookup failed'))
-      .then(j => { setData(j); setLoading(false); })
+      .then(j => { setData(j?.data ?? j); setLoading(false); })
       .catch(() => { setError('Failed to load property data.'); setLoading(false); });
   }, [address]);
 
