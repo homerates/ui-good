@@ -503,26 +503,11 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
             <div className="ch-messages-wrap">
               {loading && <div className="ch-loading">Loading conversation…</div>}
 
-              {/* ── AI Guide — borrower advisory, always visible ── */}
-              {!loading && isBorrower && (
-                <div className="ch-ai-guide">
-                  <div className="ch-ai-guide-icon">🤖</div>
-                  <div className="ch-ai-guide-body">
-                    <div className="ch-ai-guide-title">Two things drive your rate</div>
-                    <div className="ch-ai-guide-text">
-                      Your <strong>credit score</strong> and <strong>income</strong> are the most influential factors in what your loan officer can offer you.
-                      The stronger both are, the more competitive your quote will be.
-                      Share them early for a precise picture — or your LO will work from standard qualifying assumptions and adjust when you&apos;re ready.
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {!loading && messages.length === 0 && (
+              {!loading && messagesAfterReset.length === 0 && (
                 <div className="ch-empty">Start the conversation below.</div>
               )}
 
-              {!loading && messages.map(m => {
+              {!loading && messagesAfterReset.map(m => {
                 const type = m.metadata?.type;
 
                 if (m.sender_role === "system") {
@@ -738,6 +723,20 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           {/* ── Right: Discover dock column ── */}
           {hasDock && (
             <div className={`ch-dock-col${mobileTab !== "discover" ? " ch-mobile-hidden" : ""}`}>
+
+              {/* AI Guide — borrower advisory (desktop: top of dock; mobile: top of Discover tab) */}
+              <div className="ch-ai-guide">
+                <div className="ch-ai-guide-icon">🤖</div>
+                <div className="ch-ai-guide-body">
+                  <div className="ch-ai-guide-title">Two things drive your rate</div>
+                  <div className="ch-ai-guide-text">
+                    Your <strong>credit score</strong> and <strong>income</strong> are the most influential factors in what your loan officer can offer you.
+                    The stronger both are, the more competitive your quote will be.
+                    Share them early — or your LO will work from standard qualifying assumptions and adjust when you&apos;re ready.
+                  </div>
+                </div>
+              </div>
+
               <DiscoverDock
                 loanType={discoverScenario?.loanType}
                 scenario={discoverScenario?.snapshot}
@@ -1521,14 +1520,13 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           .ch-share-arrow { transform: rotate(90deg); }
         }
 
-        /* ── AI Guide banner (borrower — top of messages) ── */
+        /* ── AI Guide banner (borrower — top of Discover dock) ── */
         .ch-ai-guide {
           display: flex; align-items: flex-start; gap: 10px;
           background: rgba(61,139,255,0.05);
           border: 1px solid rgba(61,139,255,0.16);
           border-radius: 12px; padding: 12px 14px;
-          margin-bottom: 4px;
-          flex-shrink: 0;
+          margin: 8px 0 6px;
         }
         .ch-ai-guide-icon {
           font-size: 18px; flex-shrink: 0; line-height: 1.2;
