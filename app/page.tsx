@@ -737,15 +737,31 @@ export default function LandingPage() {
         /* Legacy class — keep for any stale references */
         .lp-mobile-ham { display: none; }
 
-        /* MOBILE FULL-SCREEN MENU */
-        .lp-mobile-menu {
+        /* RIGHT SIDEBAR MENU + OVERLAY */
+        .lp-menu-overlay {
           display: none;
           position: fixed;
           inset: 0;
-          z-index: 500;
-          background: #080c12;
+          z-index: 498;
+          background: rgba(0,0,0,0.55);
+          backdrop-filter: blur(2px);
+          -webkit-backdrop-filter: blur(2px);
+        }
+        .lp-menu-overlay.lp-menu-open { display: block; }
+        .lp-mobile-menu {
+          display: none;
+          position: fixed;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          width: 300px;
+          max-width: 88vw;
+          z-index: 499;
+          background: #0d1117;
           flex-direction: column;
           overflow: hidden;
+          box-shadow: -8px 0 48px rgba(0,0,0,0.6);
+          border-left: 1px solid rgba(255,255,255,0.07);
         }
         .lp-mobile-menu.lp-menu-open { display: flex; }
         .lp-mobile-menu-head {
@@ -924,7 +940,10 @@ export default function LandingPage() {
           </div>
         </nav>
 
-        {/* FULL-SCREEN MENU (desktop + mobile) */}
+        {/* Overlay behind right sidebar */}
+        <div className={`lp-menu-overlay${mobileMenuOpen ? ' lp-menu-open' : ''}`} onClick={() => setMobileMenuOpen(false)} />
+
+        {/* RIGHT SIDEBAR MENU */}
         <div className={`lp-mobile-menu${mobileMenuOpen ? ' lp-menu-open' : ''}`}>
           <div className="lp-mobile-menu-head">
             <button className="lp-mobile-menu-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">✕</button>
