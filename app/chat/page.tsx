@@ -3655,7 +3655,7 @@ export default function Page() {
                                                                     const dsc = m.meta!.decisionScoreCard!;
                                                                     const composite = computeDSComposite(l1Score, dsc.l2Score ?? null, dsc.l3Score, dsc.l4Score);
                                                                     setMessages(prev => prev.map(msg =>
-                                                                        msg.id === m.id
+                                                                        msg.id === m.id && msg.role === 'assistant'
                                                                             ? { ...msg, meta: { ...msg.meta!, decisionScoreCard: {
                                                                                 ...dsc, l1Score, l1Summary,
                                                                                 compositeScore: composite ?? undefined,
