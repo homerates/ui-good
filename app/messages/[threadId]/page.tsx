@@ -258,6 +258,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     name ? name.trim().split(/\s+/).map(w => w[0].toUpperCase()).slice(0, 2).join('') : 'LO';
 
   const isBorrower = thread?.is_borrower ?? true;
+  const hasLOPrompt = messages.some(m => m.metadata?.type === 'lo_prompt');
   const proType = thread?.professional_type === "agent" ? "Agent" : "Loan Officer";
   const navTitle = isBorrower
     ? (proCard?.name ? `${proType} · ${proCard.name}` : proType)
@@ -681,8 +682,12 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                     <strong style={{ color: '#4a6e58' }}>Pre-application education only</strong> — no application has been submitted, no credit has been pulled, and no Loan Estimate obligation is created by responding. You may share the same program information you would publish on your website or present at an open house. A rate disclosure is auto-appended whenever you mention a rate.
                   </div>
                   {!isClosed && (
-                    <button className="ch-lo-ask-btn" onClick={sendLOPrompt} disabled={sending}>
-                      🎯 Ask Credit &amp; Income →
+                    <button
+                      className="ch-lo-ask-btn"
+                      onClick={sendLOPrompt}
+                      disabled={sending || hasLOPrompt}
+                    >
+                      {hasLOPrompt ? '✓ Prompt sent' : '🎯 Ask Credit & Income →'}
                     </button>
                   )}
                 </>
