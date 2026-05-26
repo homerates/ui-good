@@ -249,7 +249,14 @@ function PropertyIntelInner() {
     }
 
     // L2 — market conditions (deep analysis only)
-    const dom = d2.market_median_dom;
+    // DOM: prefer market_median_dom → average comp DOMs → property's own DOM
+    const compDoms = (d2.comparable_sales ?? [])
+      .map((c: { days_on_market?: number | null }) => c.days_on_market)
+      .filter((n): n is number => n != null);
+    const compDomAvg = compDoms.length >= 2
+      ? Math.round(compDoms.reduce((a: number, b: number) => a + b, 0) / compDoms.length)
+      : null;
+    const dom = d2.market_median_dom ?? compDomAvg ?? d2.days_on_market ?? null;
     const stl = d2.market_sale_to_list;
     let l2Score: number | null = null;
     let l2Summary: string | null = null;
@@ -259,7 +266,7 @@ function PropertyIntelInner() {
       if (stl != null) subs.push(stl < 0.95 ? 90 : stl < 0.98 ? 80 : stl < 1.00 ? 68 : stl < 1.02 ? 55 : stl < 1.05 ? 42 : 30);
       l2Score   = Math.round(subs.reduce((a, b) => a + b, 0) / subs.length);
       const pts: string[] = [];
-      if (dom != null) pts.push(`Median DOM ${dom}d`);
+      if (dom != null) pts.push(`Median DOM ${dom}d${compDomAvg != null && d2.market_median_dom == null ? ' (from comps)' : ''}`);
       if (stl != null) pts.push(`sale-to-list ${(stl * 100).toFixed(1)}%`);
       l2Summary = pts.join(', ') + '.';
     }
@@ -296,16 +303,20 @@ function PropertyIntelInner() {
       }
     }
 
-    // In the new level model:
-    //   l2_score = Property Evaluation (gap + AVM) — owned by check-property, not saved here
-    //   l3_score = Market Intelligence (DOM/sale-to-list) — was l2_score here, now l3
-    //   l4_score = Location Intelligence — unchanged
-    if (l2Score == null && l4Score == null) return; // nothing to save (l3Score/AVM skipped)
+    // Level model:
+    //   l2_score = Property Evaluation (AVM gap) — check-property is primary; fall back to saving here if not yet set
+    //   l3_score = Market Intelligence (DOM/sale-to-list)
+    //   l4_score = Location Intelligence
+    if (l2Score == null && l4Score == null && l3Score == null) return; // nothing to save
 
     const payload: Record<string, unknown> = { property_address: address };
-    // Market conditions → l3 in the new naming model
+    // Market conditions → l3
     if (l2Score != null) { payload.l3_score = l2Score; payload.l3_summary = l2Summary; }
-    // l3Score (AVM from Grok) is NOT saved here — check-property owns L2/AVM
+    // AVM comparison → l2 (only if check-property hasn't already set it on this session)
+    if (l3Score != null && !existingSession?.l2_score) {
+      payload.l2_score = l3Score;
+      payload.l2_summary = l3Summary;
+    }
     if (l4Score != null) { payload.l4_score = l4Score; payload.l4_summary = l4Summary; }
 
     deepSavedRef.current = address;
