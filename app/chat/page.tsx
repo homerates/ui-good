@@ -531,6 +531,34 @@ function extractListingUrl(text: string): string | null {
     return /^https?:\/\//i.test(url) ? url : 'https://' + url;
 }
 
+// ── Decision Score inline helpers (client-side, no API call needed) ───────────
+
+/** Re-score L1 (Financial) when ISC sliders change down payment or loan type. */
+function recalcDSL1(downPct: number, loanType: string): { score: number; summary: string } {
+    const ltv = 1 - downPct / 100;
+    const score = loanType === 'jumbo'
+        ? (ltv <= 0.75 ? 86 : ltv <= 0.80 ? 80 : 72)
+        : (ltv <= 0.80 ? 85 : ltv <= 0.85 ? 78 : ltv <= 0.90 ? 70 : 60);
+    const typeLabel = loanType === 'jumbo' ? 'Jumbo' : loanType === 'fha' ? 'FHA' : loanType === 'va' ? 'VA' : 'Conventional';
+    const summary = `${typeLabel} · ${downPct}% down · LTV ${Math.round(ltv * 100)}%`;
+    return { score, summary };
+}
+
+/** Re-compute composite score from 4 levels (mirrors DecisionScoreCard logic). */
+function computeDSComposite(
+    l1: number, l2: number | null,
+    l3?: number | null, l4?: number | null,
+): number | null {
+    const entries = [
+        { s: l1,  w: 0.35 }, { s: l2,  w: 0.25 },
+        { s: l3 ?? null, w: 0.25 }, { s: l4 ?? null, w: 0.15 },
+    ].filter(e => e.s != null) as { s: number; w: number }[];
+    if (entries.length < 2) return null;
+    const totalW   = entries.reduce((a, e) => a + e.w, 0);
+    const weighted = entries.reduce((a, e) => a + e.s * e.w, 0);
+    return Math.round(weighted / totalW);
+}
+
 /** Strip trailing sentence noise from a raw regex address capture. */
 function cleanAddressMatch(raw: string): string {
     return raw
@@ -3622,6 +3650,19 @@ export default function Page() {
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
                                                                 }}
+                                                                onScenarioChange={m.meta.decisionScoreCard ? ({ downPct: newDown, loanType: newLt }) => {
+                                                                    const { score: l1Score, summary: l1Summary } = recalcDSL1(newDown, newLt);
+                                                                    const dsc = m.meta!.decisionScoreCard!;
+                                                                    const composite = computeDSComposite(l1Score, dsc.l2Score ?? null, dsc.l3Score, dsc.l4Score);
+                                                                    setMessages(prev => prev.map(msg =>
+                                                                        msg.id === m.id
+                                                                            ? { ...msg, meta: { ...msg.meta!, decisionScoreCard: {
+                                                                                ...dsc, l1Score, l1Summary,
+                                                                                compositeScore: composite ?? undefined,
+                                                                            }}}
+                                                                            : msg
+                                                                    ));
+                                                                } : undefined}
                                                             />
                                                         )}
                                                         {/* Affordability slider card — income-based answers */}
