@@ -519,6 +519,7 @@ function ReportInner() {
                 <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', fontFamily: 'DM Mono,monospace', fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#4b5c70' }}>
                   Recent Comps
                 </div>
+                <div className="rp-table-wrap">
                 <table className="rp-table">
                   <thead>
                     <tr>
@@ -544,6 +545,7 @@ function ReportInner() {
                     ))}
                   </tbody>
                 </table>
+                </div>{/* end rp-table-wrap */}
               </div>
             )}
           </div>
@@ -1115,6 +1117,80 @@ const CSS = `
   .rp-cta-box { margin: 10px 36px 0; background: linear-gradient(135deg,rgba(0,232,122,0.10),rgba(0,180,89,0.05)); border: 1px solid rgba(0,232,122,0.22); border-radius: 14px; padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; gap: 20px; position: relative; z-index: 1; }
   .rp-cta-btn { background: #00e87a; color: #000; font-weight: 700; font-size: 13px; padding: 11px 22px; border-radius: 9px; text-decoration: none; flex-shrink: 0; font-family: 'DM Sans',sans-serif; }
   .rp-disc { font-family: 'DM Mono',monospace; font-size: 9.5px; line-height: 1.7; color: #4b5c70; margin-bottom: 7px; position: relative; z-index: 1; }
+
+  /* ── Mobile responsive ─────────────────────────────────────────────────────── */
+  @media (max-width: 820px) {
+    /* Book wrapper fills viewport */
+    .rp-book  { width: 100%; padding-top: 56px; }
+    .rp-page  { width: 100%; min-height: unset; padding-bottom: 28px; }
+
+    /* Action bar — hide address on small screens, compress buttons */
+    .rp-action-bar { padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
+    .rp-action-addr { display: none; }
+    .rp-action-btns { gap: 6px; }
+    .rp-btn-ghost, .rp-btn-primary { font-size: 11px; padding: 6px 10px; }
+
+    /* Nav / header row — tighten padding */
+    .rp-nav { padding: 10px 16px; }
+    .rp-nav-logo img { height: 22px; }
+
+    /* Hero */
+    .rp-hero { height: 180px; }
+    .rp-hero-overlay { left: 16px; right: 16px; padding-bottom: 12px; }
+    .rp-hero-price { font-size: 24px; }
+    .rp-hero-piti  { font-size: 18px; }
+    .rp-hero-addr  { font-size: 11px; }
+    .rp-status-badge { left: 16px; top: 10px; font-size: 9px; }
+
+    /* Spec strip */
+    .rp-spec-strip { padding: 0 16px; }
+    .rp-spec-item  { font-size: 11px; padding: 10px 10px 10px 0; margin-right: 10px; }
+
+    /* Content padding: all 36px horizontal margins → 16px */
+    .rp-grid-2col, .rp-col { padding: 0; }
+    .rp-scenario-banner, .rp-loc-hero, .rp-ds-hero, .rp-ds-levels,
+    .rp-loc-grid, .rp-wildfire-card, .rp-legend, .rp-cta-box { padding-left: 16px; padding-right: 16px; }
+    .rp-loc-grid, .rp-wildfire-card, .rp-legend, .rp-cta-box { margin-left: 0; margin-right: 0; }
+
+    /* 2-column grids → single column */
+    .rp-grid-2col { grid-template-columns: 1fr; }
+    .rp-loc-grid  { grid-template-columns: 1fr 1fr; }
+
+    /* Stat values */
+    .rp-stat-val  { font-size: 18px; }
+    .rp-hero-price { letter-spacing: -0.02em; }
+    .rp-scenario-title { font-size: 16px; }
+
+    /* Decision score rows */
+    .rp-ds-row { grid-template-columns: 36px 1fr auto; gap: 10px; padding: 12px 14px; }
+    .rp-ds-circle { width: 34px; height: 34px; font-size: 12px; }
+
+    /* CTA box — stack on mobile */
+    .rp-cta-box { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .rp-cta-btn  { width: 100%; text-align: center; }
+
+    /* Footer */
+    .rp-footer { padding: 8px 16px; position: relative; }
+    .rp-footer-right { display: none; }
+
+    /* Inline share buttons */
+    .rp-share-inline, .rp-download-inline { font-size: 11px; padding: 7px 12px; }
+
+    /* AVM row — stack on very small screens */
+    .rp-avm-row { flex-wrap: wrap; }
+    .rp-avm-item { min-width: 45%; }
+
+    /* Tables — allow horizontal scroll */
+    .rp-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .rp-table th, .rp-table td { font-size: 10px; padding: 6px 7px; }
+  }
+
+  @media (max-width: 480px) {
+    .rp-loc-grid { grid-template-columns: 1fr; }
+    .rp-hero { height: 150px; }
+    .rp-hero-price { font-size: 20px; }
+    .rp-hero-piti  { font-size: 16px; }
+  }
 `;
 
 // ── Export ─────────────────────────────────────────────────────────────────────

@@ -80,8 +80,8 @@ function DebugPanel({ meta, raw }: { meta: any; raw: any }) {
         ['path / route', meta?.path ?? meta?.route ?? '—'],
         ['confidence', grok?.confidence ?? meta?.confidence ?? '—'],
         ['intent', meta?.intent ?? '—'],
-        ...(meta?.usedFRED  === true  ? [['usedFRED',  'true']  as [string, any]] : []),
-        ...(meta?.usedTavily === true ? [['usedTavily', 'true'] as [string, any]] : []),
+        ...(meta?.usedFRED   != null ? [['usedFRED',   meta.usedFRED]   as [string, any]] : []),
+        ...(meta?.usedTavily != null ? [['usedTavily', meta.usedTavily] as [string, any]] : []),
         ['10Y yield', fred.tenYearYield != null ? `${fred.tenYearYield}%` : '—'],
         ['30Y mtg avg', fred.mort30Avg != null ? `${fred.mort30Avg}%` : '—'],
         ['spread', fred.spread != null ? `${fred.spread}%` : '—'],
@@ -162,8 +162,13 @@ function DebugPanel({ meta, raw }: { meta: any; raw: any }) {
                                 {mathFields.map(([k, v]) => (
                                     <tr key={k} style={{ borderBottom: '1px solid #1a1a2a' }}>
                                         <td style={{ padding: '2px 8px 2px 0', color: '#506080', whiteSpace: 'nowrap' }}>{k}</td>
-                                        <td style={{ padding: '2px 0', color: '#c0d0ff', wordBreak: 'break-all' }}>
-                                            {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                        <td style={{
+                                            padding: '2px 0', wordBreak: 'break-all',
+                                            color: typeof v === 'boolean' ? (v ? '#4ade80' : '#f87171') : '#c0d0ff',
+                                        }}>
+                                            {typeof v === 'boolean'
+                                                ? (v ? '✓ true' : '✗ false')
+                                                : typeof v === 'object' ? JSON.stringify(v) : String(v)}
                                         </td>
                                     </tr>
                                 ))}
