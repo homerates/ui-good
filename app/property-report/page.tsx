@@ -183,16 +183,62 @@ function ReportInner() {
       return;
     }
 
-    // 2. Cache miss — call the proper lookup endpoint (POST, same as property-intel uses)
-    fetch('/api/property/lookup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address }),
-    })
-      .then(r => r.ok ? r.json() : Promise.reject('lookup failed'))
-      .then(j => { setData(j?.data ?? j); setLoading(false); })
+    // 2. Try Supabase cache via grok-property GET — fully structured, correct field names
+    fetch(`/api/beta/grok-property?address=${encodeURIComponent(address)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(j => {
+        if (j?.cached && j?.result) {
+          // Supabase hit — result already has current_list_price, bedrooms, etc.
+          setData({ ...j.result as PropData, photoUrl: j.map_urls?.street_view_url ?? null });
+          setLoading(false);
+          return;
+        }
+
+        // 3. Supabase miss — call property/lookup and normalize raw field names
+        return fetch('/api/property/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address }),
+        })
+          .then(r => r.ok ? r.json() : Promise.reject('lookup failed'))
+          .then(lj => {
+            const d = lj?.data ?? {};
+            // Map raw lookup fields → PropData field names
+            setData({
+              current_status:     (d.listingStatus as string) ?? null,
+              current_list_price: (d.price as number) ?? null,
+              bedrooms:           (d.beds as number)  ?? null,
+              bathrooms:          (d.baths as number) ?? null,
+              sqft:               (d.sqft as number)  ?? null,
+              year_built:         (d.yearBuilt as number) ?? null,
+              days_on_market:     (d.daysOnMarket as number) ?? null,
+              price_per_sqft:     (d.price && d.sqft) ? Math.round((d.price as number) / (d.sqft as number)) : null,
+              last_sold_price:    (d.lastSalePrice as number) ?? null,
+              last_sold_date:     (d.lastSaleDate as string)  ?? null,
+              lot_size_sqft:      (d.lotSqft as number) ?? null,
+              estimated_piti:     null,
+              rate_used:          rateOver > 0 ? rateOver : null,
+              key_highlights:     null,
+              comparable_sales:   null,
+              grok_intelligence_summary: null,
+              buyer_strategy:     null,
+              zillow_estimate:    (d.estimatedValue as number) ?? null,
+              redfin_estimate:    null,
+              market_median_dom:  null,
+              market_sale_to_list: null,
+              market_median_price: null,
+              life_fit_score:     null,
+              school_score:       null,
+              walk_score:         null,
+              neighborhood_appreciation_3yr_pct: null,
+              location_intelligence: null,
+              photoUrl:           (d.photoUrl as string) ?? null,
+            });
+            setLoading(false);
+          });
+      })
       .catch(() => { setError('Failed to load property data.'); setLoading(false); });
-  }, [address]);
+  }, [address, rateOver]);
 
   const handleShare = useCallback(async () => {
     try {
