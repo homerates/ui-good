@@ -1252,7 +1252,7 @@ function PropertyIntelInner() {
                 {/* Build Report — opens dynamic PDF report in new tab */}
                 {finalResult && (
                   <a
-                    href={`/property-report?address=${encodeURIComponent(address)}&down=20&rate=${d.rate_used ?? 6.875}${(redfinPhotoUrl ?? (finalResult as any)?.photo_url) ? `&photo=${encodeURIComponent((redfinPhotoUrl ?? (finalResult as any)?.photo_url) as string)}` : ''}&chatUrl=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`}
+                    href={`/property-report?address=${encodeURIComponent(address)}&down=${displayDown}&rate=${displayRate ?? d.rate_used ?? 6.875}${scenarioDebt != null && scenarioDebt > 0 ? `&debt=${scenarioDebt}` : ''}${(redfinPhotoUrl ?? (finalResult as any)?.photo_url) ? `&photo=${encodeURIComponent((redfinPhotoUrl ?? (finalResult as any)?.photo_url) as string)}` : ''}&chatUrl=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ padding: '11px 20px', fontSize: '0.82rem', fontWeight: 600, background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.28)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s', textDecoration: 'none' }}
