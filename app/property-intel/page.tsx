@@ -699,7 +699,7 @@ function PropertyIntelInner() {
   const isBuyer   = statusKey === 'for sale' || statusKey === 'pending';
   const chatUrl   = (() => {
     const price = d.current_list_price;
-    const rate  = d.rate_used ?? 6.875;
+    const rate  = displayRate ?? d.rate_used ?? 6.875;
     // Best available value estimate for homeowner context
     const compsAvg = d.comparable_sales?.length
       ? Math.round(d.comparable_sales.reduce((s, c) => s + c.sold_price, 0) / d.comparable_sales.length)
@@ -1306,7 +1306,7 @@ function PropertyIntelInner() {
                     style={{ flex: 1, maxWidth: 280, padding: '12px 24px', fontSize: '0.88rem', fontWeight: 700, background: '#4ade80', color: '#050812', border: 'none', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s' }}
                   >
                     <i className="fa-solid fa-calculator" style={{ fontSize: '0.8rem' }} />
-                    Run My Numbers →
+                    Edit my numbers →
                   </button>
                 </SignedIn>
                 <SignedOut>
@@ -1323,6 +1323,28 @@ function PropertyIntelInner() {
                   // ── L1: Affordability — from buyer_evaluation_session (my-home → Run My Numbers) ──
                   const existingL1      = existingSession?.l1_score ?? null;
                   const existingL1Sum   = existingSession?.l1_summary ?? null;
+
+                  // ── L1 recalc: when URL has adjusted scenario params, recompute from formula ──
+                  const scenarioL1 = (() => {
+                    if (scenarioDown == null || d.current_list_price == null) return null;
+                    const price   = d.current_list_price;
+                    const loanAmt = price * (1 - scenarioDown / 100);
+                    const lt      = loanAmt > 832_750 ? 'jumbo' : 'conventional';
+                    const ltv     = 1 - scenarioDown / 100;
+                    let base = lt === 'jumbo'
+                      ? (ltv <= 0.75 ? 86 : ltv <= 0.80 ? 80 : 72)
+                      : (ltv <= 0.80 ? 85 : ltv <= 0.85 ? 78 : ltv <= 0.90 ? 70 : 60);
+                    if (scenarioIncome != null && scenarioIncome > 0 && displayPiti != null) {
+                      const md  = scenarioDebt ?? 0;
+                      const dti = ((displayPiti + md) / (scenarioIncome / 12)) * 100;
+                      const adj = dti <= 28 ? 10 : dti <= 36 ? 6 : dti <= 43 ? 0 : dti <= 49 ? -7 : -15;
+                      base += adj;
+                    }
+                    return Math.min(100, Math.max(45, base));
+                  })();
+                  // Prefer scenario-recalculated score when URL params present, else DB value
+                  const displayL1 = scenarioL1 ?? existingL1;
+                  const l1SumForUrl = existingL1Sum ?? (displayL1 != null ? `L1 score ${displayL1} — based on adjusted scenario (${scenarioDown}% down).` : null);
 
                   // ── L3: Property Value ──────────────────────────────────
                   const list     = d.current_list_price;
@@ -1387,11 +1409,11 @@ function PropertyIntelInner() {
                   }
 
                   // ── Build URL if anything is ready ─────────────────────
-                  const readyCount = [existingL1, l3Score, l2Score, l4Score].filter(s => s != null).length;
+                  const readyCount = [displayL1, l3Score, l2Score, l4Score].filter(s => s != null).length;
                   if (readyCount === 0) return null;
 
                   const urlp = new URLSearchParams();
-                  if (existingL1 != null && existingL1Sum) { urlp.set('l1_score', String(existingL1)); urlp.set('l1_summary', existingL1Sum); }
+                  if (displayL1 != null && l1SumForUrl) { urlp.set('l1_score', String(displayL1)); urlp.set('l1_summary', l1SumForUrl); }
                   if (l3Score != null && l3Summary) { urlp.set('l3_score', String(l3Score)); urlp.set('l3_summary', l3Summary); }
                   if (l2Score != null && l2Summary) { urlp.set('l2_score', String(l2Score)); urlp.set('l2_summary', l2Summary); }
                   if (l4Score != null && l4Summary) { urlp.set('l4_score', String(l4Score)); urlp.set('l4_summary', l4Summary); }
@@ -1400,7 +1422,7 @@ function PropertyIntelInner() {
 
                   // Weighted composite using available levels (35/25/25/15)
                   const weightedEntries = [
-                    { s: existingL1, w: 0.35 }, { s: l2Score, w: 0.25 },
+                    { s: displayL1,  w: 0.35 }, { s: l2Score, w: 0.25 },
                     { s: l3Score,    w: 0.25 }, { s: l4Score, w: 0.15 },
                   ].filter(e => e.s != null);
                   const totalW   = weightedEntries.reduce((a, e) => a + e.w, 0);
@@ -1410,7 +1432,7 @@ function PropertyIntelInner() {
                   const avgColor  = avgScore >= 70 ? '#4ade80' : avgScore >= 50 ? '#fbbf24' : '#f87171';
                   const levelsText = readyCount === 4 ? '4 of 4 levels scored'
                     : readyCount === 1
-                      ? (existingL1 != null ? 'Affordability' : l3Score != null ? 'Property Value' : l2Score != null ? 'Market Conditions' : 'Location') + ' scored'
+                      ? (displayL1 != null ? 'Affordability' : l3Score != null ? 'Property Value' : l2Score != null ? 'Market Conditions' : 'Location') + ' scored'
                     : `${readyCount} of 4 levels scored`;
 
                   return (
@@ -1431,7 +1453,7 @@ function PropertyIntelInner() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
                           <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: 4, padding: '2px 7px', color: '#4ade80' }}>Decision Score</span>
                           <span style={{ fontSize: '0.7rem', color: '#4b6080' }}>{levelsText}</span>
-                          {existingL1 != null && <span style={{ fontSize: '0.62rem', color: '#00e87a', fontWeight: 700 }}>· L1 ✓</span>}
+                          {displayL1 != null && <span style={{ fontSize: '0.62rem', color: '#00e87a', fontWeight: 700 }}>· L1 ✓</span>}
                         </div>
                         <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0' }}>
                           {readyCount === 4 ? 'All 4 levels scored — View Decision Score →' : 'View Your Buying Decision Score →'}
