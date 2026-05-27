@@ -323,19 +323,6 @@ function Track5Inner() {
 
   const piUrl   = address ? `/property-intel?address=${encodeURIComponent(address)}` : '/property-intel';
 
-  // piUrlS: property-intel URL with scenario override params appended so that
-  // "Back to Property Intel" back-links preserve the adjusted scenario all the way
-  // through to Build Report (not the original 20%-down DB session values)
-  const piUrlS = (() => {
-    if (!address) return '/property-intel';
-    const parts: string[] = [`address=${encodeURIComponent(address)}`];
-    if (scDown   != null) parts.push(`down=${scDown}`);
-    if (scRate   != null) parts.push(`rate=${scRate.toFixed(3)}`);
-    if (scIncome != null && scIncome > 0) parts.push(`income=${Math.round(scIncome)}`);
-    if (scDebt   != null && scDebt   > 0) parts.push(`debt=${Math.round(scDebt)}`);
-    return `/property-intel?${parts.join('&')}`;
-  })();
-
   // ── Match helpers ──────────────────────────────────────────────────────────
   function extractZip(addr: string): string | null {
     const m = addr.match(/\b(\d{5})(?:-\d{4})?\b/);
@@ -399,6 +386,19 @@ function Track5Inner() {
   const ctxDp    = scDown  ?? (sj?.dp_pct as number)  ?? (params?.get('ctx_dp')    ? Number(params.get('ctx_dp'))    : null);
   const ctxRate  = scRate  ?? (sj?.rate as number)    ?? (params?.get('ctx_rate')  ? Number(params.get('ctx_rate'))  : null);
   const hasPurchaseCtx = !!(ctxPrice && ctxLt);
+
+  // piUrlS: property-intel URL with sc_* scenario override params appended so that
+  // "Back to Property Intel" back-links preserve the adjusted scenario all the way
+  // through to Build Report (not the original 20%-down DB session values)
+  const piUrlS = (() => {
+    if (!address) return '/property-intel';
+    const parts: string[] = [`address=${encodeURIComponent(address)}`];
+    if (scDown   != null) parts.push(`down=${scDown}`);
+    if (scRate   != null) parts.push(`rate=${scRate.toFixed(3)}`);
+    if (scIncome != null && scIncome > 0) parts.push(`income=${Math.round(scIncome)}`);
+    if (scDebt   != null && scDebt   > 0) parts.push(`debt=${Math.round(scDebt)}`);
+    return `/property-intel?${parts.join('&')}`;
+  })();
 
   function fmtK(n: number) {
     if (n >= 1_000_000) return `$${(n/1_000_000).toFixed(2).replace(/\.?0+$/,'')}M`;
