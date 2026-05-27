@@ -62,10 +62,11 @@ import SettingsPanel from '@/components/SettingsPanel';
 function DebugPanel({ meta, raw }: { meta: any; raw: any }) {
     const [open, setOpen] = React.useState(false);
     const [copied, setCopied] = React.useState(false);
-    const [tab, setTab] = React.useState<'math' | 'raw'>('math');
+    const [tab, setTab] = React.useState<'math' | 'live' | 'raw'>('math');
 
     const copy = () => {
-        navigator.clipboard.writeText(JSON.stringify(raw ?? meta, null, 2));
+        // Copy the live meta (not the frozen raw snapshot) — reflects current slider state
+        navigator.clipboard.writeText(JSON.stringify(tab === 'raw' ? raw : meta, null, 2));
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
     };
@@ -150,7 +151,8 @@ function DebugPanel({ meta, raw }: { meta: any; raw: any }) {
                     {/* Tab bar */}
                     <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
                         <span style={tabStyle(tab === 'math')} onClick={() => setTab('math')}>Math fields</span>
-                        <span style={tabStyle(tab === 'raw')} onClick={() => setTab('raw')}>Raw JSON</span>
+                        <span style={tabStyle(tab === 'live')} onClick={() => setTab('live')}>Live state</span>
+                        <span style={tabStyle(tab === 'raw')} onClick={() => setTab('raw')}>API response</span>
                         <span
                             style={{ marginLeft: 'auto', ...tabStyle(false), color: copied ? '#40c080' : '#606080' }}
                             onClick={copy}
@@ -179,6 +181,14 @@ function DebugPanel({ meta, raw }: { meta: any; raw: any }) {
                         </table>
                     )}
 
+                    {tab === 'live' && (
+                        <pre style={{
+                            margin: 0, padding: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+                            maxHeight: 400, overflowY: 'auto', color: '#8090b0', fontSize: 10,
+                        }}>
+                            {JSON.stringify(meta, null, 2)}
+                        </pre>
+                    )}
                     {tab === 'raw' && (
                         <pre style={{
                             margin: 0, padding: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
