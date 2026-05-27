@@ -116,6 +116,19 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const { user } = useUser();
     const router   = useRouter();
 
+    // ── Prop-sync for display-only mode (hideDrawer = property_lookup path) ──────
+    // In hideDrawer mode the user cannot adjust sliders, so internal state must
+    // mirror the current props (which update when "Run Adjusted Scenario" injects
+    // a new message). onScenarioChange has been removed so there is no feedback loop.
+    useEffect(() => {
+        if (!props.hideDrawer) return;
+        setPrice(props.price);
+        setDownPct(props.downPct);
+        setRate(props.rate);
+        setTerm(props.term);
+        setLoanType(props.loanType as 'conventional' | 'fha' | 'va' | 'jumbo');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.hideDrawer, props.price, props.downPct, props.rate, props.term, props.loanType]);
 
     // ── Journey: L1 write-back when launched from my-home property context ────
     const iscJourneyFired = useRef(false);
