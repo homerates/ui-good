@@ -407,6 +407,7 @@ type ApiResponse = {
         cmaPrice?: number; cmaBeds?: number; cmaBaths?: number; cmaSqft?: number;
         cmaTaxAnnual?: number; cmaTaxRate?: number; cmaLiveRate?: number; cmaPhotoUrl?: string;
         annualIncome?: number;
+        monthlyDebt?: number;
     } | null;
     convHBSlider?: {
         price: number; downPct: number; rate: number; term: number;
@@ -3756,6 +3757,7 @@ export default function Page() {
                                                                 insRate={m.meta.interactiveSlider.insRate}
                                                                 loanType={m.meta.interactiveSlider.loanType}
                                                                 annualIncome={m.meta.interactiveSlider.annualIncome}
+                                                                monthlyDebt={m.meta.interactiveSlider.monthlyDebt}
                                                                 decisionScoreState={m.meta.decisionScoreCard?.state}
                                                                 journeyAddress={
                                                                     m.meta.interactiveSlider.cmaAddress ?? cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
@@ -3785,8 +3787,7 @@ export default function Page() {
                                                                         : null;
                                                                     const newMeta: ApiResponse = {
                                                                         ...m.meta!,
-                                                                        interactiveSlider: { ...isl, downPct: newDown, rate: newRate, term: newTerm, loanType: newLt, annualIncome: newIncome > 0 ? newIncome : undefined },
-                                                                        incomeQualifySlider: m.meta!.incomeQualifySlider ? { ...m.meta!.incomeQualifySlider, downPct: newDown, rate: newRate, term: newTerm, annualIncome: newIncome > 0 ? newIncome : undefined, monthlyDebt: newDebt > 0 ? newDebt : undefined } : m.meta!.incomeQualifySlider,
+                                                                        interactiveSlider: { ...isl, downPct: newDown, rate: newRate, term: newTerm, loanType: newLt, annualIncome: newIncome > 0 ? newIncome : undefined, monthlyDebt: newDebt > 0 ? newDebt : undefined },
                                                                         decisionScoreCard: existingDsc ? { ...existingDsc, l1Score, l1Summary, compositeScore: newComposite ?? undefined } : undefined,
                                                                         answer: `Adjusted scenario — ${newDown}% down · ${newRate.toFixed(2)}% rate · ${newTerm}yr term on ${isl.cmaAddress ?? 'this property'}.${newIncome > 0 && dti ? ` DTI: ${dti.toFixed(0)}%.` : ''}${newDebt > 0 ? ` Other debts: $${newDebt}/mo.` : ''}`,
                                                                     };
@@ -3805,7 +3806,7 @@ export default function Page() {
                                                                 scenarioDown={m.meta.interactiveSlider?.downPct}
                                                                 scenarioRate={m.meta.interactiveSlider?.rate}
                                                                 scenarioIncome={m.meta.interactiveSlider?.annualIncome}
-                                                                scenarioDebt={m.meta.incomeQualifySlider?.monthlyDebt}
+                                                                scenarioDebt={m.meta.interactiveSlider?.monthlyDebt}
                                                             />
                                                         )}
                                                         {/* DSCR slider card — investment property answers */}
