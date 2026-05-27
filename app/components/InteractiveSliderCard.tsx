@@ -39,8 +39,6 @@ export interface SliderCardParams {
     cmaLiveRate?: number;
     cmaPhotoUrl?: string;
     journeyAddress?: string;  // set when launched from my-home — enables Property Intelligence CTA
-    /** Fires when down payment % or loan type changes — used to update Decision Score L1 inline */
-    onScenarioChange?: (params: { downPct: number; loanType: string }) => void;
 }
 
 function iscNormKey(a: string) { return a.trim().toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').slice(0,100); }
@@ -117,24 +115,6 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const { user } = useUser();
     const router   = useRouter();
 
-    // ── Sync from props when display-only (hideDrawer mode, property_lookup path) ──
-    // Income card drives the scenario; ISC must reflect the live meta values.
-    useEffect(() => {
-        if (!props.hideDrawer) return;
-        setDownPct(props.downPct);
-        setLoanType(props.loanType as 'conventional' | 'fha' | 'va' | 'jumbo');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [props.downPct, props.loanType, props.hideDrawer]);
-
-    // ── Inline Decision Score L1 update — fires when downPct or loanType changes ──
-    const iscFirstRender = useRef(true);
-    useEffect(() => {
-        if (iscFirstRender.current) { iscFirstRender.current = false; return; }
-        if (!props.onScenarioChange) return;
-        const t = setTimeout(() => props.onScenarioChange!({ downPct, loanType }), 150);
-        return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [downPct, loanType]);
 
     // ── Journey: L1 write-back when launched from my-home property context ────
     const iscJourneyFired = useRef(false);

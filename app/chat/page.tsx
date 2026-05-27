@@ -3679,53 +3679,8 @@ export default function Page() {
                                                                     const overrides = { ...sliderParams, ...(cmaContextRef.current ?? {}) };
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
-                                                                    // Belt-and-suspenders: apply adjusted down/loanType to Decision Score
-                                                                    // in case ISC's onScenarioChange debounce was cancelled by unmount
-                                                                    if (m.role === 'assistant' && m.meta?.decisionScoreCard) {
-                                                                        const dp = (sliderParams as any).downPaymentPct;
-                                                                        const lt = (sliderParams as any).loanType
-                                                                            ?? ((sliderParams as any).purchasePrice && dp != null
-                                                                                ? ((sliderParams as any).purchasePrice * (1 - dp / 100) > 832_750 ? 'jumbo' : 'conventional')
-                                                                                : 'conventional');
-                                                                        if (dp != null) {
-                                                                            const { score: l1s, summary: l1sum } = recalcDSL1(dp, lt);
-                                                                            setMessages(prev => prev.map(msg => {
-                                                                                if (msg.id !== m.id || msg.role !== 'assistant') return msg;
-                                                                                const dsc = msg.meta?.decisionScoreCard;
-                                                                                if (!dsc) return msg;
-                                                                                const comp = computeDSComposite(l1s, dsc.l2Score ?? null, dsc.l3Score, dsc.l4Score);
-                                                                                return { ...msg, meta: { ...msg.meta!,
-                                                                                    interactiveSlider: msg.meta!.interactiveSlider
-                                                                                        ? { ...msg.meta!.interactiveSlider, downPct: dp, loanType: lt as any }
-                                                                                        : msg.meta!.interactiveSlider,
-                                                                                    decisionScoreCard: { ...dsc, l1Score: l1s, l1Summary: l1sum, compositeScore: comp ?? undefined },
-                                                                                }};
-                                                                            }));
-                                                                        }
-                                                                    }
                                                                     setTimeout(() => send(seed), 50);
                                                                 }}
-                                                                onScenarioChange={m.meta.decisionScoreCard ? ({ downPct: newDown, loanType: newLt }) => {
-                                                                    const { score: l1Score, summary: l1Summary } = recalcDSL1(newDown, newLt);
-                                                                    setMessages(prev => prev.map(msg => {
-                                                                        if (msg.id !== m.id || msg.role !== 'assistant') return msg;
-                                                                        // Read dsc from prev state — NOT from stale render closure
-                                                                        const dsc = msg.meta?.decisionScoreCard;
-                                                                        if (!dsc) return msg;
-                                                                        const composite = computeDSComposite(l1Score, dsc.l2Score ?? null, dsc.l3Score, dsc.l4Score);
-                                                                        return {
-                                                                            ...msg,
-                                                                            meta: {
-                                                                                ...msg.meta!,
-                                                                                // Write adjusted downPct/loanType into interactiveSlider — this is the source of truth in the JSON
-                                                                                interactiveSlider: msg.meta!.interactiveSlider
-                                                                                    ? { ...msg.meta!.interactiveSlider, downPct: newDown, loanType: newLt as any }
-                                                                                    : msg.meta!.interactiveSlider,
-                                                                                decisionScoreCard: { ...dsc, l1Score, l1Summary, compositeScore: composite ?? undefined },
-                                                                            },
-                                                                        };
-                                                                    }));
-                                                                } : undefined}
                                                             />
                                                         )}
                                                         {/* Affordability slider card — income-based answers */}
@@ -3754,29 +3709,32 @@ export default function Page() {
                                                                     m.meta.interactiveSlider.cmaAddress ?? cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                 }
                                                                 onRunScenario={(seed, overrides) => {
-                                                                    pendingParamOverridesRef.current = overrides;
-                                                                    setPendingParamOverrides(overrides);
-                                                                    setTimeout(() => send(seed), 50);
-                                                                }}
-                                                                onScenarioChange={m.meta.decisionScoreCard ? ({ downPct: newDown, loanType: newLt }) => {
+                                                                    // Property_lookup path: carry all property data forward, only update scenario params.
+                                                                    // Inject messages client-side — no API re-scrape needed.
+                                                                    const isl = m.meta!.interactiveSlider!;
+                                                                    const newDown  = (overrides as any).downPaymentPct ?? isl.downPct;
+                                                                    const newRate  = (overrides as any).rate          ?? isl.rate;
+                                                                    const newTerm  = (overrides as any).term          ?? isl.term;
+                                                                    const loanAmt  = isl.price * (1 - newDown / 100);
+                                                                    const newLt: 'conventional' | 'jumbo' = loanAmt > 832_750 ? 'jumbo' : 'conventional';
+                                                                    // Recompute L1 only — L2/L3/L4 are property-level data, unchanged by scenario
                                                                     const { score: l1Score, summary: l1Summary } = recalcDSL1(newDown, newLt);
-                                                                    setMessages(prev => prev.map(msg => {
-                                                                        if (msg.id !== m.id || msg.role !== 'assistant') return msg;
-                                                                        const dsc = msg.meta?.decisionScoreCard;
-                                                                        if (!dsc) return msg;
-                                                                        const composite = computeDSComposite(l1Score, dsc.l2Score ?? null, dsc.l3Score, dsc.l4Score);
-                                                                        return {
-                                                                            ...msg,
-                                                                            meta: {
-                                                                                ...msg.meta!,
-                                                                                interactiveSlider: msg.meta!.interactiveSlider
-                                                                                    ? { ...msg.meta!.interactiveSlider, downPct: newDown, loanType: newLt as any }
-                                                                                    : msg.meta!.interactiveSlider,
-                                                                                decisionScoreCard: { ...dsc, l1Score, l1Summary, compositeScore: composite ?? undefined },
-                                                                            },
-                                                                        };
-                                                                    }));
-                                                                } : undefined}
+                                                                    const existingDsc = m.meta!.decisionScoreCard;
+                                                                    const newComposite = existingDsc
+                                                                        ? computeDSComposite(l1Score, existingDsc.l2Score ?? null, existingDsc.l3Score, existingDsc.l4Score)
+                                                                        : null;
+                                                                    const newMeta: ApiResponse = {
+                                                                        ...m.meta!,
+                                                                        interactiveSlider: { ...isl, downPct: newDown, rate: newRate, term: newTerm, loanType: newLt },
+                                                                        decisionScoreCard: existingDsc ? { ...existingDsc, l1Score, l1Summary, compositeScore: newComposite ?? undefined } : undefined,
+                                                                        answer: `Adjusted scenario — ${newDown}% down · ${newRate.toFixed(2)}% rate · ${newTerm}yr term on ${isl.cmaAddress ?? 'this property'}.`,
+                                                                    };
+                                                                    setMessages(prev => [
+                                                                        ...prev,
+                                                                        { id: uid(), role: 'user',      content: seed },
+                                                                        { id: uid(), role: 'assistant', content: newMeta.answer!, meta: newMeta },
+                                                                    ]);
+                                                                }}
                                                             />
                                                         )}
                                                         {/* Decision Score card — auto-fires after property URL paste */}
