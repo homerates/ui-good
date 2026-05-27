@@ -406,6 +406,7 @@ type ApiResponse = {
         cmaAddress?: string; cmaCity?: string; cmaState?: string; cmaZip?: string;
         cmaPrice?: number; cmaBeds?: number; cmaBaths?: number; cmaSqft?: number;
         cmaTaxAnnual?: number; cmaTaxRate?: number; cmaLiveRate?: number; cmaPhotoUrl?: string;
+        annualIncome?: number;
     } | null;
     convHBSlider?: {
         price: number; downPct: number; rate: number; term: number;
