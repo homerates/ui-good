@@ -2495,9 +2495,12 @@ export default function Page() {
                                 // Update card to complete state — preserve any user-adjusted l1Score from current state
                                 setMessages(prev => prev.map(m => {
                                     if (m.id !== _dsAnswerId || m.role !== 'assistant') return m;
-                                    // Read current l1 from prev state — user may have adjusted the slider
-                                    const currentL1Score   = m.meta?.decisionScoreCard?.l1Score   ?? _dsL1Score;
-                                    const currentL1Summary = m.meta?.decisionScoreCard?.l1Summary ?? _dsL1Summary;
+                                    // Use interactiveSlider.downPct as source of truth — onScenarioChange writes there
+                                    const currentDown    = m.meta?.interactiveSlider?.downPct ?? _dsDown;
+                                    const currentLtStr   = (m.meta?.interactiveSlider?.loanType as string) ?? _dsLoanType;
+                                    const { score: currentL1Score, summary: currentL1Summary } = currentDown !== _dsDown
+                                        ? recalcDSL1(currentDown, currentLtStr)
+                                        : { score: m.meta?.decisionScoreCard?.l1Score ?? _dsL1Score, summary: m.meta?.decisionScoreCard?.l1Summary ?? _dsL1Summary };
                                     // Composite must be recomputed inside callback so it uses current l1Score
                                     const dsEntries = [
                                         { s: currentL1Score,   w: 0.35 }, { s: dsL2ScoreFinal, w: 0.25 },
@@ -3674,32 +3677,42 @@ export default function Page() {
                                                                                 : 'conventional');
                                                                         if (dp != null) {
                                                                             const { score: l1s, summary: l1sum } = recalcDSL1(dp, lt);
-                                                                            const dsc = m.meta.decisionScoreCard;
-                                                                            const comp = computeDSComposite(l1s, dsc.l2Score ?? null, dsc.l3Score, dsc.l4Score);
-                                                                            setMessages(prev => prev.map(msg =>
-                                                                                msg.id === m.id && msg.role === 'assistant'
-                                                                                    ? { ...msg, meta: { ...msg.meta!, decisionScoreCard: {
-                                                                                        ...dsc, l1Score: l1s, l1Summary: l1sum,
-                                                                                        compositeScore: comp ?? undefined,
-                                                                                    }}}
-                                                                                    : msg
-                                                                            ));
+                                                                            setMessages(prev => prev.map(msg => {
+                                                                                if (msg.id !== m.id || msg.role !== 'assistant') return msg;
+                                                                                const dsc = msg.meta?.decisionScoreCard;
+                                                                                if (!dsc) return msg;
+                                                                                const comp = computeDSComposite(l1s, dsc.l2Score ?? null, dsc.l3Score, dsc.l4Score);
+                                                                                return { ...msg, meta: { ...msg.meta!,
+                                                                                    interactiveSlider: msg.meta!.interactiveSlider
+                                                                                        ? { ...msg.meta!.interactiveSlider, downPct: dp, loanType: lt as any }
+                                                                                        : msg.meta!.interactiveSlider,
+                                                                                    decisionScoreCard: { ...dsc, l1Score: l1s, l1Summary: l1sum, compositeScore: comp ?? undefined },
+                                                                                }};
+                                                                            }));
                                                                         }
                                                                     }
                                                                     setTimeout(() => send(seed), 50);
                                                                 }}
                                                                 onScenarioChange={m.meta.decisionScoreCard ? ({ downPct: newDown, loanType: newLt }) => {
                                                                     const { score: l1Score, summary: l1Summary } = recalcDSL1(newDown, newLt);
-                                                                    const dsc = m.meta!.decisionScoreCard!;
-                                                                    const composite = computeDSComposite(l1Score, dsc.l2Score ?? null, dsc.l3Score, dsc.l4Score);
-                                                                    setMessages(prev => prev.map(msg =>
-                                                                        msg.id === m.id && msg.role === 'assistant'
-                                                                            ? { ...msg, meta: { ...msg.meta!, decisionScoreCard: {
-                                                                                ...dsc, l1Score, l1Summary,
-                                                                                compositeScore: composite ?? undefined,
-                                                                            }}}
-                                                                            : msg
-                                                                    ));
+                                                                    setMessages(prev => prev.map(msg => {
+                                                                        if (msg.id !== m.id || msg.role !== 'assistant') return msg;
+                                                                        // Read dsc from prev state — NOT from stale render closure
+                                                                        const dsc = msg.meta?.decisionScoreCard;
+                                                                        if (!dsc) return msg;
+                                                                        const composite = computeDSComposite(l1Score, dsc.l2Score ?? null, dsc.l3Score, dsc.l4Score);
+                                                                        return {
+                                                                            ...msg,
+                                                                            meta: {
+                                                                                ...msg.meta!,
+                                                                                // Write adjusted downPct/loanType into interactiveSlider — this is the source of truth in the JSON
+                                                                                interactiveSlider: msg.meta!.interactiveSlider
+                                                                                    ? { ...msg.meta!.interactiveSlider, downPct: newDown, loanType: newLt as any }
+                                                                                    : msg.meta!.interactiveSlider,
+                                                                                decisionScoreCard: { ...dsc, l1Score, l1Summary, compositeScore: composite ?? undefined },
+                                                                            },
+                                                                        };
+                                                                    }));
                                                                 } : undefined}
                                                             />
                                                         )}
