@@ -2471,15 +2471,6 @@ export default function Page() {
                                     }
                                 }
 
-                                // Composite score — use final L2 (deep fallback applied)
-                                const dsEntries = [
-                                    { s: _dsL1Score,      w: 0.35 }, { s: dsL2ScoreFinal, w: 0.25 },
-                                    { s: dsL3Score,       w: 0.25 }, { s: dsL4Score,       w: 0.15 },
-                                ].filter(e => e.s != null) as { s: number; w: number }[];
-                                const dsComposite = dsEntries.length >= 2
-                                    ? Math.round(dsEntries.reduce((a, e) => a + e.s * e.w, 0) / dsEntries.reduce((a, e) => a + e.w, 0))
-                                    : null;
-
                                 // Save session if signed in
                                 let dsSessionId: string | null = null;
                                 if (user?.id) {
@@ -2501,31 +2492,41 @@ export default function Page() {
                                     } catch { /* session save is best-effort */ }
                                 }
 
-                                // Update card to complete state — no effect if message is gone
-                                setMessages(prev => prev.map(m =>
-                                    m.id === _dsAnswerId && m.role === 'assistant'
-                                        ? {
-                                            ...m,
-                                            meta: {
-                                                ...m.meta!,
-                                                decisionScoreCard: {
-                                                    state:          'complete' as const,
-                                                    address:        _dsAddress,
-                                                    l1Score:        _dsL1Score,
-                                                    l1Summary:      _dsL1Summary,
-                                                    l2Score:        dsL2ScoreFinal,
-                                                    l2Summary:      dsL2SummaryFinal,
-                                                    l3Score:        dsL3Score,
-                                                    l3Summary:      dsL3Summary,
-                                                    l4Score:        dsL4Score,
-                                                    l4Summary:      dsL4Summary,
-                                                    compositeScore: dsComposite ?? undefined,
-                                                    sessionId:      dsSessionId ?? undefined,
-                                                },
+                                // Update card to complete state — preserve any user-adjusted l1Score from current state
+                                setMessages(prev => prev.map(m => {
+                                    if (m.id !== _dsAnswerId || m.role !== 'assistant') return m;
+                                    // Read current l1 from prev state — user may have adjusted the slider
+                                    const currentL1Score   = m.meta?.decisionScoreCard?.l1Score   ?? _dsL1Score;
+                                    const currentL1Summary = m.meta?.decisionScoreCard?.l1Summary ?? _dsL1Summary;
+                                    // Composite must be recomputed inside callback so it uses current l1Score
+                                    const dsEntries = [
+                                        { s: currentL1Score,   w: 0.35 }, { s: dsL2ScoreFinal, w: 0.25 },
+                                        { s: dsL3Score,        w: 0.25 }, { s: dsL4Score,       w: 0.15 },
+                                    ].filter(e => e.s != null) as { s: number; w: number }[];
+                                    const dsComposite = dsEntries.length >= 2
+                                        ? Math.round(dsEntries.reduce((a, e) => a + e.s * e.w, 0) / dsEntries.reduce((a, e) => a + e.w, 0))
+                                        : null;
+                                    return {
+                                        ...m,
+                                        meta: {
+                                            ...m.meta!,
+                                            decisionScoreCard: {
+                                                state:          'complete' as const,
+                                                address:        _dsAddress,
+                                                l1Score:        currentL1Score,
+                                                l1Summary:      currentL1Summary,
+                                                l2Score:        dsL2ScoreFinal,
+                                                l2Summary:      dsL2SummaryFinal,
+                                                l3Score:        dsL3Score,
+                                                l3Summary:      dsL3Summary,
+                                                l4Score:        dsL4Score,
+                                                l4Summary:      dsL4Summary,
+                                                compositeScore: dsComposite ?? undefined,
+                                                sessionId:      dsSessionId ?? undefined,
                                             },
-                                        }
-                                        : m
-                                ));
+                                        },
+                                    };
+                                }));
                             } catch { /* silently ignore — background task, non-critical */ }
                         })();
                     }
