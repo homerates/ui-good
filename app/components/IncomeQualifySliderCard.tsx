@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
@@ -39,6 +39,8 @@ export interface IncomeQualifySliderParams {
     loanType?: 'conventional' | 'fha' | 'jumbo' | 'va';
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
     journeyAddress?: string;
+    /** Fires when down payment changes — updates Decision Score L1 inline (property_lookup path) */
+    onScenarioChange?: (params: { downPct: number; loanType: string }) => void;
 }
 
 function iqNormKey(a: string) { return a.trim().toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').slice(0,100); }
@@ -91,6 +93,15 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
     const { user } = useUser();
     const router   = useRouter();
+
+    // ── Fire onScenarioChange when down payment changes (updates Decision Score L1 inline) ──
+    const iqFirstRender = useRef(true);
+    useEffect(() => {
+        if (iqFirstRender.current) { iqFirstRender.current = false; return; }
+        if (!props.onScenarioChange) return;
+        props.onScenarioChange({ downPct, loanType: props.loanType ?? 'conventional' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [downPct]);
 
     // ── Journey: read existing session id set by parent slider card ───────────
     const [journeySid] = useState<string | null>(

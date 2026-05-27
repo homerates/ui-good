@@ -23,6 +23,8 @@ export interface SliderCardParams {
     buydownType?: '2/1' | '1/0' | '3/2/1' | 'none';
     sellerCredit?: number;
     onRunScenario?: (seed: string, paramOverrides: Record<string, any>) => void;
+    /** When true (property_lookup path): hide Adjust drawer + action buttons — income card is the sole interactive surface */
+    hideDrawer?: boolean;
     // CMA params — passed from property lookup path to enable Full Property Intelligence Report button
     cmaAddress?: string;
     cmaCity?: string;
@@ -464,8 +466,8 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 )}
             </div>
 
-            {/* Slider Drawer Trigger */}
-            <button className={`isc-slider-trigger${sliderOpen ? ' open' : ''}`} onClick={() => setSliderOpen(o => !o)}>
+            {/* Slider Drawer Trigger — hidden on property_lookup path (income card is the sole adjustment surface) */}
+            {!props.hideDrawer && <button className={`isc-slider-trigger${sliderOpen ? ' open' : ''}`} onClick={() => setSliderOpen(o => !o)}>
                 <div className="isc-trigger-left">
                     <span style={{ fontSize: 15 }}>⚙</span>
                     <div>
@@ -474,8 +476,8 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     </div>
                 </div>
                 <span className="isc-trigger-arrow">{sliderOpen ? '▲ Close' : '▼ Open'}</span>
-            </button>
-            <div className={`isc-drawer${sliderOpen ? ' open' : ''}`}>
+            </button>}
+            {!props.hideDrawer && <div className={`isc-drawer${sliderOpen ? ' open' : ''}`}>
             <div className="isc-exp">
 
                 {/* Home Price */}
@@ -675,10 +677,10 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     {drawerPhase === 'done' && <span className="isc-drawer-done">✓ Numbers Updated</span>}
                 </div>
             </div>
-            </div>
+            </div>}
 
-            {/* Action buttons — below drawer, in line with share area */}
-            <div className="isc-action-row">
+            {/* Action buttons — hidden on property_lookup path (income card has the CTAs) */}
+            {!props.hideDrawer && <div className="isc-action-row">
                 <button className="isc-btn-vault" onClick={handleVault}>
                     <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
                         <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
@@ -692,10 +694,10 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 <button className="isc-btn-match" onClick={() => router.push(getMatchedUrl())}>
                     Get Matched →
                 </button>
-            </div>
+            </div>}
 
-            {/* Check a property — only in standalone (no journeyAddress) context */}
-            {!props.journeyAddress && (
+            {/* Check a property — only in standalone (no journeyAddress, no hideDrawer) context */}
+            {!props.hideDrawer && !props.journeyAddress && (
                 <div className="isc-property-row">
                     <button className="isc-btn-property" onClick={() => {
                         const lt = loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType === 'fha' ? 'fha' : 'conventional';

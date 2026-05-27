@@ -3669,6 +3669,8 @@ export default function Page() {
                                                         {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 {...m.meta.interactiveSlider}
+                                                                // property_lookup path: income card is the sole adjustment surface — hide ISC drawer + buttons
+                                                                hideDrawer={!!m.meta.interactiveSlider?.cmaAddress}
                                                                 journeyAddress={
                                                                     // property_lookup path: address is in m.meta.interactiveSlider.cmaAddress (never in URL or cmaContextRef)
                                                                     m.meta.interactiveSlider?.cmaAddress ?? cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
@@ -3756,6 +3758,25 @@ export default function Page() {
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
                                                                 }}
+                                                                onScenarioChange={m.meta.decisionScoreCard ? ({ downPct: newDown, loanType: newLt }) => {
+                                                                    const { score: l1Score, summary: l1Summary } = recalcDSL1(newDown, newLt);
+                                                                    setMessages(prev => prev.map(msg => {
+                                                                        if (msg.id !== m.id || msg.role !== 'assistant') return msg;
+                                                                        const dsc = msg.meta?.decisionScoreCard;
+                                                                        if (!dsc) return msg;
+                                                                        const composite = computeDSComposite(l1Score, dsc.l2Score ?? null, dsc.l3Score, dsc.l4Score);
+                                                                        return {
+                                                                            ...msg,
+                                                                            meta: {
+                                                                                ...msg.meta!,
+                                                                                interactiveSlider: msg.meta!.interactiveSlider
+                                                                                    ? { ...msg.meta!.interactiveSlider, downPct: newDown, loanType: newLt as any }
+                                                                                    : msg.meta!.interactiveSlider,
+                                                                                decisionScoreCard: { ...dsc, l1Score, l1Summary, compositeScore: composite ?? undefined },
+                                                                            },
+                                                                        };
+                                                                    }));
+                                                                } : undefined}
                                                             />
                                                         )}
                                                         {/* Decision Score card — auto-fires after property URL paste */}
