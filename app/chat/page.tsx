@@ -2386,10 +2386,18 @@ export default function Page() {
                                         deep: true,
                                         redfin: {
                                             current_status:     'FOR_SALE',
-                                            current_list_price: _dsPrice ?? undefined,
-                                            bedrooms:           d.beds   ?? undefined,
-                                            bathrooms:          d.baths  ?? undefined,
-                                            sqft:               d.sqft   ?? undefined,
+                                            current_list_price: _dsPrice              ?? undefined,
+                                            bedrooms:           d.beds                ?? undefined,
+                                            bathrooms:          d.baths               ?? undefined,
+                                            sqft:               d.sqft                ?? undefined,
+                                            // G5: pass all available Redfin fields so PITI/cache is accurate
+                                            year_built:         d.yearBuilt           ?? undefined,
+                                            days_on_market:     d.daysOnMarket        ?? undefined,
+                                            last_sold_price:    d.lastSalePrice       ?? undefined,
+                                            last_sold_date:     d.lastSaleDate        ?? undefined,
+                                            tax_rate_effective: d.taxRateEffective    ?? undefined,
+                                            hoa_monthly:        d.hoaMonthly          ?? undefined,
+                                            photo_url:          d.photoUrl            ?? undefined,
                                         },
                                     }),
                                 });
@@ -2556,6 +2564,29 @@ export default function Page() {
                                         },
                                     };
                                 }));
+
+                                // G7: bridge deep result to property-intel localStorage cache
+                                // so "Full Analysis ↗" loads instantly without a Supabase round-trip
+                                if (typeof window !== 'undefined') {
+                                    try {
+                                        const _piNormKey = (a: string) => a.trim().toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').slice(0,100);
+                                        const _piLsKey   = `pi_v1_${_piNormKey(_dsAddress)}`;
+                                        const _piExist   = (() => { try { return JSON.parse(localStorage.getItem(_piLsKey) ?? 'null'); } catch { return null; } })();
+                                        // Only write if no existing entry OR existing is basic (not deep) — upgrade shallow→deep
+                                        if (!_piExist?.result?.deep_analysis) {
+                                            const _mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+                                            const _enc     = encodeURIComponent(_dsAddress.trim());
+                                            localStorage.setItem(_piLsKey, JSON.stringify({
+                                                result:   deepResult,
+                                                mapUrls: _mapsKey ? {
+                                                    street_view_url: `https://maps.googleapis.com/maps/api/streetview?size=820x260&location=${_enc}&return_error_code=true&key=${_mapsKey}`,
+                                                    static_map_url:  `https://maps.googleapis.com/maps/api/staticmap?center=${_enc}&zoom=15&size=820x260&scale=2&maptype=satellite&markers=color:green%7C${_enc}&key=${_mapsKey}`,
+                                                } : null,
+                                                cachedAt: Date.now(),
+                                            }));
+                                        }
+                                    } catch { /* storage quota or SSR — non-fatal */ }
+                                }
                             } catch { /* silently ignore — background task, non-critical */ }
                         })();
                     }
@@ -3724,6 +3755,7 @@ export default function Page() {
                                                                 insRate={m.meta.interactiveSlider.insRate}
                                                                 loanType={m.meta.interactiveSlider.loanType}
                                                                 annualIncome={m.meta.interactiveSlider.annualIncome}
+                                                                decisionScoreState={m.meta.decisionScoreCard?.state}
                                                                 journeyAddress={
                                                                     m.meta.interactiveSlider.cmaAddress ?? cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                 }
@@ -3764,7 +3796,12 @@ export default function Page() {
                                                         )}
                                                         {/* Decision Score card — auto-fires after property URL paste */}
                                                         {m.meta.decisionScoreCard && (
-                                                            <DecisionScoreCard data={m.meta.decisionScoreCard} />
+                                                            <DecisionScoreCard
+                                                                data={m.meta.decisionScoreCard}
+                                                                scenarioDown={m.meta.interactiveSlider?.downPct}
+                                                                scenarioRate={m.meta.interactiveSlider?.rate}
+                                                                scenarioIncome={m.meta.interactiveSlider?.annualIncome}
+                                                            />
                                                         )}
                                                         {/* DSCR slider card — investment property answers */}
                                                         {m.meta.dscrSlider && !loading && typingId === null && (

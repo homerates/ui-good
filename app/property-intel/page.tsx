@@ -87,6 +87,20 @@ interface MapUrls {
 const fmt$ = (n: number | null | undefined) =>
   n != null ? '$' + Math.round(n).toLocaleString() : '—';
 
+/** Client-side PITI for a given scenario (mirrors server calcPITI but with variable down%). */
+function calcScenarioPITI(
+  price: number, downPct: number, rate: number,
+  taxRate = 0.012, insRate = 0.005, hoaMonthly = 0,
+): number {
+  const principal = price * (1 - downPct / 100);
+  const r = rate / 100 / 12;
+  const n = 360;
+  const pi = r > 0
+    ? (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+    : principal / n;
+  return Math.round(pi + (price * taxRate) / 12 + (price * insRate) / 12 + hoaMonthly);
+}
+
 function metricAccent(metric: string): string {
   const m = metric.toLowerCase();
   if (m.includes('wildfire') || m.includes('fire')) return '#f87171';
@@ -176,6 +190,11 @@ function lsEvict(addr: string) {
 function PropertyIntelInner() {
   const searchParams  = useSearchParams();
   const address       = (searchParams?.get('address') ?? '').trim();
+
+  // Scenario params threaded from chat DSC "Full Analysis ↗" — user's adjusted scenario
+  const scenarioDown   = searchParams?.get('down')   != null ? Number(searchParams.get('down'))   : null;
+  const scenarioRate   = searchParams?.get('rate')   != null ? Number(searchParams.get('rate'))   : null;
+  const scenarioIncome = searchParams?.get('income') != null ? Number(searchParams.get('income')) : null;
 
   const [finalResult,    setFinalResult]    = useState<PropResult | null>(null);
   const [mapUrls,        setMapUrls]        = useState<MapUrls | null>(null);
@@ -362,6 +381,22 @@ function PropertyIntelInner() {
   }, [isSignedIn, finalResult, address]);
 
   const d: Partial<PropResult> = finalResult ?? {};
+
+  // ── Scenario-aware PITI ────────────────────────────────────────────────────
+  // When arriving from chat DSC "Full Analysis ↗", use the user's scenario (down %, rate)
+  // instead of the cached 20%-down default. Falls back to cached value when no params.
+  const hasScenario  = scenarioDown != null;
+  const displayDown  = scenarioDown ?? 20;
+  const displayRate  = scenarioRate ?? d.rate_used ?? null;
+  // Use a tax rate from the deep result if available (it's stored inside grok_result)
+  const resultTaxRate = (d as any).tax_rate_effective ?? 0.012;
+  const displayPiti  = (hasScenario && d.current_list_price != null && displayRate != null)
+    ? calcScenarioPITI(d.current_list_price, displayDown, displayRate, resultTaxRate)
+    : d.estimated_piti ?? null;
+  // DTI — only when income is provided
+  const displayDTI = (scenarioIncome != null && scenarioIncome > 0 && displayPiti != null)
+    ? ((displayPiti / (scenarioIncome / 12)) * 100).toFixed(0)
+    : null;
 
   // photoUrl: for street view, fall back to Redfin CDN photo when Google Maps is unavailable
   const photoUrl = mapView === 'street'
@@ -836,16 +871,25 @@ function PropertyIntelInner() {
                       }
                       <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.55)', marginTop: 6, maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{address}</div>
                     </div>
-                    {/* PITI */}
+                    {/* PITI — dynamic: uses scenario down%/rate when provided from chat */}
                     <div className="pi-hero-piti" style={{ textAlign: 'right' }}>
-                      {d.estimated_piti != null
-                        ? <div className="fi" style={{ fontSize: '1.9rem', fontWeight: 800, color: '#4ade80', lineHeight: 1 }}>{fmt$(d.estimated_piti)}/mo</div>
+                      {displayPiti != null
+                        ? <div className="fi" style={{ fontSize: '1.9rem', fontWeight: 800, color: '#4ade80', lineHeight: 1 }}>{fmt$(displayPiti)}/mo</div>
                         : <div style={{ display: 'flex', justifyContent: 'flex-end' }}><Sk w={130} h={38} /></div>
                       }
                       <div style={{ fontSize: '0.66rem', color: '#eaf8f7', marginTop: 4, letterSpacing: '0.06em' }}>EST. MONTHLY PITI</div>
-                      {d.rate_used != null && (
+                      {displayRate != null && (
                         <div className="fi" style={{ fontSize: '0.64rem', color: '#eaf8f7', marginTop: 2 }}>
-                          @ {d.rate_used.toFixed(2)}% · 20% down
+                          @ {displayRate.toFixed(2)}% · {displayDown}% down
+                          {hasScenario && displayDown !== 20 && (
+                            <span style={{ color: '#4ade80', marginLeft: 5, fontWeight: 700 }}>· Your Scenario</span>
+                          )}
+                        </div>
+                      )}
+                      {/* DTI context when income was passed from chat */}
+                      {displayDTI != null && (
+                        <div className="fi" style={{ fontSize: '0.62rem', color: '#4ade80', marginTop: 2, fontWeight: 600 }}>
+                          DTI {displayDTI}% · ${Math.round(scenarioIncome! / 12).toLocaleString()}/mo income
                         </div>
                       )}
                     </div>

@@ -374,6 +374,16 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     <span className="isc-hero-per">/mo{activeBdType !== 'none' ? ' yr 1' : ''}</span>
                 </div>
                 {heroSub && <div className="isc-hero-sub">{heroSub}</div>}
+                {/* G8: DTI context — shown when borrower income is known (property_lookup + adjusted scenario) */}
+                {props.hideDrawer && props.annualIncome != null && props.annualIncome > 0 && total > 0 && (() => {
+                    const dti = (total / (props.annualIncome / 12)) * 100;
+                    const dtiColor = dti <= 28 ? '#4ade80' : dti <= 36 ? '#4ade80' : dti <= 43 ? '#60a5fa' : dti <= 49 ? '#fbbf24' : '#f87171';
+                    return (
+                        <div style={{ fontSize: '0.68rem', color: dtiColor, marginTop: 4, fontWeight: 600, letterSpacing: '0.03em' }}>
+                            DTI {dti.toFixed(0)}% · ${Math.round(props.annualIncome / 12).toLocaleString()}/mo income
+                        </div>
+                    );
+                })()}
 
                 {loanType === 'va' && (
                     <div className="isc-badge isc-badge--va">

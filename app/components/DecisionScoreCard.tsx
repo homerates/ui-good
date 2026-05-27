@@ -52,9 +52,16 @@ function computeComposite(
   return Math.round(weighted / totalW);
 }
 
-interface Props { data: DecisionScoreData; }
+interface Props {
+  data: DecisionScoreData;
+  /** Current scenario params — threaded through to "Full Analysis ↗" URL so
+   *  property-intel renders at the user's adjusted down/rate/income, not always 20% */
+  scenarioDown?:   number;
+  scenarioRate?:   number;
+  scenarioIncome?: number;
+}
 
-export default function DecisionScoreCard({ data }: Props) {
+export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, scenarioIncome }: Props) {
   const [mounted,  setMounted]  = useState(false);
   const [complete, setComplete] = useState(data.state === 'complete');
   const prevState = useRef(data.state);
@@ -81,6 +88,16 @@ export default function DecisionScoreCard({ data }: Props) {
   const hasScore  = complete && composite != null;
   const circ      = 163; // 2π × r=26
   const ringFill  = composite != null ? circ - (composite / 100) * circ : circ;
+
+  // Build "Full Analysis" URL — carry the user's current scenario so property-intel
+  // shows PITI/DTI at their adjusted down %, rate, and income (not hardcoded 20%)
+  const fullAnalysisUrl = (() => {
+    const p = new URLSearchParams({ address });
+    if (scenarioDown   != null && scenarioDown   !== 20) p.set('down',   String(scenarioDown));
+    if (scenarioRate   != null)                          p.set('rate',   scenarioRate.toFixed(3));
+    if (scenarioIncome != null && scenarioIncome  > 0)  p.set('income', String(Math.round(scenarioIncome)));
+    return `/property-intel?${p.toString()}`;
+  })();
 
   const track5Url = sessionId
     ? `/track5?session=${sessionId}`
@@ -251,7 +268,7 @@ export default function DecisionScoreCard({ data }: Props) {
               Get Matched →
             </a>
             <a
-              href={`/property-intel?address=${encodeURIComponent(address)}`}
+              href={fullAnalysisUrl}
               target="_blank"
               rel="noopener noreferrer"
               style={{

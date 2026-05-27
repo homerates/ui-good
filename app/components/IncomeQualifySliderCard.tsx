@@ -38,6 +38,8 @@ export interface IncomeQualifySliderParams {
     insRate: number;
     loanType?: 'conventional' | 'fha' | 'jumbo' | 'va';
     annualIncome?: number;  // borrower's actual annual gross income — carried forward through adjusted scenarios
+    /** G4: DSC computing state — disable "Run Adjusted Scenario" until L2/L3/L4 resolve */
+    decisionScoreState?: 'computing' | 'complete';
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
     journeyAddress?: string;
 }
@@ -514,7 +516,14 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 {/* Drawer CTA */}
                 <div className="iq-drawer-cta">
                     {drawerPhase === 'idle' && !isDirty && <span className="iq-drawer-hint">Drag sliders to model a new scenario</span>}
-                    {drawerPhase === 'idle' && isDirty && <button className="iq-drawer-run" onClick={handleDrawerRun}>▶ Run Adjusted Scenario →</button>}
+                    {drawerPhase === 'idle' && isDirty && props.decisionScoreState === 'computing' && (
+                        <button className="iq-drawer-run" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                            ⏳ Score Computing…
+                        </button>
+                    )}
+                    {drawerPhase === 'idle' && isDirty && props.decisionScoreState !== 'computing' && (
+                        <button className="iq-drawer-run" onClick={handleDrawerRun}>▶ Run Adjusted Scenario →</button>
+                    )}
                     {drawerPhase === 'running' && <span className="iq-drawer-hint">Calculating…</span>}
                     {drawerPhase === 'done' && <span className="iq-drawer-done">✓ Numbers Updated</span>}
                 </div>
