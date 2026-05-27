@@ -3731,8 +3731,8 @@ export default function Page() {
                                                                     };
                                                                     setMessages(prev => [
                                                                         ...prev,
-                                                                        { id: uid(), role: 'user',      content: seed },
-                                                                        { id: uid(), role: 'assistant', content: newMeta.answer!, meta: newMeta },
+                                                                        { id: uid(), role: 'user',      content: seed } as ChatMsg,
+                                                                        { id: uid(), role: 'assistant', content: newMeta.answer!, meta: newMeta } as ChatMsg,
                                                                     ]);
                                                                 }}
                                                             />
