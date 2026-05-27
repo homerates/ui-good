@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Flow Audit — Before & After</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d1117;
+    color: #e6edf3;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    padding: 24px;
+    min-height: 100vh;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: #f0f6fc;
+    margin-bottom: 6px;
+    letter-spacing: -0.3px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #8b949e;
+    font-size: 12px;
+    margin-bottom: 32px;
+  }
+
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .column-header {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px 16px;
+    border-radius: 8px 8px 0 0;
+    margin-bottom: 0;
+  }
+  .col-before .column-header {
+    background: #2d1b1b;
+    color: #f87171;
+    border: 1px solid #7f1d1d;
+    border-bottom: none;
+  }
+  .col-after .column-header {
+    background: #1b2d1e;
+    color: #4ade80;
+    border: 1px solid #14532d;
+    border-bottom: none;
+  }
+
+  .column-body {
+    padding: 20px;
+    border-radius: 0 0 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .col-before .column-body {
+    background: #161b22;
+    border: 1px solid #7f1d1d;
+  }
+  .col-after .column-body {
+    background: #161b22;
+    border: 1px solid #14532d;
+  }
+
+  /* ── NODE BLOCKS ─────────────────────────────── */
+  .node {
+    border-radius: 8px;
+    padding: 10px 14px;
+    position: relative;
+    margin-bottom: 0;
+  }
+  .node-title {
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .node-desc {
+    font-size: 11.5px;
+    color: #8b949e;
+    line-height: 1.5;
+  }
+  .node-desc strong { color: #e6edf3; }
+
+  /* entry */
+  .node-entry {
+    background: #0e1d2d;
+    border: 1px solid #1d4ed8;
+  }
+  .node-entry .node-title { color: #60a5fa; }
+
+  /* api */
+  .node-api {
+    background: #1a1525;
+    border: 1px solid #7c3aed;
+  }
+  .node-api .node-title { color: #c084fc; }
+
+  /* card ok */
+  .node-card-ok {
+    background: #0f1d15;
+    border: 1px solid #166534;
+  }
+  .node-card-ok .node-title { color: #4ade80; }
+
+  /* card broken */
+  .node-card-broken {
+    background: #1d1010;
+    border: 1px solid #7f1d1d;
+  }
+  .node-card-broken .node-title { color: #f87171; }
+
+  /* card fixed */
+  .node-card-fixed {
+    background: #0f1d15;
+    border: 1.5px solid #4ade80;
+  }
+  .node-card-fixed .node-title { color: #4ade80; }
+
+  /* background */
+  .node-bg {
+    background: #1a1a10;
+    border: 1px solid #854d0e;
+  }
+  .node-bg .node-title { color: #fbbf24; }
+
+  /* storage */
+  .node-storage {
+    background: #101a1a;
+    border: 1px solid #0e7490;
+  }
+  .node-storage .node-title { color: #22d3ee; }
+
+  /* page */
+  .node-page-broken {
+    background: #1d1010;
+    border: 1px solid #7f1d1d;
+  }
+  .node-page-broken .node-title { color: #f87171; }
+
+  .node-page-fixed {
+    background: #0f1d15;
+    border: 1.5px solid #4ade80;
+  }
+  .node-page-fixed .node-title { color: #4ade80; }
+
+  /* gap tag */
+  .gap-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .gap-broken {
+    background: #7f1d1d;
+    color: #fca5a5;
+  }
+  .gap-fixed {
+    background: #14532d;
+    color: #86efac;
+  }
+
+  /* ── ARROWS ──────────────────────────────────── */
+  .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 0;
+    color: #30363d;
+    font-size: 18px;
+    position: relative;
+  }
+  .arrow-label {
+    position: absolute;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .arrow-ok .arrow-label    { background: #14532d; color: #86efac; }
+  .arrow-broken .arrow-label { background: #7f1d1d; color: #fca5a5; }
+  .arrow-new .arrow-label   { background: #1d4ed8; color: #93c5fd; }
+  .arrow-ok svg, .arrow-new svg { color: #30363d; }
+  .arrow-broken svg { color: #7f1d1d; }
+
+  /* ── SPLIT ROW (cards side by side) ─────────── */
+  .card-row {
+    display: grid;
+    gap: 8px;
+  }
+  .card-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card-row-2 { grid-template-columns: 1fr 1fr; }
+
+  /* ── SECTION LABEL ───────────────────────────── */
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #484f58;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 12px 0 6px;
+    text-align: center;
+  }
+
+  /* ── LEGEND ──────────────────────────────────── */
+  .legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin: 28px auto 0;
+    max-width: 700px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: #8b949e;
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── GAP TABLE ───────────────────────────────── */
+  .gap-table {
+    max-width: 1400px;
+    margin: 32px auto 0;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .gap-table-header {
+    background: #1c2128;
+    padding: 14px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #e6edf3;
+    border-bottom: 1px solid #30363d;
+    display: grid;
+    grid-template-columns: 48px 1fr 2fr 2fr 90px;
+    gap: 12px;
+    align-items: center;
+  }
+  .gap-table-header span { color: #8b949e; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+  .gap-row {
+    padding: 11px 20px;
+    display: grid;
+    grid-template-columns: 48px 1fr 2fr 2fr 90px;
+    gap: 12px;
+    align-items: start;
+    border-bottom: 1px solid #21262d;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .gap-row:last-child { border-bottom: none; }
+  .gap-row:hover { background: #1c2128; }
+  .gap-id {
+    font-weight: 700;
+    font-size: 11px;
+    background: #21262d;
+    color: #8b949e;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-align: center;
+  }
+  .gap-row.fixed .gap-id { background: #14532d; color: #86efac; }
+  .gap-row.deferred .gap-id { background: #1a1525; color: #c084fc; }
+  .gap-component { font-weight: 600; color: #e6edf3; }
+  .gap-before { color: #f87171; }
+  .gap-after  { color: #4ade80; }
+  .status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+  .badge-fixed    { background: #14532d; color: #86efac; }
+  .badge-deferred { background: #1a1525; color: #c084fc; }
+  .badge-monitor  { background: #1c1f0f; color: #bef264; }
+
+  svg.arrow-icon { display: block; }
+</style>
+</head>
+<body>
+
+<h1>Property Intelligence — Data Flow Audit</h1>
+<p class="subtitle">Commit e642a06 · 2026-05-27 · 5 files · G2 G3 G4 G5 G7 G8 resolved</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="columns">
+
+  <!-- ───────────────────── BEFORE ───────────────────── -->
+  <div class="col-before">
+    <div class="column-header">⚠ BEFORE — Disconnected / Stale Data</div>
+    <div class="column-body">
+
+      <div class="section-label">Entry</div>
+
+      <div class="node node-entry">
+        <div class="node-title">User Input</div>
+        <div class="node-desc">Redfin URL pasted into chat<br>Seed chips: <strong>property_lookup</strong></div>
+      </div>
+
+      <div class="arrow arrow-ok">
+        <svg class="arrow-icon" width="16" height="24" viewBox="0 0 16 24"><path d="M8 0v20M2 14l6 8 6-8" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        <span class="arrow-label">✓ fires</span>
+      </div>
+
+      <div class="node node-api">
+        <div class="node-title">/api/property/lookup</div>
+        <div class="node-desc">Redfin scrape → Tavily enrich → GPT-4o structure<br>Returns: price, beds, baths, sqft, rate, PITI (hardcoded 20% down)</div>
+      </div>
+
+      <div class="section-label">Cards Rendered in Chat</div>
+
+      <div class="card-row card-row-3">
+        <div class="node node-card-ok">
+          <div class="node-title">ISC<span class="gap-tag gap-broken">G1✓</span></div>
+          <div class="node-desc">Payment slider<br><strong>Hero: stale 20%</strong> after adjust</div>
+        </div>
+        <div class="node node-card-broken">
+          <div class="node-title">IQC<span class="gap-tag gap-broken">G4</span></div>
+          <div class="node-desc">Income qualify<br><strong>No guard</strong> — fires while DSC computing</div>
+        </div>
+        <div class="node node-card-broken">
+          <div class="node-title">DSC<span class="gap-tag gap-broken">G3</span></div>
+          <div class="node-desc">Decision Score<br><strong>Full Analysis link</strong> loses scenario params</div>
+        </div>
+      </div>
+
+      <div class="section-label">Background (fire-and-forget)</div>
+
+      <div class="node node-bg">
+        <div class="node-title">Background Grok Deep Call<span class="gap-tag gap-broken">G5</span></div>
+        <div class="node-desc">Fires after setMessages()<br><strong>Only passes 5 of 12 Redfin fields</strong><br>Missing: taxRate, HOA, photo, yearBuilt, DOM, lastSold</div>
+      </div>
+
+      <div class="arrow arrow-broken">
+        <svg class="arrow-icon" width="16" height="24" viewBox="0 0 16 24"><path d="M8 0v20M2 14l6 8 6-8" stroke="#7f1d1d" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        <span class="arrow-label">race ⚡</span>
+      </div>
+
+      <div class="card-row card-row-2">
+        <div class="node node-storage">
+          <div class="node-title">Supabase Cache</div>
+          <div class="node-desc"><code>grok_property_cache</code><br>May not exist when user clicks</div>
+        </div>
+        <div class="node node-card-broken">
+          <div class="node-title">localStorage<span class="gap-tag gap-broken">G7</span></div>
+          <div class="node-desc">NOT written on deep completion<br><strong>No local fallback</strong></div>
+        </div>
+      </div>
+
+      <div class="section-label">Exit — Full Analysis Page</div>
+
+      <div class="arrow arrow-broken">
+        <svg class="arrow-icon" width="16" height="24" viewBox="0 0 16 24"><path d="M8 0v20M2 14l6 8 6-8" stroke="#7f1d1d" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        <span class="arrow-label">no params</span>
+      </div>
+
+      <div class="node node-page-broken">
+        <div class="node-title">/property-intel<span class="gap-tag gap-broken">G2</span></div>
+        <div class="node-desc">
+          <strong>Hero PITI: always 20% down</strong> — hardcoded in API<br>
+          No "Your Scenario" badge<br>
+          No DTI display<br>
+          <strong>Blank streaming</strong> if Supabase cache not ready<br>
+          Scenario params: ❌ not read<br>
+          localStorage fallback: ❌ not used
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ───────────────────── AFTER ───────────────────── -->
+  <div class="col-after">
+    <div class="column-header">✓ AFTER — Dynamic &amp; Consistent</div>
+    <div class="column-body">
+
+      <div class="section-label">Entry</div>
+
+      <div class="node node-entry">
+        <div class="node-title">User Input</div>
+        <div class="node-desc">Redfin URL pasted into chat<br>Seed chips: <strong>property_lookup</strong></div>
+      </div>
+
+      <div class="arrow arrow-ok">
+        <svg class="arrow-icon" width="16" height="24" viewBox="0 0 16 24"><path d="M8 0v20M2 14l6 8 6-8" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        <span class="arrow-label">✓ fires</span>
+      </div>
+
+      <div class="node node-api">
+        <div class="node-title">/api/property/lookup</div>
+        <div class="node-desc">Redfin scrape → Tavily enrich → GPT-4o structure<br>Returns: price, beds, baths, sqft, rate, PITI (server 20% baseline)</div>
+      </div>
+
+      <div class="section-label">Cards Rendered in Chat</div>
+
+      <div class="card-row card-row-3">
+        <div class="node node-card-fixed">
+          <div class="node-title">ISC<span class="gap-tag gap-fixed">G1✓ G8✓</span></div>
+          <div class="node-desc">Payment slider<br>Hero syncs to adjusted params<br><strong>DTI row</strong> when income present</div>
+        </div>
+        <div class="node node-card-fixed">
+          <div class="node-title">IQC<span class="gap-tag gap-fixed">G4✓</span></div>
+          <div class="node-desc">Income qualify<br><strong>⏳ Guarded</strong> — "Run Adjusted" disabled while DSC computing</div>
+        </div>
+        <div class="node node-card-fixed">
+          <div class="node-title">DSC<span class="gap-tag gap-fixed">G3✓</span></div>
+          <div class="node-desc">Decision Score<br><strong>Full Analysis ↗</strong> carries<br>?down=&rate=&income=</div>
+        </div>
+      </div>
+
+      <div class="section-label">Background (fire-and-forget)</div>
+
+      <div class="node node-bg">
+        <div class="node-title">Background Grok Deep Call<span class="gap-tag gap-fixed">G5✓</span></div>
+        <div class="node-desc">Fires after setMessages()<br><strong>All 12 Redfin fields passed:</strong><br>taxRate, HOA, photo, yearBuilt, DOM, lastSold + 6 more</div>
+      </div>
+
+      <div class="arrow arrow-ok">
+        <svg class="arrow-icon" width="16" height="24" viewBox="0 0 16 24"><path d="M8 0v20M2 14l6 8 6-8" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        <span class="arrow-label">on complete</span>
+      </div>
+
+      <div class="card-row card-row-2">
+        <div class="node node-storage">
+          <div class="node-title">Supabase Cache</div>
+          <div class="node-desc"><code>grok_property_cache</code><br>Written + secondary fallback</div>
+        </div>
+        <div class="node node-card-fixed">
+          <div class="node-title">localStorage<span class="gap-tag gap-fixed">G7✓</span></div>
+          <div class="node-desc"><code>pi_v1_{address}</code><br><strong>Written on deep complete</strong><br>TTL: 24h active / 7d sold</div>
+        </div>
+      </div>
+
+      <div class="section-label">Exit — Full Analysis Page</div>
+
+      <div class="arrow arrow-new">
+        <svg class="arrow-icon" width="16" height="24" viewBox="0 0 16 24"><path d="M8 0v20M2 14l6 8 6-8" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        <span class="arrow-label">?down &rate &income</span>
+      </div>
+
+      <div class="node node-page-fixed">
+        <div class="node-title">/property-intel<span class="gap-tag gap-fixed">G2✓</span></div>
+        <div class="node-desc">
+          <strong>Hero PITI: client-side calcScenarioPITI()</strong> at adjusted down%<br>
+          <strong>"Your Scenario" badge</strong> when params present<br>
+          <strong>DTI row</strong> when income param present<br>
+          <strong>Instant load</strong> from localStorage (no streaming)<br>
+          Supabase fallback if localStorage cold<br>
+          Scenario params: ✓ down, rate, income read
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div>Entry / API</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div>Working / Fixed</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f87171"></div>Broken (before)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>Background process</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#22d3ee"></div>Storage layer</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#93c5fd"></div>New data connection</div>
+</div>
+
+<!-- Gap Table -->
+<div class="gap-table">
+  <div class="gap-table-header">
+    <span>Gap</span>
+    <span>Component</span>
+    <span>Before</span>
+    <span>After</span>
+    <span>Status</span>
+  </div>
+
+  <div class="gap-row fixed">
+    <div class="gap-id">G1</div>
+    <div class="gap-component">ISC Hero</div>
+    <div class="gap-before">Stale 20% down after "Run Adjusted Scenario" — prop-sync useEffect missing</div>
+    <div class="gap-after">useEffect syncs price/downPct/rate/term from props when hideDrawer=true</div>
+    <div><span class="status-badge badge-fixed">✓ Fixed</span></div>
+  </div>
+
+  <div class="gap-row fixed">
+    <div class="gap-id">G2</div>
+    <div class="gap-component">/property-intel Hero</div>
+    <div class="gap-before">PITI hardcoded to 20% down (from server). No scenario awareness.</div>
+    <div class="gap-after">calcScenarioPITI() runs client-side with URL params. "Your Scenario" badge shown.</div>
+    <div><span class="status-badge badge-fixed">✓ Fixed</span></div>
+  </div>
+
+  <div class="gap-row fixed">
+    <div class="gap-id">G3</div>
+    <div class="gap-component">DSC → Full Analysis link</div>
+    <div class="gap-before">Link was /property-intel?address=… — scenario params lost on navigation</div>
+    <div class="gap-after">Link builds ?down=&rate=&income= from chat state. Property-intel reads and applies.</div>
+    <div><span class="status-badge badge-fixed">✓ Fixed</span></div>
+  </div>
+
+  <div class="gap-row fixed">
+    <div class="gap-id">G4</div>
+    <div class="gap-component">IQC Button Guard</div>
+    <div class="gap-before">"Run Adjusted Scenario" fires immediately — DSC may still be computing L2/L3/L4 (60s window)</div>
+    <div class="gap-after">Button disabled with "⏳ Score Computing…" while decisionScoreState === 'computing'</div>
+    <div><span class="status-badge badge-fixed">✓ Fixed</span></div>
+  </div>
+
+  <div class="gap-row fixed">
+    <div class="gap-id">G5</div>
+    <div class="gap-component">Background Grok Payload</div>
+    <div class="gap-before">Only 5 fields passed: status, price, beds, baths, sqft. Missing taxRate, HOA, photo, yearBuilt, DOM, lastSold, lastSoldDate.</div>
+    <div class="gap-after">All 12 Redfin fields passed. Deep analysis has full property context.</div>
+    <div><span class="status-badge badge-fixed">✓ Fixed</span></div>
+  </div>
+
+  <div class="gap-row deferred">
+    <div class="gap-id">G6</div>
+    <div class="gap-component">Address Normalization</div>
+    <div class="gap-before">Chat normalizes address differently than property-intel — Supabase cache may miss</div>
+    <div class="gap-after">Fuzzy ILIKE fallback in Supabase GET covers most cases. Full fix deferred.</div>
+    <div><span class="status-badge badge-deferred">Deferred</span></div>
+  </div>
+
+  <div class="gap-row fixed">
+    <div class="gap-id">G7</div>
+    <div class="gap-component">localStorage Bridge</div>
+    <div class="gap-before">Race condition: user clicks "Full Analysis" before 60-90s Grok completes → blank streaming</div>
+    <div class="gap-after">Deep result written to pi_v1_ localStorage on completion. Property-intel reads instantly.</div>
+    <div><span class="status-badge badge-fixed">✓ Fixed</span></div>
+  </div>
+
+  <div class="gap-row fixed">
+    <div class="gap-id">G8</div>
+    <div class="gap-component">ISC DTI Display</div>
+    <div class="gap-before">DTI not shown on ISC hero after annual income entered in IQC</div>
+    <div class="gap-after">DTI row shown beneath payment when annualIncome prop present and hideDrawer=true</div>
+    <div><span class="status-badge badge-fixed">✓ Fixed</span></div>
+  </div>
+
+  <div class="gap-row deferred">
+    <div class="gap-id">G9</div>
+    <div class="gap-component">property-intel Cache Refresh</div>
+    <div class="gap-before">localStorage written from chat may be stale. No manual refresh button.</div>
+    <div class="gap-after">Supabase fallback active. Manual eviction button not yet built.</div>
+    <div><span class="status-badge badge-deferred">Backlog</span></div>
+  </div>
+
+  <div class="gap-row deferred">
+    <div class="gap-id">G10</div>
+    <div class="gap-component">Scenario → New Thread</div>
+    <div class="gap-before">Adjusted scenario resets in new chat — no address/params carried forward</div>
+    <div class="gap-after">Architecture designed but not built. Requires seed chip carrying prior params.</div>
+    <div><span class="status-badge badge-deferred">Backlog</span></div>
+  </div>
+
+  <div class="gap-row deferred">
+    <div class="gap-id">G11</div>
+    <div class="gap-component">Session Dedup</div>
+    <div class="gap-before">buyer_evaluation_session written from both chat background and property-intel — duplicates</div>
+    <div class="gap-after">Lower priority. One write suppressed if session already exists.</div>
+    <div><span class="status-badge badge-deferred">Deferred</span></div>
+  </div>
+
+  <div class="gap-row deferred">
+    <div class="gap-id">G12</div>
+    <div class="gap-component">Comp Quality / L3 Data</div>
+    <div class="gap-before">Tavily comp quality varies — no confidence signal passed to DSC L3 score</div>
+    <div class="gap-after">Confidence band shown on DSC. Full L3 calibration deferred.</div>
+    <div><span class="status-badge badge-deferred">Backlog</span></div>
+  </div>
+
+</div>
+
+<div style="text-align:center; margin-top:28px; color:#484f58; font-size:11px;">
+  Commit e642a06 · branch main · Deployed to Vercel · 2026-05-27
+</div>
+
+</body>
+</html>
