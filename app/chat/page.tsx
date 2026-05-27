@@ -547,14 +547,29 @@ function extractListingUrl(text: string): string | null {
 
 // ── Decision Score inline helpers (client-side, no API call needed) ───────────
 
-/** Re-score L1 (Financial) when ISC sliders change down payment or loan type. */
-function recalcDSL1(downPct: number, loanType: string): { score: number; summary: string } {
+/**
+ * Re-score L1 (Financial Readiness) from LTV + optional DTI.
+ * - LTV component: base score from down payment / loan type
+ * - DTI component: ±pts when borrower's income is known (dti = back-end DTI %)
+ */
+function recalcDSL1(downPct: number, loanType: string, dti?: number): { score: number; summary: string } {
     const ltv = 1 - downPct / 100;
-    const score = loanType === 'jumbo'
+    const ltvScore = loanType === 'jumbo'
         ? (ltv <= 0.75 ? 86 : ltv <= 0.80 ? 80 : 72)
         : (ltv <= 0.80 ? 85 : ltv <= 0.85 ? 78 : ltv <= 0.90 ? 70 : 60);
+    // DTI adjustment — only applied when borrower income is known
+    let dtiAdj = 0;
+    let dtiTag  = '';
+    if (dti != null && dti > 0) {
+        if      (dti <= 28) { dtiAdj = +10; dtiTag = `DTI ${dti.toFixed(0)}% (exceptional)`; }
+        else if (dti <= 36) { dtiAdj =  +6; dtiTag = `DTI ${dti.toFixed(0)}% (strong)`;      }
+        else if (dti <= 43) { dtiAdj =   0; dtiTag = `DTI ${dti.toFixed(0)}% (standard)`;    }
+        else if (dti <= 49) { dtiAdj =  -7; dtiTag = `DTI ${dti.toFixed(0)}% (elevated)`;    }
+        else                { dtiAdj = -15; dtiTag = `DTI ${dti.toFixed(0)}% (high)`;         }
+    }
+    const score = Math.min(100, Math.max(45, ltvScore + dtiAdj));
     const typeLabel = loanType === 'jumbo' ? 'Jumbo' : loanType === 'fha' ? 'FHA' : loanType === 'va' ? 'VA' : 'Conventional';
-    const summary = `${typeLabel} · ${downPct}% down · LTV ${Math.round(ltv * 100)}%`;
+    const summary = `${typeLabel} · ${downPct}% down · LTV ${Math.round(ltv * 100)}%${dtiTag ? ` · ${dtiTag}` : ''}`;
     return { score, summary };
 }
 
@@ -3705,6 +3720,7 @@ export default function Page() {
                                                                 taxRate={m.meta.interactiveSlider.taxRate}
                                                                 insRate={m.meta.interactiveSlider.insRate}
                                                                 loanType={m.meta.interactiveSlider.loanType}
+                                                                annualIncome={m.meta.interactiveSlider.annualIncome}
                                                                 journeyAddress={
                                                                     m.meta.interactiveSlider.cmaAddress ?? cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                 }
@@ -3712,22 +3728,28 @@ export default function Page() {
                                                                     // Property_lookup path: carry all property data forward, only update scenario params.
                                                                     // Inject messages client-side — no API re-scrape needed.
                                                                     const isl = m.meta!.interactiveSlider!;
-                                                                    const newDown  = (overrides as any).downPaymentPct ?? isl.downPct;
-                                                                    const newRate  = (overrides as any).rate          ?? isl.rate;
-                                                                    const newTerm  = (overrides as any).term          ?? isl.term;
-                                                                    const loanAmt  = isl.price * (1 - newDown / 100);
+                                                                    const newDown    = (overrides as any).downPaymentPct ?? isl.downPct;
+                                                                    const newRate    = (overrides as any).rate          ?? isl.rate;
+                                                                    const newTerm    = (overrides as any).term          ?? isl.term;
+                                                                    const newIncome  = (overrides as any).annualIncome  ?? isl.annualIncome ?? 0;
+                                                                    const totalMo    = (overrides as any).totalMonthly  ?? 0;
+                                                                    const loanAmt    = isl.price * (1 - newDown / 100);
                                                                     const newLt: 'conventional' | 'jumbo' = loanAmt > 832_750 ? 'jumbo' : 'conventional';
+                                                                    // Compute borrower DTI when income is known — feeds into L1 score
+                                                                    const dti = newIncome > 0 && totalMo > 0
+                                                                        ? (totalMo / (newIncome / 12)) * 100
+                                                                        : undefined;
                                                                     // Recompute L1 only — L2/L3/L4 are property-level data, unchanged by scenario
-                                                                    const { score: l1Score, summary: l1Summary } = recalcDSL1(newDown, newLt);
+                                                                    const { score: l1Score, summary: l1Summary } = recalcDSL1(newDown, newLt, dti);
                                                                     const existingDsc = m.meta!.decisionScoreCard;
                                                                     const newComposite = existingDsc
                                                                         ? computeDSComposite(l1Score, existingDsc.l2Score ?? null, existingDsc.l3Score, existingDsc.l4Score)
                                                                         : null;
                                                                     const newMeta: ApiResponse = {
                                                                         ...m.meta!,
-                                                                        interactiveSlider: { ...isl, downPct: newDown, rate: newRate, term: newTerm, loanType: newLt },
+                                                                        interactiveSlider: { ...isl, downPct: newDown, rate: newRate, term: newTerm, loanType: newLt, annualIncome: newIncome > 0 ? newIncome : undefined },
                                                                         decisionScoreCard: existingDsc ? { ...existingDsc, l1Score, l1Summary, compositeScore: newComposite ?? undefined } : undefined,
-                                                                        answer: `Adjusted scenario — ${newDown}% down · ${newRate.toFixed(2)}% rate · ${newTerm}yr term on ${isl.cmaAddress ?? 'this property'}.`,
+                                                                        answer: `Adjusted scenario — ${newDown}% down · ${newRate.toFixed(2)}% rate · ${newTerm}yr term on ${isl.cmaAddress ?? 'this property'}.${newIncome > 0 && dti ? ` DTI: ${dti.toFixed(0)}%.` : ''}`,
                                                                     };
                                                                     setMessages(prev => [
                                                                         ...prev,

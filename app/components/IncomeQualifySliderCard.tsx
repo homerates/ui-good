@@ -37,6 +37,7 @@ export interface IncomeQualifySliderParams {
     taxRate: number;
     insRate: number;
     loanType?: 'conventional' | 'fha' | 'jumbo' | 'va';
+    annualIncome?: number;  // borrower's actual annual gross income — carried forward through adjusted scenarios
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
     journeyAddress?: string;
 }
@@ -74,8 +75,9 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     const [downPct,     setDownPct]     = useState(props.downPct);
     const [rate,        setRate]        = useState(props.rate);
     const [termYrs,     setTermYrs]     = useState(props.term);
-    const [monthlyDebt, setMonthlyDebt] = useState(0);
-    const [bkdOpen,     setBkdOpen]     = useState(true);
+    const [monthlyDebt,  setMonthlyDebt]  = useState(0);
+    const [annualIncome, setAnnualIncome] = useState(props.annualIncome ?? 0);
+    const [bkdOpen,      setBkdOpen]      = useState(true);
 
     const [vaultDone,    setVaultDone]    = useState(false);
     const [appliedBadge, setAppliedBadge] = useState(false);
@@ -83,11 +85,12 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
 
     // Committed baseline — updated locally when "Run adjusted scenario" is clicked
-    const [commitPrice, setCommitPrice] = useState(props.price);
-    const [commitDown,  setCommitDown]  = useState(props.downPct);
-    const [commitRate,  setCommitRate]  = useState(props.rate);
-    const [commitTerm,  setCommitTerm]  = useState(props.term);
-    const [commitDebt,  setCommitDebt]  = useState(0);
+    const [commitPrice,  setCommitPrice]  = useState(props.price);
+    const [commitDown,   setCommitDown]   = useState(props.downPct);
+    const [commitRate,   setCommitRate]   = useState(props.rate);
+    const [commitTerm,   setCommitTerm]   = useState(props.term);
+    const [commitDebt,   setCommitDebt]   = useState(0);
+    const [commitIncome, setCommitIncome] = useState(props.annualIncome ?? 0);
 
     const { user } = useUser();
     const router   = useRouter();
@@ -125,6 +128,13 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     const reserves6mo  = Math.round(piti * 6);
     const reserves12mo = Math.round(piti * 12);
 
+    // ── Borrower DTI — only when income is entered ──────────────────────────
+    const monthlyIncome = annualIncome > 0 ? annualIncome / 12 : null;
+    const backEndDTI    = monthlyIncome ? (totalMo / monthlyIncome) * 100 : null;
+    const dtiClass  = backEndDTI == null ? '' : backEndDTI <= 28 ? 'excellent' : backEndDTI <= 36 ? 'strong' : backEndDTI <= 43 ? 'standard' : backEndDTI <= 49 ? 'elevated' : 'high';
+    const dtiStatus = backEndDTI == null ? '' : backEndDTI <= 28 ? 'Exceptional — well below front-end limits' : backEndDTI <= 36 ? 'Strong — conservative debt load' : backEndDTI <= 43 ? 'Standard — at guideline limit' : backEndDTI <= 49 ? 'Elevated — approaching max' : 'High — may need compensating factors';
+    const dtiColor  = backEndDTI == null ? '#3d8bff' : backEndDTI <= 28 ? '#00e87a' : backEndDTI <= 36 ? '#3d8bff' : backEndDTI <= 43 ? '#3d8bff' : backEndDTI <= 49 ? '#f59e0b' : '#ef4444';
+
     const DP_CHIPS  = isJumbo ? [20, 25, 30, 40] : isFHA ? [3.5, 5, 10] : isVA ? [0, 5, 10, 20] : [3, 5, 10, 20];
     const minDown   = isJumbo ? 20 : isFHA ? 3.5 : isVA ? 0 : 3;
     const priceMax  = isJumbo ? 15_000_000 : 3_000_000;
@@ -160,7 +170,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     }
 
     const isDirty = price !== commitPrice || downPct !== commitDown ||
-        Math.abs(rate - commitRate) > 0.001 || termYrs !== commitTerm || monthlyDebt !== commitDebt;
+        Math.abs(rate - commitRate) > 0.001 || termYrs !== commitTerm || monthlyDebt !== commitDebt || annualIncome !== commitIncome;
 
     function handleCommit() {
         setCommitPrice(price);
@@ -168,6 +178,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
         setCommitRate(rate);
         setCommitTerm(termYrs);
         setCommitDebt(monthlyDebt);
+        setCommitIncome(annualIncome);
         setAppliedBadge(true);
         setTimeout(() => setAppliedBadge(false), 1800);
     }
@@ -177,8 +188,16 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
         handleCommit();
         // Fire onRunScenario so parent can inject an adjusted scenario message (property_lookup path)
         if (props.onRunScenario) {
-            const overrides = { downPaymentPct: downPct, rate, term: termYrs, monthlyDebt };
-            const seed = `Run my numbers: ${downPct}% down · ${rate.toFixed(2)}% rate · ${termYrs}yr`;
+            const overrides = {
+                downPaymentPct: downPct,
+                rate,
+                term:           termYrs,
+                monthlyDebt,
+                annualIncome:   annualIncome > 0 ? annualIncome : undefined,
+                totalMonthly:   Math.round(totalMo),  // needed by parent for DTI computation
+            };
+            const incomeStr = annualIncome > 0 ? ` · ${fmtK(annualIncome)}/yr income` : '';
+            const seed = `Run my numbers: ${downPct}% down · ${rate.toFixed(2)}% rate · ${termYrs}yr${incomeStr}`;
             props.onRunScenario(seed, overrides);
         }
         await new Promise<void>(r => setTimeout(r, 700));
@@ -305,6 +324,48 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 <div className="iq-debt-hint">
                     Car loan, student loans, credit cards, etc. — adds {monthlyDebt > 0 ? `${fmt$(Math.round((monthlyDebt / 0.43) * 12))} to annual income requirement` : 'nothing until you enter a value'}
                 </div>
+            </div>
+
+            {/* Annual income — borrower strength */}
+            <div className="iq-income-section">
+                <SliderField
+                    label="Your Annual Income"
+                    value={annualIncome}
+                    min={0} max={isJumbo ? 2_000_000 : 600_000} step={isJumbo ? 10_000 : 5_000}
+                    onChange={setAnnualIncome}
+                    format={v => v === 0 ? 'Not entered' : `${fmtK(v)}/yr`}
+                    minLabel="$0" maxLabel={isJumbo ? '$2M' : '$600k'}
+                    trackColor={isJumbo ? '#8b5cf6' : isVA ? '#14b8a6' : isFHA ? '#f59e0b' : '#3d8bff'} theme="dark"
+                />
+                {annualIncome === 0 && (
+                    <div className="iq-income-hint">Enter your income to see your actual DTI and how it factors into your borrower score</div>
+                )}
+                {backEndDTI != null && (
+                    <div className="iq-dti-strength">
+                        <div className="iq-dti-strength-row">
+                            <div>
+                                <div className="iq-dti-strength-label">Your Back-End DTI</div>
+                                <div className="iq-dti-strength-status">{dtiStatus}</div>
+                            </div>
+                            <div className={`iq-dti-strength-val iq-dti-strength-val--${dtiClass}`} style={{ color: dtiColor }}>
+                                {backEndDTI.toFixed(1)}%
+                            </div>
+                        </div>
+                        <div className="iq-dti-strength-bar">
+                            <div
+                                className="iq-dti-strength-fill"
+                                style={{ width: `${Math.min(100, (backEndDTI / 60) * 100)}%`, background: dtiColor }}
+                            />
+                            {/* threshold markers */}
+                            <div className="iq-dti-marker" style={{ left: `${(36/60)*100}%` }} title="36% — conservative" />
+                            <div className="iq-dti-marker" style={{ left: `${(43/60)*100}%` }} title="43% — standard max" />
+                            <div className="iq-dti-marker" style={{ left: `${(50/60)*100}%` }} title="50% — FHA limit" />
+                        </div>
+                        <div className="iq-dti-strength-legend">
+                            <span>0%</span><span>36%</span><span>43%</span><span>50%</span><span>60%+</span>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* DTI grid */}
@@ -595,6 +656,20 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 /* debt section */
                 .iq-debt-section { padding:14px 16px 8px; border-top:1px solid rgba(255,255,255,0.05); }
                 .iq-debt-hint { font-size:11px; color:#4b6080; margin-top:6px; padding-bottom:4px; line-height:1.4; }
+
+                /* income section */
+                .iq-income-section { padding:14px 16px 10px; border-top:1px solid rgba(255,255,255,0.05); }
+                .iq-income-hint { font-size:11px; color:#4b6080; margin-top:6px; line-height:1.4; }
+                .iq-dti-strength { margin-top:12px; background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:12px 14px; }
+                .iq-dti-strength-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+                .iq-dti-strength-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#4b6080; margin-bottom:3px; }
+                .iq-dti-strength-status { font-size:12px; color:#8fa3b8; }
+                .iq-dti-strength-val { font-size:28px; font-weight:800; letter-spacing:-1px; }
+                /* bar */
+                .iq-dti-strength-bar { position:relative; height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:visible; }
+                .iq-dti-strength-fill { height:100%; border-radius:3px; transition:width .3s, background .3s; }
+                .iq-dti-marker { position:absolute; top:-3px; width:2px; height:12px; background:rgba(255,255,255,0.15); border-radius:1px; transform:translateX(-50%); }
+                .iq-dti-strength-legend { display:flex; justify-content:space-between; margin-top:5px; font-size:9px; color:#4b6080; }
 
                 /* DTI grid */
                 .iq-dti-section { padding:12px 16px; border-top:1px solid rgba(255,255,255,0.05); }

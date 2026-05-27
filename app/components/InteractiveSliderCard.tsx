@@ -39,6 +39,7 @@ export interface SliderCardParams {
     cmaLiveRate?: number;
     cmaPhotoUrl?: string;
     journeyAddress?: string;  // set when launched from my-home — enables Property Intelligence CTA
+    annualIncome?: number;   // borrower's actual annual income — carried forward through adjusted scenarios
 }
 
 function iscNormKey(a: string) { return a.trim().toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').slice(0,100); }
