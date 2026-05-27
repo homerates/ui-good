@@ -3684,6 +3684,7 @@ export default function Page() {
                                                         {/* Interactive slider card — non-buydown answers (VA handled by VaSliderCard) */}
                                                         {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
+                                                                key={`isc-${m.id}`}
                                                                 {...m.meta.interactiveSlider}
                                                                 // property_lookup path: income card is the sole adjustment surface — hide ISC drawer + buttons
                                                                 hideDrawer={!!m.meta.interactiveSlider?.cmaAddress}
@@ -3714,6 +3715,7 @@ export default function Page() {
                                                              (replaces the "What income do I need to qualify?" chip) */}
                                                         {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.interactiveSlider.cmaAddress && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                key={`iqsc-${m.id}`}
                                                                 price={m.meta.interactiveSlider.price}
                                                                 downPct={m.meta.interactiveSlider.downPct}
                                                                 rate={m.meta.interactiveSlider.rate}
