@@ -195,6 +195,7 @@ function PropertyIntelInner() {
   const scenarioDown   = searchParams?.get('down')   != null ? Number(searchParams.get('down'))   : null;
   const scenarioRate   = searchParams?.get('rate')   != null ? Number(searchParams.get('rate'))   : null;
   const scenarioIncome = searchParams?.get('income') != null ? Number(searchParams.get('income')) : null;
+  const scenarioDebt   = searchParams?.get('debt')   != null ? Number(searchParams.get('debt'))   : null;
 
   const [finalResult,    setFinalResult]    = useState<PropResult | null>(null);
   const [mapUrls,        setMapUrls]        = useState<MapUrls | null>(null);
@@ -393,9 +394,9 @@ function PropertyIntelInner() {
   const displayPiti  = (hasScenario && d.current_list_price != null && displayRate != null)
     ? calcScenarioPITI(d.current_list_price, displayDown, displayRate, resultTaxRate)
     : d.estimated_piti ?? null;
-  // DTI — only when income is provided
+  // DTI — only when income is provided; includes other monthly debts when passed
   const displayDTI = (scenarioIncome != null && scenarioIncome > 0 && displayPiti != null)
-    ? ((displayPiti / (scenarioIncome / 12)) * 100).toFixed(0)
+    ? (((displayPiti + (scenarioDebt ?? 0)) / (scenarioIncome / 12)) * 100).toFixed(0)
     : null;
 
   // photoUrl: for street view, fall back to Redfin CDN photo when Google Maps is unavailable
@@ -889,7 +890,7 @@ function PropertyIntelInner() {
                       {/* DTI context when income was passed from chat */}
                       {displayDTI != null && (
                         <div className="fi" style={{ fontSize: '0.62rem', color: '#4ade80', marginTop: 2, fontWeight: 600 }}>
-                          DTI {displayDTI}% · ${Math.round(scenarioIncome! / 12).toLocaleString()}/mo income
+                          DTI {displayDTI}% · ${Math.round(scenarioIncome! / 12).toLocaleString()}/mo income{scenarioDebt != null && scenarioDebt > 0 ? ` · $${scenarioDebt.toLocaleString()}/mo other debts` : ''}
                         </div>
                       )}
                     </div>

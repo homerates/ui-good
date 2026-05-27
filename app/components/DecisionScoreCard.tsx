@@ -59,9 +59,10 @@ interface Props {
   scenarioDown?:   number;
   scenarioRate?:   number;
   scenarioIncome?: number;
+  scenarioDebt?:   number;
 }
 
-export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, scenarioIncome }: Props) {
+export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, scenarioIncome, scenarioDebt }: Props) {
   const [mounted,  setMounted]  = useState(false);
   const [complete, setComplete] = useState(data.state === 'complete');
   const prevState = useRef(data.state);
@@ -96,6 +97,7 @@ export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, sc
     if (scenarioDown   != null && scenarioDown   !== 20) p.set('down',   String(scenarioDown));
     if (scenarioRate   != null)                          p.set('rate',   scenarioRate.toFixed(3));
     if (scenarioIncome != null && scenarioIncome  > 0)  p.set('income', String(Math.round(scenarioIncome)));
+    if (scenarioDebt   != null && scenarioDebt    > 0)  p.set('debt',   String(Math.round(scenarioDebt)));
     return `/property-intel?${p.toString()}`;
   })();
 

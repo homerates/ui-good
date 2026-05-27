@@ -38,6 +38,7 @@ export interface IncomeQualifySliderParams {
     insRate: number;
     loanType?: 'conventional' | 'fha' | 'jumbo' | 'va';
     annualIncome?: number;  // borrower's actual annual gross income — carried forward through adjusted scenarios
+    monthlyDebt?: number;   // borrower's other monthly obligations — carried forward through adjusted scenarios
     /** G4: DSC computing state — disable "Run Adjusted Scenario" until L2/L3/L4 resolve */
     decisionScoreState?: 'computing' | 'complete';
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
@@ -77,7 +78,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     const [downPct,     setDownPct]     = useState(props.downPct);
     const [rate,        setRate]        = useState(props.rate);
     const [termYrs,     setTermYrs]     = useState(props.term);
-    const [monthlyDebt,  setMonthlyDebt]  = useState(0);
+    const [monthlyDebt,  setMonthlyDebt]  = useState(props.monthlyDebt ?? 0);
     const [annualIncome, setAnnualIncome] = useState(props.annualIncome ?? 0);
     const [bkdOpen,      setBkdOpen]      = useState(true);
 
@@ -91,7 +92,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     const [commitDown,   setCommitDown]   = useState(props.downPct);
     const [commitRate,   setCommitRate]   = useState(props.rate);
     const [commitTerm,   setCommitTerm]   = useState(props.term);
-    const [commitDebt,   setCommitDebt]   = useState(0);
+    const [commitDebt,   setCommitDebt]   = useState(props.monthlyDebt ?? 0);
     const [commitIncome, setCommitIncome] = useState(props.annualIncome ?? 0);
 
     const { user } = useUser();

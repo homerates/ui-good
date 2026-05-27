@@ -415,6 +415,7 @@ type ApiResponse = {
     incomeQualifySlider?: {
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number; loanType?: 'conventional' | 'fha' | 'jumbo' | 'va';
+        annualIncome?: number; monthlyDebt?: number;
     } | null;
     vaSlider?: {
         price: number; downPct: number; rate: number; term: number;
@@ -3767,10 +3768,12 @@ export default function Page() {
                                                                     const newRate    = (overrides as any).rate          ?? isl.rate;
                                                                     const newTerm    = (overrides as any).term          ?? isl.term;
                                                                     const newIncome  = (overrides as any).annualIncome  ?? isl.annualIncome ?? 0;
+                                                                    const newDebt    = (overrides as any).monthlyDebt   ?? 0;
                                                                     const totalMo    = (overrides as any).totalMonthly  ?? 0;
                                                                     const loanAmt    = isl.price * (1 - newDown / 100);
                                                                     const newLt: 'conventional' | 'jumbo' = loanAmt > 832_750 ? 'jumbo' : 'conventional';
                                                                     // Compute borrower DTI when income is known — feeds into L1 score
+                                                                    // totalMonthly already includes monthlyDebt (sent by IQC as piti+debt)
                                                                     const dti = newIncome > 0 && totalMo > 0
                                                                         ? (totalMo / (newIncome / 12)) * 100
                                                                         : undefined;
@@ -3783,8 +3786,9 @@ export default function Page() {
                                                                     const newMeta: ApiResponse = {
                                                                         ...m.meta!,
                                                                         interactiveSlider: { ...isl, downPct: newDown, rate: newRate, term: newTerm, loanType: newLt, annualIncome: newIncome > 0 ? newIncome : undefined },
+                                                                        incomeQualifySlider: m.meta!.incomeQualifySlider ? { ...m.meta!.incomeQualifySlider, downPct: newDown, rate: newRate, term: newTerm, annualIncome: newIncome > 0 ? newIncome : undefined, monthlyDebt: newDebt > 0 ? newDebt : undefined } : m.meta!.incomeQualifySlider,
                                                                         decisionScoreCard: existingDsc ? { ...existingDsc, l1Score, l1Summary, compositeScore: newComposite ?? undefined } : undefined,
-                                                                        answer: `Adjusted scenario — ${newDown}% down · ${newRate.toFixed(2)}% rate · ${newTerm}yr term on ${isl.cmaAddress ?? 'this property'}.${newIncome > 0 && dti ? ` DTI: ${dti.toFixed(0)}%.` : ''}`,
+                                                                        answer: `Adjusted scenario — ${newDown}% down · ${newRate.toFixed(2)}% rate · ${newTerm}yr term on ${isl.cmaAddress ?? 'this property'}.${newIncome > 0 && dti ? ` DTI: ${dti.toFixed(0)}%.` : ''}${newDebt > 0 ? ` Other debts: $${newDebt}/mo.` : ''}`,
                                                                     };
                                                                     setMessages(prev => [
                                                                         ...prev,
@@ -3801,6 +3805,7 @@ export default function Page() {
                                                                 scenarioDown={m.meta.interactiveSlider?.downPct}
                                                                 scenarioRate={m.meta.interactiveSlider?.rate}
                                                                 scenarioIncome={m.meta.interactiveSlider?.annualIncome}
+                                                                scenarioDebt={m.meta.incomeQualifySlider?.monthlyDebt}
                                                             />
                                                         )}
                                                         {/* DSCR slider card — investment property answers */}
