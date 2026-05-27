@@ -1322,6 +1322,9 @@ export default function Page() {
     // Set to true when typewriter finishes — suppresses autoscroll so we can
     // scroll back to the TOP of the new message instead of leaving at bottom
     const suppressAutoScrollRef = React.useRef(false);
+    // Tracks message count so autoscroll only fires on new messages, not in-place meta updates
+    // (Decision Score L3/L4 background updates use setMessages in-place — same count, different meta)
+    const prevMessageCountRef = React.useRef(0);
     // (autoscroll is handled by the effect below — single source of truth)
 
     // If the user came from a shared answer card, pre-fill the composer with that question
@@ -1602,8 +1605,14 @@ export default function Page() {
         });
     }, [messages, activeId]);
 
-    // autoscroll — suppressed when typewriter finishes (we scroll to top of message instead)
+    // autoscroll — only when a NEW message is added (count increases), not on in-place meta updates.
+    // Decision Score L3/L4 background updates call setMessages in-place (same count) — those must
+    // NOT scroll the user away from wherever they're reading.
     useEffect(() => {
+        const currentCount = messages.length;
+        const isNewMessage = currentCount > prevMessageCountRef.current;
+        prevMessageCountRef.current = currentCount;
+        if (!isNewMessage) return;          // in-place update — skip scroll
         if (suppressAutoScrollRef.current) return;
         scrollRef.current?.scrollTo({
             top: scrollRef.current.scrollHeight,
