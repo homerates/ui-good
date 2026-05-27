@@ -3648,6 +3648,28 @@ export default function Page() {
                                                                     const overrides = { ...sliderParams, ...(cmaContextRef.current ?? {}) };
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
+                                                                    // Belt-and-suspenders: apply adjusted down/loanType to Decision Score
+                                                                    // in case ISC's onScenarioChange debounce was cancelled by unmount
+                                                                    if (m.role === 'assistant' && m.meta?.decisionScoreCard) {
+                                                                        const dp = (sliderParams as any).downPaymentPct;
+                                                                        const lt = (sliderParams as any).loanType
+                                                                            ?? ((sliderParams as any).purchasePrice && dp != null
+                                                                                ? ((sliderParams as any).purchasePrice * (1 - dp / 100) > 832_750 ? 'jumbo' : 'conventional')
+                                                                                : 'conventional');
+                                                                        if (dp != null) {
+                                                                            const { score: l1s, summary: l1sum } = recalcDSL1(dp, lt);
+                                                                            const dsc = m.meta.decisionScoreCard;
+                                                                            const comp = computeDSComposite(l1s, dsc.l2Score ?? null, dsc.l3Score, dsc.l4Score);
+                                                                            setMessages(prev => prev.map(msg =>
+                                                                                msg.id === m.id && msg.role === 'assistant'
+                                                                                    ? { ...msg, meta: { ...msg.meta!, decisionScoreCard: {
+                                                                                        ...dsc, l1Score: l1s, l1Summary: l1sum,
+                                                                                        compositeScore: comp ?? undefined,
+                                                                                    }}}
+                                                                                    : msg
+                                                                            ));
+                                                                        }
+                                                                    }
                                                                     setTimeout(() => send(seed), 50);
                                                                 }}
                                                                 onScenarioChange={m.meta.decisionScoreCard ? ({ downPct: newDown, loanType: newLt }) => {

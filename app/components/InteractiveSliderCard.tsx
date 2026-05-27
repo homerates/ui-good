@@ -324,6 +324,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
     async function handleDrawerRun() {
         setDrawerPhase('running');
+        // Sync Decision Score BEFORE calling onRunScenario — the debounced onScenarioChange
+        // gets cancelled when the ISC unmounts during loading, so we must fire it synchronously here.
+        if (props.onScenarioChange) props.onScenarioChange({ downPct, loanType });
         if (props.onRunScenario) props.onRunScenario(buildSeed(), getRunOverrides());
         await new Promise<void>(r => setTimeout(r, 900));
         setDrawerPhase('done');
