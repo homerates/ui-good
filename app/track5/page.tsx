@@ -323,6 +323,19 @@ function Track5Inner() {
 
   const piUrl   = address ? `/property-intel?address=${encodeURIComponent(address)}` : '/property-intel';
 
+  // piUrlS: property-intel URL with scenario override params appended so that
+  // "Back to Property Intel" back-links preserve the adjusted scenario all the way
+  // through to Build Report (not the original 20%-down DB session values)
+  const piUrlS = (() => {
+    if (!address) return '/property-intel';
+    const parts: string[] = [`address=${encodeURIComponent(address)}`];
+    if (scDown   != null) parts.push(`down=${scDown}`);
+    if (scRate   != null) parts.push(`rate=${scRate.toFixed(3)}`);
+    if (scIncome != null && scIncome > 0) parts.push(`income=${Math.round(scIncome)}`);
+    if (scDebt   != null && scDebt   > 0) parts.push(`debt=${Math.round(scDebt)}`);
+    return `/property-intel?${parts.join('&')}`;
+  })();
+
   // ── Match helpers ──────────────────────────────────────────────────────────
   function extractZip(addr: string): string | null {
     const m = addr.match(/\b(\d{5})(?:-\d{4})?\b/);
@@ -372,10 +385,19 @@ function Track5Inner() {
   // ── Purchase scenario context — session wins over URL params ─────────────
   const sj       = (sessionData?.scenario_json ?? null) as Record<string, unknown> | null;
   const ctxPrice = (sj?.price as number)   ?? (params?.get('ctx_price') ? Number(params.get('ctx_price')) : null);
-  const ctxDp    = (sj?.dp_pct as number)  ?? (params?.get('ctx_dp')    ? Number(params.get('ctx_dp'))    : null);
   const ctxLt    = (sj?.lt as string)      ?? params?.get('ctx_lt')    ?? null;
-  const ctxRate  = (sj?.rate as number)    ?? (params?.get('ctx_rate')  ? Number(params.get('ctx_rate'))  : null);
   const ctxPiti  = (sj?.piti as number)    ?? (params?.get('ctx_piti')  ? Number(params.get('ctx_piti'))  : null);
+
+  // sc_* override params — passed from DecisionScoreCard after ISC adjustment.
+  // These take priority over the original session's scenario_json so that back-links
+  // to property-intel (and scenario display) reflect the user's adjusted scenario,
+  // not the original 20%-down values stored in the DB session.
+  const scDown   = params?.get('sc_down')   != null ? Number(params.get('sc_down'))   : null;
+  const scRate   = params?.get('sc_rate')   != null ? Number(params.get('sc_rate'))   : null;
+  const scIncome = params?.get('sc_income') != null ? Number(params.get('sc_income')) : null;
+  const scDebt   = params?.get('sc_debt')   != null ? Number(params.get('sc_debt'))   : null;
+  const ctxDp    = scDown  ?? (sj?.dp_pct as number)  ?? (params?.get('ctx_dp')    ? Number(params.get('ctx_dp'))    : null);
+  const ctxRate  = scRate  ?? (sj?.rate as number)    ?? (params?.get('ctx_rate')  ? Number(params.get('ctx_rate'))  : null);
   const hasPurchaseCtx = !!(ctxPrice && ctxLt);
 
   function fmtK(n: number) {
@@ -581,7 +603,7 @@ function Track5Inner() {
           tooltip="Grok 4 live web search scores the local market conditions. Key signals: median days on market (longer = buyer's market = higher score), sale-to-list ratio (below 100% = negotiating room), and recent comp velocity. Competitive seller's markets score 30–50; buyer's markets with slow DOM score 70+. This level contributes 25% of your final Decision Score."
           cta={{
             label: address ? 'Back to Property Intel ↗' : 'Property Intelligence ↗',
-            href:  address ? `${piUrl}${sessionId ? `&sid=${sessionId}` : ''}` : '/property-intel',
+            href:  address ? `${piUrlS}${sessionId ? `&sid=${sessionId}` : ''}` : '/property-intel',
           }}
         />
         {/* L4 back-link: back to property-intel (deep analysis unlocks location) */}
@@ -593,7 +615,7 @@ function Track5Inner() {
             label: levels.l4.score != null
               ? (address ? 'Back to Property Intel ↗' : 'Property Intelligence ↗')
               : (address ? 'Run Deep Analysis ↗' : 'Property Intelligence ↗'),
-            href: address ? `${piUrl}${sessionId ? `&sid=${sessionId}` : ''}` : '/property-intel',
+            href: address ? `${piUrlS}${sessionId ? `&sid=${sessionId}` : ''}` : '/property-intel',
           }}
         />
 
@@ -644,7 +666,7 @@ function Track5Inner() {
 
             {/* 3 — Property Intelligence */}
             <a
-              href={address ? `${piUrl}${sessionId ? `&sid=${sessionId}` : ''}` : '/property-intel'}
+              href={address ? `${piUrlS}${sessionId ? `&sid=${sessionId}` : ''}` : '/property-intel'}
               style={{ display: 'block', textDecoration: 'none', background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '12px 12px' }}
             >
               <div style={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#4b6080', marginBottom: 5 }}>Property Intel</div>
@@ -657,7 +679,7 @@ function Track5Inner() {
 
         {/* ── Get Matched section — shown when session + address + composite exist (ZIP not required) ── */}
         {isSignedIn && sessionId && address && idx && matchState !== 'matched' && (
-          <div style={{
+          <div id="get-matched" style={{
             marginTop: 28,
             background: 'rgba(0,232,122,0.03)',
             border: '1px solid rgba(0,232,122,0.15)',

@@ -101,11 +101,26 @@ export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, sc
     return `/property-intel?${p.toString()}`;
   })();
 
+  // Scenario override suffix — threads adjusted scenario into Track5 URL so
+  // back-links to property-intel preserve the adjusted numbers (not original DB session)
+  const t5ScenarioSuffix = (() => {
+    const p = new URLSearchParams();
+    if (scenarioDown   != null && scenarioDown   !== 20) p.set('sc_down',   String(scenarioDown));
+    if (scenarioRate   != null)                          p.set('sc_rate',   scenarioRate.toFixed(3));
+    if (scenarioIncome != null && scenarioIncome  > 0)  p.set('sc_income', String(Math.round(scenarioIncome)));
+    if (scenarioDebt   != null && scenarioDebt    > 0)  p.set('sc_debt',   String(Math.round(scenarioDebt)));
+    const s = p.toString();
+    return s ? `&${s}` : '';
+  })();
+
   const track5Url = sessionId
-    ? `/track5?session=${sessionId}`
+    ? `/track5?session=${sessionId}${t5ScenarioSuffix}`
     : l3Score != null
-      ? `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(data.l1Summary)}&l2_score=${l2Score ?? ''}&l2_summary=${encodeURIComponent(data.l2Summary)}&l3_score=${l3Score}&l3_summary=${encodeURIComponent(data.l3Summary ?? '')}&l4_score=${l4Score ?? ''}&l4_summary=${encodeURIComponent(data.l4Summary ?? '')}`
-      : `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(data.l1Summary)}&l2_score=${l2Score ?? ''}&l2_summary=${encodeURIComponent(data.l2Summary)}`;
+      ? `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(data.l1Summary)}&l2_score=${l2Score ?? ''}&l2_summary=${encodeURIComponent(data.l2Summary)}&l3_score=${l3Score}&l3_summary=${encodeURIComponent(data.l3Summary ?? '')}&l4_score=${l4Score ?? ''}&l4_summary=${encodeURIComponent(data.l4Summary ?? '')}${t5ScenarioSuffix}`
+      : `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(data.l1Summary)}&l2_score=${l2Score ?? ''}&l2_summary=${encodeURIComponent(data.l2Summary)}${t5ScenarioSuffix}`;
+
+  // "Get Matched" deep-links directly to the match section — skips scrolling past 4-level DSC
+  const getMatchedUrl = `${track5Url}#get-matched`;
 
   const levels = [
     { num: 'L1', name: 'Financial', weight: '35%', score: l1Score,        done: true },
@@ -256,7 +271,7 @@ export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, sc
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <a
-              href={track5Url}
+              href={getMatchedUrl}
               target="_blank"
               rel="noopener noreferrer"
               style={{
