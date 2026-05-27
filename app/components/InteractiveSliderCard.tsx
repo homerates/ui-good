@@ -117,6 +117,15 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const { user } = useUser();
     const router   = useRouter();
 
+    // ── Sync from props when display-only (hideDrawer mode, property_lookup path) ──
+    // Income card drives the scenario; ISC must reflect the live meta values.
+    useEffect(() => {
+        if (!props.hideDrawer) return;
+        setDownPct(props.downPct);
+        setLoanType(props.loanType as 'conventional' | 'fha' | 'va' | 'jumbo');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.downPct, props.loanType, props.hideDrawer]);
+
     // ── Inline Decision Score L1 update — fires when downPct or loanType changes ──
     const iscFirstRender = useRef(true);
     useEffect(() => {
