@@ -52,6 +52,8 @@ interface PropData {
   buyer_strategy: string | null;
   zillow_estimate: number | null;
   redfin_estimate: number | null;
+  zillow_saves: number | null;
+  zillow_views: number | null;
   market_median_dom: number | null;
   market_sale_to_list: number | null;
   market_median_price: number | null;
@@ -258,6 +260,8 @@ function ReportInner() {
               buyer_strategy:     null,
               zillow_estimate:    (d.estimatedValue as number) ?? null,
               redfin_estimate:    null,
+              zillow_saves:       null,
+              zillow_views:       null,
               market_median_dom:  null,
               market_sale_to_list: null,
               market_median_price: null,
@@ -483,12 +487,19 @@ function ReportInner() {
               </div>
             )}
 
-            {/* AVM row */}
+            {/* AVM + social proof row */}
             <div className="rp-avm-row">
               {data.zillow_estimate != null && (
                 <div className="rp-avm-item">
                   <span className="rp-mono-label">Zillow Est.</span>
                   <span style={{ fontSize: 17, fontWeight: 700, color: '#60a5fa' }}>{fmtK(data.zillow_estimate)}</span>
+                  {(data.zillow_saves != null || data.zillow_views != null) && (
+                    <span style={{ fontSize: 9, color: '#4b5c70', marginTop: 2, display: 'block' }}>
+                      {data.zillow_saves != null && `${data.zillow_saves.toLocaleString()} saves`}
+                      {data.zillow_saves != null && data.zillow_views != null && ' · '}
+                      {data.zillow_views != null && `${data.zillow_views.toLocaleString()} views`}
+                    </span>
+                  )}
                 </div>
               )}
               {data.redfin_estimate != null && (
@@ -1033,60 +1044,31 @@ const CSS = `
 
   /* ── Print ── */
   @media print {
-    /* Kill outer wrapper height so it doesn't consume a blank first page */
+    /* Kill outer wrapper height — was creating a blank first page */
     body, .page-standalone { min-height: 0 !important; height: auto !important; background: #000 !important; }
     .no-print { display: none !important; }
 
-    /* Book */
-    .rp-book { padding-top: 0 !important; width: 8.5in !important; margin: 0 !important; }
+    /* Scale the entire book down 12% so all content fits within 11in per page
+       without clipping. zoom is Chrome-specific but that's the primary print engine. */
+    .rp-book {
+      padding-top: 0 !important;
+      width: 100% !important;
+      margin: 0 !important;
+      zoom: 0.88;
+    }
 
-    /* Each .rp-page = exactly one printed page */
+    /* Page breaks — let content height be natural (zoom handles the fit) */
     .rp-page {
-      width: 8.5in !important;
-      height: 11in !important;
+      width: 100% !important;
       min-height: unset !important;
-      max-height: 11in !important;
-      overflow: hidden !important;
       break-after: page !important;
       page-break-after: always !important;
       border-top: none !important;
-      padding-bottom: 46px !important;
     }
     .rp-page:last-child { break-after: auto !important; page-break-after: auto !important; }
 
-    /* Shrink hero — recovers ~75px on page 1 */
+    /* Shrink hero so page 1 doesn't overflow */
     .rp-hero { height: 150px !important; }
-
-    /* Tighter chrome */
-    .rp-nav { padding: 7px 32px !important; }
-    .rp-spec-strip .rp-spec-item { padding-top: 7px !important; padding-bottom: 7px !important; }
-    .rp-scenario-banner { padding: 12px 32px !important; }
-    .rp-loc-hero { padding: 12px 32px !important; }
-    .rp-ds-hero { padding: 12px 32px !important; }
-
-    /* Tighter cards */
-    .rp-card { padding: 10px 12px !important; }
-    .rp-col  { gap: 7px !important; }
-    .rp-grid-2col { gap: 8px !important; }
-
-    /* Clamp long AI-generated text — main overflow culprit on page 1 */
-    .rp-body-text {
-      overflow: hidden !important;
-      display: -webkit-box !important;
-      -webkit-line-clamp: 5 !important;
-      -webkit-box-orient: vertical !important;
-    }
-
-    /* Tighter DS level rows on page 4 */
-    .rp-ds-levels { padding: 8px 32px !important; gap: 5px !important; }
-    .rp-ds-row    { padding: 9px 14px !important; }
-    .rp-legend    { padding: 9px 14px !important; margin: 0 32px !important; }
-    .rp-cta-box   { margin: 8px 32px 0 !important; padding: 14px 18px !important; }
-
-    /* Location grid on page 3 */
-    .rp-loc-grid { padding: 8px 32px 0 !important; gap: 6px !important; }
-    .rp-loc-card { padding: 10px 12px !important; }
-    .rp-wildfire-card { margin: 8px 32px 0 !important; padding: 12px 16px !important; }
   }
 
   /* Watermarks */
