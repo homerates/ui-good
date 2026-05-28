@@ -332,9 +332,7 @@ function InstantInner() {
   return (
     <div className="page-standalone inst-root">
       <style>{`
-        .inst-root { background:#080c12; color:#f1f5f9; font-family:system-ui,-apple-system,sans-serif; min-height:100vh; }
-        html:has(.inst-root){ height:auto!important; overflow:visible!important; }
-        body:has(.inst-root){ display:block!important; height:auto!important; overflow:visible!important; background:#080c12!important; }
+        .inst-root { background:#080c12; color:#f1f5f9; font-family:system-ui,-apple-system,sans-serif; }
 
         .inst-hero { max-width:680px; margin:0 auto; padding:4rem 1.5rem 2rem; text-align:center; }
         .inst-tag { display:inline-flex; align-items:center; gap:6px; font-size:0.62rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#00e87a; background:rgba(0,232,122,0.08); border:1px solid rgba(0,232,122,0.2); border-radius:20px; padding:4px 12px; margin-bottom:20px; }
