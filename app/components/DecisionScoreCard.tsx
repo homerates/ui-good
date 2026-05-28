@@ -90,10 +90,11 @@ export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, sc
   const circ      = 163; // 2π × r=26
   const ringFill  = composite != null ? circ - (composite / 100) * circ : circ;
 
-  // Build "Full Analysis" URL — carry the user's current scenario so property-intel
-  // shows PITI/DTI at their adjusted down %, rate, and income (not hardcoded 20%)
+  // Build "Full Analysis" URL — carry session ID so property-intel loads the existing
+  // scored session (not a fresh build), plus user's adjusted scenario params for PITI display.
   const fullAnalysisUrl = (() => {
     const p = new URLSearchParams({ address });
+    if (sessionId)                                       p.set('sid',    sessionId);
     if (scenarioDown   != null && scenarioDown   !== 20) p.set('down',   String(scenarioDown));
     if (scenarioRate   != null)                          p.set('rate',   scenarioRate.toFixed(3));
     if (scenarioIncome != null && scenarioIncome  > 0)  p.set('income', String(Math.round(scenarioIncome)));

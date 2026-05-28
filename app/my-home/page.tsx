@@ -2352,7 +2352,10 @@ function MyHomePageInner() {
                                   from: '/my-home',
                                   fromLabel: 'My Properties',
                                 });
-                                openBuyerChat(`/chat?${p.toString()}`, a.address ?? '', ask ?? null, a.liveRate, 20);
+                                // Down % seed: jumbo threshold requires 20%; conventional defaults to
+                                // 10% (more realistic first-time buyer entry vs always assuming 20%).
+                                const seedDp = (ask && ask > 832_750) ? 20 : 10;
+                                openBuyerChat(`/chat?${p.toString()}`, a.address ?? '', ask ?? null, a.liveRate, seedDp);
                               }}
                               style={{ flex: 1, padding: '9px 0', textAlign: 'center', borderRadius: 8, background: '#3b82f6', color: '#fff', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', border: 'none', fontFamily: 'inherit' }}
                             >
