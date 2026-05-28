@@ -1010,13 +1010,13 @@ function ReportInner() {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
-  @page { size: A4 portrait; margin: 0; }
+  @page { size: letter portrait; margin: 0; }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'DM Sans', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 13px; line-height: 1.5; }
   @media print { .no-print { display: none !important; } }
 
-  /* Centred column wrapper — 794px = A4 portrait at 96 dpi */
-  .rp-book { width: 794px; margin: 0 auto; display: flex; flex-direction: column; background: #080c12; padding-top: 52px; }
+  /* Centred column wrapper — 816px = US Letter portrait at 96 dpi */
+  .rp-book { width: 816px; margin: 0 auto; display: flex; flex-direction: column; background: #080c12; padding-top: 52px; }
   @media print { .rp-book { padding-top: 0; width: 100%; } }
 
   /* Action bar */
@@ -1029,8 +1029,9 @@ const CSS = `
   .rp-btn-primary { background: #00e87a; color: #000; font-weight: 700; font-size: 12px; font-family: 'DM Sans',sans-serif; border: none; border-radius: 8px; padding: 8px 18px; cursor: pointer; }
   .rp-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
-  /* Pages */
-  .rp-page { width: 794px; min-height: 1123px; position: relative; overflow: hidden; padding-bottom: 50px; break-after: page; page-break-after: always; background: #080c12; }
+  /* Pages — US Letter: 8.5×11in = 816×1056px at 96dpi */
+  .rp-page { width: 816px; min-height: 1056px; position: relative; overflow: hidden; padding-bottom: 50px; break-after: page; page-break-after: always; background: #080c12; }
+  .rp-page:last-child { break-after: auto !important; page-break-after: auto !important; }
   .rp-page + .rp-page { border-top: 3px solid #000; }
 
   /* Watermarks */
@@ -1158,7 +1159,7 @@ const CSS = `
   .rp-disc { font-family: 'DM Mono',monospace; font-size: 9.5px; line-height: 1.7; color: #4b5c70; margin-bottom: 7px; position: relative; z-index: 1; }
 
   /* ── Mobile responsive ─────────────────────────────────────────────────────── */
-  @media (max-width: 820px) {
+  @media (max-width: 840px) {
     /* Book wrapper fills viewport */
     .rp-book  { width: 100%; padding-top: 56px; }
     .rp-page  { width: 100%; min-height: unset; padding-bottom: 28px; }
