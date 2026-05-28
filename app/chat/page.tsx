@@ -2368,16 +2368,22 @@ export default function Page() {
                     // Fires silently — existing cards render at full speed, this is additive.
                     // When complete, updates the decisionScoreCard meta to 'complete' state.
                     if (d.address) {
-                        const _dsAnswerId    = answerId;
-                        const _dsL1Score     = dsL1Score;
-                        const _dsL1Summary   = dsL1Summary;
-                        const _dsL2Score     = dsL2Score;
-                        const _dsL2Summary   = dsL2Summary;
-                        const _dsAddress     = d.address;
-                        const _dsPrice       = d.price;
-                        const _dsLoanType    = sliderLoanType;
-                        const _dsDown        = defaultDown;
-                        const _dsRate        = liveRate;
+                        const _dsAnswerId         = answerId;
+                        const _dsL1Score          = dsL1Score;
+                        const _dsL1Summary        = dsL1Summary;
+                        const _dsL2Score          = dsL2Score;
+                        const _dsL2Summary        = dsL2Summary;
+                        const _dsAddress          = d.address;
+                        const _dsPrice            = d.price;
+                        const _dsLoanType         = sliderLoanType;
+                        const _dsDown             = defaultDown;
+                        const _dsRate             = liveRate;
+                        // Social proof signals — enriches L3 summary with engagement velocity
+                        const _dsZillowViews      = (d.zillowViews      as number | null | undefined) ?? null;
+                        const _dsZillowSaves      = (d.zillowSaves      as number | null | undefined) ?? null;
+                        const _dsRedfinViews      = (d.redfinViews      as string | null | undefined) ?? null;
+                        const _dsSocialProofScore = (d.socialProofScore as number | null | undefined) ?? null;
+                        const _dsInterestLevel    = (d.interestLevel    as string | null | undefined) ?? null;
                         void (async () => {
                             try {
                                 const postRes = await fetch('/api/beta/grok-property', {
@@ -2459,7 +2465,7 @@ export default function Page() {
                                     }
                                 }
 
-                                // Compute L3 — market conditions (median DOM + sale-to-list)
+                                // Compute L3 — market conditions (median DOM + sale-to-list) + social proof
                                 const dom = deepResult.market_median_dom as number | null | undefined;
                                 const stl = deepResult.market_sale_to_list as number | null | undefined;
                                 let dsL3Score: number | null = null;
@@ -2474,16 +2480,48 @@ export default function Page() {
                                     if (stl != null) pts.push(`sale-to-list ${((stl as number) * 100).toFixed(1)}%`);
                                     dsL3Summary = pts.join(', ');
                                 }
-                                // Final L3 fallback — use subject DOM or neutral score so L3 never stays null
+                                // Enrich L3 with social proof velocity signals
+                                if (_dsZillowViews != null || _dsZillowSaves != null || _dsRedfinViews) {
+                                    const spParts: string[] = [];
+                                    if (_dsZillowViews != null) spParts.push(`${_dsZillowViews.toLocaleString()} Zillow views`);
+                                    if (_dsZillowSaves != null && _dsZillowSaves > 0) spParts.push(`${_dsZillowSaves} saves`);
+                                    if (_dsRedfinViews) spParts.push(_dsRedfinViews);
+                                    if (_dsInterestLevel && _dsInterestLevel !== 'Moderate') spParts.push(`${_dsInterestLevel} demand`);
+                                    if (spParts.length > 0) {
+                                        dsL3Summary = dsL3Summary
+                                            ? `${dsL3Summary} · ${spParts.join(' · ')}`
+                                            : spParts.join(' · ');
+                                    }
+                                    // Blend social proof score into L3 (33% weight when area stats available, 50% when not)
+                                    if (_dsSocialProofScore != null) {
+                                        const spWeight = dsL3Score != null ? 0.35 : 0.5;
+                                        dsL3Score = Math.min(100, Math.round(
+                                            dsL3Score != null
+                                                ? dsL3Score * (1 - spWeight) + _dsSocialProofScore * spWeight
+                                                : _dsSocialProofScore,
+                                        ));
+                                    }
+                                }
+                                // Final L3 fallback — use subject DOM or social proof score so L3 never stays null
                                 if (dsL3Score == null) {
-                                    const subDom = deepResult.days_on_market as number | null | undefined;
-                                    if (subDom != null && (subDom as number) >= 0) {
-                                        const d = subDom as number;
-                                        dsL3Score = d > 90 ? 90 : d > 60 ? 80 : d > 45 ? 68 : d > 30 ? 55 : d > 15 ? 42 : 32;
-                                        dsL3Summary = `Property at ${d}d on market (area stats pending)`;
+                                    if (_dsSocialProofScore != null) {
+                                        dsL3Score = _dsSocialProofScore;
+                                        const subDom2 = deepResult.days_on_market as number | null | undefined;
+                                        const pts2: string[] = [];
+                                        if (subDom2 != null) pts2.push(`${subDom2}d on market`);
+                                        if (_dsZillowViews != null) pts2.push(`${_dsZillowViews.toLocaleString()} Zillow views`);
+                                        if (_dsRedfinViews) pts2.push(_dsRedfinViews);
+                                        dsL3Summary = pts2.join(' · ') || `${_dsInterestLevel ?? 'Moderate'} early demand`;
                                     } else {
-                                        dsL3Score = 65;
-                                        dsL3Summary = 'Market data limited — visit Property Intel';
+                                        const subDom = deepResult.days_on_market as number | null | undefined;
+                                        if (subDom != null && (subDom as number) >= 0) {
+                                            const d = subDom as number;
+                                            dsL3Score = d > 90 ? 90 : d > 60 ? 80 : d > 45 ? 68 : d > 30 ? 55 : d > 15 ? 42 : 32;
+                                            dsL3Summary = `Property at ${d}d on market (area stats pending)`;
+                                        } else {
+                                            dsL3Score = 65;
+                                            dsL3Summary = 'Market data limited — visit Property Intel';
+                                        }
                                     }
                                 }
 

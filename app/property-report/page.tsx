@@ -54,6 +54,9 @@ interface PropData {
   redfin_estimate: number | null;
   zillow_saves: number | null;
   zillow_views: number | null;
+  redfin_views: string | null;
+  social_proof_score: number | null;
+  interest_level: string | null;
   market_median_dom: number | null;
   market_sale_to_list: number | null;
   market_median_price: number | null;
@@ -260,8 +263,11 @@ function ReportInner() {
               buyer_strategy:     null,
               zillow_estimate:    (d.estimatedValue as number) ?? null,
               redfin_estimate:    null,
-              zillow_saves:       null,
-              zillow_views:       null,
+              zillow_saves:       (d.zillowSaves as number) ?? null,
+              zillow_views:       (d.zillowViews as number) ?? null,
+              redfin_views:       (d.redfinViews as string) ?? null,
+              social_proof_score: (d.socialProofScore as number) ?? null,
+              interest_level:     (d.interestLevel as string) ?? null,
               market_median_dom:  null,
               market_sale_to_list: null,
               market_median_price: null,
@@ -523,6 +529,26 @@ function ReportInner() {
 
           {/* RIGHT */}
           <div className="rp-col">
+            {/* Social proof banner — shown when engagement data is available */}
+            {(data.social_proof_score != null || data.interest_level || data.redfin_views) && (
+              <div style={{ background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.18)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
+                {data.social_proof_score != null && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <span style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase' as const, color: '#4b5c70' }}>Demand Signal</span>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: data.social_proof_score >= 70 ? '#4ade80' : data.social_proof_score >= 50 ? '#fbbf24' : '#f87171' }}>{data.social_proof_score}</span>
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {data.interest_level && <div style={{ fontSize: 11, fontWeight: 700, color: '#00e87a', marginBottom: 2 }}>{data.interest_level} early interest</div>}
+                  <div style={{ fontSize: 10, color: '#8fa3b8', display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
+                    {data.zillow_views != null && <span>👁 {data.zillow_views.toLocaleString()} Zillow views</span>}
+                    {data.zillow_saves != null && data.zillow_saves > 0 && <span>★ {data.zillow_saves} saves</span>}
+                    {data.redfin_views && <span>📊 {data.redfin_views}</span>}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 2×2 stats */}
             <div className="rp-grid-2col" style={{ gap: 8 }}>
               {data.life_fit_score != null && (

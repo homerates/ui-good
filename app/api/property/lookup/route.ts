@@ -394,6 +394,12 @@ interface GPT4oPropertyFields {
     zip?: string | null;
     taxAssessedValue?: number | null;
     daysOnMarket?: number | null;
+    // Social proof fields — engagement signals from Zillow/Redfin
+    zillowViews?: number | null;
+    zillowSaves?: number | null;
+    zillowDaysOnMarket?: number | null;
+    redfinViews?: string | null;    // e.g. "Top 10% of similar homes"
+    redfinSaves?: number | null;
 }
 
 async function gpt4oExtract(text: string, url: string): Promise<GPT4oPropertyFields | null> {
@@ -411,7 +417,7 @@ async function gpt4oExtract(text: string, url: string): Promise<GPT4oPropertyFie
                 messages: [
                     {
                         role: 'system',
-                        content: `Extract real estate property fields from this Redfin page. Return only JSON. Use null for missing fields. Numbers not strings. Dates as "Month YYYY".
+                        content: `Extract real estate property fields from this Redfin page. Return only JSON. Use null for missing fields. Numbers not strings. Dates as "YYYY-MM-DD".
 
 CRITICAL — Redfin pages show TWO dollar amounts that must NOT be confused:
 - lastSalePrice: the HISTORICAL sold/sale price labeled "Sold Price" or next to "SOLD ON [date]". Past transaction.
@@ -420,7 +426,7 @@ CRITICAL — Redfin pages show TWO dollar amounts that must NOT be confused:
 
 listingStatus: SOLD if "SOLD ON [date]" or "Sold Price" present, FOR_SALE if active listing, OFF_MARKET if no active listing, PENDING if under contract, UNKNOWN otherwise.
 
-Fields: beds, baths, sqft, lotSqft, yearBuilt, redfinEstimate, estimatedValue, lastSalePrice, lastSaleDate, listingStatus, listPrice, hoaMonthly, propertyType, address, city, state (2-letter), zip, taxAssessedValue, daysOnMarket (number of days listed — if shown as hours use 0)`,
+Fields: beds, baths, sqft, lotSqft, yearBuilt, redfinEstimate, estimatedValue, lastSalePrice, lastSaleDate, listingStatus, listPrice, hoaMonthly, propertyType, address, city, state (2-letter), zip, taxAssessedValue, daysOnMarket (number of days listed — if shown as hours use 0), zillowViews (integer — look for "X views" near Zestimate), zillowSaves (integer — look for "X saves" or "X people saved"), zillowDaysOnMarket (integer — Zillow's own DOM if visible), redfinViews (string — e.g. "Top 10% of similar homes" if shown), redfinSaves (integer — Redfin saves count if visible)`,
                     },
                     { role: 'user', content: `URL: ${url}\n\nPage text:\n${snippet}` },
                 ],
@@ -668,6 +674,39 @@ async function handleUrl(rawUrl: string) {
                   : null;
         if (avm) merged.price = avm;
     }
+
+    // Compute socialProofScore + interestLevel from engagement signals
+    const spViews  = merged.zillowViews  as number | null ?? null;
+    const spSaves  = merged.zillowSaves  as number | null ?? null;
+    const spDom    = merged.daysOnMarket as number | null ?? null;
+    const spRank   = merged.redfinViews  as string | null ?? null;
+    let spScore = 40;
+    if (spDom != null) {
+        if (spDom <= 1) spScore += 25;
+        else if (spDom <= 3) spScore += 20;
+        else if (spDom <= 7) spScore += 15;
+        else if (spDom <= 14) spScore += 8;
+        else if (spDom > 60) spScore -= 15;
+        else if (spDom > 30) spScore -= 5;
+    }
+    if (spViews != null) {
+        if (spViews > 500) spScore += 20;
+        else if (spViews > 200) spScore += 15;
+        else if (spViews > 100) spScore += 10;
+        else if (spViews > 50) spScore += 5;
+    }
+    if (spSaves != null) {
+        if (spSaves > 100) spScore += 10;
+        else if (spSaves > 50) spScore += 7;
+        else if (spSaves > 20) spScore += 4;
+    }
+    if (spRank) {
+        if (/top\s*5%/i.test(spRank))  spScore += 15;
+        else if (/top\s*10%/i.test(spRank)) spScore += 12;
+        else if (/top\s*25%/i.test(spRank)) spScore += 6;
+    }
+    merged.socialProofScore = Math.min(100, Math.max(0, Math.round(spScore)));
+    merged.interestLevel    = spScore >= 80 ? 'Very High' : spScore >= 65 ? 'High' : spScore >= 50 ? 'Moderate' : 'Low';
 
     return NextResponse.json({ ok: true, data: merged });
 }

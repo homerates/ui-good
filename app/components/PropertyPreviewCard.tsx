@@ -38,6 +38,17 @@ export interface PropertyCardData {
     remainingMonths?: number | null;
     hoaMonthly?: number | null;
     pricePerSqft?: number | null;
+    // Social proof / engagement signals
+    zillowViews?: number | null;
+    zillowSaves?: number | null;
+    zillowDaysOnMarket?: number | null;
+    redfinViews?: string | null;
+    redfinSaves?: number | null;
+    socialProofScore?: number | null;
+    interestLevel?: 'Very High' | 'High' | 'Moderate' | 'Low' | null;
+    yearBuilt?: number | null;
+    lotSqft?: number | null;
+    keyHighlights?: string[] | null;
 }
 
 function fmtPrice(n: number | null): string {
