@@ -2332,14 +2332,13 @@ function MyHomePageInner() {
                               onClick={() => {
                                 const a = analysis!;
                                 const ask = a.listPrice ?? a.estimatedValue;
-                                const parts: string[] = [`I'm looking at buying ${a.address}${ask ? ` listed at $${Math.round(ask).toLocaleString()}` : ''}.`];
-                                parts.push(`Current 30-year rate is ${a.liveRate.toFixed(2)}%.`);
-                                if (a.estimatedValue && ask && a.estimatedValue !== ask) parts.push(`Redfin AVM is $${Math.round(a.estimatedValue).toLocaleString()}.`);
-                                if (a.daysOnMarket != null) parts.push(`Property has been on market ${a.daysOnMarket} days.`);
-                                parts.push('Calculate monthly PITI.');
                                 const addrParts = (a.address ?? '').split(',').map((s: string) => s.trim());
+                                // Seed is just the address — triggers property_lookup intent in chat,
+                                // which fires all 4 cards (PropertyPreview + ISC + IQC + DSC) exactly
+                                // like pasting an address into chat. CMA params feed the cards with
+                                // the property data already in hand so nothing needs to re-fetch.
                                 const p = new URLSearchParams({
-                                  sq: parts.join(' '),
+                                  sq: a.address ?? '',
                                   cmaAddress: a.address ?? '',
                                   cmaCity:    addrParts[1] ?? '',
                                   cmaState:   (addrParts[2] ?? '').replace(/\s*\d{5}.*/, '').trim(),
@@ -2352,8 +2351,6 @@ function MyHomePageInner() {
                                   from: '/my-home',
                                   fromLabel: 'My Properties',
                                 });
-                                // Down % seed: jumbo threshold requires 20%; conventional defaults to
-                                // 10% (more realistic first-time buyer entry vs always assuming 20%).
                                 const seedDp = (ask && ask > 832_750) ? 20 : 10;
                                 openBuyerChat(`/chat?${p.toString()}`, a.address ?? '', ask ?? null, a.liveRate, seedDp);
                               }}
