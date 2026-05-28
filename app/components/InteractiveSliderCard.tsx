@@ -359,13 +359,16 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 <span className="isc-tr">Live · CalcEngine</span>
             </div>
 
-            {/* Loan type tabs */}
+            {/* Loan type tabs — hidden in hideDrawer (property_lookup) mode:
+                IQC drawer is the single source of truth for loan type there */}
+            {!props.hideDrawer && (
             <div className="isc-tabs">
                 <button className={tabClass('conventional')} onClick={() => switchTab('conventional')}>Conventional</button>
                 <button className={tabClass('fha')}          onClick={() => switchTab('fha')}>FHA</button>
                 <button className={tabClass('va')}           onClick={() => switchTab('va')}>VA</button>
                 <button className={tabClass('jumbo')}        onClick={() => switchTab('jumbo')}>Jumbo</button>
             </div>
+            )}
 
             {/* Hero */}
             <div className="isc-hero">
@@ -376,11 +379,12 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 {heroSub && <div className="isc-hero-sub">{heroSub}</div>}
                 {/* G8: DTI context — shown when borrower income is known (property_lookup + adjusted scenario) */}
                 {props.hideDrawer && props.annualIncome != null && props.annualIncome > 0 && total > 0 && (() => {
-                    const dti = (total / (props.annualIncome / 12)) * 100;
+                    const debt = props.monthlyDebt ?? 0;
+                    const dti = ((total + debt) / (props.annualIncome / 12)) * 100;
                     const dtiColor = dti <= 28 ? '#4ade80' : dti <= 36 ? '#4ade80' : dti <= 43 ? '#60a5fa' : dti <= 49 ? '#fbbf24' : '#f87171';
                     return (
                         <div style={{ fontSize: '0.68rem', color: dtiColor, marginTop: 4, fontWeight: 600, letterSpacing: '0.03em' }}>
-                            DTI {dti.toFixed(0)}% · ${Math.round(props.annualIncome / 12).toLocaleString()}/mo income
+                            DTI {dti.toFixed(0)}% · ${Math.round(props.annualIncome / 12).toLocaleString()}/mo income{debt > 0 ? ` · $${debt.toLocaleString()}/mo debts` : ''}
                         </div>
                     );
                 })()}

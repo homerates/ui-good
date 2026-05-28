@@ -87,13 +87,22 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     const [sliderOpen, setSliderOpen] = useState(false);
     const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
 
+    // Loan type — state-owned so the drawer can change it;
+    // ISC tabs are hidden in hideDrawer mode so this is the single place to switch
+    const [loanTypeState, setLoanTypeState] = useState<'conventional'|'fha'|'va'|'jumbo'>(
+        props.loanType ?? 'conventional'
+    );
+
     // Committed baseline — updated locally when "Run adjusted scenario" is clicked
-    const [commitPrice,  setCommitPrice]  = useState(props.price);
-    const [commitDown,   setCommitDown]   = useState(props.downPct);
-    const [commitRate,   setCommitRate]   = useState(props.rate);
-    const [commitTerm,   setCommitTerm]   = useState(props.term);
-    const [commitDebt,   setCommitDebt]   = useState(props.monthlyDebt ?? 0);
-    const [commitIncome, setCommitIncome] = useState(props.annualIncome ?? 0);
+    const [commitPrice,    setCommitPrice]    = useState(props.price);
+    const [commitDown,     setCommitDown]     = useState(props.downPct);
+    const [commitRate,     setCommitRate]     = useState(props.rate);
+    const [commitTerm,     setCommitTerm]     = useState(props.term);
+    const [commitDebt,     setCommitDebt]     = useState(props.monthlyDebt ?? 0);
+    const [commitIncome,   setCommitIncome]   = useState(props.annualIncome ?? 0);
+    const [commitLoanType, setCommitLoanType] = useState<'conventional'|'fha'|'va'|'jumbo'>(
+        props.loanType ?? 'conventional'
+    );
 
     const { user } = useUser();
     const router   = useRouter();
@@ -105,9 +114,9 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
     // ── Derived values ──────────────────────────────────────────────────────
 
-    const isFHA    = props.loanType === 'fha';
-    const isJumbo  = props.loanType === 'jumbo';
-    const isVA     = props.loanType === 'va';
+    const isFHA    = loanTypeState === 'fha';
+    const isJumbo  = loanTypeState === 'jumbo';
+    const isVA     = loanTypeState === 'va';
 
     const downAmt   = price * downPct / 100;
     const baseLoan  = price - downAmt;
@@ -173,7 +182,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     }
 
     const isDirty = price !== commitPrice || downPct !== commitDown ||
-        Math.abs(rate - commitRate) > 0.001 || termYrs !== commitTerm || monthlyDebt !== commitDebt || annualIncome !== commitIncome;
+        Math.abs(rate - commitRate) > 0.001 || termYrs !== commitTerm ||
+        monthlyDebt !== commitDebt || annualIncome !== commitIncome || loanTypeState !== commitLoanType;
 
     function handleCommit() {
         setCommitPrice(price);
@@ -182,6 +192,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
         setCommitTerm(termYrs);
         setCommitDebt(monthlyDebt);
         setCommitIncome(annualIncome);
+        setCommitLoanType(loanTypeState);
         setAppliedBadge(true);
         setTimeout(() => setAppliedBadge(false), 1800);
     }
@@ -191,16 +202,18 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
         handleCommit();
         // Fire onRunScenario so parent can inject an adjusted scenario message (property_lookup path)
         if (props.onRunScenario) {
+            const ltLabel = loanTypeState === 'jumbo' ? 'Jumbo' : loanTypeState === 'fha' ? 'FHA' : loanTypeState === 'va' ? 'VA' : 'Conv.';
             const overrides = {
                 downPaymentPct: downPct,
                 rate,
                 term:           termYrs,
+                loanType:       loanTypeState,
                 monthlyDebt,
                 annualIncome:   annualIncome > 0 ? annualIncome : undefined,
-                totalMonthly:   Math.round(totalMo),  // needed by parent for DTI computation
+                totalMonthly:   Math.round(totalMo),
             };
             const incomeStr = annualIncome > 0 ? ` · ${fmtK(annualIncome)}/yr income` : '';
-            const seed = `Run my numbers: ${downPct}% down · ${rate.toFixed(2)}% rate · ${termYrs}yr${incomeStr}`;
+            const seed = `Run my numbers: ${ltLabel} · ${downPct}% down · ${rate.toFixed(2)}% rate · ${termYrs}yr${incomeStr}`;
             props.onRunScenario(seed, overrides);
         }
         await new Promise<void>(r => setTimeout(r, 700));
@@ -437,6 +450,25 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
             {/* Explorer — sliders */}
             <div className="iq-exp">
                 <div className="iq-exp-head">Payment Explorer</div>
+
+                {/* Loan Type — single source of truth (ISC tabs are hidden in hideDrawer mode) */}
+                <div className="iq-exp-term-label">Loan Type</div>
+                <div className="iq-terms" style={{ marginBottom: 14 }}>
+                    {(['conventional', 'fha', 'va', 'jumbo'] as const).map(lt => (
+                        <button
+                            key={lt}
+                            className={`iq-term${loanTypeState === lt ? ' iq-term--on' : ''}`}
+                            onClick={() => setLoanTypeState(lt)}
+                            style={loanTypeState === lt ? {
+                                borderColor: lt === 'jumbo' ? 'rgba(139,92,246,0.45)' : lt === 'fha' ? 'rgba(245,158,11,0.45)' : lt === 'va' ? 'rgba(20,184,166,0.45)' : 'rgba(0,232,122,0.45)',
+                                color: lt === 'jumbo' ? '#8b5cf6' : lt === 'fha' ? '#f59e0b' : lt === 'va' ? '#14b8a6' : '#00e87a',
+                                background: lt === 'jumbo' ? 'rgba(139,92,246,0.08)' : lt === 'fha' ? 'rgba(245,158,11,0.08)' : lt === 'va' ? 'rgba(20,184,166,0.08)' : 'rgba(0,232,122,0.08)',
+                            } : {}}
+                        >
+                            {lt === 'conventional' ? 'Conv.' : lt.toUpperCase()}
+                        </button>
+                    ))}
+                </div>
 
                 {/* Home Price */}
                 <SliderField
