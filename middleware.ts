@@ -91,6 +91,9 @@ const isPublicRoute = createRouteMatcher([
   "/autonomous-intelligence",
   // Property Report — shareable PDF/print report; opens in new tab from property-intel
   "/property-report(.*)",
+  // Instant Score — try-for-free surface + API, no login required
+  "/instant(.*)",
+  "/api/instant-score(.*)",
   // Platform Intelligence Hub + all 11 marketing pillar pages
   "/platform",
   "/decision-score",
