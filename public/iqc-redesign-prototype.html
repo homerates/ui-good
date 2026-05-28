@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IQC Redesign v2 — HomeRates</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #060d17;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px 80px;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #c4cfe0;
+  }
+  .container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 12px; }
+  .page-label {
+    font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #3a4560; text-align: center; padding: 4px 0 2px;
+  }
+
+  /* ── Card shell ── */
+  .iqc {
+    background: #0d1117;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  /* ── Top bar ── */
+  .iqc-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .iqc-topbar-l { display: flex; align-items: center; gap: 7px; }
+  .iqc-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e87a; flex-shrink: 0; }
+  .iqc-tl { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #8fa3b8; }
+  .lt-badge {
+    font-size: 9px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 4px;
+  }
+  .lt-badge.conv  { color: #00e87a; background: rgba(0,232,122,0.1);  border: 1px solid rgba(0,232,122,0.2); }
+  .lt-badge.fha   { color: #f59e0b; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); }
+  .lt-badge.va    { color: #14b8a6; background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.2); }
+  .lt-badge.jumbo { color: #8b5cf6; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); }
+
+  /* ── Hero (compact) ── */
+  .iqc-hero {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .iqc-hero-label {
+    font-size: 0.58rem; font-weight: 600; letter-spacing: 0.05em;
+    text-transform: uppercase; color: #4b6080; margin-bottom: 4px;
+  }
+  .iqc-hero-row {
+    display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;
+  }
+  .iqc-hero-amount {
+    font-size: 1.75rem;
+    font-weight: 900;
+    color: #f0f4ff;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .iqc-hero-yr { font-size: 0.82rem; font-weight: 500; color: #94a3b8; }
+  .iqc-dti-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 20px;
+    font-size: 0.65rem; font-weight: 700;
+  }
+  .iqc-dti-pill.green  { background: rgba(0,232,122,0.08);  color: #4ade80;  border: 1px solid rgba(74,222,128,0.2); }
+  .iqc-dti-pill.blue   { background: rgba(61,139,255,0.08); color: #60a5fa;  border: 1px solid rgba(96,165,250,0.2); }
+  .iqc-dti-pill.yellow { background: rgba(251,191,36,0.08); color: #fbbf24;  border: 1px solid rgba(251,191,36,0.2); }
+  .iqc-dti-pill.red    { background: rgba(248,113,113,0.08);color: #f87171;  border: 1px solid rgba(248,113,113,0.2); }
+  .iqc-hero-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px;
+  }
+  .iqc-hero-stat {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 7px; padding: 7px 9px;
+  }
+  .iqc-hero-sl { font-size: 8.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #4b6080; margin-bottom: 2px; }
+  .iqc-hero-sv { font-size: 0.78rem; font-weight: 700; color: #c4cfe0; font-variant-numeric: tabular-nums; }
+
+  /* ── Adjust button (prominent drawer trigger) ── */
+  .iqc-adjust-btn {
+    display: flex; align-items: center; gap: 10px;
+    margin: 12px 16px;
+    padding: 11px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 11px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+    width: calc(100% - 32px);
+  }
+  .iqc-adjust-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.18); }
+  .iqc-adjust-btn.open  { border-color: rgba(0,232,122,0.35); background: rgba(0,232,122,0.04); }
+  .iqc-adjust-btn.fha-open   { border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.04); }
+  .iqc-adjust-btn.va-open    { border-color: rgba(20,184,166,0.35); background: rgba(20,184,166,0.04); }
+  .iqc-adjust-btn.jumbo-open { border-color: rgba(139,92,246,0.35); background: rgba(139,92,246,0.04); }
+  .iqc-adjust-icon { font-size: 0.85rem; color: #4b6080; flex-shrink: 0; }
+  .iqc-adjust-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; flex: 1; }
+  .iqc-chip {
+    font-size: 0.62rem; font-weight: 700; padding: 3px 8px;
+    border-radius: 12px; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08); color: #8fa3b8;
+    white-space: nowrap;
+  }
+  .iqc-chip.mod { background: rgba(0,232,122,0.08); border-color: rgba(0,232,122,0.22); color: #4ade80; }
+  .iqc-adjust-label { font-size: 0.65rem; font-weight: 600; color: #4b6080; white-space: nowrap; }
+  .iqc-adjust-arrow { font-size: 0.62rem; color: #4b6080; flex-shrink: 0; transition: transform 0.2s; }
+  .iqc-adjust-arrow.open { transform: rotate(180deg); }
+
+  /* ── Drawer ── */
+  .iqc-drawer {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .iqc-drawer.open { max-height: 1100px; }
+  .iqc-drawer-inner {
+    padding: 4px 18px 6px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin: 0 16px;
+    border-radius: 0 0 11px 11px;
+    background: rgba(0,0,0,0.15);
+    margin-bottom: 12px;
+  }
+
+  /* Loan type chips inside drawer */
+  .iqc-lt-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    padding: 12px 0 10px;
+  }
+  .iqc-lt-chip {
+    padding: 7px 0; border-radius: 8px; font-size: 0.68rem; font-weight: 700;
+    cursor: pointer; text-align: center; border: 1.5px solid rgba(255,255,255,0.09);
+    background: transparent; color: #6b80a0; font-family: inherit; transition: all 0.15s;
+  }
+  .iqc-lt-chip:hover:not(.on) { border-color: rgba(255,255,255,0.2); color: #c4cfe0; }
+  .iqc-lt-chip.on.conv  { border-color: rgba(0,232,122,0.4);   color: #00e87a; background: rgba(0,232,122,0.08); }
+  .iqc-lt-chip.on.fha   { border-color: rgba(245,158,11,0.4);  color: #f59e0b; background: rgba(245,158,11,0.08); }
+  .iqc-lt-chip.on.va    { border-color: rgba(20,184,166,0.4);  color: #14b8a6; background: rgba(20,184,166,0.08); }
+  .iqc-lt-chip.on.jumbo { border-color: rgba(139,92,246,0.4);  color: #8b5cf6; background: rgba(139,92,246,0.08); }
+  .iqc-drawer-divider {
+    height: 1px; background: rgba(255,255,255,0.05); margin: 2px 0 10px;
+  }
+
+  /* Compact slider rows */
+  .iqc-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px;
+  }
+  .iqc-field { margin-bottom: 13px; }
+  .iqc-field-top {
+    display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px;
+  }
+  .iqc-field-label { font-size: 0.65rem; font-weight: 600; color: #8fa3b8; }
+  .iqc-field-val   { font-size: 0.7rem; font-weight: 800; color: #e2e8f0; font-variant-numeric: tabular-nums; }
+  .iqc-slider {
+    -webkit-appearance: none; width: 100%; height: 3px;
+    border-radius: 2px; background: rgba(255,255,255,0.08); outline: none; cursor: pointer;
+  }
+  .iqc-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: #00e87a; cursor: pointer;
+    box-shadow: 0 0 0 3px rgba(0,232,122,0.18); transition: box-shadow 0.15s;
+  }
+  .iqc-slider::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(0,232,122,0.25); }
+  .iqc-slider.fha::-webkit-slider-thumb   { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.18); }
+  .iqc-slider.va::-webkit-slider-thumb    { background: #14b8a6; box-shadow: 0 0 0 3px rgba(20,184,166,0.18); }
+  .iqc-slider.jumbo::-webkit-slider-thumb { background: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,0.18); }
+  .iqc-slider.debt::-webkit-slider-thumb  { background: #3d8bff; box-shadow: 0 0 0 3px rgba(61,139,255,0.18); }
+  .iqc-slider-labels { display: flex; justify-content: space-between; margin-top: 3px; }
+  .iqc-slider-lbl    { font-size: 8.5px; color: #3a4560; }
+
+  /* Quick-pick chips under down slider */
+  .iqc-dp-chips { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+  .iqc-dp-chip {
+    padding: 3px 8px; border-radius: 12px; font-size: 0.6rem; font-weight: 700;
+    cursor: pointer; border: 1px solid rgba(255,255,255,0.08);
+    background: transparent; color: #6b80a0; font-family: inherit; transition: all 0.12s;
+  }
+  .iqc-dp-chip.active, .iqc-dp-chip:hover {
+    background: rgba(0,232,122,0.08); border-color: rgba(0,232,122,0.25); color: #00e87a;
+  }
+
+  /* Term buttons */
+  .iqc-terms { display: flex; gap: 5px; }
+  .iqc-term {
+    flex: 1; padding: 6px 0; border-radius: 7px; font-size: 0.65rem; font-weight: 700;
+    cursor: pointer; border: 1.5px solid rgba(255,255,255,0.09);
+    background: transparent; color: #6b80a0; font-family: inherit; text-align: center; transition: all 0.12s;
+  }
+  .iqc-term.on { border-color: rgba(0,232,122,0.35); color: #00e87a; background: rgba(0,232,122,0.07); }
+
+  /* Live DTI bar */
+  .iqc-live-dti {
+    margin-top: 8px; padding: 9px 11px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;
+  }
+  .iqc-live-dti-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .iqc-live-dti-label { font-size: 0.62rem; font-weight: 600; color: #8fa3b8; }
+  .iqc-live-dti-val   { font-size: 0.72rem; font-weight: 800; }
+  .iqc-live-dti-bar-track { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.07); overflow: hidden; }
+  .iqc-live-dti-bar-fill  { height: 100%; border-radius: 3px; transition: width 0.2s ease, background 0.2s; }
+  .iqc-live-dti-markers { display: flex; justify-content: space-between; margin-top: 3px; }
+  .iqc-live-dti-marker { font-size: 7.5px; color: #3a4560; }
+  .iqc-live-dti-status { font-size: 0.58rem; font-weight: 600; margin-top: 4px; color: #6b80a0; }
+  .income-hint { font-size: 0.58rem; color: #3a4560; margin-top: 4px; }
+
+  /* Update CTA */
+  .iqc-run-btn {
+    width: 100%; padding: 11px; border: none; border-radius: 9px;
+    font-size: 0.82rem; font-weight: 800; cursor: pointer; font-family: inherit;
+    letter-spacing: -0.01em; margin: 10px 0 14px;
+    display: flex; align-items: center; justify-content: center; gap: 7px; transition: opacity 0.15s;
+  }
+  .iqc-run-btn.conv  { background: #00e87a; color: #060d0a; }
+  .iqc-run-btn.fha   { background: #f59e0b; color: #1c0d00; }
+  .iqc-run-btn.va    { background: #14b8a6; color: #001a18; }
+  .iqc-run-btn.jumbo { background: #8b5cf6; color: #0e0022; }
+  .iqc-run-btn:hover { opacity: 0.88; }
+  .iqc-run-dirty {
+    font-size: 0.58rem; font-weight: 600; color: #4ade80;
+    text-align: center; margin-top: -11px; margin-bottom: 10px; display: none;
+  }
+  .iqc-run-dirty.on { display: block; }
+
+  /* ── DTI table (compact, below drawer area) ── */
+  .iqc-dti-section {
+    padding: 12px 18px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .iqc-dti-head {
+    font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: #4b6080; margin-bottom: 8px;
+  }
+  .iqc-dti-row {
+    display: grid; grid-template-columns: 38px 1fr auto 46px;
+    align-items: center; gap: 7px; padding: 6px 9px;
+    border-radius: 6px; margin-bottom: 3px; border: 1px solid transparent;
+  }
+  .iqc-dti-row.active { background: rgba(61,139,255,0.06); border-color: rgba(61,139,255,0.15); }
+  .iqc-dti-pct   { font-size: 0.68rem; font-weight: 800; color: #60a5fa; }
+  .iqc-dti-lbl   { font-size: 0.62rem; color: #6b80a0; }
+  .iqc-dti-val   { font-size: 0.7rem; font-weight: 700; color: #e2e8f0; font-variant-numeric: tabular-nums; text-align: right; }
+  .iqc-dti-badge { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 2px 5px; border-radius: 4px; background: rgba(61,139,255,0.15); color: #60a5fa; text-align: center; }
+
+  /* ── More section ── */
+  .iqc-more {
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .iqc-more-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; padding: 10px 18px;
+    background: none; border: none; cursor: pointer; font-family: inherit;
+    color: #4b6080; font-size: 0.65rem; font-weight: 600; transition: color 0.15s;
+  }
+  .iqc-more-toggle:hover { color: #8fa3b8; }
+  .iqc-more-chev { font-size: 0.65rem; transition: transform 0.2s; }
+  .iqc-more-chev.open { transform: rotate(180deg); }
+  .iqc-more-body { padding: 0 18px 14px; }
+
+  /* FHA MIP */
+  .iqc-mip-head { display: flex; align-items: center; gap: 6px; font-size: 0.65rem; font-weight: 700; color: #f59e0b; margin-bottom: 7px; }
+  .iqc-mip-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.65rem; padding: 4px 0; border-bottom: 1px solid rgba(245,158,11,0.08); }
+  .iqc-mip-row:last-child { border-bottom: none; }
+  .iqc-mip-k { color: #8fa3b8; }
+  .iqc-mip-v { font-weight: 700; color: #fbbf24; font-variant-numeric: tabular-nums; }
+  .iqc-mip-note { margin-top: 7px; font-size: 0.6rem; line-height: 1.5; padding: 7px 10px; border-radius: 7px; }
+  .iqc-mip-note.warn { background: rgba(245,158,11,0.06); color: #fbbf24; border: 1px solid rgba(245,158,11,0.15); }
+  .iqc-mip-note.good { background: rgba(74,222,128,0.06); color: #4ade80; border: 1px solid rgba(74,222,128,0.15); }
+
+  /* VA note */
+  .iqc-va-note { font-size: 0.65rem; color: #5eead4; line-height: 1.5; padding: 4px 0 8px; }
+  .iqc-va-head { font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; font-size: 0.68rem; color: #14b8a6; }
+
+  /* Jumbo reserves */
+  .iqc-reserves-head { display: flex; align-items: center; gap: 6px; font-size: 0.65rem; font-weight: 700; color: #a78bfa; margin-bottom: 8px; }
+  .iqc-reserves-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .iqc-reserves-item { padding: 8px 10px; background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.15); border-radius: 8px; }
+  .iqc-reserves-lbl  { font-size: 0.55rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #7c6ab0; margin-bottom: 2px; }
+  .iqc-reserves-val  { font-size: 0.82rem; font-weight: 800; color: #c4b5fd; font-variant-numeric: tabular-nums; }
+  .iqc-reserves-note { font-size: 0.55rem; color: #6b5fa0; margin-top: 2px; }
+
+  /* More section block wrapper */
+  .more-block { margin-bottom: 14px; }
+  .more-block:last-child { margin-bottom: 0; }
+
+  /* Rate note */
+  .iqc-rate-note {
+    padding: 9px 18px 13px;
+    font-size: 0.58rem; color: #3a4560; line-height: 1.5;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+
+  /* ── ISC mockup above (to show context) ── */
+  .isc-mock {
+    background: #0d1117;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px; overflow: hidden; opacity: 0.6;
+  }
+  .isc-topbar { display: flex; align-items: center; justify-content: space-between; padding: 9px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .isc-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e87a; }
+  .isc-tl { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #8fa3b8; }
+  .isc-tabs { display: flex; gap: 6px; padding: 10px 16px 0; }
+  .isc-tab { flex: 1; padding: 7px 0; border-radius: 8px; font-size: 0.68rem; font-weight: 700; cursor: pointer; border: 1.5px solid rgba(255,255,255,0.09); background: transparent; color: #6b80a0; font-family: inherit; text-align: center; }
+  .isc-tab.on { border-color: rgba(139,92,246,0.4); color: #8b5cf6; background: rgba(139,92,246,0.08); }
+  .isc-piti { padding: 16px 18px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .isc-piti-lbl { font-size: 0.58rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #4b6080; margin-bottom: 3px; }
+  .isc-piti-val { font-size: 2rem; font-weight: 900; color: #f0f4ff; letter-spacing: -0.04em; }
+  .isc-piti-mo  { font-size: 0.85rem; font-weight: 500; color: #94a3b8; }
+  .isc-actions { display: flex; gap: 7px; padding: 10px 16px; }
+  .isc-btn { flex: 1; padding: 8px 10px; border-radius: 9px; font-size: 0.65rem; font-weight: 700; cursor: pointer; font-family: inherit; border: none; text-align: center; }
+  .isc-btn-vault { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09) !important; color: #8fa3b8; }
+  .isc-btn-pdf   { background: rgba(61,139,255,0.07); border: 1px solid rgba(61,139,255,0.18) !important; color: #60a5fa; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="page-label">ISC card above (existing — read-only)</div>
+
+  <!-- ISC mockup (existing card, just for context) -->
+  <div class="isc-mock">
+    <div class="isc-topbar">
+      <div style="display:flex;align-items:center;gap:7px;"><div class="isc-dot"></div><span class="isc-tl">Monthly Payment</span></div>
+      <span style="font-size:10px;color:#4b6080;">Live · CalcEngine</span>
+    </div>
+    <div class="isc-tabs">
+      <button class="isc-tab">Conv.</button>
+      <button class="isc-tab">FHA</button>
+      <button class="isc-tab">VA</button>
+      <button class="isc-tab on">Jumbo</button>
+    </div>
+    <div class="isc-piti">
+      <div class="isc-piti-lbl">Monthly PITI</div>
+      <div><span class="isc-piti-val">$9,779</span><span class="isc-piti-mo">/mo</span></div>
+    </div>
+    <div class="isc-actions">
+      <button class="isc-btn isc-btn-vault">★ My Vault</button>
+      <button class="isc-btn isc-btn-pdf">↓ Save as PDF</button>
+    </div>
+  </div>
+
+  <div class="page-label" style="padding-top:4px;">IQC redesign — new card</div>
+
+  <!-- IQC card -->
+  <div class="iqc" id="card">
+
+    <!-- Top bar -->
+    <div class="iqc-topbar">
+      <div class="iqc-topbar-l">
+        <div class="iqc-dot" id="dot"></div>
+        <span class="iqc-tl">Income to Qualify</span>
+        <span class="lt-badge conv" id="lt-badge">Conv.</span>
+      </div>
+      <span style="font-size:10px;color:#4b6080;">Live · CalcEngine</span>
+    </div>
+
+    <!-- Hero (compact) -->
+    <div class="iqc-hero">
+      <div class="iqc-hero-label">Minimum Annual Income (43% DTI)</div>
+      <div class="iqc-hero-row">
+        <div class="iqc-hero-amount" id="hero-income">$156,000<span class="iqc-hero-yr">/yr</span></div>
+        <div class="iqc-dti-pill green" id="dti-pill" style="display:none;">
+          <span id="dti-pill-val">DTI 32%</span>
+          <span style="opacity:0.5;font-weight:400;">·</span>
+          <span id="dti-pill-status">Strong</span>
+        </div>
+      </div>
+      <div style="font-size:0.65rem;color:#6b80a0;margin-bottom:9px;" id="hero-sub">
+        Based on $5,583/mo PITI — no debts entered
+      </div>
+      <div class="iqc-hero-stats">
+        <div class="iqc-hero-stat"><div class="iqc-hero-sl">PITI</div><div class="iqc-hero-sv" id="stat-piti">$5,583</div></div>
+        <div class="iqc-hero-stat"><div class="iqc-hero-sl">Loan Amount</div><div class="iqc-hero-sv" id="stat-loan">$1.15M</div></div>
+        <div class="iqc-hero-stat"><div class="iqc-hero-sl">LTV</div><div class="iqc-hero-sv" id="stat-ltv">80.0%</div></div>
+      </div>
+    </div>
+
+    <!-- Prominent drawer button -->
+    <button class="iqc-adjust-btn" id="adjust-btn" onclick="toggleDrawer()">
+      <span class="iqc-adjust-icon">⚙</span>
+      <span class="iqc-adjust-chips">
+        <span class="iqc-chip" id="chip-lt">Conv.</span>
+        <span class="iqc-chip" id="chip-down">20% down</span>
+        <span class="iqc-chip" id="chip-rate">6.75%</span>
+        <span class="iqc-chip" id="chip-term">30yr</span>
+        <span class="iqc-chip" id="chip-debt" style="display:none;">$0 debts</span>
+        <span class="iqc-chip" id="chip-income" style="display:none;">income</span>
+      </span>
+      <span class="iqc-adjust-label" id="adjust-label">Adjust numbers</span>
+      <span class="iqc-adjust-arrow" id="adjust-arrow">▾</span>
+    </button>
+
+    <!-- Unified Drawer -->
+    <div class="iqc-drawer" id="drawer">
+      <div class="iqc-drawer-inner">
+
+        <!-- Loan Type -->
+        <div class="iqc-lt-grid">
+          <button class="iqc-lt-chip on conv" id="lt-conv"  onclick="setLoanType('conv')" >Conv.</button>
+          <button class="iqc-lt-chip fha"     id="lt-fha"   onclick="setLoanType('fha')"  >FHA</button>
+          <button class="iqc-lt-chip va"      id="lt-va"    onclick="setLoanType('va')"   >VA</button>
+          <button class="iqc-lt-chip jumbo"   id="lt-jumbo" onclick="setLoanType('jumbo')">Jumbo</button>
+        </div>
+        <div class="iqc-drawer-divider"></div>
+
+        <!-- All sliders: 2-column grid where it makes sense -->
+
+        <!-- Row: Home Price | Down Payment -->
+        <div class="iqc-row">
+          <div class="iqc-field">
+            <div class="iqc-field-top">
+              <span class="iqc-field-label">Home Price</span>
+              <span class="iqc-field-val" id="price-val">$1.44M</span>
+            </div>
+            <input type="range" class="iqc-slider" id="price-slider"
+              min="100000" max="5000000" step="25000" value="1437500" oninput="onSlide()">
+            <div class="iqc-slider-labels"><span class="iqc-slider-lbl">$100k</span><span class="iqc-slider-lbl">$5M</span></div>
+          </div>
+          <div class="iqc-field">
+            <div class="iqc-field-top">
+              <span class="iqc-field-label">Down Payment</span>
+              <span class="iqc-field-val" id="down-val">20% · $288k</span>
+            </div>
+            <input type="range" class="iqc-slider" id="down-slider"
+              min="3" max="50" step="1" value="20" oninput="onSlide()">
+            <div class="iqc-slider-labels"><span class="iqc-slider-lbl">3%</span><span class="iqc-slider-lbl">50%</span></div>
+            <div class="iqc-dp-chips" id="dp-chips">
+              <button class="iqc-dp-chip" onclick="setDown(3)">3%</button>
+              <button class="iqc-dp-chip" onclick="setDown(5)">5%</button>
+              <button class="iqc-dp-chip" onclick="setDown(10)">10%</button>
+              <button class="iqc-dp-chip active" onclick="setDown(20)">20%</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row: Interest Rate | Loan Term -->
+        <div class="iqc-row">
+          <div class="iqc-field">
+            <div class="iqc-field-top">
+              <span class="iqc-field-label">Interest Rate</span>
+              <span class="iqc-field-val" id="rate-val">6.750%</span>
+            </div>
+            <input type="range" class="iqc-slider" id="rate-slider"
+              min="3" max="12" step="0.125" value="6.75" oninput="onSlide()">
+            <div class="iqc-slider-labels"><span class="iqc-slider-lbl">3%</span><span class="iqc-slider-lbl">12%</span></div>
+          </div>
+          <div class="iqc-field">
+            <div class="iqc-field-top">
+              <span class="iqc-field-label">Loan Term</span>
+            </div>
+            <div class="iqc-terms" id="terms">
+              <button class="iqc-term" onclick="setTerm(15)">15yr</button>
+              <button class="iqc-term" onclick="setTerm(20)">20yr</button>
+              <button class="iqc-term on" onclick="setTerm(30)">30yr</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="iqc-drawer-divider"></div>
+
+        <!-- Row: Monthly Debts | Annual Income -->
+        <div class="iqc-row">
+          <div class="iqc-field">
+            <div class="iqc-field-top">
+              <span class="iqc-field-label">Monthly Debts</span>
+              <span class="iqc-field-val" id="debt-val">None</span>
+            </div>
+            <input type="range" class="iqc-slider debt" id="debt-slider"
+              min="0" max="3000" step="50" value="0" oninput="onSlide()">
+            <div class="iqc-slider-labels"><span class="iqc-slider-lbl">$0</span><span class="iqc-slider-lbl">$3k/mo</span></div>
+            <div style="font-size:0.55rem;color:#3a4560;margin-top:3px;">Cars, loans, cards</div>
+          </div>
+          <div class="iqc-field">
+            <div class="iqc-field-top">
+              <span class="iqc-field-label">Annual Income</span>
+              <span class="iqc-field-val" id="income-val">—</span>
+            </div>
+            <input type="range" class="iqc-slider" id="income-slider"
+              min="0" max="600000" step="5000" value="0" oninput="onSlide()">
+            <div class="iqc-slider-labels"><span class="iqc-slider-lbl">$0</span><span class="iqc-slider-lbl">$600k</span></div>
+            <div class="income-hint" id="income-hint">Optional — shows your DTI</div>
+          </div>
+        </div>
+
+        <!-- Live DTI bar — full width, only when income > 0 -->
+        <div class="iqc-live-dti" id="live-dti" style="display:none;">
+          <div class="iqc-live-dti-row">
+            <span class="iqc-live-dti-label">Your Back-End DTI</span>
+            <span class="iqc-live-dti-val" id="live-dti-val" style="color:#4ade80;">32.1%</span>
+          </div>
+          <div class="iqc-live-dti-bar-track">
+            <div class="iqc-live-dti-bar-fill" id="live-dti-fill" style="width:53%;background:#4ade80;"></div>
+          </div>
+          <div class="iqc-live-dti-markers">
+            <span class="iqc-live-dti-marker">0%</span>
+            <span class="iqc-live-dti-marker">36%</span>
+            <span class="iqc-live-dti-marker">43%</span>
+            <span class="iqc-live-dti-marker">50%</span>
+            <span class="iqc-live-dti-marker">60%</span>
+          </div>
+          <div class="iqc-live-dti-status" id="live-dti-status">Strong — conservative debt load</div>
+        </div>
+
+        <!-- Update CTA -->
+        <button class="iqc-run-btn conv" id="run-btn" onclick="runScenario()">
+          ▶ Update Analysis
+        </button>
+        <div class="iqc-run-dirty" id="run-dirty">● Numbers changed — tap to update</div>
+
+      </div>
+    </div>
+
+    <!-- DTI threshold table -->
+    <div class="iqc-dti-section">
+      <div class="iqc-dti-head">Income required by DTI threshold</div>
+      <div class="iqc-dti-row active">
+        <span class="iqc-dti-pct">43%</span>
+        <span class="iqc-dti-lbl" id="dti-lbl-1">Standard max</span>
+        <span class="iqc-dti-val" id="dti-val-1">$156,000/yr</span>
+        <span class="iqc-dti-badge">Std</span>
+      </div>
+      <div class="iqc-dti-row">
+        <span class="iqc-dti-pct" id="dti-pct-2">36%</span>
+        <span class="iqc-dti-lbl" id="dti-lbl-2">Conservative</span>
+        <span class="iqc-dti-val" id="dti-val-2">$186,000/yr</span>
+        <span></span>
+      </div>
+      <div class="iqc-dti-row">
+        <span class="iqc-dti-pct" id="dti-pct-3">28%</span>
+        <span class="iqc-dti-lbl" id="dti-lbl-3">Front-end only</span>
+        <span class="iqc-dti-val" id="dti-val-3">$239,000/yr</span>
+        <span></span>
+      </div>
+    </div>
+
+    <!-- More (collapsible: FHA/VA/Jumbo advisory) -->
+    <div class="iqc-more">
+      <button class="iqc-more-toggle" onclick="toggleMore()">
+        <span id="more-label">↓ More</span>
+        <span class="iqc-more-chev" id="more-chev">▴</span>
+      </button>
+      <div id="more-body" style="display:none;">
+        <div class="iqc-more-body">
+          <!-- FHA MIP -->
+          <div class="more-block" id="more-fha" style="display:none;">
+            <div class="iqc-mip-head">🛡️ FHA Mortgage Insurance (MIP)</div>
+            <div class="iqc-mip-row"><span class="iqc-mip-k">Upfront MIP (1.75%, financed)</span><span class="iqc-mip-v" id="fha-ufmip">—</span></div>
+            <div class="iqc-mip-row"><span class="iqc-mip-k">Monthly MIP</span><span class="iqc-mip-v" id="fha-mip-mo">—</span></div>
+            <div class="iqc-mip-note warn" id="fha-mip-note">⚠️ With &lt;10% down, MIP is life-of-loan.</div>
+          </div>
+          <!-- VA -->
+          <div class="more-block" id="more-va" style="display:none;">
+            <div class="iqc-va-head">🎖️ VA Loan Benefits</div>
+            <div class="iqc-va-note">No PMI ever · Residual income test applies · 41% DTI as primary guideline · Funding fee 1.25–3.3% (can be waived for disability) · Rates often at or below conventional for qualified borrowers.</div>
+          </div>
+          <!-- Jumbo reserves -->
+          <div class="more-block" id="more-jumbo" style="display:none;">
+            <div class="iqc-reserves-head">🏦 Jumbo Reserve Requirements</div>
+            <div class="iqc-reserves-grid">
+              <div class="iqc-reserves-item">
+                <div class="iqc-reserves-lbl">6-Month</div>
+                <div class="iqc-reserves-val" id="reserves-6mo">$33,498</div>
+                <div class="iqc-reserves-note">Required ≤ $2M</div>
+              </div>
+              <div class="iqc-reserves-item">
+                <div class="iqc-reserves-lbl">12-Month</div>
+                <div class="iqc-reserves-val" id="reserves-12mo">$66,996</div>
+                <div class="iqc-reserves-note">Common &gt; $2M</div>
+              </div>
+            </div>
+          </div>
+          <!-- Conv placeholder -->
+          <div class="more-block" id="more-conv">
+            <div style="font-size:0.62rem;color:#4b6080;line-height:1.5;">
+              Conventional max DTI is 43–50% (DU/LP approval). Rates, PMI, and income thresholds vary by credit score and LTV.
+              Conforming limit: <strong style="color:#8fa3b8;">$832,750</strong> (2025, most of CA).
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rate assumption note -->
+    <div class="iqc-rate-note">
+      <strong>Assumption:</strong> Rate seeded at <strong id="rate-note-val">6.750%</strong> (FRED 30-yr fixed, live). Educational estimates only.
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  let loanType = 'conv';
+  let term = 30;
+  let drawerOpen = false;
+  let moreOpen = false;
+  let isDirty = false;
+  const CONFORMING = 832750;
+  const TAX = 0.012, INS = 0.005;
+
+  function fmt$(n) { return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n); }
+  function fmtK(n) {
+    if (n >= 1e6) return '$' + (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
+    if (n >= 1e5) return '$' + Math.round(n/1000) + 'K';
+    return fmt$(n);
+  }
+  function calcPI(p, r, yr) {
+    if (p <= 0) return 0;
+    if (r <= 0) return p/(yr*12);
+    const mr = r/100/12, n = yr*12;
+    return (p*mr*Math.pow(1+mr,n))/(Math.pow(1+mr,n)-1);
+  }
+
+  function toggleDrawer() {
+    drawerOpen = !drawerOpen;
+    document.getElementById('drawer').classList.toggle('open', drawerOpen);
+    document.getElementById('adjust-arrow').classList.toggle('open', drawerOpen);
+    const btn = document.getElementById('adjust-btn');
+    btn.className = 'iqc-adjust-btn' + (drawerOpen ? (' ' + loanType + '-open') : '');
+    document.getElementById('adjust-label').textContent = drawerOpen ? 'Close' : 'Adjust numbers';
+  }
+
+  function toggleMore() {
+    moreOpen = !moreOpen;
+    document.getElementById('more-body').style.display = moreOpen ? 'block' : 'none';
+    document.getElementById('more-chev').classList.toggle('open', moreOpen);
+    document.getElementById('more-label').textContent = moreOpen ? '↑ Less' : '↓ More';
+  }
+
+  function setLoanType(lt) {
+    loanType = lt;
+    ['conv','fha','va','jumbo'].forEach(t => {
+      document.getElementById('lt-'+t).className = 'iqc-lt-chip ' + t + (t === lt ? ' on' : '');
+    });
+    // Update open state of button
+    if (drawerOpen) {
+      document.getElementById('adjust-btn').className = 'iqc-adjust-btn ' + lt + '-open';
+    }
+    // DP chips per loan type
+    const dpDefs = {
+      conv:  [{v:3,l:'3%'},{v:5,l:'5%'},{v:10,l:'10%'},{v:20,l:'20%'}],
+      fha:   [{v:3.5,l:'3.5%'},{v:5,l:'5%'},{v:10,l:'10%'},{v:20,l:'20%'}],
+      va:    [{v:0,l:'0%'},{v:5,l:'5%'},{v:10,l:'10%'},{v:20,l:'20%'}],
+      jumbo: [{v:20,l:'20%'},{v:25,l:'25%'},{v:30,l:'30%'},{v:40,l:'40%'}],
+    };
+    const cur = parseFloat(document.getElementById('down-slider').value);
+    document.getElementById('dp-chips').innerHTML = dpDefs[lt].map(c =>
+      `<button class="iqc-dp-chip${Math.abs(c.v-cur)<0.1?' active':''}" onclick="setDown(${c.v})">${c.l}</button>`
+    ).join('');
+    const minDown = {conv:3,fha:3.5,va:0,jumbo:20}[lt];
+    const ds = document.getElementById('down-slider');
+    ds.min = minDown;
+    if (parseFloat(ds.value) < minDown) ds.value = minDown;
+    // Slider thumb color
+    const sliders = ['price-slider','rate-slider','income-slider'];
+    sliders.forEach(id => {
+      document.getElementById(id).className = 'iqc-slider' + (lt !== 'conv' ? ' '+lt : '');
+    });
+    // Term options for FHA/VA = 15/30 only
+    const terms = (lt === 'fha' || lt === 'va') ? [15,30] : [15,20,30];
+    if (!terms.includes(term)) { term = 30; }
+    document.getElementById('terms').innerHTML = terms.map(t =>
+      `<button class="iqc-term${t===term?' on':''}" onclick="setTerm(${t})">${t}yr</button>`
+    ).join('');
+    // Run CTA color
+    document.getElementById('run-btn').className = 'iqc-run-btn ' + lt;
+    onSlide();
+  }
+
+  function setDown(pct) {
+    document.getElementById('down-slider').value = pct;
+    onSlide();
+  }
+  function setTerm(yr) {
+    term = yr;
+    document.querySelectorAll('#terms .iqc-term').forEach(b => {
+      b.className = 'iqc-term' + (parseInt(b.textContent) === yr ? ' on' : '');
+    });
+    onSlide();
+  }
+
+  function onSlide() { isDirty = true; updateCalc(); }
+
+  function updateCalc() {
+    const price   = parseFloat(document.getElementById('price-slider').value);
+    const downPct = parseFloat(document.getElementById('down-slider').value);
+    const rate    = parseFloat(document.getElementById('rate-slider').value);
+    const income  = parseFloat(document.getElementById('income-slider').value);
+    const debt    = parseFloat(document.getElementById('debt-slider').value);
+
+    const isFHA = loanType === 'fha', isVA = loanType === 'va', isJumbo = loanType === 'jumbo';
+    const downAmt  = price * downPct / 100;
+    const baseLoan = price - downAmt;
+    const ufmip    = isFHA ? Math.round(baseLoan * 0.0175) : 0;
+    const loanAmt  = baseLoan + ufmip;
+    const ltv      = (baseLoan / price) * 100;
+
+    const pi    = calcPI(loanAmt, rate, term);
+    const tax   = (price * TAX) / 12;
+    const ins   = (price * INS) / 12;
+    const pmi   = (!isFHA && !isJumbo && !isVA && ltv > 80) ? (baseLoan * 0.008) / 12 : 0;
+    const mip   = isFHA ? Math.round((baseLoan * (ltv > 90 ? 0.0055 : 0.0050)) / 12) : 0;
+    const piti  = pi + tax + ins + pmi + mip;
+    const totalMo = piti + debt;
+
+    const primaryDTI = isVA ? 0.41 : 0.43;
+    const inc43  = Math.round((totalMo / primaryDTI) * 12);
+    const inc36  = Math.round((totalMo / 0.36) * 12);
+    const inc38  = Math.round((totalMo / 0.38) * 12);
+    const inc28  = Math.round((totalMo / 0.28) * 12);
+
+    // Hero
+    document.getElementById('hero-income').innerHTML = fmt$(inc43) + '<span class="iqc-hero-yr">/yr</span>';
+    document.getElementById('hero-sub').textContent =
+      `Based on ${fmt$(Math.round(piti))}/mo ${isFHA?'PITI+MIP':'PITI'}${debt>0?' + '+fmt$(debt)+'/mo debts':' — no debts entered'}`;
+    document.getElementById('stat-piti').textContent = fmt$(Math.round(piti));
+    document.getElementById('stat-loan').textContent = fmtK(loanAmt);
+    document.getElementById('stat-ltv').textContent  = ltv.toFixed(1) + '%';
+
+    // DTI pill (income entered)
+    const dtiPill = document.getElementById('dti-pill');
+    if (income > 0) {
+      const dti = (totalMo / (income / 12)) * 100;
+      const cls = dti <= 36 ? 'green' : dti <= 43 ? 'blue' : dti <= 49 ? 'yellow' : 'red';
+      const status = dti <= 28 ? 'Exceptional' : dti <= 36 ? 'Strong' : dti <= 43 ? 'At guideline' : dti <= 49 ? 'Elevated' : 'High DTI';
+      dtiPill.className = 'iqc-dti-pill ' + cls;
+      dtiPill.style.display = 'inline-flex';
+      document.getElementById('dti-pill-val').textContent = `DTI ${dti.toFixed(0)}%`;
+      document.getElementById('dti-pill-status').textContent = status;
+    } else {
+      dtiPill.style.display = 'none';
+    }
+
+    // Topbar badge + dot
+    const ltLabel = {conv:'Conv.',fha:'FHA',va:'VA',jumbo:'Jumbo'}[loanType];
+    const dotEl = document.getElementById('dot');
+    const colors = {conv:'#00e87a',fha:'#f59e0b',va:'#14b8a6',jumbo:'#8b5cf6'};
+    dotEl.style.background = colors[loanType];
+    const badge = document.getElementById('lt-badge');
+    badge.textContent = ltLabel; badge.className = 'lt-badge ' + loanType;
+
+    // Chips in adjust button
+    document.getElementById('chip-lt').textContent = ltLabel;
+    document.getElementById('chip-down').textContent = `${downPct}% down`;
+    document.getElementById('chip-rate').textContent = `${rate.toFixed(3)}%`;
+    document.getElementById('chip-term').textContent = `${term}yr`;
+    const debtChip = document.getElementById('chip-debt');
+    if (debt > 0) { debtChip.style.display=''; debtChip.textContent = fmt$(debt)+'/mo'; }
+    else debtChip.style.display = 'none';
+    const incomeChip = document.getElementById('chip-income');
+    if (income > 0) { incomeChip.style.display=''; incomeChip.textContent = fmtK(income)+'/yr'; }
+    else incomeChip.style.display = 'none';
+
+    // Field display values
+    document.getElementById('price-val').textContent = fmtK(price);
+    document.getElementById('down-val').textContent  = `${downPct}% · ${fmtK(downAmt)}`;
+    document.getElementById('rate-val').textContent  = rate.toFixed(3) + '%';
+    document.getElementById('debt-val').textContent  = debt === 0 ? 'None' : fmt$(debt)+'/mo';
+    document.getElementById('income-val').textContent = income === 0 ? '—' : fmtK(income)+'/yr';
+
+    // DP chips active state
+    document.querySelectorAll('.iqc-dp-chip').forEach(btn => {
+      const v = parseFloat(btn.textContent.replace('%',''));
+      btn.classList.toggle('active', Math.abs(v - downPct) < 0.1);
+    });
+
+    // Live DTI in drawer
+    const liveDti = document.getElementById('live-dti');
+    if (income > 0) {
+      liveDti.style.display = 'block';
+      document.getElementById('income-hint').style.display = 'none';
+      const dti = (totalMo / (income / 12)) * 100;
+      const c = dti <= 36 ? '#4ade80' : dti <= 43 ? '#60a5fa' : dti <= 49 ? '#fbbf24' : '#f87171';
+      const s = dti <= 28 ? 'Exceptional' : dti <= 36 ? 'Strong — conservative debt load' : dti <= 43 ? 'At guideline limit' : dti <= 49 ? 'Elevated — approaching max' : 'High — compensating factors needed';
+      document.getElementById('live-dti-val').textContent = dti.toFixed(1) + '%';
+      document.getElementById('live-dti-val').style.color = c;
+      document.getElementById('live-dti-fill').style.cssText = `width:${Math.min(100,(dti/60)*100)}%;background:${c};`;
+      document.getElementById('live-dti-status').textContent = s;
+      document.getElementById('live-dti-status').style.color = c;
+    } else {
+      liveDti.style.display = 'none';
+      document.getElementById('income-hint').style.display = 'block';
+    }
+
+    // DTI table
+    if (isJumbo) {
+      document.getElementById('dti-lbl-1').textContent = 'Some jumbo lenders';
+      document.getElementById('dti-pct-2').textContent = '38%';
+      document.getElementById('dti-lbl-2').textContent = 'Typical jumbo cap';
+      document.getElementById('dti-val-2').textContent = fmt$(inc38)+'/yr';
+      document.getElementById('dti-pct-3').textContent = '36%';
+      document.getElementById('dti-lbl-3').textContent = 'Conservative';
+      document.getElementById('dti-val-3').textContent = fmt$(inc36)+'/yr';
+    } else if (isVA) {
+      document.getElementById('dti-lbl-1').textContent = 'VA guideline (41%)';
+      document.getElementById('dti-pct-2').textContent = '43%';
+      document.getElementById('dti-lbl-2').textContent = 'Allowed w/ residual';
+      document.getElementById('dti-val-2').textContent = fmt$(Math.round((totalMo/0.43)*12))+'/yr';
+      document.getElementById('dti-pct-3').textContent = '36%';
+      document.getElementById('dti-lbl-3').textContent = 'Conservative';
+      document.getElementById('dti-val-3').textContent = fmt$(inc36)+'/yr';
+    } else if (isFHA) {
+      document.getElementById('dti-lbl-1').textContent = 'FHA max (strong file)';
+      document.getElementById('dti-pct-2').textContent = '36%';
+      document.getElementById('dti-lbl-2').textContent = 'Conservative';
+      document.getElementById('dti-val-2').textContent = fmt$(inc36)+'/yr';
+      document.getElementById('dti-pct-3').textContent = '28%';
+      document.getElementById('dti-lbl-3').textContent = 'Front-end only';
+      document.getElementById('dti-val-3').textContent = fmt$(inc28)+'/yr';
+    } else {
+      document.getElementById('dti-lbl-1').textContent = 'Standard max (Fannie/Freddie)';
+      document.getElementById('dti-pct-2').textContent = '36%';
+      document.getElementById('dti-lbl-2').textContent = 'Conservative';
+      document.getElementById('dti-val-2').textContent = fmt$(inc36)+'/yr';
+      document.getElementById('dti-pct-3').textContent = '28%';
+      document.getElementById('dti-lbl-3').textContent = 'Front-end only';
+      document.getElementById('dti-val-3').textContent = fmt$(inc28)+'/yr';
+    }
+    document.getElementById('dti-val-1').textContent = fmt$(inc43)+'/yr';
+
+    // More section blocks
+    document.getElementById('more-fha').style.display   = isFHA   ? 'block' : 'none';
+    document.getElementById('more-va').style.display    = isVA    ? 'block' : 'none';
+    document.getElementById('more-jumbo').style.display = isJumbo ? 'block' : 'none';
+    document.getElementById('more-conv').style.display  = (!isFHA && !isVA && !isJumbo) ? 'block' : 'none';
+    // Update more-label hint
+    const moreHint = {conv:'',fha:' — FHA MIP details',va:' — VA loan details',jumbo:' — Jumbo reserves'}[loanType];
+    document.getElementById('more-label').textContent = moreOpen ? '↑ Less' : ('↓ More' + moreHint);
+
+    if (isFHA) {
+      document.getElementById('fha-ufmip').textContent = fmt$(ufmip) + ' added to loan';
+      document.getElementById('fha-mip-mo').textContent = fmt$(mip) + '/mo';
+      const mipIncAnnual = Math.round((mip / 0.43) * 12);
+      document.getElementById('fha-mip-note').className = 'iqc-mip-note ' + (downPct >= 10 ? 'good' : 'warn');
+      document.getElementById('fha-mip-note').innerHTML = downPct >= 10
+        ? `✅ ${downPct}% down — MIP cancels after 11 years (saves ${fmt$(mipIncAnnual)}/yr in required income).`
+        : `⚠️ ${downPct}% down — MIP is life-of-loan, adds ${fmt$(mipIncAnnual)}/yr to your income requirement permanently.`;
+    }
+    if (isJumbo) {
+      document.getElementById('reserves-6mo').textContent  = fmt$(Math.round(piti * 6));
+      document.getElementById('reserves-12mo').textContent = fmt$(Math.round(piti * 12));
+    }
+
+    // Rate note
+    document.getElementById('rate-note-val').textContent = rate.toFixed(3) + '%';
+
+    // Dirty indicator
+    document.getElementById('run-dirty').classList.toggle('on', isDirty);
+  }
+
+  function runScenario() {
+    isDirty = false;
+    document.getElementById('run-dirty').classList.remove('on');
+    const btn = document.getElementById('run-btn');
+    const prev = btn.innerHTML;
+    btn.innerHTML = '✓ Updated';
+    btn.style.opacity = '0.7';
+    setTimeout(() => { btn.innerHTML = '▶ Update Analysis'; btn.style.opacity = ''; }, 1600);
+    setTimeout(() => {
+      drawerOpen = false;
+      document.getElementById('drawer').classList.remove('open');
+      document.getElementById('adjust-arrow').classList.remove('open');
+      document.getElementById('adjust-btn').className = 'iqc-adjust-btn';
+      document.getElementById('adjust-label').textContent = 'Adjust numbers';
+    }, 350);
+  }
+
+  // Init
+  updateCalc();
+  isDirty = false;
+  document.getElementById('run-dirty').classList.remove('on');
+</script>
+</body>
+</html>
