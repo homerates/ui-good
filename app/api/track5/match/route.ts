@@ -121,6 +121,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, scenarioId: existing.id, alreadyMatched: true });
   }
 
+  // ── 4b. Cross-session spam guard — 1 active brief per user per property ZIP ──
+  // Prevents a user from bypassing the session-level check by starting a new chat
+  // for the same property (which creates a fresh session_id).
+  // Only blocks if an active brief exists — closed/expired briefs don't permanently lock the user.
+  if (zip) {
+    const { data: zipDup } = await supabase
+      .from('scenario_briefs')
+      .select('id')
+      .eq('borrower_id', userId)
+      .eq('property_zip', zip)
+      .eq('from_track5', true)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (zipDup?.id) {
+      return NextResponse.json(
+        { error: 'active_match_exists', message: 'You already have an active match request for a property in this ZIP code. Check your inbox for responses from loan officers.' },
+        { status: 409 }
+      );
+    }
+  }
+
   // ── 5. Create anonymous scenario brief (ZIP only, identity hidden) ─────────
   const brief = {
     borrower_id:     userId,

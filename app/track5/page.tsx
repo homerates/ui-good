@@ -342,7 +342,18 @@ function Track5Inner() {
         body:    JSON.stringify({ sessionId, composite: idx?.score ?? null }),
       });
       const d = await res.json();
-      if (!res.ok) throw new Error(d.error ?? 'Request failed');
+      if (!res.ok) {
+        // 409 active_match_exists — user already has an active post for this property ZIP;
+        // treat it like a successful match so the UI shows the "already matched" state
+        if (res.status === 409 && d.error === 'active_match_exists') {
+          setMatchState('matched');
+          if (sessionId && typeof window !== 'undefined') {
+            try { localStorage.setItem(`t5m_${sessionId}`, '1'); } catch {}
+          }
+          return;
+        }
+        throw new Error(d.message ?? d.error ?? 'Request failed');
+      }
       setMatchScenarioId(d.scenarioId ?? null);
       setMatchState('confirmed');
       // Persist so returning to the page doesn't show Get Matched again
@@ -754,9 +765,9 @@ function Track5Inner() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
                   <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>✅</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#4ade80', marginBottom: 3 }}>Match request already sent for this scenario</div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#4ade80', marginBottom: 3 }}>You already have an active match request for this property</div>
                     <div style={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.5 }}>
-                      You already posted this scenario — loan officers in <strong style={{ color: '#e2e8f0' }}>ZIP {matchZip}</strong> were notified. This is a duplicate request so no new notification was sent.
+                      Loan officers in <strong style={{ color: '#e2e8f0' }}>ZIP {matchZip}</strong> were already notified — posting again would be a duplicate. Check your inbox for their responses.
                     </div>
                   </div>
                 </div>
