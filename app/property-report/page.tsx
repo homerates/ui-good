@@ -1070,22 +1070,22 @@ const CSS = `
 
   /* ── Print ── */
   @media print {
-    /* Kill outer wrapper height — was creating a blank first page */
+    /* Kill outer wrapper height */
     body, .page-standalone { min-height: 0 !important; height: auto !important; background: #000 !important; }
     .no-print { display: none !important; }
 
-    /* Scale the entire book down 12% so all content fits within 11in per page
-       without clipping. zoom is Chrome-specific but that's the primary print engine. */
+    /* Book: explicit 816px width (not 100%) — keeps print viewport from
+       collapsing inner elements. zoom scales content to fit letter page. */
     .rp-book {
       padding-top: 0 !important;
-      width: 100% !important;
-      margin: 0 !important;
+      width: 816px !important;
+      margin: 0 auto !important;
       zoom: 0.88;
     }
 
-    /* Page breaks — let content height be natural (zoom handles the fit) */
+    /* Page breaks */
     .rp-page {
-      width: 100% !important;
+      width: 816px !important;
       min-height: unset !important;
       break-after: page !important;
       page-break-after: always !important;
@@ -1093,8 +1093,25 @@ const CSS = `
     }
     .rp-page:last-child { break-after: auto !important; page-break-after: auto !important; }
 
-    /* Shrink hero so page 1 doesn't overflow */
+    /* CRITICAL: Chrome's print viewport is ~816px which triggers @media(max-width:840px)
+       and collapses all 2-col grids to 1-col. Force them back explicitly. */
+    .rp-grid-2col { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+    .rp-loc-grid  { display: grid !important; grid-template-columns: 1fr 1fr 1fr !important; gap: 6px !important; }
+
+    /* Shrink hero on page 1 to gain vertical space */
     .rp-hero { height: 150px !important; }
+
+    /* Tighten internal layout so pages don't overflow */
+    .rp-card { padding: 10px 12px !important; }
+    .rp-col  { gap: 7px !important; }
+    .rp-nav  { padding: 8px 32px !important; }
+    .rp-spec-strip .rp-spec-item { padding-top: 7px !important; padding-bottom: 7px !important; }
+    .rp-body-text {
+      overflow: hidden !important;
+      display: -webkit-box !important;
+      -webkit-line-clamp: 4 !important;
+      -webkit-box-orient: vertical !important;
+    }
   }
 
   /* Watermarks */
