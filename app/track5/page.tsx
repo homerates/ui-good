@@ -446,9 +446,38 @@ function Track5Inner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // NOTE: Auto-save from URL params removed — Track 5 is now only reachable from
-  // Property Intelligence which saves the session before navigating here.
-  // Session always arrives via ?session=<id> (Effect 1 above handles loading).
+  // ── Effect 2: URL-params fallback — look up session by address ────────────
+  // When arriving via ?l1_score=...&l2_score=... (no ?session=), the DSC card
+  // in chat didn't have a session ID — typically a timing race where the
+  // openBuyerChat async session creation hadn't stored the ID in localStorage
+  // before the property_lookup cards rendered. Look up the session by address
+  // so Get Matched becomes available without requiring a property-intel visit first.
+  const sessionLookupDoneRef = useRef(false);
+  useEffect(() => {
+    if (!isSignedIn) return;
+    if (sessionId) return;                // Effect 1 already resolved a session
+    if (params?.get('session')) return;   // Effect 1 will handle it
+    if (!address) return;
+    if (sessionLookupDoneRef.current) return;
+    sessionLookupDoneRef.current = true;
+
+    fetch(`/api/buyer-sessions?address=${encodeURIComponent(address)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.session?.id) {
+          setSessionId(d.session.id);
+          setSessionData(prev => prev ?? d.session);
+          setSaved(true);
+          if (typeof window !== 'undefined' &&
+              (localStorage.getItem(`t5m_${d.session.id}`) === '1' ||
+               sessionStorage.getItem(`t5m_${d.session.id}`) === '1')) {
+            setMatchState('matched');
+          }
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn, address]);
 
   return (
     <div className="page-standalone t5-root">
