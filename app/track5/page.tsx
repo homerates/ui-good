@@ -316,9 +316,11 @@ function Track5Inner() {
   const address =
     // 1. Clean address column from DB session (most reliable)
     ((sessionData?.property_address as string | null)?.trim() || null)
-    // 2. l2_summary prefix (current format: "ADDR — PITI ...")
+    // 2. Explicit ?address= param — passed by DSC fallback URL when no session
+    ?? (params?.get('address')?.trim() || null)
+    // 3. l2_summary prefix (property-intel format: "ADDR — ...")
     ?? extractAddressFromSummary(levels.l2.summary)
-    // 3. l3_summary prefix (backward compat with older sessions)
+    // 4. l3_summary prefix (backward compat)
     ?? extractAddressFromSummary(levels.l3.summary);
 
   const piUrl   = address ? `/property-intel?address=${encodeURIComponent(address)}` : '/property-intel';
@@ -446,12 +448,12 @@ function Track5Inner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Effect 2: URL-params fallback — look up session by address ────────────
-  // When arriving via ?l1_score=...&l2_score=... (no ?session=), the DSC card
+  // ── Effect 2: URL-params fallback — look up OR create session ───────────
+  // When arriving via ?l1_score=...&address=... (no ?session=), the DSC card
   // in chat didn't have a session ID — typically a timing race where the
-  // openBuyerChat async session creation hadn't stored the ID in localStorage
-  // before the property_lookup cards rendered. Look up the session by address
-  // so Get Matched becomes available without requiring a property-intel visit first.
+  // openBuyerChat async session creation hadn't stored the ID in localStorage.
+  // 1. Try to find an existing session by address.
+  // 2. If none found, create one from URL params so Get Matched works.
   const sessionLookupDoneRef = useRef(false);
   useEffect(() => {
     if (!isSignedIn) return;
@@ -461,19 +463,33 @@ function Track5Inner() {
     if (sessionLookupDoneRef.current) return;
     sessionLookupDoneRef.current = true;
 
+    const applySession = (s: Record<string, unknown>) => {
+      setSessionId(s.id as string);
+      setSessionData(prev => prev ?? s);
+      setSaved(true);
+      if (typeof window !== 'undefined' &&
+          (localStorage.getItem(`t5m_${s.id}`) === '1' ||
+           sessionStorage.getItem(`t5m_${s.id}`) === '1')) {
+        setMatchState('matched');
+      }
+    };
+
     fetch(`/api/buyer-sessions?address=${encodeURIComponent(address)}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (d?.session?.id) {
-          setSessionId(d.session.id);
-          setSessionData(prev => prev ?? d.session);
-          setSaved(true);
-          if (typeof window !== 'undefined' &&
-              (localStorage.getItem(`t5m_${d.session.id}`) === '1' ||
-               sessionStorage.getItem(`t5m_${d.session.id}`) === '1')) {
-            setMatchState('matched');
-          }
-        }
+        if (d?.session?.id) { applySession(d.session); return; }
+        // No existing session — create one from URL params so Get Matched is usable
+        const body: Record<string, unknown> = { property_address: address };
+        if (levels.l1.score != null) { body.l1_score = levels.l1.score; body.l1_summary = levels.l1.summary; }
+        if (levels.l2.score != null) { body.l2_score = levels.l2.score; body.l2_summary = levels.l2.summary; }
+        if (levels.l3.score != null) { body.l3_score = levels.l3.score; body.l3_summary = levels.l3.summary; }
+        if (levels.l4.score != null) { body.l4_score = levels.l4.score; body.l4_summary = levels.l4.summary; }
+        return fetch('/api/buyer-sessions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then(d2 => { if (d2?.session?.id) applySession(d2.session); });
       })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps

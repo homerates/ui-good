@@ -1031,31 +1031,62 @@ const CSS = `
   .rp-page { width: 816px; min-height: 1056px; position: relative; overflow: hidden; padding-bottom: 50px; background: #080c12; }
   .rp-page + .rp-page { border-top: 3px solid #000; }
 
-  /* ── Print: enforce exactly one printed page per .rp-page div ── */
+  /* ── Print ── */
   @media print {
+    /* Kill outer wrapper height so it doesn't consume a blank first page */
+    body, .page-standalone { min-height: 0 !important; height: auto !important; background: #000 !important; }
     .no-print { display: none !important; }
-    .rp-book { padding-top: 0; width: 100%; }
+
+    /* Book */
+    .rp-book { padding-top: 0 !important; width: 8.5in !important; margin: 0 !important; }
+
+    /* Each .rp-page = exactly one printed page */
     .rp-page {
-      width: 8.5in;
+      width: 8.5in !important;
       height: 11in !important;
       min-height: unset !important;
       max-height: 11in !important;
       overflow: hidden !important;
-      break-after: page;
-      page-break-after: always;
-      break-inside: avoid;
-      page-break-inside: avoid;
+      break-after: page !important;
+      page-break-after: always !important;
       border-top: none !important;
+      padding-bottom: 46px !important;
     }
-    .rp-page:last-child {
-      break-after: auto !important;
-      page-break-after: auto !important;
+    .rp-page:last-child { break-after: auto !important; page-break-after: auto !important; }
+
+    /* Shrink hero — recovers ~75px on page 1 */
+    .rp-hero { height: 150px !important; }
+
+    /* Tighter chrome */
+    .rp-nav { padding: 7px 32px !important; }
+    .rp-spec-strip .rp-spec-item { padding-top: 7px !important; padding-bottom: 7px !important; }
+    .rp-scenario-banner { padding: 12px 32px !important; }
+    .rp-loc-hero { padding: 12px 32px !important; }
+    .rp-ds-hero { padding: 12px 32px !important; }
+
+    /* Tighter cards */
+    .rp-card { padding: 10px 12px !important; }
+    .rp-col  { gap: 7px !important; }
+    .rp-grid-2col { gap: 8px !important; }
+
+    /* Clamp long AI-generated text — main overflow culprit on page 1 */
+    .rp-body-text {
+      overflow: hidden !important;
+      display: -webkit-box !important;
+      -webkit-line-clamp: 5 !important;
+      -webkit-box-orient: vertical !important;
     }
-    /* Shrink hero in print — recovers ~80px of vertical space per page */
-    .rp-hero { height: 165px !important; }
-    /* Tighter nav padding in print */
-    .rp-nav { padding-top: 8px !important; padding-bottom: 8px !important; }
-    .rp-spec-strip .rp-spec-item { padding-top: 8px !important; padding-bottom: 8px !important; }
+
+    /* Tighter DS level rows on page 4 */
+    .rp-ds-levels { padding: 8px 32px !important; gap: 5px !important; }
+    .rp-ds-row    { padding: 9px 14px !important; }
+    .rp-legend    { padding: 9px 14px !important; margin: 0 32px !important; }
+    .rp-cta-box   { margin: 8px 32px 0 !important; padding: 14px 18px !important; }
+
+    /* Location grid on page 3 */
+    .rp-loc-grid { padding: 8px 32px 0 !important; gap: 6px !important; }
+    .rp-loc-card { padding: 10px 12px !important; }
+    .rp-wildfire-card { margin: 8px 32px 0 !important; padding: 12px 16px !important; }
   }
 
   /* Watermarks */
@@ -1261,7 +1292,7 @@ const CSS = `
 export default function PropertyReportPage() {
   return (
     // page-standalone triggers globals.css :has() rule that resets body to display:block + overflow:visible
-    <div className="page-standalone" style={{ background: '#000', minHeight: '100vh' }}>
+    <div className="page-standalone" style={{ background: '#000' }}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <Suspense fallback={
         <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#080c12', color: '#8fa3b8', fontFamily: 'sans-serif' }}>

@@ -114,11 +114,14 @@ export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, sc
     return s ? `&${s}` : '';
   })();
 
+  // address param included in fallback URLs so Track5 Effect 2 can look up the
+  // session even when no ?session= is available (chat DSC timing race).
+  const addrParam = `&address=${encodeURIComponent(address)}`;
   const track5Url = sessionId
     ? `/track5?session=${sessionId}${t5ScenarioSuffix}`
     : l3Score != null
-      ? `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(data.l1Summary)}&l2_score=${l2Score ?? ''}&l2_summary=${encodeURIComponent(data.l2Summary)}&l3_score=${l3Score}&l3_summary=${encodeURIComponent(data.l3Summary ?? '')}&l4_score=${l4Score ?? ''}&l4_summary=${encodeURIComponent(data.l4Summary ?? '')}${t5ScenarioSuffix}`
-      : `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(data.l1Summary)}&l2_score=${l2Score ?? ''}&l2_summary=${encodeURIComponent(data.l2Summary)}${t5ScenarioSuffix}`;
+      ? `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(data.l1Summary)}&l2_score=${l2Score ?? ''}&l2_summary=${encodeURIComponent(data.l2Summary)}&l3_score=${l3Score}&l3_summary=${encodeURIComponent(data.l3Summary ?? '')}&l4_score=${l4Score ?? ''}&l4_summary=${encodeURIComponent(data.l4Summary ?? '')}${addrParam}${t5ScenarioSuffix}`
+      : `/track5?l1_score=${l1Score}&l1_summary=${encodeURIComponent(data.l1Summary)}&l2_score=${l2Score ?? ''}&l2_summary=${encodeURIComponent(data.l2Summary)}${addrParam}${t5ScenarioSuffix}`;
 
   // "Get Matched" deep-links directly to the match section — skips scrolling past 4-level DSC
   const getMatchedUrl = `${track5Url}#get-matched`;
