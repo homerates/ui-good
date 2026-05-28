@@ -361,7 +361,7 @@ function ReportInner() {
   const isSold    = /sold/i.test(status);
 
   // ── Comp table helper ─────────────────────────────────────────────────────────
-  const comps = data.comparable_sales?.slice(0, 5) ?? [];
+  const comps = data.comparable_sales?.slice(0, 3) ?? [];
 
   return (
     <>
@@ -1013,11 +1013,9 @@ const CSS = `
   @page { size: letter portrait; margin: 0; }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'DM Sans', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 13px; line-height: 1.5; }
-  @media print { .no-print { display: none !important; } }
 
   /* Centred column wrapper — 816px = US Letter portrait at 96 dpi */
   .rp-book { width: 816px; margin: 0 auto; display: flex; flex-direction: column; background: #080c12; padding-top: 52px; }
-  @media print { .rp-book { padding-top: 0; width: 100%; } }
 
   /* Action bar */
   .rp-action-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 999; background: #0d1117; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -1029,10 +1027,36 @@ const CSS = `
   .rp-btn-primary { background: #00e87a; color: #000; font-weight: 700; font-size: 12px; font-family: 'DM Sans',sans-serif; border: none; border-radius: 8px; padding: 8px 18px; cursor: pointer; }
   .rp-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
-  /* Pages — US Letter: 8.5×11in = 816×1056px at 96dpi */
-  .rp-page { width: 816px; min-height: 1056px; position: relative; overflow: hidden; padding-bottom: 50px; break-after: page; page-break-after: always; background: #080c12; }
-  .rp-page:last-child { break-after: auto !important; page-break-after: auto !important; }
+  /* Pages — screen: 816×1056px (US Letter at 96dpi) */
+  .rp-page { width: 816px; min-height: 1056px; position: relative; overflow: hidden; padding-bottom: 50px; background: #080c12; }
   .rp-page + .rp-page { border-top: 3px solid #000; }
+
+  /* ── Print: enforce exactly one printed page per .rp-page div ── */
+  @media print {
+    .no-print { display: none !important; }
+    .rp-book { padding-top: 0; width: 100%; }
+    .rp-page {
+      width: 8.5in;
+      height: 11in !important;
+      min-height: unset !important;
+      max-height: 11in !important;
+      overflow: hidden !important;
+      break-after: page;
+      page-break-after: always;
+      break-inside: avoid;
+      page-break-inside: avoid;
+      border-top: none !important;
+    }
+    .rp-page:last-child {
+      break-after: auto !important;
+      page-break-after: auto !important;
+    }
+    /* Shrink hero in print — recovers ~80px of vertical space per page */
+    .rp-hero { height: 165px !important; }
+    /* Tighter nav padding in print */
+    .rp-nav { padding-top: 8px !important; padding-bottom: 8px !important; }
+    .rp-spec-strip .rp-spec-item { padding-top: 8px !important; padding-bottom: 8px !important; }
+  }
 
   /* Watermarks */
   .rp-watermark { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
