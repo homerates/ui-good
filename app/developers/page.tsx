@@ -99,13 +99,13 @@ export default function DevelopersPage() {
             Embed AI Property Intelligence<br />into your platform
           </h1>
           <p style={{ fontSize: '1rem', color: '#6b80a0', lineHeight: 1.65, maxWidth: 580 }}>
-            One API call returns a complete four-level buyer decision score, property data, and a shareable 4-page intelligence report. No monthly minimums. No contracts. $2.99 per analysis.
+            One API call returns a complete four-level buyer decision score, property data, and a shareable 4-page intelligence report. $29/month includes a monthly report credit allocation — add more credits as you grow.
           </p>
           <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
             <a href="/instant" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#00e87a', color: '#060d0a', fontWeight: 800, fontSize: '0.85rem', padding: '10px 20px', borderRadius: 9, textDecoration: 'none' }}>
               ↗ Try it live
             </a>
-            <a href="mailto:hello@homerates.ai" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.04)', color: '#c4cfe0', fontWeight: 700, fontSize: '0.85rem', padding: '10px 20px', borderRadius: 9, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <a href="mailto:support@homerates.ai" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.04)', color: '#c4cfe0', fontWeight: 700, fontSize: '0.85rem', padding: '10px 20px', borderRadius: 9, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)' }}>
               ✉ Get API access
             </a>
           </div>
@@ -203,25 +203,45 @@ export default function DevelopersPage() {
         <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '48px 0' }} />
 
         {/* Pricing */}
-        <Section label="Pricing" title="Pay as you go — no monthly minimum">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 4 }}>
+        <Section label="Pricing" title="$29 / month — credits included">
+          {/* Main plan card */}
+          <div style={{ background: 'linear-gradient(135deg, rgba(0,232,122,0.07), rgba(0,180,89,0.03))', border: '1px solid rgba(0,232,122,0.22)', borderRadius: 14, padding: '22px 24px', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: '2.4rem', fontWeight: 900, color: '#00e87a', letterSpacing: '-0.03em', lineHeight: 1 }}>$29</span>
+              <span style={{ fontSize: '0.85rem', color: '#4b6080', fontWeight: 600 }}>/month</span>
+            </div>
+            <div style={{ fontSize: '0.82rem', color: '#c4cfe0', marginBottom: 14, fontWeight: 600 }}>Starter plan — monthly report credits included</div>
+            <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                'Monthly report credit allocation included',
+                'Full L1–L4 Decision Score on every report',
+                'Shareable 4-page PDF intelligence report',
+                'API access via POST /api/instant-score',
+                'Add more credits when you need them',
+              ].map(item => (
+                <li key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: '0.78rem', color: '#8fa3b8', lineHeight: 1.5 }}>
+                  <span style={{ color: '#00e87a', fontWeight: 700, flexShrink: 0, marginTop: 1 }}>✓</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Add-on tiers */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginTop: 4 }}>
             {[
-              ['0 – 1,000 / mo', '$2.99', 'per analysis'],
-              ['1,001 – 10,000 / mo', '$1.99', 'per analysis'],
-              ['10,001 – 100,000 / mo', '$1.25', 'per analysis'],
-              ['100,001+ / mo', '$0.75', 'per analysis'],
-              ['White-label branding', '$49', 'per month flat'],
-              ['API key access', '$9', 'per month flat'],
-            ].map(([vol, price, unit]) => (
-              <div key={vol} style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '13px 16px' }}>
-                <div style={{ fontSize: '0.62rem', color: '#4b6080', marginBottom: 6, fontWeight: 600 }}>{vol}</div>
+              ['White-label branding', '$49', 'per month · your logo on every report'],
+              ['Enterprise / volume', 'Custom', 'contact us for high-volume pricing'],
+            ].map(([label, price, unit]) => (
+              <div key={label} style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '13px 16px' }}>
+                <div style={{ fontSize: '0.62rem', color: '#4b6080', marginBottom: 6, fontWeight: 600 }}>{label}</div>
                 <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#00e87a', letterSpacing: '-0.02em', lineHeight: 1 }}>{price}</div>
                 <div style={{ fontSize: '0.62rem', color: '#4b6080', marginTop: 3 }}>{unit}</div>
               </div>
             ))}
           </div>
           <div style={{ fontSize: '0.72rem', color: '#3a4560', marginTop: 16, lineHeight: 1.6 }}>
-            Volume discounts apply automatically — no negotiation, no contracts. <a href="mailto:hello@homerates.ai" style={{ color: '#60a5fa', textDecoration: 'none' }}>Contact us</a> for enterprise or white-label integration.
+            Credit allocations and top-up pricing confirmed at signup. <a href="mailto:support@homerates.ai" style={{ color: '#60a5fa', textDecoration: 'none' }}>Contact us</a> for enterprise or white-label setup.
           </div>
         </Section>
 
@@ -231,9 +251,9 @@ export default function DevelopersPage() {
         {/* White-label */}
         <Section label="White Label" title="Your brand on every report">
           <p style={bodyText}>
-            With white-label rights ($49/month), the 4-page PDF report carries your logo, brand colours, and domain — not HomeRates. Clients see your brand on every deliverable. The intelligence engine stays the same. Contact us to set up custom branding.
+            With white-label rights (add-on to your plan), the 4-page PDF report carries your logo, brand colours, and domain — not HomeRates. Clients see your brand on every deliverable. The intelligence engine stays the same. Contact us to set up custom branding.
           </p>
-          <a href="mailto:hello@homerates.ai" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(0,232,122,0.08)', color: '#00e87a', fontWeight: 700, fontSize: '0.85rem', padding: '10px 20px', borderRadius: 9, textDecoration: 'none', border: '1px solid rgba(0,232,122,0.25)', marginTop: 8 }}>
+          <a href="mailto:support@homerates.ai" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(0,232,122,0.08)', color: '#00e87a', fontWeight: 700, fontSize: '0.85rem', padding: '10px 20px', borderRadius: 9, textDecoration: 'none', border: '1px solid rgba(0,232,122,0.25)', marginTop: 8 }}>
             ✉ Request white-label setup
           </a>
         </Section>
@@ -248,8 +268,8 @@ export default function DevelopersPage() {
             <a href="/instant" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#00e87a', color: '#060d0a', fontWeight: 800, fontSize: '0.85rem', padding: '11px 22px', borderRadius: 10, textDecoration: 'none' }}>
               ↗ Try it now — free
             </a>
-            <a href="mailto:hello@homerates.ai" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.04)', color: '#c4cfe0', fontWeight: 700, fontSize: '0.85rem', padding: '11px 22px', borderRadius: 10, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)' }}>
-              ✉ hello@homerates.ai
+            <a href="mailto:support@homerates.ai" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.04)', color: '#c4cfe0', fontWeight: 700, fontSize: '0.85rem', padding: '11px 22px', borderRadius: 10, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)' }}>
+              ✉ support@homerates.ai
             </a>
           </div>
         </div>
