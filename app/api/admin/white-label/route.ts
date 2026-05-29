@@ -41,28 +41,51 @@ async function ensureTable() {
   } catch { /* table may already exist */ }
 }
 
+// ── Hardcoded demo partners — work before DB table is created ─────────────────
+const DEMO_PARTNERS: Record<string, { slug: string; name: string; logo_url: string | null; tagline: string | null; accent_color: string; contact_email: string | null }> = {
+  'groves-capital': {
+    slug: 'groves-capital',
+    name: 'Groves Capital',
+    logo_url: 'https://grovescapital.com/wp-content/uploads/2023/01/Groves-Capital-Logo.png',
+    tagline: 'Let Us Welcome You Home',
+    accent_color: '#7c5cbf',
+    contact_email: 'support@grovescapital.com',
+  },
+};
+
 // ── Public: fetch single partner by slug ─────────────────────────────────────
 export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get('slug');
   if (slug) {
-    const { data, error } = await supabase
-      .from('white_label_partners')
-      .select('slug, name, logo_url, tagline, accent_color, contact_email')
-      .eq('slug', slug)
-      .eq('active', true)
-      .maybeSingle();
-    if (error || !data) return NextResponse.json({ ok: false, error: 'Partner not found' }, { status: 404 });
-    return NextResponse.json({ ok: true, partner: data });
+    // Try DB first; fall back to hardcoded demo config if table missing
+    try {
+      const { data, error } = await supabase
+        .from('white_label_partners')
+        .select('slug, name, logo_url, tagline, accent_color, contact_email')
+        .eq('slug', slug)
+        .eq('active', true)
+        .maybeSingle();
+      if (!error && data) return NextResponse.json({ ok: true, partner: data });
+    } catch { /* table not yet created */ }
+    // Fallback to hardcoded demo config
+    const demo = DEMO_PARTNERS[slug];
+    if (demo) return NextResponse.json({ ok: true, partner: demo });
+    return NextResponse.json({ ok: false, error: 'Partner not found' }, { status: 404 });
   }
 
   // Admin: list all
   const { userId } = await auth();
   if (!await isAdminId(userId)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { data } = await supabase
-    .from('white_label_partners')
-    .select('*')
-    .order('created_at', { ascending: false });
-  return NextResponse.json({ ok: true, partners: data ?? [] });
+  try {
+    const { data } = await supabase
+      .from('white_label_partners')
+      .select('*')
+      .order('created_at', { ascending: false });
+    return NextResponse.json({ ok: true, partners: data ?? [] });
+  } catch {
+    // Table not yet created — return hardcoded demos so admin page still loads
+    return NextResponse.json({ ok: true, partners: Object.values(DEMO_PARTNERS).map(p => ({ ...p, id: p.slug, active: true, created_at: new Date().toISOString() })) });
+  }
 }
 
 // ── Admin: create ─────────────────────────────────────────────────────────────
