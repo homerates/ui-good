@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState, useRef, useCallback, useEffect } from 'react';
+import { SHORT_DISCLOSURE } from '../../lib/disclosures';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
@@ -599,7 +600,7 @@ function InstantInner() {
                 </a>
               </div>
               <div style={{ marginTop: 12, fontSize: '0.62rem', color: '#3a4560', lineHeight: 1.5 }}>
-                Educational estimates only. Powered by Grok · OpenAI · FRED® · HomeRates.Ai.
+                {SHORT_DISCLOSURE}
               </div>
             </div>
           </div>
