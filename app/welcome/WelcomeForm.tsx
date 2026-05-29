@@ -9,7 +9,7 @@ const TYPES = [
     value: "borrower",
     label: "I'm buying or refinancing",
     icon: "🏠",
-    sub: "Get AI-powered rate analysis and connect with vetted professionals",
+    sub: "Get AI-powered rate analysis and connect with mortgage professionals",
   },
   {
     value: "lo",

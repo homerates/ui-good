@@ -758,7 +758,7 @@ function Track5Inner() {
                       Get Matched with a Local Expert
                     </div>
                     <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.55 }}>
-                      Share your Decision Score with vetted loan officers in your area. Your name and address stay private — only your score and ZIP are shared at first.
+                      Share your Decision Score with loan officers in your area. Your name and address stay private — only your score and ZIP are shared at first.
                     </div>
                   </div>
                 </div>

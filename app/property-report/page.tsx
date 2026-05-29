@@ -1028,7 +1028,7 @@ function ReportInner() {
         <div className="rp-cta-box">
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 5 }}>Ready to move on this property?</div>
-            <div style={{ fontSize: 12, color: '#8fa3b8', lineHeight: 1.55 }}>Connect with a HomeRates-vetted loan officer — pre-approve your scenario and structure the strongest possible offer. No pressure, no gatekeepers.</div>
+            <div style={{ fontSize: 12, color: '#8fa3b8', lineHeight: 1.55 }}>Connect with a loan officer to explore your financing options and pre-approve your scenario.</div>
           </div>
           <a href="https://chat.homerates.ai/track5" className="rp-cta-btn" target="_blank" rel="noopener noreferrer">Get Matched →</a>
         </div>
