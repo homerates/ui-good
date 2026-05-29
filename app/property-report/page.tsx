@@ -334,7 +334,7 @@ function ReportInner() {
   // ── Scores ────────────────────────────────────────────────────────────────────
   // L1: financial fit
   const ltvScore   = downPct >= 20 ? 90 : downPct >= 10 ? 72 : 55;
-  const pitiIncome = totalPITI / 0.35;
+  const pitiIncome = (totalPITI / 0.35) * 12;  // annual income required at 35% DTI
   const l1Score    = Math.min(100, Math.round(ltvScore));
 
   // L2: market position (AVM vs list)
@@ -956,7 +956,7 @@ function ReportInner() {
           {[
             {
               n: 'L1', name: 'Financial Readiness', weight: '35%', score: l1Score,
-              sub: `${loanType} · ${downPct}% down · ${ltv.toFixed(1)}% LTV · ${rate}% rate${hasPMI ? ' · PMI applies' : ' · No PMI'}. ${downPct >= 20 ? 'Strong equity entry eliminates PMI.' : 'PMI applies — consider 20% down to eliminate.'} Income threshold ~$${fmt(Math.round(pitiIncome))} / yr.`,
+              sub: `${loanType} · ${downPct}% down · ${ltv.toFixed(1)}% LTV · ${rate}% rate${hasPMI ? ' · PMI applies' : ' · No PMI'}. ${downPct >= 20 ? 'Strong equity entry eliminates PMI.' : 'PMI applies — consider 20% down to eliminate.'} Income threshold ~$${fmt(Math.round(pitiIncome))}/yr.`,
             },
             {
               n: 'L2', name: 'Property Evaluation', weight: '25%', score: l2Score,
