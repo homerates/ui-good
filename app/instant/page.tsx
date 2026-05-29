@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useRef, useCallback } from 'react';
+import { Suspense, useState, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
@@ -136,9 +136,15 @@ interface ScoreResult {
   downPct: number; rate: number;
 }
 
+interface WhiteLabelPartner {
+  slug: string; name: string; logo_url: string | null;
+  tagline: string | null; accent_color: string; contact_email: string | null;
+}
+
 function InstantInner() {
   const params    = useSearchParams();
   const prefill   = params?.get('url') ?? params?.get('address') ?? '';
+  const partnerSlug = params?.get('partner') ?? null;
 
   const [input,    setInput]    = useState(prefill);
   const [status,   setStatus]   = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
@@ -146,8 +152,18 @@ function InstantInner() {
   const [result,   setResult]   = useState<ScoreResult | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [copied,   setCopied]   = useState(false);
+  const [partner,  setPartner]  = useState<WhiteLabelPartner | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
+
+  // Load white-label partner config if slug present
+  useEffect(() => {
+    if (!partnerSlug) return;
+    fetch(`/api/admin/white-label?slug=${encodeURIComponent(partnerSlug)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.partner) setPartner(d.partner); })
+      .catch(() => {});
+  }, [partnerSlug]);
 
   const handleAnalyze = useCallback(async () => {
     const raw = input.trim();
@@ -407,15 +423,38 @@ function InstantInner() {
 
       {/* Hero */}
       <div className="inst-hero">
-        <div className="inst-tag">
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00e87a', display: 'inline-block' }} />
-          Instant Property Score
-        </div>
-        <h1 className="inst-h1">
+        {/* White-label partner logo — shown instead of tag when partner is active */}
+        {partner ? (
+          <div style={{ marginBottom: 24 }}>
+            {partner.logo_url ? (
+              <img src={partner.logo_url} alt={partner.name}
+                style={{ height: 44, maxWidth: 200, objectFit: 'contain', margin: '0 auto', display: 'block' }}
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+            ) : (
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: partner.accent_color, marginBottom: 2 }}>
+                {partner.name}
+              </div>
+            )}
+            {partner.tagline && (
+              <div style={{ fontSize: '0.7rem', color: '#4b6080', marginTop: 6, letterSpacing: '0.04em' }}>
+                {partner.tagline}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="inst-tag">
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00e87a', display: 'inline-block' }} />
+            Instant Property Score
+          </div>
+        )}
+        <h1 className="inst-h1" style={partner ? { color: partner.accent_color } : {}}>
           Paste any property URL.<br />Get a complete buyer decision score.
         </h1>
         <p className="inst-sub">
-          Powered by 4 independent AI analyses — Financial Readiness, Property Evaluation, Market Intelligence, and Location Intelligence. Plus a shareable 4-page intelligence report. Free. No login required.
+          {partner
+            ? `Powered by ${partner.name} · AI property intelligence with 4 independent analyses. Free. No login required.`
+            : 'Powered by 4 independent AI analyses — Financial Readiness, Property Evaluation, Market Intelligence, and Location Intelligence. Plus a shareable 4-page intelligence report. Free. No login required.'
+          }
         </p>
       </div>
 
@@ -433,6 +472,7 @@ function InstantInner() {
           />
           <button
             className="inst-btn"
+            style={partner ? { background: partner.accent_color } : {}}
             onClick={handleAnalyze}
             disabled={status === 'loading' || !input.trim()}
           >
