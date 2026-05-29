@@ -162,24 +162,35 @@ function piLsRead(addr: string): { result: PropData; mapUrls: { street_view_url:
   } catch { return null; }
 }
 
+interface WLPartner { name: string; logo_url: string | null; tagline: string | null; accent_color: string; contact_email: string | null; }
+
 // ── Main report inner ──────────────────────────────────────────────────────────
 function ReportInner() {
   const params = useSearchParams();
   const address    = params?.get('address') ?? '';
   const downPct    = Number(params?.get('down')  ?? 20);
   const rateOver   = Number(params?.get('rate')  ?? 0);
-  const chatUrl    = params?.get('chatUrl') ?? '';   // optional back-link to specific chat session
-  // photo passed directly from property-intel Build Report link — highest priority
+  const chatUrl    = params?.get('chatUrl') ?? '';
   const photoParam = params?.get('photo') ?? null;
+  const partnerSlug = params?.get('partner') ?? null;
 
   const [data,         setData]         = useState<PropData | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState('');
   const [copied,       setCopied]       = useState(false);
   const [printing,     setPrinting]     = useState(false);
-  // Separate hero photo state — survives if primary URL 404s
   const [heroPhoto,    setHeroPhoto]    = useState<string | null>(photoParam);
   const [heroFallback, setHeroFallback] = useState<string | null>(null);
+  const [wlPartner,    setWlPartner]    = useState<WLPartner | null>(null);
+
+  // Load white-label partner branding if slug present
+  useEffect(() => {
+    if (!partnerSlug) return;
+    fetch(`/api/admin/white-label?slug=${encodeURIComponent(partnerSlug)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.partner) setWlPartner(d.partner); })
+      .catch(() => {});
+  }, [partnerSlug]);
 
   useEffect(() => {
     if (!address) { setError('No address provided.'); setLoading(false); return; }
@@ -360,6 +371,13 @@ function ReportInner() {
   const reportUrl = typeof window !== 'undefined' ? window.location.href : '';
   const backUrl   = chatUrl || `https://chat.homerates.ai/property-intel?address=${encodeURIComponent(address)}`;
 
+  // ── White-label brand vars ────────────────────────────────────────────────────
+  const brandName   = wlPartner?.name   ?? 'HomeRates.Ai';
+  const brandLogo   = wlPartner?.logo_url ?? '/assets/homerates-email-logo.png';
+  const brandAccent = wlPartner?.accent_color ?? '#00e87a';
+  const brandDomain = wlPartner ? (wlPartner.contact_email?.split('@')[1] ?? 'homerates.ai') : 'chat.homerates.ai';
+  const brandFooterLeft = `${brandName} · Property Intelligence Report · Confidential · © ${new Date().getFullYear()}`;
+
   // ── Location sub-scores ───────────────────────────────────────────────────────
   const locSubs = data.location_intelligence?.sub_scores ?? [];
   const wildfire = locSubs.find(s => /wildfire|fire/i.test(s.metric));
@@ -378,7 +396,7 @@ function ReportInner() {
       {/* ── Print / action bar (screen only) ─────────────────────────────────── */}
       <div className="rp-action-bar no-print">
         <div className="rp-action-bar-left">
-          <img src="/assets/homerates-email-logo.png" alt="HomeRates.ai" style={{ height: 28, width: 'auto' }} />
+          {brandLogo.startsWith('/') ? <img src={brandLogo} alt={brandName} style={{ height: 28, width: 'auto' }} /> : <img src={brandLogo} alt={brandName} style={{ height: 28, maxWidth: 120, objectFit: 'contain' }} />}
           <span className="rp-action-addr">{address}</span>
         </div>
         <div className="rp-action-btns">
@@ -407,7 +425,7 @@ function ReportInner() {
         {/* Nav */}
         <div className="rp-nav">
           <div className="rp-nav-logo">
-            <img src="/assets/homerates-email-logo.png" alt="HomeRates.ai" />
+            {brandLogo.startsWith('/') ? <img src={brandLogo} alt={brandName} /> : <img src={brandLogo} alt={brandName} style={{ maxHeight: 28, maxWidth: 120, objectFit: 'contain' }} />}
           </div>
           <a href={backUrl} className="rp-nav-chip" target="_blank" rel="noopener noreferrer">
             ↗ View live analysis
@@ -638,8 +656,8 @@ function ReportInner() {
         </div>
 
         <div className="rp-footer">
-          <span className="rp-footer-left">HomeRates.Ai · Property Intelligence Report · Confidential · © {new Date().getFullYear()}</span>
-          <a href={backUrl} className="rp-footer-link" target="_blank" rel="noopener noreferrer">chat.homerates.ai ↗</a>
+          <span className="rp-footer-left">{brandFooterLeft}</span>
+          <span className="rp-footer-link" style={{ border: 'none', padding: 0, color: brandAccent }}>{brandDomain}</span>
           <span className="rp-footer-right">Page 1 of 4</span>
         </div>
       </div>
@@ -774,8 +792,8 @@ function ReportInner() {
         </div>
 
         <div className="rp-footer">
-          <span className="rp-footer-left">HomeRates.Ai · Property Intelligence Report · Confidential · © {new Date().getFullYear()}</span>
-          <a href="https://chat.homerates.ai/chat" className="rp-footer-link" target="_blank" rel="noopener noreferrer">chat.homerates.ai ↗</a>
+          <span className="rp-footer-left">{brandFooterLeft}</span>
+          <span className="rp-footer-link" style={{ border: 'none', padding: 0, color: brandAccent }}>{brandDomain}</span>
           <span className="rp-footer-right">Page 2 of 4</span>
         </div>
       </div>
@@ -913,8 +931,8 @@ function ReportInner() {
         )}
 
         <div className="rp-footer">
-          <span className="rp-footer-left">HomeRates.Ai · Property Intelligence Report · Confidential · © {new Date().getFullYear()}</span>
-          <a href={backUrl} className="rp-footer-link" target="_blank" rel="noopener noreferrer">chat.homerates.ai ↗</a>
+          <span className="rp-footer-left">{brandFooterLeft}</span>
+          <span className="rp-footer-link" style={{ border: 'none', padding: 0, color: brandAccent }}>{brandDomain}</span>
           <span className="rp-footer-right">Page 3 of 4</span>
         </div>
       </div>
@@ -1027,13 +1045,13 @@ function ReportInner() {
         {/* Disclosures */}
         <div style={{ margin: '12px 36px 0', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14 }}>
           <div className="rp-mono-label" style={{ marginBottom: 10 }}>Disclosures & Attribution</div>
-          <div className="rp-disc">EDUCATIONAL PURPOSE ONLY. This report is generated by HomeRates.Ai and is for informational and educational purposes only. It does not constitute financial advice, a mortgage commitment, loan guarantee, or appraisal. All figures — including AVM estimates, PITI calculations, income requirements, appreciation projections, and Decision Scores — are statistical estimates and may differ materially from actual outcomes.</div>
-          <div className="rp-disc">DATA SOURCES. Rate data sourced from FRED® (Federal Reserve Bank of St. Louis). Property intelligence generated by Grok (xAI) via Tavily web search. Location intelligence computed from publicly available school, walkability, crime, and wildfire data. Wildfire risk per First Street Foundation. AVM estimates from Zillow and Redfin public data. HomeRates.Ai is not a licensed lender, broker, or financial advisor. Powered by Grok-4 · HomeRates.Ai.</div>
-          <div className="rp-disc" style={{ marginTop: 8, color: 'rgba(75,92,112,0.6)' }}>© {new Date().getFullYear()} HomeRates.Ai · chat.homerates.ai · For recipient use only · Not for redistribution</div>
+          <div className="rp-disc">EDUCATIONAL PURPOSE ONLY. This report is generated by {brandName} and is for informational and educational purposes only. It does not constitute financial advice, a mortgage commitment, loan guarantee, or appraisal. All figures — including AVM estimates, PITI calculations, income requirements, appreciation projections, and Decision Scores — are statistical estimates and may differ materially from actual outcomes.</div>
+          <div className="rp-disc">DATA SOURCES. Rate data sourced from FRED® (Federal Reserve Bank of St. Louis). Property intelligence generated by Grok (xAI) via Tavily web search. Location intelligence computed from publicly available school, walkability, crime, and wildfire data. Wildfire risk per First Street Foundation. AVM estimates from Zillow and Redfin public data. {brandName} is not a licensed lender, broker, or financial advisor. Powered by Grok-4 · HomeRates.Ai.</div>
+          <div className="rp-disc" style={{ marginTop: 8, color: 'rgba(75,92,112,0.6)' }}>© {new Date().getFullYear()} {brandName} · {brandDomain} · For recipient use only · Not for redistribution</div>
         </div>
 
         <div className="rp-footer" style={{ position: 'relative', marginTop: 16 }}>
-          <span className="rp-footer-left">HomeRates.Ai · Property Intelligence Report · Confidential · © {new Date().getFullYear()}</span>
+          <span className="rp-footer-left">{brandFooterLeft}</span>
           <a href="https://chat.homerates.ai/track5" className="rp-footer-link" target="_blank" rel="noopener noreferrer">chat.homerates.ai ↗</a>
           <span className="rp-footer-right">Page 4 of 4</span>
         </div>

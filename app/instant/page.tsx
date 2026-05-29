@@ -302,9 +302,10 @@ function InstantInner() {
 
       const composite = calcComposite(l1.score, l2Score, l3.score, l4Score);
 
-      // ── Build report URL ──────────────────────────────────────────────────
+      // ── Build report URL — thread partner slug so report is also white-labelled
       const rp = new URLSearchParams({ address, down: String(defaultDown), rate: liveRate.toFixed(3) });
-      if (d.photoUrl) rp.set('photo', d.photoUrl as string);
+      if (d.photoUrl)    rp.set('photo',   d.photoUrl as string);
+      if (partnerSlug)   rp.set('partner', partnerSlug);
       const reportUrl = `/property-report?${rp.toString()}`;
 
       setResult({
