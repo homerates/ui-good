@@ -696,18 +696,19 @@ function PropertyIntelInner() {
   const statusKey = (d.current_status ?? '').toLowerCase();
   const statusCfg = STATUS_CFG[statusKey] ?? { bg: 'rgba(148,163,184,0.1)', color: '#94a3b8', label: (d.current_status ?? '').toUpperCase() };
   const confCfg   = CONF_CFG[(d.confidence ?? '').toLowerCase()] ?? CONF_CFG.medium;
-  const isBuyer   = statusKey === 'for sale' || statusKey === 'pending';
+  // Robust buyer check — handles both "for sale" (display) and "for_sale" (DB storage)
+  const isBuyer   = /for.?sale|pending/i.test(statusKey);
   const chatUrl   = (() => {
-    const price = d.current_list_price;
     const rate  = displayRate ?? d.rate_used ?? 6.875;
-    // Best available value estimate for homeowner context
     const compsAvg = d.comparable_sales?.length
       ? Math.round(d.comparable_sales.reduce((s, c) => s + c.sold_price, 0) / d.comparable_sales.length)
       : null;
-    const avmEst = d.zillow_estimate ?? d.redfin_estimate ?? compsAvg ?? price;
+    const avmEst = d.zillow_estimate ?? d.redfin_estimate ?? compsAvg ?? d.current_list_price;
     let sq: string;
-    if (isBuyer && price) {
-      sq = `I'm looking at buying ${address} listed at $${Math.round(price).toLocaleString()}. Current 30-year rate is ${rate.toFixed(2)}%.`;
+    if (isBuyer) {
+      // FOR SALE: seed just the address — triggers property_lookup → fires all 4 cards
+      // No refi language; this is a buyer scenario not a homeowner analysis
+      sq = address;
     } else if (avmEst) {
       sq = `Run homeowner analysis for ${address}: estimated value $${Math.round(avmEst).toLocaleString()}, current 30-year rate is ${rate.toFixed(2)}%. Show me refi savings and break-even.`;
     } else {
