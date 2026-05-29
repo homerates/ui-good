@@ -94,6 +94,8 @@ const isPublicRoute = createRouteMatcher([
   // Instant Score — try-for-free surface + API, no login required
   "/instant(.*)",
   "/api/instant-score(.*)",
+  // White-label report — partner-branded 4-page report, no auth
+  "/wl-report(.*)",
   // Developer docs — public, no auth
   "/developers(.*)",
   // Platform Intelligence Hub + all 11 marketing pillar pages
