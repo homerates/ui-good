@@ -372,6 +372,24 @@ function ReportInner() {
   const reportUrl = typeof window !== 'undefined' ? window.location.href : '';
   const backUrl   = chatUrl || `https://chat.homerates.ai/property-intel?address=${encodeURIComponent(address)}`;
 
+  // ── Track 5 URL — built from computed scores so Get Matched lands with data ──
+  const track5Url = (() => {
+    const p = new URLSearchParams({ address });
+    p.set('l1_score',   String(l1Score));
+    p.set('l1_summary', `${loanType} · ${downPct}% down · LTV ${ltv.toFixed(1)}% · ${rate}% rate`);
+    p.set('l2_score',   String(l2Score));
+    p.set('l2_summary', `Listed ${avmDiff >= 0 ? '+' : ''}${avmDiff.toFixed(1)}% vs AVM ${fmtK(avm)}`);
+    p.set('l3_score',   String(l3Score));
+    p.set('l3_summary', `DOM ${data.days_on_market ?? '—'}d${data.market_median_dom ? `, area median ${data.market_median_dom}d` : ''}`);
+    if (l4Score != null) {
+      p.set('l4_score',   String(l4Score));
+      p.set('l4_summary', data.location_intelligence
+        ? data.location_intelligence.sub_scores.slice(0, 2).map(s => `${s.metric}: ${s.rating}`).join(', ')
+        : `Location score ${l4Score}/100`);
+    }
+    return `https://chat.homerates.ai/track5?${p.toString()}`;
+  })();
+
   // ── White-label brand vars ────────────────────────────────────────────────────
   const brandName   = wlPartner?.name   ?? 'HomeRates.Ai';
   const brandLogo   = wlPartner?.logo_url ?? '/assets/homerates-email-logo.png';
@@ -947,7 +965,7 @@ function ReportInner() {
 
         <div className="rp-nav">
           <div className="rp-nav-logo"><img src="/assets/homerates-email-logo.png" alt="HomeRates.ai" /></div>
-          <a href="https://chat.homerates.ai/track5" className="rp-nav-chip" target="_blank" rel="noopener noreferrer">↗ Get Matched</a>
+          <a href={track5Url} className="rp-nav-chip" target="_blank" rel="noopener noreferrer">↗ Get Matched</a>
           <div className="rp-nav-meta">
             <div className="rp-nav-type">Autonomous Decision Score</div>
             <div className="rp-nav-date">{address}</div>
@@ -1030,7 +1048,7 @@ function ReportInner() {
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 5 }}>Ready to move on this property?</div>
             <div style={{ fontSize: 12, color: '#8fa3b8', lineHeight: 1.55 }}>Connect with a loan officer to explore your financing options and pre-approve your scenario.</div>
           </div>
-          <a href="https://chat.homerates.ai/track5" className="rp-cta-btn" target="_blank" rel="noopener noreferrer">Get Matched →</a>
+          <a href={track5Url} className="rp-cta-btn" target="_blank" rel="noopener noreferrer">Get Matched →</a>
         </div>
 
         {/* Share in-report */}
@@ -1053,7 +1071,7 @@ function ReportInner() {
 
         <div className="rp-footer" style={{ position: 'relative', marginTop: 16 }}>
           <span className="rp-footer-left">{brandFooterLeft}</span>
-          <a href="https://chat.homerates.ai/track5" className="rp-footer-link" target="_blank" rel="noopener noreferrer">chat.homerates.ai ↗</a>
+          <a href={track5Url} className="rp-footer-link" target="_blank" rel="noopener noreferrer">Get Matched ↗</a>
           <span className="rp-footer-right">Page 4 of 4</span>
         </div>
       </div>
