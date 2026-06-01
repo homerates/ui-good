@@ -1250,8 +1250,26 @@ function PropertyIntelInner() {
                   {copied ? 'Copied!' : 'Share Report'}
                 </button>
 
-                {/* Build Report — opens dynamic PDF report in new tab */}
-                {finalResult && (
+                {/* ── Step 1: Full Market Analysis (required before Build Report) ── */}
+                {!d.deep_analysis && !deepLoading && finalResult && (
+                  <button onClick={runDeepAnalysis} style={{ padding: '11px 20px', fontSize: '0.82rem', fontWeight: 600, background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.35)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s' }}>
+                    <i className="fa-solid fa-magnifying-glass-chart" style={{ fontSize: '0.8rem' }} />
+                    Full Market Analysis
+                  </button>
+                )}
+                {deepLoading && (
+                  <div style={{ padding: '6px 14px', fontSize: '0.72rem', fontWeight: 700, color: '#a78bfa', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: '0.7rem' }} /> Analysing…
+                  </div>
+                )}
+                {d.deep_analysis && (
+                  <div style={{ padding: '6px 14px', fontSize: '0.72rem', fontWeight: 700, color: '#a78bfa', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <i className="fa-solid fa-circle-check" style={{ fontSize: '0.7rem' }} /> Deep Analysis ✓
+                  </div>
+                )}
+
+                {/* ── Step 2: Build Report — only active once deep analysis is complete ── */}
+                {finalResult && d.deep_analysis && (
                   <a
                     href={`/property-report?address=${encodeURIComponent(address)}&down=${displayDown}&rate=${displayRate ?? d.rate_used ?? 6.875}${scenarioDebt != null && scenarioDebt > 0 ? `&debt=${scenarioDebt}` : ''}${(redfinPhotoUrl ?? (finalResult as any)?.photo_url) ? `&photo=${encodeURIComponent((redfinPhotoUrl ?? (finalResult as any)?.photo_url) as string)}` : ''}&chatUrl=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`}
                     target="_blank"
@@ -1261,6 +1279,15 @@ function PropertyIntelInner() {
                     <i className="fa-solid fa-file-pdf" style={{ fontSize: '0.8rem' }} />
                     Build Report ↗
                   </a>
+                )}
+                {/* Disabled Build Report — shows before analysis so user understands the sequence */}
+                {finalResult && !d.deep_analysis && (
+                  <div title="Run Full Market Analysis first to score all 4 levels"
+                    style={{ padding: '11px 20px', fontSize: '0.82rem', fontWeight: 600, background: 'rgba(255,255,255,0.03)', color: 'rgba(148,163,184,0.35)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 7, cursor: 'not-allowed', userSelect: 'none' }}>
+                    <i className="fa-solid fa-file-pdf" style={{ fontSize: '0.8rem' }} />
+                    Build Report ↗
+                    <span style={{ fontSize: '0.62rem', marginLeft: 2, opacity: 0.7 }}>— run analysis first</span>
+                  </div>
                 )}
 
                 {/* Save to Vault */}
@@ -1278,19 +1305,6 @@ function PropertyIntelInner() {
                     </button>
                   </SignInButton>
                 </SignedOut>
-
-                {/* Full Market Analysis */}
-                {!d.deep_analysis && !deepLoading && finalResult && (
-                  <button onClick={runDeepAnalysis} style={{ padding: '11px 20px', fontSize: '0.82rem', fontWeight: 600, background: 'rgba(139,92,246,0.1)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.28)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s' }}>
-                    <i className="fa-solid fa-magnifying-glass-chart" style={{ fontSize: '0.8rem' }} />
-                    Full Market Analysis
-                  </button>
-                )}
-                {d.deep_analysis && (
-                  <div style={{ padding: '6px 14px', fontSize: '0.72rem', fontWeight: 700, color: '#a78bfa', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <i className="fa-solid fa-circle-check" style={{ fontSize: '0.7rem' }} /> Deep Analysis
-                  </div>
-                )}
 
                 {/* Run My Numbers — primary CTA */}
                 <SignedIn>
