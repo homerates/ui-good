@@ -153,8 +153,16 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
     async function handleDrawerRun() {
         setDrawerPhase('running');
+
+        // Only fire onRunScenario (chat round-trip) when LOAN SCENARIO params changed.
+        // Income and debt are local display context — they never generate a chat message
+        // because their values would be misrouted as a purchase price by intent detection.
+        const scenarioChanged = ltMod || downMod || rateMod || termMod ||
+                                Math.abs(price - commitPrice) > 1;
+
         handleCommit();
-        if (props.onRunScenario) {
+
+        if (scenarioChanged && props.onRunScenario) {
             const ltLbl = isJumbo ? 'Jumbo' : isFHA ? 'FHA' : isVA ? 'VA' : 'Conv.';
             const overrides = {
                 downPaymentPct: downPct,
@@ -165,12 +173,16 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 annualIncome: annualIncome > 0 ? annualIncome : undefined,
                 totalMonthly: Math.round(totalMo),
             };
-            const incStr = annualIncome > 0 ? ` · ${fmtK(annualIncome)}/yr income` : '';
+            // Seed contains only loan scenario params — no income appended
+            // (income in the seed causes intent routing to misread it as a purchase price)
             props.onRunScenario(
-                `Run my numbers: ${ltLbl} · ${downPct}% down · ${rate.toFixed(2)}% · ${termYrs}yr${incStr}`,
+                `Run my numbers: ${ltLbl} · ${downPct}% down · ${rate.toFixed(2)}% · ${termYrs}yr`,
                 overrides,
             );
         }
+        // If only income/debt changed: numbers have already recalculated in state above.
+        // Just commit, animate, and close — no chat message needed.
+
         await new Promise<void>(r => setTimeout(r, 700));
         setDrawerPhase('done');
         await new Promise<void>(r => setTimeout(r, 1600));

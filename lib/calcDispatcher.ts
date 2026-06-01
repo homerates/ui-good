@@ -405,6 +405,11 @@ export function isConventionalQuestion(q: string): boolean {
     const hasRate = /\d+\.\d+\s*%|(?:rate|at)\s+\d+/i.test(q);
     // If income question BUT has specific price + rate + down → route to conventional for income calc
     if (isIncomeQualify && hasPrice && hasRate && hasDown) return true;
+    // "Run my numbers: Conv. · X% down · X.XX% · Xyr" — IQC card re-run with no price in string.
+    // Price lives in chat history; down + rate + term are enough to confirm this is a scenario calc.
+    const isRunMyNumbers = /\brun\s+my\s+numbers\b/i.test(q);
+    const hasConvAlias = /\bconv\.?\b|\bconventional\b/i.test(q);
+    if (isRunMyNumbers && hasConvAlias && hasDown && hasRate) return true;
     // Price + down% alone is sufficient for a mortgage calculation (no need for explicit loan-type word)
     if (hasPrice && hasDown && !isIncomeQualify) return true;
     return (hasPrice && hasMortgageCtx && !isIncomeQualify);
@@ -600,7 +605,7 @@ export function dispatch(
         /\bsame\s+(property|home|house|but|scenario)\b/i.test(q) ||
         /\bif\s+(?:i|the|rates?|price)\b.{0,30}\b(?:drop|goes?|change|lower|higher|was|were)\b/i.test(q);
 
-    const hasExplicitLoanType = /\bfha\b|\bconventional\b|\bva\b|\busda\b|\bjumbo\b|\bdscr\b/i.test(q);
+    const hasExplicitLoanType = /\bfha\b|\bconventional\b|\bconv\.?\b|\bva\b|\busda\b|\bjumbo\b|\bdscr\b/i.test(q);
 
     if (isFollowUpPhrasing && !hasExplicitLoanType) {
         // Try to identify prior loan type from history and re-run with merged params
@@ -609,7 +614,7 @@ export function dispatch(
         const priorIsDSCR = /\bdscr\b|investment property|pitia|dscr.*rent|rent.*dscr/.test(histLower) ||
             (/rent/i.test(histLower) && /pitia|dscr|investment/i.test(histLower));
         const priorIsFHA = !priorIsDSCR && /\bfha\b|\bufmip\b|\bmip\b/.test(histLower);
-        const priorIsConventional = !priorIsDSCR && !priorIsFHA && /conventional/.test(histLower);
+        const priorIsConventional = !priorIsDSCR && !priorIsFHA && /conventional|\bconv\b/.test(histLower);
 
         // Extract what changed in the follow-up question
         const newPrice = extractPrice(q);
