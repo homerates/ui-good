@@ -177,15 +177,15 @@ function extractPrice(text: string): number | undefined {
         const v = parseFloat(fullMatch[1].replace(/,/g, ''));
         if (v >= 50000 && v <= 50_000_000) return v;
     }
-    // Bare $Xk — try this FIRST before context match to avoid grabbing rent amounts
-    // e.g. "$450k investment property, $3,200/mo rent" — must return 450000 not 3200000
-    const incomeRe = /(?:income|salary|earn|make|making)\s{0,5}\$[\d,]+\s*k\b|\$[\d,]+\s*k\s{0,5}(?:income|salary)\b/i;
+    // Bare $Xk — try this FIRST before context match to avoid grabbing rent amounts or income figures.
+    // Handles: "$200k/yr income", "$200k income", "income $200k", "make $200k"
+    const incomeRe = /(?:income|salary|earn|make|making)\s{0,5}\$[\d,]+\s*k\b|\$[\d,]+\s*k(?:[\s\/](?:yr?|year))?\s{0,5}(?:income|salary)\b|\$[\d,]+\s*k\s*\/yr?\b/i;
     const bareMatches = Array.from(text.matchAll(/\$([\d,]+)\s*k\b/gi));
     const best = bareMatches.find(m => {
         const v = parseFloat(m[1].replace(/,/g, ''));
         if (v < 50) return false;
         const idx = m.index ?? 0;
-        const surround = text.slice(Math.max(0, idx - 15), idx + m[0].length + 15);
+        const surround = text.slice(Math.max(0, idx - 15), idx + m[0].length + 20);
         return !incomeRe.test(surround);
     });
     if (best) {
@@ -226,8 +226,12 @@ function extractRate(text: string): number | undefined {
 
 function extractIncome(text: string): number | undefined {
     const m = text.match(/(?:i\s+earn|i\s+make|we\s+make|make|earn)\s+[\$]?\s*([\d,]+)\s*k?\b/i) ||
-        text.match(/[\$]\s*([\d,]+)\s*k?\s*(?:income|salary|a\s+year|per\s+year|annually|\/year)/i) ||
-        text.match(/(?:salary|income)\s+(?:is\s+|of\s+)?[\$]?\s*([\d,]+)\s*k?\b/i);
+        // Handles: "$200k/yr income", "$200k/year salary", "$200k income", "$200k annually"
+        text.match(/[\$]\s*([\d,]+)\s*k?\s*(?:\/yr?|\/year|income|salary|a\s+year|per\s+year|annually)/i) ||
+        // Handles: "income $200k", "salary of $200k"
+        text.match(/(?:salary|income)\s+(?:is\s+|of\s+)?[\$]?\s*([\d,]+)\s*k?\b/i) ||
+        // Handles: "$200k/yr" standalone (no "income" word after)
+        text.match(/[\$]\s*([\d,]+)\s*k\s*\/yr?\b/i);
     if (!m) return undefined;
     let v = parseFloat(m[1].replace(/,/g, ''));
     if (v < 1000) v *= 1000;
