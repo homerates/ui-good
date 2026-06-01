@@ -59,8 +59,8 @@ function Box({ title, code, color = BP.cyan, children, width, minHeight }: {
   );
 }
 
-function Row({ children, gap = 12 }: { children: React.ReactNode; gap?: number }) {
-  return <div style={{ display: 'flex', gap, alignItems: 'flex-start', flexWrap: 'wrap' }}>{children}</div>;
+function Row({ children, gap = 12, wrap = false }: { children: React.ReactNode; gap?: number; wrap?: boolean }) {
+  return <div style={{ display: 'flex', gap, alignItems: 'flex-start', flexWrap: wrap ? 'wrap' : 'nowrap', overflowX: wrap ? 'visible' : 'auto', paddingBottom: wrap ? 0 : 8 }}>{children}</div>;
 }
 
 function Label({ children, color }: { children: React.ReactNode; color?: string }) {
@@ -119,14 +119,15 @@ export default function BlueprintPage() {
   };
 
   return (
-    <div style={{ background: BP.bg, minHeight: '100vh', fontFamily: SANS, color: BP.white,
+    <div className="page-standalone" style={{ background: BP.bg, minHeight: '100vh', fontFamily: SANS, color: BP.white,
       backgroundImage: `linear-gradient(${BP.grid} 1px, transparent 1px), linear-gradient(90deg, ${BP.grid} 1px, transparent 1px)`,
-      backgroundSize: '32px 32px' }}>
+      backgroundSize: '32px 32px', width: '100%', boxSizing: 'border-box' }}>
 
       {/* ── Top bar ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: `${BP.bg}f0`,
         borderBottom: `1px solid ${BP.border2}`, padding: '10px 32px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', backdropFilter: 'blur(8px)' }}>
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', backdropFilter: 'blur(8px)',
+        width: '100%', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <button onClick={() => router.push('/admin')} style={{ background: 'none', border: `1px solid ${BP.border2}`, borderRadius: 6, color: BP.dim, fontSize: '0.72rem', padding: '5px 12px', cursor: 'pointer', fontFamily: MONO }}>← Admin</button>
           <div>
@@ -147,8 +148,8 @@ export default function BlueprintPage() {
         </div>
       </div>
 
-      {/* ── Blueprint content ── */}
-      <div style={{ padding: '40px 48px 120px', maxWidth: 1400, margin: '0 auto' }}>
+      {/* ── Blueprint content — full width, horizontal scroll for wide sections ── */}
+      <div style={{ padding: '40px 48px 120px', width: '100%', boxSizing: 'border-box', overflowX: 'auto' }}>
 
         {/* Title block */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 40 }}>
@@ -403,7 +404,7 @@ export default function BlueprintPage() {
         <SectionHeader num="F" title="PROCESS FLOW — CONSUMER JOURNEYS"
           sub="End-to-end paths a consumer takes from first touch to Get Matched" />
 
-        <Row gap={16}>
+        <Row gap={16} wrap>
 
           {/* Journey 1 */}
           <div style={{ flex: 1, minWidth: 280 }}>
