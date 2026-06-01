@@ -8,6 +8,7 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
+import AdminCardBadge from './AdminCardBadge';
 import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
 import { HIGH_COST_COUNTIES, type NationalCountyLimits } from '@/loanLimitsNational2026';
 
@@ -349,7 +350,8 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     };
 
     return (
-        <div className="isc">
+        <div className="isc" style={{ position: 'relative' }}>
+            <AdminCardBadge code="ISC-002" />
 
             {/* Topbar */}
             <div className="isc-topbar">

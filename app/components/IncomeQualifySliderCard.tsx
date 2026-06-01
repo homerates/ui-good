@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import AdminCardBadge from './AdminCardBadge';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
@@ -193,7 +194,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     // ── Render ────────────────────────────────────────────────────────────────
 
     return (
-        <div className="iq2">
+        <div className="iq2" style={{ position: 'relative' }}>
+            <AdminCardBadge code="IQC-003" />
 
             {/* Topbar */}
             <div className="iq2-topbar">

@@ -5,6 +5,7 @@
 // Complete state: all 4 bars animate in, composite score, CTA to Track 5.
 
 import { useEffect, useRef, useState } from 'react';
+import AdminCardBadge from './AdminCardBadge';
 
 export type DecisionScoreData = {
   state: 'computing' | 'complete';
@@ -140,11 +141,13 @@ export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, sc
       background:    hasScore ? 'rgba(0,232,122,0.04)' : 'rgba(255,255,255,0.025)',
       border:        `1px solid ${hasScore ? 'rgba(0,232,122,0.18)' : 'rgba(255,255,255,0.1)'}`,
       borderRadius:  16,
+      position:      'relative',
       overflow:      'hidden',
       marginTop:     10,
       fontFamily:    "'DM Sans', system-ui, sans-serif",
       transition:    'border-color 0.5s ease, background 0.5s ease',
     }}>
+      <AdminCardBadge code="DSC-004" />
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>

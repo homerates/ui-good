@@ -6,6 +6,7 @@
 
 import React, { useEffect } from 'react';
 import { prefetchGrokProperty } from '@/prefetchGrokProperty';
+import AdminCardBadge from './AdminCardBadge';
 
 export interface PropertyCardData {
     source: string;
@@ -223,7 +224,8 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
 
     // ── Standard listing card (Zillow / Redfin URL pastes) ───────────────────
     return (
-        <div className="property-preview-card">
+        <div className="property-preview-card" style={{ position: 'relative' }}>
+            <AdminCardBadge code="PPC-001" position="top-left" />
             {/* Photo */}
             {hasPhoto && (
                 <div className="property-photo-wrap">
