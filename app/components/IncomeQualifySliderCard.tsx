@@ -56,6 +56,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     const [drawerOpen,   setDrawerOpen]   = useState(false);
     const [moreOpen,     setMoreOpen]     = useState(false);
     const [drawerPhase,  setDrawerPhase]  = useState<'idle'|'running'|'done'>('idle');
+    const [editingField, setEditingField] = useState<'price'|'rate'|'income'|'debt'|'down'|null>(null);
+    const [editText,     setEditText]     = useState('');
 
     const [loanTypeState, setLoanTypeState] = useState<'conventional'|'fha'|'va'|'jumbo'>(
         props.loanType ?? 'conventional'
@@ -191,6 +193,46 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
         setDrawerPhase('idle');
     }
 
+    // ── Field inline-edit helpers ─────────────────────────────────────────────
+
+    function parseFieldInput(text: string): number {
+        const t = text.trim().replace(/[$,%\s]/g, '');
+        const m = t.match(/^([\d.]+)([kKmM]?)$/);
+        if (!m) return NaN;
+        let n = parseFloat(m[1]);
+        if (m[2].toLowerCase() === 'k') n *= 1_000;
+        if (m[2].toLowerCase() === 'm') n *= 1_000_000;
+        return n;
+    }
+
+    function openEdit(field: 'price'|'rate'|'income'|'debt'|'down', rawText: string) {
+        setEditText(rawText);
+        setEditingField(field);
+    }
+
+    function commitFieldEdit(field: 'price'|'rate'|'income'|'debt'|'down') {
+        const n = parseFieldInput(editText);
+        if (!isNaN(n)) {
+            if (field === 'price')  setPrice(Math.max(100_000, Math.min(priceMax, Math.round(n))));
+            if (field === 'rate')   setRate(Math.max(3, Math.min(12, Math.round(n * 1000) / 1000)));
+            if (field === 'income') setAnnualIncome(Math.max(0, Math.min(isJumbo ? 2_000_000 : 600_000, Math.round(n))));
+            if (field === 'debt')   setMonthlyDebt(Math.max(0, Math.min(3_000, Math.round(n))));
+            if (field === 'down')   setDownPct(Math.max(minDown, Math.min(50, Math.round(n * 10) / 10)));
+        }
+        setEditingField(null);
+    }
+
+    function FieldEditInput({ field, extra }: { field: 'price'|'rate'|'income'|'debt'|'down'; extra?: string }) {
+        return (
+            <input type="text" className={`iq2-field-inp${extra ? ` ${extra}` : ''}`}
+                value={editText} autoFocus
+                onChange={e => setEditText(e.target.value)}
+                onBlur={() => commitFieldEdit(field)}
+                onKeyDown={e => { if (e.key === 'Enter') commitFieldEdit(field); if (e.key === 'Escape') setEditingField(null); }}
+            />
+        );
+    }
+
     // ── Render ────────────────────────────────────────────────────────────────
 
     return (
@@ -291,7 +333,9 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                         <div className="iq2-field">
                             <div className="iq2-field-top">
                                 <span className="iq2-field-lbl">Home Price</span>
-                                <span className="iq2-field-val">{fmtK(price)}</span>
+                                {editingField === 'price'
+                                    ? <FieldEditInput field="price" />
+                                    : <span className="iq2-field-val iq2-field-val--edit" title="Click to type a value" onClick={() => openEdit('price', String(price))}>{fmtK(price)}</span>}
                             </div>
                             <input type="range" className="iq2-slider"
                                 style={{ '--tc': ltAccent } as React.CSSProperties}
@@ -304,7 +348,9 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                         <div className="iq2-field">
                             <div className="iq2-field-top">
                                 <span className="iq2-field-lbl">Down Payment</span>
-                                <span className="iq2-field-val">{downPct}% · {fmtK(downAmt)}</span>
+                                {editingField === 'down'
+                                    ? <FieldEditInput field="down" />
+                                    : <span className="iq2-field-val iq2-field-val--edit" title="Click to type %" onClick={() => openEdit('down', String(downPct))}>{downPct}% · {fmtK(downAmt)}</span>}
                             </div>
                             <input type="range" className="iq2-slider"
                                 style={{ '--tc': ltAccent } as React.CSSProperties}
@@ -326,7 +372,9 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                         <div className="iq2-field">
                             <div className="iq2-field-top">
                                 <span className="iq2-field-lbl">Interest Rate</span>
-                                <span className="iq2-field-val">{rate.toFixed(3)}%</span>
+                                {editingField === 'rate'
+                                    ? <FieldEditInput field="rate" />
+                                    : <span className="iq2-field-val iq2-field-val--edit" title="Click to type %" onClick={() => openEdit('rate', rate.toFixed(3))}>{rate.toFixed(3)}%</span>}
                             </div>
                             <input type="range" className="iq2-slider"
                                 style={{ '--tc': ltAccent } as React.CSSProperties}
@@ -354,7 +402,9 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                         <div className="iq2-field">
                             <div className="iq2-field-top">
                                 <span className="iq2-field-lbl">Monthly Debts</span>
-                                <span className="iq2-field-val iq2-field-val--debt">{monthlyDebt === 0 ? 'None' : fmt$(monthlyDebt)}</span>
+                                {editingField === 'debt'
+                                    ? <FieldEditInput field="debt" extra="iq2-field-inp--debt" />
+                                    : <span className="iq2-field-val iq2-field-val--debt iq2-field-val--edit" title="Click to type amount" onClick={() => openEdit('debt', monthlyDebt === 0 ? '' : String(monthlyDebt))}>{monthlyDebt === 0 ? 'None' : fmt$(monthlyDebt)}</span>}
                             </div>
                             <input type="range" className="iq2-slider iq2-slider--debt"
                                 min={0} max={3000} step={50}
@@ -367,7 +417,9 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                         <div className="iq2-field">
                             <div className="iq2-field-top">
                                 <span className="iq2-field-lbl">Annual Income</span>
-                                <span className="iq2-field-val">{annualIncome === 0 ? '—' : fmtK(annualIncome)}</span>
+                                {editingField === 'income'
+                                    ? <FieldEditInput field="income" />
+                                    : <span className="iq2-field-val iq2-field-val--edit" title="Click to type amount" onClick={() => openEdit('income', annualIncome === 0 ? '' : String(annualIncome))}>{annualIncome === 0 ? '—' : fmtK(annualIncome)}</span>}
                             </div>
                             <input type="range" className="iq2-slider"
                                 style={{ '--tc': ltAccent } as React.CSSProperties}
@@ -658,6 +710,10 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq2-field-lbl { font-size:0.62rem; font-weight:600; color:#94a3b8; }
                 .iq2-field-val { font-size:0.68rem; font-weight:800; color:#e2eaf8; font-variant-numeric:tabular-nums; }
                 .iq2-field-val--debt { color:#60a5fa; }
+                .iq2-field-val--edit { cursor:pointer; border-bottom:1px dashed transparent; transition:border-color .15s; }
+                .iq2-field-val--edit:hover { border-bottom-color:rgba(255,255,255,0.35); }
+                .iq2-field-inp { font-size:0.68rem; font-weight:800; color:#e2eaf8; font-variant-numeric:tabular-nums; background:rgba(255,255,255,0.09); border:1.5px solid rgba(0,232,122,0.55); border-radius:5px; outline:none; text-align:right; width:72px; padding:1px 5px; }
+                .iq2-field-inp--debt { border-color:rgba(61,139,255,0.55); }
                 .iq2-field-hint { font-size:0.55rem; color:#3a4560; margin-top:3px; }
                 .iq2-range-lbls { display:flex; justify-content:space-between; margin-top:3px; font-size:8.5px; color:#3a4560; }
 
