@@ -20,8 +20,14 @@ export interface AffordabilitySliderParams {
     taxRate: number;
     insRate: number;
     loanType: 'conventional' | 'fha';  // kept for backward compat
+    fhaLoanLimit?: number;   // FHA base-loan cap (default = national floor $541,287)
+    confLoanLimit?: number;  // conforming loan cap (default = standard $832,750)
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
 }
+
+// National 2026 loan limits (fallback when props omit them)
+const FHA_FLOOR  = 541_287;
+const CONF_LIMIT = 832_750;
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
@@ -36,6 +42,7 @@ function calcMaxPrice(
     annualIncome: number, monthlyDebts: number, downPct: number,
     annualRate: number, termYears: number, taxRate: number, insRate: number,
     loanType: 'conventional' | 'fha',
+    loanLimit?: number,
 ): number {
     const budget = (annualIncome / 12) * 0.43 - monthlyDebts;
     if (budget <= 50) return 0;
@@ -56,7 +63,12 @@ function calcMaxPrice(
         const mid = (lo + hi) / 2;
         if (totalAt(mid) < budget) lo = mid; else hi = mid;
     }
-    return Math.floor((lo + hi) / 2 / 1_000) * 1_000;
+    const incomeBased = Math.floor((lo + hi) / 2 / 1_000) * 1_000;
+    if (loanLimit) {
+        const limitCap = Math.floor(loanLimit / (1 - downPct / 100) / 1_000) * 1_000;
+        return Math.min(incomeBased, limitCap);
+    }
+    return incomeBased;
 }
 
 interface ProgramCalc {
@@ -70,8 +82,9 @@ function calcProgram(
     annualIncome: number, monthlyDebts: number, downPct: number,
     rate: number, term: number, taxRate: number, insRate: number,
     loanType: 'conventional' | 'fha', savings: number,
+    loanLimit?: number,
 ): ProgramCalc | null {
-    const maxPrice = calcMaxPrice(annualIncome, monthlyDebts, downPct, rate, term, taxRate, insRate, loanType);
+    const maxPrice = calcMaxPrice(annualIncome, monthlyDebts, downPct, rate, term, taxRate, insRate, loanType, loanLimit);
     if (maxPrice <= 0) return null;
     const down     = maxPrice * downPct / 100;
     const baseLoan = maxPrice - down;
@@ -231,10 +244,10 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
     const router   = useRouter();
 
     const { fha, conv3, conv20 } = useMemo(() => ({
-        fha:    calcProgram(income, debts, 3.5,     rate, term, props.taxRate, props.insRate, 'fha',          savings),
-        conv3:  calcProgram(income, debts, downPct, rate, term, props.taxRate, props.insRate, 'conventional', savings),
-        conv20: calcProgram(income, debts, 20,      rate, term, props.taxRate, props.insRate, 'conventional', savings),
-    }), [income, debts, savings, downPct, rate, term, props.taxRate, props.insRate]);
+        fha:    calcProgram(income, debts, 3.5,     rate, term, props.taxRate, props.insRate, 'fha',          savings, props.fhaLoanLimit  ?? FHA_FLOOR),
+        conv3:  calcProgram(income, debts, downPct, rate, term, props.taxRate, props.insRate, 'conventional', savings, props.confLoanLimit ?? CONF_LIMIT),
+        conv20: calcProgram(income, debts, 20,      rate, term, props.taxRate, props.insRate, 'conventional', savings, props.confLoanLimit ?? CONF_LIMIT),
+    }), [income, debts, savings, downPct, rate, term, props.taxRate, props.insRate, props.fhaLoanLimit, props.confLoanLimit]);
 
     // Explorer stats based on Conv 3% (the "best fit" recommendation)
     const ref = conv3;

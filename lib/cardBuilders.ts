@@ -111,6 +111,8 @@ export interface BuiltCard {
         taxRate: number;
         insRate: number;
         loanType: 'conventional' | 'fha' | 'jumbo';
+        fhaLoanLimit?: number;
+        confLoanLimit?: number;
     };
     dscrSlider?: {
         price: number;
@@ -1599,6 +1601,8 @@ ${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans
         affordabilitySlider: (() => {
             const sc0 = r.scenarios[0];
             const sc = r.scenarios.find(s => !s.isFHA) ?? sc0;
+            const fhaSc  = r.scenarios.find(s => s.isFHA);
+            const convSc = r.scenarios.find(s => !s.isFHA);
             const refPrice = sc?.homePrice ?? sc0?.homePrice ?? 300000;
             const isJumboScenario = sc0?.program === 'Jumbo' || sc?.program === 'Jumbo';
             return {
@@ -1611,7 +1615,9 @@ ${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans
                 taxRate: refPrice > 0 ? ((sc?.monthlyTax ?? sc0?.monthlyTax ?? 300) * 12) / refPrice : 0.012,
                 insRate: refPrice > 0 ? ((sc?.monthlyInsurance ?? sc0?.monthlyInsurance ?? 125) * 12) / refPrice : 0.005,
                 loanType: sc0?.isFHA ? 'fha' : isJumboScenario ? 'jumbo' : 'conventional',
-            } as const;
+                fhaLoanLimit:  fhaSc?.loanLimitForProgram  ?? 541_287,
+                confLoanLimit: convSc?.loanLimitForProgram ?? 832_750,
+            };
         })(),
         lenderChecklist: (() => {
             const sc0 = r.scenarios[0];
