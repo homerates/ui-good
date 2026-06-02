@@ -2089,12 +2089,14 @@ export default function Page() {
 
         // ── Property listing URL or plain address branch ─────────────────────
         const listingUrl   = extractListingUrl(q);
-        // Digest/report seeds already carry inline value + rate — don't trigger a lookup
-        // that will fail and swallow the message (e.g. "My home at X is estimated at $875k. Use these exact figures.")
-        const hasInlinePropertyData =
+        // Digest/report/homeowner seeds — don't trigger the buyer lookup flow.
+        // "My home at X" = homeowner context; "Use these exact figures" = inline-data seed.
+        const hasHomeownerIntent =
             /(?:is\s+estimated\s+at|estimated\s+at)\s*\$[\d,]+/i.test(q) ||
-            /use\s+these\s+exact\s+figures/i.test(q);
-        const plainAddress = (!listingUrl && !hasInlinePropertyData) ? extractPlainAddress(q) : null;
+            /use\s+these\s+exact\s+figures/i.test(q) ||
+            /^\s*my home at\b/i.test(q) ||
+            /\bmy home at\b.{5,120}(?:refinance|refi|equity|break.?even|heloc)/i.test(q);
+        const plainAddress = (!listingUrl && !hasHomeownerIntent) ? extractPlainAddress(q) : null;
         if (listingUrl || plainAddress) {
             // Zillow blocks server-side scraping — show a friendly nudge immediately
             if (listingUrl && /zillow\.com/i.test(listingUrl)) {
@@ -2144,7 +2146,11 @@ export default function Page() {
                     const fmtK = (n: number) => { const k = Math.round(n / 1000); return k >= 1000 ? `$${(k / 1000).toFixed(1).replace(/\.0$/, '')}M` : `$${k}k`; };
                     const cityStr = d.city ? ` in ${d.city}` : '';
 
-                    const isOffMarket = d.listingStatus === 'OFF_MARKET' || d.listingStatus === 'SOLD';
+                    // "My home at X" in the question = homeowner intent, treat as off-market regardless
+                    // of whether Redfin shows the property as currently listed for sale
+                    const isDigestHomeowner = /^\s*my home at\b/i.test(q) ||
+                        /\bmy home at\b.{5,120}(?:refinance|refi|equity|break.?even)/i.test(q);
+                    const isOffMarket = d.listingStatus === 'OFF_MARKET' || d.listingStatus === 'SOLD' || isDigestHomeowner;
 
                     // ── OFF-MARKET / REFI path ─────────────────────────────────────────
                     if (isOffMarket) {
