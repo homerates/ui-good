@@ -42,7 +42,6 @@ function calcMaxPrice(
     annualIncome: number, monthlyDebts: number, downPct: number,
     annualRate: number, termYears: number, taxRate: number, insRate: number,
     loanType: 'conventional' | 'fha',
-    loanLimit?: number,
 ): number {
     const budget = (annualIncome / 12) * 0.43 - monthlyDebts;
     if (budget <= 50) return 0;
@@ -63,12 +62,7 @@ function calcMaxPrice(
         const mid = (lo + hi) / 2;
         if (totalAt(mid) < budget) lo = mid; else hi = mid;
     }
-    const incomeBased = Math.floor((lo + hi) / 2 / 1_000) * 1_000;
-    if (loanLimit) {
-        const limitCap = Math.floor(loanLimit / (1 - downPct / 100) / 1_000) * 1_000;
-        return Math.min(incomeBased, limitCap);
-    }
-    return incomeBased;
+    return Math.floor((lo + hi) / 2 / 1_000) * 1_000;
 }
 
 interface ProgramCalc {
@@ -76,6 +70,8 @@ interface ProgramCalc {
     loan: number; pi: number; tax: number; ins: number; pmi: number;
     total: number; closing: number; totalCash: number;
     savingsGap: number; incomeToQualify: number; qualifies: boolean;
+    /** Price capped by loan limit (null if income-based max is already within limit) */
+    limitCappedPrice: number | null;
 }
 
 function calcProgram(
@@ -84,7 +80,7 @@ function calcProgram(
     loanType: 'conventional' | 'fha', savings: number,
     loanLimit?: number,
 ): ProgramCalc | null {
-    const maxPrice = calcMaxPrice(annualIncome, monthlyDebts, downPct, rate, term, taxRate, insRate, loanType, loanLimit);
+    const maxPrice = calcMaxPrice(annualIncome, monthlyDebts, downPct, rate, term, taxRate, insRate, loanType);
     if (maxPrice <= 0) return null;
     const down     = maxPrice * downPct / 100;
     const baseLoan = maxPrice - down;
@@ -106,7 +102,11 @@ function calcProgram(
     const incomeToQualify = Math.ceil(((total + monthlyDebts) / 0.43) * 12 / 100) * 100;
     // qualifies: use a small tolerance ($600) to absorb rounding at the edge
     const qualifies = annualIncome >= incomeToQualify - 600;
-    return { maxPrice, down, baseLoan, ufmip, loan, pi, tax, ins, pmi, total, closing, totalCash, savingsGap, incomeToQualify, qualifies };
+    // Show when loan limit is tighter than income-based max (e.g., FHA floor $541k)
+    const limitCappedPrice = loanLimit
+        ? (() => { const cap = Math.floor(loanLimit / (1 - downPct / 100) / 1_000) * 1_000; return cap < maxPrice ? cap : null; })()
+        : null;
+    return { maxPrice, down, baseLoan, ufmip, loan, pi, tax, ins, pmi, total, closing, totalCash, savingsGap, incomeToQualify, qualifies, limitCappedPrice };
 }
 
 // ── Formatting ──────────────────────────────────────────────────────────────
@@ -163,7 +163,12 @@ function ProgramDrawer({ calc, loanType, annualIncome, monthlyDebts }: DrawerPro
             {/* Loan Structure */}
             <div className="afc-ds">
                 <div className="afc-dl">Loan Structure</div>
-                <KV k="Max Home Price"    v={fmt$(calc.maxPrice)} />
+                <KV k="Income-based max" v={fmt$(calc.maxPrice)} />
+                {calc.limitCappedPrice && (
+                    <div className="afc-limit-note">
+                        {loanType === 'fha' ? 'FHA loan limit' : 'Conforming limit'}: {fmt$(calc.limitCappedPrice)} in this area — {loanType === 'fha' ? 'consider Jumbo for higher amounts' : 'Jumbo available above this'}
+                    </div>
+                )}
                 <KV k="Down Payment"      v={fmt$(calc.down)} />
                 {loanType === 'fha' ? (
                     <>
@@ -244,9 +249,9 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
     const router   = useRouter();
 
     const { fha, conv3, conv20 } = useMemo(() => ({
-        fha:    calcProgram(income, debts, 3.5,     rate, term, props.taxRate, props.insRate, 'fha',          savings, props.fhaLoanLimit  ?? FHA_FLOOR),
-        conv3:  calcProgram(income, debts, downPct, rate, term, props.taxRate, props.insRate, 'conventional', savings, props.confLoanLimit ?? CONF_LIMIT),
-        conv20: calcProgram(income, debts, 20,      rate, term, props.taxRate, props.insRate, 'conventional', savings, props.confLoanLimit ?? CONF_LIMIT),
+        fha:    calcProgram(income, debts, 3.5,     rate, term, props.taxRate, props.insRate, 'fha',          savings, props.fhaLoanLimit),
+        conv3:  calcProgram(income, debts, downPct, rate, term, props.taxRate, props.insRate, 'conventional', savings, props.confLoanLimit),
+        conv20: calcProgram(income, debts, 20,      rate, term, props.taxRate, props.insRate, 'conventional', savings, props.confLoanLimit),
     }), [income, debts, savings, downPct, rate, term, props.taxRate, props.insRate, props.fhaLoanLimit, props.confLoanLimit]);
 
     // Explorer stats based on Conv 3% (the "best fit" recommendation)
@@ -842,6 +847,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                 .afc-kv-k { font-size: 12px; color: #8fa3b8; }
                 .afc-kv-v { font-size: 12px; font-weight: 600; color: #f0f4ff; }
                 .afc-kv-v--green { color: #00e87a; }
+                .afc-limit-note { font-size: 0.65rem; color: #f59e0b; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.22); border-radius: 6px; padding: 5px 8px; margin: 4px 0 6px; line-height: 1.45; }
 
                 /* income to qualify band */
                 .afc-qualify {
