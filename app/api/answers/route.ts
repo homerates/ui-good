@@ -6175,12 +6175,45 @@ Output JSON:
 
     // ========== AFFORDABILITY ADVISOR CHECK ==========
     // Guard: homeowner analysis queries must never be caught by affordability
-    const isHomeownerAnalysisQuery = /homeowner analysis|run a complete.*analysis.*for|complete homeowner/i.test(question);
+    const isHomeownerAnalysisQuery =
+        /homeowner analysis|run a complete.*analysis.*for|complete homeowner/i.test(question) ||
+        // Digest "Run My Numbers" seeds: "My home at X is estimated at $Y ... refinance/equity"
+        (/my home at .{5,120} is estimated at \$[\d,]+/i.test(question) &&
+         /refinance|break.?even|equity/i.test(question));
     let homeownerSnapshot: Record<string, any> | null = null;
 
-    // ── HOMEOWNER ANALYSIS: fetch property data via lookup pipeline ──────────
+    // ── HOMEOWNER ANALYSIS: use inline data from digest seeds OR fetch via lookup ─
     if (isHomeownerAnalysisQuery && !mortgageCalcContext) {
-        const addrMatch = question.match(/(?:homeowner analysis|complete.*analysis)\s+for\s+(.+?)(?:\s*:|,\s*current|\s*—|\s*\u2014)/i);
+        // ── Fast path: digest seed already carries all data inline ───────────
+        const inlineValueMatch  = question.match(/(?:is\s+estimated\s+at|estimated\s+at)\s*\$\s*([\d,]+)/i);
+        const inlineBalanceMatch = question.match(/current\s+loan\s+balance[:\s]+\$\s*([\d,]+)/i);
+        const inlinePurchaseRate = question.match(/my\s+rate\s+is\s+([\d.]+)\s*%/i);
+        const inlineEquityMatch  = question.match(/equity[:\s]+\$\s*([\d,]+)/i);
+        const inlineAddrMatch    = question.match(/my home at\s+(.+?)\s+is\s+estimated/i);
+        const inlineLiveRate     = question.match(/live\s+market\s+rate\s+is\s+([\d.]+)\s*%/i);
+
+        if (inlineValueMatch) {
+            const estimatedValue  = parseFloat(inlineValueMatch[1].replace(/,/g, ''));
+            const estimatedBalance = inlineBalanceMatch ? parseFloat(inlineBalanceMatch[1].replace(/,/g, '')) : Math.round(estimatedValue * 0.75);
+            const purchaseRate    = inlinePurchaseRate ? parseFloat(inlinePurchaseRate[1]) : null;
+            const estimatedEquity = inlineEquityMatch ? parseFloat(inlineEquityMatch[1].replace(/,/g, '')) : Math.round(estimatedValue - estimatedBalance);
+            const liveRate        = inlineLiveRate ? parseFloat(inlineLiveRate[1]) : fred?.mort30Avg ?? 6.5;
+            const hoAddr          = inlineAddrMatch?.[1]?.trim() ?? 'your property';
+            const fmt             = (n: number | null) => n != null ? `$${Math.round(n).toLocaleString()}` : 'N/A';
+            mortgageCalcContext =
+`PROPERTY DATA (from homeowner record — use these numbers EXACTLY):
+- Address: ${hoAddr}
+- Est. Value: ${fmt(estimatedValue)}
+- Current Loan Balance: ${fmt(estimatedBalance)}${purchaseRate ? `\n- Current Rate: ${purchaseRate.toFixed(2)}%` : ''}
+- Est. Equity: ${fmt(estimatedEquity)}
+- Today's 30Y Fixed Rate (live): ${liveRate}%
+CRITICAL: Use the values above exactly. Do NOT substitute market estimates.`;
+            homeownerSnapshot = { address: hoAddr, estimatedValue, estimatedBalance, estimatedEquity, purchaseRate, liveRate };
+        }
+        // Fallback: traditional pattern -> live lookup (skipped when inline data already set mortgageCalcContext)
+        const addrMatch = !mortgageCalcContext
+            ? question.match(/(?:homeowner analysis|complete.*analysis)\s+for\s+(.+?)(?:\s*:|,\s*current|\s*—)/i)
+            : null;
         const hoAddr = addrMatch?.[1]?.trim();
         if (hoAddr) {
             try {

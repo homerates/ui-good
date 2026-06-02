@@ -2089,7 +2089,12 @@ export default function Page() {
 
         // ── Property listing URL or plain address branch ─────────────────────
         const listingUrl   = extractListingUrl(q);
-        const plainAddress = !listingUrl ? extractPlainAddress(q) : null;
+        // Digest/report seeds already carry inline value + rate — don't trigger a lookup
+        // that will fail and swallow the message (e.g. "My home at X is estimated at $875k. Use these exact figures.")
+        const hasInlinePropertyData =
+            /(?:is\s+estimated\s+at|estimated\s+at)\s*\$[\d,]+/i.test(q) ||
+            /use\s+these\s+exact\s+figures/i.test(q);
+        const plainAddress = (!listingUrl && !hasInlinePropertyData) ? extractPlainAddress(q) : null;
         if (listingUrl || plainAddress) {
             // Zillow blocks server-side scraping — show a friendly nudge immediately
             if (listingUrl && /zillow\.com/i.test(listingUrl)) {
