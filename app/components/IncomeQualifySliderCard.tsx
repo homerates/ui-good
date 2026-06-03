@@ -600,24 +600,26 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                             </div>
                         )}
 
-                        {!props.journeyAddress && (
-                            <button className="iq2-check-btn"
-                                onClick={() => {
-                                    const lt = isJumbo ? 'jumbo' : isFHA ? 'fha' : isVA ? 'va' : 'conventional';
-                                    const p = new URLSearchParams({
-                                        price: String(Math.round(price)), dp: String(downPct),
-                                        rate: rate.toFixed(3), term: String(termYrs), lt,
-                                        taxRate: props.taxRate.toFixed(5), insRate: props.insRate.toFixed(5),
-                                        ...(monthlyDebt > 0 ? { monthlyDebt: String(Math.round(monthlyDebt)) } : {}),
-                                    });
-                                    router.push(`/check-property?${p.toString()}`);
-                                }}
-                            >Check a property →</button>
-                        )}
-
                     </div>
                 )}
             </div>
+
+            {/* Check a property — always visible next step */}
+            {!props.journeyAddress && (
+                <button className="iq2-check-btn"
+                    style={{ margin: '0 16px 12px', width: 'calc(100% - 32px)' }}
+                    onClick={() => {
+                        const lt = isJumbo ? 'jumbo' : isFHA ? 'fha' : isVA ? 'va' : 'conventional';
+                        const p = new URLSearchParams({
+                            price: String(Math.round(price)), dp: String(downPct),
+                            rate: rate.toFixed(3), term: String(termYrs), lt,
+                            taxRate: props.taxRate.toFixed(5), insRate: props.insRate.toFixed(5),
+                            ...(monthlyDebt > 0 ? { monthlyDebt: String(Math.round(monthlyDebt)) } : {}),
+                        });
+                        router.push(`/check-property?${p.toString()}`);
+                    }}
+                >🏡 Check a specific property →</button>
+            )}
 
             {/* Rate note */}
             <div className="iq2-rate-note">
