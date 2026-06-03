@@ -30,7 +30,10 @@ function priceMaxLabel(u: number): string {
 // ── Math ──────────────────────────────────────────────────────────────────────
 
 
-function mipRate(ltv: number): number { return ltv > 90 ? 0.0055 : 0.0050; }
+function mipRate(ltv: number, termYrs: number): number {
+    if (termYrs <= 15) return ltv > 90 ? 0.0040 : 0.0015;
+    return ltv > 90 ? 0.0055 : 0.0050;
+}
 
 // ── Formatting ────────────────────────────────────────────────────────────────
 
@@ -112,19 +115,21 @@ export default function FhaSliderCard(props: FhaSliderParams) {
     const ufmip      = Math.round(baseLoan * UFMIP_RATE);
     const loanAmt    = baseLoan + ufmip;
     const ltv        = (baseLoan / price) * 100;
-    const annMIP     = mipRate(ltv);
+    const annMIP     = mipRate(ltv, termYrs);
     const monthlyMIP = Math.round((baseLoan * annMIP) / 12);
     const pi         = Math.round(calcPI(loanAmt, rate, termYrs));
     const tax        = Math.round((price * props.taxRate) / 12);
     const ins        = Math.round((price * props.insRate) / 12);
     const total      = pi + monthlyMIP + tax + ins;
-    const mipDrops   = downPct >= 10;
-    const totalMIP   = mipDrops
-        ? Math.round(monthlyMIP * 11 * 12)
-        : Math.round(monthlyMIP * termYrs * 12);
+    const mipDrops   = termYrs <= 15 || downPct >= 10;
+    const totalMIP   = termYrs <= 15
+        ? Math.round(monthlyMIP * 11 * 12)   // 15yr: conservative upper bound; actual cancels at 78% LTV
+        : mipDrops
+            ? Math.round(monthlyMIP * 11 * 12)
+            : Math.round(monthlyMIP * termYrs * 12);
     const lifeMIP    = Math.round(monthlyMIP * termYrs * 12);
     const totalPmts  = Math.round(total * termYrs * 12);
-    const totalInt   = Math.round(totalPmts - loanAmt);
+    const totalInt   = Math.round(pi * termYrs * 12 - loanAmt);
 
     const totalObligation = total + debts;
     const q36 = Math.round((totalObligation / 0.36) * 12);
@@ -257,9 +262,11 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 </div>
                 <div className={`fha-mip-dur${mipDrops ? ' fha-mip-dur--good' : ' fha-mip-dur--warn'}`}>
                     <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{mipDrops ? '✅' : '⚠️'}</span>
-                    {mipDrops
-                        ? <span>With {downPct}% down, MIP cancels automatically after <strong>11 years</strong> — you&apos;ll save {fmt$(monthlyMIP)}/mo once it drops.</span>
-                        : <span>With {downPct}% down, MIP runs for the <strong>life of your loan</strong> — it never drops off. Put 10%+ down to cancel MIP after 11 years.</span>
+                    {termYrs <= 15
+                        ? <span>15-year FHA: MIP cancels when LTV reaches <strong>78%</strong> — typically around year 7–9 at this loan size.</span>
+                        : mipDrops
+                            ? <span>With {downPct}% down, MIP cancels automatically after <strong>11 years</strong> — you&apos;ll save {fmt$(monthlyMIP)}/mo once it drops.</span>
+                            : <span>With {downPct}% down, MIP runs for the <strong>life of your loan</strong> — it never drops off. Put 10%+ down to cancel MIP after 11 years.</span>
                     }
                 </div>
             </div>
@@ -503,7 +510,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                         <div className="fha-kv2"><span>UFMIP (financed into loan)</span><span>{fmt$(ufmip)}</span></div>
                         <div className="fha-kv2"><span>Annual MIP Rate</span><span>{(annMIP * 100).toFixed(2)}% (LTV {ltv > 90 ? '> 90%' : '≤ 90%'})</span></div>
                         <div className="fha-kv2 fha-kv2--amber"><span>Monthly MIP</span><span>{fmt$(monthlyMIP)}/mo</span></div>
-                        <div className="fha-kv2"><span>MIP Duration</span><span>{mipDrops ? '11 years (10%+ down)' : `Life of loan (${downPct}% down)`}</span></div>
+                        <div className="fha-kv2"><span>MIP Duration</span><span>{termYrs <= 15 ? 'Cancels at 78% LTV (15yr term)' : mipDrops ? '11 years (10%+ down)' : `Life of loan (${downPct}% down)`}</span></div>
                         <div className="fha-kv2 fha-kv2--amber"><span>Total MIP Paid ({mipDrops ? '11yr' : `${termYrs}yr`} est.)</span><span>{fmt$(totalMIP)}</span></div>
                         {mipDrops && (
                             <div className="fha-kv2 fha-kv2--green">
