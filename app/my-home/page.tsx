@@ -2169,36 +2169,6 @@ function MyHomePageInner() {
                               onError={e => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
                             />
                           )}
-                          {/* Upload photo button */}
-                          {activeProperty?.id && (
-                            <>
-                              <input
-                                id="photo-upload-input"
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                style={{ display: 'none' }}
-                                onChange={async e => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  const fd = new FormData();
-                                  fd.append('file', file);
-                                  fd.append('property_id', activeProperty.id!);
-                                  const res = await fetch('/api/homeowner/photo', { method: 'POST', body: fd });
-                                  if (res.ok) {
-                                    const { photoUrl: newUrl } = await res.json();
-                                    if (newUrl) setAnalysis((prev: any) => prev ? { ...prev, photoUrl: newUrl } : prev);
-                                  }
-                                  e.target.value = '';
-                                }}
-                              />
-                              <label
-                                htmlFor="photo-upload-input"
-                                style={{ position: 'absolute', top: 8, right: 8, zIndex: 3, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, padding: '5px 10px', fontSize: '0.65rem', fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.04em', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-                              >
-                                <span>📷</span> Upload
-                              </label>
-                            </>
-                          )}
                           {/* Address overlay on photo */}
                           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2, background: 'linear-gradient(to top, rgba(6,10,16,0.92) 0%, transparent 100%)', padding: '32px 18px 14px' }}>
                             <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f1f5f9', lineHeight: 1.3 }}>{heroAddr}</div>
