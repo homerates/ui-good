@@ -327,14 +327,6 @@ function CardPropertyIntel({ d }: { d: AnalysisData }) {
           {d.avmSource && <span style={{ marginLeft: 6, color: '#eaf8f7' }}>· {d.avmSource === 'attom' ? 'AVM estimate' : d.avmSource === 'fhfa' ? 'FHFA model' : 'assessed'}</span>}
         </div>
       )}
-      {d.address && (
-        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <Link href={`/property-intel?address=${encodeURIComponent(d.address)}`} target="_blank" rel="noopener noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, color: '#4ade80', background: 'rgba(74,222,128,0.07)', border: '1px solid rgba(74,222,128,0.18)', textDecoration: 'none', transition: 'all 0.15s' }}>
-            View Intelligence Report →
-          </Link>
-        </div>
-      )}
     </div>
   );
 }
@@ -2429,8 +2421,8 @@ function MyHomePageInner() {
                             );
                           })()}
                         </div>
-                        {/* Intelligence Report link — threads ?sid= if a journey session exists for this address */}
-                        {(activeProperty?.property_address || heroAddr) && (() => {
+                        {/* Intelligence Report link — buyer (FOR_SALE/PENDING) only */}
+                        {isBuyer && (activeProperty?.property_address || heroAddr) && (() => {
                           const reportAddr = activeProperty?.property_address || heroAddr;
                           const sid = lsGetPiSid(reportAddr);
                           const reportHref = `/property-intel?address=${encodeURIComponent(reportAddr)}${sid ? `&sid=${sid}` : ''}`;
