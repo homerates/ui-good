@@ -36,6 +36,7 @@ import {
 import { generateSourcesBundle } from "../../lib/sources-generator";
 import { extractMonthlyDebts as extractMonthlyDebtsShared } from "../../../lib/intent/extractors";
 import { FHA_FLOOR, FHA_CEILING, CONF_STANDARD, CONF_HIGH_BALANCE } from "../../../lib/constants";
+import { lookupByAddress as lookupPropertyByAddress } from "../../../lib/propertyLookup";
 import {
     buildLoanLimitsContext, getCALoanLimits, getCACountyByZip,
     getCACountyTaxRate, getCACountyInsRate, NATIONAL_CONFORMING_BASELINE,
@@ -6207,16 +6208,9 @@ CRITICAL: Use the values above exactly. Do NOT substitute market estimates.`;
         const hoAddr = addrMatch?.[1]?.trim();
         if (hoAddr) {
             try {
-                const appBase = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
-                const lookupRes = await fetch(`${appBase}/api/property/lookup`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ address: hoAddr }),
-                    signal: AbortSignal.timeout(20_000),
-                });
-                if (lookupRes.ok) {
-                    const lookupJson = await lookupRes.json();
-                    const d = lookupJson?.data;
+                const lookupJson = await lookupPropertyByAddress(hoAddr, { timeoutMs: 20_000 });
+                if (lookupJson.ok) {
+                    const d = lookupJson?.data as any;
                     if (d) {
                         const estimatedValue     = d.estimatedValue ?? d.price ?? d.lastSalePrice ?? null;
                         const estimatedValueLow  = d.estimatedValueLow  ?? null;
@@ -6251,8 +6245,8 @@ CRITICAL: Use the estimated value (${fmt(estimatedValue)}) as the property value
                         };
                     }
                 }
-            } catch (hoErr: any) {
-                console.warn('[HomeownerAnalysis] lookup failed:', hoErr.message);
+            } catch (hoErr: unknown) {
+                console.warn('[HomeownerAnalysis] lookup failed:', (hoErr as Error)?.message);
             }
         }
     }

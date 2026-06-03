@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { fetchPropertyData } from '@/property/fetch';
 import { lookupTaxRate }     from '@/property/taxTable';
 import { getSupabase }       from '../../../../lib/supabaseServer';
+import { log }               from '../../../../lib/logger';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 
@@ -83,8 +84,8 @@ async function cachePropertyResult(address: string, data: Record<string, unknown
       expires_at:    expiresAt,
       confidence:    source === 'redfin' ? 0.90 : 0.65,
     });
-  } catch {
-    // Non-fatal — cache write failures should never break the lookup response
+  } catch (e: unknown) {
+    log.warn('[PropertyLookup] Cache write failed (non-fatal)', { address: normalizeAddress(address), error: (e as Error)?.message });
   }
 }
 
@@ -119,7 +120,8 @@ async function getCachedSnapshot(address: string): Promise<Record<string, unknow
       .maybeSingle();
 
     return (snap?.data as Record<string, unknown>) ?? null;
-  } catch {
+  } catch (e: unknown) {
+    log.warn('[PropertyLookup] Cache read failed', { address: normalizeAddress(address), error: (e as Error)?.message });
     return null;
   }
 }
@@ -438,7 +440,8 @@ Fields: beds, baths, sqft, lotSqft, yearBuilt, redfinEstimate, estimatedValue, l
         const raw = json?.choices?.[0]?.message?.content;
         if (!raw) return null;
         return JSON.parse(raw) as GPT4oPropertyFields;
-    } catch {
+    } catch (e: unknown) {
+        log.warn('[PropertyLookup] GPT-4o extraction failed', { error: (e as Error)?.message });
         return null;
     }
 }
@@ -477,7 +480,8 @@ async function tavilyExtract(url: string): Promise<string | null> {
         if (!res.ok) return null;
         const json = await res.json();
         return (json?.results?.[0]?.raw_content as string) ?? null;
-    } catch {
+    } catch (e: unknown) {
+        log.warn('[PropertyLookup] Tavily raw extract failed', { error: (e as Error)?.message });
         return null;
     }
 }
@@ -536,7 +540,8 @@ async function broadSearchFallback(address: string): Promise<Record<string, unkn
             ...ext,
         };
         return mergeGpt4o(base, gpt);
-    } catch {
+    } catch (e: unknown) {
+        log.warn('[PropertyLookup] Broad search scrape failed', { error: (e as Error)?.message });
         return null;
     }
 }
@@ -824,7 +829,8 @@ async function findRedfinUrl(address: string): Promise<string | null> {
         }
 
         return null;
-    } catch {
+    } catch (e: unknown) {
+        log.warn('[PropertyLookup] Redfin URL search failed', { error: (e as Error)?.message });
         return null;
     }
 }
@@ -847,7 +853,7 @@ async function handleAddress(rawAddress: string) {
             if (body?.ok && body?.data) {
                 void cachePropertyResult(rawAddress, body.data, body.data.source ?? 'redfin_via_tavily');
             }
-        } catch { /* non-blocking */ }
+        } catch (e: unknown) { log.warn('[PropertyLookup] Post-lookup cache write failed (non-blocking)', { error: (e as Error)?.message }); }
         return result;
     }
 
