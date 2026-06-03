@@ -5,6 +5,7 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import PdfDownloadButton from './PdfDownloadButton';
+import { calcPI } from '../../lib/math';
 
 // ── Residual income tables (VA Pamphlet 26-7 Table 41(a)) ────────────────────
 // Loan ≥ $80k · Continental US · indexed by household size (1–5)
@@ -35,13 +36,6 @@ function pctToTier(pct: number | undefined): FFTier {
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
-function calcPI(principal: number, annualRate: number, termYears: number): number {
-    if (principal <= 0) return 0;
-    if (annualRate <= 0) return principal / (termYears * 12);
-    const r = annualRate / 100 / 12;
-    const n = termYears * 12;
-    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-}
 
 // ── Formatting ────────────────────────────────────────────────────────────────
 

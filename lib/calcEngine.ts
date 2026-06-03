@@ -6,20 +6,33 @@
 // ============================================================
 
 // ─────────────────────────────────────────────
-// CONSTANTS — 2026 HUD / GSE guidelines
+// CONSTANTS — sourced from lib/constants.ts
+// Imported for internal use, re-exported for backward compat.
+// Do NOT add new constants here — add them to lib/constants.ts.
 // ─────────────────────────────────────────────
-export const FHA_UFMIP_RATE = 0.0175;   // 1.75% upfront MIP
-export const FHA_MIP_RATE = 0.0055;   // 0.55%/yr annual MIP (>15yr, LTV >90%)
-export const FHA_MIP_RATE_LOW = 0.0050;   // 0.50%/yr (LTV ≤90% or ≤15yr)
-export const FHA_FLOOR_2026 = 541287;   // national floor loan limit
-export const FHA_CEILING_2026 = 1249125;  // high-cost ceiling
-export const CONF_STANDARD = 832750;   // 2026 baseline conforming limit (FHFA, effective Jan 1 2026)
-export const CONF_HIGH_BALANCE = 1249125;  // 2026 high-cost area ceiling (FHFA, effective Jan 1 2026)
-export const PMI_RATE_STD = 0.0055;   // ~0.55%/yr PMI (LTV 90–95%)
-export const PMI_RATE_LOW = 0.0030;   // ~0.30%/yr PMI (LTV 80–90%)
-export const TAX_RATE_DEFAULT = 0.011;    // 1.1% property tax default
-export const INS_ANNUAL_DEFAULT = 1200;    // $1,200/yr — legacy flat default (kept for external callers)
-export const INS_RATE_DEFAULT   = 0.003;   // 0.30%/yr of home price — used as default when no annualInsurance passed
+import {
+    FHA_FLOOR_2026,
+    FHA_CEILING_2026,
+    CONF_STANDARD,
+    CONF_HIGH_BALANCE,
+    FHA_UFMIP_RATE,
+    FHA_ANNUAL_MIP_HIGH as FHA_MIP_RATE,
+    FHA_ANNUAL_MIP_LOW  as FHA_MIP_RATE_LOW,
+    PMI_RATE_STD,
+    PMI_RATE_LOW,
+    TAX_RATE_DEFAULT,
+    INS_ANNUAL_FLAT     as INS_ANNUAL_DEFAULT,
+    INS_RATE_DEFAULT,
+} from './constants';
+
+// Re-export with the names callers expect (calcDispatcher.ts, route.ts, etc.)
+export {
+    FHA_FLOOR_2026, FHA_CEILING_2026,
+    CONF_STANDARD, CONF_HIGH_BALANCE,
+    FHA_UFMIP_RATE, FHA_MIP_RATE, FHA_MIP_RATE_LOW,
+    PMI_RATE_STD, PMI_RATE_LOW,
+    TAX_RATE_DEFAULT, INS_ANNUAL_DEFAULT, INS_RATE_DEFAULT,
+};
 
 // ─────────────────────────────────────────────
 // PRIMITIVE MATH — used by every calc

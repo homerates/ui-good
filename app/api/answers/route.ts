@@ -34,6 +34,8 @@ import {
     maybeBuildDscrOverrideAnswer,
 } from "@/lib/guidelinesServer";
 import { generateSourcesBundle } from "../../lib/sources-generator";
+import { extractMonthlyDebts as extractMonthlyDebtsShared } from "../../../lib/intent/extractors";
+import { FHA_FLOOR, FHA_CEILING, CONF_STANDARD, CONF_HIGH_BALANCE } from "../../../lib/constants";
 import {
     buildLoanLimitsContext, getCALoanLimits, getCACountyByZip,
     getCACountyTaxRate, getCACountyInsRate, NATIONAL_CONFORMING_BASELINE,
@@ -449,16 +451,8 @@ function extractAffordabilityParams(question: string): {
         savings *= 1000;
     }
 
-    // Debt: "$300 car payment", "$500/month debt", "$800 in monthly debt",
-    //       "pay $300/month in car payments", "$300/month in debt"
-    const debtMatch = text.match(/\$?\s*(\d+)\s*(?:car|student|monthly|month|\/month)\s*(?:payment|debt|loan)/i) ||
-        text.match(/(?:pay|paying)\s*\$?\s*(\d+)\s*(?:\/month|\/mo|per month|a month|month)/i) ||
-        text.match(/\$?\s*(\d+)\s*\/month\s*(?:in\s*)?(?:car|debt|student|credit|loan)/i) ||
-        text.match(/\$?\s*(\d+)\s*(?:month|monthly)\s*(?:in\s*)?(?:car|debt|loan|payments?)/i) ||
-        text.match(/\$?\s*(\d+)\s*(?:\/mo|per month|monthly|a month|month)\s*(?:in\s*)?(?:debt|payments?|obligations?)/i) ||
-        text.match(/(?:car|student|credit)\s*(?:payment|loan|debt)[^\d]*\$?\s*(\d+)/i) ||
-        text.match(/\$?\s*(\d+)\s*(?:car payment|student loan|debt payment|loan payment)/i);
-    const monthlyDebt = debtMatch ? parseFloat(debtMatch[1]) : 0;
+    // Debt — uses shared extractor (handles comma-formatted numbers like "$1,550/mo")
+    const monthlyDebt = extractMonthlyDebtsShared(text);
 
     // If user stated a down payment % but no savings, derive savings from down %
     // so hasInfo passes — generateAffordabilityScenarios uses downPct directly
@@ -482,11 +476,7 @@ function extractAffordabilityParams(question: string): {
 /**
  * Generate 3 affordability scenarios with Fannie Mae DTI guidelines
  */
-// 2026 loan limits
-const FHA_FLOOR = 541287;         // national floor (standard county)
-const FHA_CEILING = 1249125;      // high-cost ceiling
-const CONF_STANDARD = 832750;     // 2026 conforming standard (FHFA, effective Jan 1 2026)
-const CONF_HIGH_BALANCE = 1249125; // CA high-balance ceiling
+// 2026 loan limits — sourced from lib/constants.ts (imported at top of file)
 
 /** Detect loan limits — uses loanLimits2026.ts for CA county precision, 3-bucket fallback for non-CA */
 function detectLoanLimits(question: string): { fhaLimit: number; confLimit: number; locationLabel: string; loanLimitsContext?: string } {

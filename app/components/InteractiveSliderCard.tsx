@@ -11,6 +11,7 @@ import SliderField from './SliderField';
 import AdminCardBadge from './AdminCardBadge';
 import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
 import { HIGH_COST_COUNTIES, type NationalCountyLimits } from '@/loanLimitsNational2026';
+import { calcPI } from '../../lib/math';
 
 export interface SliderCardParams {
     price: number;
@@ -57,13 +58,6 @@ const VA_FF_OPTIONS = [
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
-function calcPI(principal: number, annualRate: number, termYears: number): number {
-    if (principal <= 0) return 0;
-    if (annualRate <= 0) return principal / (termYears * 12);
-    const r = annualRate / 100 / 12;
-    const n = termYears * 12;
-    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-}
 
 function fmtDollar(n: number) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);

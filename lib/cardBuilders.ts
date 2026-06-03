@@ -33,14 +33,9 @@ import { RefiNeedsInput, FHANeedsInput } from './calcDispatcher';
 import { NATIONAL_CONFORMING_BASELINE } from './loanLimits2026';
 
 // ─────────────────────────────────────────────
-// FORMAT HELPERS
+// FORMAT HELPERS — sourced from lib/formatting.ts
 // ─────────────────────────────────────────────
-const f$ = (n: number) => `$${Math.round(n).toLocaleString()}`;
-const fK = (n: number) => { const k = Math.round(n / 1000); return k >= 1000 ? `$${(k / 1000).toFixed(1).replace(/\.0$/, '')}M` : `$${k}k`; };
-const fPct = (n: number) => `${n.toFixed(2)}%`;
-const fPct1 = (n: number) => `${n.toFixed(1)}%`;
-const fMo = (n: number) => `${Math.ceil(n)} months`;
-const fYr = (n: number) => `${n.toFixed(1)} yrs`;
+import { f$, fK, fPct, fPct1, fMo, fYr } from './formatting';
 
 export interface BuiltCard {
     answer: string;

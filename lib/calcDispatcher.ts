@@ -33,6 +33,26 @@ import {
     CONF_HIGH_BALANCE,
 } from './calcEngine';
 
+// Canonical extractors — single source of truth (replaces local copies below)
+import {
+    isLoanAmountInput,
+    pullFromHistory,
+    extractPrice,
+    extractDownPct,
+    extractRate,
+    extractIncome,
+    extractSavings,
+    extractMonthlyDebts,
+    extractCreditScore,
+    extractTaxRate,
+    extractBalance,
+    extractCurrentRate,
+    extractNewRate,
+    extractRemainingMonths,
+    extractRentAmount,
+    extractSellerCredit,
+} from './intent/extractors';
+
 // ─────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────
@@ -146,205 +166,10 @@ export function detectLoanLimits(text: string): {
 }
 
 // ─────────────────────────────────────────────
-// PARAM EXTRACTORS — regex only, no LLM
+// PARAM EXTRACTORS — moved to lib/intent/extractors.ts
+// All extractor functions are imported at the top of this file.
 // ─────────────────────────────────────────────
 
-/** Returns true when the user states a loan amount rather than a purchase price.
- *  e.g. "$832,750 loan amount", "loan amount of $950k", "borrowing $800k"
- *  When true, callers must back-calculate purchasePrice = loanAmount / (1 - down%).
- */
-function isLoanAmountInput(text: string): boolean {
-    return /\b(?:loan\s+amount|loan\s+of\s+\$|loan\s+size|borrow(?:ing)?)\b/i.test(text);
-}
-
-function extractPrice(text: string): number | undefined {
-    const t = text.toLowerCase();
-    // "$2M" / "$1.5M" / "$1.5m" / "$2.5m" — million shorthand
-    const mMatch = text.match(/\$\s*([\d,]+(?:\.\d+)?)\s*[mM]\b/);
-    if (mMatch) {
-        const v = parseFloat(mMatch[1].replace(/,/g, '')) * 1_000_000;
-        if (v >= 500_000 && v <= 50_000_000) return v;
-    }
-    // "1.5 million" / "2 million"
-    const millionMatch = text.match(/([\d,]+(?:\.\d+)?)\s*million/i);
-    if (millionMatch) {
-        const v = parseFloat(millionMatch[1].replace(/,/g, '')) * 1_000_000;
-        if (v >= 500_000 && v <= 50_000_000) return v;
-    }
-    // Full number: $515,000 or $14,595,000
-    const fullMatch = text.match(/\$\s*([\d,]{6,})/);
-    if (fullMatch) {
-        const v = parseFloat(fullMatch[1].replace(/,/g, ''));
-        if (v >= 50000 && v <= 50_000_000) return v;
-    }
-    // Bare $Xk — try this FIRST before context match to avoid grabbing rent amounts or income figures.
-    // Handles: "$200k/yr income", "$200k income", "income $200k", "make $200k"
-    const incomeRe = /(?:income|salary|earn|make|making)\s{0,5}\$[\d,]+\s*k\b|\$[\d,]+\s*k(?:[\s\/](?:yr?|year))?\s{0,5}(?:income|salary)\b|\$[\d,]+\s*k\s*\/yr?\b/i;
-    const bareMatches = Array.from(text.matchAll(/\$([\d,]+)\s*k\b/gi));
-    const best = bareMatches.find(m => {
-        const v = parseFloat(m[1].replace(/,/g, ''));
-        if (v < 50) return false;
-        const idx = m.index ?? 0;
-        const surround = text.slice(Math.max(0, idx - 15), idx + m[0].length + 20);
-        return !incomeRe.test(surround);
-    });
-    if (best) {
-        const v = parseFloat(best[1].replace(/,/g, '')) * 1000;
-        if (v >= 50000 && v <= 50_000_000) return v;
-    }
-    // Context-anchored fallback: "$500k home", "purchase price $500k", "$500K property"
-    // [^$\n]{0,40} — tightly bounded, never spans past rent/mo signals
-    const ctxMatch = text.match(/\$?\s*([\d,]+)k?\s*(?:home|house|property|purchase)/i) ||
-        text.match(/(?:price|purchase|home|house|property)[^$\n]{0,40}\$?\s*([\d,]+)k?(?!\s*\/mo)/i);
-    if (ctxMatch) {
-        const v = parseFloat(ctxMatch[1].replace(/,/g, ''));
-        const val = v < 10000 ? v * 1000 : v;
-        if (val >= 50000 && val <= 50_000_000) return val;
-    }
-    return undefined;
-}
-
-function extractDownPct(text: string): number | undefined {
-    const m = text.match(/(\d+\.?\d*)\s*%\s*down/i) ||
-        text.match(/down\s*(?:payment)?\s*(?:of\s*)?(\d+\.?\d*)\s*%/i) ||
-        text.match(/(?:put|with)\s+(\d+\.?\d*)\s*%/i);
-    return m ? parseFloat(m[1]) : undefined;
-}
-
-function extractRate(text: string): number | undefined {
-    // Explicit "rate" keyword
-    let m = text.match(/(?:rate|interest)\s*(?:of\s*)?(\d+\.?\d*)\s*%/i);
-    if (m) { const v = parseFloat(m[1]); if (v >= 2 && v <= 15) return v; }
-    // "at X%" or "at X.XX%" — exclude if followed by "down"
-    m = text.match(/\bat\s+(\d+\.?\d*)\s*%(?!\s*down)/i);
-    if (m) { const v = parseFloat(m[1]); if (v >= 2 && v <= 15) return v; }
-    // "X.XX% rate/interest"
-    m = text.match(/(\d+\.\d+)\s*%\s*(?:rate|interest|fixed|30.?year)/i);
-    if (m) { const v = parseFloat(m[1]); if (v >= 2 && v <= 15) return v; }
-    return undefined;
-}
-
-function extractIncome(text: string): number | undefined {
-    const m = text.match(/(?:i\s+earn|i\s+make|we\s+make|make|earn)\s+[\$]?\s*([\d,]+)\s*k?\b/i) ||
-        // Handles: "$200k/yr income", "$200k/year salary", "$200k income", "$200k annually"
-        text.match(/[\$]\s*([\d,]+)\s*k?\s*(?:\/yr?|\/year|income|salary|a\s+year|per\s+year|annually)/i) ||
-        // Handles: "income $200k", "salary of $200k"
-        text.match(/(?:salary|income)\s+(?:is\s+|of\s+)?[\$]?\s*([\d,]+)\s*k?\b/i) ||
-        // Handles: "$200k/yr" standalone (no "income" word after)
-        text.match(/[\$]\s*([\d,]+)\s*k\s*\/yr?\b/i);
-    if (!m) return undefined;
-    let v = parseFloat(m[1].replace(/,/g, ''));
-    if (v < 1000) v *= 1000;
-    return v >= 20000 && v <= 2000000 ? v : undefined;
-}
-
-function extractSavings(text: string): number | undefined {
-    const m = text.match(/(?:have|saved|savings|got)\s+[\$]?\s*([\d,]+)\s*k?\s*(?:saved|in savings)?/i) ||
-        text.match(/[\$]?\s*([\d,]+)\s*k?\s*(?:savings|saved|in savings|in the bank|available|liquid)/i);
-    if (!m) return undefined;
-    // Reject if the match is in a debt/payment context (e.g. "have $1,500 in monthly debt")
-    const idx = m.index ?? 0;
-    const surrounding = text.slice(Math.max(0, idx - 5), idx + m[0].length + 25);
-    if (/\/mo|per month|monthly|in debt|in loan|car payment|student loan|debt payment/i.test(surrounding)) return undefined;
-    let v = parseFloat(m[1].replace(/,/g, ''));
-    if (v < 1000) v *= 1000;
-    return v >= 1000 && v <= 10000000 ? v : undefined;
-}
-
-function extractMonthlyDebts(text: string): number {
-    const m = text.match(/\$\s*(\d+)\s*(?:car|student|debt|loan)\s*payment/i) ||
-        text.match(/(\d+)\s*(?:\/mo|per month|monthly)\s*(?:in\s*)?(?:debt|payments?)/i) ||
-        text.match(/(?:car|student|debt|loan)\s*payment[^$]*\$?\s*(\d+)/i);
-    return m ? parseFloat(m[1]) : 0;
-}
-
-function extractCreditScore(text: string): number | undefined {
-    const m = text.match(/(?:credit score|fico|score)\s*(?:is\s*|of\s*)?(\d{3})/i);
-    return m ? parseInt(m[1]) : undefined;
-}
-
-function extractTaxRate(text: string): number | undefined {
-    const m = text.match(/(?:property tax|tax rate|tax)\s*(?:is\s*|of\s*)?(\d+\.?\d*)\s*%/i);
-    return m ? parseFloat(m[1]) : undefined;
-}
-
-// Refi-specific extractors
-function extractBalance(text: string): number | null {
-    const m = text.match(/\$\s*([\d,]+(?:,\d{3})+)/i) ||
-        text.match(/\$\s*(\d+(?:\.\d+)?)\s*[Mm]\b/) ||
-        text.match(/\bon\s+(?:my\s+)?\$\s*(\d+(?:\.\d+)?)\s*k?\b/i) ||
-        text.match(/\$\s*(\d+(?:\.\d+)?)\s*k\b/i);
-    if (!m) return null;
-    const raw = parseFloat(m[1].replace(/,/g, ''));
-    const isMil = /\$\s*\d+(?:\.\d+)?\s*[Mm]\b/.test(text);
-    const isK = /\$\s*\d+(?:\.\d+)?\s*k\b/i.test(m[0]);
-    const val = isMil ? raw * 1_000_000 : isK ? raw * 1000 : raw;
-    return val >= 50000 && val <= 10000000 ? val : null;
-}
-
-function extractCurrentRate(text: string): number | null {
-    const m = text.match(/\b(?:current\s*rate|my\s*rate)\b\s*(?:is\s+)?(\d+\.?\d*)\s*%/i) ||
-        text.match(/\bat\s+(\d+\.?\d*)\s*%/i) ||
-        text.match(/(\d+\.?\d*)\s*%\s*(?:rate|interest|on\s*my|current)/i) ||
-        (() => {
-            const all = Array.from(text.matchAll(/(\d+\.?\d*)\s*%/g))
-                .map(m => parseFloat(m[1])).filter(r => r > 1 && r < 20);
-            return all.length >= 1 ? { 1: String(all[0]) } as any : null;
-        })();
-    if (!m) return null;
-    const v = parseFloat(m[1]);
-    return v >= 1 && v <= 20 ? v : null;
-}
-
-function extractNewRate(text: string): number | null {
-    const m = text.match(/\b(?:refi(?:nance)?\s+(?:to|at|when)|new\s*rate)\s+(\d+\.?\d*)\s*%/i) ||
-        text.match(/(?:go\s+(?:down\s+)?to|drop\s+to|hit|reach|down\s+to)\s*(\d+\.?\d*)\s*%/i) ||
-        text.match(/(?:to|at)\s+(\d+\.?\d*)\s*%.*(?:refi|refinanc)/i);
-    if (m) { const v = parseFloat(m[1]); if (v >= 1 && v <= 20) return v; }
-    // Two decimal rates in question → second one is target
-    const allRates = Array.from(text.matchAll(/(\d+\.\d+)\s*%/g))
-        .map(m => parseFloat(m[1])).filter(r => r > 1 && r < 20);
-    if (allRates.length >= 2) return allRates[1];
-    return null;
-}
-
-function extractRemainingMonths(text: string): number {
-    const yearsLeftM = text.match(/(\d+)\s*years?\s*left/i) ||
-        text.match(/(\d+)\s*years?\s*remaining/i);
-    if (yearsLeftM) return parseInt(yearsLeftM[1]) * 12;
-    const yearsInM = text.match(/(\d+)\s*years?\s*(?:in|into|ago)/i) ||
-        text.match(/(?:bought|purchased|got\s*(?:the\s*)?loan)\s*(\d+)\s*years?\s*ago/i);
-    if (yearsInM) return (30 - parseInt(yearsInM[1])) * 12;
-    return 360;
-}
-
-// v3 — explicit ordered patterns, no regex escaping ambiguity
-function extractRentAmount(text: string): number | undefined {
-    // Pattern 1: "rent $3,200" or "rental $3,200" — require digit before optional comma
-    let m = text.match(/(?:rent(?:s?\s+for)?|rental)\s*\$?\s*(\d[\d,]*\d|\d+)k?/i);
-    // Pattern 2: "$3,200/mo rent" — dollar amount before /mo then rent keyword
-    if (!m) m = text.match(/\$([\d,]+)\s*\/mo\s+rent/i);
-    // Pattern 3: "$3,200/mo" or "$3,200 per month" or "$3,200 monthly rent"
-    if (!m) m = text.match(/\$([\d,]+)\s*(?:\/mo|per\s+month|monthly\s+rent)/i);
-    // Pattern 4: "3200/mo" no dollar sign
-    if (!m) m = text.match(/([\d,]+)\s*\/mo\b/i);
-    if (!m) return undefined;
-    let v = parseFloat(m[1].replace(/,/g, ''));
-    if (v < 100) v *= 1000;
-    return v >= 100 && v <= 100000 ? v : undefined;
-}
-
-// Pull from conversation history when current question lacks a value
-function pullFromHistory(history: string, extractor: (t: string) => any) {
-    if (!history) return undefined;
-    // Only look in User: lines to avoid pulling from assistant examples
-    const userLines = history.split('\n')
-        .filter(l => /^\s*(?:User:|Turn \d+\nUser:|You:)/i.test(l.trim()) || l.trim().startsWith('User:'))
-        .join(' ');
-    return extractor(userLines) ?? extractor(history);
-}
-
-// ─────────────────────────────────────────────
 // DETECTION FUNCTIONS
 // ─────────────────────────────────────────────
 
@@ -439,17 +264,6 @@ export function isSellerCreditQuestion(q: string): boolean {
         (/seller.*(?:offering|giving|paying|contribut)/i.test(q) && /\$[\d,]+[kKmM]?\b/.test(q));
 }
 
-function extractSellerCredit(text: string): number | null {
-    const m = text.match(/\$\s*([\d,]+)k?\s+seller\s*credit/i) ||
-        text.match(/seller\s*credit\s*(?:of\s*)?\$?\s*([\d,]+)k?/i) ||
-        text.match(/seller\s*(?:is\s*)?(?:giving|offering|paying|contribut\w+)\s*\$?\s*([\d,]+)k?/i) ||
-        text.match(/\$\s*([\d,]+)k?\s*(?:seller\s*)?(?:credit|concession)\b/i);
-    if (!m) return null;
-    let v = parseFloat(m[1].replace(/,/g, ''));
-    const isK = /\$\s*[\d,]+k\b/i.test(m[0]);
-    if (isK && v < 1000) v *= 1000;
-    return v >= 1000 && v <= 300000 ? v : null;
-}
 
 export type ScenarioComparisonTool = 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
 

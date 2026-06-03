@@ -5,6 +5,7 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import PdfDownloadButton from './PdfDownloadButton';
+import { calcPI } from '../../lib/math';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -39,13 +40,6 @@ const ZONE_MAP: Record<LoanZone, { label: string; icon: string; color: string; b
 
 // ── Math helpers ──────────────────────────────────────────────────────────────
 
-function calcPI(principal: number, annualRate: number, termYears: number): number {
-    if (principal <= 0) return 0;
-    if (annualRate <= 0) return principal / (termYears * 12);
-    const r = annualRate / 100 / 12;
-    const n = termYears * 12;
-    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-}
 
 function loanBalanceAfter(principal: number, annualRate: number, totalMonths: number, k: number): number {
     if (principal <= 0 || annualRate <= 0) return principal;

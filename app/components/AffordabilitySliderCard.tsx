@@ -9,6 +9,8 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
+import { calcPI } from '../../lib/math';
+import { FHA_FLOOR, CONF_STANDARD } from '../../lib/constants';
 
 export interface AffordabilitySliderParams {
     annualIncome: number;
@@ -25,18 +27,10 @@ export interface AffordabilitySliderParams {
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
 }
 
-// National 2026 loan limits (fallback when props omit them)
-const FHA_FLOOR  = 541_287;
-const CONF_LIMIT = 832_750;
+// CONF_LIMIT local alias — imported from lib/constants.ts as CONF_STANDARD
+const CONF_LIMIT = CONF_STANDARD;
 
 // ── Math ──────────────────────────────────────────────────────────────────────
-
-function calcPI(principal: number, annualRate: number, termYears: number): number {
-    if (annualRate <= 0 || principal <= 0) return 0;
-    const r = annualRate / 100 / 12;
-    const n = termYears * 12;
-    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-}
 
 function calcMaxPrice(
     annualIncome: number, monthlyDebts: number, downPct: number,

@@ -5,6 +5,7 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
+import { calcPI } from '../../lib/math';
 
 // ── 2026 CA County Conforming Limits (1-unit, FHFA) ─────────────────────────
 const CA_LIMITS: Record<string, number> = {
@@ -84,13 +85,6 @@ const ZONE_MAP = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function calcPI(principal: number, annualRate: number, termYears: number): number {
-    if (principal <= 0) return 0;
-    if (annualRate <= 0) return principal / (termYears * 12);
-    const r = annualRate / 100 / 12;
-    const n = termYears * 12;
-    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-}
 
 function fmt$(n: number) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);

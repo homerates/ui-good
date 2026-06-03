@@ -3,15 +3,10 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
+import { calcPI } from '../../lib/math';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
-function calcPI(principal: number, annualRate: number, termYears: number): number {
-    if (annualRate <= 0 || principal <= 0) return 0;
-    const r = annualRate / 100 / 12;
-    const n = termYears * 12;
-    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-}
 
 // ── Formatting ────────────────────────────────────────────────────────────────
 

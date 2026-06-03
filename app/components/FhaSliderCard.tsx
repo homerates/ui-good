@@ -5,6 +5,7 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import PdfDownloadButton from './PdfDownloadButton';
+import { calcPI } from '../../lib/math';
 
 // ── FHA 2026 limits by unit count (65% / 150% of FHFA 2026 baseline $832,750) ─
 const FHA_LIMITS: Record<number, { floor: number; ceil: number }> = {
@@ -28,13 +29,6 @@ function priceMaxLabel(u: number): string {
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
-function calcPI(principal: number, annualRate: number, termYears: number): number {
-    if (principal <= 0) return 0;
-    if (annualRate <= 0) return principal / (termYears * 12);
-    const r = annualRate / 100 / 12;
-    const n = termYears * 12;
-    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-}
 
 function mipRate(ltv: number): number { return ltv > 90 ? 0.0055 : 0.0050; }
 
