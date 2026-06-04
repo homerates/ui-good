@@ -74,11 +74,12 @@ export default function ConsumerWelcomeCard({ onSend, onMount }: Props) {
 
       {/* ── Preview tiles — what you'll get ── */}
       <div className="cwc-previews">
-        <div className="cwc-previews__label">What you&apos;ll see in seconds</div>
+        <div className="cwc-previews__label">Sample output · your real numbers appear instantly</div>
         <div className="cwc-previews__grid">
 
           {/* Tile 1 — Payment Analysis */}
           <div className="cwc-tile">
+            <div className="cwc-tile__sample">Sample</div>
             <div className="cwc-tile__tag" style={{ color: '#00e87a' }}>Payment Analysis</div>
             <div className="cwc-tile__address">123 Sunset Blvd, LA</div>
             <div className="cwc-tile__hero" style={{ color: '#00e87a' }}>
@@ -109,6 +110,7 @@ export default function ConsumerWelcomeCard({ onSend, onMount }: Props) {
 
           {/* Tile 2 — Decision Score */}
           <div className="cwc-tile">
+            <div className="cwc-tile__sample">Sample</div>
             <div className="cwc-tile__tag" style={{ color: '#3d8bff' }}>Track 5 · Decision Score</div>
             <div className="cwc-tile__score-wrap">
               <div className="cwc-tile__ring">
@@ -148,6 +150,7 @@ export default function ConsumerWelcomeCard({ onSend, onMount }: Props) {
 
           {/* Tile 3 — Income Qualify */}
           <div className="cwc-tile">
+            <div className="cwc-tile__sample">Sample</div>
             <div className="cwc-tile__tag" style={{ color: '#a78bfa' }}>Income to Qualify</div>
             <div className="cwc-tile__iq-label">Minimum annual income</div>
             <div className="cwc-tile__hero" style={{ color: '#a78bfa' }}>
@@ -272,6 +275,14 @@ export default function ConsumerWelcomeCard({ onSend, onMount }: Props) {
           padding: 14px;
           display: flex; flex-direction: column; gap: 8px;
           pointer-events: none; /* purely visual */
+          position: relative;
+        }
+        .cwc-tile__sample {
+          position: absolute; top: 10px; right: 10px;
+          font-size: 0.48rem; font-weight: 700; letter-spacing: 0.1em;
+          text-transform: uppercase; color: rgba(255,255,255,0.25);
+          background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 4px; padding: 2px 6px;
         }
         .cwc-tile__tag {
           font-size: 0.55rem; font-weight: 700; letter-spacing: 0.1em;
