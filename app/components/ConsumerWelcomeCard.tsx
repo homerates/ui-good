@@ -3,7 +3,8 @@
 // Consumer-first chat landing — property search as hero, 4 consumer scenarios, trust strip.
 // Shown to signed-out users instead of the Pro WelcomeScreen.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 
 const CONSUMER_SCENARIOS = [
   {
@@ -36,7 +37,6 @@ interface Props {
 export default function ConsumerWelcomeCard({ onSend, onMount }: Props) {
   const [visible, setVisible] = useState(false);
   const [address, setAddress] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     onMount?.();
@@ -68,15 +68,17 @@ export default function ConsumerWelcomeCard({ onSend, onMount }: Props) {
         {/* Address search */}
         <div className="cwc-addr">
           <span className="cwc-addr__icon">📍</span>
-          <input
+          <AddressAutocomplete
             ref={inputRef}
             className="cwc-addr__input"
-            type="text"
             placeholder="123 Main St, Los Angeles CA 90001"
             value={address}
-            onChange={e => setAddress(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && submitAddress()}
-            autoComplete="off"
+            onChange={setAddress}
+            onSelect={(val) => {
+              setAddress(val);
+              setTimeout(() => { onSend(val); setAddress(''); }, 50);
+            }}
+            onKeyDown={e => { if (e.key === 'Enter') submitAddress(); }}
           />
           <button className="cwc-addr__btn" onClick={submitAddress} type="button">
             Check property →
