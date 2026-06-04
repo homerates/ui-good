@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates — LO Partner Program</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #050810;
+    --card: #0e1420;
+    --surface: #141b28;
+    --surface2: #1a2333;
+    --text: #f0f4ff;
+    --weak: #8fa3b8;
+    --dim: rgba(255,255,255,0.25);
+    --border: rgba(255,255,255,0.07);
+    --border-mid: rgba(255,255,255,0.12);
+    --accent: #00e87a;
+    --blue: #3d8bff;
+    --amber: #f59e0b;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 56px 24px 80px;
+    gap: 72px;
+  }
+
+  /* ── PAGE HEADER ─────────────────────────────────────── */
+  .page-header {
+    text-align: center; max-width: 640px;
+  }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 14px;
+    background: rgba(0,232,122,0.08);
+    border: 1px solid rgba(0,232,122,0.18);
+    border-radius: 99px;
+    font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 18px;
+  }
+  h1 {
+    font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+    font-weight: 900; letter-spacing: -0.04em;
+    line-height: 1.1; color: var(--text); margin-bottom: 14px;
+  }
+  h1 span { color: var(--accent); }
+  .sub { font-size: 1rem; color: var(--weak); line-height: 1.65; }
+
+  /* ── FLOW DIAGRAM ──────────────────────────────────── */
+  .flow-wrap {
+    width: 100%; max-width: 960px;
+    display: flex; align-items: center; gap: 0;
+  }
+  .flow-step {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 10px; padding: 0 8px;
+    text-align: center;
+  }
+  .flow-bubble {
+    width: 52px; height: 52px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    border: 2px solid var(--border-mid);
+    background: var(--card);
+  }
+  .flow-bubble.green { border-color: rgba(0,232,122,0.3); background: rgba(0,232,122,0.08); }
+  .flow-bubble.blue { border-color: rgba(61,139,255,0.3); background: rgba(61,139,255,0.08); }
+  .flow-step-num { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+  .flow-step-title { font-size: 0.8rem; font-weight: 700; color: var(--text); }
+  .flow-step-desc { font-size: 0.7rem; color: var(--weak); line-height: 1.5; }
+  .flow-arrow { font-size: 1.2rem; color: var(--dim); flex-shrink: 0; }
+
+  /* ── DUAL MOCKUP ──────────────────────────────────── */
+  .dual-wrap {
+    width: 100%; max-width: 1120px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .mockup-label {
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .mockup-label .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot-green { background: var(--accent); }
+  .dot-blue { background: var(--blue); }
+
+  .mockup-frame {
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 0 0 1px var(--border), 0 24px 60px rgba(0,0,0,0.5);
+  }
+  .browser-bar {
+    background: #0d1420; border-bottom: 1px solid var(--border);
+    padding: 10px 14px; display: flex; align-items: center; gap: 10px;
+  }
+  .dots { display: flex; gap: 5px; }
+  .dot-r { width: 8px; height: 8px; border-radius: 50%; background: #ff5f5f; }
+  .dot-y { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; }
+  .dot-g { width: 8px; height: 8px; border-radius: 50%; background: #00e87a; }
+  .url-bar {
+    flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px;
+    font-size: 0.65rem; color: var(--weak);
+    display: flex; align-items: center; gap: 5px;
+  }
+
+  /* ── LO PORTAL SIDE ──────────────────────────────── */
+  .lo-app {
+    background: #080c12;
+    display: flex; min-height: 560px;
+  }
+
+  .lo-sidebar {
+    width: 180px; background: var(--card);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    flex-shrink: 0;
+  }
+  .lo-logo {
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 7px;
+    font-size: 0.8rem; font-weight: 700; color: var(--text);
+  }
+  .lo-logo-mark {
+    width: 22px; height: 22px; background: var(--accent);
+    border-radius: 5px; display: flex; align-items: center;
+    justify-content: center; font-size: 10px; font-weight: 900; color: #000;
+  }
+  .lo-nav { padding: 8px; display: flex; flex-direction: column; gap: 1px; }
+  .lo-nav-item {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 9px; border-radius: 7px;
+    font-size: 0.72rem; font-weight: 500; color: var(--weak);
+  }
+  .lo-nav-item.active { background: rgba(0,232,122,0.08); color: var(--accent); }
+  .lo-nav-item .ico { font-size: 0.8rem; width: 16px; text-align: center; }
+  .badge {
+    margin-left: auto; background: var(--accent);
+    color: #000; font-size: 0.55rem; font-weight: 800;
+    padding: 1px 5px; border-radius: 99px;
+  }
+
+  .lo-main { flex: 1; display: flex; flex-direction: column; }
+  .lo-header {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .lo-header h3 { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+  .lo-header span { font-size: 0.68rem; color: var(--weak); }
+
+  .invite-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px;
+    background: var(--accent); border: none;
+    border-radius: 8px; cursor: pointer;
+    font-size: 0.72rem; font-weight: 700; color: #000;
+  }
+
+  .borrower-list { padding: 10px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .borrower-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .b-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; font-weight: 700; color: #fff;
+    flex-shrink: 0;
+  }
+  .b-info { flex: 1; min-width: 0; }
+  .b-name { font-size: 0.75rem; font-weight: 700; color: var(--text); }
+  .b-detail { font-size: 0.62rem; color: var(--weak); margin-top: 1px; }
+  .b-status {
+    font-size: 0.6rem; font-weight: 700; padding: 2px 7px;
+    border-radius: 99px; white-space: nowrap;
+  }
+  .status-active { background: rgba(0,232,122,0.12); color: var(--accent); border: 1px solid rgba(0,232,122,0.2); }
+  .status-invited { background: rgba(245,158,11,0.1); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+  .status-new { background: rgba(61,139,255,0.1); color: var(--blue); border: 1px solid rgba(61,139,255,0.2); }
+
+  /* Invite panel */
+  .invite-panel {
+    margin: 10px; padding: 14px;
+    background: rgba(0,232,122,0.04);
+    border: 1px solid rgba(0,232,122,0.15);
+    border-radius: 12px;
+  }
+  .invite-panel-title {
+    font-size: 0.72rem; font-weight: 700; color: var(--accent);
+    margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .invite-input {
+    width: 100%; background: var(--surface);
+    border: 1px solid var(--border-mid);
+    border-radius: 8px; padding: 7px 10px;
+    font-size: 0.72rem; color: var(--text);
+    margin-bottom: 8px;
+  }
+  .invite-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px; font-size: 0.68rem; color: var(--weak);
+  }
+  .toggle-on {
+    width: 28px; height: 16px; background: var(--accent);
+    border-radius: 99px; position: relative;
+  }
+  .toggle-on::after {
+    content: ''; position: absolute;
+    right: 2px; top: 2px;
+    width: 12px; height: 12px; background: #000; border-radius: 50%;
+  }
+  .send-invite {
+    width: 100%; padding: 8px;
+    background: var(--accent); border: none; border-radius: 8px;
+    font-size: 0.72rem; font-weight: 700; color: #000; cursor: pointer;
+  }
+
+  /* LO stats bar */
+  .lo-stats {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 16px;
+    background: rgba(255,255,255,0.02);
+  }
+  .stat { display: flex; flex-direction: column; gap: 1px; }
+  .stat-val { font-size: 1rem; font-weight: 800; color: var(--text); letter-spacing: -0.03em; }
+  .stat-lbl { font-size: 0.58rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* ── CONSUMER SIDE ──────────────────────────────── */
+  .consumer-app {
+    background: #080c12;
+    display: flex; min-height: 560px;
+  }
+
+  .c-sidebar {
+    width: 180px; background: var(--card);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  .c-logo {
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 7px;
+    font-size: 0.8rem; font-weight: 700; color: var(--text);
+  }
+  .lo-card {
+    margin: 8px;
+    padding: 10px;
+    background: linear-gradient(135deg, rgba(61,139,255,0.1), rgba(61,139,255,0.05));
+    border: 1px solid rgba(61,139,255,0.18);
+    border-radius: 9px;
+  }
+  .lo-card-label { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue); margin-bottom: 5px; }
+  .lo-card-row { display: flex; align-items: center; gap: 7px; }
+  .lo-mini-avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg, #3d8bff, #00e87a);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; font-weight: 800; color: #fff; flex-shrink: 0;
+  }
+  .lo-card-name { font-size: 0.72rem; font-weight: 700; color: var(--text); }
+  .lo-card-co { font-size: 0.6rem; color: var(--weak); }
+
+  .c-nav { padding: 8px; display: flex; flex-direction: column; gap: 1px; flex: 1; }
+  .c-nav-item {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 9px; border-radius: 7px;
+    font-size: 0.72rem; font-weight: 500; color: var(--weak);
+  }
+  .c-nav-item.active { background: rgba(0,232,122,0.08); color: var(--accent); }
+  .c-nav-item .ico { font-size: 0.8rem; width: 16px; text-align: center; }
+  .unlocked { margin-left: auto; font-size: 0.5rem; color: var(--blue); background: rgba(61,139,255,0.1); border: 1px solid rgba(61,139,255,0.2); padding: 1px 5px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+
+  .c-nav-section { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.2); padding: 8px 9px 3px; }
+
+  .c-bottom { padding: 8px; border-top: 1px solid var(--border); }
+  .c-user { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 7px; }
+  .c-avatar { width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, #3d8bff, #00e87a); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .c-name { font-size: 0.68rem; font-weight: 600; color: var(--text); }
+  .c-plan { font-size: 0.55rem; color: var(--blue); font-weight: 600; }
+
+  .c-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .c-banner {
+    background: linear-gradient(90deg, rgba(61,139,255,0.07), transparent);
+    border-bottom: 1px solid rgba(61,139,255,0.12);
+    padding: 8px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.68rem;
+  }
+  .c-banner-left { color: var(--weak); }
+  .c-banner-left strong { color: var(--text); }
+  .c-banner-cta { color: var(--blue); font-weight: 700; font-size: 0.65rem; background: rgba(61,139,255,0.1); padding: 3px 10px; border-radius: 5px; border: 1px solid rgba(61,139,255,0.2); }
+
+  .chat-area { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+
+  .user-msg {
+    align-self: flex-end;
+    background: rgba(0,232,122,0.08); border: 1px solid rgba(0,232,122,0.15);
+    border-radius: 12px 12px 3px 12px;
+    padding: 8px 12px; font-size: 0.75rem; color: var(--text);
+    max-width: 70%; line-height: 1.5;
+  }
+
+  .sys-lbl { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.2); margin-bottom: 6px; }
+
+  .c-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 13px; overflow: hidden;
+  }
+  .c-card-head {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .c-card-type { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 1px; }
+  .c-card-title { font-size: 0.78rem; font-weight: 700; color: var(--text); }
+  .no-pmi-badge { font-size: 0.55rem; font-weight: 700; padding: 2px 7px; background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.2); border-radius: 99px; color: var(--accent); }
+
+  .c-hero { padding: 16px 14px 12px; text-align: center; border-bottom: 1px solid var(--border); }
+  .c-hero-lbl { font-size: 0.55rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
+  .c-hero-num { font-size: 2.2rem; font-weight: 900; letter-spacing: -0.05em; color: var(--text); line-height: 1; }
+  .c-hero-num .dol { color: var(--accent); }
+  .c-hero-num .mo { font-size: 0.7rem; color: var(--dim); font-weight: 600; }
+  .c-hero-sub { font-size: 0.62rem; color: var(--weak); margin-top: 4px; }
+
+  .c-facts { display: grid; grid-template-columns: repeat(3,1fr); padding: 10px 14px; gap: 8px; border-bottom: 1px solid var(--border); }
+  .c-fact-val { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+  .c-fact-lbl { font-size: 0.55rem; color: var(--dim); margin-top: 1px; }
+
+  .c-meaning { padding: 9px 14px; display: flex; gap: 6px; font-size: 0.65rem; color: var(--weak); line-height: 1.55; border-bottom: 1px solid var(--border); background: rgba(0,232,122,0.02); }
+  .c-meaning strong { color: var(--text); }
+
+  .c-premium {
+    background: linear-gradient(135deg, rgba(61,139,255,0.05), rgba(0,232,122,0.02));
+    border-top: 1px solid rgba(61,139,255,0.12);
+  }
+  .c-prem-head { padding: 7px 14px; display: flex; align-items: center; gap: 5px; }
+  .prem-dot { width: 5px; height: 5px; background: var(--blue); border-radius: 50%; }
+  .prem-lbl { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue); }
+  .prem-who { margin-left: auto; font-size: 0.55rem; color: var(--dim); }
+
+  .c-prem-tiles { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: rgba(255,255,255,0.04); border-top: 1px solid rgba(255,255,255,0.05); }
+  .c-tile { background: var(--card); padding: 9px 10px; }
+  .c-tile-ico { font-size: 0.85rem; margin-bottom: 2px; }
+  .c-tile-title { font-size: 0.65rem; font-weight: 700; color: var(--text); }
+  .c-tile-act { font-size: 0.58rem; color: var(--blue); font-weight: 600; margin-top: 2px; }
+
+  .c-chips { padding: 9px 14px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .c-chip { padding: 5px 10px; background: var(--surface); border: 1px solid var(--border-mid); border-radius: 99px; font-size: 0.65rem; color: var(--weak); }
+  .c-chip.pri { background: rgba(0,232,122,0.08); border-color: rgba(0,232,122,0.18); color: var(--accent); font-weight: 600; }
+
+  /* ── VALUE PROPS ────────────────────────────────── */
+  .value-grid {
+    width: 100%; max-width: 1120px;
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 20px;
+  }
+  .value-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 24px;
+  }
+  .value-card h4 { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+  .value-card .who { font-size: 1rem; font-weight: 800; color: var(--text); letter-spacing: -0.02em; margin-bottom: 12px; }
+  .value-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; font-size: 0.78rem; color: var(--weak); line-height: 1.5; }
+  .value-item .ck { color: var(--accent); font-size: 0.75rem; flex-shrink: 0; margin-top: 1px; }
+  .value-item strong { color: var(--text); }
+
+  /* ── SECTION TITLE ─────────────────────────────── */
+  .section-title {
+    width: 100%; max-width: 1120px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .section-title h2 { font-size: 1rem; font-weight: 800; color: var(--text); letter-spacing: -0.02em; white-space: nowrap; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 99px; }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────── -->
+<div class="page-header">
+  <div class="eyebrow">🏦 HomeRates LO Partner Program</div>
+  <h1>Works with <span>any lender.</span><br>Any LO. Any borrower.</h1>
+  <p>Loan officers on any platform sign up directly. Their borrowers get a premium experience — branded to the LO, powered by HomeRates.</p>
+</div>
+
+<!-- ── HOW IT WORKS FLOW ────────────────────────────────── -->
+<div class="flow-wrap">
+  <div class="flow-step">
+    <div class="flow-bubble green">🏦</div>
+    <div class="flow-step-num">Step 1</div>
+    <div class="flow-step-title">LO joins HomeRates</div>
+    <div class="flow-step-desc">Signs up as a Partner LO. Any lender, any state.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="flow-bubble">📧</div>
+    <div class="flow-step-num">Step 2</div>
+    <div class="flow-step-title">Invites their borrowers</div>
+    <div class="flow-step-desc">From their portal — one click sends a personalised link.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="flow-bubble blue">🔓</div>
+    <div class="flow-step-num">Step 3</div>
+    <div class="flow-step-title">Borrower unlocks premium</div>
+    <div class="flow-step-desc">Free to borrower. LO's name on every screen.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="flow-bubble green">🔁</div>
+    <div class="flow-step-num">Step 4</div>
+    <div class="flow-step-title">LO stays top of mind</div>
+    <div class="flow-step-desc">Every time the borrower checks their scenario — they see the LO.</div>
+  </div>
+</div>
+
+<!-- ── DUAL MOCKUP ─────────────────────────────────────── -->
+<div class="section-title"><h2>LO Portal & Consumer Experience — side by side</h2></div>
+
+<div class="dual-wrap">
+
+  <!-- LEFT: LO PORTAL -->
+  <div>
+    <div class="mockup-label" style="color:#00e87a;">
+      <div class="dot dot-green"></div> Loan Officer view — homerates.ai/lo
+    </div>
+    <div class="mockup-frame">
+      <div class="browser-bar">
+        <div class="dots"><div class="dot-r"></div><div class="dot-y"></div><div class="dot-g"></div></div>
+        <div class="url-bar">🔒 homerates.ai/lo/dashboard</div>
+      </div>
+      <div class="lo-app">
+        <!-- LO Sidebar -->
+        <div class="lo-sidebar">
+          <div class="lo-logo">
+            <div class="lo-logo-mark">H</div>
+            HomeRates
+          </div>
+          <div class="lo-nav">
+            <div class="lo-nav-item"><span class="ico">📊</span> Dashboard</div>
+            <div class="lo-nav-item active"><span class="ico">👥</span> Borrowers <span class="badge">12</span></div>
+            <div class="lo-nav-item"><span class="ico">🤝</span> Deal Rooms</div>
+            <div class="lo-nav-item"><span class="ico">📋</span> Scenarios</div>
+            <div class="lo-nav-item"><span class="ico">📈</span> Market Lab</div>
+          </div>
+        </div>
+
+        <!-- LO Main -->
+        <div class="lo-main">
+          <div class="lo-header">
+            <h3>My Borrowers</h3>
+            <button class="invite-btn">+ Invite Borrower</button>
+          </div>
+
+          <!-- Invite panel -->
+          <div style="padding:10px;">
+            <div class="invite-panel">
+              <div class="invite-panel-title">📧 Send HomeRates invite</div>
+              <input class="invite-input" value="sarah.johnson@gmail.com" readonly />
+              <div class="invite-toggle">
+                <span>Unlock full property reports</span>
+                <div class="toggle-on"></div>
+              </div>
+              <div class="invite-toggle">
+                <span>Unlock Decision Score</span>
+                <div class="toggle-on"></div>
+              </div>
+              <div class="invite-toggle">
+                <span>Unlock Refi Monitor</span>
+                <div class="toggle-on"></div>
+              </div>
+              <button class="send-invite">Send personalised invite →</button>
+            </div>
+          </div>
+
+          <!-- Borrower list -->
+          <div class="borrower-list">
+            <div class="borrower-row">
+              <div class="b-avatar" style="background:linear-gradient(135deg,#3d8bff,#00e87a);">JD</div>
+              <div class="b-info">
+                <div class="b-name">Jane Davis</div>
+                <div class="b-detail">$850k conv · 3 scenarios run</div>
+              </div>
+              <div class="b-status status-active">Active</div>
+            </div>
+            <div class="borrower-row">
+              <div class="b-avatar" style="background:linear-gradient(135deg,#f59e0b,#ff8c42);">MK</div>
+              <div class="b-info">
+                <div class="b-name">Mike Kim</div>
+                <div class="b-detail">Affordability · invite sent</div>
+              </div>
+              <div class="b-status status-invited">Invited</div>
+            </div>
+            <div class="borrower-row">
+              <div class="b-avatar" style="background:linear-gradient(135deg,#a78bfa,#3d8bff);">SJ</div>
+              <div class="b-info">
+                <div class="b-name">Sarah Johnson</div>
+                <div class="b-detail">FHA · just invited</div>
+              </div>
+              <div class="b-status status-new">New</div>
+            </div>
+          </div>
+
+          <div class="lo-stats">
+            <div class="stat"><div class="stat-val">12</div><div class="stat-lbl">Active borrowers</div></div>
+            <div class="stat"><div class="stat-val">48</div><div class="stat-lbl">Scenarios run</div></div>
+            <div class="stat"><div class="stat-val">3</div><div class="stat-lbl">Ready to apply</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: CONSUMER EXPERIENCE -->
+  <div>
+    <div class="mockup-label" style="color:#3d8bff;">
+      <div class="dot dot-blue"></div> Borrower view — what Jane sees after invite
+    </div>
+    <div class="mockup-frame">
+      <div class="browser-bar">
+        <div class="dots"><div class="dot-r"></div><div class="dot-y"></div><div class="dot-g"></div></div>
+        <div class="url-bar">🔒 homerates.ai/chat</div>
+      </div>
+      <div class="consumer-app">
+        <!-- Consumer Sidebar -->
+        <div class="c-sidebar">
+          <div class="c-logo">
+            <div class="lo-logo-mark">H</div>
+            HomeRates
+          </div>
+          <div class="lo-card">
+            <div class="lo-card-label">Your loan officer</div>
+            <div class="lo-card-row">
+              <div class="lo-mini-avatar">RA</div>
+              <div>
+                <div class="lo-card-name">Rayaan Arif</div>
+                <div class="lo-card-co">LoanDepot · NMLS 366082</div>
+              </div>
+            </div>
+          </div>
+          <div class="c-nav">
+            <div class="c-nav-item active"><span class="ico">💬</span> Chat</div>
+            <div class="c-nav-item"><span class="ico">🏠</span> My Home</div>
+            <div class="c-nav-item"><span class="ico">📊</span> My Scenarios</div>
+            <div class="c-nav-section">Unlocked for you</div>
+            <div class="c-nav-item"><span class="ico">🏘️</span> Property Report <span class="unlocked">✓</span></div>
+            <div class="c-nav-item"><span class="ico">📈</span> Decision Score <span class="unlocked">✓</span></div>
+            <div class="c-nav-item"><span class="ico">🔁</span> Refi Monitor <span class="unlocked">✓</span></div>
+          </div>
+          <div class="c-bottom">
+            <div class="c-user">
+              <div class="c-avatar">JD</div>
+              <div>
+                <div class="c-name">Jane Davis</div>
+                <div class="c-plan">Pro (via Rayaan)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Consumer Main -->
+        <div class="c-main">
+          <div class="c-banner">
+            <div class="c-banner-left"><strong>Rayaan</strong> has unlocked full intelligence for you.</div>
+            <div class="c-banner-cta">Message Rayaan →</div>
+          </div>
+          <div class="chat-area">
+            <div class="user-msg">Conventional loan on $850k home with 20% down</div>
+            <div>
+              <div class="sys-lbl">HomeRates Analysis</div>
+              <div class="c-card">
+                <div class="c-card-head">
+                  <div><div class="c-card-type">Conventional Loan</div><div class="c-card-title">$850k · 20% Down · 6.875%</div></div>
+                  <div class="no-pmi-badge">✓ No PMI</div>
+                </div>
+                <div class="c-hero">
+                  <div class="c-hero-lbl">Your monthly payment</div>
+                  <div class="c-hero-num"><span class="dol">$</span>5,240<span class="mo">/mo</span></div>
+                  <div class="c-hero-sub">P&I · Taxes · Insurance included</div>
+                </div>
+                <div class="c-facts">
+                  <div><div class="c-fact-val">$680k</div><div class="c-fact-lbl">Loan amount</div></div>
+                  <div><div class="c-fact-val">$170k</div><div class="c-fact-lbl">Down payment</div></div>
+                  <div><div class="c-fact-val" style="color:var(--accent)">$0</div><div class="c-fact-lbl">Monthly PMI</div></div>
+                </div>
+                <div class="c-meaning"><span>💡</span><div>At 20% down you avoid PMI — saving ~<strong>$340/mo</strong>. You need ~<strong>$147k/yr</strong> to qualify.</div></div>
+                <div class="c-premium">
+                  <div class="c-prem-head"><div class="prem-dot"></div><span class="prem-lbl">Unlocked by your loan officer</span><span class="prem-who">Rayaan Arif</span></div>
+                  <div class="c-prem-tiles">
+                    <div class="c-tile"><div class="c-tile-ico">🏘️</div><div class="c-tile-title">Property Report</div><div class="c-tile-act">View →</div></div>
+                    <div class="c-tile"><div class="c-tile-ico">📈</div><div class="c-tile-title">Decision Score</div><div class="c-tile-act">Get score →</div></div>
+                    <div class="c-tile"><div class="c-tile-ico">🔁</div><div class="c-tile-title">Refi Monitor</div><div class="c-tile-act">Set alert →</div></div>
+                  </div>
+                </div>
+                <div class="c-chips">
+                  <div class="c-chip pri">Can I qualify?</div>
+                  <div class="c-chip">Less down?</div>
+                  <div class="c-chip">Message Rayaan</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── VALUE FOR EACH PARTY ──────────────────────────────── -->
+<div class="section-title"><h2>Value for every party</h2></div>
+
+<div class="value-grid">
+  <div class="value-card">
+    <h4>For the loan officer</h4>
+    <div class="who">Stays top of mind</div>
+    <div class="value-item"><span class="ck">✓</span><div>Name and photo on <strong>every screen</strong> the borrower sees — between transactions</div></div>
+    <div class="value-item"><span class="ck">✓</span><div>Knows exactly what scenarios their borrower is running — ready to call at the right moment</div></div>
+    <div class="value-item"><span class="ck">✓</span><div>One invite gives borrower premium tools — <strong>makes the LO look like a hero</strong></div></div>
+    <div class="value-item"><span class="ck">✓</span><div>Works at Wells Fargo, LoanDepot, independent broker — <strong>any lender</strong></div></div>
+  </div>
+  <div class="value-card">
+    <h4>For the borrower</h4>
+    <div class="who">Gets more for free</div>
+    <div class="value-item"><span class="ck">✓</span><div><strong>No cost ever</strong> — premium features unlocked by their LO's subscription</div></div>
+    <div class="value-item"><span class="ck">✓</span><div>Property reports, Decision Score, Refi Monitor — <strong>tools they couldn't access alone</strong></div></div>
+    <div class="value-item"><span class="ck">✓</span><div>Simple, clean interface — one hero number, plain language, no mortgage jargon</div></div>
+    <div class="value-item"><span class="ck">✓</span><div>Direct line to their LO — <strong>one tap to message or call</strong></div></div>
+  </div>
+  <div class="value-card">
+    <h4>For HomeRates</h4>
+    <div class="who">Scalable acquisition</div>
+    <div class="value-item"><span class="ck">✓</span><div>Every LO who joins <strong>brings their entire borrower book</strong> — built-in distribution</div></div>
+    <div class="value-item"><span class="ck">✓</span><div>Monetised at the LO level — consumers always free, <strong>LOs pay per borrower or flat rate</strong></div></div>
+    <div class="value-item"><span class="ck">✓</span><div>Partner programmes (like Groves IQ) distribute to <strong>hundreds of LOs at once</strong></div></div>
+    <div class="value-item"><span class="ck">✓</span><div>Consumer base grows → creates pipeline value that can be shared back with LO partners</div></div>
+  </div>
+</div>
+
+</body>
+</html>

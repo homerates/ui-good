@@ -122,6 +122,8 @@ const isPublicRoute = createRouteMatcher([
   "/compare(.*)",
   "/loan-limits(.*)",
   "/founding(.*)",
+  // Groves IQ partnership hub — password-gated, no Clerk auth required
+  "/grovesiq(.*)",
 ]);
 
 export default clerkMiddleware((auth, req) => {

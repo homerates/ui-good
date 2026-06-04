@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates — Consumer Experience Prototype</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg:          #080c12;
+    --card:        #0e1420;
+    --surface:     #141b28;
+    --surface2:    #1a2333;
+    --text:        #f0f4ff;
+    --text-weak:   #8fa3b8;
+    --text-dim:    #5a7490;
+    --border:      rgba(255,255,255,0.07);
+    --border-mid:  rgba(255,255,255,0.12);
+    --accent:      #00e87a;
+    --accent-dim:  rgba(0,232,122,0.12);
+    --accent-glow: rgba(0,232,122,0.06);
+    --blue:        #3d8bff;
+    --blue-dim:    rgba(61,139,255,0.12);
+    --amber:       #f59e0b;
+    --amber-dim:   rgba(245,158,11,0.10);
+    --red:         #ff5f5f;
+    --sidebar-w:   240px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ──────────────────────────────────────────────── */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .sidebar-logo {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-mark {
+    width: 30px; height: 30px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 14px; color: #000;
+  }
+  .logo-text {
+    font-size: 0.95rem; font-weight: 700; color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .logo-text span { color: var(--accent); }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.875rem; font-weight: 500;
+    color: var(--text-weak);
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    text-decoration: none;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+  .nav-item.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: rgba(0,232,122,0.15);
+  }
+  .nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+
+  .nav-section-label {
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-dim);
+    padding: 10px 12px 4px;
+  }
+
+  .nav-divider {
+    height: 1px; background: var(--border);
+    margin: 8px 12px;
+  }
+
+  /* Find a Pro CTA — the key consumer→professional bridge */
+  .find-pro-btn {
+    margin: 8px 10px;
+    padding: 11px 14px;
+    background: linear-gradient(135deg, rgba(61,139,255,0.15), rgba(61,139,255,0.08));
+    border: 1px solid rgba(61,139,255,0.25);
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    transition: all 0.2s;
+  }
+  .find-pro-btn:hover { border-color: rgba(61,139,255,0.45); background: rgba(61,139,255,0.18); }
+  .find-pro-icon { font-size: 1.1rem; }
+  .find-pro-text { flex: 1; }
+  .find-pro-text .title { font-size: 0.82rem; font-weight: 700; color: var(--blue); }
+  .find-pro-text .sub { font-size: 0.7rem; color: var(--text-dim); margin-top: 1px; }
+
+  .sidebar-bottom {
+    padding: 12px 10px;
+    border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+
+  .user-pill {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .user-pill:hover { background: rgba(255,255,255,0.04); }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, #3d8bff, #00e87a);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .user-info .name { font-size: 0.8rem; font-weight: 600; color: var(--text); }
+  .user-info .plan {
+    font-size: 0.65rem; color: var(--accent); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+
+  /* ── MAIN AREA ──────────────────────────────────────────────── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── VIEW TOGGLE (prototype navigation) ───────────────────── */
+  .proto-nav {
+    position: fixed;
+    top: 12px; right: 12px;
+    display: flex; gap: 6px;
+    z-index: 100;
+  }
+  .proto-btn {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border-mid);
+    background: var(--surface); color: var(--text-weak);
+    transition: all 0.15s;
+  }
+  .proto-btn:hover { color: var(--text); }
+  .proto-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  /* ── SCREEN 1: CONSUMER HOME / WELCOME ───────────────────────── */
+  .screen { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .screen.visible { display: flex; }
+
+  /* Welcome state */
+  .welcome-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    max-width: 680px;
+    margin: 0 auto;
+    width: 100%;
+    gap: 32px;
+  }
+
+  .welcome-greeting {
+    text-align: center;
+  }
+  .welcome-greeting .eyebrow {
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 10px;
+  }
+  .welcome-greeting h1 {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    color: var(--text);
+  }
+  .welcome-greeting p {
+    margin-top: 10px;
+    font-size: 1rem; color: var(--text-weak);
+    line-height: 1.6;
+  }
+
+  /* Scenario starter cards */
+  .starter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .starter-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .starter-card:hover {
+    border-color: var(--border-mid);
+    background: var(--surface);
+    transform: translateY(-1px);
+  }
+  .starter-card .icon { font-size: 1.4rem; }
+  .starter-card .label {
+    font-size: 0.9rem; font-weight: 700; color: var(--text);
+    line-height: 1.3;
+  }
+  .starter-card .desc {
+    font-size: 0.75rem; color: var(--text-weak); line-height: 1.5;
+  }
+
+  .starter-card.accent-green { border-color: rgba(0,232,122,0.2); }
+  .starter-card.accent-green:hover { border-color: rgba(0,232,122,0.4); background: var(--accent-glow); }
+  .starter-card.accent-blue { border-color: rgba(61,139,255,0.15); }
+  .starter-card.accent-blue:hover { border-color: rgba(61,139,255,0.35); background: rgba(61,139,255,0.04); }
+
+  /* Composer */
+  .composer-wrap {
+    padding: 16px 20px 20px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .composer-inner {
+    max-width: 680px;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--border-mid);
+    border-radius: 14px;
+    padding: 12px 14px;
+    transition: border-color 0.2s;
+  }
+  .composer-inner:focus-within { border-color: rgba(0,232,122,0.35); }
+
+  .composer-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    resize: none;
+    min-height: 24px;
+    max-height: 120px;
+  }
+  .composer-input::placeholder { color: var(--text-dim); }
+
+  .send-btn {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border: none; border-radius: 10px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+  }
+  .send-btn:hover { opacity: 0.85; }
+  .send-btn svg { width: 16px; height: 16px; fill: #000; }
+
+  .composer-hint {
+    text-align: center;
+    font-size: 0.7rem; color: var(--text-dim);
+    margin-top: 8px;
+    max-width: 680px;
+    margin-left: auto; margin-right: auto;
+  }
+
+  /* ── SCREEN 2: SCENARIO RESULT (Consumer Mode) ──────────────── */
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .chat-bubble-user {
+    align-self: flex-end;
+    max-width: 70%;
+    background: rgba(0,232,122,0.1);
+    border: 1px solid rgba(0,232,122,0.2);
+    border-radius: 14px 14px 4px 14px;
+    padding: 10px 14px;
+    font-size: 0.875rem;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .chat-bubble-system {
+    align-self: flex-start;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .system-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding-left: 2px;
+  }
+
+  /* ── CONSUMER SCENARIO CARD ──────────────────────────────────── */
+  .scenario-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    width: 100%;
+    max-width: 600px;
+  }
+
+  .card-header {
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-header-left { display: flex; flex-direction: column; gap: 3px; }
+  .card-type-label {
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent);
+  }
+  .card-title {
+    font-size: 0.95rem; font-weight: 700; color: var(--text);
+  }
+  .card-badge {
+    padding: 4px 10px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(0,232,122,0.2);
+    border-radius: 20px;
+    font-size: 0.7rem; font-weight: 700; color: var(--accent);
+  }
+
+  /* Hero number — the ONE thing the consumer sees */
+  .card-hero {
+    padding: 24px 20px 20px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-label {
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .hero-number {
+    font-size: clamp(2.4rem, 6vw, 3.2rem);
+    font-weight: 900;
+    color: var(--text);
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+  .hero-number span { color: var(--accent); }
+  .hero-sub {
+    margin-top: 8px;
+    font-size: 0.8rem; color: var(--text-weak);
+  }
+
+  /* Key facts — 3 max for consumer */
+  .card-facts {
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .fact-item { display: flex; flex-direction: column; gap: 4px; }
+  .fact-value {
+    font-size: 1rem; font-weight: 700; color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .fact-label {
+    font-size: 0.68rem; color: var(--text-dim);
+    font-weight: 500; line-height: 1.3;
+  }
+
+  /* What this means — plain language */
+  .card-meaning {
+    padding: 14px 20px;
+    background: rgba(0,232,122,0.04);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .meaning-icon { font-size: 1rem; margin-top: 1px; flex-shrink: 0; }
+  .meaning-text {
+    font-size: 0.82rem; color: var(--text-weak); line-height: 1.6;
+  }
+  .meaning-text strong { color: var(--text); }
+
+  /* Full breakdown toggle */
+  .breakdown-toggle {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .breakdown-toggle:hover { background: rgba(255,255,255,0.02); }
+  .breakdown-toggle-label {
+    font-size: 0.78rem; font-weight: 600; color: var(--text-weak);
+  }
+  .breakdown-toggle-icon { font-size: 0.75rem; color: var(--text-dim); }
+
+  /* Slider teaser */
+  .card-slider-teaser {
+    padding: 14px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .slider-label-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+  }
+  .slider-label { font-size: 0.75rem; color: var(--text-weak); font-weight: 500; }
+  .slider-value { font-size: 0.8rem; color: var(--text); font-weight: 700; }
+  .slider-track {
+    height: 5px; background: rgba(255,255,255,0.1);
+    border-radius: 99px; position: relative;
+  }
+  .slider-fill {
+    position: absolute; left: 0; top: 0; height: 100%;
+    background: var(--accent); border-radius: 99px;
+    width: 35%;
+  }
+  .slider-thumb {
+    position: absolute; top: 50%;
+    transform: translate(-50%, -50%);
+    left: 35%;
+    width: 16px; height: 16px;
+    background: var(--text); border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(0,232,122,0.3);
+    cursor: grab;
+  }
+
+  /* Action chips */
+  .card-chips {
+    padding: 14px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chip {
+    padding: 7px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-mid);
+    border-radius: 99px;
+    font-size: 0.78rem; font-weight: 500;
+    color: var(--text-weak);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .chip:hover {
+    background: var(--surface2);
+    color: var(--text);
+    border-color: rgba(255,255,255,0.2);
+  }
+  .chip.primary {
+    background: var(--accent-dim);
+    border-color: rgba(0,232,122,0.25);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .chip.primary:hover {
+    background: rgba(0,232,122,0.18);
+  }
+
+  /* ── SCREEN 3: PROFESSIONAL VIEW ─────────────────────────────── */
+  .pro-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    width: 100%;
+    max-width: 600px;
+    font-size: 0.85rem;
+  }
+  .pro-card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.78rem; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .pro-table { width: 100%; }
+  .pro-table tr { border-bottom: 1px solid var(--border); }
+  .pro-table tr:last-child { border-bottom: none; }
+  .pro-table td {
+    padding: 9px 18px;
+    font-size: 0.82rem;
+    color: var(--text-weak);
+  }
+  .pro-table td:last-child {
+    text-align: right;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .pro-table .total td {
+    font-weight: 700;
+    color: var(--text);
+    background: rgba(0,232,122,0.04);
+  }
+  .pro-table .total td:last-child { color: var(--accent); }
+
+  .pro-section-label {
+    padding: 10px 18px 6px;
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-dim);
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Compare toggle */
+  .view-toggle {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 3px;
+    margin: 0 auto 0;
+    width: fit-content;
+  }
+  .view-btn {
+    padding: 6px 16px;
+    border-radius: 7px;
+    font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; border: none;
+    background: none;
+    color: var(--text-weak);
+    transition: all 0.15s;
+  }
+  .view-btn.active { background: var(--card); color: var(--text); }
+
+  /* Affordability card consumer variant */
+  .afford-hero {
+    padding: 24px 20px 18px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .afford-range {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 8px 0;
+  }
+  .range-num {
+    font-size: clamp(2rem, 5vw, 2.8rem);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    color: var(--text);
+  }
+  .range-dash { font-size: 1.2rem; color: var(--text-dim); }
+  .range-num.hi { color: var(--accent); }
+
+  .savings-bar {
+    margin: 16px 20px;
+    background: var(--surface);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .savings-bar-inner {
+    display: flex;
+    align-items: stretch;
+  }
+  .savings-segment {
+    padding: 10px 14px;
+    display: flex; flex-direction: column; gap: 2px;
+    border-right: 1px solid var(--border);
+  }
+  .savings-segment:last-child { border-right: none; flex: 1; }
+  .seg-val { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+  .seg-lbl { font-size: 0.65rem; color: var(--text-dim); }
+  .seg-lbl.green { color: var(--accent); font-weight: 600; }
+
+  /* ── SCREEN 4: SIDEBAR PRO VIEW ──────────────────────────────── */
+  .pro-sidebar .nav-item.pro-only {
+    color: var(--text-dim);
+    font-size: 0.82rem;
+  }
+  .pro-badge {
+    margin-left: auto;
+    font-size: 0.6rem; font-weight: 800;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    color: #1a0a00; padding: 2px 6px;
+    border-radius: 99px;
+  }
+
+  /* ── SCROLLBAR ────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+
+  /* ── SECTION HEADERS ─────────────────────────────────────── */
+  .section-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .section-header h2 {
+    font-size: 0.85rem; font-weight: 700; color: var(--text);
+  }
+  .section-header span {
+    font-size: 0.72rem; color: var(--text-dim);
+  }
+
+  /* Label pill */
+  .pill {
+    display: inline-flex; align-items: center;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 0.65rem; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .pill-green { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,232,122,0.2); }
+  .pill-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(61,139,255,0.2); }
+  .pill-amber { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+
+  /* Prototype annotation */
+  .annotation {
+    position: fixed;
+    bottom: 16px; left: calc(var(--sidebar-w) + 16px);
+    background: rgba(0,0,0,0.85);
+    border: 1px solid var(--border-mid);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.72rem;
+    color: var(--text-weak);
+    max-width: 360px;
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+  }
+  .annotation strong { color: var(--text); }
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ──────────────────────────────────────────── -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">H</div>
+    <div class="logo-text">Home<span>Rates</span></div>
+  </div>
+
+  <!-- Consumer sidebar nav -->
+  <nav class="sidebar-nav" id="consumerNav">
+    <a class="nav-item active" href="#">
+      <span class="nav-icon">💬</span> Chat
+    </a>
+    <a class="nav-item" href="#">
+      <span class="nav-icon">🏠</span> My Home
+    </a>
+    <a class="nav-item" href="#">
+      <span class="nav-icon">📊</span> My Scenarios
+    </a>
+
+    <div class="nav-divider"></div>
+
+    <!-- The key consumer→professional bridge -->
+    <div class="find-pro-btn" onclick="alert('Connect with a verified mortgage professional')">
+      <span class="find-pro-icon">🤝</span>
+      <div class="find-pro-text">
+        <div class="title">Talk to a Pro</div>
+        <div class="sub">Get matched with a loan officer</div>
+      </div>
+      <span style="color:var(--text-dim);font-size:0.7rem;">→</span>
+    </div>
+  </nav>
+
+  <!-- Professional sidebar nav (hidden by default in consumer view) -->
+  <nav class="sidebar-nav pro-sidebar" id="proNav" style="display:none;">
+    <a class="nav-item" href="#">
+      <span class="nav-icon">💬</span> Chat
+    </a>
+    <a class="nav-item" href="#">
+      <span class="nav-icon">🏠</span> My Home
+    </a>
+    <div class="nav-section-label">Pro Tools</div>
+    <a class="nav-item" href="#">
+      <span class="nav-icon">👥</span> Borrowers
+    </a>
+    <a class="nav-item" href="#">
+      <span class="nav-icon">🤝</span> Deal Rooms
+    </a>
+    <a class="nav-item" href="#">
+      <span class="nav-icon">📋</span> Scenarios
+    </a>
+    <a class="nav-item" href="#">
+      <span class="nav-icon">📚</span> Library
+    </a>
+    <div class="nav-section-label">Intelligence</div>
+    <a class="nav-item" href="#">
+      <span class="nav-icon">🏘️</span> Property Intel
+    </a>
+    <a class="nav-item" href="#">
+      <span class="nav-icon">📈</span> Market Lab
+    </a>
+    <a class="nav-item" href="#">
+      <span class="nav-icon">📡</span> Investor Intel
+    </a>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <div class="nav-item" style="cursor:pointer;">
+      <span class="nav-icon">⚙️</span> Settings
+    </div>
+    <div class="user-pill">
+      <div class="avatar">JD</div>
+      <div class="user-info">
+        <div class="name">Jane D.</div>
+        <div class="plan" id="planLabel">Free</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAIN CONTENT ─────────────────────────────────────── -->
+<div class="main">
+
+  <!-- Prototype navigation -->
+  <div class="proto-nav">
+    <button class="proto-btn active" onclick="showScreen('welcome')">1. Home</button>
+    <button class="proto-btn" onclick="showScreen('scenario')">2. Scenario Card</button>
+    <button class="proto-btn" onclick="showScreen('affordability')">3. Affordability</button>
+    <button class="proto-btn" onclick="showScreen('proview')">4. Pro View →</button>
+  </div>
+
+  <!-- ── SCREEN 1: CONSUMER WELCOME / HOME ─────────────── -->
+  <div class="screen visible" id="screen-welcome">
+    <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+
+      <div style="flex:1; overflow-y:auto; display:flex; align-items:center; justify-content:center;">
+        <div class="welcome-wrap">
+
+          <div class="welcome-greeting">
+            <div class="eyebrow">AI-Powered Mortgage Intelligence</div>
+            <h1>What's your home<br>buying situation?</h1>
+            <p>Get instant, accurate answers — no forms, no sales calls, no commissions.</p>
+          </div>
+
+          <div class="starter-grid">
+            <div class="starter-card accent-green" onclick="showScreen('affordability')">
+              <div class="icon">💰</div>
+              <div class="label">What can I afford?</div>
+              <div class="desc">See how much home your income qualifies for with 3 scenarios.</div>
+            </div>
+            <div class="starter-card accent-blue" onclick="showScreen('scenario')">
+              <div class="icon">🏡</div>
+              <div class="label">I'm looking at a home</div>
+              <div class="desc">Get your payment, monthly costs, and whether it makes sense.</div>
+            </div>
+            <div class="starter-card" onclick="showScreen('scenario')">
+              <div class="icon">🔁</div>
+              <div class="label">Should I refinance?</div>
+              <div class="desc">Find out if refinancing saves you money and when you break even.</div>
+            </div>
+            <div class="starter-card" onclick="showScreen('scenario')">
+              <div class="icon">📍</div>
+              <div class="label">Check a property</div>
+              <div class="desc">Paste any listing address for an instant analysis.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="composer-wrap">
+        <div class="composer-inner">
+          <textarea class="composer-input" rows="1" placeholder="Or ask anything — e.g. 'Can I afford a $650k home on $120k income?'"></textarea>
+          <button class="send-btn">
+            <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+          </button>
+        </div>
+        <div class="composer-hint">Free · No account required to start · Your data is private</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── SCREEN 2: CONSUMER SCENARIO CARD RESULT ──────── -->
+  <div class="screen" id="screen-scenario">
+    <div class="section-header">
+      <h2>Your Scenario</h2>
+      <span>$850k · Conventional · 20% down</span>
+    </div>
+
+    <div class="chat-area">
+      <div class="chat-bubble-user">
+        Conventional loan on a $850,000 home with 20% down at 6.875%
+      </div>
+
+      <div class="chat-bubble-system">
+        <div class="system-label">HomeRates Analysis</div>
+
+        <div class="scenario-card">
+          <!-- Header -->
+          <div class="card-header">
+            <div class="card-header-left">
+              <div class="card-type-label">Conventional Loan</div>
+              <div class="card-title">$850,000 Purchase · 20% Down</div>
+            </div>
+            <div class="card-badge">✓ No PMI</div>
+          </div>
+
+          <!-- THE ONE NUMBER -->
+          <div class="card-hero">
+            <div class="hero-label">Your estimated monthly payment</div>
+            <div class="hero-number"><span>$</span>5,240<span style="font-size:0.45em;color:var(--text-weak)">/mo</span></div>
+            <div class="hero-sub">Principal & Interest · Taxes · Insurance included</div>
+          </div>
+
+          <!-- 3 key facts only -->
+          <div class="card-facts">
+            <div class="fact-item">
+              <div class="fact-value">$680,000</div>
+              <div class="fact-label">Loan amount after 20% down</div>
+            </div>
+            <div class="fact-item">
+              <div class="fact-value">$170,000</div>
+              <div class="fact-label">Down payment needed</div>
+            </div>
+            <div class="fact-item">
+              <div class="fact-value" style="color:var(--accent)">$0</div>
+              <div class="fact-label">Monthly PMI — none required</div>
+            </div>
+          </div>
+
+          <!-- Plain language meaning -->
+          <div class="card-meaning">
+            <span class="meaning-icon">💡</span>
+            <div class="meaning-text">
+              At 20% down, you avoid PMI entirely — saving you around <strong>$340/month</strong> compared to putting 10% down. To qualify at standard guidelines, you'd need roughly <strong>$147k/year</strong> in household income.
+            </div>
+          </div>
+
+          <!-- Slider teaser — adjust your scenario -->
+          <div class="card-slider-teaser">
+            <div class="slider-label-row">
+              <span class="slider-label">Adjust purchase price</span>
+              <span class="slider-value">$850,000</span>
+            </div>
+            <div class="slider-track">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;">
+              <span style="font-size:0.65rem;color:var(--text-dim)">$400k</span>
+              <span style="font-size:0.65rem;color:var(--text-dim)">$5M</span>
+            </div>
+          </div>
+
+          <!-- Full breakdown — collapsed -->
+          <div class="breakdown-toggle" onclick="toggleBreakdown()">
+            <span class="breakdown-toggle-label" id="toggleLabel">📋 See full payment breakdown</span>
+            <span class="breakdown-toggle-icon" id="toggleIcon">▼</span>
+          </div>
+          <div id="breakdownPanel" style="display:none;">
+            <table class="pro-table">
+              <tbody>
+                <tr><td>Principal & Interest</td><td>$4,463/mo</td></tr>
+                <tr><td>Property Taxes (est. 1.2%)</td><td>$850/mo</td></tr>
+                <tr><td>Home Insurance (est. 0.5%)</td><td>$354/mo</td></tr>
+                <tr><td>PMI</td><td>—</td></tr>
+                <tr class="total"><td>Total Monthly (PITI)</td><td>$5,240</td></tr>
+              </tbody>
+            </table>
+            <div style="padding:10px 18px;font-size:0.7rem;color:var(--text-dim)">
+              Taxes and insurance are estimates. Your actual costs may vary by location.
+            </div>
+          </div>
+
+          <!-- Consumer-mode chips — plain language -->
+          <div class="card-chips">
+            <div class="chip primary">Can I qualify for this?</div>
+            <div class="chip">What if I put less down?</div>
+            <div class="chip">Compare FHA vs this</div>
+            <div class="chip">Talk to a loan officer</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="composer-wrap">
+      <div class="composer-inner">
+        <textarea class="composer-input" rows="1" placeholder="Ask a follow-up question..."></textarea>
+        <button class="send-btn">
+          <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 3: CONSUMER AFFORDABILITY CARD ─────────── -->
+  <div class="screen" id="screen-affordability">
+    <div class="section-header">
+      <h2>What You Can Afford</h2>
+      <span>Based on your income</span>
+    </div>
+
+    <div class="chat-area">
+      <div class="chat-bubble-user">
+        I make $120k a year and have $60k saved. What can I afford?
+      </div>
+
+      <div class="chat-bubble-system">
+        <div class="system-label">HomeRates Analysis</div>
+
+        <div class="scenario-card">
+          <div class="card-header">
+            <div class="card-header-left">
+              <div class="card-type-label">Affordability Analysis</div>
+              <div class="card-title">$120k income · $60k saved</div>
+            </div>
+            <div class="pill pill-green">3 Scenarios</div>
+          </div>
+
+          <!-- Hero range -->
+          <div class="afford-hero">
+            <div class="hero-label">Your home buying range</div>
+            <div class="afford-range">
+              <div class="range-num">$380k</div>
+              <div class="range-dash">—</div>
+              <div class="range-num hi">$520k</div>
+            </div>
+            <div class="hero-sub">FHA 3.5% down to Conventional 20% down at current rates</div>
+          </div>
+
+          <!-- The 3 scenarios — simplified -->
+          <div style="padding:16px 20px; display:flex; flex-direction:column; gap:10px; border-bottom:1px solid var(--border);">
+
+            <div style="background:var(--surface); border-radius:12px; padding:14px 16px; border:1px solid rgba(0,232,122,0.15);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-size:0.75rem;font-weight:700;color:var(--accent);">⭐ FHA — Lowest Entry</div>
+                <div class="pill pill-green">3.5% down</div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+                <div>
+                  <div style="font-size:1.5rem;font-weight:800;color:var(--text);letter-spacing:-0.03em;">$380,000</div>
+                  <div style="font-size:0.7rem;color:var(--text-dim);margin-top:2px;">Max home price</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:1rem;font-weight:700;color:var(--text);">$2,840/mo</div>
+                  <div style="font-size:0.7rem;color:var(--text-dim);">Monthly PITI</div>
+                </div>
+              </div>
+              <div style="margin-top:8px;font-size:0.72rem;color:var(--text-dim);">
+                Down payment needed: <strong style="color:var(--text);">$13,300</strong> · You have $60k ✓
+              </div>
+            </div>
+
+            <div style="background:var(--surface); border-radius:12px; padding:14px 16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-size:0.75rem;font-weight:600;color:var(--text-weak);">Conventional — Low Down</div>
+                <div class="pill pill-blue">5% down</div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+                <div>
+                  <div style="font-size:1.5rem;font-weight:800;color:var(--text);letter-spacing:-0.03em;">$440,000</div>
+                  <div style="font-size:0.7rem;color:var(--text-dim);margin-top:2px;">Max home price</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:1rem;font-weight:700;color:var(--text);">$3,120/mo</div>
+                  <div style="font-size:0.7rem;color:var(--text-dim);">Monthly PITI</div>
+                </div>
+              </div>
+              <div style="margin-top:8px;font-size:0.72rem;color:var(--text-dim);">
+                Down payment needed: <strong style="color:var(--text);">$22,000</strong> · PMI until 80% equity
+              </div>
+            </div>
+
+            <div style="background:var(--surface); border-radius:12px; padding:14px 16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-size:0.75rem;font-weight:600;color:var(--text-weak);">🛡️ Conventional — No PMI</div>
+                <div class="pill pill-amber">20% down</div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+                <div>
+                  <div style="font-size:1.5rem;font-weight:800;color:var(--text);letter-spacing:-0.03em;">$520,000</div>
+                  <div style="font-size:0.7rem;color:var(--text-dim);margin-top:2px;">Max home price</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:1rem;font-weight:700;color:var(--text);">$3,480/mo</div>
+                  <div style="font-size:0.7rem;color:var(--text-dim);">Monthly PITI</div>
+                </div>
+              </div>
+              <div style="margin-top:8px;font-size:0.72rem;color:var(--amber);">
+                ⚠ Down payment needed: $104,000 · You need $44k more
+              </div>
+            </div>
+          </div>
+
+          <div class="card-meaning">
+            <span class="meaning-icon">💡</span>
+            <div class="meaning-text">
+              With $60k saved, <strong>FHA is your clearest path today</strong> — you're ready to close on the FHA scenario right now. To reach conventional 20% down, you'd need to save around <strong>$1,800/month for 2 years</strong>.
+            </div>
+          </div>
+
+          <div class="card-chips">
+            <div class="chip primary">Am I ready to buy now?</div>
+            <div class="chip">What if rates drop?</div>
+            <div class="chip">What income do I need for $600k?</div>
+            <div class="chip">Talk to a loan officer</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="composer-wrap">
+      <div class="composer-inner">
+        <textarea class="composer-input" rows="1" placeholder="Ask a follow-up..."></textarea>
+        <button class="send-btn">
+          <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 4: PROFESSIONAL VIEW ───────────────────── -->
+  <div class="screen" id="screen-proview">
+    <div class="section-header">
+      <div>
+        <h2>Professional View — Same Data, Full Detail</h2>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:0.72rem;color:var(--text-dim)">Toggle for demo:</span>
+        <div class="view-toggle">
+          <button class="view-btn" onclick="showConsumerToggle()">Consumer</button>
+          <button class="view-btn active" onclick="showProToggle()">Professional</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-area">
+      <div class="chat-bubble-user">
+        Conventional loan on a $850,000 home with 20% down at 6.875%
+      </div>
+
+      <div class="chat-bubble-system" id="proCardView">
+        <div class="system-label">HomeRates Analysis — Professional View</div>
+
+        <div class="pro-card">
+          <div class="pro-card-header">
+            <span>Conventional Loan Analysis — $850,000 · 20% Down · 6.875%</span>
+            <span class="pill pill-green">✓ No PMI</span>
+          </div>
+          <div class="pro-section-label">Loan Structure</div>
+          <table class="pro-table">
+            <tr><td>Purchase Price</td><td>$850,000</td></tr>
+            <tr><td>Down Payment</td><td>$170,000 (20%)</td></tr>
+            <tr><td>Loan Amount</td><td>$680,000</td></tr>
+            <tr><td>LTV</td><td>80.00%</td></tr>
+            <tr><td>Loan Type</td><td>Conforming (2026 limit: $832,750)</td></tr>
+          </table>
+          <div class="pro-section-label">Monthly Payment (PITI)</div>
+          <table class="pro-table">
+            <tr><td>Principal & Interest</td><td>$4,463/mo</td></tr>
+            <tr><td>Property Taxes (1.20%/yr)</td><td>$850/mo</td></tr>
+            <tr><td>Home Insurance (0.50%/yr)</td><td>$354/mo</td></tr>
+            <tr><td>PMI</td><td>$0 (LTV ≤ 80%)</td></tr>
+            <tr class="total"><td>Total Monthly (PITI)</td><td>$5,240/mo</td></tr>
+          </table>
+          <div class="pro-section-label">Lifetime Cost</div>
+          <table class="pro-table">
+            <tr><td>Total Interest (30yr)</td><td>$927,435</td></tr>
+            <tr><td>Total Payments</td><td>$1,607,435</td></tr>
+          </table>
+          <div class="pro-section-label">Income to Qualify</div>
+          <table class="pro-table">
+            <tr><td>Conservative (28% front-end)</td><td>~$225k/yr</td></tr>
+            <tr><td>Standard (43% back-end)</td><td>~$147k/yr</td></tr>
+            <tr><td>Max w/ comp factors (50%)</td><td>~$126k/yr</td></tr>
+          </table>
+        </div>
+
+        <div class="card-chips" style="max-width:600px;">
+          <div class="chip">Rate drops to 6.375% — new payment?</div>
+          <div class="chip">10% down — what does PMI cost?</div>
+          <div class="chip">What if home is $935k?</div>
+          <div class="chip">1 extra payment/yr — years saved?</div>
+        </div>
+      </div>
+
+      <div class="chat-bubble-system" id="consumerCardView" style="display:none;">
+        <div class="system-label">HomeRates Analysis — Consumer View</div>
+        <div class="scenario-card">
+          <div class="card-header">
+            <div class="card-header-left">
+              <div class="card-type-label">Conventional Loan</div>
+              <div class="card-title">$850,000 Purchase · 20% Down</div>
+            </div>
+            <div class="card-badge">✓ No PMI</div>
+          </div>
+          <div class="card-hero">
+            <div class="hero-label">Your estimated monthly payment</div>
+            <div class="hero-number"><span>$</span>5,240<span style="font-size:0.45em;color:var(--text-weak)">/mo</span></div>
+            <div class="hero-sub">Principal & Interest · Taxes · Insurance included</div>
+          </div>
+          <div class="card-facts">
+            <div class="fact-item">
+              <div class="fact-value">$680,000</div>
+              <div class="fact-label">Loan amount</div>
+            </div>
+            <div class="fact-item">
+              <div class="fact-value">$170,000</div>
+              <div class="fact-label">Down payment</div>
+            </div>
+            <div class="fact-item">
+              <div class="fact-value" style="color:var(--accent)">$0</div>
+              <div class="fact-label">Monthly PMI</div>
+            </div>
+          </div>
+          <div class="card-meaning">
+            <span class="meaning-icon">💡</span>
+            <div class="meaning-text">
+              At 20% down, you avoid PMI — saving ~<strong>$340/month</strong> vs 10% down. You'd need ~<strong>$147k/year</strong> in income to qualify.
+            </div>
+          </div>
+          <div class="card-chips">
+            <div class="chip primary">Can I qualify for this?</div>
+            <div class="chip">What if I put less down?</div>
+            <div class="chip">Talk to a loan officer</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="composer-wrap">
+      <div class="composer-inner">
+        <textarea class="composer-input" rows="1" placeholder="Ask a follow-up..."></textarea>
+        <button class="send-btn">
+          <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Annotation -->
+<div class="annotation" id="annotation">
+  <strong>Screen 1 of 4 — Consumer Home</strong><br>
+  Clean entry: 4 scenario starters + open composer. No LO tools, no technical nav. "Talk to a Pro" replaces Deal Rooms.
+</div>
+
+<script>
+  const annotations = {
+    'welcome':       '<strong>Screen 1 — Consumer Home</strong><br>4 guided scenario starters. Plain language. No technical sidebar. "Talk to a Pro" is the LO bridge.',
+    'scenario':      '<strong>Screen 2 — Scenario Card (Consumer Mode)</strong><br>One hero number leads. 3 key facts only. Plain-language "what this means." Full breakdown collapsed. Chips are outcome-oriented.',
+    'affordability': '<strong>Screen 3 — Affordability Card (Consumer Mode)</strong><br>3 scenarios shown as "good, better, best" with clear path forward. Savings gap shown plainly. One primary action chip.',
+    'proview':       '<strong>Screen 4 — The Toggle</strong><br>Same underlying data. Professional sees full tables, DTI rows, LTV, technical chips. Consumer sees one number and plain language. Toggle per LO preference.',
+  };
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+    document.querySelectorAll('.proto-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('visible');
+    document.querySelectorAll('.proto-btn').forEach(b => {
+      if (b.textContent.toLowerCase().includes(id.substring(0,3)) ||
+          (id === 'welcome' && b.textContent.includes('Home')) ||
+          (id === 'scenario' && b.textContent.includes('Scenario')) ||
+          (id === 'affordability' && b.textContent.includes('Afford')) ||
+          (id === 'proview' && b.textContent.includes('Pro'))) {
+        b.classList.add('active');
+      }
+    });
+    document.getElementById('annotation').innerHTML = annotations[id] || '';
+
+    // Show/hide pro sidebar
+    if (id === 'proview') {
+      document.getElementById('consumerNav').style.display = 'none';
+      document.getElementById('proNav').style.display = 'flex';
+      document.getElementById('planLabel').textContent = 'Pro';
+      document.getElementById('planLabel').style.color = '#f59e0b';
+    } else {
+      document.getElementById('consumerNav').style.display = 'flex';
+      document.getElementById('proNav').style.display = 'none';
+      document.getElementById('planLabel').textContent = 'Free';
+      document.getElementById('planLabel').style.color = 'var(--accent)';
+    }
+  }
+
+  function toggleBreakdown() {
+    const panel = document.getElementById('breakdownPanel');
+    const icon = document.getElementById('toggleIcon');
+    const label = document.getElementById('toggleLabel');
+    const open = panel.style.display === 'none';
+    panel.style.display = open ? 'block' : 'none';
+    icon.textContent = open ? '▲' : '▼';
+    label.textContent = open ? '📋 Hide full breakdown' : '📋 See full payment breakdown';
+  }
+
+  function showProToggle() {
+    document.getElementById('proCardView').style.display = 'flex';
+    document.getElementById('consumerCardView').style.display = 'none';
+    document.querySelectorAll('.view-btn')[0].classList.remove('active');
+    document.querySelectorAll('.view-btn')[1].classList.add('active');
+  }
+
+  function showConsumerToggle() {
+    document.getElementById('proCardView').style.display = 'none';
+    document.getElementById('consumerCardView').style.display = 'flex';
+    document.querySelectorAll('.view-btn')[0].classList.add('active');
+    document.querySelectorAll('.view-btn')[1].classList.remove('active');
+  }
+</script>
+
+</body>
+</html>
