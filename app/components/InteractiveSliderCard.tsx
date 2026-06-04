@@ -370,31 +370,32 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
             {/* Hero */}
             <div className="isc-hero">
+                {/* Purchase price / loan amount context — makes PITI meaningful at a glance */}
+                <div className="isc-price-context">
+                    <div className="isc-price-row">
+                        <span className="isc-price-lbl">Purchase Price</span>
+                        <span className="isc-price-val">{fmtDollar(price)}</span>
+                    </div>
+                    <div className="isc-price-row">
+                        <span className="isc-price-lbl">Loan Amount</span>
+                        <span className="isc-price-val">{fmtDollar(loanAmt)}</span>
+                    </div>
+                </div>
+                <div className="isc-price-divider" />
+                <div className="isc-piti-label">PITI · Monthly Total</div>
                 <div className="isc-hero-payment">
                     <span className="isc-hero-amount">{fmtDollar(heroTotal)}</span>
                     <span className="isc-hero-per">/mo{activeBdType !== 'none' ? ' yr 1' : ''}</span>
                 </div>
                 {heroSub && <div className="isc-hero-sub">{heroSub}</div>}
-                {/* G8: DTI context — shown when borrower income is known (property_lookup + adjusted scenario) */}
-                {props.hideDrawer && props.annualIncome != null && props.annualIncome > 0 && total > 0 && (() => {
-                    const debt = props.monthlyDebt ?? 0;
-                    const dti = ((total + debt) / (props.annualIncome / 12)) * 100;
-                    const dtiColor = dti <= 28 ? '#4ade80' : dti <= 36 ? '#4ade80' : dti <= 43 ? '#60a5fa' : dti <= 49 ? '#fbbf24' : '#f87171';
-                    return (
-                        <div style={{ fontSize: '0.68rem', color: dtiColor, marginTop: 4, fontWeight: 600, letterSpacing: '0.03em' }}>
-                            DTI {dti.toFixed(0)}% · ${Math.round(props.annualIncome / 12).toLocaleString()}/mo income{debt > 0 ? ` · $${debt.toLocaleString()}/mo debts` : ''}
-                        </div>
-                    );
-                })()}
+                {/* DTI moved below legend — see after color bar */}
 
                 {loanType === 'va' && (
                     <div className="isc-badge isc-badge--va">
                         🎖️ No PMI · Funding fee {vaFfPct === 0 ? 'exempt' : `${vaFfPct}%`} ({vaFfPct === 0 ? '$0' : fmtDollar(fundingFee)}) rolled in
                     </div>
                 )}
-                {loanType === 'jumbo' && (
-                    <div className="isc-badge isc-badge--jumbo">🏛️ Jumbo · No PMI · 20% min down</div>
-                )}
+                {/* Jumbo advisory moved to drawer */}
                 {loanType === 'fha' && (
                     <div className="isc-badge isc-badge--fha">FHA · 3.5% min down · MIP: {fmtDollar(pmi)}/mo</div>
                 )}
@@ -476,6 +477,26 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         ))}
                     </div>
                 )}
+
+                {/* DTI context — shown below the breakdown when income is known */}
+                {props.hideDrawer && props.annualIncome != null && props.annualIncome > 0 && total > 0 && (() => {
+                    const debt = props.monthlyDebt ?? 0;
+                    const dti = ((total + debt) / (props.annualIncome / 12)) * 100;
+                    const dtiColor = dti <= 36 ? '#4ade80' : dti <= 43 ? '#60a5fa' : dti <= 49 ? '#fbbf24' : '#f87171';
+                    const dtiLabel = dti <= 36 ? 'Comfortable' : dti <= 43 ? 'Within guidelines' : dti <= 49 ? 'Stretched' : 'High';
+                    return (
+                        <div className="isc-dti-row">
+                            <div className="isc-dti-left">
+                                <span className="isc-dti-label">Debt-to-Income</span>
+                                <span className="isc-dti-sub">${Math.round(props.annualIncome / 12).toLocaleString()}/mo income{debt > 0 ? ` · $${debt.toLocaleString()}/mo debts` : ''}</span>
+                            </div>
+                            <div className="isc-dti-right" style={{ color: dtiColor }}>
+                                <span className="isc-dti-pct">{dti.toFixed(0)}%</span>
+                                <span className="isc-dti-verdict">{dtiLabel}</span>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* Slider Drawer Trigger — hidden on property_lookup path (income card is the sole adjustment surface) */}
@@ -665,6 +686,13 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     </div>
                 </div>
 
+                {/* Jumbo advisory — shown in drawer so it doesn't crowd the hero */}
+                {loanType === 'jumbo' && (
+                    <div className="isc-drawer-advisory isc-drawer-advisory--jumbo">
+                        🏛️ <strong>Jumbo loan</strong> — No PMI required · Minimum 20% down · Stricter reserve and income guidelines than conforming. Expect 12–24 months reserves. Consider a lender specialising in Jumbo.
+                    </div>
+                )}
+
                 {/* Stats */}
                 <div className="isc-exp-stats">
                     <div className="isc-exp-stat">
@@ -748,10 +776,32 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
                 /* hero */
                 .isc-hero { padding:18px 16px 14px; border-bottom:1px solid rgba(255,255,255,0.06); }
+
+                /* purchase price / loan amount context */
+                .isc-price-context { display:flex; flex-direction:column; gap:5px; margin-bottom:10px; }
+                .isc-price-row { display:flex; justify-content:space-between; align-items:baseline; }
+                .isc-price-lbl { font-size:11px; font-weight:600; color:#8fa3b8; text-transform:uppercase; letter-spacing:.05em; }
+                .isc-price-val { font-size:13px; font-weight:700; color:#c4cfe0; font-variant-numeric:tabular-nums; }
+                .isc-price-divider { height:1px; background:rgba(255,255,255,0.07); margin-bottom:10px; }
+                .isc-piti-label { font-size:10px; font-weight:700; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px; }
+
                 .isc-hero-payment { display:flex; align-items:baseline; gap:6px; margin-bottom:4px; }
                 .isc-hero-amount { font-size:clamp(2rem,5vw,2.6rem); font-weight:800; color:#f0f4ff; letter-spacing:-.04em; font-variant-numeric:tabular-nums; transition:color .15s; }
                 .isc-hero-per { font-size:.9rem; color: #94a3b8; font-weight:500; }
                 .isc-hero-sub { font-size:11px; color: #94a3b8; font-weight:500; margin-bottom:10px; }
+
+                /* DTI row — below legend */
+                .isc-dti-row { display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding:8px 10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:8px; gap:10px; }
+                .isc-dti-left { display:flex; flex-direction:column; gap:2px; }
+                .isc-dti-label { font-size:11px; font-weight:700; color:#8fa3b8; text-transform:uppercase; letter-spacing:.05em; }
+                .isc-dti-sub { font-size:10px; color:#8fa3b8; }
+                .isc-dti-right { display:flex; flex-direction:column; align-items:flex-end; gap:1px; }
+                .isc-dti-pct { font-size:1.1rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1; }
+                .isc-dti-verdict { font-size:10px; font-weight:700; color:inherit; }
+
+                /* Jumbo drawer advisory */
+                .isc-drawer-advisory { padding:10px 12px; border-radius:8px; font-size:11px; line-height:1.5; }
+                .isc-drawer-advisory--jumbo { background:rgba(139,92,246,0.06); border:1px solid rgba(139,92,246,0.18); color:#a78bfa; }
 
                 /* badges */
                 .isc-badge { font-size:11px; font-weight:600; border-radius:6px; padding:5px 10px; margin-bottom:10px; letter-spacing:.01em; }
