@@ -3705,6 +3705,12 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
+                                                        {/* Locked Intelligence Card — convHBSlider path, no property address in context */}
+                                                        {m.meta.convHBSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
+                                                            <LockedIntelligenceCard
+                                                                onCheckProperty={() => composerRef.current?.focus()}
+                                                            />
+                                                        )}
                                                         {/* Income Qualify slider card */}
                                                         {m.meta.incomeQualifySlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
