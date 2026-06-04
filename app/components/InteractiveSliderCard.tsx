@@ -478,25 +478,6 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     </div>
                 )}
 
-                {/* DTI context — shown below the breakdown when income is known */}
-                {props.hideDrawer && props.annualIncome != null && props.annualIncome > 0 && total > 0 && (() => {
-                    const debt = props.monthlyDebt ?? 0;
-                    const dti = ((total + debt) / (props.annualIncome / 12)) * 100;
-                    const dtiColor = dti <= 36 ? '#4ade80' : dti <= 43 ? '#60a5fa' : dti <= 49 ? '#fbbf24' : '#f87171';
-                    const dtiLabel = dti <= 36 ? 'Comfortable' : dti <= 43 ? 'Within guidelines' : dti <= 49 ? 'Stretched' : 'High';
-                    return (
-                        <div className="isc-dti-row">
-                            <div className="isc-dti-left">
-                                <span className="isc-dti-label">Debt-to-Income</span>
-                                <span className="isc-dti-sub">${Math.round(props.annualIncome / 12).toLocaleString()}/mo income{debt > 0 ? ` · $${debt.toLocaleString()}/mo debts` : ''}</span>
-                            </div>
-                            <div className="isc-dti-right" style={{ color: dtiColor }}>
-                                <span className="isc-dti-pct">{dti.toFixed(0)}%</span>
-                                <span className="isc-dti-verdict">{dtiLabel}</span>
-                            </div>
-                        </div>
-                    );
-                })()}
             </div>
 
             {/* Slider Drawer Trigger — hidden on property_lookup path (income card is the sole adjustment surface) */}
