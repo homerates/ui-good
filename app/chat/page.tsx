@@ -3687,15 +3687,18 @@ export default function Page() {
                                                                 />
                                                             </>
                                                         )}
-                                                        {/* Conventional / High Balance slider card */}
+                                                        {/* Conventional / High Balance — rendered via ISC (new card) */}
                                                         {m.meta.convHBSlider && !loading && typingId === null && (
-                                                            <ConvHBSliderCard
-                                                                {...m.meta.convHBSlider}
+                                                            <InteractiveSliderCard
+                                                                key={`isc-convhb-${m.id}`}
+                                                                price={m.meta.convHBSlider.price}
+                                                                downPct={m.meta.convHBSlider.downPct}
+                                                                rate={m.meta.convHBSlider.rate}
+                                                                term={m.meta.convHBSlider.term}
+                                                                taxRate={m.meta.convHBSlider.taxRate}
+                                                                insRate={m.meta.convHBSlider.insRate}
+                                                                loanType='conventional'
                                                                 journeyAddress={
-                                                                    // Show "Property Intelligence →" whenever a property address is in context —
-                                                                    // covers all 3 entry points: my-home, check-property, and direct URL paste in chat.
-                                                                    // cmaContextRef is populated from API chips after property lookup;
-                                                                    // searchParams fallback works immediately when address is in the URL.
                                                                     cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                 }
                                                                 onRunScenario={(seed, overrides) => {
