@@ -294,7 +294,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                     {monthlyDebt > 0 && <span className={`iq2-chip${debtMod ? ' mod' : ''}`}>{fmt$(monthlyDebt)}/mo debts</span>}
                     {annualIncome > 0 && <span className={`iq2-chip${incomeMod ? ' mod' : ''}`}>{fmtK(annualIncome)}/yr</span>}
                 </span>
-                <span className="iq2-adjust-lbl">{drawerOpen ? 'Close' : 'Adjust'}</span>
+                <span className="iq2-adjust-lbl">{drawerOpen ? 'Close' : 'Adjust My Numbers'}</span>
                 <span className={`iq2-arrow${drawerOpen ? ' open' : ''}`}>▾</span>
             </button>
 
@@ -457,12 +457,9 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                         <div className="iq2-dirty-hint">● Numbers changed — tap to update</div>
                     )}
 
-                </div>
-            </div>
-
-            {/* DTI threshold table */}
-            <div className="iq2-dti-section">
-                <div className="iq2-dti-head">Income required by DTI threshold</div>
+                    {/* DTI threshold table — inside drawer */}
+                    <div className="iq2-dti-section" style={{ margin: '10px -14px -8px', borderRadius: '0 0 10px 10px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="iq2-dti-head">Income required by DTI threshold</div>
                 {isJumbo ? (
                     <>
                         <div className="iq2-dti-row">
@@ -527,7 +524,10 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                         </div>
                     </>
                 )}
-            </div>
+                    </div>{/* /iq2-dti-section */}
+
+                </div>{/* /iq2-drawer-inner */}
+            </div>{/* /iq2-drawer */}
 
             {/* More (FHA MIP / VA note / Jumbo reserves) */}
             <div className="iq2-more">
@@ -677,13 +677,13 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 .iq2-chips { display:flex; flex-wrap:wrap; gap:4px; flex:1; align-items:center; }
                 .iq2-chip { font-size:0.6rem; font-weight:700; padding:3px 7px; border-radius:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#94a3b8; white-space:nowrap; }
                 .iq2-chip.mod { background:rgba(0,232,122,0.12); border-color:rgba(0,232,122,0.3); color:#4ade80; }
-                .iq2-adjust-lbl { font-size:0.62rem; font-weight:600; color:#4b6080; flex-shrink:0; white-space:nowrap; }
+                .iq2-adjust-lbl { font-size:0.78rem; font-weight:800; color:#8fa3b8; flex-shrink:0; white-space:nowrap; letter-spacing:-.01em; }
                 .iq2-arrow { font-size:0.62rem; color:#4b6080; flex-shrink:0; transition:transform .2s; }
                 .iq2-arrow.open { transform:rotate(180deg); }
 
                 /* Drawer */
                 .iq2-drawer { max-height:0; overflow:hidden; transition:max-height 0.38s cubic-bezier(0.4,0,0.2,1); }
-                .iq2-drawer.open { max-height:1100px; }
+                .iq2-drawer.open { max-height:1400px; }
                 .iq2-drawer-inner {
                     margin:0 16px 14px;
                     padding:12px 14px 8px;
