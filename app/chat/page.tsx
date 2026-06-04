@@ -25,6 +25,7 @@ import {
 import WelcomeScreen from '@/components/WelcomeScreen';
 import ConsumerWelcomeCard from '@/components/ConsumerWelcomeCard';
 import ConsumerPropertyCard from '@/components/ConsumerPropertyCard';
+import AdminCardBadge from '@/components/AdminCardBadge';
 import ThemeToggle from '@/components/ThemeToggle';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
 import BuydownSliderCard from '@/components/BuydownSliderCard';
@@ -3687,10 +3688,34 @@ export default function Page() {
                                                                 />
                                                             </>
                                                         )}
-                                                        {/* Conventional / High Balance — rendered via ISC (new card) */}
+                                                        {/* ── 4CS2341-CONV: Scenario-first conventional stack (ISC → IQC → LIC) ── */}
                                                         {m.meta.convHBSlider && !loading && typingId === null && (
-                                                            <InteractiveSliderCard
-                                                                key={`isc-convhb-${m.id}`}
+                                                            <div style={{ position: 'relative' }}>
+                                                                <AdminCardBadge code="4CS2341-CONV" position="top-left" />
+                                                                <InteractiveSliderCard
+                                                                    key={`isc-convhb-${m.id}`}
+                                                                    price={m.meta.convHBSlider.price}
+                                                                    downPct={m.meta.convHBSlider.downPct}
+                                                                    rate={m.meta.convHBSlider.rate}
+                                                                    term={m.meta.convHBSlider.term}
+                                                                    taxRate={m.meta.convHBSlider.taxRate}
+                                                                    insRate={m.meta.convHBSlider.insRate}
+                                                                    loanType='conventional'
+                                                                    journeyAddress={
+                                                                        cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
+                                                                    }
+                                                                    onRunScenario={(seed, overrides) => {
+                                                                        pendingParamOverridesRef.current = overrides;
+                                                                        setPendingParamOverrides(overrides);
+                                                                        setTimeout(() => send(seed), 50);
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        {/* IQC — 4CS2341-CONV path: income qualify for scenario seed (no cmaAddress needed) */}
+                                                        {m.meta.convHBSlider && !loading && typingId === null && (
+                                                            <IncomeQualifySliderCard
+                                                                key={`iqsc-convhb-${m.id}`}
                                                                 price={m.meta.convHBSlider.price}
                                                                 downPct={m.meta.convHBSlider.downPct}
                                                                 rate={m.meta.convHBSlider.rate}
@@ -3698,9 +3723,6 @@ export default function Page() {
                                                                 taxRate={m.meta.convHBSlider.taxRate}
                                                                 insRate={m.meta.convHBSlider.insRate}
                                                                 loanType='conventional'
-                                                                journeyAddress={
-                                                                    cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
-                                                                }
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
@@ -3708,7 +3730,7 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
-                                                        {/* Locked Intelligence Card — convHBSlider path, no property address in context */}
+                                                        {/* LIC — 4CS2341-CONV path: locked intelligence tiles when no property address */}
                                                         {m.meta.convHBSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
                                                             <LockedIntelligenceCard
                                                                 onCheckProperty={() => composerRef.current?.focus()}

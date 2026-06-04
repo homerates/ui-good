@@ -83,6 +83,20 @@ export const CARD_REGISTRY: Record<string, { code: string; name: string; family:
     trigger: 'Scenario seed (ISC) present but no property address — replaces DSC in stack',
     outputs: '4 locked level tiles, teaser copy, Check a Property CTA',
   },
+  // ── Stack codes ───────────────────────────────────────────────────────────────
+  // 4CS1234 = property-first: PropertyPreviewCard(1) → ISC(2) → IQC(3) → DSC(4)
+  // 4CS2341 = scenario-first: ISC(2) → IQC(3) → LIC(4) — no property card
+  // 2CS     = comparison stacks (2 scenario columns side-by-side)
+  '4CS1234-CONV':  { code: '4CS1234-CONV',  name: 'Stack: Property → Conv',        family: 'Stack / Property-First',   trigger: 'property_lookup · conventional loan',          outputs: 'PropertyPreviewCard + ISC + IQC + DSC' },
+  '4CS1234-JUMBO': { code: '4CS1234-JUMBO', name: 'Stack: Property → Jumbo',       family: 'Stack / Property-First',   trigger: 'property_lookup · jumbo loan >$832,750',       outputs: 'PropertyPreviewCard + ISC + IQC + DSC' },
+  '4CS1234-FHA':   { code: '4CS1234-FHA',   name: 'Stack: Property → FHA',         family: 'Stack / Property-First',   trigger: 'property_lookup · FHA loan',                   outputs: 'PropertyPreviewCard + ISC + IQC + DSC' },
+  '4CS1234-VA':    { code: '4CS1234-VA',    name: 'Stack: Property → VA',          family: 'Stack / Property-First',   trigger: 'property_lookup · VA loan',                    outputs: 'PropertyPreviewCard + ISC + IQC + DSC' },
+  '4CS2341-CONV':  { code: '4CS2341-CONV',  name: 'Stack: Scenario → Conv',        family: 'Stack / Scenario-First',   trigger: 'convHBSlider · conventional scenario seed',    outputs: 'ISC + IQC + LIC (no property)' },
+  '4CS2341-JUMBO': { code: '4CS2341-JUMBO', name: 'Stack: Scenario → Jumbo',       family: 'Stack / Scenario-First',   trigger: 'jumboSlider · jumbo scenario seed',            outputs: 'ISC + IQC + LIC (no property)' },
+  '4CS2341-FHA':   { code: '4CS2341-FHA',   name: 'Stack: Scenario → FHA',         family: 'Stack / Scenario-First',   trigger: 'fhaSlider · FHA scenario seed',                outputs: 'ISC + IQC + LIC (no property)' },
+  '4CS2341-VA':    { code: '4CS2341-VA',    name: 'Stack: Scenario → VA',          family: 'Stack / Scenario-First',   trigger: 'vaSlider · VA scenario seed',                  outputs: 'ISC + IQC + LIC (no property)' },
+  '2CS-CONV-JUMBO':{ code: '2CS-CONV-JUMBO',name: 'Stack: Conv vs Jumbo',          family: 'Stack / Comparison',       trigger: 'loan amount near $832,750 threshold',          outputs: 'Side-by-side Conv + Jumbo scenario columns' },
+  '2CS-CONV-FHA':  { code: '2CS-CONV-FHA',  name: 'Stack: Conv vs FHA',            family: 'Stack / Comparison',       trigger: 'low down payment / FHA eligibility intent',    outputs: 'Side-by-side Conv + FHA scenario columns' },
 };
 
 const STORAGE_KEY = 'hr_admin_card_labels';
