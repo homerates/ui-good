@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates — My Scenarios (Consumer) Prototype</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg:      #080c12;
+    --card:    #0e1420;
+    --surface: #141b28;
+    --s2:      #1a2333;
+    --text:    #f0f4ff;
+    --weak:    #8fa3b8;
+    --dim:     rgba(255,255,255,0.25);
+    --border:  rgba(255,255,255,0.07);
+    --mid:     rgba(255,255,255,0.12);
+    --accent:  #00e87a;
+    --blue:    #3d8bff;
+    --amber:   #f59e0b;
+    --red:     #ff5f5f;
+    --purple:  #a78bfa;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ─────────────────────────────── */
+  .sidebar {
+    width: 220px; background: var(--card);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  .logo { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 9px; }
+  .logo-mark { width: 28px; height: 28px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; color: #000; }
+  .logo-text { font-size: 0.88rem; font-weight: 700; }
+  .logo-text span { color: var(--accent); }
+  .nav { padding: 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 9px; font-size: 0.78rem; font-weight: 500; color: var(--weak); cursor: pointer; border: 1px solid transparent; }
+  .nav-item.active { background: rgba(0,232,122,0.08); color: var(--accent); border-color: rgba(0,232,122,0.15); }
+  .nav-icon { font-size: 0.9rem; width: 18px; text-align: center; }
+
+  .talk-pro { margin: 0 10px 10px; padding: 10px 12px; background: linear-gradient(135deg, rgba(61,139,255,0.12), rgba(61,139,255,0.06)); border: 1px solid rgba(61,139,255,0.2); border-radius: 10px; cursor: pointer; }
+  .talk-pro-title { font-size: 0.75rem; font-weight: 700; color: var(--blue); }
+  .talk-pro-sub { font-size: 0.62rem; color: var(--weak); margin-top: 2px; }
+
+  .sidebar-bottom { padding: 10px; border-top: 1px solid var(--border); }
+  .user-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; }
+  .avatar { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--accent)); display: flex; align-items: center; justify-content: center; font-size: 0.58rem; font-weight: 700; color: #fff; }
+  .user-name { font-size: 0.72rem; font-weight: 600; }
+  .user-plan { font-size: 0.58rem; color: var(--accent); font-weight: 600; }
+
+  /* ── MAIN ─────────────────────────────────── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── PROTO NAV ───────────────────────────── */
+  .proto-nav { position: fixed; top: 10px; right: 10px; display: flex; gap: 5px; z-index: 100; flex-wrap: wrap; justify-content: flex-end; max-width: 560px; }
+  .proto-btn { padding: 5px 12px; border-radius: 7px; font-size: 0.7rem; font-weight: 600; cursor: pointer; border: 1px solid var(--mid); background: var(--surface); color: var(--weak); font-family: var(--font); }
+  .proto-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  /* ── SCREENS ─────────────────────────────── */
+  .screen { display: none; flex: 1; flex-direction: column; overflow-y: auto; }
+  .screen.visible { display: flex; }
+
+  /* ── SCREEN 1: MY SCENARIOS LANDING ─────── */
+  .scenarios-landing { padding: 28px 28px 40px; max-width: 760px; display: flex; flex-direction: column; gap: 24px; }
+  .landing-header { display: flex; flex-direction: column; gap: 6px; }
+  .landing-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+  .landing-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; color: var(--text); }
+  .landing-sub { font-size: 0.82rem; color: var(--weak); line-height: 1.6; max-width: 480px; }
+
+  /* Scenario grid — 2 columns */
+  .scen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .scen-tile { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; transition: border-color 0.15s; }
+  .scen-tile:hover { border-color: var(--mid); }
+  .scen-tile.wide { grid-column: span 2; flex-direction: row; align-items: center; }
+  .tile-icon { font-size: 1.5rem; }
+  .tile-body { flex: 1; }
+  .tile-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; }
+  .tile-name { font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .tile-desc { font-size: 0.72rem; color: var(--weak); line-height: 1.5; }
+  .tile-cta { display: flex; align-items: center; justify-content: space-between; }
+  .tile-run { font-size: 0.72rem; font-weight: 700; color: var(--weak); }
+  .tile-arrow { font-size: 0.75rem; }
+
+  /* Divider */
+  .or-divider { display: flex; align-items: center; gap: 10px; }
+  .or-line { flex: 1; height: 1px; background: var(--border); }
+  .or-text { font-size: 0.65rem; color: var(--dim); }
+
+  /* Composer on landing */
+  .landing-composer { background: var(--card); border: 1px solid var(--mid); border-radius: 13px; padding: 12px 14px; display: flex; gap: 9px; align-items: flex-end; }
+  .lc-input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: var(--font); font-size: 0.85rem; }
+  .lc-input::placeholder { color: var(--dim); }
+  .send { width: 32px; height: 32px; background: var(--accent); border: none; border-radius: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .send svg { width: 14px; height: 14px; fill: #000; }
+  .lc-hint { font-size: 0.62rem; color: var(--dim); margin-top: 5px; }
+
+  /* Pro comparison note */
+  .pro-note { background: rgba(61,139,255,0.05); border: 1px solid rgba(61,139,255,0.12); border-radius: 11px; padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; }
+  .pro-note-icon { font-size: 0.9rem; flex-shrink: 0; }
+  .pro-note-text { font-size: 0.72rem; color: var(--weak); line-height: 1.55; }
+  .pro-note-text strong { color: var(--text); }
+  .pro-note-link { font-size: 0.72rem; color: var(--blue); font-weight: 600; cursor: pointer; margin-top: 3px; display: inline-block; }
+
+  /* ── CHAT WRAPPER (scenario screens) ─────── */
+  .chat-scroll { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  .bubble-user { align-self: flex-end; max-width: 70%; background: rgba(0,232,122,0.08); border: 1px solid rgba(0,232,122,0.18); border-radius: 14px 14px 4px 14px; padding: 9px 14px; font-size: 0.8rem; line-height: 1.5; }
+  .bubble-system { align-self: flex-start; max-width: 100%; display: flex; flex-direction: column; gap: 8px; }
+  .sys-label { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.2); }
+  .chat-chips { display: flex; flex-wrap: wrap; gap: 6px; max-width: 560px; }
+  .chip { padding: 6px 12px; background: var(--surface); border: 1px solid var(--mid); border-radius: 99px; font-size: 0.72rem; color: var(--weak); cursor: pointer; }
+  .chip.pri { background: rgba(0,232,122,0.08); border-color: rgba(0,232,122,0.2); color: var(--accent); font-weight: 600; }
+
+  /* ── CONSUMER SCENARIO CARD ──────────────── */
+  /* The pattern: hero number → 3 facts → plain English meaning → 1-2 adjusters → CTA */
+  .cons-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; max-width: 540px; }
+  .cons-top { padding: 12px 16px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .cons-eyebrow { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1px; }
+  .cons-title { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+  .cons-badge { padding: 3px 9px; border-radius: 99px; font-size: 0.6rem; font-weight: 700; }
+
+  /* Hero number */
+  .cons-hero { padding: 20px 16px 14px; text-align: center; border-bottom: 1px solid var(--border); }
+  .cons-hero-lbl { font-size: 0.58rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-bottom: 6px; }
+  .cons-hero-num { font-size: 2.6rem; font-weight: 900; letter-spacing: -0.05em; line-height: 1; }
+  .cons-hero-num .dol { color: var(--accent); }
+  .cons-hero-num .mo { font-size: 0.8rem; color: var(--dim); font-weight: 600; }
+  .cons-hero-sub { font-size: 0.65rem; color: var(--weak); margin-top: 5px; }
+
+  /* 3-col facts */
+  .cons-facts { display: grid; grid-template-columns: repeat(3,1fr); padding: 12px 16px; gap: 8px; border-bottom: 1px solid var(--border); }
+  .cf-val { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+  .cf-lbl { font-size: 0.58rem; color: var(--dim); margin-top: 2px; }
+
+  /* Plain-English meaning */
+  .cons-meaning { padding: 11px 16px; font-size: 0.72rem; color: var(--weak); line-height: 1.6; border-bottom: 1px solid var(--border); background: rgba(0,232,122,0.02); display: flex; gap: 7px; }
+  .cons-meaning strong { color: var(--text); }
+
+  /* Adjusters — 1-2 simple inputs, not a slider forest */
+  .cons-adjusters { padding: 12px 16px; display: flex; gap: 8px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .adj-item { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 100px; }
+  .adj-label { font-size: 0.58rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+  .adj-stepper { display: flex; align-items: center; background: var(--surface); border: 1px solid var(--mid); border-radius: 8px; overflow: hidden; }
+  .adj-minus, .adj-plus { width: 28px; height: 30px; background: none; border: none; color: var(--weak); font-size: 1rem; cursor: pointer; font-family: var(--font); display: flex; align-items: center; justify-content: center; }
+  .adj-minus:hover, .adj-plus:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+  .adj-val { flex: 1; text-align: center; font-size: 0.78rem; font-weight: 700; color: var(--text); }
+  .adj-note { font-size: 0.6rem; color: var(--dim); }
+
+  /* CTA */
+  .cons-cta { padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .cta-primary { padding: 9px 18px; background: var(--accent); border: none; border-radius: 9px; color: #000; font-size: 0.78rem; font-weight: 700; cursor: pointer; font-family: var(--font); }
+  .cta-secondary { padding: 8px 14px; background: var(--surface); border: 1px solid var(--mid); border-radius: 9px; color: var(--weak); font-size: 0.75rem; cursor: pointer; font-family: var(--font); }
+
+  /* ── COMPARISON CARD (FHA vs Conv) ────────── */
+  .comp-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; max-width: 560px; }
+  .comp-top { padding: 12px 16px 10px; border-bottom: 1px solid var(--border); }
+  .comp-title { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+  .comp-sub { font-size: 0.68rem; color: var(--weak); margin-top: 2px; }
+  .comp-grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .comp-col { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .comp-col:first-child { border-right: 1px solid var(--border); }
+  .comp-col-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
+  .comp-payment { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.04em; line-height: 1; }
+  .comp-payment .mo { font-size: 0.65rem; font-weight: 600; color: var(--dim); }
+  .comp-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .comp-row-lbl { font-size: 0.65rem; color: var(--dim); }
+  .comp-row-val { font-size: 0.72rem; font-weight: 700; color: var(--text); }
+  .comp-winner { font-size: 0.62rem; padding: 2px 7px; border-radius: 99px; font-weight: 700; align-self: flex-start; margin-top: 2px; }
+  .comp-meaning { padding: 11px 16px; font-size: 0.72rem; color: var(--weak); line-height: 1.6; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: rgba(0,232,122,0.02); display: flex; gap: 7px; }
+  .comp-meaning strong { color: var(--text); }
+
+  /* ── REFI CARD ─────────────────────────────── */
+  /* savings hero in green */
+
+  /* ── COMPOSER ─────────────────────────────── */
+  .composer-wrap { padding: 12px 16px 14px; background: var(--bg); border-top: 1px solid var(--border); flex-shrink: 0; }
+  .composer { display: flex; align-items: flex-end; gap: 9px; background: var(--card); border: 1px solid var(--mid); border-radius: 13px; padding: 10px 12px; }
+  .composer-input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: var(--font); font-size: 0.85rem; resize: none; min-height: 22px; }
+  .composer-input::placeholder { color: var(--dim); }
+
+  /* ── ANNOTATION ─────────────────────────────── */
+  .annotation { position: fixed; bottom: 14px; left: 234px; background: rgba(0,0,0,0.88); border: 1px solid var(--mid); border-radius: 9px; padding: 9px 13px; font-size: 0.68rem; color: var(--weak); max-width: 400px; backdrop-filter: blur(8px); pointer-events: none; line-height: 1.5; }
+  .annotation strong { color: var(--text); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 99px; }
+
+  /* ── MOBILE ──────────────────────────────────── */
+  @media (max-width: 640px) {
+    body { flex-direction: column; height: auto; overflow: auto; }
+
+    .sidebar { display: none; }
+
+    .mobile-topbar {
+      display: flex !important;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .mobile-logo { display: flex; align-items: center; gap: 7px; }
+    .mobile-logo-mark { width: 24px; height: 24px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 11px; color: #000; }
+    .mobile-logo-text { font-size: 0.82rem; font-weight: 700; }
+    .mobile-logo-text span { color: var(--accent); }
+    .mobile-nav-label { font-size: 0.72rem; font-weight: 700; color: var(--accent); }
+
+    .main { width: 100%; }
+
+    .screen { height: auto; min-height: calc(100vh - 90px); }
+
+    /* Proto nav — horizontal scroll row */
+    .proto-nav {
+      position: relative;
+      top: auto; right: auto;
+      display: flex !important;
+      gap: 5px;
+      padding: 8px 12px;
+      overflow-x: auto;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      -webkit-overflow-scrolling: touch;
+      flex-shrink: 0;
+      max-width: 100%;
+      justify-content: flex-start;
+    }
+    .proto-btn { white-space: nowrap; flex-shrink: 0; font-size: 0.65rem; padding: 5px 10px; }
+
+    /* Scenario grid stacks on mobile */
+    .scen-grid { grid-template-columns: 1fr; }
+    .scen-tile.wide { grid-column: span 1; flex-direction: column; }
+    .tile-cta { padding-left: 0; }
+
+    /* Cards full width */
+    .cons-card, .comp-card { max-width: 100%; }
+
+    /* Hero number smaller */
+    .cons-hero-num { font-size: 2rem; }
+    .comp-payment { font-size: 1.3rem; }
+
+    /* Facts 2-col on mobile */
+    .cons-facts { grid-template-columns: repeat(2, 1fr); }
+
+    /* Adjusters stack */
+    .cons-adjusters { flex-direction: column; }
+    .adj-item { min-width: auto; }
+
+    /* Comparison grid stacks */
+    .comp-grid { grid-template-columns: 1fr; }
+    .comp-col:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+
+    /* Chat scroll */
+    .chat-scroll { padding: 14px 12px; }
+    .scenarios-landing { padding: 20px 14px 40px; }
+
+    /* Annotation hidden */
+    .annotation { display: none; }
+
+    /* Composer */
+    .composer-wrap { padding: 10px 12px 12px; }
+  }
+
+  /* vs badge */
+  .vs-pro-note { margin-top: 12px; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 9px; font-size: 0.65rem; color: var(--dim); display: flex; gap: 7px; align-items: flex-start; }
+  .vs-pro-note strong { color: var(--weak); }
+</style>
+</head>
+<body>
+
+<!-- MOBILE TOP BAR -->
+<div class="mobile-topbar" style="display:none;">
+  <div class="mobile-logo">
+    <div class="mobile-logo-mark">H</div>
+    <div class="mobile-logo-text">Home<span>Rates</span></div>
+  </div>
+  <div class="mobile-nav-label">📊 My Scenarios</div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">H</div>
+    <div class="logo-text">Home<span>Rates</span></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-item"><span class="nav-icon">🔍</span> Check a Property</div>
+    <div class="nav-item"><span class="nav-icon">🏠</span> My Home</div>
+    <div class="nav-item active"><span class="nav-icon">📊</span> My Scenarios</div>
+  </nav>
+  <div class="talk-pro">
+    <div class="talk-pro-title">🤝 Talk to a Pro</div>
+    <div class="talk-pro-sub">Get matched with a loan officer</div>
+  </div>
+  <div class="sidebar-bottom">
+    <div class="user-row">
+      <div class="avatar">JD</div>
+      <div>
+        <div class="user-name">Guest</div>
+        <div class="user-plan">Free</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="proto-nav">
+    <button class="proto-btn active" onclick="show('landing')">1. My Scenarios</button>
+    <button class="proto-btn" onclick="show('afford')">2. Affordability</button>
+    <button class="proto-btn" onclick="show('purchase')">3. Home Purchase</button>
+    <button class="proto-btn" onclick="show('refi')">4. Should I Refi?</button>
+    <button class="proto-btn" onclick="show('fha')">5. FHA vs Conv</button>
+    <button class="proto-btn" onclick="show('va')">6. VA Loan</button>
+  </div>
+
+  <!-- ── SCREEN 1: MY SCENARIOS LANDING ─────── -->
+  <div class="screen visible" id="s-landing">
+    <div class="scenarios-landing">
+      <div class="landing-header">
+        <div class="landing-label">My Scenarios</div>
+        <div class="landing-title">Run the numbers on your situation</div>
+        <div class="landing-sub">No jargon. No forms. Pick a scenario below — or just describe your situation and we'll figure out which one fits.</div>
+      </div>
+
+      <!-- Scenario grid — 4 core + 1 wide VA -->
+      <div class="scen-grid">
+        <div class="scen-tile" onclick="show('afford')">
+          <div class="tile-icon">💰</div>
+          <div class="tile-body">
+            <div class="tile-label" style="color:var(--blue)">Qualify</div>
+            <div class="tile-name">What can I afford?</div>
+            <div class="tile-desc">Enter your income and savings — get your max purchase price and comfortable monthly range.</div>
+          </div>
+          <div class="tile-cta">
+            <div class="tile-run" style="color:var(--blue)">Run scenario</div>
+            <div class="tile-arrow">→</div>
+          </div>
+        </div>
+
+        <div class="scen-tile" onclick="show('purchase')">
+          <div class="tile-icon">🏡</div>
+          <div class="tile-body">
+            <div class="tile-label" style="color:var(--accent)">Estimate</div>
+            <div class="tile-name">Home purchase estimate</div>
+            <div class="tile-desc">Enter any home price and down payment — see your full monthly breakdown instantly.</div>
+          </div>
+          <div class="tile-cta">
+            <div class="tile-run" style="color:var(--accent)">Run scenario</div>
+            <div class="tile-arrow">→</div>
+          </div>
+        </div>
+
+        <div class="scen-tile" onclick="show('refi')">
+          <div class="tile-icon">🔁</div>
+          <div class="tile-body">
+            <div class="tile-label" style="color:var(--amber)">Save</div>
+            <div class="tile-name">Should I refinance?</div>
+            <div class="tile-desc">Enter your current rate and balance — see your monthly savings and break-even in months.</div>
+          </div>
+          <div class="tile-cta">
+            <div class="tile-run" style="color:var(--amber)">Run scenario</div>
+            <div class="tile-arrow">→</div>
+          </div>
+        </div>
+
+        <div class="scen-tile" onclick="show('fha')">
+          <div class="tile-icon">📊</div>
+          <div class="tile-body">
+            <div class="tile-label" style="color:var(--purple)">Compare</div>
+            <div class="tile-name">FHA or Conventional?</div>
+            <div class="tile-desc">Side-by-side breakdown of upfront cost, monthly payment, and when to choose each.</div>
+          </div>
+          <div class="tile-cta">
+            <div class="tile-run" style="color:var(--purple)">Run scenario</div>
+            <div class="tile-arrow">→</div>
+          </div>
+        </div>
+
+        <div class="scen-tile wide" onclick="show('va')">
+          <div class="tile-icon">🎖️</div>
+          <div class="tile-body">
+            <div class="tile-label" style="color:var(--red)">VA Benefit</div>
+            <div class="tile-name">VA Loan estimate</div>
+            <div class="tile-desc">$0 down · no PMI · competitive rates. Enter a home price and see what your VA benefit gets you.</div>
+          </div>
+          <div class="tile-cta" style="flex-shrink:0; padding-left:16px;">
+            <div class="tile-run" style="color:var(--red)">Run scenario →</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="or-divider">
+        <div class="or-line"></div>
+        <div class="or-text">or describe your situation</div>
+        <div class="or-line"></div>
+      </div>
+
+      <div>
+        <div class="landing-composer">
+          <input class="lc-input" placeholder="I make $180k, have $80k saved, looking at a $650k home in Sacramento…" />
+          <button class="send"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+        </div>
+        <div class="lc-hint">Free · Private · No account required</div>
+      </div>
+
+      <!-- Pro note — this is where the two versions split -->
+      <div class="pro-note">
+        <div class="pro-note-icon">⚡</div>
+        <div>
+          <div class="pro-note-text"><strong>Loan officers and agents</strong> have access to the full HomeRates Lab — deeper scenario controls, buydown calculators, DSCR analysis, and the Jumbo Affordability Slider.</div>
+          <div class="pro-note-link">Sign in as a professional →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 2: AFFORDABILITY ─────────────── -->
+  <div class="screen" id="s-afford">
+    <div class="chat-scroll">
+      <div class="bubble-user">What can I afford on $200k income with $120k saved?</div>
+
+      <div class="bubble-system">
+        <div class="sys-label">HomeRates Analysis</div>
+        <div class="cons-card">
+          <div class="cons-top">
+            <div>
+              <div class="cons-eyebrow" style="color:var(--blue)">Affordability</div>
+              <div class="cons-title">What you can comfortably buy</div>
+            </div>
+            <div class="cons-badge" style="background:rgba(61,139,255,0.1);border:1px solid rgba(61,139,255,0.2);color:var(--blue)">Conventional</div>
+          </div>
+          <div class="cons-hero">
+            <div class="cons-hero-lbl">Max comfortable purchase price</div>
+            <div class="cons-hero-num"><span class="dol">$</span>847,000</div>
+            <div class="cons-hero-sub">At 36% DTI · current 6.875% rate · 20% down</div>
+          </div>
+          <div class="cons-facts">
+            <div><div class="cf-val">$4,620</div><div class="cf-lbl">Est. monthly payment</div></div>
+            <div><div class="cf-val">$169,400</div><div class="cf-lbl">Down payment needed</div></div>
+            <div><div class="cf-val" style="color:var(--accent)">36%</div><div class="cf-lbl">Back-end DTI</div></div>
+          </div>
+          <div class="cons-meaning">
+            <span>💡</span>
+            <div>On <strong>$200k income</strong> you qualify up to ~$847k at a comfortable debt ratio. You have $120k saved — that covers the down payment with ~$50k left for closing costs and reserves.</div>
+          </div>
+
+          <!-- 2 adjusters max — no slider forest -->
+          <div class="cons-adjusters">
+            <div class="adj-item">
+              <div class="adj-label">Annual income</div>
+              <div class="adj-stepper">
+                <button class="adj-minus">−</button>
+                <div class="adj-val">$200,000</div>
+                <button class="adj-plus">+</button>
+              </div>
+              <div class="adj-note">+$10k steps</div>
+            </div>
+            <div class="adj-item">
+              <div class="adj-label">Down payment %</div>
+              <div class="adj-stepper">
+                <button class="adj-minus">−</button>
+                <div class="adj-val">20%</div>
+                <button class="adj-plus">+</button>
+              </div>
+              <div class="adj-note">5% · 10% · 20%</div>
+            </div>
+          </div>
+
+          <div class="cons-cta">
+            <button class="cta-primary">Get my Decision Score →</button>
+            <button class="cta-secondary">What if rates drop?</button>
+            <button class="cta-secondary">Get matched with an LO</button>
+          </div>
+        </div>
+
+        <div class="vs-pro-note">
+          <strong>Pro version</strong> shows the full DTI table (28 income brackets), adjustable monthly debts slider, 5 down payment scenarios, and buydown analysis. Consumer gets the headline answer.
+        </div>
+      </div>
+
+      <div class="chat-chips">
+        <div class="chip pri">What if I put 10% down instead?</div>
+        <div class="chip">What income do I need for $1M?</div>
+        <div class="chip">FHA vs Conventional at this price?</div>
+      </div>
+    </div>
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea class="composer-input" rows="1" placeholder="Adjust the scenario — different income, down payment, price…"></textarea>
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 3: HOME PURCHASE ─────────────── -->
+  <div class="screen" id="s-purchase">
+    <div class="chat-scroll">
+      <div class="bubble-user">Conventional loan on a $749,000 home with 20% down</div>
+
+      <div class="bubble-system">
+        <div class="sys-label">HomeRates Analysis</div>
+        <div class="cons-card">
+          <div class="cons-top">
+            <div>
+              <div class="cons-eyebrow" style="color:var(--accent)">Purchase Estimate</div>
+              <div class="cons-title">$749,000 · 20% down · 6.875%</div>
+            </div>
+            <div class="cons-badge" style="background:rgba(0,232,122,0.1);border:1px solid rgba(0,232,122,0.2);color:var(--accent)">No PMI</div>
+          </div>
+          <div class="cons-hero">
+            <div class="cons-hero-lbl">Your estimated monthly payment</div>
+            <div class="cons-hero-num"><span class="dol">$</span>4,820<span class="mo">/mo</span></div>
+            <div class="cons-hero-sub">Principal · Interest · Taxes · Insurance (PITI)</div>
+          </div>
+          <div class="cons-facts">
+            <div><div class="cf-val">$599,200</div><div class="cf-lbl">Loan amount</div></div>
+            <div><div class="cf-val">$149,800</div><div class="cf-lbl">Down payment</div></div>
+            <div><div class="cf-val">$3,947</div><div class="cf-lbl">P&I only</div></div>
+          </div>
+          <div class="cons-meaning">
+            <span>💡</span>
+            <div>Your <strong>$4,820/mo</strong> includes estimated property tax (~$780) and insurance (~$93). At 20% down there's <strong>no PMI</strong>. You need ~$150k income to qualify comfortably.</div>
+          </div>
+
+          <div class="cons-adjusters">
+            <div class="adj-item">
+              <div class="adj-label">Home price</div>
+              <div class="adj-stepper">
+                <button class="adj-minus">−</button>
+                <div class="adj-val">$749,000</div>
+                <button class="adj-plus">+</button>
+              </div>
+              <div class="adj-note">+$25k steps</div>
+            </div>
+            <div class="adj-item">
+              <div class="adj-label">Down payment</div>
+              <div class="adj-stepper">
+                <button class="adj-minus">−</button>
+                <div class="adj-val">20%</div>
+                <button class="adj-plus">+</button>
+              </div>
+              <div class="adj-note">5% · 10% · 20%</div>
+            </div>
+          </div>
+
+          <div class="cons-cta">
+            <button class="cta-primary">Can I qualify? →</button>
+            <button class="cta-secondary">FHA instead?</button>
+            <button class="cta-secondary">Get matched with an LO</button>
+          </div>
+        </div>
+
+        <div class="vs-pro-note">
+          <strong>Pro version</strong> has the full loan amount slider ($150k–$3M), adjustable rate, PMI toggle, buydown P&I savings table, and 5-year cost comparison. Consumer gets PITI at their price.
+        </div>
+      </div>
+
+      <div class="chat-chips">
+        <div class="chip pri">What income do I need to qualify?</div>
+        <div class="chip">What if I put 10% down?</div>
+        <div class="chip">Get my Decision Score</div>
+      </div>
+    </div>
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea class="composer-input" rows="1" placeholder="Try a different price or down payment…"></textarea>
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 4: SHOULD I REFI ─────────────── -->
+  <div class="screen" id="s-refi">
+    <div class="chat-scroll">
+      <div class="bubble-user">Should I refinance? I'm at 7.5% on a $580k balance</div>
+
+      <div class="bubble-system">
+        <div class="sys-label">HomeRates Refi Analysis</div>
+        <div class="cons-card">
+          <div class="cons-top">
+            <div>
+              <div class="cons-eyebrow" style="color:var(--amber)">Refinance</div>
+              <div class="cons-title">7.5% → 6.875% · $580k balance</div>
+            </div>
+            <div class="cons-badge" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);color:var(--amber)">Not Yet</div>
+          </div>
+          <div class="cons-hero">
+            <div class="cons-hero-lbl">Monthly savings if you refi today</div>
+            <div class="cons-hero-num" style="color:var(--accent)"><span class="dol">$</span>230<span class="mo">/mo</span></div>
+            <div class="cons-hero-sub">$3,900 current → $3,670 new payment</div>
+          </div>
+          <div class="cons-facts">
+            <div><div class="cf-val">27 mo</div><div class="cf-lbl">Break-even point</div></div>
+            <div><div class="cf-val">$6,200</div><div class="cf-lbl">Est. closing costs</div></div>
+            <div><div class="cf-val">$13,800</div><div class="cf-lbl">5-year net savings</div></div>
+          </div>
+          <div class="cons-meaning">
+            <span>⚠️</span>
+            <div>You'd save <strong>$230/mo</strong> but need <strong>27 months</strong> just to recover closing costs. If you plan to sell or move within 2 years, it's <strong>not worth it yet</strong>. At 6.5% (rate drop), break-even falls to 14 months.</div>
+          </div>
+
+          <div class="cons-adjusters">
+            <div class="adj-item">
+              <div class="adj-label">Current rate</div>
+              <div class="adj-stepper">
+                <button class="adj-minus">−</button>
+                <div class="adj-val">7.50%</div>
+                <button class="adj-plus">+</button>
+              </div>
+              <div class="adj-note">0.125% steps</div>
+            </div>
+            <div class="adj-item">
+              <div class="adj-label">How long you'll stay</div>
+              <div class="adj-stepper">
+                <button class="adj-minus">−</button>
+                <div class="adj-val">3 years</div>
+                <button class="adj-plus">+</button>
+              </div>
+              <div class="adj-note">affects break-even</div>
+            </div>
+          </div>
+
+          <div class="cons-cta">
+            <button class="cta-primary">Set my rate alert →</button>
+            <button class="cta-secondary">What rate makes sense?</button>
+            <button class="cta-secondary">Talk to a refi specialist</button>
+          </div>
+        </div>
+
+        <div class="vs-pro-note">
+          <strong>Pro version</strong> has the full rate spread visualizer, adjustable loan balance + remaining term, cash-out refi toggle, and the LTV/equity unlock analysis. Consumer gets the break-even verdict.
+        </div>
+      </div>
+
+      <div class="chat-chips">
+        <div class="chip pri">Alert me when rates hit 6.5%</div>
+        <div class="chip">What about cash-out?</div>
+        <div class="chip">Get matched with a refi specialist</div>
+      </div>
+    </div>
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea class="composer-input" rows="1" placeholder="Adjust your rate, balance, or plans…"></textarea>
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 5: FHA VS CONVENTIONAL ─────── -->
+  <div class="screen" id="s-fha">
+    <div class="chat-scroll">
+      <div class="bubble-user">FHA vs Conventional on a $580k home — I have $30k saved</div>
+
+      <div class="bubble-system">
+        <div class="sys-label">HomeRates Comparison</div>
+        <div class="comp-card">
+          <div class="comp-top">
+            <div class="comp-title">FHA vs Conventional — $580,000 home</div>
+            <div class="comp-sub">$30k saved · current rates</div>
+          </div>
+          <div class="comp-grid">
+            <!-- FHA -->
+            <div class="comp-col">
+              <div class="comp-col-label" style="color:var(--purple)">FHA · 3.5% down</div>
+              <div class="comp-payment" style="color:var(--text)">$3,780<span class="mo">/mo</span></div>
+              <div class="comp-row"><div class="comp-row-lbl">Down payment</div><div class="comp-row-val">$20,300</div></div>
+              <div class="comp-row"><div class="comp-row-lbl">Loan amount</div><div class="comp-row-val">$559,700</div></div>
+              <div class="comp-row"><div class="comp-row-lbl">Monthly MIP</div><div class="comp-row-val" style="color:var(--red)">+$465</div></div>
+              <div class="comp-row"><div class="comp-row-lbl">Upfront MIP</div><div class="comp-row-val" style="color:var(--red)">+$9,770</div></div>
+              <div class="comp-winner" style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.2);color:var(--purple)">✓ Lower down</div>
+            </div>
+            <!-- Conv -->
+            <div class="comp-col">
+              <div class="comp-col-label" style="color:var(--accent)">Conventional · 5% down</div>
+              <div class="comp-payment" style="color:var(--text)">$3,640<span class="mo">/mo</span></div>
+              <div class="comp-row"><div class="comp-row-lbl">Down payment</div><div class="comp-row-val">$29,000</div></div>
+              <div class="comp-row"><div class="comp-row-lbl">Loan amount</div><div class="comp-row-val">$551,000</div></div>
+              <div class="comp-row"><div class="comp-row-lbl">Monthly PMI</div><div class="comp-row-val" style="color:var(--amber)">+$195</div></div>
+              <div class="comp-row"><div class="comp-row-lbl">PMI drops off</div><div class="comp-row-val" style="color:var(--accent)">at 20% equity</div></div>
+              <div class="comp-winner" style="background:rgba(0,232,122,0.1);border:1px solid rgba(0,232,122,0.2);color:var(--accent)">✓ Lower monthly</div>
+            </div>
+          </div>
+          <div class="comp-meaning">
+            <span>💡</span>
+            <div>With $30k saved, <strong>Conventional 5% down</strong> costs <strong>$140/mo less</strong> and has no upfront MIP. FHA saves you ~$9k upfront but costs more monthly — and that MIP <strong>never drops off</strong> on a 30-year FHA. Conventional wins unless your credit score is under 620.</div>
+          </div>
+          <div class="cons-cta">
+            <button class="cta-primary">Which is right for me? →</button>
+            <button class="cta-secondary">What if I have 10% down?</button>
+            <button class="cta-secondary">Talk to a loan officer</button>
+          </div>
+        </div>
+
+        <div class="vs-pro-note">
+          <strong>Pro version</strong> has the full 7-credit-tier rate sensitivity table, FHA MIP schedule by LTV, and the breakeven crossover chart. Consumer gets the clear verdict at their situation.
+        </div>
+      </div>
+
+      <div class="chat-chips">
+        <div class="chip pri">What credit score do I need?</div>
+        <div class="chip">What if I wait and save more?</div>
+        <div class="chip">Get matched with an LO</div>
+      </div>
+    </div>
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea class="composer-input" rows="1" placeholder="Try different down payment or home price…"></textarea>
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 6: VA LOAN ────────────────────── -->
+  <div class="screen" id="s-va">
+    <div class="chat-scroll">
+      <div class="bubble-user">VA loan estimate on an $850,000 home</div>
+
+      <div class="bubble-system">
+        <div class="sys-label">HomeRates VA Analysis</div>
+        <div class="cons-card">
+          <div class="cons-top">
+            <div>
+              <div class="cons-eyebrow" style="color:var(--red)">VA Loan Benefit</div>
+              <div class="cons-title">$850,000 · $0 down · 6.625%</div>
+            </div>
+            <div class="cons-badge" style="background:rgba(255,95,95,0.1);border:1px solid rgba(255,95,95,0.2);color:var(--red)">No PMI</div>
+          </div>
+          <div class="cons-hero">
+            <div class="cons-hero-lbl">Your estimated monthly payment</div>
+            <div class="cons-hero-num"><span class="dol">$</span>5,440<span class="mo">/mo</span></div>
+            <div class="cons-hero-sub">$0 down · No PMI · VA rate typically 0.25–0.5% below conventional</div>
+          </div>
+          <div class="cons-facts">
+            <div><div class="cf-val">$835,300</div><div class="cf-lbl">Loan (incl. funding fee)</div></div>
+            <div><div class="cf-val">$14,875</div><div class="cf-lbl">VA funding fee (1.75%)</div></div>
+            <div><div class="cf-val" style="color:var(--accent)">$0</div><div class="cf-lbl">Monthly PMI</div></div>
+          </div>
+          <div class="cons-meaning">
+            <span>🎖️</span>
+            <div>Your VA benefit saves you ~<strong>$170k in down payment</strong> vs conventional 20% down. The 1.75% funding fee is rolled into the loan. No monthly PMI — ever. First use, standard entitlement. Need ~<strong>$138k income</strong> to qualify.</div>
+          </div>
+
+          <div class="cons-adjusters">
+            <div class="adj-item">
+              <div class="adj-label">Home price</div>
+              <div class="adj-stepper">
+                <button class="adj-minus">−</button>
+                <div class="adj-val">$850,000</div>
+                <button class="adj-plus">+</button>
+              </div>
+              <div class="adj-note">+$25k steps</div>
+            </div>
+            <div class="adj-item">
+              <div class="adj-label">VA use</div>
+              <div class="adj-stepper">
+                <button class="adj-minus">−</button>
+                <div class="adj-val">1st use</div>
+                <button class="adj-plus">+</button>
+              </div>
+              <div class="adj-note">affects funding fee</div>
+            </div>
+          </div>
+
+          <div class="cons-cta">
+            <button class="cta-primary">Get matched with a VA specialist →</button>
+            <button class="cta-secondary">Can I qualify?</button>
+          </div>
+        </div>
+
+        <div class="vs-pro-note">
+          <strong>Pro version</strong> has the full VA funding fee table (1st/2nd/disabled use, all down payment tiers), COE verification workflow, and the VA vs Conventional break-even analysis for different timelines.
+        </div>
+      </div>
+
+      <div class="chat-chips">
+        <div class="chip pri">What income do I need?</div>
+        <div class="chip">VA vs Conventional comparison</div>
+        <div class="chip">Talk to a VA-specialist LO</div>
+      </div>
+    </div>
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea class="composer-input" rows="1" placeholder="Adjust price or ask about your VA benefit…"></textarea>
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Annotation -->
+<div class="annotation" id="ann">
+  <strong>Screen 1 — My Scenarios (Consumer Landing)</strong><br>
+  Replaces "HomeRates Lab" for consumers. 5 scenarios vs 8 modules. No DSCR, no investor tools. Plain-English names. Composer for free-form. Pro note links to full Lab.
+</div>
+
+<script>
+  const anns = {
+    landing:  '<strong>Screen 1 — My Scenarios Landing</strong><br>Consumer version of HomeRates Lab. 5 scenarios (not 8) · plain names · no DSCR/investor tools. Composer for free-form entry. Pro note at bottom links to full Lab.',
+    afford:   '<strong>Screen 2 — Affordability</strong><br>Consumer card: hero = max purchase price. 2 adjusters only (income + down %). Plain-English verdict. vs Pro: full DTI table, monthly debts slider, 5 down scenarios. Consumer gets the headline.',
+    purchase: '<strong>Screen 3 — Home Purchase</strong><br>Consumer card: hero = PITI monthly payment. 2 adjusters (price + down %). vs Pro: full slider, buydown table, PMI toggle, 5-year cost. Consumer gets their number + what income they need.',
+    refi:     '<strong>Screen 4 — Should I Refi?</strong><br>Consumer card: hero = monthly savings, verdict badge (Not Yet / Go). 2 adjusters (current rate + how long you\'ll stay). vs Pro: rate spread visualizer, cash-out toggle, equity unlock analysis.',
+    fha:      '<strong>Screen 5 — FHA vs Conventional</strong><br>Side-by-side comparison at consumer\'s situation. Clear winner verdict. vs Pro: 7-credit-tier table, MIP schedule by LTV, breakeven crossover chart. Consumer gets the answer, not the table.',
+    va:       '<strong>Screen 6 — VA Loan</strong><br>Consumer card: hero = $0 down monthly. 2 adjusters (price + VA use). Shows funding fee, no-PMI value prop. vs Pro: full funding fee table, COE workflow, VA vs Conv break-even. Consumer gets the benefit quantified.',
+  };
+
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+    document.querySelectorAll('.proto-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('s-' + id).classList.add('visible');
+    const btns = document.querySelectorAll('.proto-btn');
+    const labels = { landing:'1. My Scenarios', afford:'2. Affordability', purchase:'3. Home Purchase', refi:'4. Should I Refi?', fha:'5. FHA vs Conv', va:'6. VA Loan' };
+    btns.forEach(b => { if (b.textContent.trim() === labels[id]) b.classList.add('active'); });
+    document.getElementById('ann').innerHTML = anns[id] || '';
+  }
+</script>
+</body>
+</html>

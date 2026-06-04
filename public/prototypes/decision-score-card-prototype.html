@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Decision Score Card — Prototype</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #080c12;
+      color: #e0f0e8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 40px 20px;
+      gap: 0;
+    }
+
+    /* ── Simulated chat context ── */
+    .chat-context {
+      width: 100%;
+      max-width: 680px;
+      margin-bottom: 0;
+    }
+
+    .chat-label {
+      font-size: 0.7rem;
+      color: rgba(185,208,192,0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+      padding-left: 4px;
+    }
+
+    /* Simulated property card already in chat */
+    .existing-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 10px;
+      opacity: 0.5;
+    }
+    .existing-card-title {
+      font-size: 0.72rem;
+      color: #00e87a;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+    .existing-card-body {
+      font-size: 0.85rem;
+      color: rgba(185,208,192,0.6);
+      line-height: 1.5;
+    }
+
+    /* ── Auto-fire divider ── */
+    .autofire-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 14px 0 10px;
+      opacity: 0;
+      animation: fadeIn 0.4s ease 0.3s forwards;
+    }
+    .autofire-divider-line {
+      flex: 1;
+      height: 1px;
+      background: rgba(0,232,122,0.12);
+    }
+    .autofire-divider-label {
+      font-size: 0.64rem;
+      color: rgba(0,232,122,0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+    }
+
+    /* ── Decision Score Card ── */
+    .ds-card {
+      width: 100%;
+      max-width: 680px;
+      background: rgba(0,232,122,0.04);
+      border: 1px solid rgba(0,232,122,0.18);
+      border-radius: 16px;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(12px);
+      animation: slideUp 0.5s cubic-bezier(0.16,1,0.3,1) 0.5s forwards;
+    }
+
+    /* Computing state */
+    .ds-card.computing {
+      border-color: rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.025);
+    }
+
+    /* ── Card Header ── */
+    .ds-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .ds-header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    /* Score ring */
+    .ds-score-ring {
+      position: relative;
+      width: 64px;
+      height: 64px;
+      flex-shrink: 0;
+    }
+    .ds-score-ring svg {
+      transform: rotate(-90deg);
+    }
+    .ds-score-ring-track {
+      fill: none;
+      stroke: rgba(255,255,255,0.07);
+      stroke-width: 5;
+    }
+    .ds-score-ring-fill {
+      fill: none;
+      stroke: #00e87a;
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-dasharray: 163; /* 2πr where r=26 */
+      stroke-dashoffset: 163;
+      transition: stroke-dashoffset 1.2s cubic-bezier(0.34,1.56,0.64,1) 0.8s;
+    }
+    .ds-score-ring-fill.computing {
+      stroke: rgba(255,255,255,0.15);
+      stroke-dashoffset: 0; /* full ring as placeholder */
+    }
+    .ds-score-number {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      font-weight: 900;
+      color: #00e87a;
+      line-height: 1;
+    }
+    .ds-score-number.computing {
+      color: rgba(185,208,192,0.3);
+      font-size: 0.9rem;
+    }
+
+    .ds-header-text {}
+    .ds-eyebrow {
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: #00e87a;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 3px;
+    }
+    .ds-eyebrow.computing {
+      color: rgba(185,208,192,0.35);
+    }
+    .ds-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #f0f4ff;
+      line-height: 1.2;
+    }
+    .ds-subtitle {
+      font-size: 0.78rem;
+      color: rgba(185,208,192,0.55);
+      margin-top: 3px;
+    }
+
+    /* Verdict badge */
+    .ds-verdict {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,232,122,0.1);
+      border: 1px solid rgba(0,232,122,0.25);
+      border-radius: 20px;
+      padding: 5px 13px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #00e87a;
+      white-space: nowrap;
+    }
+    .ds-verdict.yellow {
+      background: rgba(251,191,36,0.08);
+      border-color: rgba(251,191,36,0.2);
+      color: #fbbf24;
+    }
+    .ds-verdict.computing {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.08);
+      color: rgba(185,208,192,0.3);
+    }
+    .ds-verdict-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* ── Level bars ── */
+    .ds-levels {
+      padding: 16px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ds-level {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ds-level-label {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      width: 160px;
+      flex-shrink: 0;
+    }
+    .ds-level-num {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #00e87a;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .ds-level-num.computing {
+      color: rgba(185,208,192,0.3);
+    }
+    .ds-level-name {
+      font-size: 0.78rem;
+      color: rgba(185,208,192,0.7);
+    }
+    .ds-level-weight {
+      font-size: 0.65rem;
+      color: rgba(185,208,192,0.3);
+      margin-left: auto;
+    }
+
+    .ds-bar-wrap {
+      flex: 1;
+      height: 6px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .ds-bar {
+      height: 100%;
+      border-radius: 4px;
+      width: 0%;
+      transition: width 1s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .ds-bar.green  { background: #00e87a; }
+    .ds-bar.yellow { background: #fbbf24; }
+    .ds-bar.red    { background: #f87171; }
+
+    /* Skeleton shimmer for loading state */
+    .ds-bar.loading {
+      width: 100% !important;
+      background: linear-gradient(90deg,
+        rgba(255,255,255,0.05) 0%,
+        rgba(255,255,255,0.1) 50%,
+        rgba(255,255,255,0.05) 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    .ds-level-score {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #f0f4ff;
+      width: 36px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .ds-level-score.loading {
+      color: rgba(185,208,192,0.2);
+    }
+
+    /* Computing pulse dots */
+    .ds-computing-dots {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      width: 36px;
+      justify-content: flex-end;
+    }
+    .ds-computing-dot {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: rgba(0,232,122,0.4);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .ds-computing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .ds-computing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    /* ── Card Footer / CTAs ── */
+    .ds-footer {
+      padding: 14px 22px 18px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .ds-cta-primary {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #00e87a;
+      color: #080c12;
+      font-weight: 800;
+      font-size: 0.88rem;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 20px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .ds-cta-primary:hover { opacity: 0.88; }
+
+    .ds-cta-secondary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: rgba(0,232,122,0.07);
+      border: 1px solid rgba(0,232,122,0.2);
+      color: #00e87a;
+      font-weight: 700;
+      font-size: 0.82rem;
+      border-radius: 10px;
+      padding: 11px 18px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .ds-cta-secondary:hover { background: rgba(0,232,122,0.12); }
+
+    /* Computing footer */
+    .ds-footer-computing {
+      padding: 14px 22px 18px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ds-footer-computing-text {
+      font-size: 0.78rem;
+      color: rgba(185,208,192,0.4);
+    }
+    .ds-progress-bar-wrap {
+      flex: 1;
+      height: 3px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .ds-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #00e87a, rgba(0,232,122,0.4));
+      border-radius: 2px;
+      animation: progress 8s linear forwards;
+      width: 0%;
+    }
+
+    /* ── Demo controls ── */
+    .demo-controls {
+      margin-top: 36px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .demo-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(185,208,192,0.7);
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .demo-btn:hover { background: rgba(255,255,255,0.1); color: #e0f0e8; }
+    .demo-btn.active {
+      background: rgba(0,232,122,0.1);
+      border-color: rgba(0,232,122,0.3);
+      color: #00e87a;
+    }
+    .demo-note {
+      margin-top: 16px;
+      font-size: 0.72rem;
+      color: rgba(185,208,192,0.3);
+      text-align: center;
+      max-width: 500px;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+    @keyframes slideUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes shimmer {
+      0%   { background-position: -200% 0; }
+      100% { background-position:  200% 0; }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50%       { opacity: 1;   transform: scale(1); }
+    }
+    @keyframes progress {
+      0%   { width: 0%; }
+      30%  { width: 45%; }
+      60%  { width: 72%; }
+      85%  { width: 88%; }
+      100% { width: 95%; }
+    }
+
+    /* ── MOBILE ─── */
+    @media (max-width: 600px) {
+      body { padding: 20px 14px 60px; gap: 0; }
+
+      .chat-context, .ds-card { max-width: 100% !important; width: 100% !important; }
+
+      /* Demo controls wrap */
+      .demo-controls { gap: 8px; }
+      .demo-btn { font-size: 0.72rem; padding: 7px 14px; }
+
+      /* Header stacks on mobile */
+      .ds-header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 16px 12px; }
+      .ds-verdict { align-self: flex-start; }
+
+      /* Level label shorter */
+      .ds-level-label { width: 120px; }
+      .ds-levels { padding: 12px 16px; }
+
+      /* Footer stacks */
+      .ds-footer { flex-direction: column; }
+      .ds-cta-primary, .ds-cta-secondary { width: 100%; justify-content: center; }
+
+      /* Smaller score ring */
+      .ds-score-ring { width: 52px; height: 52px; }
+      .ds-score-ring svg { width: 52px; height: 52px; }
+      .ds-score-number { font-size: 1rem; }
+      .ds-title { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Simulated chat above -->
+  <div class="chat-context">
+    <div class="chat-label">Chat · Earlier in conversation</div>
+
+    <div class="existing-card">
+      <div class="existing-card-title">🏠 4521 Park Blvd, San Diego CA 92116</div>
+      <div class="existing-card-body">
+        List $749,000 · Est. AVM $718K · 3bd/2ba · 1,420 sqft · 12 DOM<br>
+        PITI ~$4,820/mo · Value gap: +4.3% above market
+      </div>
+    </div>
+
+    <div class="existing-card">
+      <div class="existing-card-title">📊 Conventional · 20% down · 6.875% rate</div>
+      <div class="existing-card-body">
+        Loan $599,200 · Monthly $3,947 P&I · Need ~$148K income to qualify
+      </div>
+    </div>
+
+    <!-- Auto-fire divider -->
+    <div class="autofire-divider" id="divider">
+      <div class="autofire-divider-line"></div>
+      <div class="autofire-divider-label">Decision Score — computed automatically</div>
+      <div class="autofire-divider-line"></div>
+    </div>
+  </div>
+
+  <!-- ══ COMPUTING STATE ══ -->
+  <div class="ds-card computing" id="card-computing" style="max-width:680px;width:100%;">
+    <div class="ds-header">
+      <div class="ds-header-left">
+        <div class="ds-score-ring">
+          <svg width="64" height="64" viewBox="0 0 64 64">
+            <circle class="ds-score-ring-track" cx="32" cy="32" r="26"/>
+            <circle class="ds-score-ring-fill computing" cx="32" cy="32" r="26"/>
+          </svg>
+          <div class="ds-score-number computing">···</div>
+        </div>
+        <div class="ds-header-text">
+          <div class="ds-eyebrow computing">Track 5 · Decision Score</div>
+          <div class="ds-title">Analyzing property…</div>
+          <div class="ds-subtitle">Running market &amp; location intelligence</div>
+        </div>
+      </div>
+      <div class="ds-verdict computing">
+        <div class="ds-verdict-dot"></div>
+        Computing
+      </div>
+    </div>
+
+    <div class="ds-levels">
+      <!-- L1 — done -->
+      <div class="ds-level">
+        <div class="ds-level-label">
+          <span class="ds-level-num">L1</span>
+          <span class="ds-level-name">Financial</span>
+          <span class="ds-level-weight">35%</span>
+        </div>
+        <div class="ds-bar-wrap">
+          <div class="ds-bar green" style="width:82%"></div>
+        </div>
+        <div class="ds-level-score">82</div>
+      </div>
+      <!-- L2 — done -->
+      <div class="ds-level">
+        <div class="ds-level-label">
+          <span class="ds-level-num">L2</span>
+          <span class="ds-level-name">Property</span>
+          <span class="ds-level-weight">25%</span>
+        </div>
+        <div class="ds-bar-wrap">
+          <div class="ds-bar yellow" style="width:65%"></div>
+        </div>
+        <div class="ds-level-score">65</div>
+      </div>
+      <!-- L3 — loading -->
+      <div class="ds-level">
+        <div class="ds-level-label">
+          <span class="ds-level-num computing">L3</span>
+          <span class="ds-level-name" style="color:rgba(185,208,192,0.3)">Market</span>
+          <span class="ds-level-weight">25%</span>
+        </div>
+        <div class="ds-bar-wrap">
+          <div class="ds-bar loading"></div>
+        </div>
+        <div class="ds-computing-dots">
+          <div class="ds-computing-dot"></div>
+          <div class="ds-computing-dot"></div>
+          <div class="ds-computing-dot"></div>
+        </div>
+      </div>
+      <!-- L4 — loading -->
+      <div class="ds-level">
+        <div class="ds-level-label">
+          <span class="ds-level-num computing">L4</span>
+          <span class="ds-level-name" style="color:rgba(185,208,192,0.3)">Location</span>
+          <span class="ds-level-weight">15%</span>
+        </div>
+        <div class="ds-bar-wrap">
+          <div class="ds-bar loading"></div>
+        </div>
+        <div class="ds-computing-dots">
+          <div class="ds-computing-dot"></div>
+          <div class="ds-computing-dot"></div>
+          <div class="ds-computing-dot"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ds-footer-computing">
+      <div class="ds-footer-computing-text">Grok · Market &amp; Location analysis</div>
+      <div class="ds-progress-bar-wrap">
+        <div class="ds-progress-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ COMPLETE STATE ══ (hidden initially) -->
+  <div class="ds-card" id="card-complete" style="max-width:680px;width:100%;display:none;opacity:1;transform:none;">
+    <div class="ds-header">
+      <div class="ds-header-left">
+        <div class="ds-score-ring">
+          <svg width="64" height="64" viewBox="0 0 64 64">
+            <circle class="ds-score-ring-track" cx="32" cy="32" r="26"/>
+            <circle class="ds-score-ring-fill" id="score-ring-fill" cx="32" cy="32" r="26"/>
+          </svg>
+          <div class="ds-score-number" id="score-display">76</div>
+        </div>
+        <div class="ds-header-text">
+          <div class="ds-eyebrow">Track 5 · Decision Score</div>
+          <div class="ds-title">Strong Candidate</div>
+          <div class="ds-subtitle">4521 Park Blvd, San Diego CA 92116</div>
+        </div>
+      </div>
+      <div class="ds-verdict">
+        <div class="ds-verdict-dot"></div>
+        Ready
+      </div>
+    </div>
+
+    <div class="ds-levels" id="complete-levels">
+      <div class="ds-level">
+        <div class="ds-level-label">
+          <span class="ds-level-num">L1</span>
+          <span class="ds-level-name">Financial</span>
+          <span class="ds-level-weight">35%</span>
+        </div>
+        <div class="ds-bar-wrap"><div class="ds-bar green" id="bar-l1"></div></div>
+        <div class="ds-level-score">82</div>
+      </div>
+      <div class="ds-level">
+        <div class="ds-level-label">
+          <span class="ds-level-num">L2</span>
+          <span class="ds-level-name">Property</span>
+          <span class="ds-level-weight">25%</span>
+        </div>
+        <div class="ds-bar-wrap"><div class="ds-bar yellow" id="bar-l2"></div></div>
+        <div class="ds-level-score">65</div>
+      </div>
+      <div class="ds-level">
+        <div class="ds-level-label">
+          <span class="ds-level-num">L3</span>
+          <span class="ds-level-name">Market</span>
+          <span class="ds-level-weight">25%</span>
+        </div>
+        <div class="ds-bar-wrap"><div class="ds-bar green" id="bar-l3"></div></div>
+        <div class="ds-level-score">78</div>
+      </div>
+      <div class="ds-level">
+        <div class="ds-level-label">
+          <span class="ds-level-num">L4</span>
+          <span class="ds-level-name">Location</span>
+          <span class="ds-level-weight">15%</span>
+        </div>
+        <div class="ds-bar-wrap"><div class="ds-bar green" id="bar-l4"></div></div>
+        <div class="ds-level-score">71</div>
+      </div>
+    </div>
+
+    <div class="ds-footer">
+      <a href="#" class="ds-cta-primary">
+        View Full Score &amp; Get Matched →
+      </a>
+      <a href="#" class="ds-cta-secondary">
+        Full Analysis ↗
+      </a>
+    </div>
+  </div>
+
+  <!-- Demo controls -->
+  <div class="demo-controls">
+    <button class="demo-btn active" id="btn-computing" onclick="showState('computing')">Computing state</button>
+    <button class="demo-btn" id="btn-complete" onclick="showState('complete')">Complete state</button>
+    <button class="demo-btn" id="btn-replay" onclick="replayTransition()">▶ Replay transition</button>
+  </div>
+  <div class="demo-note">
+    Prototype — card auto-fires below the existing property + scenario cards in chat.<br>
+    Computing: L1+L2 done immediately · L3+L4 shimmer while Grok runs (~20s)<br>
+    Complete: all 4 bars animate in · primary CTA = View Full Score &amp; Get Matched
+  </div>
+
+<script>
+  // Animate bars on complete state reveal
+  const barValues = { 'bar-l1': 82, 'bar-l2': 65, 'bar-l3': 78, 'bar-l4': 71 };
+
+  function animateBars() {
+    // Reset first
+    Object.keys(barValues).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.width = '0%';
+    });
+    // Animate score ring: 76/100 = 76% of 163 = 123.9
+    const fill = document.getElementById('score-ring-fill');
+    if (fill) {
+      fill.style.strokeDashoffset = '163';
+      setTimeout(() => {
+        fill.style.strokeDashoffset = String(163 - (76/100 * 163));
+      }, 100);
+    }
+    // Stagger bar animations
+    const ids = Object.keys(barValues);
+    ids.forEach((id, i) => {
+      setTimeout(() => {
+        const el = document.getElementById(id);
+        if (el) el.style.width = barValues[id] + '%';
+      }, 200 + i * 150);
+    });
+  }
+
+  function showState(state) {
+    const computing = document.getElementById('card-computing');
+    const complete  = document.getElementById('card-complete');
+    document.getElementById('btn-computing').classList.toggle('active', state === 'computing');
+    document.getElementById('btn-complete').classList.toggle('active', state === 'complete');
+
+    if (state === 'computing') {
+      computing.style.display = 'block';
+      complete.style.display  = 'none';
+    } else {
+      computing.style.display = 'none';
+      complete.style.display  = 'block';
+      animateBars();
+    }
+  }
+
+  function replayTransition() {
+    // Reset to computing
+    showState('computing');
+    // Swap to complete after 3s (simulating Grok finishing)
+    setTimeout(() => {
+      const computing = document.getElementById('card-computing');
+      const complete  = document.getElementById('card-complete');
+
+      // Fade out computing
+      computing.style.transition = 'opacity 0.3s ease';
+      computing.style.opacity = '0';
+
+      setTimeout(() => {
+        computing.style.display = 'none';
+        computing.style.opacity = '1';
+        computing.style.transition = '';
+
+        // Slide in complete
+        complete.style.display = 'block';
+        complete.style.opacity = '0';
+        complete.style.transform = 'translateY(10px)';
+        complete.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.16,1,0.3,1)';
+
+        setTimeout(() => {
+          complete.style.opacity = '1';
+          complete.style.transform = 'translateY(0)';
+          animateBars();
+          document.getElementById('btn-computing').classList.remove('active');
+          document.getElementById('btn-complete').classList.add('active');
+        }, 30);
+      }, 300);
+    }, 3000);
+  }
+
+  // Start replay automatically on load
+  window.addEventListener('load', () => {
+    setTimeout(replayTransition, 800);
+  });
+</script>
+</body>
+</html>
