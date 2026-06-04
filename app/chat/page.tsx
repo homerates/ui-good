@@ -3614,7 +3614,7 @@ export default function Page() {
                                                               (gives typewriter effect without flashing old table content)
                                                             - For affordability after typing: suppressed (card takes over)
                                                         */}
-                                                        {/* Suppress GrokCard for signed-out consumers on property_lookup — ConsumerPropertyCard replaces it */}
+                                                        {/* Suppress GrokCard text for signed-out consumers on property_lookup — cards speak for themselves */}
                                                         {!(!isSignedIn && m.meta.interactiveSlider?.cmaAddress) && ((!m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
                                                         <GrokCard
                                                             data={{
@@ -3653,36 +3653,10 @@ export default function Page() {
                                                         {isAdmin && (
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
                                                         )}
-                                                        {/* Property preview card — suppressed for consumers (ConsumerPropertyCard replaces it) */}
-                                                        {m.meta.propertyCard && !(!isSignedIn && m.meta.interactiveSlider?.cmaAddress) && (
+                                                        {/* Property preview card — inside Bubble, above slider cards */}
+                                                        {m.meta.propertyCard && (
                                                             <PropertyPreviewCard
                                                                 data={m.meta.propertyCard as PropertyCardData}
-                                                            />
-                                                        )}
-
-                                                        {/* Consumer property result card — signed-out users on property_lookup */}
-                                                        {!isSignedIn && m.meta.interactiveSlider?.cmaAddress && !loading && typingId === null && (
-                                                            <ConsumerPropertyCard
-                                                                address={m.meta.interactiveSlider.cmaAddress}
-                                                                price={m.meta.interactiveSlider.price}
-                                                                beds={m.meta.propertyCard?.beds}
-                                                                baths={m.meta.propertyCard?.baths}
-                                                                sqft={m.meta.propertyCard?.sqft}
-                                                                photoUrl={m.meta.propertyCard?.photoUrl}
-                                                                listingStatus={m.meta.propertyCard?.listingStatus}
-                                                                daysOnMarket={m.meta.propertyCard?.daysOnMarket}
-                                                                downPct={m.meta.interactiveSlider.downPct}
-                                                                rate={m.meta.interactiveSlider.rate}
-                                                                term={m.meta.interactiveSlider.term}
-                                                                taxRate={m.meta.interactiveSlider.taxRate}
-                                                                insRate={m.meta.interactiveSlider.insRate}
-                                                                loanType={m.meta.interactiveSlider.loanType}
-                                                                dscState={m.meta.decisionScoreCard?.state}
-                                                                l1Score={m.meta.decisionScoreCard?.l1Score ?? null}
-                                                                l2Score={m.meta.decisionScoreCard?.l2Score ?? null}
-                                                                l3Score={m.meta.decisionScoreCard?.l3Score ?? null}
-                                                                l4Score={m.meta.decisionScoreCard?.l4Score ?? null}
-                                                                onChip={(seed) => setTimeout(() => send(seed), 50)}
                                                             />
                                                         )}
                                                         {/* Property Intelligence Card (CMA) */}
@@ -3798,8 +3772,8 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
-                                                        {/* Interactive slider card — suppressed for consumers on property_lookup (ConsumerPropertyCard replaces) */}
-                                                        {!(!isSignedIn && m.meta.interactiveSlider?.cmaAddress) && m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
+                                                        {/* Interactive slider card — non-buydown answers (VA handled by VaSliderCard) */}
+                                                        {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 key={`isc-${m.id}`}
                                                                 {...m.meta.interactiveSlider}
@@ -3828,8 +3802,9 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
-                                                        {/* Income Qualify card — suppressed for consumers on property_lookup */}
-                                                        {!(!isSignedIn && m.meta.interactiveSlider?.cmaAddress) && m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.interactiveSlider.cmaAddress && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
+                                                        {/* Income Qualify card — auto-shown inline for property_lookup path
+                                                             (replaces the "What income do I need to qualify?" chip) */}
+                                                        {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.interactiveSlider.cmaAddress && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
                                                                 key={`iqsc-${m.id}`}
                                                                 price={m.meta.interactiveSlider.price}
