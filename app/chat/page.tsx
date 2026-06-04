@@ -23,6 +23,7 @@ import {
     deleteProject,
 } from '../../lib/projectsClient';
 import WelcomeScreen from '@/components/WelcomeScreen';
+import ConsumerWelcomeCard from '@/components/ConsumerWelcomeCard';
 import ThemeToggle from '@/components/ThemeToggle';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
 import BuydownSliderCard from '@/components/BuydownSliderCard';
@@ -3567,11 +3568,17 @@ export default function Page() {
                     <div className="center">
                         <div className="messages">
                             {(messages.length === 0 || (messages.length === 1 && messages[0].content === 'New chat. What do you want to figure out?'))
-                                ? <WelcomeScreen
-                                    onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
-                                    onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
-                                    onPriceCheck={onPriceCheck}
-                                />
+                                ? (!isSignedIn
+                                    ? <ConsumerWelcomeCard
+                                        onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
+                                        onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
+                                    />
+                                    : <WelcomeScreen
+                                        onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
+                                        onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
+                                        onPriceCheck={onPriceCheck}
+                                    />
+                                  )
                                 : (() => {
                                     // Index of the last assistant message that has follow-up chips —
                                     // chips are only shown on that message so stale chips from earlier
