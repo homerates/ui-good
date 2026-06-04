@@ -223,7 +223,7 @@ function LockScreen({
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   return (
-    <div style={{
+    <div className="page-standalone" style={{
       minHeight: '100vh', background: '#080c12',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: "'Inter', -apple-system, sans-serif", padding: '24px',
@@ -325,7 +325,7 @@ function LockScreen({
 ───────────────────────────────────────────────────────────── */
 function FrameworkDoc() {
   return (
-    <div className="grv-wrap">
+    <div className="grv-wrap page-standalone">
 
       {/* HEADER */}
       <div className="grv-doc-header">
