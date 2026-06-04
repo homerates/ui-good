@@ -52,7 +52,7 @@ export default function GrovesIQAdmin() {
 
     const shareUrl = typeof window !== "undefined"
         ? `${window.location.origin}/grovesiq`
-        : "https://homerates.ai/grovesiq";
+        : "https://chat.homerates.ai/grovesiq";
 
     function copyShareInfo() {
         navigator.clipboard.writeText(`URL: ${shareUrl}\nAccess code: ${ACCESS_CODE}`);
