@@ -485,7 +485,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 <div className="isc-trigger-left">
                     <span style={{ fontSize: 15 }}>⚙</span>
                     <div>
-                        <div className="isc-trigger-title">Adjust Your Numbers</div>
+                        <div className="isc-trigger-title">Adjust My Numbers</div>
                         {isDirty && <div className="isc-trigger-sub">● Changes pending</div>}
                     </div>
                 </div>
@@ -819,7 +819,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc-slider-trigger { width:100%; display:flex; align-items:center; justify-content:space-between; padding:11px 16px; background:rgba(0,232,122,0.04); border:none; border-top:1px solid rgba(0,232,122,0.12); cursor:pointer; font-family:inherit; color:#c4cfe0; transition:background .2s,border-color .2s; animation:iscTriggerPulse 3s ease-in-out infinite; }
                 .isc-slider-trigger:hover,.isc-slider-trigger.open { background:rgba(0,232,122,0.07); border-color:rgba(0,232,122,0.3); animation:none; }
                 .isc-trigger-left { display:flex; align-items:center; gap:10px; }
-                .isc-trigger-title { font-size:13px; font-weight:700; color:#c4cfe0; text-align:left; }
+                .isc-trigger-title { font-size:15px; font-weight:800; color:#c4cfe0; text-align:left; letter-spacing:-.01em; }
                 .isc-trigger-sub { font-size:10px; color:#00e87a; margin-top:1px; }
                 .isc-trigger-arrow { font-size:11px; color: #94a3b8; flex-shrink:0; }
                 .isc-drawer { max-height:0; overflow:hidden; transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
