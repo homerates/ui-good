@@ -69,7 +69,6 @@ export default function ConsumerWelcomeCard({ onSend, onMount }: Props) {
         <div className="cwc-addr">
           <span className="cwc-addr__icon">📍</span>
           <AddressAutocomplete
-            ref={inputRef}
             className="cwc-addr__input"
             placeholder="123 Main St, Los Angeles CA 90001"
             value={address}
