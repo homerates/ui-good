@@ -32,6 +32,7 @@ import ConvHBSliderCard from '@/components/ConvHBSliderCard';
 import PropertyEvaluationCard from '@/components/PropertyEvaluationCard';
 import IncomeQualifySliderCard from '@/components/IncomeQualifySliderCard';
 import DecisionScoreCard, { type DecisionScoreData } from '@/components/DecisionScoreCard';
+import LockedIntelligenceCard from '@/components/LockedIntelligenceCard';
 import FhaSliderCard from '@/components/FhaSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
 import DSCRSliderCard from '@/components/DSCRSliderCard';
@@ -3855,6 +3856,12 @@ export default function Page() {
                                                                         { id: uid(), role: 'assistant', content: newMeta.answer!, meta: newMeta } as ChatMsg,
                                                                     ]);
                                                                 }}
+                                                            />
+                                                        )}
+                                                        {/* Locked Intelligence Card — scenario seeded, no property address yet */}
+                                                        {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && !m.meta.interactiveSlider.cmaAddress && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.decisionScoreCard && !loading && typingId === null && (
+                                                            <LockedIntelligenceCard
+                                                                onCheckProperty={() => composerRef.current?.focus()}
                                                             />
                                                         )}
                                                         {/* Decision Score card — auto-fires after property URL paste */}

@@ -76,6 +76,13 @@ export const CARD_REGISTRY: Record<string, { code: string; name: string; family:
     trigger: 'check-property page or CMA intent',
     outputs: 'AVM, comp table, market stats, L2/L3 score inputs',
   },
+  'LIC-011': {
+    code:    'LIC-011',
+    name:    'Locked Intelligence Card',
+    family:  'Track 5 / Scoring',
+    trigger: 'Scenario seed (ISC) present but no property address — replaces DSC in stack',
+    outputs: '4 locked level tiles, teaser copy, Check a Property CTA',
+  },
 };
 
 const STORAGE_KEY = 'hr_admin_card_labels';
