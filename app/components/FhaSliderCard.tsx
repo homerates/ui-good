@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import PdfDownloadButton from './PdfDownloadButton';
 import { calcPI } from '../../lib/math';
+import { COLORS } from '../../lib/tokens';
 
 // ── FHA 2026 limits by unit count (65% / 150% of FHFA 2026 baseline $832,750) ─
 const FHA_LIMITS: Record<number, { floor: number; ceil: number }> = {
@@ -316,7 +317,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     onChange={setPrice}
                     format={v => fmt$(v)}
                     minLabel="$100k" maxLabel={priceMaxLabel(units)}
-                    trackColor="#f59e0b" theme="dark"
+                    trackColor={COLORS.amber} theme="dark"
                 />
 
                 <SliderField
@@ -326,7 +327,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     onChange={setDownPct}
                     format={v => `${v}% · ${fmtK(price * v / 100)}`}
                     minLabel="3.5%" maxLabel="30%"
-                    trackColor="#f59e0b" theme="dark"
+                    trackColor={COLORS.amber} theme="dark"
                 />
                 <div className="fha-dp-chips">
                     {DP_CHIPS.map(pct => (
@@ -349,7 +350,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                         onChange={setRate}
                         format={v => parseFloat(v.toFixed(3)) + '%'}
                         minLabel="3%" maxLabel="12%"
-                        trackColor="#f59e0b" theme="dark"
+                        trackColor={COLORS.amber} theme="dark"
                     />
                     <div className="fha-fred-tag">FRED PMMS · {props.rate.toFixed(2)}% live</div>
                 </div>
@@ -372,7 +373,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     onChange={setDebts}
                     format={v => v === 0 ? 'None' : fmt$(v) + '/mo'}
                     minLabel="None" maxLabel="$5k/mo"
-                    trackColor="#f59e0b" theme="dark"
+                    trackColor={COLORS.amber} theme="dark"
                 />
                 <div className="fha-dp-note" style={{ marginTop: -4 }}>Car payments, student loans, credit cards, child support, etc.</div>
             </div>

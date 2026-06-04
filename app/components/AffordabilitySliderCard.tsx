@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
 import { calcPI } from '../../lib/math';
+import { COLORS } from '../../lib/tokens';
 import { FHA_FLOOR, CONF_STANDARD } from '../../lib/constants';
 
 export interface AffordabilitySliderParams {
@@ -533,7 +534,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     onChange={setIncome}
                     format={v => fmtK(v) + '/yr'}
                     minLabel="$30k" maxLabel="$500k"
-                    trackColor="#00e87a" theme="dark"
+                    trackColor={COLORS.accent} theme="dark"
                 />
 
                 <SliderField
@@ -542,7 +543,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     onChange={setDebts}
                     format={v => v === 0 ? 'None' : fmt$(v) + '/mo'}
                     minLabel="$0" maxLabel="$5k/mo"
-                    trackColor="#00e87a" theme="dark"
+                    trackColor={COLORS.accent} theme="dark"
                 />
 
                 <SliderField
@@ -551,7 +552,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     onChange={setSavings}
                     format={v => v === 0 ? 'None' : fmtK(v)}
                     minLabel="$0" maxLabel="$500k"
-                    trackColor="#00e87a" theme="dark"
+                    trackColor={COLORS.accent} theme="dark"
                 />
 
                 <SliderField
@@ -560,7 +561,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     onChange={setDownPct}
                     format={v => parseFloat(v.toFixed(1)) + '%'}
                     minLabel="3%" maxLabel="30%"
-                    trackColor="#00e87a" theme="dark"
+                    trackColor={COLORS.accent} theme="dark"
                 />
 
                 <SliderField
@@ -569,7 +570,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     onChange={setRate}
                     format={v => parseFloat(v.toFixed(3)) + '%'}
                     minLabel="3%" maxLabel="12%"
-                    trackColor="#00e87a" theme="dark"
+                    trackColor={COLORS.accent} theme="dark"
                 />
 
                 {/* Term buttons */}

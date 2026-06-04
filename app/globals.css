@@ -19,6 +19,18 @@
   --user-bubble-text: #f0f4ff;
   --footer-h: 40px;
 
+  /* Semantic palette — mirrors lib/tokens.ts for CSS usage */
+  --blue:         #3d8bff;
+  --orange:       #ff8c42;
+  --red:          #ff5f5f;
+  --amber:        #f59e0b;
+  --teal:         #14b8a6;
+  --indigo:       #6366f1;
+  --emerald:      #10b981;
+  --emerald-dark: #059669;
+  --danger:       #ef4444;
+  --purple:       #a78bfa;
+
   /* Font families — Next.js injects these CSS vars */
   --font-display: var(--font-dm-sans), 'DM Sans', sans-serif;
   --font-body: var(--font-dm-sans), 'DM Sans', sans-serif;

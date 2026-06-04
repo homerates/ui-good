@@ -8,6 +8,7 @@
 import React, { useState, useMemo } from 'react';
 import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
+import { COLORS } from '../../lib/tokens';
 
 export interface RefiSliderParams {
     balance: number;           // current loan balance
@@ -38,10 +39,10 @@ const TIER_LABEL: Record<string, string> = {
 };
 
 const TIER_COLOR: Record<string, { text: string; bg: string; border: string }> = {
-    conforming:  { text: '#00e87a', bg: 'rgba(0,232,122,0.08)',  border: 'rgba(0,232,122,0.25)'  },
-    high_cost:   { text: '#3d8bff', bg: 'rgba(61,139,255,0.08)', border: 'rgba(61,139,255,0.25)' },
-    jumbo:       { text: '#a78bfa', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.25)' },
-    super_jumbo: { text: '#ff5f5f', bg: 'rgba(255,95,95,0.08)',  border: 'rgba(255,95,95,0.25)'  },
+    conforming:  { text: COLORS.accent,  bg: 'rgba(0,232,122,0.08)',   border: 'rgba(0,232,122,0.25)'   },
+    high_cost:   { text: COLORS.blue,    bg: 'rgba(61,139,255,0.08)',  border: 'rgba(61,139,255,0.25)'  },
+    jumbo:       { text: COLORS.purple,  bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.25)' },
+    super_jumbo: { text: COLORS.red,     bg: 'rgba(255,95,95,0.08)',   border: 'rgba(255,95,95,0.25)'   },
 };
 
 // Jumbo refis typically price 0.25–0.5% above conforming
@@ -307,7 +308,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     min={50_000} max={balanceMax} step={balance >= 1_000_000 ? 25_000 : 5_000}
                     onChange={setBalance}
                     format={fmt$}
-                    trackColor="#10b981" theme="dark"
+                    trackColor={COLORS.emerald} theme="dark"
                 />
             </div>
 
@@ -318,7 +319,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     min={3} max={12} step={0.125}
                     onChange={setCurrentRate}
                     format={fmtRate}
-                    trackColor="#ef4444" theme="dark"
+                    trackColor={COLORS.danger} theme="dark"
                     style={{ minWidth: 0 }}
                 />
                 <div className="refi-rate-arrow" style={{ textAlign: 'center', paddingBottom: 6, fontSize: 12, color: '#eaf8f7', fontWeight: 700 }}>→</div>
@@ -328,7 +329,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     onChange={setNewRate}
                     format={fmtRate}
                     disabled={noCost}
-                    trackColor="#059669" theme="dark"
+                    trackColor={COLORS.emeraldDark} theme="dark"
                     style={{ minWidth: 0 }}
                 />
             </div>
@@ -343,7 +344,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                     format={fmt$}
                     disabled={noCost}
                     midLabel="1% ≈ no-cost · click to type"
-                    trackColor="#10b981" theme="dark"
+                    trackColor={COLORS.emerald} theme="dark"
                     style={{ flex: '1 1 200px', minWidth: 0 }}
                 />
 
@@ -355,7 +356,7 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                         onChange={handleLtvChange}
                         format={v => `${v}%`}
                         minLabel="50%" midLabel="80% = no PMI" maxLabel="97%"
-                        trackColor={ltv > 80 ? '#ef4444' : '#10b981'} theme="dark"
+                        trackColor={ltv > 80 ? COLORS.danger : COLORS.emerald} theme="dark"
                         style={{ flex: '1 1 200px', minWidth: 0 }}
                     />
                 )}

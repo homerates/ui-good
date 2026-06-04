@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import PdfDownloadButton from './PdfDownloadButton';
 import { calcPI } from '../../lib/math';
+import { COLORS } from '../../lib/tokens';
 
 // ── Residual income tables (VA Pamphlet 26-7 Table 41(a)) ────────────────────
 // Loan ≥ $80k · Continental US · indexed by household size (1–5)
@@ -274,7 +275,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                     onChange={setPrice}
                     format={v => fmt$(v)}
                     minLabel="$100k" maxLabel="$3M"
-                    trackColor="#14b8a6" theme="dark"
+                    trackColor={COLORS.teal} theme="dark"
                 />
 
                 <SliderField
@@ -284,7 +285,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                     onChange={setDownPct}
                     format={v => `${v}% · ${fmtK(price * v / 100)}`}
                     minLabel="0%" maxLabel="50%"
-                    trackColor="#14b8a6" theme="dark"
+                    trackColor={COLORS.teal} theme="dark"
                 />
                 <div className="va-dp-chips">
                     {DP_CHIPS.map(pct => (
@@ -307,7 +308,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                         onChange={setRate}
                         format={v => parseFloat(v.toFixed(3)) + '%'}
                         minLabel="3%" maxLabel="12%"
-                        trackColor="#14b8a6" theme="dark"
+                        trackColor={COLORS.teal} theme="dark"
                     />
                     <div className="va-fred-tag">FRED PMMS · {props.rate.toFixed(2)}% live</div>
                 </div>
@@ -330,7 +331,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                     onChange={setDebts}
                     format={v => v === 0 ? 'None' : fmt$(v) + '/mo'}
                     minLabel="None" maxLabel="$5k/mo"
-                    trackColor="#14b8a6" theme="dark"
+                    trackColor={COLORS.teal} theme="dark"
                 />
                 <div className="va-dp-note" style={{ marginTop: -4 }}>Car payments, student loans, credit cards, child support, etc.</div>
             </div>

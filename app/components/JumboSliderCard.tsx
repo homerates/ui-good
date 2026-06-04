@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import PdfDownloadButton from './PdfDownloadButton';
 import { calcPI } from '../../lib/math';
+import { COLORS } from '../../lib/tokens';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -20,19 +21,19 @@ type LoanZone = 'conforming' | 'highbal' | 'jumbo';
 const ZONE_MAP: Record<LoanZone, { label: string; icon: string; color: string; bg: string; border: string; note: string; res: number }> = {
     conforming: {
         label: 'Conforming', icon: '✓',
-        color: '#00e87a', bg: 'rgba(0,232,122,0.07)', border: 'rgba(0,232,122,0.28)',
+        color: COLORS.accent, bg: 'rgba(0,232,122,0.07)', border: 'rgba(0,232,122,0.28)',
         note: 'Loan is at or below the 2026 conforming limit — a conventional loan may offer better pricing and reserve requirements.',
         res: 2,
     },
     highbal: {
         label: 'High-Balance', icon: '◈',
-        color: '#ff8c42', bg: 'rgba(255,140,66,0.07)', border: 'rgba(255,140,66,0.28)',
+        color: COLORS.orange, bg: 'rgba(255,140,66,0.07)', border: 'rgba(255,140,66,0.28)',
         note: 'Loan falls in the high-balance zone — available in designated high-cost counties (SF Bay, LA, NYC) via Fannie/Freddie.',
         res: 4,
     },
     jumbo: {
         label: 'Jumbo', icon: '⬡',
-        color: '#ff5f5f', bg: 'rgba(255,95,95,0.07)', border: 'rgba(255,95,95,0.28)',
+        color: COLORS.red, bg: 'rgba(255,95,95,0.07)', border: 'rgba(255,95,95,0.28)',
         note: 'Portfolio / non-conforming loan. Portfolio lenders set their own guidelines. Shop 2–3 jumbo lenders — pricing, reserves, and qualifying criteria vary significantly.',
         res: 9,
     },

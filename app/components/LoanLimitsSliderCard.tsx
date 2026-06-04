@@ -9,6 +9,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { HIGH_COST_COUNTIES, STATE_NAMES } from '@/loanLimitsNational2026';
 import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
 import SliderField from './SliderField';
+import { COLORS } from '../../lib/tokens';
 
 export interface LoanLimitsSliderParams {
     county: string;
@@ -37,9 +38,9 @@ const ZONE_CONFIG = {
         icon: '✅',
         bg: 'rgba(0,232,122,0.06)',
         border: 'rgba(0,232,122,0.25)',
-        badgeBg: '#00e87a',
+        badgeBg: COLORS.accent,
         badgeText: '#080c12',
-        barColor: '#00e87a',
+        barColor: COLORS.accent,
     },
     high_balance: {
         label: 'HIGH BALANCE',
@@ -47,9 +48,9 @@ const ZONE_CONFIG = {
         icon: '⚡',
         bg: 'rgba(255,140,66,0.06)',
         border: 'rgba(255,140,66,0.25)',
-        badgeBg: '#ff8c42',
+        badgeBg: COLORS.orange,
         badgeText: '#080c12',
-        barColor: '#ff8c42',
+        barColor: COLORS.orange,
     },
     jumbo: {
         label: 'JUMBO',
@@ -57,9 +58,9 @@ const ZONE_CONFIG = {
         icon: '🏛️',
         bg: 'rgba(255,95,95,0.06)',
         border: 'rgba(255,95,95,0.25)',
-        badgeBg: '#ff5f5f',
+        badgeBg: COLORS.red,
         badgeText: '#080c12',
-        barColor: '#ff5f5f',
+        barColor: COLORS.red,
     },
 };
 

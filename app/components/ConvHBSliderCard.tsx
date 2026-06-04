@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
 import { calcPI } from '../../lib/math';
+import { COLORS } from '../../lib/tokens';
 
 // ── 2026 CA County Conforming Limits (1-unit, FHFA) ─────────────────────────
 const CA_LIMITS: Record<string, number> = {
@@ -78,9 +79,9 @@ const HIGH_BAL_CA_MAX  = 1_249_125; // max CA high-balance limit (LA, SF, OC, SJ
 const PMI_RATE = 0.008;
 
 const ZONE_MAP = {
-    conforming: { color: '#00e87a', bg: 'rgba(0,232,122,0.08)',  border: 'rgba(0,232,122,0.25)',  label: 'Conforming'    },
-    highbal:    { color: '#ff8c42', bg: 'rgba(255,140,66,0.08)', border: 'rgba(255,140,66,0.25)', label: 'High Balance'  },
-    exceeds:    { color: '#ff5f5f', bg: 'rgba(255,95,95,0.08)',  border: 'rgba(255,95,95,0.25)',  label: 'Jumbo Required' },
+    conforming: { color: COLORS.accent, bg: 'rgba(0,232,122,0.08)',  border: 'rgba(0,232,122,0.25)',  label: 'Conforming'    },
+    highbal:    { color: COLORS.orange, bg: 'rgba(255,140,66,0.08)', border: 'rgba(255,140,66,0.25)', label: 'High Balance'  },
+    exceeds:    { color: COLORS.red,    bg: 'rgba(255,95,95,0.08)',  border: 'rgba(255,95,95,0.25)',  label: 'Jumbo Required' },
 } as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

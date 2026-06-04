@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import { calcPI } from '../../lib/math';
+import { COLORS } from '../../lib/tokens';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
@@ -270,7 +271,7 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                     onChange={setPrice}
                     format={v => fmtK(v)}
                     minLabel="$100k" maxLabel="$10M"
-                    trackColor="#00e87a" theme="dark"
+                    trackColor={COLORS.accent} theme="dark"
                 />
 
                 <SliderField
@@ -279,7 +280,7 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                     onChange={setRent}
                     format={v => `${fmt$(v)}/mo`}
                     minLabel="$500" maxLabel="$50k"
-                    trackColor="#00e87a" theme="dark"
+                    trackColor={COLORS.accent} theme="dark"
                 />
 
                 <SliderField
@@ -300,7 +301,7 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                         return raw;
                     }}
                     minLabel="20%" maxLabel="50%"
-                    trackColor="#00e87a" theme="dark"
+                    trackColor={COLORS.accent} theme="dark"
                 />
 
                 <SliderField
@@ -309,7 +310,7 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                     onChange={setRate}
                     format={v => `${parseFloat(v.toFixed(3))}%`}
                     minLabel="5.00%" maxLabel="10.00%"
-                    trackColor="#00e87a" theme="dark"
+                    trackColor={COLORS.accent} theme="dark"
                 />
             </div>
 

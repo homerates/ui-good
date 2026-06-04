@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import SliderField from './SliderField';
+import { COLORS } from '../../lib/tokens';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
@@ -241,13 +242,13 @@ export default function BuydownSliderCard(props: BuydownSliderParams) {
                     <SliderField label="Home Price" value={price} min={200_000} max={5_000_000} step={25_000}
                         onChange={setPrice} format={v => fmtK(v)}
                         parse={v => { const c = v.replace(/[$,\s]/g,''); const n = parseFloat(c); if (isNaN(n)) return price; return c.toLowerCase().includes('m') ? n*1_000_000 : n; }}
-                        minLabel="$200k" maxLabel="$5M+" trackColor="#f59e0b" theme="dark" />
+                        minLabel="$200k" maxLabel="$5M+" trackColor={COLORS.amber} theme="dark" />
                 </div>
 
                 <div className="bds-slider-wrap">
                     <SliderField label="Down Payment" value={downPct} min={0} max={60} step={1}
                         onChange={setDownPct} format={v => `${v}% · ${fmtK(price * v / 100)}`}
-                        minLabel="0%" maxLabel="60%" trackColor="#f59e0b" theme="dark" />
+                        minLabel="0%" maxLabel="60%" trackColor={COLORS.amber} theme="dark" />
                     <div className="bds-chips">
                         {DP_CHIPS.map(pct => (
                             <button key={pct} className={`bds-chip${Math.round(downPct) === pct ? ' active' : ''}`} onClick={() => setDownPct(pct)}>{pct}%</button>
@@ -259,7 +260,7 @@ export default function BuydownSliderCard(props: BuydownSliderParams) {
                     <SliderField label="Note Rate (Year 3+)" value={rate} min={3} max={12} step={0.125}
                         onChange={setRate} format={v => fmtRate(v)}
                         minLabel="3%" maxLabel="12%" midLabel={`FRED: ${fmtRate(props.rate)}`}
-                        trackColor="#f59e0b" theme="dark" />
+                        trackColor={COLORS.amber} theme="dark" />
                     <div className="bds-fred-tag">📡 Seeded from FRED live rate: {fmtRate(props.rate)}</div>
                 </div>
 

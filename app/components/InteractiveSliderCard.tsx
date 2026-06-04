@@ -8,6 +8,7 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
+import { COLORS } from '../../lib/tokens';
 import AdminCardBadge from './AdminCardBadge';
 import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
 import { HIGH_COST_COUNTIES, type NationalCountyLimits } from '@/loanLimitsNational2026';
@@ -83,7 +84,7 @@ function computeBuydownSchedule(loan: number, noteRate: number, term: number, bd
     return { rows, piNote, totalCost: rows.reduce((s, r) => s + r.annualSavings, 0) };
 }
 
-const C = { pi: '#3d8bff', tax: '#ff8c42', ins: '#00e87a', pmi: '#ff5f5f' };
+const C = { pi: COLORS.blue, tax: COLORS.orange, ins: COLORS.accent, pmi: COLORS.red };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -578,7 +579,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                                     onChange={setCountyLimit}
                                     format={v => fmtDollar(v)}
                                     minLabel="$647,200" maxLabel="$2M"
-                                    trackColor="#14b8a6" theme="dark"
+                                    trackColor={COLORS.teal} theme="dark"
                                 />
                                 <SliderField
                                     label="Previous Entitlement Used (Not Restored)" value={prevEntUsed}
@@ -586,7 +587,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                                     onChange={setPrevEntUsed}
                                     format={v => fmtDollar(v)}
                                     minLabel="$0" maxLabel={fmtDollar(Math.round(countyLimit * 0.25))}
-                                    trackColor="#14b8a6" theme="dark"
+                                    trackColor={COLORS.teal} theme="dark"
                                 />
                                 <div className="isc-ent-table">
                                     <div className="isc-ent-row"><span>Max entitlement (25% of {fmtDollar(countyLimit)})</span><span>{fmtDollar(entTotalEntitlement)}</span></div>
@@ -637,7 +638,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         onChange={setSellerCreditAmt}
                         format={v => `${fmtDollar(v)}${buydown ? (v >= buydown.totalCost ? ' ✓ covers buydown' : ` · short ${fmtDollar(buydown.totalCost - v)}`) : ''}`}
                         minLabel="$0" maxLabel={`${fmtDollar(vaConcessionCap)} (4% cap)`}
-                        trackColor="#6366f1" theme="dark"
+                        trackColor={COLORS.indigo} theme="dark"
                     />
                 )}
 

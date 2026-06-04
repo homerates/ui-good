@@ -4,6 +4,7 @@ import React, { useState, useMemo, CSSProperties } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
+import { COLORS } from '../../lib/tokens';
 import PdfDownloadButton from './PdfDownloadButton';
 import {
     getCALoanLimits,
@@ -39,19 +40,19 @@ const ZC: Record<Zone, {
 }> = {
     conforming: {
         label: 'Conforming', icon: '✓',
-        color: '#00e87a', bg: 'rgba(0,232,122,0.07)', border: 'rgba(0,232,122,0.28)',
+        color: COLORS.accent, bg: 'rgba(0,232,122,0.07)', border: 'rgba(0,232,122,0.28)',
         spread: 0, res: 2, cc: 0.025,
         note: 'Fannie Mae / Freddie Mac — best rates, lowest reserve and down payment requirements.',
     },
     high_balance: {
         label: 'High-Balance', icon: '◈',
-        color: '#ff8c42', bg: 'rgba(255,140,66,0.07)', border: 'rgba(255,140,66,0.28)',
+        color: COLORS.orange, bg: 'rgba(255,140,66,0.07)', border: 'rgba(255,140,66,0.28)',
         spread: 0.25, res: 4, cc: 0.025,
         note: 'High-balance conforming — GSE-backed up to county limit. Slight rate premium over standard conforming; easier qualifying than jumbo.',
     },
     jumbo: {
         label: 'Jumbo', icon: '⬡',
-        color: '#ff5f5f', bg: 'rgba(255,95,95,0.07)', border: 'rgba(255,95,95,0.28)',
+        color: COLORS.red, bg: 'rgba(255,95,95,0.07)', border: 'rgba(255,95,95,0.28)',
         spread: 0.40, res: 9, cc: 0.02,
         note: 'Portfolio / non-conforming loan. Portfolio lenders set their own guidelines. Shop 2–3 lenders — pricing, reserves, and criteria vary significantly.',
     },
