@@ -3978,7 +3978,7 @@ export default function Page() {
                                                         {m.meta.affordabilitySlider && !loading && typingId === null && (
                                                             <LockedIntelligenceCard
                                                                 onSubmitAddress={(addr) => {
-                                                                    const lt = m.meta!.affordabilitySlider!.loanType;
+                                                                    const lt = m.meta!.affordabilitySlider!.loanType as string;
                                                                     const dp = lt === 'fha' ? 3.5 : lt === 'va' ? 0 : 20;
                                                                     const ctx: Record<string, any> = { downPaymentPct: dp };
                                                                     if (lt === 'fha') { ctx.loanType = 'fha'; ctx.isFHA = true; }
