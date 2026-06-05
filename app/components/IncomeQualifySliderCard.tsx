@@ -32,6 +32,8 @@ export interface IncomeQualifySliderParams {
     decisionScoreState?: 'computing' | 'complete';
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
     journeyAddress?: string;
+    /** Suppress the "Check a specific property →" CTA — use when LIC already provides it */
+    hideCheckPropertyButton?: boolean;
 }
 
 function iqNormKey(a: string) { return a.trim().toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').slice(0,100); }
@@ -597,8 +599,8 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 )}
             </div>
 
-            {/* Check a property — always visible next step */}
-            {!props.journeyAddress && (
+            {/* Check a property — hidden when LIC provides the CTA or when journeyAddress present */}
+            {!props.journeyAddress && !props.hideCheckPropertyButton && (
                 <button className="iq2-check-btn"
                     style={{ margin: '0 16px 12px', width: 'calc(100% - 32px)' }}
                     onClick={() => {

@@ -3724,6 +3724,7 @@ export default function Page() {
                                                                 taxRate={m.meta.convHBSlider.taxRate}
                                                                 insRate={m.meta.convHBSlider.insRate}
                                                                 loanType='conventional'
+                                                                hideCheckPropertyButton={true}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
