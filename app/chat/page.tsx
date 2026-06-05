@@ -3974,6 +3974,22 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
+                                                        {/* LIC — affordability path: inline property search, carries loan type context */}
+                                                        {m.meta.affordabilitySlider && !loading && typingId === null && (
+                                                            <LockedIntelligenceCard
+                                                                onSubmitAddress={(addr) => {
+                                                                    const lt = m.meta!.affordabilitySlider!.loanType;
+                                                                    const dp = lt === 'fha' ? 3.5 : lt === 'va' ? 0 : 20;
+                                                                    const ctx: Record<string, any> = { downPaymentPct: dp };
+                                                                    if (lt === 'fha') { ctx.loanType = 'fha'; ctx.isFHA = true; }
+                                                                    else if (lt === 'va') { ctx.loanType = 'va'; ctx.isVA = true; }
+                                                                    pendingParamOverridesRef.current = ctx;
+                                                                    setPendingParamOverrides(ctx);
+                                                                    if (composerRef.current) { composerRef.current.value = addr; }
+                                                                    setTimeout(() => send(addr), 50);
+                                                                }}
+                                                            />
+                                                        )}
                                                         {/* Income Qualify card — auto-shown inline for property_lookup path
                                                              (replaces the "What income do I need to qualify?" chip) */}
                                                         {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.interactiveSlider.cmaAddress && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (

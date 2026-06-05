@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import AdminCardBadge from './AdminCardBadge';
+import AddressAutocomplete from './AddressAutocomplete';
 
 interface Props {
   onSubmitAddress: (address: string) => void;
@@ -55,10 +56,10 @@ export default function LockedIntelligenceCard({ onSubmitAddress }: Props) {
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="rgba(0,232,122,0.6)" />
               <circle cx="12" cy="9" r="2.5" fill="#0d1117" />
             </svg>
-            <input
-              type="text"
+            <AddressAutocomplete
               value={address}
-              onChange={e => setAddress(e.target.value)}
+              onChange={setAddress}
+              onSelect={val => { setAddress(val); setTimeout(() => { if (val.trim()) onSubmitAddress(val.trim()); }, 80); }}
               onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               placeholder="Address, or paste a Zillow / Redfin link"
               style={{
