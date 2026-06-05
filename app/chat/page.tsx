@@ -3701,6 +3701,7 @@ export default function Page() {
                                                                     taxRate={m.meta.convHBSlider.taxRate}
                                                                     insRate={m.meta.convHBSlider.insRate}
                                                                     loanType='conventional'
+                                                                    hideDrawer={true}
                                                                     journeyAddress={
                                                                         cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                     }
