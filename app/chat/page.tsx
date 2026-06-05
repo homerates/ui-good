@@ -479,9 +479,10 @@ type ApiResponse = {
         pdfType?: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr' | 'refi' | 'affordability';
     } | null;
     scenarioComparisonCard?: {
-        tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
+        tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy' | 'conv_vs_jumbo' | 'conv_vs_fha';
         price: number; rate: number;
         downPct?: number; years?: number; credit?: number; rent?: number;
+        jumboRatePremium?: number;
     } | null;
     propertyCard?: {
         source: string; url: string; parsedBy: string; parseWarnings: string[];
@@ -4140,10 +4141,14 @@ export default function Page() {
                                                         )}
                                                         {/* Scenario comparison card */}
                                                         {m.meta.scenarioComparisonCard && !loading && typingId === null && (
-                                                            <ScenarioComparisonCard
-                                                                {...m.meta.scenarioComparisonCard}
-                                                                onRunScenario={(seed) => send(seed)}
-                                                            />
+                                                            <div style={{ position: 'relative' }}>
+                                                                {m.meta.scenarioComparisonCard.tool === 'conv_vs_jumbo' && <AdminCardBadge code="2CS-CONV-JUMBO" position="top-left" />}
+                                                                {m.meta.scenarioComparisonCard.tool === 'conv_vs_fha'   && <AdminCardBadge code="2CS-CONV-FHA"   position="top-left" />}
+                                                                <ScenarioComparisonCard
+                                                                    {...m.meta.scenarioComparisonCard}
+                                                                    onRunScenario={(seed) => send(seed)}
+                                                                />
+                                                            </div>
                                                         )}
                                                         {/* Lender checklist card — suppressed when affordabilitySlider is present (new card covers the same data) */}
                                                         {m.meta.lenderChecklist && !m.meta.affordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (

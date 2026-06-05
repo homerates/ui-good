@@ -2,13 +2,14 @@ import { f$, fPct, fMo, fYr } from '../formatting';
 import { BuiltCard } from './types';
 
 export interface ScenarioComparisonCardInput {
-    tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
+    tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy' | 'conv_vs_jumbo' | 'conv_vs_fha';
     price?: number;
     rate?: number;
     downPct?: number;
     years?: number;
     credit?: number;
     rent?: number;
+    jumboRatePremium?: number;
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -16,17 +17,21 @@ const TOOL_LABELS: Record<string, string> = {
     seller_credit: 'Rate Buydown vs Price Reduction',
     term:          '15-Year vs 30-Year',
     rent_buy:      'Rent vs Buy',
+    conv_vs_jumbo: 'Conventional vs Jumbo',
+    conv_vs_fha:   'Conventional vs FHA',
 };
 
 export function buildScenarioComparisonCard(inp: ScenarioComparisonCardInput): BuiltCard {
     const { tool } = inp;
     const label = TOOL_LABELS[tool] ?? tool;
 
-    const defaults: Record<string, { price: number; rate: number; downPct: number; years: number; credit: number; rent: number }> = {
-        down_payment:  { price: 600_000, rate: 6.75, downPct: 10, years: 7,  credit: 15_000, rent: 2_800 },
-        seller_credit: { price: 650_000, rate: 6.75, downPct: 10, years: 7,  credit: 15_000, rent: 2_800 },
-        term:          { price: 600_000, rate: 6.75, downPct: 20, years: 10, credit: 15_000, rent: 2_800 },
-        rent_buy:      { price: 550_000, rate: 6.75, downPct: 10, years: 7,  credit: 15_000, rent: 2_800 },
+    const defaults: Record<string, { price: number; rate: number; downPct: number; years: number; credit: number; rent: number; jumboRatePremium: number }> = {
+        down_payment:  { price: 600_000,   rate: 6.75, downPct: 10, years: 7,  credit: 15_000, rent: 2_800, jumboRatePremium: 0.375 },
+        seller_credit: { price: 650_000,   rate: 6.75, downPct: 10, years: 7,  credit: 15_000, rent: 2_800, jumboRatePremium: 0.375 },
+        term:          { price: 600_000,   rate: 6.75, downPct: 20, years: 10, credit: 15_000, rent: 2_800, jumboRatePremium: 0.375 },
+        rent_buy:      { price: 550_000,   rate: 6.75, downPct: 10, years: 7,  credit: 15_000, rent: 2_800, jumboRatePremium: 0.375 },
+        conv_vs_jumbo: { price: 1_100_000, rate: 6.75, downPct: 20, years: 7,  credit: 15_000, rent: 2_800, jumboRatePremium: 0.375 },
+        conv_vs_fha:   { price: 500_000,   rate: 6.75, downPct: 10, years: 7,  credit: 15_000, rent: 2_800, jumboRatePremium: 0.375 },
     };
     const d = defaults[tool];
 
@@ -40,12 +45,13 @@ export function buildScenarioComparisonCard(inp: ScenarioComparisonCardInput): B
         confidence: 'high',
         scenarioComparisonCard: {
             tool,
-            price:   inp.price   ?? d.price,
-            rate:    inp.rate    ?? d.rate,
-            downPct: inp.downPct ?? d.downPct,
-            years:   inp.years   ?? d.years,
-            credit:  inp.credit  ?? d.credit,
-            rent:    inp.rent    ?? d.rent,
+            price:            inp.price            ?? d.price,
+            rate:             inp.rate             ?? d.rate,
+            downPct:          inp.downPct          ?? d.downPct,
+            years:            inp.years            ?? d.years,
+            credit:           inp.credit           ?? d.credit,
+            rent:             inp.rent             ?? d.rent,
+            jumboRatePremium: inp.jumboRatePremium ?? d.jumboRatePremium,
         },
     };
 }

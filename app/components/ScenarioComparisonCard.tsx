@@ -6,13 +6,14 @@
 import React, { useState, useMemo } from 'react';
 
 export interface ScenarioComparisonCardParams {
-    tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
+    tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy' | 'conv_vs_jumbo' | 'conv_vs_fha';
     price: number;
     rate: number;
     downPct?: number;
     years?: number;
     credit?: number;
     rent?: number;
+    jumboRatePremium?: number;
     onRunScenario?: (seed: string) => void;
 }
 
@@ -412,16 +413,210 @@ function RentBuyTool({ initPrice, initRate, initRent, onRunScenario }: {
     );
 }
 
+// ── Tool: Conventional vs Jumbo ───────────────────────────────────────────────
+const CONF_LIMIT = 832_750;
+
+function ConvVsJumboTool({ initPrice, initRate, initPremium, onRunScenario }: {
+    initPrice: number; initRate: number; initPremium: number; onRunScenario?: (seed: string) => void;
+}) {
+    const [price, setPrice]     = useState(initPrice);
+    const [convRate, setConvRate] = useState(initRate);
+    const [premium, setPremium] = useState(initPremium);
+    const [years, setYears]     = useState(7);
+
+    const calc = useMemo(() => {
+        const jumboRate   = parseFloat((convRate + premium).toFixed(3));
+        // Conventional: put down enough to keep loan at conforming limit
+        const convLoan    = Math.min(price * 0.80, CONF_LIMIT);
+        const convDown    = price - convLoan;
+        const convDownPct = (convDown / price) * 100;
+        const convPI      = calcPI(convLoan, convRate);
+        const tax         = price * 0.011 / 12;
+        const ins         = price * 0.005 / 12;
+        const convTotal   = convPI + tax + ins;
+        // Jumbo: 20% down, higher rate
+        const jumboDown   = price * 0.20;
+        const jumboLoan   = price * 0.80;
+        const jumboPI     = calcPI(jumboLoan, jumboRate);
+        const jumboTotal  = jumboPI + tax + ins;
+        const extraDown   = convDown - jumboDown;
+        const monthlySave = jumboTotal - convTotal;
+        const breakEvenMo = monthlySave > 0 ? Math.round(extraDown / monthlySave) : Infinity;
+        const isConvBetter = breakEvenMo < years * 12;
+        const seed = `[deep-analysis] Conventional vs Jumbo on a ${fmt(price)} home. Conventional: ${fmtPct(convDownPct)} down (${fmt(convDown)}) → loan ${fmt(convLoan)} at ${fmtPct(convRate)}, ${fmt(convTotal)}/mo PITI. Jumbo: 20% down (${fmt(jumboDown)}) → loan ${fmt(jumboLoan)} at ${fmtPct(jumboRate)}, ${fmt(jumboTotal)}/mo PITI. Extra down for conventional: ${fmt(extraDown)}. Monthly savings: ${fmt(monthlySave)}. Break-even: ${isFinite(breakEvenMo) ? breakEvenMo + ' months' : 'never'}. Which strategy is better for a ${years}-year hold?`;
+        return { convLoan, convDown, convDownPct, convPI, convTotal, jumboDown, jumboLoan, jumboPI, jumboTotal, jumboRate, extraDown, monthlySave, breakEvenMo, isConvBetter, seed };
+    }, [price, convRate, premium, years]);
+
+    const insight = calc.monthlySave > 0
+        ? `Conventional saves ${fmt(calc.monthlySave)}/mo but needs ${fmt(calc.extraDown)} more down. Break-even: ${isFinite(calc.breakEvenMo) ? calc.breakEvenMo + ' months' : 'never'} — ${calc.isConvBetter ? 'conventional wins' : 'jumbo wins'} at ${years} yrs.`
+        : `Jumbo has a lower payment despite higher rate (smaller required down). Consider if you want to preserve cash.`;
+
+    return (
+        <div className="sc-body">
+            <div className="sc-columns">
+                <div className="sc-col sc-col-b">
+                    <div className="sc-col-header">
+                        <span className="sc-col-badge" style={{ background: '#00e87a' }}>CONVENTIONAL</span>
+                        <span className="sc-col-sub">Lower rate · More down required</span>
+                    </div>
+                    <Stat icon="💵" label="Down payment" value={fmt(calc.convDown)} sub={`${calc.convDownPct.toFixed(1)}% — keeps loan conforming`} />
+                    <Stat icon="🏦" label="Loan amount" value={fmt(calc.convLoan)} sub={`≤ $${CONF_LIMIT.toLocaleString()} limit`} />
+                    <Stat icon="📊" label="Rate" value={fmtPct(convRate)} />
+                    <Stat icon="📅" label="Monthly PITI" value={fmt(calc.convTotal)} />
+                    <Stat icon="✅" label="PMI" value="None (LTV ≤ 80%)" />
+                </div>
+                <div className="sc-col sc-col-a">
+                    <div className="sc-col-header">
+                        <span className="sc-col-badge" style={{ background: '#8b5cf6' }}>JUMBO</span>
+                        <span className="sc-col-sub">20% down · Rate premium</span>
+                    </div>
+                    <Stat icon="💵" label="Down payment" value={fmt(calc.jumboDown)} sub="20%" />
+                    <Stat icon="🏦" label="Loan amount" value={fmt(calc.jumboLoan)} sub="over conforming limit" />
+                    <Stat icon="📊" label="Rate" value={fmtPct(calc.jumboRate)} sub={`+${fmtPct(premium)} premium`} />
+                    <Stat icon="📅" label="Monthly PITI" value={fmt(calc.jumboTotal)} />
+                    <Stat icon="✅" label="PMI" value="None (LTV = 80%)" />
+                </div>
+            </div>
+            <div className="sc-delta-row">
+                <div className="sc-delta"><span className="sc-delta-label">💵 Extra down (conv)</span><span className="sc-delta-val">{fmt(calc.extraDown)}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">📅 Monthly savings</span><span className="sc-delta-val" style={{ color: calc.monthlySave > 0 ? '#00e87a' : '#f59e0b' }}>{fmt(Math.abs(calc.monthlySave))}/mo</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">⏱ Break-even</span><span className="sc-delta-val">{isFinite(calc.breakEvenMo) ? calc.breakEvenMo + ' mo' : 'N/A'}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">🏆 Winner ({years}yr)</span><span className="sc-delta-val" style={{ color: '#00e87a' }}>{calc.isConvBetter ? 'Conv.' : 'Jumbo'}</span></div>
+            </div>
+            <div className="sc-insight">💡 {insight}</div>
+            <div className="sc-sliders">
+                <Slider label="Purchase Price" value={price} min={900_000} max={3_000_000} step={25_000} onChange={setPrice} display={fmtK(price)} />
+                <Slider label="Conventional Rate" value={convRate} min={4} max={10} step={0.125} onChange={setConvRate} display={fmtPct(convRate)} />
+                <Slider label="Jumbo Rate Premium" value={premium} min={0.125} max={0.875} step={0.125} onChange={setPremium} display={`+${fmtPct(premium)}`} />
+                <Slider label="Years in home" value={years} min={2} max={15} step={1} onChange={setYears} display={`${years} yrs`} />
+            </div>
+            {onRunScenario && (
+                <button className="sc-ai-btn" onClick={() => onRunScenario(calc.seed)}>
+                    <span className="sc-ai-icon">🤖</span>
+                    <span className="sc-ai-text">
+                        <span className="sc-ai-label">Run deeper AI analysis on this scenario</span>
+                        <span className="sc-ai-sub">Sends your exact numbers to the AI for a full breakdown</span>
+                    </span>
+                    <span className="sc-ai-arrow">→</span>
+                </button>
+            )}
+        </div>
+    );
+}
+
+// ── Tool: Conventional vs FHA ──────────────────────────────────────────────────
+function ConvVsFHATool({ initPrice, initRate, onRunScenario }: {
+    initPrice: number; initRate: number; onRunScenario?: (seed: string) => void;
+}) {
+    const [price, setPrice]   = useState(initPrice);
+    const [rate, setRate]     = useState(initRate);
+    const [convDown, setConvDown] = useState(10);
+    const [years, setYears]   = useState(7);
+
+    const calc = useMemo(() => {
+        const tax  = price * 0.011 / 12;
+        const ins  = price * 0.005 / 12;
+        // FHA: 3.5% down, 1.75% UFMIP financed, 0.55% annual MIP
+        const fhaBase    = price * (1 - 0.035);
+        const fhaLoan    = fhaBase * 1.0175;
+        const fhaDown    = price * 0.035;
+        const fhaMIPmo   = fhaBase * 0.0055 / 12;
+        const fhaPI      = calcPI(fhaLoan, rate);
+        const fhaTotal   = fhaPI + fhaMIPmo + tax + ins;
+        // Conventional: convDown%, PMI until 80% LTV
+        const convLoan   = price * (1 - convDown / 100);
+        const convDownAmt = price * convDown / 100;
+        const convPI     = calcPI(convLoan, rate);
+        const pmiRate    = 0.008;
+        const hasPMI     = convDown < 20;
+        const convPMImo  = hasPMI ? convLoan * pmiRate / 12 : 0;
+        // Months until PMI drops (loan reaches 80% LTV)
+        let pmiMonths = 0;
+        if (hasPMI) {
+            let bal = convLoan;
+            const r = rate / 100 / 12;
+            const target = price * 0.80;
+            while (bal > target && pmiMonths < 360) {
+                bal -= (convPI - bal * r);
+                pmiMonths++;
+            }
+        }
+        const convTotal = convPI + convPMImo + tax + ins;
+        const monthlyDiff = fhaTotal - convTotal;
+        const extraDown = convDownAmt - fhaDown;
+        const seed = `[deep-analysis] FHA vs Conventional on a ${fmt(price)} home at ${fmtPct(rate)}. FHA: 3.5% down (${fmt(fhaDown)}), UFMIP 1.75% financed, loan ${fmt(fhaLoan)}, MIP ${fmt(fhaMIPmo)}/mo (life of loan), total ${fmt(fhaTotal)}/mo. Conventional ${convDown}% down (${fmt(convDownAmt)}), loan ${fmt(convLoan)}, PMI ${hasPMI ? fmt(convPMImo) + '/mo drops at month ' + pmiMonths : 'none'}, total ${fmt(convTotal)}/mo. Conventional requires ${fmt(extraDown)} more down. Monthly diff: ${fmt(Math.abs(monthlyDiff))}. Which is better for a ${years}-year hold and is it worth the larger down payment?`;
+        return { fhaDown, fhaLoan, fhaMIPmo, fhaPI, fhaTotal, convDownAmt, convLoan, convPI, convPMImo, convTotal, monthlyDiff, extraDown, pmiMonths, hasPMI, seed };
+    }, [price, rate, convDown, years]);
+
+    const insight = calc.monthlyDiff > 0
+        ? `Conventional saves ${fmt(calc.monthlyDiff)}/mo but needs ${fmt(calc.extraDown)} more down. FHA keeps more cash now — MIP is permanent if down < 10%.`
+        : `FHA is cheaper monthly despite MIP — check if the rate difference makes conventional worth the higher down payment.`;
+
+    return (
+        <div className="sc-body">
+            <div className="sc-columns">
+                <div className="sc-col sc-col-a">
+                    <div className="sc-col-header">
+                        <span className="sc-col-badge" style={{ background: '#f59e0b' }}>FHA · 3.5% DOWN</span>
+                        <span className="sc-col-sub">Low barrier · Permanent MIP</span>
+                    </div>
+                    <Stat icon="💵" label="Down payment" value={fmt(calc.fhaDown)} sub="3.5% minimum" />
+                    <Stat icon="🏦" label="Loan (w/ UFMIP)" value={fmt(calc.fhaLoan)} sub="1.75% financed" />
+                    <Stat icon="🛡️" label="Monthly MIP" value={fmt(calc.fhaMIPmo) + '/mo'} sub="life of loan if down < 10%" />
+                    <Stat icon="📅" label="Monthly PITI+MIP" value={fmt(calc.fhaTotal)} />
+                    <Stat icon="📊" label="Rate" value={fmtPct(rate)} />
+                </div>
+                <div className="sc-col sc-col-b">
+                    <div className="sc-col-header">
+                        <span className="sc-col-badge" style={{ background: '#00e87a' }}>CONVENTIONAL</span>
+                        <span className="sc-col-sub">{calc.hasPMI ? `${convDown}% down · PMI until 80% LTV` : `${convDown}% down · No PMI`}</span>
+                    </div>
+                    <Stat icon="💵" label="Down payment" value={fmt(calc.convDownAmt)} sub={`${convDown}%`} />
+                    <Stat icon="🏦" label="Loan amount" value={fmt(calc.convLoan)} />
+                    <Stat icon="🛡️" label={calc.hasPMI ? 'PMI' : 'PMI'} value={calc.hasPMI ? fmt(calc.convPMImo) + '/mo' : 'None'} sub={calc.hasPMI ? `drops ~month ${calc.pmiMonths}` : '20%+ down'} />
+                    <Stat icon="📅" label="Monthly PITI" value={fmt(calc.convTotal)} />
+                    <Stat icon="📊" label="Rate" value={fmtPct(rate)} />
+                </div>
+            </div>
+            <div className="sc-delta-row">
+                <div className="sc-delta"><span className="sc-delta-label">💵 Extra down (conv)</span><span className="sc-delta-val">{fmt(calc.extraDown)}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">📅 Monthly diff</span><span className="sc-delta-val" style={{ color: calc.monthlyDiff > 0 ? '#00e87a' : '#f59e0b' }}>{fmt(Math.abs(calc.monthlyDiff))}/mo</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">⏱ PMI drops</span><span className="sc-delta-val">{calc.hasPMI ? `mo ${calc.pmiMonths}` : 'No PMI'}</span></div>
+                <div className="sc-delta"><span className="sc-delta-label">🛡️ FHA MIP</span><span className="sc-delta-val" style={{ color: '#f59e0b' }}>Life of loan</span></div>
+            </div>
+            <div className="sc-insight">💡 {insight}</div>
+            <div className="sc-sliders">
+                <Slider label="Purchase Price" value={price} min={100_000} max={1_200_000} step={25_000} onChange={setPrice} display={fmtK(price)} />
+                <Slider label="Interest Rate" value={rate} min={4} max={10} step={0.125} onChange={setRate} display={fmtPct(rate)} />
+                <Slider label="Conventional Down %" value={convDown} min={3} max={20} step={1} onChange={setConvDown} display={`${convDown}%`} />
+                <Slider label="Years in home" value={years} min={2} max={15} step={1} onChange={setYears} display={`${years} yrs`} />
+            </div>
+            {onRunScenario && (
+                <button className="sc-ai-btn" onClick={() => onRunScenario(calc.seed)}>
+                    <span className="sc-ai-icon">🤖</span>
+                    <span className="sc-ai-text">
+                        <span className="sc-ai-label">Run deeper AI analysis on this scenario</span>
+                        <span className="sc-ai-sub">Sends your exact numbers to the AI for a full breakdown</span>
+                    </span>
+                    <span className="sc-ai-arrow">→</span>
+                </button>
+            )}
+        </div>
+    );
+}
+
 // ── Main exported card ─────────────────────────────────────────────────────────
 const TOOL_LABELS: Record<string, string> = {
-    down_payment:  '5% vs 20% Down Payment',
-    seller_credit: 'Rate Buydown vs Price Reduction',
-    term:          '15-Year vs 30-Year',
-    rent_buy:      'Rent vs Buy',
+    down_payment:   '5% vs 20% Down Payment',
+    seller_credit:  'Rate Buydown vs Price Reduction',
+    term:           '15-Year vs 30-Year',
+    rent_buy:       'Rent vs Buy',
+    conv_vs_jumbo:  'Conventional vs Jumbo',
+    conv_vs_fha:    'Conventional vs FHA',
 };
 
 export default function ScenarioComparisonCard({
-    tool, price, rate, downPct: _dp, years: _yr, credit, rent,
+    tool, price, rate, downPct: _dp, years: _yr, credit, rent, jumboRatePremium,
     onRunScenario,
 }: ScenarioComparisonCardParams) {
     return (
@@ -499,6 +694,12 @@ export default function ScenarioComparisonCard({
                 )}
                 {tool === 'rent_buy' && (
                     <RentBuyTool initPrice={price} initRate={rate} initRent={rent ?? 2_800} onRunScenario={onRunScenario} />
+                )}
+                {tool === 'conv_vs_jumbo' && (
+                    <ConvVsJumboTool initPrice={price} initRate={rate} initPremium={jumboRatePremium ?? 0.375} onRunScenario={onRunScenario} />
+                )}
+                {tool === 'conv_vs_fha' && (
+                    <ConvVsFHATool initPrice={price} initRate={rate} onRunScenario={onRunScenario} />
                 )}
             </div>
         </>

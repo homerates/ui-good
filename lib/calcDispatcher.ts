@@ -265,7 +265,7 @@ export function isSellerCreditQuestion(q: string): boolean {
 }
 
 
-export type ScenarioComparisonTool = 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
+export type ScenarioComparisonTool = 'down_payment' | 'seller_credit' | 'term' | 'rent_buy' | 'conv_vs_jumbo' | 'conv_vs_fha';
 
 export function isScenarioComparisonQuestion(q: string): ScenarioComparisonTool | null {
     // Bypass: seeds fired from the "deeper analysis" button are prefixed with [deep-analysis]
@@ -290,6 +290,15 @@ export function isScenarioComparisonQuestion(q: string): ScenarioComparisonTool 
     // Rent vs buy
     if (/\b(rent\s*(vs|versus|or)\s*buy|buy\s*(vs|versus|or)\s*rent|should\s*i\s*(rent|buy))\b/i.test(q) ||
         /\b(renting\s*vs\s*buying|buying\s*vs\s*renting)\b/i.test(q)) return 'rent_buy';
+    // Conventional vs Jumbo
+    if (/\b(conventional|conforming)\s*(vs|versus|or|compared\s*to)\s*(jumbo)\b/i.test(q) ||
+        /\b(jumbo)\s*(vs|versus|or|compared\s*to)\s*(conventional|conforming)\b/i.test(q) ||
+        /\bconforming\s*vs\s*jumbo\b|\bjumbo\s*vs\s*conforming\b/i.test(q) ||
+        /\bstay\s*conforming\b|\bkeep.{0,10}conforming\b/i.test(q)) return 'conv_vs_jumbo';
+    // Conventional vs FHA
+    if (/\b(fha)\s*(vs|versus|or|compared\s*to)\s*(conventional|conv)\b/i.test(q) ||
+        /\b(conventional|conv)\s*(vs|versus|or|compared\s*to)\s*(fha)\b/i.test(q) ||
+        isFHAvsConvQuestion(q)) return 'conv_vs_fha';
     return null;
 }
 
