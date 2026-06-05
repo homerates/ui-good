@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HomeRates.AI × Clutch Solutions — Sales Partnership Opportunity</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #080c12;
+      --surf:   #0d1117;
+      --bdr:    rgba(255,255,255,0.07);
+      --green:  #00e87a;
+      --blue:   #38bdf8;
+      --amber:  #f59e0b;
+      --purple: #a78bfa;
+      --text:   #f0f4ff;
+      --muted:  rgba(185,208,192,0.65);
+      --dim:    rgba(185,208,192,0.35);
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Mobile sticky nav ── */
+    .top-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      background: rgba(8,12,18,0.96);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--bdr);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px;
+      height: 52px;
+    }
+    .top-nav .logo {
+      font-size: 0.95rem; font-weight: 900; color: var(--green); letter-spacing: -0.02em;
+    }
+    .top-nav .demo-btn {
+      background: var(--green); color: #080c12;
+      font-size: 0.75rem; font-weight: 800;
+      border: none; border-radius: 8px; padding: 7px 14px;
+      text-decoration: none; cursor: pointer; white-space: nowrap;
+    }
+
+    /* ── Slide shell ── */
+    .slide {
+      width: 100%; max-width: 960px;
+      min-height: 540px;
+      margin: 0 auto;
+      padding: 60px 80px 52px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    /* First slide gets nav clearance */
+    .slide:first-child { padding-top: 72px; }
+
+    /* ── Typography ── */
+    .eyebrow {
+      font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 10px;
+    }
+    h1 { font-size: 2.4rem; font-weight: 900; line-height: 1.15; letter-spacing: -0.025em; }
+    h2 { font-size: 1.6rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; }
+    h3 { font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    p  { font-size: 0.84rem; color: var(--muted); line-height: 1.65; }
+    a  { color: var(--green); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: 12px;
+      padding: 20px 22px;
+    }
+    .card.accent {
+      background: rgba(0,232,122,0.04);
+      border-color: rgba(0,232,122,0.2);
+    }
+    .card-row { display: flex; gap: 14px; flex: 1; }
+    .card-row .card { flex: 1; }
+
+    /* ── Checks ── */
+    ul.checks { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    ul.checks li {
+      font-size: 0.86rem; color: var(--muted);
+      padding-left: 22px; position: relative;
+    }
+    ul.checks li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+
+    /* ── Stats ── */
+    .stat-row { display: flex; }
+    .stat { flex: 1; text-align: center; padding: 16px 10px; }
+    .stat + .stat { border-left: 1px solid var(--bdr); }
+    .stat-value { font-size: 2rem; font-weight: 900; color: var(--text); }
+    .stat-label { font-size: 0.68rem; color: var(--dim); margin-top: 5px; line-height: 1.5; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* ── Pipeline ── */
+    .pipe-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 22px; margin-bottom: 22px; flex-wrap: wrap;
+    }
+    .pipe-step {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--bdr);
+      border-radius: 10px;
+      padding: 12px 14px;
+      text-align: center; flex: 1; min-width: 90px;
+    }
+    .pipe-step.active { background: rgba(0,232,122,0.08); border-color: rgba(0,232,122,0.25); }
+    .pipe-arrow { font-size: 1.1rem; color: rgba(0,232,122,0.4); flex-shrink: 0; align-self: center; }
+
+    /* ── Commission tiers ── */
+    .tier-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 18px; }
+    .tier-card {
+      background: var(--surf); border: 1px solid var(--bdr);
+      border-radius: 12px; padding: 18px 20px;
+    }
+    .tier-card.featured { border-color: rgba(0,232,122,0.35); background: rgba(0,232,122,0.04); }
+    .tier-name { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--green); margin-bottom: 8px; }
+    .tier-price { font-size: 1.35rem; font-weight: 900; color: var(--text); margin-bottom: 4px; }
+    .tier-earn { font-size: 0.75rem; color: var(--amber); font-weight: 700; margin-top: 6px; }
+
+    /* ── Earn rows ── */
+    .earn-table { background: rgba(255,255,255,0.02); border: 1px solid var(--bdr); border-radius: 14px; padding: 16px 20px; margin-top: 18px; }
+    .earn-header { display: grid; grid-template-columns: 2.5fr 1fr 1fr 1.2fr; gap: 0; border-bottom: 1px solid var(--bdr); padding-bottom: 8px; margin-bottom: 4px; }
+    .earn-header span { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); }
+    .earn-header span:not(:first-child) { text-align: right; }
+    .earn-row { display: grid; grid-template-columns: 2.5fr 1fr 1fr 1.2fr; gap: 0; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,0.04); align-items: center; }
+    .earn-row:last-child { border-bottom: none; }
+    .earn-label { font-size: 0.8rem; color: var(--muted); }
+    .earn-acv { font-size: 0.8rem; color: var(--text); font-weight: 600; text-align: right; }
+    .earn-comm { font-size: 0.85rem; color: var(--green); font-weight: 800; text-align: right; }
+    .earn-total { font-size: 0.9rem; color: var(--green); font-weight: 900; text-align: right; }
+
+    /* ── ICP table ── */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 14px; border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; }
+    th { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+         color: var(--dim); border-bottom: 1px solid var(--bdr); padding: 8px 12px; text-align: left; }
+    td { font-size: 0.8rem; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    td.hi { color: var(--text); font-weight: 600; }
+    td.earn { color: var(--green); font-weight: 700; white-space: nowrap; }
+    .badge {
+      display: inline-block; font-size: 0.67rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      border-radius: 6px; padding: 3px 8px; white-space: nowrap;
+    }
+    .badge.sweet { color: var(--green); background: rgba(0,232,122,0.1); }
+    .badge.volume { color: var(--amber); background: rgba(245,158,11,0.1); }
+    .badge.ent { color: var(--purple); background: rgba(167,139,250,0.1); }
+    .badge.emrg { color: var(--blue); background: rgba(56,189,248,0.1); }
+
+    /* ── Footer ── */
+    .slide-footer {
+      margin-top: auto; padding-top: 20px;
+      font-size: 0.66rem; color: var(--dim);
+    }
+    .footer-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
+    .footer-attr { margin-top: 4px; font-size: 0.6rem; color: rgba(185,208,192,0.2); }
+
+    /* ── Cover ── */
+    .cover { align-items: center; text-align: center; justify-content: center; gap: 12px; min-height: 500px; }
+
+    /* ── Big quote ── */
+    .big-quote {
+      font-size: 1.45rem; font-style: italic;
+      color: rgba(185,208,192,0.7);
+      line-height: 1.65; max-width: 680px;
+    }
+    .big-quote .hl { color: var(--green); font-style: normal; font-weight: 700; }
+
+    /* ── Steps ── */
+    .step { display: flex; align-items: flex-start; gap: 18px; }
+    .step-num {
+      background: rgba(0,232,122,0.15); border-radius: 50%;
+      width: 38px; height: 38px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.88rem; font-weight: 900; color: var(--green);
+    }
+
+    /* ── Metric chips ── */
+    .metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 14px; }
+    .metric {
+      text-align: center; padding: 14px 10px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--bdr); border-radius: 10px;
+    }
+    .metric-val { font-size: 1.45rem; font-weight: 900; }
+    .metric-lbl { font-size: 0.68rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+
+    /* ── Print ── */
+    @media print {
+      .top-nav { display: none !important; }
+      .slide { padding: 32px 40px; page-break-after: always; page-break-inside: avoid; min-height: auto; }
+    }
+
+    /* ════════════════════════════════
+       MOBILE — max-width 768px
+       ════════════════════════════════ */
+    @media (max-width: 768px) {
+
+      .slide {
+        padding: 68px 18px 36px;
+        min-height: auto;
+      }
+      .slide:first-child { padding-top: 72px; }
+
+      h1 { font-size: 1.7rem; }
+      h2 { font-size: 1.2rem; letter-spacing: -0.01em; }
+      h3 { font-size: 0.86rem; }
+      p  { font-size: 0.83rem; }
+
+      .eyebrow { font-size: 0.62rem; }
+
+      /* Stack cards vertically */
+      .card-row { flex-direction: column; gap: 10px; }
+
+      /* Tier grid: 1 col on mobile */
+      .tier-grid { grid-template-columns: 1fr; gap: 10px; }
+
+      /* Stats: 2×2 grid on mobile */
+      .stat-row { flex-wrap: wrap; }
+      .stat { flex: 1 1 calc(50% - 1px); min-width: 120px; padding: 12px 6px; }
+      .stat + .stat { border-left: none; }
+      .stat:nth-child(odd) { border-right: 1px solid var(--bdr); }
+      .stat:nth-child(n+3) { border-top: 1px solid var(--bdr); }
+      .stat-value { font-size: 1.6rem; }
+      .stat-label { font-size: 0.62rem; }
+
+      /* Pipeline: wrap to multi-line, hide some arrows */
+      .pipe-row { gap: 6px; justify-content: center; }
+      .pipe-step { flex: 1 1 calc(50% - 32px); min-width: 120px; }
+      .pipe-arrow { display: none; }
+
+      /* Earn table: card-per-row on mobile */
+      .earn-header { display: none; }
+      .earn-row {
+        display: flex; flex-direction: column;
+        gap: 4px; padding: 12px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .earn-label { font-size: 0.82rem; color: var(--text); font-weight: 600; order: 1; }
+      .earn-acv { font-size: 0.75rem; color: var(--muted); text-align: left; order: 2; }
+      .earn-acv::before { content: 'Annual contract: '; color: var(--dim); font-weight: 400; }
+      .earn-comm { text-align: left; font-size: 0.8rem; order: 3; }
+      .earn-total { text-align: left; font-size: 1rem; order: 4; }
+      .earn-total::before { content: '→ Annual earn: '; font-size: 0.75rem; font-weight: 400; color: var(--muted); }
+
+      /* Metrics grid: single col */
+      .metrics { grid-template-columns: 1fr 1fr; gap: 10px; }
+
+      /* Cover adjustments */
+      .cover { gap: 16px; padding-top: 72px; min-height: auto; }
+      .cover h1 { font-size: 1.6rem; }
+      .cover-cards { flex-direction: column; gap: 10px; }
+
+      /* Big quote */
+      .big-quote { font-size: 1.1rem; }
+
+      /* Steps */
+      .step { gap: 14px; }
+      .step-num { width: 34px; height: 34px; font-size: 0.82rem; flex-shrink: 0; }
+
+      /* Footer */
+      .slide-footer { font-size: 0.62rem; }
+      .footer-row { flex-direction: column; gap: 2px; }
+
+      /* 2-col grids → 1 col */
+      .two-col { grid-template-columns: 1fr !important; }
+
+      /* Tables: horizontal scroll on mobile */
+      table { min-width: 520px; }
+    }
+
+    @media (max-width: 420px) {
+      .slide { padding: 64px 14px 28px; }
+      h2 { font-size: 1.1rem; }
+      .stat-value { font-size: 1.4rem; }
+      .pipe-step { flex: 1 1 calc(100% - 10px); }
+      .metrics { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Sticky nav ── -->
+<nav class="top-nav">
+  <span class="logo">HomeRates.AI</span>
+  <a class="demo-btn" href="https://chat.homerates.ai" target="_blank" rel="noopener">Try Live Demo →</a>
+</nav>
+
+<!-- ══════════════════ SLIDE 1 — COVER ══════════════════ -->
+<section class="slide cover" id="cover">
+  <div style="font-size:1.7rem;font-weight:900;color:var(--green);letter-spacing:-0.02em;margin-bottom:4px;">HomeRates.AI</div>
+  <h1>Sales Partnership Opportunity</h1>
+  <p style="font-size:1rem;color:var(--dim);max-width:520px;margin-top:8px;line-height:1.65;">
+    A commission-first partnership to bring AI-powered home and mortgage intelligence
+    to the corporations and financial institutions that need it most.
+  </p>
+
+  <div class="cover-cards" style="margin-top:28px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+    <div style="background:rgba(0,232,122,0.06);border:1px solid rgba(0,232,122,0.22);border-radius:10px;padding:14px 26px;text-align:center;min-width:180px;">
+      <div style="font-size:0.65rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">Prepared for</div>
+      <div style="font-size:1.05rem;font-weight:800;color:var(--text);">Jack Kalmeta</div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">Clutch Solutions</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.02);border:1px solid var(--bdr);border-radius:10px;padding:14px 26px;text-align:center;min-width:180px;">
+      <div style="font-size:0.65rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">From</div>
+      <div style="font-size:1.05rem;font-weight:800;color:var(--text);">Rayaan Arif</div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">Founder &amp; CEO · HomeRates.AI</div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;font-size:0.75rem;color:var(--dim);">chat.homerates.ai · rayaan@homerates.ai · June 2026</div>
+
+  <div class="slide-footer">
+    <div class="footer-row"><span>HomeRates.AI — Confidential &amp; Proprietary</span><span>rayaan@homerates.ai</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ SLIDE 2 — PERSONAL NOTE ══════════════════ -->
+<section class="slide" id="story">
+  <div class="eyebrow">A Personal Note</div>
+  <h2>Jack, this isn't a cold pitch.<br>This is something I built because of people like you.</h2>
+
+  <div class="card-row" style="margin-top:22px;">
+    <div class="card" style="flex:1.3;background:rgba(0,232,122,0.03);border-color:rgba(0,232,122,0.14);">
+      <div style="font-size:0.67rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--green);margin-bottom:12px;">The Story</div>
+      <p style="font-size:0.88rem;line-height:1.75;color:rgba(185,208,192,0.82);">
+        When I was working with you to get your home across the finish line — after the people you trusted most had failed you — I did what I always do: I worked the numbers until we found the path.
+      </p>
+      <p style="font-size:0.88rem;line-height:1.75;color:rgba(185,208,192,0.82);margin-top:12px;">
+        The problem wasn't that no path existed. The problem was that <strong style="color:var(--text);">no tool existed to find it clearly.</strong> The industry is designed to obscure — not illuminate. Every major platform profits from your confusion, not your clarity.
+      </p>
+      <p style="font-size:0.88rem;line-height:1.75;color:rgba(185,208,192,0.82);margin-top:12px;">
+        So I built what should have already existed: <strong style="color:var(--green);">a platform that gives every buyer honest, complete intelligence — the same clarity I gave you in person.</strong>
+      </p>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:10px;">
+      <div class="card" style="flex:1;">
+        <h3>Why I'm coming to you</h3>
+        <p>You're one of the best salespeople I know. You've built a $700K/yr career selling B2B on pure value — no salary net. That's the energy this needs to reach the market.</p>
+      </div>
+      <div class="card accent" style="flex:1;">
+        <h3 style="color:var(--green);">The opportunity</h3>
+        <p>HomeRates has a B2B sales motion that needs someone who can walk into corporate offices and close. I don't need an order-taker — I need a partner who can open the doors I can't reach from the mortgage desk.</p>
+      </div>
+      <div class="card" style="flex:1;">
+        <h3>Commission-only. Built for you.</h3>
+        <p>Clear pricing. Clear earn. Clear target list. No drawn-out sales cycles — brokerage owners who see a 10-minute live demo understand the value immediately.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="footer-row"><span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ SLIDE 3 — PROBLEM ══════════════════ -->
+<section class="slide" id="problem">
+  <div class="eyebrow">The Market Problem</div>
+  <h2>The mortgage intelligence market is broken —<br>and every company with employees buying homes feels it</h2>
+
+  <div class="card-row" style="margin-top:20px;">
+    <div class="card">
+      <h3>🏠 Home tools show listings, not reality</h3>
+      <p>Zillow and Redfin show beautiful homes. They can't tell you the true PITI payment, whether the buyer qualifies, or if the market is overpriced. The picture is missing all the math.</p>
+    </div>
+    <div class="card">
+      <h3>💰 Mortgage tools sell your data</h3>
+      <p>Bankrate and LendingTree aren't rate tools — they're lead gen machines. Every search triggers 4–7 lender calls. The user's financial data is the product, sold to the highest bidder.</p>
+    </div>
+    <div class="card">
+      <h3>🔗 Nobody connects both honestly</h3>
+      <p>No platform combines property intelligence and mortgage math into one unbiased score. Buyers make $500K+ decisions navigating broken, conflicted tools. There's no neutral platform to send them to — until now.</p>
+    </div>
+  </div>
+
+  <div class="card accent" style="margin-top:14px;padding:14px 20px;">
+    <span style="color:var(--text);font-weight:700;">For corporations: </span>
+    <span style="color:var(--muted);">Employees buying homes without honest guidance leads to financial stress, distraction, and attrition. HomeRates is the neutral, honest platform they've never had access to.</span>
+  </div>
+
+  <div class="slide-footer">
+    <div class="footer-row"><span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ SLIDE 4 — THE PLATFORM ══════════════════ -->
+<section class="slide" id="platform">
+  <div class="eyebrow">The Platform — 60 Second Overview</div>
+  <h2>Paste a listing URL. Get a complete home + mortgage intelligence report. Instantly.</h2>
+
+  <div class="pipe-row">
+    <div class="pipe-step active">
+      <div style="font-size:1rem;margin-bottom:3px;">🔗</div>
+      <div style="font-size:0.7rem;font-weight:700;color:var(--green);">Input</div>
+      <div style="font-size:0.64rem;color:var(--dim);margin-top:2px;">Zillow / Redfin URL<br/>or any address</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step">
+      <div style="font-size:1rem;margin-bottom:3px;">⚡</div>
+      <div style="font-size:0.7rem;font-weight:700;color:var(--text);">Affordability</div>
+      <div style="font-size:0.64rem;color:var(--dim);margin-top:2px;">PITI, DTI, LTV<br/>Can they buy it?</div>
+    </div>
+    <div class="pipe-arrow">+</div>
+    <div class="pipe-step">
+      <div style="font-size:1rem;margin-bottom:3px;">🏡</div>
+      <div style="font-size:0.7rem;font-weight:700;color:var(--text);">Property Analysis</div>
+      <div style="font-size:0.64rem;color:var(--dim);margin-top:2px;">AVM vs price,<br/>comps, days on market</div>
+    </div>
+    <div class="pipe-arrow">+</div>
+    <div class="pipe-step">
+      <div style="font-size:1rem;margin-bottom:3px;">🧠</div>
+      <div style="font-size:0.7rem;font-weight:700;color:var(--text);">Market + Location</div>
+      <div style="font-size:0.64rem;color:var(--dim);margin-top:2px;">Schools, flood,<br/>live market conditions</div>
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step active">
+      <div style="font-size:1rem;margin-bottom:3px;">🎯</div>
+      <div style="font-size:0.7rem;font-weight:700;color:var(--green);">Decision Score</div>
+      <div style="font-size:0.64rem;color:var(--dim);margin-top:2px;">0–100 verdict:<br/>Buy · Wait · Walk Away</div>
+    </div>
+  </div>
+
+  <div class="card-row">
+    <div class="card" style="flex:1.4;">
+      <div style="font-size:0.67rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--purple);margin-bottom:10px;">Track 5 · 4-Level AI Scoring</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:0.82rem;">
+          <span style="color:var(--muted);">Level 1 · Affordability</span>
+          <span style="color:var(--text);font-weight:700;">35%</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.82rem;">
+          <span style="color:var(--muted);">Level 2 · Property vs. Budget &amp; Comps</span>
+          <span style="color:var(--text);font-weight:700;">25%</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.82rem;">
+          <span style="color:var(--muted);">Level 3 · Live Market Conditions</span>
+          <span style="color:var(--text);font-weight:700;">25%</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.82rem;">
+          <span style="color:var(--muted);">Level 4 · Location Intelligence</span>
+          <span style="color:var(--text);font-weight:700;">15%</span>
+        </div>
+        <div style="border-top:1px solid var(--bdr);padding-top:8px;margin-top:4px;font-size:0.82rem;color:var(--green);font-weight:700;">
+          → One composite score. One honest verdict.
+        </div>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:10px;">
+      <div class="card" style="padding:14px 16px;">
+        <h3 style="font-size:0.78rem;margin-bottom:5px;">No lead gen. Ever.</h3>
+        <p style="font-size:0.78rem;">Rates sourced from the Federal Reserve (FRED) — not lender placements. Consumer data never sold. Pure subscription tool.</p>
+      </div>
+      <div class="card" style="padding:14px 16px;">
+        <h3 style="font-size:0.78rem;margin-bottom:5px;">Live at chat.homerates.ai — try it now</h3>
+        <p style="font-size:0.78rem;">Paste any Zillow or Redfin URL and watch the full decision score fire in real time. No account needed. This is your sales demo.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="footer-row"><span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ SLIDE 5 — ICP ══════════════════ -->
+<section class="slide" id="icp">
+  <div class="eyebrow">Sales ICP — Who You're Selling To</div>
+  <h2>Five buyer segments. All under-served. All budget-holding.</h2>
+
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>Segment</th>
+        <th>Who They Are</th>
+        <th>Why They Buy</th>
+        <th>Deal / Mo</th>
+        <th>Priority</th>
+      </tr>
+      <tr>
+        <td class="hi">Independent LO</td>
+        <td>Licensed loan officers running their own book</td>
+        <td>Better pre-qualification intelligence, close faster, differentiate from Bankrate</td>
+        <td class="earn">$150–200</td>
+        <td><span class="badge volume">Volume</span></td>
+      </tr>
+      <tr>
+        <td class="hi">Mortgage Brokerage</td>
+        <td>Regional brokerages with 10–100 LOs; decision-maker is the branch owner</td>
+        <td>Platform licence for full team — retention, client intelligence, AI-native positioning</td>
+        <td class="earn">$1,500–10K</td>
+        <td><span class="badge sweet">★ Sweet Spot</span></td>
+      </tr>
+      <tr>
+        <td class="hi">Credit Unions &amp; Banks</td>
+        <td>Mortgage departments at credit unions, community/regional banks</td>
+        <td>Member benefit tool, white-label option, mortgage retention, pre-purchase education</td>
+        <td class="earn">$5K–50K+</td>
+        <td><span class="badge ent">Enterprise</span></td>
+      </tr>
+      <tr>
+        <td class="hi">HR / Employee Benefits</td>
+        <td>Large employers (100+ employees) with active homebuyer programs</td>
+        <td>Financial wellness benefit — reduces mortgage stress, supports relocation packages</td>
+        <td class="earn">$2K–20K</td>
+        <td><span class="badge emrg">Emerging</span></td>
+      </tr>
+      <tr>
+        <td class="hi">Real Estate Groups</td>
+        <td>Large brokerages — KW, RE/MAX franchise owners, buyer agent teams</td>
+        <td>Pre-qualify buyers before showings — reduces wasted time, better close rates</td>
+        <td class="earn">$1K–8K</td>
+        <td><span class="badge volume">Strong Fit</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card accent" style="margin-top:12px;padding:11px 18px;">
+    <span style="color:var(--text);font-weight:700;">Clutch sweet spot: </span>
+    <span style="color:var(--muted);">Mortgage brokerages + Credit unions + HR benefits — mid-market, budget authority at the top, clear ROI, subscription renewals compound.</span>
+  </div>
+
+  <div class="slide-footer">
+    <div class="footer-row"><span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ SLIDE 6 — MARKET ══════════════════ -->
+<section class="slide" id="market">
+  <div class="eyebrow">The Opportunity</div>
+  <h2>A massive, reachable market with no dominant platform yet</h2>
+
+  <div style="background:rgba(255,255,255,0.02);border:1px solid var(--bdr);border-radius:14px;padding:18px 24px;margin-top:18px;">
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-value" style="color:var(--green);">450K+</div>
+        <div class="stat-label">Licensed Loan<br/>Officers in the US</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">50K+</div>
+        <div class="stat-label">Mortgage Brokerage<br/>and Branch Offices</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">5,000+</div>
+        <div class="stat-label">Credit Unions with<br/>Mortgage Programs</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" style="color:var(--amber);">6.5M</div>
+        <div class="stat-label">Home Purchases<br/>Annually in the US</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-row" style="margin-top:14px;">
+    <div class="card">
+      <h3>No platform owns this space</h3>
+      <p>Bankrate and LendingTree serve consumers via lender ads. No product serves LOs and institutions with AI decision intelligence as a subscription tool. HomeRates is first to market.</p>
+    </div>
+    <div class="card">
+      <h3>AI is real in 2026 — not a roadmap</h3>
+      <p>Live rate data (FRED), actual market comps (Tavily), AI scoring (Grok 4 + OpenAI). This is production AI that works today. The C-suite says "yes" where they said "not yet" in 2023.</p>
+    </div>
+    <div class="card">
+      <h3>Early-mover commission advantage</h3>
+      <p>The first sales team to systematically work mortgage brokerages with this product owns the market before any competitor arrives. No incumbent. The territory is yours to build — now.</p>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="footer-row"><span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ SLIDE 7 — COMMISSION MODEL ══════════════════ -->
+<section class="slide" id="commission">
+  <div class="eyebrow">Commission Structure — What Clutch Earns</div>
+  <h2>No retainers. No base. Commission on every deal closed.</h2>
+
+  <div class="tier-grid">
+    <div class="tier-card">
+      <div class="tier-name">Individual LO</div>
+      <div class="tier-price">$150–200<span style="font-size:0.72rem;font-weight:600;color:var(--dim);">/mo</span></div>
+      <p style="font-size:0.78rem;margin-top:6px;margin-bottom:0;">$1,800–2,400 ARR per LO. Volume play — sell team packages to brokerage owners.</p>
+      <div class="tier-earn">20% Year 1 · 10% renewals</div>
+      <div style="font-size:0.7rem;color:var(--dim);margin-top:4px;">$360–480 commission per LO signed</div>
+    </div>
+    <div class="tier-card featured">
+      <div class="tier-name">Brokerage Team ★ Target</div>
+      <div class="tier-price">$1,500–10K<span style="font-size:0.72rem;font-weight:600;color:var(--dim);">/mo</span></div>
+      <p style="font-size:0.78rem;margin-top:6px;margin-bottom:0;">10–50 person LO teams. One decision-maker. Clean subscription. Recurring renewal income.</p>
+      <div class="tier-earn">20% Year 1 · 12% renewals</div>
+      <div style="font-size:0.7rem;color:var(--green);font-weight:700;margin-top:4px;">$3,600–24,000 per deal closed</div>
+    </div>
+    <div class="tier-card">
+      <div class="tier-name">Enterprise</div>
+      <div class="tier-price">$5K–50K+<span style="font-size:0.72rem;font-weight:600;color:var(--dim);">/mo</span></div>
+      <p style="font-size:0.78rem;margin-top:6px;margin-bottom:0;">Credit unions, banks, HR benefit programs. Custom contracts. White-label available.</p>
+      <div class="tier-earn">20% of total contract value</div>
+      <div style="font-size:0.7rem;color:var(--dim);margin-top:4px;">$12,000–120,000+ per enterprise deal</div>
+    </div>
+  </div>
+
+  <div style="margin-top:14px;background:rgba(255,255,255,0.02);border:1px solid var(--bdr);border-radius:12px;padding:14px 18px;">
+    <div style="font-size:0.67rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--dim);margin-bottom:10px;">Additional Terms (Proposed)</div>
+    <div class="two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div style="font-size:0.8rem;color:var(--muted);">✓ <strong style="color:var(--text);">Exclusive territory</strong> for agreed geographies or verticals</div>
+      <div style="font-size:0.8rem;color:var(--muted);">✓ <strong style="color:var(--text);">Residual income</strong> on all renewals while account is active</div>
+      <div style="font-size:0.8rem;color:var(--muted);">✓ <strong style="color:var(--text);">Full demo account</strong> for live prospecting and pitches</div>
+      <div style="font-size:0.8rem;color:var(--muted);">✓ <strong style="color:var(--text);">No clawbacks</strong> — commissions paid on contract execution</div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="footer-row"><span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ SLIDE 8 — EARN MATH ══════════════════ -->
+<section class="slide" id="earn">
+  <div class="eyebrow">The Commission Math</div>
+  <h2>What realistic monthly activity looks like in dollars</h2>
+
+  <div class="earn-table">
+    <div class="earn-header">
+      <span>Scenario</span>
+      <span>ACV</span>
+      <span>Commission/deal</span>
+      <span>Annual (no renewals)</span>
+    </div>
+    <div class="earn-row">
+      <div class="earn-label">2 mid-size brokerage deals/mo (20 LOs @ $150)</div>
+      <div class="earn-acv">$43,200</div>
+      <div class="earn-comm">$8,640</div>
+      <div class="earn-total">$207,360/yr</div>
+    </div>
+    <div class="earn-row">
+      <div class="earn-label">1 enterprise credit union deal/mo ($8K/mo contract)</div>
+      <div class="earn-acv">$96,000</div>
+      <div class="earn-comm">$19,200</div>
+      <div class="earn-total">$230,400/yr</div>
+    </div>
+    <div class="earn-row">
+      <div class="earn-label">Mixed: 1 enterprise + 3 mid-size brokerages/mo</div>
+      <div class="earn-acv">$192,000+</div>
+      <div class="earn-comm">—</div>
+      <div class="earn-total">$410,400/yr</div>
+    </div>
+    <div class="earn-row" style="border-top:1px solid rgba(0,232,122,0.18);margin-top:4px;padding-top:12px;">
+      <div class="earn-label" style="color:var(--text);font-weight:700;">+ Renewals from Month 1 deals accumulate</div>
+      <div class="earn-acv" style="text-align:right;">—</div>
+      <div class="earn-comm" style="text-align:right;">10–12%</div>
+      <div class="earn-total" style="color:var(--amber);">Compounds YoY</div>
+    </div>
+  </div>
+
+  <div class="card-row" style="margin-top:14px;">
+    <div class="card">
+      <h3>The residual flywheel</h3>
+      <p>Every brokerage deal closed in Month 1 pays again at Month 13, 25, 37… Subscription renewals trail every new deal. By Year 2, the renewal base alone is material income requiring zero new activity.</p>
+    </div>
+    <div class="card accent">
+      <h3 style="color:var(--green);">10 minutes closes this deal</h3>
+      <p>Any brokerage owner who sees a live demo — a real listing URL generating a full decision score in 30 seconds — understands the value immediately. This isn't a 6-month enterprise cycle. It's: "when can we start?"</p>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="footer-row"><span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ SLIDE 9 — SUPPORT ══════════════════ -->
+<section class="slide" id="support">
+  <div class="eyebrow">Partner Support</div>
+  <h2>You sell. We equip you to close.</h2>
+
+  <div class="card-row" style="margin-top:20px;">
+    <div style="flex:1.2;">
+      <ul class="checks" style="gap:13px;">
+        <li><strong style="color:var(--text);">Full demo account</strong> — live platform access for all prospects, personalised to the brokerage you're pitching</li>
+        <li><strong style="color:var(--text);">1-page leave-behind</strong> — product summary for LO decision-makers, no jargon</li>
+        <li><strong style="color:var(--text);">This pitch deck</strong> — customisable for each vertical you're targeting</li>
+        <li><strong style="color:var(--text);">Direct founder access</strong> — for enterprise deals needing technical conversation or custom terms</li>
+        <li><strong style="color:var(--text);">Target list support</strong> — I'll help identify regional brokerages and credit unions in your markets</li>
+        <li><strong style="color:var(--text);">Live demo prep</strong> — 30-minute session before any major pitch to walk the product and prep Q&amp;A</li>
+        <li><strong style="color:var(--text);">Fast contract &amp; payment</strong> — deals close via digital contract, commission paid within 30 days, no 90-day AP delays</li>
+      </ul>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:10px;">
+      <div class="card accent" style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:20px;">
+        <div style="font-size:2rem;font-weight:900;color:var(--green);">$10K</div>
+        <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--dim);margin:4px 0 8px;">Total capital to build this platform</div>
+        <p style="font-size:0.78rem;">You're not selling a concept. You're selling a working platform that outperforms anything in the market — built and proven before raising a dollar.</p>
+      </div>
+      <div class="card" style="text-align:center;padding:14px 16px;">
+        <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--dim);margin-bottom:6px;">Live right now</div>
+        <div style="font-size:1.05rem;font-weight:800;color:var(--green);">chat.homerates.ai</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">Paste any Zillow or Redfin URL and watch it fire</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="footer-row"><span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ SLIDE 10 — WHY NOW ══════════════════ -->
+<section class="slide" id="timing">
+  <div class="eyebrow">Timing</div>
+  <h2>The window is open — and it won't stay open long</h2>
+
+  <div class="card-row" style="margin-top:20px;">
+    <div class="card">
+      <h3>🤖 AI fintech is mature enough to sell</h3>
+      <p>Three years ago AI in mortgage was a pitch slide. In 2026 it's real: live rates, actual market data, production AI scoring. The C-suite says "yes" where they said "not yet" in 2023.</p>
+    </div>
+    <div class="card">
+      <h3>📉 Rate volatility is driving urgency</h3>
+      <p>LOs who coasted on 3% rates are fighting for every deal. Intelligence tools that help them close faster and serve clients better are no longer nice-to-have — they're survival tools.</p>
+    </div>
+    <div class="card">
+      <h3>🏆 No incumbent owns this yet</h3>
+      <p>Bankrate and Zillow are consumer-facing lead gen machines. Traditional LO CRMs have no AI intelligence layer. HomeRates is the only product in this exact space — and you'd be the only one selling it.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;background:rgba(245,158,11,0.04);border-color:rgba(245,158,11,0.2);padding:13px 18px;">
+    <span style="color:var(--amber);font-weight:700;">The early-mover advantage: </span>
+    <span style="color:var(--muted);">The first sales partner who systematically builds brokerage owner relationships with this product will own the space before any competitor arrives. That lock-in is yours to build — now.</span>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-val">0</div>
+      <div class="metric-lbl">Existing sales partners</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val" style="color:var(--green);">First</div>
+      <div class="metric-lbl">Mover advantage for Clutch</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val" style="color:var(--amber);">Excl.</div>
+      <div class="metric-lbl">Territory on the table</div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="footer-row"><span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ SLIDE 11 — NEXT STEPS ══════════════════ -->
+<section class="slide" id="next">
+  <div class="eyebrow">Next Steps</div>
+  <h2>A simple path from conversation to first commission</h2>
+
+  <div style="display:flex;flex-direction:column;gap:16px;margin-top:20px;">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div>
+        <div style="font-size:0.9rem;font-weight:700;color:var(--text);margin-bottom:4px;">Live demo — 10 minutes, right now if you want</div>
+        <p>Go to <a href="https://chat.homerates.ai" target="_blank" rel="noopener">chat.homerates.ai</a>. Paste any Zillow or Redfin URL. Watch the full intelligence report fire in real time. No login needed. This <em>is</em> the sales demo.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div>
+        <div style="font-size:0.9rem;font-weight:700;color:var(--text);margin-bottom:4px;">Partner call — align on territory, verticals, commission terms</div>
+        <p>30-minute call to agree structure: exclusive territories, target verticals (mortgage brokerages + credit unions first), commission rate, and what Clutch needs from me to go to market.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div>
+        <div style="font-size:0.9rem;font-weight:700;color:var(--text);margin-bottom:4px;">90-day pilot — 3 target accounts, no long-term lock-in</div>
+        <p>Pick 3 prospects. I'll support every pitch personally. If the product closes, we have a partnership. If it doesn't, you've lost nothing. No risk. Real upside.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div>
+        <div style="font-size:0.9rem;font-weight:700;color:var(--text);margin-bottom:4px;">First commission paid — within 30 days of deal close</div>
+        <p>I'm not a corporation with a 90-day AP cycle. Commission is paid when the contract is executed. Fast and clean.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card accent" style="margin-top:18px;padding:12px 20px;">
+    <span style="color:var(--text);font-weight:700;">Jack, the ask is simple: </span>
+    <span style="color:var(--muted);">Try the demo, get on a call, and we'll know within 30 days if this is a fit. You have nothing to lose and a real residual income stream to gain.</span>
+  </div>
+
+  <div class="slide-footer">
+    <div class="footer-row"><span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ SLIDE 12 — CLOSE ══════════════════ -->
+<section class="slide cover" id="close" style="min-height:440px;">
+  <div class="big-quote" style="text-align:center;max-width:660px;">
+    "You trusted me to get you into your home when others let you down.<br><br>
+    <span class="hl">I built the tool I wish I'd had then —<br>and I'm asking you to be the person who brings it to the world."</span>
+  </div>
+  <div style="margin-top:36px;display:flex;flex-direction:column;align-items:center;gap:6px;">
+    <div style="font-size:1.45rem;font-weight:900;color:var(--green);">chat.homerates.ai</div>
+    <div style="font-size:0.95rem;color:var(--muted);">Rayaan Arif · Founder &amp; CEO</div>
+    <div style="font-size:0.85rem;color:var(--dim);">rayaan@homerates.ai</div>
+  </div>
+  <div style="margin-top:24px;">
+    <a href="https://chat.homerates.ai" target="_blank" rel="noopener"
+       style="display:inline-flex;align-items:center;gap:8px;background:var(--green);border-radius:10px;padding:13px 28px;text-decoration:none;color:#080c12;font-weight:800;font-size:0.9rem;">
+      ▶&nbsp; Try the Live Platform
+    </a>
+  </div>
+  <div style="margin-top:20px;font-size:0.68rem;color:rgba(185,208,192,0.22);max-width:500px;text-align:center;line-height:1.6;">
+    HomeRates.AI is an educational financial intelligence platform. All commission figures are projections based on proposed deal structures and are not guarantees of earnings.
+  </div>
+  <div class="slide-footer">
+    <div class="footer-row"><span>HomeRates.AI — Confidential &amp; Proprietary</span><span>rayaan@homerates.ai</span></div>
+  </div>
+</section>
+
+<script>
+  // Inject logo into every slide
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.slide').forEach(function (s) {
+      var logo = document.createElement('img');
+      logo.src = 'https://chat.homerates.ai/assets/homerates-email-logo.png';
+      logo.alt = 'HomeRates.AI';
+      logo.style.cssText = 'position:absolute;top:56px;left:20px;height:20px;width:auto;opacity:0.85;pointer-events:none;z-index:10;';
+      s.appendChild(logo);
+    });
+
+    // Footer attrs
+    document.querySelectorAll('.slide-footer').forEach(function (f) {
+      var attr = document.createElement('div');
+      attr.className = 'footer-attr';
+      attr.textContent = 'Intelligence: FRED® (Federal Reserve) · Grok by xAI · Tavily Market Data · OpenAI';
+      f.appendChild(attr);
+    });
+  });
+</script>
+</body>
+</html>
