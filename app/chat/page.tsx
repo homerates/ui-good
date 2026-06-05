@@ -3735,7 +3735,7 @@ export default function Page() {
                                                         {/* LIC — 4CS2341-CONV path: locked intelligence tiles when no property address */}
                                                         {m.meta.convHBSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
                                                             <LockedIntelligenceCard
-                                                                onCheckProperty={() => composerRef.current?.focus()}
+                                                                onSubmitAddress={(addr) => { if (composerRef.current) { composerRef.current.value = addr; } setTimeout(() => send(addr), 50); }}
                                                             />
                                                         )}
                                                         {/* Income Qualify slider card */}
@@ -3894,7 +3894,7 @@ export default function Page() {
                                                         {/* Locked Intelligence Card — scenario seeded, no property address yet */}
                                                         {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && !m.meta.interactiveSlider.cmaAddress && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.decisionScoreCard && !loading && typingId === null && (
                                                             <LockedIntelligenceCard
-                                                                onCheckProperty={() => composerRef.current?.focus()}
+                                                                onSubmitAddress={(addr) => { if (composerRef.current) { composerRef.current.value = addr; } setTimeout(() => send(addr), 50); }}
                                                             />
                                                         )}
                                                         {/* Decision Score card — auto-fires after property URL paste */}
