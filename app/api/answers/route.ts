@@ -4433,7 +4433,7 @@ ${uwDatabase}`;
                 (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: _iqDown, annualRatePct: paramOverrides.annualRatePct };
             } else if (_iqLT === 'jumbo') {
                 (calcDispatch as any).type = 'jumbo';
-                (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: Math.max(20, _iqDown), annualRatePct: paramOverrides.annualRatePct, termYears: 30 };
+                (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: Math.max(20, _iqDown), annualRatePct: paramOverrides.annualRatePct, termYears: (paramOverrides as any).termYears ?? 30 };
             } else {
                 (calcDispatch as any).type = 'conventional';
                 (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: _iqDown, annualRatePct: paramOverrides.annualRatePct };
@@ -4829,7 +4829,7 @@ ${uwDatabase}`;
                 (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: _iqDown, annualRatePct: paramOverrides.annualRatePct };
             } else if (_iqLT === 'jumbo') {
                 (calcDispatch as any).type = 'jumbo';
-                (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: Math.max(20, _iqDown), annualRatePct: paramOverrides.annualRatePct, termYears: 30 };
+                (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: Math.max(20, _iqDown), annualRatePct: paramOverrides.annualRatePct, termYears: (paramOverrides as any).termYears ?? 30 };
             } else {
                 (calcDispatch as any).type = 'conventional';
                 (calcDispatch as any).params = { purchasePrice: paramOverrides.purchasePrice, downPaymentPct: _iqDown, annualRatePct: paramOverrides.annualRatePct };
@@ -5304,7 +5304,7 @@ ${uwDatabase}`;
                         price:    _jr.purchasePrice,
                         downPct:  _jr.downPaymentPct ?? 20,
                         rate:     _jr.annualRatePct  ?? (fred?.mort30Avg ?? 6.75),
-                        term:     30,
+                        term:     _jr.termYears ?? 30,
                         taxRate:  _jr.propertyTaxRate ?? 0.011,
                         insRate:  0.003,
                         loanType: 'jumbo' as const,

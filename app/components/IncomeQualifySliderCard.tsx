@@ -166,7 +166,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 purchasePrice: price,       // required: every API branch checks purchasePrice != null
                 downPaymentPct: downPct,
                 annualRatePct: rate,        // required: API reads annualRatePct, not rate
-                term:         termYrs,
+                termYears:    termYrs,
                 loanType:     loanTypeState,
                 monthlyDebt,
                 annualIncome: annualIncome > 0 ? annualIncome : undefined,
