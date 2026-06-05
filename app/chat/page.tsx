@@ -3764,17 +3764,54 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* FHA slider card */}
+                                                        {/* ── 4CS2341-FHA: Scenario-first FHA stack (ISC → IQC → LIC) ── */}
                                                         {m.meta.fhaSlider && !loading && typingId === null && (
-                                                            <FhaSliderCard
-                                                                {...m.meta.fhaSlider}
-                                                                journeyAddress={
-                                                                    cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
-                                                                }
+                                                            <div style={{ position: 'relative' }}>
+                                                                <AdminCardBadge code="4CS2341-FHA" position="top-left" />
+                                                                <InteractiveSliderCard
+                                                                    key={`isc-fha-${m.id}`}
+                                                                    price={m.meta.fhaSlider.price}
+                                                                    downPct={m.meta.fhaSlider.downPct}
+                                                                    rate={m.meta.fhaSlider.rate}
+                                                                    term={m.meta.fhaSlider.term}
+                                                                    taxRate={m.meta.fhaSlider.taxRate}
+                                                                    insRate={m.meta.fhaSlider.insRate}
+                                                                    loanType='fha'
+                                                                    hideDrawer={true}
+                                                                    journeyAddress={
+                                                                        cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
+                                                                    }
+                                                                    onRunScenario={(seed, overrides) => {
+                                                                        pendingParamOverridesRef.current = overrides;
+                                                                        setPendingParamOverrides(overrides);
+                                                                        setTimeout(() => send(seed), 50);
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        {/* IQC — 4CS2341-FHA path */}
+                                                        {m.meta.fhaSlider && !loading && typingId === null && (
+                                                            <IncomeQualifySliderCard
+                                                                key={`iqsc-fha-${m.id}`}
+                                                                price={m.meta.fhaSlider.price}
+                                                                downPct={m.meta.fhaSlider.downPct}
+                                                                rate={m.meta.fhaSlider.rate}
+                                                                term={m.meta.fhaSlider.term}
+                                                                taxRate={m.meta.fhaSlider.taxRate}
+                                                                insRate={m.meta.fhaSlider.insRate}
+                                                                loanType='fha'
+                                                                hideCheckPropertyButton={true}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
                                                                 }}
+                                                            />
+                                                        )}
+                                                        {/* LIC — 4CS2341-FHA path */}
+                                                        {m.meta.fhaSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
+                                                            <LockedIntelligenceCard
+                                                                onSubmitAddress={(addr) => { if (composerRef.current) { composerRef.current.value = addr; } setTimeout(() => send(addr), 50); }}
                                                             />
                                                         )}
                                                         {/* ── 4CS2341-JUMBO: Scenario-first jumbo stack (ISC → IQC → LIC) ── */}

@@ -679,6 +679,12 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         🏘️ <strong>Check High-Balance eligibility</strong> — In high-cost counties (LA, SF, OC, San Diego, etc.) loan amounts up to $1,249,125 may qualify for conforming High-Balance rates, which are typically lower than true jumbo. Ask your lender if your county qualifies.
                     </div>
                 )}
+                {/* FHA advisory */}
+                {loanType === 'fha' && (
+                    <div className="isc-drawer-advisory isc-drawer-advisory--fha">
+                        🏠 <strong>FHA loan</strong> — 1.75% upfront MIP financed into the loan · Annual MIP 0.55% (most scenarios) · DTI up to 57% with compensating factors · FHA loan limits apply by county · MIP stays for life of loan if down &lt; 10%.
+                    </div>
+                )}
 
                 {/* Stats */}
                 <div className="isc-exp-stats">
