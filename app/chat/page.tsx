@@ -3655,11 +3655,22 @@ export default function Page() {
                                                         {isAdmin && (
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
                                                         )}
-                                                        {/* Property preview card — inside Bubble, above slider cards */}
+                                                        {/* Property preview card — 4CS1234 stack opener. Badge identifies loan type. */}
                                                         {m.meta.propertyCard && (
-                                                            <PropertyPreviewCard
-                                                                data={m.meta.propertyCard as PropertyCardData}
-                                                            />
+                                                            <div style={{ position: 'relative' }}>
+                                                                <AdminCardBadge
+                                                                    code={
+                                                                        m.meta.interactiveSlider?.loanType === 'jumbo' ? '4CS1234-JUMBO'
+                                                                        : m.meta.interactiveSlider?.loanType === 'fha'  ? '4CS1234-FHA'
+                                                                        : m.meta.interactiveSlider?.loanType === 'va'   ? '4CS1234-VA'
+                                                                        : '4CS1234-CONV'
+                                                                    }
+                                                                    position="top-left"
+                                                                />
+                                                                <PropertyPreviewCard
+                                                                    data={m.meta.propertyCard as PropertyCardData}
+                                                                />
+                                                            </div>
                                                         )}
                                                         {/* Property Intelligence Card (CMA) */}
                                                         {m.meta.cmaCard && !loading && typingId === null && (
@@ -3766,18 +3777,54 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
-                                                        {/* Jumbo purchase payment slider card */}
+                                                        {/* ── 4CS2341-JUMBO: Scenario-first jumbo stack (ISC → IQC → LIC) ── */}
                                                         {m.meta.jumboSlider && !loading && typingId === null && (
-                                                            <JumboSliderCard
-                                                                {...m.meta.jumboSlider}
-                                                                journeyAddress={
-                                                                    cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
-                                                                }
+                                                            <div style={{ position: 'relative' }}>
+                                                                <AdminCardBadge code="4CS2341-JUMBO" position="top-left" />
+                                                                <InteractiveSliderCard
+                                                                    key={`isc-jumbo-${m.id}`}
+                                                                    price={m.meta.jumboSlider.price}
+                                                                    downPct={m.meta.jumboSlider.downPct}
+                                                                    rate={m.meta.jumboSlider.rate}
+                                                                    term={m.meta.jumboSlider.term ?? 30}
+                                                                    taxRate={m.meta.jumboSlider.taxRate}
+                                                                    insRate={m.meta.jumboSlider.insRate}
+                                                                    loanType='jumbo'
+                                                                    hideDrawer={true}
+                                                                    journeyAddress={
+                                                                        cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
+                                                                    }
+                                                                    onRunScenario={(seed, overrides) => {
+                                                                        pendingParamOverridesRef.current = overrides;
+                                                                        setPendingParamOverrides(overrides);
+                                                                        setTimeout(() => send(seed), 50);
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        {/* IQC — 4CS2341-JUMBO path */}
+                                                        {m.meta.jumboSlider && !loading && typingId === null && (
+                                                            <IncomeQualifySliderCard
+                                                                key={`iqsc-jumbo-${m.id}`}
+                                                                price={m.meta.jumboSlider.price}
+                                                                downPct={m.meta.jumboSlider.downPct}
+                                                                rate={m.meta.jumboSlider.rate}
+                                                                term={m.meta.jumboSlider.term ?? 30}
+                                                                taxRate={m.meta.jumboSlider.taxRate}
+                                                                insRate={m.meta.jumboSlider.insRate}
+                                                                loanType='jumbo'
+                                                                hideCheckPropertyButton={true}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
                                                                 }}
+                                                            />
+                                                        )}
+                                                        {/* LIC — 4CS2341-JUMBO path */}
+                                                        {m.meta.jumboSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
+                                                            <LockedIntelligenceCard
+                                                                onSubmitAddress={(addr) => { if (composerRef.current) { composerRef.current.value = addr; } setTimeout(() => send(addr), 50); }}
                                                             />
                                                         )}
                                                         {/* VA purchase slider card */}

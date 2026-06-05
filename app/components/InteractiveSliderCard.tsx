@@ -673,6 +673,12 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         🏛️ <strong>Jumbo loan</strong> — No PMI required · Minimum 20% down · Stricter reserve and income guidelines than conforming. Expect 12–24 months reserves. Consider a lender specialising in Jumbo.
                     </div>
                 )}
+                {/* HB advisory — show when loan amount might qualify for High-Balance in high-cost counties */}
+                {loanType === 'jumbo' && loanAmt <= 1_249_125 && (
+                    <div className="isc-drawer-advisory isc-drawer-advisory--hb">
+                        🏘️ <strong>Check High-Balance eligibility</strong> — In high-cost counties (LA, SF, OC, San Diego, etc.) loan amounts up to $1,249,125 may qualify for conforming High-Balance rates, which are typically lower than true jumbo. Ask your lender if your county qualifies.
+                    </div>
+                )}
 
                 {/* Stats */}
                 <div className="isc-exp-stats">
