@@ -3234,6 +3234,22 @@ export default function Page() {
                         : `$${sl.savings.toLocaleString()}`;
                     return `Based on your ${incK}/yr income and ${savK} in savings, here are your affordability options across 3 programs.`;
                 })()
+                : meta.conventionalAffordabilitySlider
+                ? (() => {
+                    const sl = meta.conventionalAffordabilitySlider as { annualIncome: number; rate: number };
+                    const incK = sl.annualIncome >= 1000
+                        ? `$${Math.round(sl.annualIncome / 1000)}k`
+                        : `$${sl.annualIncome.toLocaleString()}`;
+                    return `Here's your conventional affordability — what you can buy on ${incK}/yr income at ${sl.rate.toFixed(2)}%.`;
+                })()
+                : meta.fhaAffordabilitySlider
+                ? (() => {
+                    const sl = meta.fhaAffordabilitySlider as { annualIncome: number; rate: number };
+                    const incK = sl.annualIncome >= 1000
+                        ? `$${Math.round(sl.annualIncome / 1000)}k`
+                        : `$${sl.annualIncome.toLocaleString()}`;
+                    return `Here's your FHA affordability — what you can buy on ${incK}/yr income at ${sl.rate.toFixed(2)}%.`;
+                })()
                 : meta.convHBSlider
                 ? (() => {
                     const sl = meta.convHBSlider as { price: number; downPct: number; rate: number };

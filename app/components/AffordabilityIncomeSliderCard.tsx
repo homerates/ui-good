@@ -217,21 +217,6 @@ export default function AffordabilityIncomeSliderCard(props: AffordabilityIncome
                 </div>
             )}
 
-            {/* Payment breakdown */}
-            {c && (
-                <div className="affi-breakdown">
-                    <div className="affi-bk-row"><span>Principal &amp; Interest</span><span>{fmt$(Math.round(c.pi))}</span></div>
-                    <div className="affi-bk-row"><span>Property Tax</span><span>{fmt$(Math.round(c.tax))}</span></div>
-                    <div className="affi-bk-row"><span>Home Insurance</span><span>{fmt$(Math.round(c.ins))}</span></div>
-                    {c.mip > 0 && <div className="affi-bk-row"><span>{isFHA ? 'FHA MIP' : 'PMI'}</span><span>{fmt$(Math.round(c.mip))}</span></div>}
-                    {isFHA && c.ufmip > 0 && <div className="affi-bk-note">+ {fmt$(Math.round(c.ufmip))} UFMIP financed into loan</div>}
-                    <div className="affi-bk-total">
-                        <span>Total Monthly</span>
-                        <span style={{ color: accent }}>{fmt$(Math.round(c.piti))}/mo</span>
-                    </div>
-                </div>
-            )}
-
             {/* Savings status */}
             {c && props.savings > 0 && (
                 <div className={`affi-note${c.savingsOk ? ' affi-note--ok' : ' affi-note--gap'}`}>
@@ -256,19 +241,28 @@ export default function AffordabilityIncomeSliderCard(props: AffordabilityIncome
                 </div>
             )}
 
-            {/* Adjuster drawer trigger */}
+            {/* Adjuster drawer trigger — IQC-standard chips style */}
             <button
                 className={`affi-dtrig${drawerOpen ? ' open' : ''}`}
+                style={drawerOpen ? { borderColor: `${accent}50`, background: `${accent}07` } : {}}
                 onClick={() => setDrawerOpen(o => !o)}
             >
-                <div className="affi-dtrig-l">
-                    <span style={{ fontSize: 15 }}>⚙</span>
-                    <div>
-                        <div className="affi-dtrig-title">Adjust Your Numbers</div>
-                        {isDirty && <div className="affi-dtrig-sub">● Changes pending</div>}
-                    </div>
-                </div>
-                <span className="affi-dtrig-arrow">{drawerOpen ? '▲ Close' : '▼ Open'}</span>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>⚙</span>
+                <span className="affi-dtrig-chips">
+                    {[
+                        { label: `${fmtK(income)}/yr`,       mod: income !== commitIncome },
+                        { label: `${downPct}% down`,          mod: Math.abs(downPct - commitDown) > 0.01 },
+                        { label: `${rate.toFixed(2)}%`,       mod: Math.abs(rate - commitRate) > 0.001 },
+                        { label: `${term}yr`,                 mod: term !== commitTerm },
+                        ...(debts > 0 ? [{ label: `${fmt$(debts)}/mo debts`, mod: debts !== commitDebts }] : []),
+                    ].map(({ label, mod }) => (
+                        <span key={label} className="affi-dchip"
+                            style={mod ? { color: accent, background: `${accent}14`, borderColor: `${accent}35` } : {}}
+                        >{label}</span>
+                    ))}
+                </span>
+                <span className="affi-dtrig-lbl">{drawerOpen ? 'Close' : 'Adjust My Numbers'}</span>
+                <span className="affi-dtrig-arr">{drawerOpen ? '▴' : '▾'}</span>
             </button>
 
             {/* Adjuster drawer */}
@@ -398,20 +392,6 @@ export default function AffordabilityIncomeSliderCard(props: AffordabilityIncome
                 .affi-stat-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; font-weight: 600; }
                 .affi-stat-val { font-size: 13px; font-weight: 700; color: #f0f4ff; }
 
-                .affi-breakdown { padding: 12px 18px 0; }
-                .affi-bk-row {
-                    display: flex; justify-content: space-between; align-items: center;
-                    padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px;
-                }
-                .affi-bk-row span:first-child { color: #8fa3b8; }
-                .affi-bk-row span:last-child { font-weight: 600; color: #f0f4ff; }
-                .affi-bk-note { font-size: 11px; color: #94a3b8; padding: 4px 0 0; }
-                .affi-bk-total {
-                    display: flex; justify-content: space-between; align-items: center;
-                    padding: 9px 0 0; border-top: 1px solid rgba(255,255,255,0.08);
-                    font-size: 13px; font-weight: 700; margin-top: 3px;
-                }
-
                 .affi-note {
                     margin: 10px 18px 0; padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 600;
                 }
@@ -420,29 +400,28 @@ export default function AffordabilityIncomeSliderCard(props: AffordabilityIncome
                 .affi-note--warn { background: rgba(245,158,11,0.07); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
                 .affi-note--dim { background: rgba(255,255,255,0.03); color: #94a3b8; border: 1px solid rgba(255,255,255,0.07); font-weight: 400; }
 
-                @keyframes affiTriggerPulse {
-                    0%, 100% { box-shadow: none; }
-                    50%       { box-shadow: 0 0 14px rgba(0,232,122,0.07) inset; }
-                }
                 @keyframes affiRunPulse {
                     0%, 100% { box-shadow: none; }
                     50%       { box-shadow: 0 0 20px rgba(0,232,122,0.22); }
                 }
                 .affi-dtrig {
-                    width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
-                    padding: 13px 18px; background: transparent; border: none;
+                    width: 100%; display: flex; align-items: center; gap: 8px;
+                    padding: 11px 18px; background: transparent; border: none;
                     border-top: 1px solid rgba(0,232,122,0.12);
                     cursor: pointer; font-family: inherit; margin-top: 14px;
-                    transition: background 0.2s;
-                    animation: affiTriggerPulse 3s ease-in-out infinite;
+                    transition: background 0.2s; text-align: left;
                 }
                 .affi-dtrig:hover, .affi-dtrig.open {
-                    background: rgba(0,232,122,0.04); animation: none;
+                    background: rgba(0,232,122,0.04);
                 }
-                .affi-dtrig-l { display: flex; align-items: center; gap: 10px; text-align: left; }
-                .affi-dtrig-title { font-size: 13px; font-weight: 700; color: #00e87a; }
-                .affi-dtrig-sub   { font-size: 10px; color: rgba(0,232,122,0.6); margin-top: 1px; }
-                .affi-dtrig-arrow { font-size: 11px; color: rgba(0,232,122,0.55); flex-shrink: 0; }
+                .affi-dtrig-chips { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; min-width: 0; }
+                .affi-dchip {
+                    font-size: 11px; font-weight: 600; color: #94a3b8;
+                    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 6px; padding: 2px 7px; white-space: nowrap;
+                }
+                .affi-dtrig-lbl { font-size: 12px; font-weight: 700; color: #00e87a; white-space: nowrap; flex-shrink: 0; }
+                .affi-dtrig-arr { font-size: 11px; color: rgba(0,232,122,0.55); flex-shrink: 0; }
 
                 .affi-drawer { max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1); }
                 .affi-drawer.open { max-height: 900px; }
