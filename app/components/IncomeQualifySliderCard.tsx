@@ -163,13 +163,15 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
         if (scenarioChanged && props.onRunScenario) {
             const ltLbl = isJumbo ? 'Jumbo' : isFHA ? 'FHA' : isVA ? 'VA' : 'Conv.';
             const overrides = {
+                purchasePrice: price,       // required: every API branch checks purchasePrice != null
                 downPaymentPct: downPct,
-                rate,
+                annualRatePct: rate,        // required: API reads annualRatePct, not rate
                 term:         termYrs,
                 loanType:     loanTypeState,
                 monthlyDebt,
                 annualIncome: annualIncome > 0 ? annualIncome : undefined,
                 totalMonthly: Math.round(totalMo),
+                isIncomeQualify: true,      // routes back to incomeQualifySlider, not plain ISC
             };
             // Seed contains only loan scenario params — no income appended
             // (income in the seed causes intent routing to misread it as a purchase price)
