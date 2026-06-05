@@ -138,14 +138,13 @@ export interface BuiltCard {
         vaFundingFeePct: number;
     } | null;
     scenarioComparisonCard?: {
-        tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy' | 'conv_vs_jumbo' | 'conv_vs_fha';
+        tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy';
         price: number;
         rate: number;
         downPct?: number;
         years?: number;
         credit?: number;
         rent?: number;
-        jumboRatePremium?: number;
     } | null;
     lenderChecklist?: {
         loanType: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
