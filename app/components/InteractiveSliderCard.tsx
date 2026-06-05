@@ -685,6 +685,12 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         🏠 <strong>FHA loan</strong> — 1.75% upfront MIP financed into the loan · Annual MIP 0.55% (most scenarios) · DTI up to 57% with compensating factors · FHA loan limits apply by county · MIP stays for life of loan if down &lt; 10%.
                     </div>
                 )}
+                {/* VA advisory */}
+                {loanType === 'va' && (
+                    <div className="isc-drawer-advisory isc-drawer-advisory--va">
+                        🎖️ <strong>VA loan</strong> — No PMI · $0 minimum down payment · Funding fee financed into loan (1.25–3.3% depending on use &amp; down payment; exempt if service-connected disability) · DTI 41% back-end + residual income test · Must be primary residence.
+                    </div>
+                )}
 
                 {/* Stats */}
                 <div className="isc-exp-stats">

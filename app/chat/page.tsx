@@ -3875,16 +3875,60 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* VA purchase slider card */}
+                                                        {/* ── 4CS2341-VA: Scenario-first VA stack (ISC → IQC → LIC) ── */}
                                                         {m.meta.vaSlider && !loading && typingId === null && (
-                                                            <VaSliderCard
-                                                                {...m.meta.vaSlider}
-                                                                journeyAddress={
-                                                                    cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
-                                                                }
+                                                            <div style={{ position: 'relative' }}>
+                                                                <AdminCardBadge code="4CS2341-VA" position="top-left" />
+                                                                <InteractiveSliderCard
+                                                                    key={`isc-va-${m.id}`}
+                                                                    price={m.meta.vaSlider.price}
+                                                                    downPct={m.meta.vaSlider.downPct}
+                                                                    rate={m.meta.vaSlider.rate}
+                                                                    term={m.meta.vaSlider.term}
+                                                                    taxRate={m.meta.vaSlider.taxRate}
+                                                                    insRate={m.meta.vaSlider.insRate}
+                                                                    loanType='va'
+                                                                    vaFundingFeePct={m.meta.vaSlider.vaFundingFeePct}
+                                                                    hideDrawer={true}
+                                                                    journeyAddress={
+                                                                        cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
+                                                                    }
+                                                                    onRunScenario={(seed, overrides) => {
+                                                                        pendingParamOverridesRef.current = overrides;
+                                                                        setPendingParamOverrides(overrides);
+                                                                        setTimeout(() => send(seed), 50);
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        {/* IQC — 4CS2341-VA path */}
+                                                        {m.meta.vaSlider && !loading && typingId === null && (
+                                                            <IncomeQualifySliderCard
+                                                                key={`iqsc-va-${m.id}`}
+                                                                price={m.meta.vaSlider.price}
+                                                                downPct={m.meta.vaSlider.downPct}
+                                                                rate={m.meta.vaSlider.rate}
+                                                                term={m.meta.vaSlider.term}
+                                                                taxRate={m.meta.vaSlider.taxRate}
+                                                                insRate={m.meta.vaSlider.insRate}
+                                                                loanType='va'
+                                                                hideCheckPropertyButton={true}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {/* LIC — 4CS2341-VA path: seed 0% down + VA context into property lookup */}
+                                                        {m.meta.vaSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
+                                                            <LockedIntelligenceCard
+                                                                onSubmitAddress={(addr) => {
+                                                                    const vaCtx = { loanType: 'va', downPaymentPct: 0, isVA: true };
+                                                                    pendingParamOverridesRef.current = vaCtx;
+                                                                    setPendingParamOverrides(vaCtx);
+                                                                    if (composerRef.current) { composerRef.current.value = addr; }
+                                                                    setTimeout(() => send(addr), 50);
                                                                 }}
                                                             />
                                                         )}
