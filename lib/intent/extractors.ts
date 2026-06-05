@@ -20,7 +20,15 @@
  * e.g. "$832,750 loan amount", "loan amount of $950k", "borrowing $800k"
  */
 export function isLoanAmountInput(text: string): boolean {
-    return /\b(?:loan\s+amount|loan\s+of\s+\$|loan\s+size|borrow(?:ing)?)\b/i.test(text);
+    // Explicit loan amount keywords or L/A shorthand
+    if (/\b(?:loan\s+amount|loan\s+of\s+\$|loan\s+size|borrow(?:ing)?|L\/A)\b/i.test(text)) return true;
+    // Conforming/high-balance limit values — almost always referenced as loan amounts, not prices
+    const m = text.match(/\$\s*([\d,]+)/);
+    if (m) {
+        const val = parseInt(m[1].replace(/,/g, ''), 10);
+        if ([802_650, 832_750, 1_089_300, 1_149_825].includes(val)) return true;
+    }
+    return false;
 }
 
 /**
