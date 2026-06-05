@@ -73,6 +73,32 @@ export interface BuiltCard {
         fhaLoanLimit?: number;
         confLoanLimit?: number;
     };
+    /** AFFD-010: new single-program conventional affordability card */
+    conventionalAffordabilitySlider?: {
+        loanType: 'conventional';
+        annualIncome: number;
+        monthlyDebts: number;
+        savings: number;
+        downPct: number;
+        rate: number;
+        term: number;
+        taxRate: number;
+        insRate: number;
+        loanLimit?: number;
+    } | null;
+    /** AFFD-011: new single-program FHA affordability card */
+    fhaAffordabilitySlider?: {
+        loanType: 'fha';
+        annualIncome: number;
+        monthlyDebts: number;
+        savings: number;
+        downPct: number;
+        rate: number;
+        term: number;
+        taxRate: number;
+        insRate: number;
+        loanLimit?: number;
+    } | null;
     dscrSlider?: {
         price: number;
         rent: number;

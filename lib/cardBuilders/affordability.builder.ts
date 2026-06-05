@@ -247,27 +247,27 @@ ${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans
             },
             monthly_payment: r.scenarios[0]?.totalMonthly ?? 0,
         },
-        affordabilitySlider: (() => {
-            const sc0 = r.scenarios[0];
-            const sc = r.scenarios.find(s => !s.isFHA) ?? sc0;
-            const fhaSc  = r.scenarios.find(s => s.isFHA);
-            const convSc = r.scenarios.find(s => !s.isFHA);
-            const refPrice = sc?.homePrice ?? sc0?.homePrice ?? 300000;
-            const isJumboScenario = sc0?.program === 'Jumbo' || sc?.program === 'Jumbo';
+        affordabilitySlider: undefined,  // deprecated — new sessions use conventionalAffordabilitySlider / fhaAffordabilitySlider
+        conventionalAffordabilitySlider: (() => {
+            const convSc = r.scenarios.find(s => !s.isFHA && s.program !== 'Jumbo');
+            const sc0    = r.scenarios[0];
+            const refSc  = convSc ?? sc0;
+            if (!refSc || refSc.program === 'Jumbo') return null;
+            const refPrice = refSc.homePrice || 300_000;
             return {
+                loanType: 'conventional' as const,
                 annualIncome: r.annualIncome,
                 monthlyDebts: r.monthlyDebts,
                 savings: r.savings,
-                downPct: sc0?.isFHA ? (sc0?.downPaymentPct ?? 3.5) : (sc?.downPaymentPct ?? 20),
+                downPct: refSc.downPaymentPct ?? 20,
                 rate: r.rate,
                 term: 30,
-                taxRate: refPrice > 0 ? ((sc?.monthlyTax ?? sc0?.monthlyTax ?? 300) * 12) / refPrice : 0.012,
-                insRate: refPrice > 0 ? ((sc?.monthlyInsurance ?? sc0?.monthlyInsurance ?? 125) * 12) / refPrice : 0.005,
-                loanType: sc0?.isFHA ? 'fha' : isJumboScenario ? 'jumbo' : 'conventional',
-                fhaLoanLimit:  fhaSc?.loanLimitForProgram  ?? 541_287,
-                confLoanLimit: convSc?.loanLimitForProgram ?? 832_750,
+                taxRate: refPrice > 0 ? (refSc.monthlyTax * 12) / refPrice : 0.012,
+                insRate: refPrice > 0 ? (refSc.monthlyInsurance * 12) / refPrice : 0.005,
+                loanLimit: refSc.loanLimitForProgram ?? 832_750,
             };
         })(),
+        fhaAffordabilitySlider: null,
         lenderChecklist: (() => {
             const sc0 = r.scenarios[0];
             if (!sc0) return undefined;
@@ -285,6 +285,28 @@ ${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans
                 isInvestment: false,
             };
         })(),
+    };
+}
+
+export function buildAffordabilityCardFHA(r: AffordabilityResult): BuiltCard {
+    const fhaSc = r.scenarios.find(s => s.isFHA) ?? r.scenarios[0];
+    if (!fhaSc) return buildAffordabilityCard(r);  // fallback
+    const refPrice = fhaSc.homePrice || 300_000;
+    return {
+        ...buildAffordabilityCard(r),
+        conventionalAffordabilitySlider: null,
+        fhaAffordabilitySlider: {
+            loanType: 'fha' as const,
+            annualIncome: r.annualIncome,
+            monthlyDebts: r.monthlyDebts,
+            savings: r.savings,
+            downPct: fhaSc.downPaymentPct ?? 3.5,
+            rate: r.rate,
+            term: 30,
+            taxRate: refPrice > 0 ? (fhaSc.monthlyTax * 12) / refPrice : 0.012,
+            insRate: refPrice > 0 ? (fhaSc.monthlyInsurance * 12) / refPrice : 0.005,
+            loanLimit: fhaSc.loanLimitForProgram ?? 541_287,
+        },
     };
 }
 

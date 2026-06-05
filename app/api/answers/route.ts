@@ -18,7 +18,7 @@ import { dispatch, isRefiQuestion, isLoanLimitsQuestion, isScenarioComparisonQue
 import {
     buildConventionalCard, buildFHACard, buildFHAEquityTimelineCard, buildRefiCard, buildRefiNeedsInputCard,
     buildRefi20vs30Card, buildExtraPaymentCard, buildRefiEarlySaleCard, buildOneExtraPaymentPerYearCard,
-    buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityNeedsInputCard,
+    buildFHANeedsInputCard, buildAffordabilityCard, buildAffordabilityCardFHA, buildAffordabilityNeedsInputCard,
     buildDSCRCard, buildDSCRNeedsInputCard, buildMIPDurationCard,
     buildVACard, buildVANeedsInputCard, buildVAEntitlementCard, buildVAEntitlementNeedsInputCard, buildJumboCard,
     buildLoanLimitsCard,
@@ -5483,7 +5483,11 @@ ${uwDatabase}`;
 
             } else if (calcDispatch.type === 'affordability' && calcDispatch.params) {
                 const result = calcAffordability(calcDispatch.params as any);
-                calcCard = buildAffordabilityCard(result, calcAssumptions, geoFeatures);
+                // FHA affordability → AFFD-011 card; conventional (default) → AFFD-010 card
+                const _isFHAAffordability = isFHAQuestion(question);
+                calcCard = _isFHAAffordability
+                    ? buildAffordabilityCardFHA(result)
+                    : buildAffordabilityCard(result, calcAssumptions, geoFeatures);
                 calcDebugModel = 'calcEngine-affordability';
                 injectCmaChip(calcCard);
 
@@ -5582,6 +5586,8 @@ ${uwDatabase}`;
                 incomeQualifySlider: (calcCard as any).incomeQualifySlider ?? null,
                 fhaSlider: (calcCard as any).fhaSlider ?? null,
                 affordabilitySlider: calcCard.affordabilitySlider ?? null,
+                conventionalAffordabilitySlider: calcCard.conventionalAffordabilitySlider ?? null,
+                fhaAffordabilitySlider: calcCard.fhaAffordabilitySlider ?? null,
                 dscrSlider: calcCard.dscrSlider ?? null,
                 refiSlider: calcCard.refiSlider ?? null,
                 refiIntelligenceCard: calcCard.refiIntelligenceCard ?? null,
@@ -7507,6 +7513,8 @@ Return valid JSON only:
         convHBSlider: (affordabilityAnswer as any)?.convHBSlider ?? null,
         incomeQualifySlider: (affordabilityAnswer as any)?.incomeQualifySlider ?? null,
         affordabilitySlider: (affordabilityAnswer as any)?.affordabilitySlider ?? null,
+        conventionalAffordabilitySlider: (affordabilityAnswer as any)?.conventionalAffordabilitySlider ?? null,
+        fhaAffordabilitySlider: (affordabilityAnswer as any)?.fhaAffordabilitySlider ?? null,
         fhaSlider: (fhaAnswer as any)?.fhaSlider ?? null,
         lenderChecklist: (affordabilityAnswer as any)?.lenderChecklist ?? null,
         followUp: null,

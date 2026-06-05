@@ -25,6 +25,7 @@ export {
 export type { AffordabilityGeo } from './affordability.builder';
 export {
     buildAffordabilityCard,
+    buildAffordabilityCardFHA,
     buildAffordabilityNeedsInputCard,
 } from './affordability.builder';
 
