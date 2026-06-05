@@ -2289,12 +2289,16 @@ export default function Page() {
 
                     const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
-                    // Detect loan tier — determines slider type and chip set
-                    // $832,750 = 2026 FHFA national conforming baseline (up from $806,500 in 2025)
-                    const defaultDown   = 20;
-                    const loanAmt       = d.price ? d.price * (1 - defaultDown / 100) : 0;
-                    const isJumboLoan   = loanAmt > 832_750;
-                    const sliderLoanType: 'conventional' | 'jumbo' = isJumboLoan ? 'jumbo' : 'conventional';
+                    // Detect loan tier — honours pending param overrides from previous card (FHA/VA context)
+                    // $832,750 = 2026 FHFA national conforming baseline
+                    const _ppo         = pendingParamOverridesRef.current;
+                    const _ppoLoanType = (_ppo as any)?.loanType as string | undefined;
+                    const isFHACtx     = _ppoLoanType === 'fha' || !!(_ppo as any)?.isFHA;
+                    const isVACtx      = _ppoLoanType === 'va'  || !!(_ppo as any)?.isVA;
+                    const defaultDown  = isFHACtx ? 3.5 : isVACtx ? 0 : (typeof (_ppo as any)?.downPaymentPct === 'number' ? (_ppo as any).downPaymentPct : 20);
+                    const loanAmt      = d.price ? d.price * (1 - defaultDown / 100) : 0;
+                    const isJumboLoan  = !isFHACtx && !isVACtx && loanAmt > 832_750;
+                    const sliderLoanType: 'conventional' | 'fha' | 'va' | 'jumbo' = isFHACtx ? 'fha' : isVACtx ? 'va' : isJumboLoan ? 'jumbo' : 'conventional';
 
                     // Pre-filled slider using live rate + scraped tax rate
                     const taxRate = d.taxRateEffective ?? 0.012;
@@ -3808,10 +3812,16 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
-                                                        {/* LIC — 4CS2341-FHA path */}
+                                                        {/* LIC — 4CS2341-FHA path: seed 3.5% down + FHA context into property lookup */}
                                                         {m.meta.fhaSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
                                                             <LockedIntelligenceCard
-                                                                onSubmitAddress={(addr) => { if (composerRef.current) { composerRef.current.value = addr; } setTimeout(() => send(addr), 50); }}
+                                                                onSubmitAddress={(addr) => {
+                                                                    const fhaCtx = { loanType: 'fha', downPaymentPct: 3.5, isFHA: true };
+                                                                    pendingParamOverridesRef.current = fhaCtx;
+                                                                    setPendingParamOverrides(fhaCtx);
+                                                                    if (composerRef.current) { composerRef.current.value = addr; }
+                                                                    setTimeout(() => send(addr), 50);
+                                                                }}
                                                             />
                                                         )}
                                                         {/* ── 4CS2341-JUMBO: Scenario-first jumbo stack (ISC → IQC → LIC) ── */}
