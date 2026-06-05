@@ -122,6 +122,8 @@ const isPublicRoute = createRouteMatcher([
   "/compare(.*)",
   "/loan-limits(.*)",
   "/founding(.*)",
+  // Consumer property portal — standalone page, no auth required
+  "/consumer(.*)",
   // Groves IQ partnership hub — password-gated, no Clerk auth required
   "/grovesiq(.*)",
   // Groves IQ partnership proposal — password-gated shareable doc
