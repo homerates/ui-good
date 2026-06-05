@@ -190,32 +190,28 @@ export default function AffordabilityIncomeSliderCard(props: AffordabilityIncome
                     <>
                         <div className="affi-hero-amount" style={{ color: accent }}>{fmtK(c.maxPrice)}</div>
                         <div className="affi-hero-sub">
-                            {fmtK(income)}/yr · {downPct}% down · {rate.toFixed(2)}% · {term}yr
-                            {debts > 0 ? ` · ${fmt$(debts)}/mo debts` : ''}
+                            Based on {fmt$(Math.round(c.piti))}/mo {isFHA ? 'PITI+MIP' : 'PITI'}
+                            {debts > 0 ? ` + ${fmt$(debts)}/mo debts` : ' — no debts entered'}
+                        </div>
+                        <div className="affi-hero-stats">
+                            <div className="affi-hero-stat">
+                                <div className="affi-hero-sl">PITI{isFHA ? '+MIP' : hasPMI ? '+PMI' : ''}</div>
+                                <div className="affi-hero-sv">{fmt$(Math.round(c.piti))}</div>
+                            </div>
+                            <div className="affi-hero-stat">
+                                <div className="affi-hero-sl">Cash Needed</div>
+                                <div className="affi-hero-sv">{fmtK(Math.round(c.cashNeeded))}</div>
+                            </div>
+                            <div className="affi-hero-stat">
+                                <div className="affi-hero-sl">Loan Amount</div>
+                                <div className="affi-hero-sv">{fmtK(Math.round(c.loan))}</div>
+                            </div>
                         </div>
                     </>
                 ) : (
                     <div className="affi-hero-amount" style={{ color: '#f87171' }}>—</div>
                 )}
             </div>
-
-            {/* Stats row */}
-            {c && (
-                <div className="affi-stats">
-                    <div className="affi-stat">
-                        <div className="affi-stat-label">Monthly PITI{isFHA ? '+MIP' : hasPMI ? '+PMI' : ''}</div>
-                        <div className="affi-stat-val">{fmt$(Math.round(c.piti))}/mo</div>
-                    </div>
-                    <div className="affi-stat">
-                        <div className="affi-stat-label">Cash Needed</div>
-                        <div className="affi-stat-val">{fmtK(Math.round(c.cashNeeded))}</div>
-                    </div>
-                    <div className="affi-stat">
-                        <div className="affi-stat-label">Loan Amount</div>
-                        <div className="affi-stat-val">{fmtK(Math.round(c.loan))}</div>
-                    </div>
-                </div>
-            )}
 
             {/* Savings status */}
             {c && props.savings > 0 && (
@@ -377,20 +373,14 @@ export default function AffordabilityIncomeSliderCard(props: AffordabilityIncome
                 .affi-lt-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
                 .affi-tr { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #eaf8f7; }
 
-                .affi-hero { padding: 18px 18px 8px; }
+                .affi-hero { padding: 18px 18px 12px; }
                 .affi-hero-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #94a3b8; margin-bottom: 6px; }
                 .affi-hero-amount { font-size: clamp(1.9rem, 6vw, 2.8rem); font-weight: 800; line-height: 1.05; }
-                .affi-hero-sub { font-size: 12px; color: #94a3b8; margin-top: 6px; }
-
-                .affi-stats {
-                    display: grid; grid-template-columns: repeat(3, 1fr);
-                    border-top: 1px solid rgba(255,255,255,0.06);
-                    border-bottom: 1px solid rgba(255,255,255,0.06);
-                }
-                .affi-stat { padding: 11px 16px; }
-                .affi-stat:not(:last-child) { border-right: 1px solid rgba(255,255,255,0.06); }
-                .affi-stat-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; font-weight: 600; }
-                .affi-stat-val { font-size: 13px; font-weight: 700; color: #f0f4ff; }
+                .affi-hero-sub { font-size: 11px; color: #6b80a0; margin-top: 5px; margin-bottom: 10px; line-height: 1.4; }
+                .affi-hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+                .affi-hero-stat { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 7px; padding: 7px 9px; }
+                .affi-hero-sl { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #4b6080; margin-bottom: 2px; }
+                .affi-hero-sv { font-size: 0.78rem; font-weight: 700; color: #d8e4f4; font-variant-numeric: tabular-nums; }
 
                 .affi-note {
                     margin: 10px 18px 0; padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 600;
