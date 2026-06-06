@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-const PASS = 'grovesiq2026';
+const PASS = 'futuregrovesiq2026';
 const STORE_KEY = 'hr_grp_v1';
 
 /* ─────────────────────────────────────────────────────────────
