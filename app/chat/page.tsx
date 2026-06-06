@@ -3774,13 +3774,7 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
-                                                        {/* LIC — 4CS2341-CONV path: locked intelligence tiles when no property address */}
-                                                        {m.meta.convHBSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
-                                                            <LockedIntelligenceCard
-                                                                onSubmitAddress={(addr) => { if (composerRef.current) { composerRef.current.value = addr; } setTimeout(() => send(addr), 50); }}
-                                                            />
-                                                        )}
-                                                        {/* Income Qualify slider card */}
+                                                        {/* Income Qualify slider card — explicit seed (e.g. affordability path with annualIncome); renders before LIC to preserve ISC→IQC→LIC order */}
                                                         {m.meta.incomeQualifySlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
                                                                 {...m.meta.incomeQualifySlider}
@@ -3793,6 +3787,12 @@ export default function Page() {
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
                                                                 }}
+                                                            />
+                                                        )}
+                                                        {/* LIC — 4CS2341-CONV path: locked intelligence tiles when no property address */}
+                                                        {m.meta.convHBSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
+                                                            <LockedIntelligenceCard
+                                                                onSubmitAddress={(addr) => { if (composerRef.current) { composerRef.current.value = addr; } setTimeout(() => send(addr), 50); }}
                                                             />
                                                         )}
                                                         {/* FHA slider card */}
