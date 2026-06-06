@@ -8,7 +8,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import SliderField from './SliderField';
 import { COLORS } from '../../lib/tokens';
-import { ShareAnswerButton } from './ShareAnswerButton';
 
 export interface RefiSliderParams {
     balance: number;           // current loan balance
@@ -85,16 +84,6 @@ export default function RefiSliderCard(props: RefiSliderParams) {
     const [closingCosts, setClosingCosts] = useState(props.closingCosts);
     const [closingInput, setClosingInput] = useState('');   // manual text input
     const [noCost, setNoCost]             = useState(false);
-    const [pageUrl, setPageUrl] = useState('');
-    useEffect(() => { if (typeof window !== 'undefined') setPageUrl(window.location.href); }, []);
-    async function handleSavePdf() {
-        const res = await fetch('/api/pdf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'refi', params: { balance, currentRate, newRate, termMonths, closingCosts } }),
-        });
-        if (!res.ok) throw new Error('PDF generation failed');
-    }
 
     // When LTV changes and property value is known, drive balance from LTV
     function handleLtvChange(newLtv: number) {
@@ -452,9 +441,6 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                         Run adjusted scenario →
                     </button>
                 )}
-            </div>
-            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
-                <ShareAnswerButton url={pageUrl || undefined} onSavePdf={handleSavePdf} />
             </div>
         </div>
     );

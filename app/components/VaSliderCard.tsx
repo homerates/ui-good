@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import { calcPI } from '../../lib/math';
 import { COLORS } from '../../lib/tokens';
-import { ShareAnswerButton } from './ShareAnswerButton';
 
 // ── Residual income tables (VA Pamphlet 26-7 Table 41(a)) ────────────────────
 // Loan ≥ $80k · Continental US · indexed by household size (1–5)
@@ -81,16 +80,6 @@ export default function VaSliderCard(props: VaSliderParams) {
     const [debts,  setDebts] = useState(props.monthlyDebts ?? 0);
 
     const router = useRouter();
-    const [pageUrl, setPageUrl] = useState('');
-    useEffect(() => { if (typeof window !== 'undefined') setPageUrl(window.location.href); }, []);
-    async function handleSavePdf() {
-        const res = await fetch('/api/pdf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'va', params: { price, downPct, rate, term: termYrs, taxRate: props.taxRate, insRate: props.insRate, loanType: 'va' } }),
-        });
-        if (!res.ok) throw new Error('PDF generation failed');
-    }
 
     // ── Journey: L1 write-back when launched from my-home property context ────
     const vaJourneyFired = useRef(false);
@@ -499,9 +488,6 @@ export default function VaSliderCard(props: VaSliderParams) {
                         Funding fee rates may differ for surviving spouses, National Guard, and Reserve members.
                         These figures are not a pre-approval or commitment to lend.
                     </p>
-                </div>
-                <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
-                    <ShareAnswerButton url={pageUrl || undefined} onSavePdf={handleSavePdf} />
                 </div>
             </div>
 

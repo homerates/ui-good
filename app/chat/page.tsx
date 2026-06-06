@@ -562,6 +562,53 @@ function extractListingUrl(text: string): string | null {
     return /^https?:\/\//i.test(url) ? url : 'https://' + url;
 }
 
+/* =========================
+   PDF payload builder — maps m.meta to /api/pdf type+params
+========================= */
+function buildPdfPayload(meta: ApiResponse): { type: string; params: Record<string, unknown> } | null {
+    if (meta.convHBSlider) {
+        const s = meta.convHBSlider;
+        return { type: 'conventional', params: { price: s.price, downPct: s.downPct, rate: s.rate, term: s.term ?? 30, taxRate: s.taxRate, insRate: s.insRate, loanType: 'conventional' } };
+    }
+    if (meta.fhaSlider) {
+        const s = meta.fhaSlider;
+        return { type: 'fha', params: { price: s.price, downPct: s.downPct, rate: s.rate, term: s.term ?? 30, taxRate: s.taxRate, insRate: s.insRate, loanType: 'fha' } };
+    }
+    if (meta.vaSlider) {
+        const s = meta.vaSlider;
+        return { type: 'va', params: { price: s.price, downPct: s.downPct, rate: s.rate, term: s.term ?? 30, taxRate: s.taxRate, insRate: s.insRate, loanType: 'va' } };
+    }
+    if (meta.jumboSlider) {
+        const s = meta.jumboSlider;
+        return { type: 'jumbo', params: { price: s.price, downPct: s.downPct, rate: s.rate, term: s.term ?? 30, taxRate: s.taxRate, insRate: s.insRate, loanType: 'jumbo' } };
+    }
+    if (meta.dscrSlider) {
+        const s = meta.dscrSlider;
+        return { type: 'dscr', params: { price: s.price, rent: s.rent, downPct: s.downPct, rate: s.rate, vacancyRate: s.vacancyRate, taxRate: s.taxRate, insRate: s.insRate } };
+    }
+    if (meta.refiSlider) {
+        const s = meta.refiSlider;
+        return { type: 'refi', params: { balance: s.balance, currentRate: s.currentRate, newRate: s.newRate, termMonths: s.termMonths, closingCosts: s.closingCosts } };
+    }
+    if (meta.affordabilitySlider) {
+        const s = meta.affordabilitySlider;
+        return { type: 'affordability', params: { annualIncome: s.annualIncome, monthlyDebts: s.monthlyDebts, savings: s.savings, downPct: s.downPct, rate: s.rate, term: s.term, taxRate: s.taxRate, insRate: s.insRate, loanType: s.loanType } };
+    }
+    if (meta.conventionalAffordabilitySlider) {
+        const s = meta.conventionalAffordabilitySlider;
+        return { type: 'affordability', params: { annualIncome: s.annualIncome, monthlyDebts: s.monthlyDebts, savings: s.savings, downPct: s.downPct, rate: s.rate, term: s.term, taxRate: s.taxRate, insRate: s.insRate, loanType: 'conventional' } };
+    }
+    if (meta.fhaAffordabilitySlider) {
+        const s = meta.fhaAffordabilitySlider;
+        return { type: 'affordability', params: { annualIncome: s.annualIncome, monthlyDebts: s.monthlyDebts, savings: s.savings, downPct: s.downPct, rate: s.rate, term: s.term, taxRate: s.taxRate, insRate: s.insRate, loanType: 'fha' } };
+    }
+    if (meta.interactiveSlider) {
+        const s = meta.interactiveSlider;
+        return { type: s.loanType, params: { price: s.price, downPct: s.downPct, rate: s.rate, term: s.term, taxRate: s.taxRate, insRate: s.insRate, loanType: s.loanType } };
+    }
+    return null;
+}
+
 // ── Decision Score inline helpers (client-side, no API call needed) ───────────
 
 /**
@@ -4309,9 +4356,9 @@ export default function Page() {
 
                                             {m.role === 'assistant' &&
                                                 m.meta &&
-                                                ((!m.meta.affordabilitySlider && !m.meta.conventionalAffordabilitySlider && !m.meta.fhaAffordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider) || typingId === null) &&
+                                                typingId === null &&
                                                 typeof m.content === 'string' &&
-                                                m.content.trim().length > 40 && (
+                                                (m.content.trim().length > 40 || !!(m.meta.convHBSlider || m.meta.fhaSlider || m.meta.vaSlider || m.meta.jumboSlider || m.meta.dscrSlider || m.meta.refiSlider || m.meta.affordabilitySlider || m.meta.conventionalAffordabilitySlider || m.meta.fhaAffordabilitySlider || m.meta.interactiveSlider)) && (
                                                     <div
                                                         style={{
                                                             marginTop: 4,
@@ -4319,12 +4366,21 @@ export default function Page() {
                                                             justifyContent: 'flex-end',
                                                         }}
                                                     >
-                                                        <ShareAnswerButton
-                                                            question="Question asked in HomeRates.ai"
-                                                            answer={m.content}
-                                                            messages={messages}
-                                                            source="thread"
-                                                        />
+                                                        {(() => {
+                                                            const pdfPayload = buildPdfPayload(m.meta);
+                                                            return (
+                                                                <ShareAnswerButton
+                                                                    question="Question asked in HomeRates.ai"
+                                                                    answer={m.content}
+                                                                    messages={messages}
+                                                                    source="thread"
+                                                                    onSavePdf={pdfPayload ? async () => {
+                                                                        const res = await fetch('/api/pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pdfPayload) });
+                                                                        if (!res.ok) throw new Error('PDF generation failed');
+                                                                    } : undefined}
+                                                                />
+                                                            );
+                                                        })()}
                                                     </div>
                                                 )}
 

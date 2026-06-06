@@ -4,7 +4,6 @@
 // to ask any lender, based on the borrower's specific scenario.
 
 import { useState, useEffect } from 'react';
-import { ShareAnswerButton } from './ShareAnswerButton';
 
 export interface LenderChecklistData {
     loanType: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
@@ -98,8 +97,6 @@ const ITEMS = [
 
 export default function LenderChecklistCard({ data }: { data: LenderChecklistData }) {
     const [open, setOpen] = useState(false);
-    const [pageUrl, setPageUrl] = useState('');
-    useEffect(() => { if (typeof window !== 'undefined') setPageUrl(window.location.href); }, []);
 
     const loanLabel =
         data.loanType === 'fha'   ? 'FHA loan' :
@@ -211,7 +208,6 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                 flexWrap: 'wrap',
                 background: 'rgba(0,0,0,0.15)',
             }}>
-                <ShareAnswerButton url={pageUrl || undefined} />
             </div>
             <style>{`
                 @media (max-width: 640px) {

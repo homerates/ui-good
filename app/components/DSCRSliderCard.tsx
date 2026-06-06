@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import { calcPI } from '../../lib/math';
 import { COLORS } from '../../lib/tokens';
-import { ShareAnswerButton } from './ShareAnswerButton';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
@@ -53,16 +52,6 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
     const [rate,    setRate]    = useState(props.rate);
     const term                  = props.term ?? 30;
     const router = useRouter();
-    const [pageUrl, setPageUrl] = useState('');
-    useEffect(() => { if (typeof window !== 'undefined') setPageUrl(window.location.href); }, []);
-    async function handleSavePdf() {
-        const res = await fetch('/api/pdf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'dscr', params: { price, rent, downPct, rate, vacancyRate: props.vacancyRate, taxRate: props.taxRate, insRate: props.insRate } }),
-        });
-        if (!res.ok) throw new Error('PDF generation failed');
-    }
 
     // ── Derived ────────────────────────────────────────────────────────────────
 
@@ -333,9 +322,7 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 </div>
             </div>
 
-            <div style={{ padding: '0 18px 18px', display: 'flex', justifyContent: 'flex-end' }}>
-                <ShareAnswerButton url={pageUrl || undefined} onSavePdf={handleSavePdf} />
-            </div>
+
 
             {/* ── Styles ── */}
             <style>{`
