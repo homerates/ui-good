@@ -5503,7 +5503,7 @@ ${uwDatabase}`;
                     } else {
                         (calcCard as any).convHBSlider = _afSlider;
                     }
-                    (calcCard as any).incomeQualifySlider = { ..._afSlider, loanType: (_isJumboAf ? 'jumbo' : 'conventional') as const, annualIncome: result.annualIncome, monthlyDebt: result.monthlyDebts };
+                    (calcCard as any).incomeQualifySlider = { ..._afSlider, loanType: _isJumboAf ? 'jumbo' : 'conventional', annualIncome: result.annualIncome, monthlyDebt: result.monthlyDebts };
                 }
                 // AFFD-010/011 retired for new sessions — backward compat only on stored sessions
                 (calcCard as any).conventionalAffordabilitySlider = null;
