@@ -94,7 +94,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
         const res = await fetch('/api/pdf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'fha', params: { price, downPct, rate, term: termYrs, taxRate: props.taxRate, insRate: props.insRate } }),
+            body: JSON.stringify({ type: 'fha', params: { price, downPct, rate, term: termYrs, taxRate: props.taxRate, insRate: props.insRate, loanType: 'fha' } }),
         });
         if (!res.ok) throw new Error('PDF generation failed');
     }

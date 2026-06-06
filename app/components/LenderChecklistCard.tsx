@@ -100,15 +100,6 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
     const [open, setOpen] = useState(false);
     const [pageUrl, setPageUrl] = useState('');
     useEffect(() => { if (typeof window !== 'undefined') setPageUrl(window.location.href); }, []);
-    async function handleSavePdf() {
-        const pdfType = data.pdfType ?? data.loanType;
-        const res = await fetch('/api/pdf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: pdfType, params: { price: data.price, loanAmount: data.loanAmount, ltv: data.ltv, rate: data.marketRate, monthlyPITI: data.monthlyPITI } }),
-        });
-        if (!res.ok) throw new Error('PDF generation failed');
-    }
 
     const loanLabel =
         data.loanType === 'fha'   ? 'FHA loan' :
@@ -220,7 +211,7 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                 flexWrap: 'wrap',
                 background: 'rgba(0,0,0,0.15)',
             }}>
-                <ShareAnswerButton url={pageUrl || undefined} onSavePdf={handleSavePdf} />
+                <ShareAnswerButton url={pageUrl || undefined} />
             </div>
             <style>{`
                 @media (max-width: 640px) {

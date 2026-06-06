@@ -95,7 +95,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
         const res = await fetch('/api/pdf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'jumbo', params: { price, downPct: down, rate, term: 30, taxRate, insRate } }),
+            body: JSON.stringify({ type: 'jumbo', params: { price, downPct: down, rate, term: 30, taxRate, insRate, loanType: 'jumbo' } }),
         });
         if (!res.ok) throw new Error('PDF generation failed');
     }

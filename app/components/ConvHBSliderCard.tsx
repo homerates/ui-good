@@ -169,7 +169,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
         const res = await fetch('/api/pdf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: zone === 'highbal' ? 'highbal' : 'conventional', params: { price, downPct, rate, term: termYrs, taxRate: props.taxRate, insRate: props.insRate, loanType: 'conventional' } }),
+            body: JSON.stringify({ type: 'conventional', params: { price, downPct, rate, term: termYrs, taxRate: props.taxRate, insRate: props.insRate, loanType: 'conventional' } }),
         });
         if (!res.ok) throw new Error('PDF generation failed');
     }

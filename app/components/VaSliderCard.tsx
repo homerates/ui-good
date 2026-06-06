@@ -87,7 +87,7 @@ export default function VaSliderCard(props: VaSliderParams) {
         const res = await fetch('/api/pdf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'va', params: { price, downPct, rate, term: termYrs, taxRate: props.taxRate, insRate: props.insRate, vaFundingFeePct: ffPct } }),
+            body: JSON.stringify({ type: 'va', params: { price, downPct, rate, term: termYrs, taxRate: props.taxRate, insRate: props.insRate, loanType: 'va' } }),
         });
         if (!res.ok) throw new Error('PDF generation failed');
     }

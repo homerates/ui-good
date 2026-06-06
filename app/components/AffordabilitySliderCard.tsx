@@ -245,7 +245,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
         const res = await fetch('/api/pdf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'affordability', params: { annualIncome: income, monthlyDebts: debts, savings, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate } }),
+            body: JSON.stringify({ type: 'affordability', params: { annualIncome: income, monthlyDebts: debts, savings, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate, loanType: 'conventional' } }),
         });
         if (!res.ok) throw new Error('PDF generation failed');
     }

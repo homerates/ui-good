@@ -114,7 +114,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
         const res = await fetch('/api/pdf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: loanType, params: { price, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate, vaFundingFeePct: vaFfPct } }),
+            body: JSON.stringify({ type: loanType, params: { price, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate, loanType } }),
         });
         if (!res.ok) throw new Error('PDF generation failed');
     }
