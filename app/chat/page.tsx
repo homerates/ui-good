@@ -3755,7 +3755,8 @@ export default function Page() {
                                                             </div>
                                                         )}
                                                         {/* IQC — 4CS2341-CONV path: income qualify for scenario seed (no cmaAddress needed) */}
-                                                        {m.meta.convHBSlider && !loading && typingId === null && (
+                                                        {/* Suppressed when incomeQualifySlider is explicitly set (e.g. affordability path seeds it with annualIncome) */}
+                                                        {m.meta.convHBSlider && !m.meta.incomeQualifySlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
                                                                 key={`iqsc-convhb-${m.id}`}
                                                                 price={m.meta.convHBSlider.price}
@@ -3783,6 +3784,7 @@ export default function Page() {
                                                         {m.meta.incomeQualifySlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
                                                                 {...m.meta.incomeQualifySlider}
+                                                                hideCheckPropertyButton={!!(m.meta.convHBSlider || m.meta.jumboSlider || m.meta.fhaSlider || m.meta.vaSlider)}
                                                                 journeyAddress={
                                                                     cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                 }
