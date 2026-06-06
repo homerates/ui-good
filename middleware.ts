@@ -1,5 +1,6 @@
 // middleware.ts
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
 /**
  * PUBLIC ROUTES (must work signed-out / accessible to Googlebot)
@@ -124,6 +125,8 @@ const isPublicRoute = createRouteMatcher([
   "/founding(.*)",
   // Consumer property portal — standalone page, no auth required
   "/consumer(.*)",
+  // Consumer homepage — served on homerates.ai root
+  "/consumer-home(.*)",
   // Groves IQ partnership hub — password-gated, no Clerk auth required
   "/grovesiq(.*)",
   // Groves IQ partnership proposal — password-gated shareable doc
@@ -131,6 +134,13 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware((auth, req) => {
+  // Domain-based routing: homerates.ai root → consumer homepage
+  const hostname = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '';
+  const isConsumerDomain = hostname === 'homerates.ai' || hostname === 'www.homerates.ai';
+  if (isConsumerDomain && req.nextUrl.pathname === '/') {
+    return NextResponse.rewrite(new URL('/consumer-home', req.url));
+  }
+
   if (isPublicRoute(req)) return;
   auth.protect();
 });
