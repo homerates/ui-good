@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { ShareAnswerButton } from './ShareAnswerButton';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import { calcPI } from '../../lib/math';
@@ -161,6 +162,17 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
     });
 
     const router = useRouter();
+    const [pageUrl, setPageUrl] = useState('');
+    useEffect(() => { if (typeof window !== 'undefined') setPageUrl(window.location.href); }, []);
+
+    async function handleSavePdf() {
+        const res = await fetch('/api/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: zone === 'highbal' ? 'highbal' : 'conventional', params: { price, downPct, rate, term: termYrs, taxRate: props.taxRate, insRate: props.insRate, loanType: 'conventional' } }),
+        });
+        if (!res.ok) throw new Error('PDF generation failed');
+    }
 
     // ── Journey: write L1 + bridge chip when launched from my-home property context ──
     const journeyFiredRef = useRef(false);
@@ -626,6 +638,9 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                         estimated property tax ({(props.taxRate * 100).toFixed(1)}% annual), homeowner&apos;s insurance ({(props.insRate * 100).toFixed(1)}% annual),
                         and PMI where LTV exceeds 80%. Conforming loan limits per FHFA 2026 guidelines — county-specific limits may vary.
                     </p>
+                </div>
+                <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+                    <ShareAnswerButton url={pageUrl || undefined} onSavePdf={handleSavePdf} />
                 </div>
             </div>
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import { calcPI } from '../../lib/math';
 import { COLORS } from '../../lib/tokens';
+import { ShareAnswerButton } from './ShareAnswerButton';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -94,6 +95,16 @@ export default function JumboSliderCard(props: JumboSliderParams) {
     const [termType, setTermType] = useState<TermType>(props.term === 15 ? '15yr' : '30yr');
     const [drawerOpen, setDrawerOpen] = useState(false);
     const router = useRouter();
+    const [pageUrl, setPageUrl] = useState('');
+    useEffect(() => { if (typeof window !== 'undefined') setPageUrl(window.location.href); }, []);
+    async function handleSavePdf() {
+        const res = await fetch('/api/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'jumbo', params: { price, downPct, rate, term: termType === '15yr' ? 15 : 30, taxRate: props.taxRate, insRate: props.insRate } }),
+        });
+        if (!res.ok) throw new Error('PDF generation failed');
+    }
 
     // ── Journey: L1 write-back when launched from my-home property context ────
     const jJourneyFired = useRef(false);
@@ -495,6 +506,10 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 <div className="jbs-disc-new">
                     <strong>⚠️ Educational estimates only.</strong> A &quot;jumbo&quot; loan exceeds the 2026 FHFA conforming baseline of {fmt$(NATIONAL_CONFORMING_2026)} for a 1-unit standard-cost area residence. High-balance counties may have limits up to {fmt$(HIGH_BAL_CA_MAX_2026)}. Property tax estimated at {(props.taxRate * 100).toFixed(1)}% annually; insurance at {(props.insRate * 100).toFixed(1)}% annually. Reserve calculations based on 6× and 12× total monthly PITI. 7/1 ARM caps shown as 2/2/5 (typical; actual caps vary by lender). These figures are not a pre-approval or commitment to lend.
                 </div>
+            </div>
+
+            <div style={{ padding: '0 20px 20px', display: 'flex', justifyContent: 'flex-end' }}>
+                <ShareAnswerButton url={pageUrl || undefined} onSavePdf={handleSavePdf} />
             </div>
 
             {/* ── Styles ── */}

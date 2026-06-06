@@ -11,6 +11,7 @@ import AdminCardBadge from './AdminCardBadge';
 import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
 import { HIGH_COST_COUNTIES, type NationalCountyLimits } from '@/loanLimitsNational2026';
 import { calcPI } from '../../lib/math';
+import { ShareAnswerButton } from './ShareAnswerButton';
 
 export interface SliderCardParams {
     price: number;
@@ -107,6 +108,16 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const [sliderOpen,  setSliderOpen]  = useState(false);
     const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
     const router = useRouter();
+    const [pageUrl, setPageUrl] = useState('');
+    useEffect(() => { if (typeof window !== 'undefined') setPageUrl(window.location.href); }, []);
+    async function handleSavePdf() {
+        const res = await fetch('/api/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: loanType, params: { price, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate, vaFundingFeePct: vaFfPct } }),
+        });
+        if (!res.ok) throw new Error('PDF generation failed');
+    }
 
     // ── Prop-sync for display-only mode (hideDrawer = property_lookup path) ──────
     // In hideDrawer mode the user cannot adjust sliders, so internal state must
@@ -699,6 +710,10 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
             {/* Rate note */}
             <div className="isc-note">
                 <p>Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live). Estimates only — not a loan offer.</p>
+            </div>
+
+            <div style={{ padding: '0 16px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+                <ShareAnswerButton url={pageUrl || undefined} onSavePdf={handleSavePdf} />
             </div>
 
             {/* ── Styles ── */}

@@ -3,7 +3,8 @@
 // "Ready to talk to a lender?" — personalized checklist of questions
 // to ask any lender, based on the borrower's specific scenario.
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { ShareAnswerButton } from './ShareAnswerButton';
 
 export interface LenderChecklistData {
     loanType: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
@@ -97,6 +98,17 @@ const ITEMS = [
 
 export default function LenderChecklistCard({ data }: { data: LenderChecklistData }) {
     const [open, setOpen] = useState(false);
+    const [pageUrl, setPageUrl] = useState('');
+    useEffect(() => { if (typeof window !== 'undefined') setPageUrl(window.location.href); }, []);
+    async function handleSavePdf() {
+        const pdfType = data.pdfType ?? data.loanType;
+        const res = await fetch('/api/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: pdfType, params: { price: data.price, loanAmount: data.loanAmount, ltv: data.ltv, rate: data.marketRate, monthlyPITI: data.monthlyPITI } }),
+        });
+        if (!res.ok) throw new Error('PDF generation failed');
+    }
 
     const loanLabel =
         data.loanType === 'fha'   ? 'FHA loan' :
@@ -203,10 +215,12 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                 padding: '12px 18px',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'flex-end',
                 gap: 8,
                 flexWrap: 'wrap',
                 background: 'rgba(0,0,0,0.15)',
             }}>
+                <ShareAnswerButton url={pageUrl || undefined} onSavePdf={handleSavePdf} />
             </div>
             <style>{`
                 @media (max-width: 640px) {

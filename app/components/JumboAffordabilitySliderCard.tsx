@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useMemo, CSSProperties } from 'react';
+import React, { useState, useMemo, useEffect, CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import { COLORS } from '../../lib/tokens';
+import { ShareAnswerButton } from './ShareAnswerButton';
 import {
     getCALoanLimits,
     getCACountyByZip,
@@ -88,6 +89,16 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
     const [open,    setOpen]    = useState(false);
     const router = useRouter();
     const natBase  = props.nationalBaseline ?? NATIONAL_CONFORMING_BASELINE.units1;
+    const [pageUrl, setPageUrl] = useState('');
+    useEffect(() => { if (typeof window !== 'undefined') setPageUrl(window.location.href); }, []);
+    async function handleSavePdf() {
+        const res = await fetch('/api/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'jumbo', params: { price, downPct: down, rate, term: 30, taxRate, insRate } }),
+        });
+        if (!res.ok) throw new Error('PDF generation failed');
+    }
 
     function handleZip(val: string) {
         setZip(val); setZipErr('');
@@ -346,6 +357,10 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                 <div style={{ margin: '12px 20px 0', padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, fontSize: '0.71rem', color: 'rgba(185,208,192,0.38)', lineHeight: 1.65, border: '1px solid rgba(255,255,255,0.05)' }}>
                     <strong style={{ color: 'rgba(185,208,192,0.55)' }}>⚠️ Educational estimates only.</strong> All figures are approximate and for informational purposes only. Actual rates, taxes, insurance, PMI, closing costs, and reserve requirements will vary based on lender, credit profile, property location, and market conditions. This is not a commitment to lend or a loan approval. 2026 conforming limits sourced from FHFA. Rate data from FRED / St. Louis Fed (PMMS series).
                 </div>
+            </div>
+
+            <div style={{ padding: '0 20px 20px', display: 'flex', justifyContent: 'flex-end' }}>
+                <ShareAnswerButton url={pageUrl || undefined} onSavePdf={handleSavePdf} />
             </div>
 
         </div>

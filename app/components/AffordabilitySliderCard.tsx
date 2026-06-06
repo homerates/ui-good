@@ -4,11 +4,12 @@
 // Redesigned affordability card — 3 program accordions (FHA 3.5%, Conv 3%, Conv 20%)
 // with live-calc drawers, side-by-side comparison, rate/term explorer, and disclosures.
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import { calcPI } from '../../lib/math';
 import { COLORS } from '../../lib/tokens';
+import { ShareAnswerButton } from './ShareAnswerButton';
 import { FHA_FLOOR, CONF_STANDARD } from '../../lib/constants';
 
 export interface AffordabilitySliderParams {
@@ -238,6 +239,16 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
         Math.abs(rate - props.rate) > 0.001 || term !== props.term;
 
     const router = useRouter();
+    const [pageUrl, setPageUrl] = useState('');
+    useEffect(() => { if (typeof window !== 'undefined') setPageUrl(window.location.href); }, []);
+    async function handleSavePdf() {
+        const res = await fetch('/api/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'affordability', params: { annualIncome: income, monthlyDebts: debts, savings, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate } }),
+        });
+        if (!res.ok) throw new Error('PDF generation failed');
+    }
 
     const { fha, conv3, conv20 } = useMemo(() => ({
         fha:    calcProgram(income, debts, 3.5,     rate, term, props.taxRate, props.insRate, 'fha',          savings, props.fhaLoanLimit),
@@ -656,6 +667,10 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
             <div className="afc-rate-note">
                 <span className="afc-bulb">💡</span>
                 <p><strong>Assumption:</strong> Rate assumed at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live). Actual rate depends on credit score, lender, and lock timing. Use the slider above to model different rates.</p>
+            </div>
+
+            <div style={{ padding: '0 16px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+                <ShareAnswerButton url={pageUrl || undefined} onSavePdf={handleSavePdf} />
             </div>
 
             {/* ── Styles ── */}
