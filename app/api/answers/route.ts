@@ -5483,11 +5483,31 @@ ${uwDatabase}`;
 
             } else if (calcDispatch.type === 'affordability' && calcDispatch.params) {
                 const result = calcAffordability(calcDispatch.params as any);
-                // FHA affordability → AFFD-011 card; conventional (default) → AFFD-010 card
-                const _isFHAAffordability = isFHAQuestion(question);
-                calcCard = _isFHAAffordability
-                    ? buildAffordabilityCardFHA(result)
-                    : buildAffordabilityCard(result, calcAssumptions, geoFeatures);
+                // Build standard answer text (used by GrokCard during typing)
+                calcCard = buildAffordabilityCard(result, calcAssumptions, geoFeatures);
+                // Determine primary scenario — user's specified down% or default 20%
+                const _afParams = calcDispatch.params as any;
+                const _targetDown = _afParams.downPctOverride != null ? (_afParams.downPctOverride * 100) : 20;
+                const _primarySc = result.scenarios.find(sc => Math.abs(sc.downPaymentPct - _targetDown) < 0.5 && !sc.isFHA)
+                    ?? result.scenarios.find(sc => !sc.isFHA)
+                    ?? result.scenarios[0];
+                if (_primarySc) {
+                    const _CONF = 832_750;
+                    const _isJumboAf = _primarySc.baseLoanAmount > _CONF;
+                    const _afTaxRate = _primarySc.homePrice > 0 ? (_primarySc.monthlyTax * 12) / _primarySc.homePrice : 0.011;
+                    const _afInsRate = _primarySc.homePrice > 0 ? (_primarySc.monthlyInsurance * 12) / _primarySc.homePrice : 0.003;
+                    const _afSlider = { price: _primarySc.homePrice, downPct: _primarySc.downPaymentPct, rate: result.rate, term: 30, taxRate: _afTaxRate, insRate: _afInsRate };
+                    // Fire 4CS2341-JUMBO or 4CS2341-CONV — same stack as scenario-first, seeded from derived max price
+                    if (_isJumboAf) {
+                        (calcCard as any).jumboSlider = _afSlider;
+                    } else {
+                        (calcCard as any).convHBSlider = _afSlider;
+                    }
+                    (calcCard as any).incomeQualifySlider = { ..._afSlider, loanType: (_isJumboAf ? 'jumbo' : 'conventional') as const, annualIncome: result.annualIncome, monthlyDebt: result.monthlyDebts };
+                }
+                // AFFD-010/011 retired for new sessions — backward compat only on stored sessions
+                (calcCard as any).conventionalAffordabilitySlider = null;
+                (calcCard as any).fhaAffordabilitySlider = null;
                 calcDebugModel = 'calcEngine-affordability';
                 injectCmaChip(calcCard);
 
