@@ -320,9 +320,6 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                     <button className="dsc-btn-primary" onClick={handleRun}>Run My Numbers</button>
                     <button className="dsc-btn-secondary" onClick={handleCheckProperty}>Check Property</button>
                 </div>
-                <button className="dsc-btn-full" onClick={() => router.push('/connect/post?from=dscr&lt=DSCR&purpose=Investment')}>
-                    Get Matched with a DSCR Lender
-                </button>
             </div>
 
             {/* ── Styles ── */}

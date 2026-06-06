@@ -1,10 +1,8 @@
 ﻿'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
-import PdfDownloadButton from './PdfDownloadButton';
 import { calcPI } from '../../lib/math';
 import { COLORS } from '../../lib/tokens';
 
@@ -85,11 +83,9 @@ export default function FhaSliderCard(props: FhaSliderParams) {
     const [termYrs,    setTermYrs]    = useState(props.term);
     const [units,      setUnits]      = useState(1);
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [vaultDone,  setVaultDone]  = useState(false);
-    const [debts,      setDebts]      = useState(props.monthlyDebts ?? 0);
+    const [debts,  setDebts] = useState(props.monthlyDebts ?? 0);
 
-    const { user } = useUser();
-    const router   = useRouter();
+    const router = useRouter();
 
     // ── Journey: L1 write-back when launched from my-home property context ────
     const fhaJourneyFired = useRef(false);
@@ -156,22 +152,6 @@ export default function FhaSliderCard(props: FhaSliderParams) {
         limitStatus === 'highcost' ? `up to ${fmt$(limits.ceil)}`    : `${fmt$(limits.ceil)} max`;
 
     // ── Actions ───────────────────────────────────────────────────────────────
-
-    async function handleVault() {
-        if (!user) { router.push('/sign-up'); return; }
-        try {
-            await fetch('/api/library', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    question: `FHA: ${fmtK(price)} · ${downPct}% down · ${rate.toFixed(2)}% · ${termYrs}yr${units > 1 ? ` · ${units}-unit` : ''}`,
-                    answer:   `Total/mo: ${fmt$(total)} · PITI+MIP · Base loan: ${fmt$(Math.round(baseLoan))}`,
-                    tool_id:  'vault_save_fha',
-                }),
-            });
-            setVaultDone(true);
-        } catch { /* non-fatal */ }
-    }
 
     function buildSeed() {
         const prStr  = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(2)}M` : `$${Math.round(price / 1000)}k`;
@@ -465,9 +445,6 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     >▶ Run My Numbers</button>
                 )}
             </div>
-            <button className="fha-cta-full" onClick={() => router.push(getMatchedUrl())}>
-                Get Matched with a Lender →
-            </button>
 
 
             {/* Deep analysis drawer */}
@@ -549,20 +526,6 @@ export default function FhaSliderCard(props: FhaSliderParams) {
 
             {/* Permanent bottom */}
             <div className="fha-perm">
-                <div className="fha-perm-label">Save This Scenario</div>
-                <div className="fha-vault-row">
-                    <button className="fha-btn-vault" onClick={handleVault}>
-                        {vaultDone ? '✓ Saved to Vault' : '⭐ Save to My Vault'}
-                    </button>
-                    <PdfDownloadButton
-                        type="fha"
-                        getParams={() => ({
-                            price, downPct, rate, term: termYrs,
-                            taxRate: props.taxRate, insRate: props.insRate,
-                            loanType: 'fha',
-                        })}
-                    />
-                </div>
                 <div className="fha-rate-note">
                     <span className="fha-bulb">💡</span>
                     <p>

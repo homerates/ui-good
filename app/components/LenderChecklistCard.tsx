@@ -4,7 +4,6 @@
 // to ask any lender, based on the borrower's specific scenario.
 
 import { useState } from 'react';
-import PdfDownloadButton from './PdfDownloadButton';
 
 export interface LenderChecklistData {
     loanType: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
@@ -122,38 +121,6 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
         invest: data.isInvestment ? '1' : '0',
     });
 
-    const pdfButton = data.loanType === 'dscr' && data.rent ? (
-        <PdfDownloadButton
-            type="dscr"
-            getParams={() => ({
-                price: data.price,
-                rent: data.rent,
-                downPct: dp,
-                rate: data.marketRate,
-                vacancyRate: data.vacancyRate ?? 0.05,
-                taxRate: data.taxRate ?? 0.011,
-                insRate: data.insRate ?? 0.005,
-            })}
-        />
-    ) : data.loanType !== 'dscr' ? (
-        <PdfDownloadButton
-            type={data.pdfType ?? data.loanType}
-            getParams={() => ({
-                price: data.price,
-                downPct: dp,
-                rate: data.marketRate,
-                term: data.termYears,
-                taxRate: data.taxRate ?? 0.011,
-                insRate: data.insRate ?? 0.003,
-                loanType: data.loanType,
-                ...(data.pdfType === 'affordability' && {
-                    annualIncome: Math.round(data.monthlyPITI / 0.43 * 12),
-                    savings: 0,
-                    monthlyDebts: 0,
-                }),
-            })}
-        />
-    ) : null;
 
     return (
         <div style={{
@@ -240,43 +207,6 @@ export default function LenderChecklistCard({ data }: { data: LenderChecklistDat
                 flexWrap: 'wrap',
                 background: 'rgba(0,0,0,0.15)',
             }}>
-                {/* My Vault */}
-                <a
-                    className="lcc-btn"
-                    href="/library"
-                    style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                        padding: '7px 13px',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: 8, color: '#8fa3b8', fontWeight: 600,
-                        fontSize: 12, textDecoration: 'none', whiteSpace: 'nowrap',
-                    }}
-                >
-                    🗂 My Vault
-                </a>
-
-                {/* Save as PDF */}
-                {pdfButton}
-
-                {/* Push Get Matched to the right */}
-                <div className="lcc-spacer" style={{ flex: 1 }} />
-
-                {/* Get Matched — primary CTA */}
-                <a
-                    className="lcc-btn"
-                    href={`/connect/post?${matchParams.toString()}`}
-                    style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                        padding: '8px 18px',
-                        background: '#00e87a', color: '#080c12',
-                        borderRadius: 8, fontWeight: 700,
-                        fontSize: 12.5, textDecoration: 'none',
-                        whiteSpace: 'nowrap',
-                    }}
-                >
-                    Get matched →
-                </a>
             </div>
             <style>{`
                 @media (max-width: 640px) {

@@ -6,7 +6,6 @@
 // Visual: old vs new payment bars + lifetime interest delta
 
 import React, { useState, useMemo } from 'react';
-import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
 import { COLORS } from '../../lib/tokens';
 
@@ -442,11 +441,6 @@ export default function RefiSliderCard(props: RefiSliderParams) {
                         Run adjusted scenario →
                     </button>
                 )}
-                <PdfDownloadButton
-                    type="refi"
-                    getParams={() => ({ balance, currentRate, newRate: effNewRate, termMonths, closingCosts: effClosing })}
-                    style={isDirty && props.onRunScenario ? {} : { width: '100%', justifyContent: 'center' }}
-                />
             </div>
         </div>
     );

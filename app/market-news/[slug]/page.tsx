@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '../../components/AppNav';
 import { marketNewsArticles } from '../articles';
-import ShareBar from '../../components/ShareBar';
+import { ShareAnswerButton } from '../../components/ShareAnswerButton';
 import NewsletterCapture from '../../components/NewsletterCapture';
 
 export const dynamicParams = true;
@@ -387,9 +387,8 @@ export default async function MarketNewsArticle({
             dangerouslySetInnerHTML={{ __html: bodyHtml }}
           />
 
-          <ShareBar
+          <ShareAnswerButton
             url={`https://chat.homerates.ai/market-news/${article.slug}`}
-            title={article.title}
           />
 
           <NewsletterCapture source="market-news" />

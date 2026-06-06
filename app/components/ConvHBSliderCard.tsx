@@ -1,9 +1,7 @@
 ﻿'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
 import { calcPI } from '../../lib/math';
 import { COLORS } from '../../lib/tokens';
@@ -147,7 +145,6 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
     const [rate,       setRate]       = useState(props.rate);
     const [termYrs,    setTermYrs]    = useState(props.term);
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [vaultOk,    setVaultOk]    = useState(false);
     const [debts,      setDebts]      = useState(props.monthlyDebts ?? 0);
 
     const initCounty = props.county ? resolveCounty(props.county) : null;
@@ -163,8 +160,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
             : `Standard conforming area — ${fmt$(NATIONAL_BASELINE)} limit`;
     });
 
-    const { user } = useUser();
-    const router   = useRouter();
+    const router = useRouter();
 
     // ── Journey: write L1 + bridge chip when launched from my-home property context ──
     const journeyFiredRef = useRef(false);
@@ -313,22 +309,6 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
     // ── Actions ───────────────────────────────────────────────────────────────
 
-    async function handleVault() {
-        if (!user) { router.push('/sign-up'); return; }
-        try {
-            await fetch('/api/library', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    question: `Conv${zone === 'highbal' ? '/HB' : ''}: ${fmtK(price)} purchase, ${downPct}% down at ${rate.toFixed(2)}%`,
-                    answer:   `Payment: ${fmt$(total)}/mo · Loan: ${fmt$(loanAmt)} · LTV: ${ltv.toFixed(1)}%`,
-                    tool_id:  'vault_save_conv_hb',
-                }),
-            });
-            setVaultOk(true);
-        } catch { /* non-fatal */ }
-    }
-
     function handleCheckProperty() {
         const p = new URLSearchParams({
             price: String(Math.round(price)), dp: String(downPct),
@@ -344,15 +324,6 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
         const dStr = debts > 0 ? ` with ${fmt$(debts)}/mo in other debts` : '';
         const seed = `Conventional loan on ${fmtK(price)} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs} year fixed${dStr}`;
         props.onRunScenario(seed, { isConvHB: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, termYears: termYrs, monthlyDebts: debts, changedKeys: ['purchasePrice', 'downPaymentPct', 'annualRatePct'] });
-    }
-
-    function handleGetMatched() {
-        const p = new URLSearchParams({
-            from: 'scenario', lt: 'Conventional', purpose: 'Purchase',
-            price: String(Math.round(price)), dp: String(downPct),
-            monthly: String(Math.round(total)), rate: String(rate), term: String(termYrs),
-        });
-        router.push(`/connect/post?${p.toString()}`);
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -545,7 +516,6 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                     <button className="chb-cta-run" onClick={handleRun}>▶ Run My Numbers</button>
                 )}
             </div>
-            <button className="chb-cta-full" onClick={handleGetMatched}>Get Matched with a Lender →</button>
 
             {/* Cross-fire chip — loan above national baseline: suggest running Jumbo card for comparison */}
             {props.onRunScenario && loanAmt > NATIONAL_BASELINE && (
@@ -644,20 +614,6 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
             {/* Permanent bottom */}
             <div className="chb-perm">
-                <div className="chb-perm-label">Save This Scenario</div>
-                <div className="chb-vault-row">
-                    <button className="chb-btn-vault" onClick={handleVault}>
-                        {vaultOk ? '✓ Saved to Vault' : '⭐ Save to My Vault'}
-                    </button>
-                    <PdfDownloadButton
-                        type="conventional"
-                        getParams={() => ({
-                            price, downPct, rate, term: termYrs,
-                            taxRate: props.taxRate, insRate: props.insRate,
-                            loanType: 'conventional',
-                        })}
-                    />
-                </div>
                 <div className="chb-rate-note">
                     <span className="chb-bulb">💡</span>
                     <p>Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live avg).

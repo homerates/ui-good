@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { knowledgeHubArticles } from '../articles';
-import ShareBar from '../../components/ShareBar';
+import { ShareAnswerButton } from '../../components/ShareAnswerButton';
 import AppNav from '../../components/AppNav';
 import NewsletterCapture from '../../components/NewsletterCapture';
 
@@ -404,9 +404,8 @@ export default async function KnowledgeHubArticle({
             dangerouslySetInnerHTML={{ __html: bodyHtml }}
           />
 
-          <ShareBar
+          <ShareAnswerButton
             url={`https://chat.homerates.ai/knowledge-hub/${article.slug}`}
-            title={article.title}
           />
 
           <NewsletterCapture source="knowledge-hub" />

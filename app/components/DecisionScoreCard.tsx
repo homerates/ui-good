@@ -272,25 +272,7 @@ export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, sc
       {/* ── Footer ── */}
       {complete ? (
         <div style={{ padding: '12px 20px 16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          {/* Get Matched prompt */}
-          <div style={{ fontSize: '0.76rem', color: 'rgba(185,208,192,0.55)', marginBottom: 9, lineHeight: 1.5 }}>
-            Ready to move on this property? Connect with a loan officer who can match your scenario.
-          </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <a
-              href={getMatchedUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                background: '#00e87a', color: '#080c12', fontWeight: 800, fontSize: '0.85rem',
-                borderRadius: 10, padding: '10px 16px', textDecoration: 'none',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-              onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-            >
-              Get Matched →
-            </a>
             <a
               href={fullAnalysisUrl}
               target="_blank"

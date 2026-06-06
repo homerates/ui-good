@@ -1,11 +1,10 @@
 'use client';
-// app/library/VaultClient.tsx — searchable vault UI inside PageShell
+// app/library/VaultClient.tsx — PDF-only library (analyses tab removed)
 
 import React, { useState, useMemo } from 'react';
 import PageShell from '../components/PageShell';
 
-type Answer = { id: string; created_at: string; question: string; answerText: string };
-type PDF    = { name: string; label: string; created_at: string; signedUrl: string | null };
+type PDF = { name: string; label: string; created_at: string; signedUrl: string | null };
 
 function formatDate(iso: string) {
     if (!iso) return '';
@@ -27,38 +26,14 @@ function highlight(text: string, query: string) {
     );
 }
 
-type Tab = 'all' | 'analyses' | 'pdfs';
-
-export default function VaultClient({ answers, pdfs }: { answers: Answer[]; pdfs: PDF[] }) {
+// answers prop kept for API compatibility but not displayed
+export default function VaultClient({ pdfs }: { answers?: any[]; pdfs: PDF[] }) {
     const [query, setQuery] = useState('');
-    const [tab, setTab]     = useState<Tab>('all');
     const q = query.trim().toLowerCase();
-
-    const filteredAnswers = useMemo(() =>
-        q ? answers.filter(a =>
-            a.question.toLowerCase().includes(q) ||
-            a.answerText.toLowerCase().includes(q)
-        ) : answers,
-    [answers, q]);
 
     const filteredPdfs = useMemo(() =>
         q ? pdfs.filter(p => p.label.toLowerCase().includes(q)) : pdfs,
     [pdfs, q]);
-
-    const showAnswers = tab === 'all' || tab === 'analyses';
-    const showPdfs    = tab === 'all' || tab === 'pdfs';
-    const visibleAnswers = showAnswers ? filteredAnswers : [];
-    const visiblePdfs    = showPdfs    ? filteredPdfs    : [];
-    const empty = visibleAnswers.length === 0 && visiblePdfs.length === 0;
-    const totalEmpty = answers.length === 0 && pdfs.length === 0;
-
-    const tabStyle = (t: Tab): React.CSSProperties => ({
-        padding: '7px 18px', borderRadius: 999, border: 'none',
-        fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
-        fontFamily: 'inherit', transition: 'background 0.15s, color 0.15s',
-        background: tab === t ? 'rgba(0,232,122,0.15)' : 'transparent',
-        color: tab === t ? '#00e87a' : 'rgba(185,208,192,0.5)',
-    });
 
     return (
         <PageShell backHref="/chat" backLabel="Back to chat" maxWidth={800}>
@@ -73,192 +48,100 @@ export default function VaultClient({ answers, pdfs }: { answers: Answer[]; pdfs
                     letterSpacing: '0.06em', textTransform: 'uppercase',
                 }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#00e87a', display: 'inline-block' }} />
-                    My Vault
+                    Library
                 </div>
-                <h1>Saved Analyses</h1>
-                <p>Your mortgage analyses and downloaded PDFs, saved from the chat.</p>
+                <h1>Saved PDFs</h1>
+                <p>Your scenario analyses saved as PDF — shared via the Share button in chat.</p>
             </div>
 
-            {/* Tabs + Search row */}
-            {!totalEmpty && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-                    {/* Tabs */}
-                    <div style={{
-                        display: 'inline-flex', background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(148,163,184,0.1)', borderRadius: 999, padding: 3, gap: 2,
-                    }}>
-                        {(['all', 'analyses', 'pdfs'] as Tab[]).map(t => (
-                            <button key={t} style={tabStyle(t)} onClick={() => setTab(t)}>
-                                {t === 'all'      && `All (${answers.length + pdfs.length})`}
-                                {t === 'analyses' && `Analyses (${answers.length})`}
-                                {t === 'pdfs'     && `PDFs (${pdfs.length})`}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Search */}
-                    <div style={{ position: 'relative', flex: '1 1 180px', maxWidth: 280 }}>
-                        <span style={{
-                            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
-                            fontSize: 13, color: 'rgba(185,208,192,0.35)', pointerEvents: 'none',
-                        }}>🔍</span>
-                        <input
-                            type="text"
-                            placeholder="Search…"
-                            value={query}
-                            onChange={e => setQuery(e.target.value)}
-                            style={{
-                                width: '100%', boxSizing: 'border-box',
-                                padding: '8px 32px 8px 30px', borderRadius: 8,
-                                border: '1px solid rgba(148,163,184,0.12)',
-                                background: 'rgba(255,255,255,0.04)',
-                                color: '#e0f0e8', fontSize: '0.85rem',
-                                outline: 'none', fontFamily: 'inherit',
-                            }}
-                        />
-                        {query && (
-                            <button onClick={() => setQuery('')} style={{
-                                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                                background: 'none', border: 'none', color: 'rgba(185,208,192,0.4)',
-                                cursor: 'pointer', fontSize: 15, padding: '0 2px', lineHeight: 1,
-                            }}>×</button>
-                        )}
-                    </div>
+            {/* Search */}
+            {pdfs.length > 0 && (
+                <div style={{ position: 'relative', maxWidth: 320, marginBottom: 24 }}>
+                    <span style={{
+                        position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                        fontSize: 13, color: 'rgba(185,208,192,0.35)', pointerEvents: 'none',
+                    }}>🔍</span>
+                    <input
+                        type="text"
+                        placeholder="Search PDFs…"
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        style={{
+                            width: '100%', boxSizing: 'border-box',
+                            padding: '8px 32px 8px 30px', borderRadius: 8,
+                            border: '1px solid rgba(148,163,184,0.12)',
+                            background: 'rgba(255,255,255,0.04)',
+                            color: '#e0f0e8', fontSize: '0.85rem',
+                            outline: 'none', fontFamily: 'inherit',
+                        }}
+                    />
+                    {query && (
+                        <button onClick={() => setQuery('')} style={{
+                            position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                            background: 'none', border: 'none', color: 'rgba(185,208,192,0.4)',
+                            cursor: 'pointer', fontSize: 15, padding: '0 2px', lineHeight: 1,
+                        }}>×</button>
+                    )}
                 </div>
             )}
 
-            {/* PDF Documents */}
-            {showPdfs && visiblePdfs.length > 0 && (
-                <section style={{ marginBottom: 32 }}>
-                    <h2 style={{
-                        margin: '0 0 10px', fontSize: '0.7rem', fontWeight: 700,
-                        letterSpacing: '0.1em', textTransform: 'uppercase',
-                        color: 'rgba(0,232,122,0.5)',
+            {/* PDF list */}
+            {pdfs.length === 0 ? (
+                <div style={{
+                    padding: '48px 24px', borderRadius: 14,
+                    border: '1px dashed rgba(148,163,184,0.15)', textAlign: 'center',
+                }}>
+                    <div style={{ fontSize: '1.5rem', marginBottom: 10 }}>📄</div>
+                    <p style={{ color: 'rgba(185,208,192,0.5)', margin: '0 0 16px' }}>
+                        No PDFs saved yet. Use the <strong style={{ color: 'rgba(0,232,122,0.7)' }}>Share</strong> button in chat and choose <strong style={{ color: 'rgba(0,232,122,0.7)' }}>Save PDF</strong>.
+                    </p>
+                    <a href="/chat" style={{
+                        display: 'inline-block', padding: '8px 20px', borderRadius: 999,
+                        background: '#00e87a', color: '#080c12',
+                        textDecoration: 'none', fontSize: '0.82rem', fontWeight: 700,
                     }}>
-                        PDF Documents — {visiblePdfs.length}
-                    </h2>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {visiblePdfs.map(pdf => (
-                            <div key={pdf.name} style={{
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                padding: '12px 16px', borderRadius: 10,
-                                border: '1px solid rgba(148,163,184,0.1)',
-                                background: 'rgba(255,255,255,0.025)', gap: 12,
-                            }}>
-                                <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                                    <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#e0f0e8', marginBottom: 2 }}>
-                                        {highlight(pdf.label, query)}
-                                    </div>
-                                    {pdf.created_at && (
-                                        <div style={{ fontSize: '0.72rem', color: 'rgba(185,208,192,0.4)' }}>
-                                            {formatDate(pdf.created_at)}
-                                        </div>
-                                    )}
+                        Go to chat →
+                    </a>
+                </div>
+            ) : filteredPdfs.length === 0 ? (
+                <p style={{ color: 'rgba(185,208,192,0.4)', fontSize: '0.88rem' }}>
+                    No PDFs match &ldquo;<strong style={{ color: 'rgba(224,240,232,0.6)' }}>{query}</strong>&rdquo;
+                </p>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {filteredPdfs.map(pdf => (
+                        <div key={pdf.name} style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '12px 16px', borderRadius: 10,
+                            border: '1px solid rgba(148,163,184,0.1)',
+                            background: 'rgba(255,255,255,0.025)', gap: 12,
+                        }}>
+                            <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+                                <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#e0f0e8', marginBottom: 2 }}>
+                                    {highlight(pdf.label, query)}
                                 </div>
-                                {pdf.signedUrl ? (
-                                    <a href={pdf.signedUrl} target="_blank" rel="noopener noreferrer" style={{
-                                        flexShrink: 0, fontSize: '0.75rem', fontWeight: 600,
-                                        padding: '5px 12px', borderRadius: 999,
-                                        border: '1px solid rgba(0,232,122,0.3)',
-                                        background: 'rgba(0,232,122,0.06)',
-                                        color: '#00e87a', textDecoration: 'none', whiteSpace: 'nowrap',
-                                    }}>
-                                        ↓ Download
-                                    </a>
-                                ) : (
-                                    <span style={{ fontSize: '0.72rem', color: 'rgba(185,208,192,0.3)' }}>Expired</span>
+                                {pdf.created_at && (
+                                    <div style={{ fontSize: '0.72rem', color: 'rgba(185,208,192,0.4)' }}>
+                                        {formatDate(pdf.created_at)}
+                                    </div>
                                 )}
                             </div>
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {/* Saved Q&A */}
-            {showAnswers && (
-                <section>
-                    {visibleAnswers.length > 0 && (
-                        <h2 style={{
-                            margin: '0 0 10px', fontSize: '0.7rem', fontWeight: 700,
-                            letterSpacing: '0.1em', textTransform: 'uppercase',
-                            color: 'rgba(0,232,122,0.5)',
-                        }}>
-                            Saved Analyses — {visibleAnswers.length}
-                        </h2>
-                    )}
-
-                    {totalEmpty ? (
-                        <div style={{
-                            padding: '40px 24px', borderRadius: 14,
-                            border: '1px dashed rgba(148,163,184,0.15)', textAlign: 'center',
-                        }}>
-                            <div style={{ fontSize: '1.5rem', marginBottom: 10 }}>✦</div>
-                            <p style={{ color: 'rgba(185,208,192,0.5)', margin: '0 0 16px' }}>
-                                Nothing saved yet. Hit <strong style={{ color: 'rgba(0,232,122,0.7)' }}>✦ Save</strong> on any answer in the chat.
-                            </p>
-                            <a href="/chat" style={{
-                                display: 'inline-block', padding: '8px 20px', borderRadius: 999,
-                                background: '#00e87a', color: '#080c12',
-                                textDecoration: 'none', fontSize: '0.82rem', fontWeight: 700,
-                            }}>
-                                Go to chat →
-                            </a>
-                        </div>
-                    ) : empty && q ? (
-                        <p style={{ color: 'rgba(185,208,192,0.4)', fontSize: '0.88rem' }}>
-                            No results for "<strong style={{ color: 'rgba(224,240,232,0.6)' }}>{query}</strong>"
-                        </p>
-                    ) : empty && tab === 'analyses' ? (
-                        <p style={{ color: 'rgba(185,208,192,0.4)', fontSize: '0.88rem' }}>
-                            No saved analyses yet — hit ✦ Save on any chat answer.
-                        </p>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {visibleAnswers.map(entry => (
-                                <details key={entry.id} style={{
-                                    borderRadius: 12,
-                                    border: '1px solid rgba(148,163,184,0.1)',
-                                    background: 'rgba(255,255,255,0.025)',
-                                    overflow: 'hidden',
+                            {pdf.signedUrl ? (
+                                <a href={pdf.signedUrl} target="_blank" rel="noopener noreferrer" style={{
+                                    flexShrink: 0, fontSize: '0.75rem', fontWeight: 600,
+                                    padding: '5px 12px', borderRadius: 999,
+                                    border: '1px solid rgba(0,232,122,0.3)',
+                                    background: 'rgba(0,232,122,0.06)',
+                                    color: '#00e87a', textDecoration: 'none', whiteSpace: 'nowrap',
                                 }}>
-                                    <summary style={{
-                                        padding: '14px 16px', cursor: 'pointer',
-                                        fontSize: '0.9rem', fontWeight: 600, color: '#e0f0e8',
-                                        display: 'flex', alignItems: 'flex-start',
-                                        justifyContent: 'space-between', gap: 12,
-                                        listStyle: 'none',
-                                    }}>
-                                        <span style={{ flex: '1 1 auto' }}>{highlight(entry.question, query)}</span>
-                                        <span style={{ fontSize: '0.7rem', color: 'rgba(185,208,192,0.4)', flexShrink: 0, marginTop: 2 }}>
-                                            {formatDate(entry.created_at)}
-                                        </span>
-                                    </summary>
-                                    <div style={{ padding: '0 16px 16px', borderTop: '1px solid rgba(148,163,184,0.08)' }}>
-                                        <div style={{ marginTop: 12 }}>
-                                            <div style={{
-                                                fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em',
-                                                textTransform: 'uppercase', color: 'rgba(0,232,122,0.5)', marginBottom: 6,
-                                            }}>Answer</div>
-                                            <div style={{
-                                                fontSize: '0.85rem', lineHeight: 1.7,
-                                                color: 'rgba(224,240,232,0.8)', whiteSpace: 'pre-wrap',
-                                            }}>
-                                                {entry.answerText || 'No answer text stored.'}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </details>
-                            ))}
+                                    ↓ Download
+                                </a>
+                            ) : (
+                                <span style={{ fontSize: '0.72rem', color: 'rgba(185,208,192,0.3)' }}>Expired</span>
+                            )}
                         </div>
-                    )}
-                </section>
-            )}
-
-            {/* PDFs-tab empty state */}
-            {tab === 'pdfs' && visiblePdfs.length === 0 && !q && (
-                <p style={{ color: 'rgba(185,208,192,0.4)', fontSize: '0.88rem' }}>
-                    No PDFs yet — download any scenario card from the chat.
-                </p>
+                    ))}
+                </div>
             )}
         </PageShell>
     );

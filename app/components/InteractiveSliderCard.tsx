@@ -4,9 +4,7 @@
 // Conventional · FHA · VA · Jumbo — dark theme rebuild with slider drawer UX
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
 import { COLORS } from '../../lib/tokens';
 import AdminCardBadge from './AdminCardBadge';
@@ -108,10 +106,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const [sellerCreditAmt, setSellerCreditAmt] = useState(props.sellerCredit ?? 0);
     const [sliderOpen,  setSliderOpen]  = useState(false);
     const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
-    const [vaultDone,   setVaultDone]   = useState(false);
-
-    const { user } = useUser();
-    const router   = useRouter();
+    const router = useRouter();
 
     // ── Prop-sync for display-only mode (hideDrawer = property_lookup path) ──────
     // In hideDrawer mode the user cannot adjust sliders, so internal state must
@@ -291,37 +286,6 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
         } : { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate };
         if (activeBdType !== 'none') return { ...vaBase, buydownType: activeBdType, sellerCredit: sellerCreditAmt };
         return vaBase;
-    }
-
-    function getMatchedUrl() {
-        const lt = loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType === 'fha' ? 'fha' : 'conventional';
-        // Extract state from journey address if available (e.g. "…, CA 92130")
-        const stateFromAddr = props.journeyAddress
-            ? (props.journeyAddress.match(/,\s*([A-Z]{2})(?:\s+\d{5})?(?:\s*$|,)/)?.[1] ?? '')
-            : '';
-        const params: Record<string, string> = {
-            from: 'scenario', lt,
-            price: String(Math.round(price)),
-            dp: String(downPct),
-            rate: rate.toFixed(2),
-            monthly: String(Math.round(total)),
-            term: String(term),
-        };
-        if (stateFromAddr) params.state = stateFromAddr;
-        return `/connect/post?${new URLSearchParams(params).toString()}`;
-    }
-
-    async function handleVault() {
-        if (!user) { router.push('/sign-up'); return; }
-        try {
-            await fetch('/api/vault/files', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'scenario', loanType, price, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate }),
-            });
-            setVaultDone(true);
-            setTimeout(() => setVaultDone(false), 2000);
-        } catch { /* non-fatal */ }
     }
 
     async function handleDrawerRun() {
@@ -718,22 +682,6 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
             </div>
             </div>}
 
-            {/* Action buttons — hidden on property_lookup path (income card has the CTAs) */}
-            {!props.hideDrawer && <div className="isc-action-row">
-                <button className="isc-btn-vault" onClick={handleVault}>
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13">
-                        <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                    </svg>
-                    {vaultDone ? 'Saved ✓' : 'My Vault'}
-                </button>
-                <PdfDownloadButton
-                    type={loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType}
-                    getParams={() => ({ price, downPct, rate, term, taxRate: props.taxRate, insRate: props.insRate, loanType, vaFundingFeePct: vaFfPct })}
-                />
-                <button className="isc-btn-match" onClick={() => router.push(getMatchedUrl())}>
-                    Get Matched →
-                </button>
-            </div>}
 
             {/* Check a property — only in standalone (no journeyAddress, no hideDrawer) context */}
             {!props.hideDrawer && !props.journeyAddress && (

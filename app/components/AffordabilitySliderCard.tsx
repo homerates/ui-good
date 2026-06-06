@@ -5,9 +5,7 @@
 // with live-calc drawers, side-by-side comparison, rate/term explorer, and disclosures.
 
 import React, { useState, useMemo } from 'react';
-import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import PdfDownloadButton from './PdfDownloadButton';
 import SliderField from './SliderField';
 import { calcPI } from '../../lib/math';
 import { COLORS } from '../../lib/tokens';
@@ -231,7 +229,6 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
     const [term, setTerm]         = useState(props.term);
     const [openCard, setOpenCard] = useState<'fha' | 'conv3' | 'conv20' | null>('conv3');
     const [compOpen, setCompOpen] = useState(false);
-    const [vaultDone, setVaultDone] = useState(false);
     const [sliderOpen, setSliderOpen] = useState(false);
     const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
 
@@ -240,8 +237,7 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
         savings !== props.savings || downPct !== initDownPct ||
         Math.abs(rate - props.rate) > 0.001 || term !== props.term;
 
-    const { user } = useUser();
-    const router   = useRouter();
+    const router = useRouter();
 
     const { fha, conv3, conv20 } = useMemo(() => ({
         fha:    calcProgram(income, debts, 3.5,     rate, term, props.taxRate, props.insRate, 'fha',          savings, props.fhaLoanLimit),
@@ -254,24 +250,6 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
 
     function toggle(id: 'fha' | 'conv3' | 'conv20') {
         setOpenCard(prev => prev === id ? null : id);
-    }
-
-    async function handleVault() {
-        if (!user) { router.push('/sign-up'); return; }
-        try {
-            await fetch('/api/library', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    question: `Affordability: ${fmtK(income)}/yr income at ${rate.toFixed(2)}%`,
-                    answer: conv3
-                        ? `Max Home (Conv 3%): ${fmt$(conv3.maxPrice)} · Payment: ${fmt$(conv3.total)}/mo · Cash Needed: ${fmt$(conv3.totalCash)}`
-                        : `Affordability analysis at ${rate.toFixed(2)}%`,
-                    tool_id: 'vault_save_affordability',
-                }),
-            });
-            setVaultDone(true);
-        } catch { /* non-fatal */ }
     }
 
     function buildSeed(): string {
@@ -612,40 +590,6 @@ export default function AffordabilitySliderCard(props: AffordabilitySliderParams
                     </div>
                 )}
 
-                {/* Actions */}
-                <div className="afc-exp-actions">
-                    <button type="button" className="afc-btn-vault" onClick={handleVault}>
-                        <StarIcon />
-                        <span>{vaultDone ? '✓ Saved' : 'My Vault'}</span>
-                    </button>
-                    <PdfDownloadButton
-                        type="affordability"
-                        getParams={() => ({
-                            annualIncome: props.annualIncome, monthlyDebts: props.monthlyDebts,
-                            savings: props.savings, downPct: 3, rate, term,
-                            taxRate: props.taxRate, insRate: props.insRate, loanType: 'conventional',
-                        })}
-                    />
-                    <button type="button" className="afc-btn-match" onClick={() => {
-                        const ref = conv3;
-                        const params = new URLSearchParams({
-                            from: 'scenario',
-                            lt: 'Conventional',
-                            purpose: 'Purchase',
-                            ...(ref ? {
-                                price: String(Math.round(ref.maxPrice)),
-                                dp: String(downPct),
-                                monthly: String(Math.round(ref.total)),
-                            } : {}),
-                            rate: String(parseFloat(rate.toFixed(3))),
-                            term: String(term),
-                            income: String(Math.round(income)),
-                        });
-                        router.push('/connect/post?' + params.toString());
-                    }}>
-                        Get matched →
-                    </button>
-                </div>
             </div>
             {/* Drawer CTA — dark bg, outside white section */}
             <div className="afc-sdrawer-cta">

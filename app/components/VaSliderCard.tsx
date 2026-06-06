@@ -1,10 +1,8 @@
 ﻿'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
-import PdfDownloadButton from './PdfDownloadButton';
 import { calcPI } from '../../lib/math';
 import { COLORS } from '../../lib/tokens';
 
@@ -79,11 +77,9 @@ export default function VaSliderCard(props: VaSliderParams) {
     const [termYrs,    setTermYrs]    = useState(props.term);
     const [ffTier,     setFfTier]     = useState<FFTier>(pctToTier(props.vaFundingFeePct));
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [vaultDone,  setVaultDone]  = useState(false);
-    const [debts,      setDebts]      = useState(props.monthlyDebts ?? 0);
+    const [debts,  setDebts] = useState(props.monthlyDebts ?? 0);
 
-    const { user } = useUser();
-    const router   = useRouter();
+    const router = useRouter();
 
     // ── Journey: L1 write-back when launched from my-home property context ────
     const vaJourneyFired = useRef(false);
@@ -128,22 +124,6 @@ export default function VaSliderCard(props: VaSliderParams) {
 
     // ── Actions ───────────────────────────────────────────────────────────────
 
-    async function handleVault() {
-        if (!user) { router.push('/sign-up'); return; }
-        try {
-            await fetch('/api/library', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    question: `VA: ${fmtK(price)} · ${downPct}% down · ${rate.toFixed(2)}% · ${ffTier === 'exempt' ? 'FF Exempt' : `${ffPct}% FF`}`,
-                    answer:   `Monthly PITI: ${fmt$(piti)} · Funding fee: ${ffTier === 'exempt' ? 'Exempt' : fmt$(fundingFee)} · No PMI`,
-                    tool_id:  'vault_save_va',
-                }),
-            });
-            setVaultDone(true);
-        } catch { /* non-fatal */ }
-    }
-
     function handleRun() {
         if (!props.onRunScenario) return;
         props.onRunScenario(buildSeed(), {
@@ -163,17 +143,6 @@ export default function VaSliderCard(props: VaSliderParams) {
         return `VA loan on a ${prStr} home, ${downPct}% down at ${rate.toFixed(3)}%, ${ffStr}, ${termYrs}-year fixed${dStr}`;
     }
 
-    function getMatchedUrl() {
-        const p = new URLSearchParams({
-            from: 'va', lt: 'VA', purpose: 'Purchase',
-            price:   String(Math.round(price)),
-            dp:      String(downPct),
-            monthly: String(piti),
-            rate:    String(rate),
-            term:    String(termYrs),
-        });
-        return `/connect/post?${p.toString()}`;
-    }
 
     // ── Render ────────────────────────────────────────────────────────────────
 
@@ -447,9 +416,6 @@ export default function VaSliderCard(props: VaSliderParams) {
                     <button className="va-cta-run" onClick={handleRun}>▶ Run My Numbers</button>
                 )}
             </div>
-            <button className="va-cta-full" onClick={() => router.push(getMatchedUrl())}>
-                Get Matched with a VA Lender →
-            </button>
 
 
             {/* Deep analysis drawer */}
@@ -505,20 +471,6 @@ export default function VaSliderCard(props: VaSliderParams) {
 
             {/* Permanent bottom */}
             <div className="va-perm">
-                <div className="va-perm-label">Save This Scenario</div>
-                <div className="va-vault-row">
-                    <button className="va-btn-vault" onClick={handleVault}>
-                        {vaultDone ? '✓ Saved to Vault' : '⭐ Save to My Vault'}
-                    </button>
-                    <PdfDownloadButton
-                        type="va"
-                        getParams={() => ({
-                            price, downPct, rate, term: termYrs,
-                            taxRate: props.taxRate, insRate: props.insRate,
-                            loanType: 'va',
-                        })}
-                    />
-                </div>
                 <div className="va-rate-note">
                     <span className="va-bulb">💡</span>
                     <p>

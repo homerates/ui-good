@@ -1,11 +1,9 @@
 'use client';
 
 import React, { useState, useMemo, CSSProperties } from 'react';
-import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import { COLORS } from '../../lib/tokens';
-import PdfDownloadButton from './PdfDownloadButton';
 import {
     getCALoanLimits,
     getCACountyByZip,
@@ -88,10 +86,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
     const [insRate, setInsRate] = useState(props.insRate);
     const [zipErr,  setZipErr]  = useState('');
     const [open,    setOpen]    = useState(false);
-    const [vaultOk, setVaultOk] = useState(false);
-
-    const { user } = useUser();
-    const router   = useRouter();
+    const router = useRouter();
     const natBase  = props.nationalBaseline ?? NATIONAL_CONFORMING_BASELINE.units1;
 
     function handleZip(val: string) {
@@ -133,22 +128,6 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
     const { z } = c;
     const countyDisplay = county ? county.charAt(0) + county.slice(1).toLowerCase().replace(/_/g, ' ') : '';
 
-    async function handleVault() {
-        if (!user) { router.push('/sign-up'); return; }
-        try {
-            await fetch('/api/library', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    question: `Jumbo Affordability: ${f$(price)} home, ${down}% down, ${fP(rate)} — ${county || 'CA'}`,
-                    answer: `PITI: ${fL(Math.round(c.total))}/mo · Income @43%: ${f$(c.i43)} · Cash at close: ${f$(c.cash)}`,
-                    tool_id: 'vault_save_jumbo_affordability',
-                }),
-            });
-            setVaultOk(true);
-        } catch { /* non-fatal */ }
-    }
-
     function handleCheckProperty() {
         const p = new URLSearchParams({ price: String(Math.round(price)), dp: String(down), rate: rate.toFixed(3), term: '30', lt: 'jumbo', taxRate: taxRate.toFixed(5), insRate: insRate.toFixed(5) });
         router.push(`/check-property?${p.toString()}`);
@@ -161,10 +140,6 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
         );
     }
 
-    function handleGetMatched() {
-        const p = new URLSearchParams({ from: 'scenario', lt: 'Jumbo', purpose: 'Purchase', price: String(Math.round(price)), dp: String(down), monthly: String(Math.round(c.total)), rate: String(rate), term: '30' });
-        router.push(`/connect/post?${p.toString()}`);
-    }
 
     // ── shared style fragments ────────────────────────────────────────────────
     const divS: CSSProperties  = { height: 1, background: 'rgba(255,255,255,0.06)', margin: '16px 20px 0' };
@@ -272,11 +247,6 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                     </button>
                 )}
             </div>
-            <div style={{ padding: '10px 20px 0' }}>
-                <button onClick={handleGetMatched} style={{ width: '100%', padding: '11px 8px', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', textAlign: 'center' as const, background: 'transparent', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(185,208,192,0.8)', fontFamily: 'inherit' }}>
-                    Get Matched with a Jumbo Specialist →
-                </button>
-            </div>
 
             {/* Drawer trigger */}
             <button
@@ -369,18 +339,6 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
 
             {/* ════ PERMANENT BOTTOM ════ */}
             <div style={{ paddingBottom: 20 }}>
-                <div style={{ ...secLbl, paddingTop: 18 }}>Save This Scenario</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '10px 20px 0' }}>
-                    <button onClick={handleVault} style={{ padding: '11px 8px', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', textAlign: 'center' as const, background: 'rgba(61,139,255,0.1)', border: '1px solid rgba(61,139,255,0.25)', color: '#3d8bff', fontFamily: 'inherit' }}>
-                        {vaultOk ? '✓ Saved' : '⭐ Save to My Vault'}
-                    </button>
-                    <div style={{ display: 'flex' }}>
-                        <PdfDownloadButton
-                            type="jumbo"
-                            getParams={() => ({ price, downPct: down, rate, term: 30, taxRate, insRate, loanType: 'jumbo' })}
-                        />
-                    </div>
-                </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '12px 20px 0', padding: '10px 12px', background: 'rgba(61,139,255,0.05)', border: '1px solid rgba(61,139,255,0.15)', borderRadius: 8, fontSize: '0.75rem', color: 'rgba(185,208,192,0.65)', lineHeight: 1.55 }}>
                     <span>💡</span>
                     <span><strong style={{ color: 'rgba(185,208,192,0.9)' }}>Rate seeded from live FRED 30yr avg.</strong> Jumbo loans typically run 0.25–0.50% above conforming. Adjust the rate slider to model your actual scenario.</span>

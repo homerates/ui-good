@@ -416,23 +416,6 @@ export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data
             </div>
             <div className="pic-cta-row" style={{ padding: '0 16px 6px', display: 'flex', gap: 10 }}>
                 <button
-                    onClick={() => data.onRunScenario?.(`Get matched with a lender for ${data.address} at ${fmt$(data.price, true)}`)}
-                    style={{
-                        flex: 1,
-                        padding: '10px 0',
-                        borderRadius: 999,
-                        border: '1px solid rgba(0,232,122,0.35)',
-                        background: 'transparent',
-                        color: '#00e87a',
-                        fontWeight: 700,
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        letterSpacing: '0.01em',
-                    }}
-                >
-                    🏦 Get Matched →
-                </button>
-                <button
                     onClick={() => data.onRunScenario?.(`What income do I need to qualify for ${data.address}? Price ${fmt$(data.price, true)}, 20% down, ${data.rate}% rate.`)}
                     style={{
                         flex: 1,

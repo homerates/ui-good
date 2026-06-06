@@ -1,10 +1,8 @@
 ﻿'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
-import PdfDownloadButton from './PdfDownloadButton';
 import { calcPI } from '../../lib/math';
 import { COLORS } from '../../lib/tokens';
 
@@ -95,10 +93,7 @@ export default function JumboSliderCard(props: JumboSliderParams) {
     const [rate,     setRate]     = useState(props.rate);
     const [termType, setTermType] = useState<TermType>(props.term === 15 ? '15yr' : '30yr');
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [vaultDone,  setVaultDone]  = useState(false);
-
-    const { user } = useUser();
-    const router   = useRouter();
+    const router = useRouter();
 
     // ── Journey: L1 write-back when launched from my-home property context ────
     const jJourneyFired = useRef(false);
@@ -173,33 +168,6 @@ export default function JumboSliderCard(props: JumboSliderParams) {
 
     // ── Actions ────────────────────────────────────────────────────────────────
 
-    async function handleVault() {
-        if (!user) { router.push('/sign-up'); return; }
-        try {
-            await fetch('/api/library', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    question: `Jumbo Purchase: ${fmtM(price)} · ${downPct}% down · ${rate.toFixed(2)}% · ${termYrs}yr`,
-                    answer: `Total/mo: ${fmt$(Math.round(total))} · PITI · Loan: ${fmt$(Math.round(loanAmt))}`,
-                    tool_id: 'vault_save_jumbo',
-                }),
-            });
-            setVaultDone(true);
-        } catch { /* non-fatal */ }
-    }
-
-    function getMatchedUrl() {
-        const p = new URLSearchParams({
-            from: 'scenario', lt: 'Jumbo', purpose: 'Purchase',
-            price:   String(Math.round(price)),
-            dp:      String(downPct),
-            monthly: String(Math.round(total)),
-            rate:    String(rate),
-            term:    String(termYrs),
-        });
-        return `/connect/post?${p.toString()}`;
-    }
 
     function handleRun() {
         if (!props.onRunScenario) return;
@@ -401,11 +369,6 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 )}
                 {props.onRunScenario && <button className="jbs-btn-run" onClick={handleRun}>Run My Numbers →</button>}
             </div>
-            <div className="jbs-cta-full">
-                <button className="jbs-btn-get-matched" onClick={() => router.push(getMatchedUrl())}>
-                    Get Matched with Jumbo Specialists →
-                </button>
-            </div>
 
             {/* Cross-fire chip — HB range: suggest running the conventional HB card for comparison */}
             {props.onRunScenario && zone === 'highbal' && (
@@ -522,16 +485,6 @@ export default function JumboSliderCard(props: JumboSliderParams) {
 
             {/* ════ PERMANENT BOTTOM ════ */}
             <div className="jbs-perm">
-                <div className="jbs-sec" style={{ paddingTop: 18 }}>Save This Scenario</div>
-                <div className="jbs-vault-row">
-                    <button className="jbs-btn-vault-new" onClick={handleVault}>{vaultDone ? '✓ Saved' : '⭐ Save to My Vault'}</button>
-                    <div style={{ display: 'flex' }}>
-                        <PdfDownloadButton
-                            type="jumbo"
-                            getParams={() => ({ price, downPct, rate, term: termYrs, taxRate: props.taxRate, insRate: props.insRate, loanType: 'jumbo' })}
-                        />
-                    </div>
-                </div>
                 <div className="jbs-rate-note-new">
                     <span className="jbs-bulb">💡</span>
                     <p>
