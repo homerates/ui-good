@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { SignInButton, SignedIn, SignedOut, useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
+import { ShareAnswerButton } from '../components/ShareAnswerButton';
 import { normalizeListingStatus } from '@/prefetchGrokProperty';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -207,9 +208,7 @@ function PropertyIntelInner() {
   const [loadingMsg,  setLoadingMsg]  = useState('Checking for cached report…');
   const [summary,     setSummary]     = useState('');
   const [error,       setError]       = useState('');
-  const [copied,      setCopied]      = useState(false);
-  const [saving,      setSaving]      = useState(false);
-  const [savedVault,  setSavedVault]  = useState(false);
+  const [pageUrl, setPageUrl] = useState('');
   const [deepLoading, setDeepLoading] = useState(false);
   const [deepStep,    setDeepStep]    = useState(0);
 
@@ -238,6 +237,8 @@ function PropertyIntelInner() {
   }
   const [existingSession, setExistingSession] = useState<ExistingSession | null>(null);
   const sessionFetchedRef = useRef('');
+
+  useEffect(() => { setPageUrl(window.location.href); }, []);
 
   useEffect(() => {
     if (!isSignedIn || !address) return;
@@ -657,30 +658,6 @@ function PropertyIntelInner() {
   }, [address, deepLoading]);
 
   // ── CTAs ───────────────────────────────────────────────────────────────────
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href).catch(() => {
-      const el = document.createElement('textarea');
-      el.value = window.location.href;
-      document.body.appendChild(el); el.select();
-      document.execCommand('copy'); document.body.removeChild(el);
-    });
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await fetch('/api/homeowner/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address }),
-      });
-      setSavedVault(true);
-      setTimeout(() => setSavedVault(false), 3000);
-    } finally { setSaving(false); }
-  };
-
   const handleRefresh = () => {
     lsEvict(address);
     runQuery({ force: true });
@@ -1244,11 +1221,8 @@ function PropertyIntelInner() {
                   </button>
                 )}
 
-                {/* Share — always public */}
-                <button onClick={handleShare} style={{ padding: '11px 20px', fontSize: '0.82rem', fontWeight: 600, background: 'transparent', color: copied ? '#4ade80' : '#94a3b8', border: `1px solid ${copied ? 'rgba(74,222,128,0.35)' : 'rgba(148,163,184,0.22)'}`, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s' }}>
-                  <i className={`fa-solid ${copied ? 'fa-check' : 'fa-share-nodes'}`} style={{ fontSize: '0.8rem' }} />
-                  {copied ? 'Copied!' : 'Share Report'}
-                </button>
+                {/* Share */}
+                <ShareAnswerButton url={pageUrl} />
 
                 {/* ── Step 1: Full Market Analysis (required before Build Report) ── */}
                 {!d.deep_analysis && !deepLoading && finalResult && (
@@ -1290,21 +1264,6 @@ function PropertyIntelInner() {
                   </div>
                 )}
 
-                {/* Save to Vault */}
-                <SignedIn>
-                  <button onClick={handleSave} disabled={saving || savedVault} style={{ padding: '11px 20px', fontSize: '0.82rem', fontWeight: 600, background: 'transparent', color: savedVault ? '#4ade80' : 'rgba(74,222,128,0.85)', border: `1px solid ${savedVault ? 'rgba(74,222,128,0.4)' : 'rgba(74,222,128,0.22)'}`, borderRadius: 10, cursor: saving ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: 'all 0.15s', opacity: saving ? 0.65 : 1 }}>
-                    <i className={`fa-solid ${savedVault ? 'fa-check' : 'fa-bookmark'}`} style={{ fontSize: '0.8rem' }} />
-                    {savedVault ? '✓ Saved!' : saving ? 'Saving…' : 'Save to Vault'}
-                  </button>
-                </SignedIn>
-                <SignedOut>
-                  <SignInButton mode="modal">
-                    <button style={{ padding: '11px 20px', fontSize: '0.82rem', fontWeight: 600, background: 'transparent', color: 'rgba(74,222,128,0.85)', border: '1px solid rgba(74,222,128,0.22)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <i className="fa-solid fa-lock" style={{ fontSize: '0.72rem' }} />
-                      Save to Vault
-                    </button>
-                  </SignInButton>
-                </SignedOut>
 
                 {/* Run My Numbers — primary CTA */}
                 <SignedIn>
