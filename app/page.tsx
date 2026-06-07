@@ -900,29 +900,8 @@ export default function LandingPage() {
             <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <ul className="lp-nav-links">
-            <li><Link href="/chat">Open Chat</Link></li>
-            <li><Link href="/chat">Scenario Engine</Link></li>
-            <li><Link href="/lab">HomeRates Lab</Link></li>
-            <li><Link href="/homeowner">Home Value</Link></li>
-            <li className="lp-nav-dropdown">
-              <button className="lp-nav-dropdown-trigger">
-                Resources <span className="lp-nav-dropdown-arrow">▾</span>
-              </button>
-              <div className="lp-nav-dropdown-menu">
-                <div className="lp-nav-dropdown-menu-inner">
-                  <Link href="/market-news"><span className="lp-ddm-icon">📰</span>Market News</Link>
-                  <Link href="/knowledge-hub"><span className="lp-ddm-icon">📚</span>Knowledge Hub</Link>
-                  <Link href="/loan-limits"><span className="lp-ddm-icon">🏠</span>Loan Limits 2026</Link>
-                  <div className="lp-nav-dropdown-divider" />
-                  <Link href="/compare"><span className="lp-ddm-icon">⚖️</span>Compare Scenarios</Link>
-                  <Link href="/calculators"><span className="lp-ddm-icon">🧮</span>Calculators</Link>
-                  <Link href="/jumbo-calculator"><span className="lp-ddm-icon">⚡</span>Jumbo Calculator</Link>
-                  <Link href="/dscr-calculator"><span className="lp-ddm-icon">📊</span>DSCR Calculator</Link>
-                  <div className="lp-nav-dropdown-divider" />
-                  <Link href="/platform"><span className="lp-ddm-icon">🔬</span>Platform Intelligence</Link>
-                </div>
-              </div>
-            </li>
+            <li><Link href="/chat?new=1">Scenario</Link></li>
+            <li><Link href="/chat?new=1&pl=1">Property Lookup</Link></li>
           </ul>
           <div className="lp-nav-cta">
             <SignedOut>
@@ -960,59 +939,19 @@ export default function LandingPage() {
                 <span className="lp-mobile-menu-link-sub">HomeRates.ai</span>
               </div>
             </Link>
-            <div className="lp-mobile-menu-section-label">Platform</div>
-            <Link href="/chat" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="lp-mobile-menu-link-icon">💬</span>
-              <div className="lp-mobile-menu-link-inner">
-                <span>AI Chat</span>
-                <span className="lp-mobile-menu-link-sub">Ask any mortgage question</span>
-              </div>
-            </Link>
-            <Link href="/chat" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/chat?new=1" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
               <span className="lp-mobile-menu-link-icon">⚡</span>
               <div className="lp-mobile-menu-link-inner">
-                <span>Scenario Engine</span>
-                <span className="lp-mobile-menu-link-sub">Payment breakdowns & comparisons</span>
+                <span>Scenario</span>
+                <span className="lp-mobile-menu-link-sub">Run any mortgage scenario</span>
               </div>
             </Link>
-            <Link href="/chat" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="lp-mobile-menu-link-icon">🧠</span>
+            <Link href="/chat?new=1&pl=1" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">🔍</span>
               <div className="lp-mobile-menu-link-inner">
-                <span>HomeRates Lab</span>
-                <span className="lp-mobile-menu-link-sub">Policy & guideline answers</span>
+                <span>Property Lookup</span>
+                <span className="lp-mobile-menu-link-sub">Enter an address — get full analysis</span>
               </div>
-            </Link>
-            <Link href="/homeowner" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="lp-mobile-menu-link-icon">🏡</span>
-              <div className="lp-mobile-menu-link-inner">
-                <span>Home Value</span>
-                <span className="lp-mobile-menu-link-sub">Estimate & refi readiness</span>
-              </div>
-            </Link>
-            <div className="lp-mobile-menu-section-label">Resources</div>
-            <Link href="/market-news" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="lp-mobile-menu-link-icon">📰</span>
-              <div className="lp-mobile-menu-link-inner"><span>Market News</span></div>
-            </Link>
-            <Link href="/knowledge-hub" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="lp-mobile-menu-link-icon">📚</span>
-              <div className="lp-mobile-menu-link-inner"><span>Knowledge Hub</span></div>
-            </Link>
-            <Link href="/loan-limits" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="lp-mobile-menu-link-icon">🏠</span>
-              <div className="lp-mobile-menu-link-inner"><span>Loan Limits 2026</span></div>
-            </Link>
-            <Link href="/calculators" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="lp-mobile-menu-link-icon">🧮</span>
-              <div className="lp-mobile-menu-link-inner"><span>Calculators</span></div>
-            </Link>
-            <Link href="/compare" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="lp-mobile-menu-link-icon">⚖️</span>
-              <div className="lp-mobile-menu-link-inner"><span>Compare Scenarios</span></div>
-            </Link>
-            <Link href="/platform" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="lp-mobile-menu-link-icon">🔬</span>
-              <div className="lp-mobile-menu-link-inner"><span>Platform Intelligence</span></div>
             </Link>
           </div>
           <div className="lp-mobile-menu-ctas">

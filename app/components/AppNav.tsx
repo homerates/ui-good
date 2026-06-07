@@ -280,6 +280,9 @@ export default function AppNav({
               <Link href="/chat?new=1" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">💬</span>New Chat
               </Link>
+              <Link href="/chat?new=1" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">⚡</span>Scenario
+              </Link>
               <Link href="/chat?new=1&pl=1" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">🔍</span>Property Lookup
               </Link>

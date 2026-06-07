@@ -1384,6 +1384,8 @@ export default function Page() {
     const [typingId, setTypingId] = useState<string | null>(null);
     const [showUpgradeRequired, setShowUpgradeRequired] = useState(false);
     const [showAuthRequired, setShowAuthRequired] = useState(false);
+    // Property Lookup mode — shows address-first WelcomeScreen for consumers instead of 4-card landing
+    const [propertyLookupMode, setPropertyLookupMode] = useState(false);
 
     // Credit gate state — refreshed after each query
     const [creditState, setCreditState] = useState<{
@@ -1434,7 +1436,7 @@ export default function Page() {
         if (searchParams.get('new') === '1' || searchParams.get('pl') === '1') {
             newChat();
             if (searchParams.get('pl') === '1') {
-                setTimeout(() => composerRef.current?.focus(), 150);
+                setPropertyLookupMode(true);
             }
             return;
         }
@@ -3589,7 +3591,8 @@ export default function Page() {
                                 <>
                                     <a href="/" className="app-nav-link">Home</a>
                                     <button type="button" className="app-nav-link" onClick={() => newChat()}>New Chat</button>
-                                    <button type="button" className="app-nav-link" onClick={() => { newChat(); setTimeout(() => composerRef.current?.focus(), 80); }}>Property Lookup</button>
+                                    <button type="button" className="app-nav-link" onClick={() => newChat()}>Scenario</button>
+                                    <button type="button" className="app-nav-link" onClick={() => { newChat(); setPropertyLookupMode(true); }}>Property Lookup</button>
                                 </>
                             ) : (
                                 <>
@@ -3685,13 +3688,13 @@ export default function Page() {
                                         onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
                                         onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
                                     />
-                                    : isConsumer
+                                    : (isConsumer && !propertyLookupMode)
                                     ? <ConsumerChatLanding
                                         onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
                                         onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
                                     />
                                     : <WelcomeScreen
-                                        onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
+                                        onSend={(s) => { newChat(); setPropertyLookupMode(false); setTimeout(() => send(s as string), 50); }}
                                         onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
                                         onPriceCheck={onPriceCheck}
                                     />
