@@ -3576,7 +3576,6 @@ export default function Page() {
                                     <a href="/" className="app-nav-link">Home</a>
                                     <a href="/my-home" className="app-nav-link">My Home</a>
                                     <a href="/check-property" className="app-nav-link">Check Property</a>
-                                    <a href="/track5" className="app-nav-link">Track 5</a>
                                 </>
                             ) : (
                                 <>
@@ -3592,16 +3591,18 @@ export default function Page() {
                         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                             <AlertBell />
                             <SettingsPanel />
-                            {/* Right sidebar toggle — plain ≡, never becomes ✕ */}
-                            <button
-                                type="button"
-                                aria-label="Open menu"
-                                className="hamburger"
-                                onClick={() => setRightMenuOpen(o => !o)}
-                                style={{ marginLeft: 4 }}
-                            >
-                                <span /><span /><span />
-                            </button>
+                            {/* Right sidebar toggle — hidden for consumers (they use the AppNav drawer) */}
+                            {!isConsumer && (
+                                <button
+                                    type="button"
+                                    aria-label="Open menu"
+                                    className="hamburger"
+                                    onClick={() => setRightMenuOpen(o => !o)}
+                                    style={{ marginLeft: 4 }}
+                                >
+                                    <span /><span /><span />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -4317,6 +4318,36 @@ export default function Page() {
                                                                     ))}
                                                                 </div>
                                                             </div>
+                                                        )}
+                                                        {/* Share with Pro CTA — consumer only, shows when any card is present */}
+                                                        {isConsumer && !loading && typingId === null && !!(
+                                                            m.meta.interactiveSlider || m.meta.convHBSlider || m.meta.fhaSlider ||
+                                                            m.meta.vaSlider || m.meta.jumboSlider || m.meta.dscrSlider ||
+                                                            m.meta.refiSlider || m.meta.refiIntelligenceCard || m.meta.affordabilitySlider ||
+                                                            m.meta.conventionalAffordabilitySlider || m.meta.fhaAffordabilitySlider ||
+                                                            m.meta.decisionScoreCard || m.meta.cmaCard || m.meta.helocCard ||
+                                                            m.meta.loanLimitsSlider || m.meta.jumboAffordabilitySlider || m.meta.scenarioComparisonCard
+                                                        ) && (
+                                                            <a
+                                                                href="/connect"
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center', gap: 8,
+                                                                    marginTop: 16, padding: '12px 18px',
+                                                                    background: 'rgba(0,232,122,0.07)',
+                                                                    border: '1px solid rgba(0,232,122,0.2)',
+                                                                    borderRadius: 10, textDecoration: 'none',
+                                                                    color: '#00e87a', fontSize: 13, fontWeight: 600,
+                                                                    fontFamily: 'DM Sans, system-ui, sans-serif',
+                                                                    transition: 'background 0.15s',
+                                                                    width: '100%',
+                                                                }}
+                                                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.13)')}
+                                                                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.07)')}
+                                                            >
+                                                                <span style={{ fontSize: 15 }}>📤</span>
+                                                                Share with a Loan Officer
+                                                                <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.65 }}>Send this scenario →</span>
+                                                            </a>
                                                         )}
                                                         {/* Smart follow-up chips — only on the latest card to prevent stale chips from adjusted runs */}
                                                         {m.meta.follow_up_chips && m.meta.follow_up_chips.length > 0 && mIdx === lastChipIdx && !loading && typingId === null && (
@@ -5089,16 +5120,16 @@ export default function Page() {
                 )}
             </section>
 
-            {/* ── Right sidebar overlay ── */}
-            {rightMenuOpen && (
+            {/* ── Right sidebar overlay — pro only ── */}
+            {!isConsumer && rightMenuOpen && (
                 <div
                     style={{ position: 'fixed', inset: 0, zIndex: 498, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' }}
                     onClick={() => setRightMenuOpen(false)}
                 />
             )}
 
-            {/* ── Right sidebar panel ── */}
-            <div style={{
+            {/* ── Right sidebar panel — pro only ── */}
+            {!isConsumer && <div style={{
                 position: 'fixed', top: 0, right: 0, bottom: 0, width: 300, maxWidth: '88vw',
                 zIndex: 499, background: '#0d1117',
                 display: rightMenuOpen ? 'flex' : 'none', flexDirection: 'column',
@@ -5201,7 +5232,7 @@ export default function Page() {
                         Try free — no sign up required
                     </a>
                 </div>
-            </div>
+            </div>}
         </>
     );
 }

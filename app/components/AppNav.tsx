@@ -278,19 +278,13 @@ export default function AppNav({
               </Link>
               <div className="an-drawer-label">Explore</div>
               <Link href="/chat" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-                <span className="an-drawer-icon">💬</span>Open Chat
-              </Link>
-              <Link href="/chat" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-                <span className="an-drawer-icon">⚡</span>Run a Scenario
+                <span className="an-drawer-icon">💬</span>Chat
               </Link>
               <Link href="/check-property" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-                <span className="an-drawer-icon">🔍</span>Property Lookup
+                <span className="an-drawer-icon">🔍</span>Check Property
               </Link>
               <Link href="/connect" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">📤</span>Share with Pro
-              </Link>
-              <Link href="/track5" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-                <span className="an-drawer-icon">🎯</span>Track 5
               </Link>
               <div className="an-drawer-label">Tools &amp; Resources</div>
               <Link href="/calculators" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
