@@ -489,8 +489,49 @@ export default function ConsumerHomePage() {
           </Link>
 
           <ul className="ch-nav-links">
-            <li><Link href="/chat?new=1">Scenario</Link></li>
+            <li><Link href="/chat?new=1">New Chat</Link></li>
+            <li><Link href="/my-home">My Home <span className="ch-nav-badge">NEW</span></Link></li>
+            <li className="ch-nav-dd">
+              <button className="ch-nav-dd-trigger">
+                Scenario <span className="ch-nav-dd-arrow">▾</span>
+              </button>
+              <div className="ch-nav-dd-menu">
+                <div className="ch-nav-dd-inner">
+                  <Link href="/chat?new=1"><span className="ch-ddm-icon">🏦</span>Run a Scenario</Link>
+                  <Link href="/chat?new=1"><span className="ch-ddm-icon">🔁</span>Refi Analysis</Link>
+                  <Link href="/chat?new=1"><span className="ch-ddm-icon">🏢</span>DSCR / Investor</Link>
+                  <div className="ch-nav-dd-divider" />
+                  <Link href="/connect"><span className="ch-ddm-icon">📤</span>Share with Pro</Link>
+                </div>
+              </div>
+            </li>
             <li><Link href="/chat?new=1&pl=1">Property Lookup</Link></li>
+            <li><Link href="/track5">Track 5</Link></li>
+            <li className="ch-nav-dd">
+              <button className="ch-nav-dd-trigger">
+                Tools <span className="ch-nav-dd-arrow">▾</span>
+              </button>
+              <div className="ch-nav-dd-menu">
+                <div className="ch-nav-dd-inner">
+                  <Link href="/calculators"><span className="ch-ddm-icon">🧮</span>Calculators</Link>
+                  <Link href="/loan-limits"><span className="ch-ddm-icon">📍</span>Loan Limits 2026</Link>
+                  <Link href="/lab"><span className="ch-ddm-icon">🧪</span>HomeRates Lab</Link>
+                </div>
+              </div>
+            </li>
+            <li className="ch-nav-dd">
+              <button className="ch-nav-dd-trigger">
+                Resources <span className="ch-nav-dd-arrow">▾</span>
+              </button>
+              <div className="ch-nav-dd-menu">
+                <div className="ch-nav-dd-inner">
+                  <Link href="/knowledge-hub"><span className="ch-ddm-icon">📚</span>Knowledge Hub</Link>
+                  <Link href="/market-news"><span className="ch-ddm-icon">📰</span>Market News</Link>
+                  <div className="ch-nav-dd-divider" />
+                  <Link href="/library"><span className="ch-ddm-icon">📁</span>My Library</Link>
+                </div>
+              </div>
+            </li>
           </ul>
 
           <div className="ch-nav-cta">
@@ -498,7 +539,7 @@ export default function ConsumerHomePage() {
               <SignInButton mode="modal">
                 <button className="ch-btn-ghost">Sign in</button>
               </SignInButton>
-              <Link href="/chat" className="ch-btn-primary">Try free</Link>
+              <Link href="/chat?new=1" className="ch-btn-primary">Try free</Link>
             </SignedOut>
             <SignedIn>
               <UserButton afterSignOutUrl="/" />
@@ -568,7 +609,7 @@ export default function ConsumerHomePage() {
             </Link>
           </div>
           <div className="ch-mm-ctas">
-            <Link href="/chat" className="ch-mm-cta-primary" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/chat?new=1" className="ch-mm-cta-primary" onClick={() => setMobileMenuOpen(false)}>
               Try free — no sign up required
             </Link>
             <SignedOut>
