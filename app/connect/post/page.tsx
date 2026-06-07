@@ -8,7 +8,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
-import AppNav from "../../components/AppNav";
+import ConsumerNav from "../../components/ConsumerNav";
 
 const LOAN_TYPES  = ["Conventional", "FHA", "VA", "Jumbo", "DSCR", "Other"];
 const PRICE_RANGES = ["Under $300k", "$300k–$400k", "$400k–$500k", "$500k–$750k", "$750k–$1M", "$1M–$1.5M", "$1.5M+"];
@@ -185,7 +185,7 @@ function PostScenarioContent() {
                   : `Limit reached — ${quota.limit}/${quota.limit}`}
               </span>
             )}
-            <AppNav drawerOnly />
+            <ConsumerNav />
           </div>
         </nav>
 

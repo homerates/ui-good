@@ -5,7 +5,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import AppNav from "../components/AppNav";
+import ConsumerNav from "../components/ConsumerNav";
 import { getSupabase } from "../../lib/supabaseServer";
 import { getUserPlan, canPostScenario } from "../../lib/subscription";
 import { PLANS } from "../../lib/stripe";
@@ -244,7 +244,7 @@ export default async function DashboardPage() {
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <Link href="/chat" style={{ fontSize: "0.85rem", color: "#8fa3b8", textDecoration: "none" }}>← Back to chat</Link>
-          <AppNav drawerOnly />
+          <ConsumerNav />
         </div>
       </div>
 

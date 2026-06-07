@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import MortgageCalcPanel from '../components/MortgageCalcPanel';
 import MenuButton from '../components/MenuButton';
+import ConsumerNav from '../components/ConsumerNav';
 import { useMobileComposerPin } from '../hooks/useMobileComposerPin';
 import { useAdminStatus } from '../hooks/useAdminStatus';
 import { useConsumerMode } from '@/useConsumerMode';
@@ -3589,12 +3590,15 @@ export default function Page() {
                             )}
                         </nav>
 
-                        {/* Right controls */}
+                        {/* Right controls — Bell + Gear always visible; hamburger opens consumer or pro menu */}
                         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                             <AlertBell />
                             <SettingsPanel />
-                            {/* Right sidebar toggle — hidden for consumers (they use the AppNav drawer) */}
-                            {!isConsumer && (
+                            {isConsumer ? (
+                                /* Consumer hamburger — opens AppNav consumer drawer */
+                                <ConsumerNav />
+                            ) : (
+                                /* Pro hamburger — opens right sidebar */
                                 <button
                                     type="button"
                                     aria-label="Open menu"
@@ -4331,24 +4335,27 @@ export default function Page() {
                                                             m.meta.loanLimitsSlider || m.meta.jumboAffordabilitySlider || m.meta.scenarioComparisonCard
                                                         ) && (
                                                             <a
-                                                                href="/connect"
+                                                                href="/connect/post"
                                                                 style={{
-                                                                    display: 'flex', alignItems: 'center', gap: 8,
-                                                                    marginTop: 16, padding: '12px 18px',
-                                                                    background: 'rgba(0,232,122,0.07)',
-                                                                    border: '1px solid rgba(0,232,122,0.2)',
-                                                                    borderRadius: 10, textDecoration: 'none',
-                                                                    color: '#00e87a', fontSize: 13, fontWeight: 600,
+                                                                    display: 'flex', alignItems: 'center', gap: 14,
+                                                                    marginTop: 16, padding: '15px 18px',
+                                                                    background: 'rgba(255,255,255,0.03)',
+                                                                    border: '1px solid rgba(255,255,255,0.08)',
+                                                                    borderRadius: 12, textDecoration: 'none',
                                                                     fontFamily: 'DM Sans, system-ui, sans-serif',
-                                                                    transition: 'background 0.15s',
+                                                                    transition: 'background 0.15s, border-color 0.15s',
                                                                     width: '100%',
+                                                                    boxSizing: 'border-box' as const,
                                                                 }}
-                                                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.13)')}
-                                                                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.07)')}
+                                                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,232,122,0.06)'; e.currentTarget.style.borderColor = 'rgba(0,232,122,0.2)'; }}
+                                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
                                                             >
-                                                                <span style={{ fontSize: 15 }}>📤</span>
-                                                                Share with a Loan Officer
-                                                                <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.65 }}>Send this scenario →</span>
+                                                                <span style={{ fontSize: 18, width: 24, textAlign: 'center', flexShrink: 0 }}>📤</span>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                                                                    <span style={{ fontSize: 14, fontWeight: 600, color: '#f0f4ff', lineHeight: 1.3 }}>Share with Pro</span>
+                                                                    <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 2 }}>Post your scenario — lenders respond anonymously</span>
+                                                                </div>
+                                                                <span style={{ fontSize: 13, color: '#00e87a', flexShrink: 0 }}>→</span>
                                                             </a>
                                                         )}
                                                         {/* Smart follow-up chips — only on the latest card to prevent stale chips from adjusted runs */}
