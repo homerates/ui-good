@@ -4335,7 +4335,9 @@ export default function Page() {
                                                             m.meta.loanLimitsSlider || m.meta.jumboAffordabilitySlider || m.meta.scenarioComparisonCard
                                                         ) && (
                                                             <a
-                                                                href="/connect/post"
+                                                                href={m.meta.decisionScoreCard?.sessionId
+                                                                    ? `/track5?session=${m.meta.decisionScoreCard.sessionId}#get-matched`
+                                                                    : '/track5#get-matched'}
                                                                 style={{
                                                                     display: 'flex', alignItems: 'center', gap: 14,
                                                                     marginTop: 16, padding: '15px 18px',
@@ -4353,7 +4355,7 @@ export default function Page() {
                                                                 <span style={{ fontSize: 18, width: 24, textAlign: 'center', flexShrink: 0 }}>📤</span>
                                                                 <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                                                                     <span style={{ fontSize: 14, fontWeight: 600, color: '#f0f4ff', lineHeight: 1.3 }}>Share with Pro</span>
-                                                                    <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 2 }}>Post your scenario — lenders respond anonymously</span>
+                                                                    <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 2 }}>Share your score — lenders respond anonymously</span>
                                                                 </div>
                                                                 <span style={{ fontSize: 13, color: '#00e87a', flexShrink: 0 }}>→</span>
                                                             </a>
