@@ -1430,6 +1430,15 @@ export default function Page() {
     useEffect(() => {
         if (!searchParams) return;
 
+        // ?new=1 / ?pl=1 — always start a fresh thread (used by nav links from other pages)
+        if (searchParams.get('new') === '1' || searchParams.get('pl') === '1') {
+            newChat();
+            if (searchParams.get('pl') === '1') {
+                setTimeout(() => composerRef.current?.focus(), 150);
+            }
+            return;
+        }
+
         const from = searchParams.get('fromShare');
         const sq = searchParams.get('sq');
 
@@ -1588,9 +1597,11 @@ export default function Page() {
             if (data.memoryThreadByChatId) setMemoryThreadByChatId(data.memoryThreadByChatId);
 
             if (data.activeId && data.threads?.[data.activeId]) {
-                // Don't restore previous thread if ?sq= is in the URL — newChat() will fire and win
-                const hasSqParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('sq');
-                if (!hasSqParam) {
+                // Don't restore previous thread if ?sq= / ?new=1 / ?pl=1 is in the URL
+                const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+                const hasSqParam = urlParams?.get('sq');
+                const hasNewParam = urlParams?.get('new') === '1' || urlParams?.get('pl') === '1';
+                if (!hasSqParam && !hasNewParam) {
                     setActiveId(data.activeId);
                     setMessages(data.threads[data.activeId] || []);
                 }
@@ -3577,8 +3588,8 @@ export default function Page() {
                             {isConsumer ? (
                                 <>
                                     <a href="/" className="app-nav-link">Home</a>
-                                    <a href="/my-home" className="app-nav-link">My Home</a>
-                                    <a href="/check-property" className="app-nav-link">Check Property</a>
+                                    <button type="button" className="app-nav-link" onClick={() => newChat()}>New Chat</button>
+                                    <button type="button" className="app-nav-link" onClick={() => { newChat(); setTimeout(() => composerRef.current?.focus(), 80); }}>Property Lookup</button>
                                 </>
                             ) : (
                                 <>

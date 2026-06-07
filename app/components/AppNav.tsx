@@ -277,11 +277,11 @@ export default function AppNav({
                 {totalUnread > 0 && <span className="an-badge" style={{ marginLeft: "auto" }}>{totalUnread > 9 ? "9+" : totalUnread}</span>}
               </Link>
               <div className="an-drawer-label">Explore</div>
-              <Link href="/chat" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-                <span className="an-drawer-icon">💬</span>Chat
+              <Link href="/chat?new=1" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">💬</span>New Chat
               </Link>
-              <Link href="/check-property" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-                <span className="an-drawer-icon">🔍</span>Check Property
+              <Link href="/chat?new=1&pl=1" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">🔍</span>Property Lookup
               </Link>
               <Link href="/connect" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">📤</span>Share with Pro
