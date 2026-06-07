@@ -3521,29 +3521,31 @@ export default function Page() {
 
     return (
         <>
-            {/* Sidebar */}
-            <Sidebar
-                id="hr-sidebar"
-                history={history}
-                activeId={activeId}
-                isOpen={sidebarOpen}
-                onToggle={toggleSidebar}
-                onSelectHistory={onSelectHistory}
-                onHistoryAction={handleHistoryAction}
-                onNewChat={newChat}
-                onSettings={onSettings}
-                onShare={onShare}
-                onSearch={onSearch}
-                onLibrary={onLibrary}
-                onNewProject={onNewProject}
-                onLabSeed={onLabSeed}
-                onAskUnderwriting={onAskUnderwriting}
-                onAboutHomeRates={onAboutHomeRates}
-                onHowItWorks={onHowItWorks}
-                onPriceCheck={onPriceCheck}
-                onProjectAction={handleProjectAction}
-                onMoveChatToProject={handleMoveChatToProject}
-            />
+            {/* Sidebar — pro only; consumers get the AppNav drawer instead */}
+            {!isConsumer && (
+                <Sidebar
+                    id="hr-sidebar"
+                    history={history}
+                    activeId={activeId}
+                    isOpen={sidebarOpen}
+                    onToggle={toggleSidebar}
+                    onSelectHistory={onSelectHistory}
+                    onHistoryAction={handleHistoryAction}
+                    onNewChat={newChat}
+                    onSettings={onSettings}
+                    onShare={onShare}
+                    onSearch={onSearch}
+                    onLibrary={onLibrary}
+                    onNewProject={onNewProject}
+                    onLabSeed={onLabSeed}
+                    onAskUnderwriting={onAskUnderwriting}
+                    onAboutHomeRates={onAboutHomeRates}
+                    onHowItWorks={onHowItWorks}
+                    onPriceCheck={onPriceCheck}
+                    onProjectAction={handleProjectAction}
+                    onMoveChatToProject={handleMoveChatToProject}
+                />
+            )}
 
 
 
@@ -3559,15 +3561,15 @@ export default function Page() {
             >
                 <div className="header">
                     <div className="header-inner" style={{ display: 'flex', alignItems: 'center', width: '100%', maxWidth: '100%', margin: 0 }}>
-                        {/* Logo zone — fixed 256px, centered above sidebar */}
-                        <div className="header-logo-zone">
+                        {/* Logo zone — 256px when sidebar present; auto-width for consumers */}
+                        <div className="header-logo-zone" style={isConsumer ? { width: 'auto', justifyContent: 'flex-start' } : undefined}>
                             <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
                                 <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" style={{ height: 45, width: 'auto', display: 'block' }} />
                             </a>
                         </div>
 
-                        {/* Left sidebar toggle — between logo and nav */}
-                        <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
+                        {/* Left sidebar toggle — pro only */}
+                        {!isConsumer && <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />}
 
                         {/* Nav — consumer or professional context */}
                         <nav className="app-nav">
