@@ -3692,7 +3692,6 @@ export default function Page() {
                                         onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
                                         onPriceCheck={onPriceCheck}
                                     />
-                                  )
                                 : (() => {
                                     // Index of the last assistant message that has follow-up chips —
                                     // chips are only shown on that message so stale chips from earlier
