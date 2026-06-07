@@ -440,15 +440,6 @@ export default function Sidebar(props: SidebarProps) {
               }}>⭐ Pro</span>
             </a>
 
-            {/* Get Matched — borrower scenario board */}
-            <a
-              href="/connect"
-              className="btn sidebar-tool-btn"
-              style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
-            >
-              <span className="sidebar-tool-icon">🤝</span>
-              Get Matched
-            </a>
           </div>
 
           {/* ── Projects list ── */}

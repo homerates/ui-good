@@ -5209,7 +5209,6 @@ export default function Page() {
                                 { href: '/chat',       icon: '⚡', label: 'Scenario Engine', sub: 'Payment breakdowns & comparisons' },
                                 { href: '/lab',        icon: '🧠', label: 'HomeRates Lab',   sub: 'Policy & guideline answers' },
                                 { href: '/homeowner',  icon: '🏡', label: 'Home Value',       sub: 'Estimate & refi readiness' },
-                                { href: '/track5',     icon: '🎯', label: 'Get Matched',      sub: 'Connect with a loan officer' },
                             ].map(item => (
                                 <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                     <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
