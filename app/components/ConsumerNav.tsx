@@ -1,6 +1,6 @@
 'use client';
 import AppNav from './AppNav';
-import { useConsumerMode } from '@/lib/useConsumerMode';
+import { useConsumerMode } from '@/useConsumerMode';
 
 /**
  * Role + hostname-aware nav wrapper. Uses useConsumerMode() which combines

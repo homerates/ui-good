@@ -12,7 +12,7 @@ import MortgageCalcPanel from '../components/MortgageCalcPanel';
 import MenuButton from '../components/MenuButton';
 import { useMobileComposerPin } from '../hooks/useMobileComposerPin';
 import { useAdminStatus } from '../hooks/useAdminStatus';
-import { useConsumerMode } from '../../lib/useConsumerMode';
+import { useConsumerMode } from '@/useConsumerMode';
 import { logAnswerToLibrary } from '../../lib/logAnswerToLibrary';
 import './styles.css';
 import GrokCard from "@/components/GrokCard";
