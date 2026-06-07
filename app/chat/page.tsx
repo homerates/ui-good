@@ -3513,14 +3513,8 @@ export default function Page() {
     // PRICE CHECK: opens a new chat, highlights the ask pill with a prompt placeholder
     function onPriceCheck() {
         newChat();
+        setPropertyLookupMode(true);
         setInput('');
-        setPriceCheckMode(true);
-        setTimeout(() => {
-            if (composerRef.current) {
-                composerRef.current.focus();
-                composerRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-        }, 80);
     }
 
     function closeAllOverlays() {
@@ -3683,18 +3677,18 @@ export default function Page() {
                     <div className="center">
                         <div className="messages">
                             {(messages.length === 0 || (messages.length === 1 && messages[0].content === 'New chat. What do you want to figure out?'))
-                                ? (!isSignedIn
+                                ? (propertyLookupMode || !isSignedIn)
                                     ? <ConsumerWelcomeCard
-                                        onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
+                                        onSend={(s) => { setPropertyLookupMode(false); newChat(); setTimeout(() => send(s as string), 50); }}
                                         onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
                                     />
-                                    : (isConsumer && !propertyLookupMode)
+                                    : (isConsumer)
                                     ? <ConsumerChatLanding
                                         onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
                                         onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
                                     />
                                     : <WelcomeScreen
-                                        onSend={(s) => { newChat(); setPropertyLookupMode(false); setTimeout(() => send(s as string), 50); }}
+                                        onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
                                         onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
                                         onPriceCheck={onPriceCheck}
                                     />
