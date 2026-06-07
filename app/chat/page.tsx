@@ -25,6 +25,7 @@ import {
 } from '../../lib/projectsClient';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import ConsumerWelcomeCard from '@/components/ConsumerWelcomeCard';
+import ConsumerChatLanding from '@/components/ConsumerChatLanding';
 import ConsumerPropertyCard from '@/components/ConsumerPropertyCard';
 import AdminCardBadge from '@/components/AdminCardBadge';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -3666,6 +3667,11 @@ export default function Page() {
                                         onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
                                         onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
                                     />
+                                    : isConsumer
+                                    ? <ConsumerChatLanding
+                                        onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
+                                        onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
+                                    />
                                     : <WelcomeScreen
                                         onSend={(s) => { newChat(); setTimeout(() => send(s as string), 50); }}
                                         onMount={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
@@ -4518,7 +4524,7 @@ export default function Page() {
                         <textarea
                             ref={composerRef}
                             className={`hr-composer-input${priceCheckMode ? ' hr-composer-input--price-check' : ''}`}
-                            placeholder={creditState.state === 'blocked' ? 'Upgrade to continue chatting…' : 'Ask about DTI, PMI, or where rates sit vs the 10-year ...'}
+                            placeholder={creditState.state === 'blocked' ? 'Upgrade to continue chatting…' : isConsumer ? 'Ask about your payment, refi, equity, FHA, VA, or any home question…' : 'Ask about DTI, PMI, or where rates sit vs the 10-year ...'}
                             value={input}
                             disabled={creditState.state === 'blocked'}
                             rows={1}
