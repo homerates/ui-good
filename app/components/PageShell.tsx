@@ -3,7 +3,7 @@
 // All CSS is embedded inline with ps- prefix so it never fights globals.css.
 
 import Link from "next/link";
-import AppNav from "./AppNav";
+import ConsumerNav from "./ConsumerNav";
 
 interface PageShellProps {
   children: React.ReactNode;
@@ -217,7 +217,7 @@ export default function PageShell({
                 </svg>
                 {backLabel}
               </Link>
-              <AppNav drawerOnly />
+              <ConsumerNav />
             </div>
           </div>
         </header>

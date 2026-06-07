@@ -271,6 +271,11 @@ export default function AppNav({
               <Link href="/library" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">📁</span>My Library
               </Link>
+              <Link href="/messages" className="an-drawer-link" onClick={() => setDrawerOpen(false)} style={{ display: "flex", alignItems: "center" }}>
+                <span className="an-drawer-icon">✉️</span>
+                Messages
+                {totalUnread > 0 && <span className="an-badge" style={{ marginLeft: "auto" }}>{totalUnread > 9 ? "9+" : totalUnread}</span>}
+              </Link>
               <div className="an-drawer-label">Explore</div>
               <Link href="/chat" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">💬</span>Open Chat

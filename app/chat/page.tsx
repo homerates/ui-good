@@ -12,6 +12,7 @@ import MortgageCalcPanel from '../components/MortgageCalcPanel';
 import MenuButton from '../components/MenuButton';
 import { useMobileComposerPin } from '../hooks/useMobileComposerPin';
 import { useAdminStatus } from '../hooks/useAdminStatus';
+import { useConsumerMode } from '../../lib/useConsumerMode';
 import { logAnswerToLibrary } from '../../lib/logAnswerToLibrary';
 import './styles.css';
 import GrokCard from "@/components/GrokCard";
@@ -1376,6 +1377,7 @@ export default function Page() {
     const mode: 'borrower' = 'borrower';
 
     const { isAdmin } = useAdminStatus();
+    const isConsumer = useConsumerMode();
     const [loading, setLoading] = useState(false);
     const [typingId, setTypingId] = useState<string | null>(null);
     const [showUpgradeRequired, setShowUpgradeRequired] = useState(false);
@@ -3566,12 +3568,23 @@ export default function Page() {
                         {/* Left sidebar toggle — between logo and nav */}
                         <MenuButton isOpen={sidebarOpen} onToggle={toggleSidebar} />
 
-                        {/* Nav — same as landing page */}
+                        {/* Nav — consumer or professional context */}
                         <nav className="app-nav">
-                            <a href="/" className="app-nav-link">Home</a>
-                            <button type="button" className="app-nav-link" onClick={() => newChat()}>Scenario Engine</button>
-                            <a href="/lab" className="app-nav-link">HomeRates Lab</a>
-                            {user && <a href="/library" className="app-nav-link">My Vault</a>}
+                            {isConsumer ? (
+                                <>
+                                    <a href="/" className="app-nav-link">Home</a>
+                                    <a href="/my-home" className="app-nav-link">My Home</a>
+                                    <a href="/check-property" className="app-nav-link">Check Property</a>
+                                    <a href="/track5" className="app-nav-link">Track 5</a>
+                                </>
+                            ) : (
+                                <>
+                                    <a href="/" className="app-nav-link">Home</a>
+                                    <button type="button" className="app-nav-link" onClick={() => newChat()}>Scenario Engine</button>
+                                    <a href="/lab" className="app-nav-link">HomeRates Lab</a>
+                                    {user && <a href="/library" className="app-nav-link">My Vault</a>}
+                                </>
+                            )}
                         </nav>
 
                         {/* Right controls */}
@@ -5099,35 +5112,82 @@ export default function Page() {
                 </div>
                 {/* Panel body */}
                 <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 24 }}>
-                    <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Platform</div>
-                    {[
-                        { href: '/chat',       icon: '💬', label: 'AI Chat',         sub: 'Ask any mortgage question' },
-                        { href: '/chat',       icon: '⚡', label: 'Scenario Engine', sub: 'Payment breakdowns & comparisons' },
-                        { href: '/lab',        icon: '🧠', label: 'HomeRates Lab',   sub: 'Policy & guideline answers' },
-                        { href: '/homeowner',  icon: '🏡', label: 'Home Value',       sub: 'Estimate & refi readiness' },
-                        { href: '/track5',     icon: '🎯', label: 'Get Matched',      sub: 'Connect with a loan officer' },
-                    ].map(item => (
-                        <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
-                                <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 1 }}>{item.sub}</span>
-                            </div>
-                        </a>
-                    ))}
-                    <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Resources</div>
-                    {[
-                        { href: '/market-news',   icon: '📰', label: 'Market News' },
-                        { href: '/knowledge-hub', icon: '📚', label: 'Knowledge Hub' },
-                        { href: '/loan-limits',   icon: '🏠', label: 'Loan Limits 2026' },
-                        { href: '/calculators',   icon: '🧮', label: 'Calculators' },
-                        { href: '/platform',      icon: '🔬', label: 'Platform Intelligence' },
-                    ].map(item => (
-                        <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-                            <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
-                        </a>
-                    ))}
+                    {isConsumer ? (
+                        <>
+                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>My Account</div>
+                            {[
+                                { href: '/my-home',   icon: '🏠', label: 'My Home',    sub: 'Your property intelligence hub' },
+                                { href: '/library',   icon: '📁', label: 'My Library',  sub: 'Saved analyses and reports' },
+                                { href: '/messages',  icon: '✉️', label: 'Messages',    sub: 'Chat with your loan officer' },
+                            ].map(item => (
+                                <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
+                                        <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 1 }}>{item.sub}</span>
+                                    </div>
+                                </a>
+                            ))}
+                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Explore</div>
+                            {[
+                                { href: '/check-property', icon: '🔍', label: 'Check Property', sub: 'Full property intelligence report' },
+                                { href: '/connect',        icon: '📤', label: 'Share with Pro',  sub: 'Send your scenario to a lender' },
+                                { href: '/track5',         icon: '🎯', label: 'Track 5',          sub: 'Your buyer decision score' },
+                            ].map(item => (
+                                <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
+                                        <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 1 }}>{item.sub}</span>
+                                    </div>
+                                </a>
+                            ))}
+                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Resources</div>
+                            {[
+                                { href: '/calculators',   icon: '🧮', label: 'Calculators' },
+                                { href: '/loan-limits',   icon: '📍', label: 'Loan Limits 2026' },
+                                { href: '/knowledge-hub', icon: '📚', label: 'Knowledge Hub' },
+                                { href: '/market-news',   icon: '📰', label: 'Market News' },
+                            ].map(item => (
+                                <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                                    <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
+                                </a>
+                            ))}
+                        </>
+                    ) : (
+                        <>
+                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Platform</div>
+                            {[
+                                { href: '/chat',       icon: '💬', label: 'AI Chat',         sub: 'Ask any mortgage question' },
+                                { href: '/chat',       icon: '⚡', label: 'Scenario Engine', sub: 'Payment breakdowns & comparisons' },
+                                { href: '/lab',        icon: '🧠', label: 'HomeRates Lab',   sub: 'Policy & guideline answers' },
+                                { href: '/homeowner',  icon: '🏡', label: 'Home Value',       sub: 'Estimate & refi readiness' },
+                                { href: '/track5',     icon: '🎯', label: 'Get Matched',      sub: 'Connect with a loan officer' },
+                            ].map(item => (
+                                <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
+                                        <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 1 }}>{item.sub}</span>
+                                    </div>
+                                </a>
+                            ))}
+                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Resources</div>
+                            {[
+                                { href: '/market-news',   icon: '📰', label: 'Market News' },
+                                { href: '/knowledge-hub', icon: '📚', label: 'Knowledge Hub' },
+                                { href: '/loan-limits',   icon: '🏠', label: 'Loan Limits 2026' },
+                                { href: '/calculators',   icon: '🧮', label: 'Calculators' },
+                                { href: '/platform',      icon: '🔬', label: 'Platform Intelligence' },
+                            ].map(item => (
+                                <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                                    <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
+                                </a>
+                            ))}
+                        </>
+                    )}
                 </div>
                 {/* Panel footer CTA */}
                 <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>

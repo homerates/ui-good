@@ -1,22 +1,18 @@
 'use client';
-import { useState, useEffect } from 'react';
 import AppNav from './AppNav';
+import { useConsumerMode } from '@/lib/useConsumerMode';
 
 /**
- * Hostname-aware nav wrapper. Detects homerates.ai (consumer domain) at runtime
- * and switches AppNav to consumer drawer links. Works in both server and client components.
+ * Role + hostname-aware nav wrapper. Uses useConsumerMode() which combines
+ * hostname detection (homerates.ai = consumer) with Supabase role verification
+ * (borrower = consumer, lo/agent = pro).
  *
- * fullNav=false (default): drawerOnly mode — just hamburger + drawer, no top bar.
- * fullNav=true: on pro domain shows full top bar + pro drawer; on consumer domain
- *               drops to drawerOnly + consumer drawer (hides professional top links).
+ * fullNav=false (default): drawerOnly — just hamburger + drawer, no top bar.
+ * fullNav=true: pro domain → full top bar + pro drawer;
+ *               consumer → drops to drawerOnly + consumer drawer.
  */
 export default function ConsumerNav({ fullNav = false }: { fullNav?: boolean }) {
-  const [isConsumer, setIsConsumer] = useState(false);
-
-  useEffect(() => {
-    const h = window.location.hostname;
-    setIsConsumer(h === 'homerates.ai' || h === 'www.homerates.ai');
-  }, []);
+  const isConsumer = useConsumerMode();
 
   return (
     <AppNav
