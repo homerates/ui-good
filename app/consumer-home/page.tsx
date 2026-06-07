@@ -489,53 +489,8 @@ export default function ConsumerHomePage() {
           </Link>
 
           <ul className="ch-nav-links">
-            <li><Link href="/chat">Open Chat</Link></li>
-            <li>
-              <Link href="/my-home">
-                My Home <span className="ch-nav-badge">NEW</span>
-              </Link>
-            </li>
-            <li className="ch-nav-dd">
-              <button className="ch-nav-dd-trigger">
-                Scenario <span className="ch-nav-dd-arrow">▾</span>
-              </button>
-              <div className="ch-nav-dd-menu">
-                <div className="ch-nav-dd-inner">
-                  <Link href="/chat"><span className="ch-ddm-icon">🏦</span>Run a Scenario</Link>
-                  <Link href="/chat"><span className="ch-ddm-icon">🔁</span>Refi Analysis</Link>
-                  <Link href="/chat"><span className="ch-ddm-icon">🏢</span>DSCR / Investor</Link>
-                  <div className="ch-nav-dd-divider" />
-                  <Link href="/connect"><span className="ch-ddm-icon">📤</span>Share with Pro</Link>
-                </div>
-              </div>
-            </li>
-            <li><Link href="/track5">Track 5</Link></li>
-            <li className="ch-nav-dd">
-              <button className="ch-nav-dd-trigger">
-                Tools <span className="ch-nav-dd-arrow">▾</span>
-              </button>
-              <div className="ch-nav-dd-menu">
-                <div className="ch-nav-dd-inner">
-                  <Link href="/calculators"><span className="ch-ddm-icon">🧮</span>Calculators</Link>
-                  <Link href="/loan-limits"><span className="ch-ddm-icon">📍</span>Loan Limits 2026</Link>
-                  <Link href="/lab"><span className="ch-ddm-icon">🧪</span>HomeRates Lab</Link>
-                  <Link href="/check-property"><span className="ch-ddm-icon">🏠</span>Check Property</Link>
-                </div>
-              </div>
-            </li>
-            <li className="ch-nav-dd">
-              <button className="ch-nav-dd-trigger">
-                Resources <span className="ch-nav-dd-arrow">▾</span>
-              </button>
-              <div className="ch-nav-dd-menu">
-                <div className="ch-nav-dd-inner">
-                  <Link href="/knowledge-hub"><span className="ch-ddm-icon">📚</span>Knowledge Hub</Link>
-                  <Link href="/market-news"><span className="ch-ddm-icon">📰</span>Market News</Link>
-                  <div className="ch-nav-dd-divider" />
-                  <Link href="/library"><span className="ch-ddm-icon">📁</span>My Library</Link>
-                </div>
-              </div>
-            </li>
+            <li><Link href="/chat?new=1">Scenario</Link></li>
+            <li><Link href="/chat?new=1&pl=1">Property Lookup</Link></li>
           </ul>
 
           <div className="ch-nav-cta">
@@ -574,17 +529,17 @@ export default function ConsumerHomePage() {
               <div className="ch-mm-inner"><span>My Library</span><span className="ch-mm-sub">Saved scenarios & reports</span></div>
             </Link>
             <div className="ch-mm-section">Explore</div>
-            <Link href="/chat" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/chat?new=1" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
               <span className="ch-mm-icon">💬</span>
-              <div className="ch-mm-inner"><span>Open Chat</span><span className="ch-mm-sub">Ask any home or mortgage question</span></div>
+              <div className="ch-mm-inner"><span>New Chat</span><span className="ch-mm-sub">Ask any home or mortgage question</span></div>
             </Link>
-            <Link href="/chat" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/chat?new=1" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
               <span className="ch-mm-icon">⚡</span>
-              <div className="ch-mm-inner"><span>Run a Scenario</span><span className="ch-mm-sub">Payment breakdowns & comparisons</span></div>
+              <div className="ch-mm-inner"><span>Scenario</span><span className="ch-mm-sub">Payment breakdowns & comparisons</span></div>
             </Link>
-            <Link href="/check-property" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/chat?new=1&pl=1" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
               <span className="ch-mm-icon">🔍</span>
-              <div className="ch-mm-inner"><span>Property Lookup</span><span className="ch-mm-sub">Instant payment & value analysis</span></div>
+              <div className="ch-mm-inner"><span>Property Lookup</span><span className="ch-mm-sub">Enter an address — get full analysis</span></div>
             </Link>
             <Link href="/connect" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
               <span className="ch-mm-icon">📤</span>
@@ -727,7 +682,7 @@ export default function ConsumerHomePage() {
               <div className="ch-feat-title">My Home</div>
               <div className="ch-feat-desc">Track your property value, equity, and home wealth over time.</div>
             </Link>
-            <Link href="/check-property" className="ch-feat b">
+            <Link href="/chat?new=1&pl=1" className="ch-feat b">
               <span className="ch-feat-icon">🔍</span>
               <div className="ch-feat-title">Property Lookup</div>
               <div className="ch-feat-desc">Instant payment, AVM value, and decision score on any property.</div>
