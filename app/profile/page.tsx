@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useClerk } from "@clerk/nextjs";
 import AppNav from "../components/AppNav";
+import { useConsumerMode } from "@/useConsumerMode";
 
 interface ProfileData {
   email: string;
@@ -52,6 +53,7 @@ const ROLE_OPTIONS = [
 ];
 
 export default function ProfilePage() {
+  const isConsumer = useConsumerMode();
   const { openUserProfile } = useClerk();
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -176,7 +178,7 @@ export default function ProfilePage() {
     <>
       <div className="pr-root">
 
-        <AppNav activePage="profile" />
+        <AppNav activePage="profile" consumer={isConsumer} />
 
         <div className="pr-container">
 

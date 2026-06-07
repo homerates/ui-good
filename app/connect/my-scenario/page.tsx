@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import AppNav from "../../components/AppNav";
+import ConsumerNav from "../../components/ConsumerNav";
 
 interface Response {
   id: string;
@@ -174,7 +174,7 @@ export default function MyScenarioPage() {
             <Link href="/chat" className="ms-nav-btn">AI Chat</Link>
             <Link href="/dashboard" className="ms-nav-btn">Dashboard</Link>
             <Link href="/connect/post" className="ms-nav-btn ms-nav-btn-primary">+ New Scenario</Link>
-            <AppNav drawerOnly />
+            <ConsumerNav />
           </div>
         </nav>
 
