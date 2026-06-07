@@ -1,7 +1,7 @@
 ﻿// app/calculators/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import AppNav from "../components/AppNav";
+import ConsumerNav from "../components/ConsumerNav";
 
 export const metadata: Metadata = {
     title: 'Mortgage Calculators 2026 — FHA, DSCR, Affordability & Refi | HomeRates.ai',
@@ -156,7 +156,7 @@ export default function CalculatorsPage() {
                     <div />
                     <div className="calc-nav-cta">
                         <Link href="/chat" className="calc-try-link">Try free →</Link>
-                        <AppNav drawerOnly />
+                        <ConsumerNav />
                     </div>
                 </nav>
 

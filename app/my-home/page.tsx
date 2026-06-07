@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useUser, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import AppNav from '../components/AppNav';
+import ConsumerNav from '../components/ConsumerNav';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import MarketIntelCard from '../components/MarketIntelCard';
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
@@ -1436,7 +1436,6 @@ function MyHomePageInner() {
 
   // Multi-home state
   const [properties, setProperties]           = useState<HomeownerProperty[]>([]);
-  const [isConsumerDomain, setIsConsumerDomain] = useState(false);
   const [activePropertyId, setActivePropertyId] = useState<string | null>(null);
   const [loading, setLoading]                 = useState(true);
   const [newAddress, setNewAddress]           = useState('');
@@ -1479,11 +1478,6 @@ function MyHomePageInner() {
   const [marketIntelResult, setMarketIntelResult] = useState<any>(null);
   const [marketIntelLoading, setMarketIntelLoading] = useState(false);
 
-  // Detect consumer domain — drives which nav drawer variant to show
-  useEffect(() => {
-    const h = window.location.hostname;
-    setIsConsumerDomain(h === 'homerates.ai' || h === 'www.homerates.ai');
-  }, []);
 
   // User plan — loan-on-record is Pro-only
   const [userPlan, setUserPlan] = useState<string>('free');
@@ -1924,7 +1918,7 @@ function MyHomePageInner() {
         <nav className="mh-nav">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <Link href="/" className="mh-logo"><img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" /></Link>
-          <AppNav drawerOnly consumer={isConsumerDomain} />
+          <ConsumerNav />
         </nav>
 
         <div className="mh-shell">

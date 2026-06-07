@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import AppNav from '../components/AppNav';
+import ConsumerNav from '../components/ConsumerNav';
 import {
   STATE_NAMES,
   HIGH_COST_COUNTIES,
@@ -263,7 +263,7 @@ export default function LoanLimitsPage() {
               <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="ll-logo" />
             </Link>
             <Link href="/chat" className="ll-chat-link">Get personalized rates →</Link>
-            <AppNav drawerOnly />
+            <ConsumerNav />
           </div>
         </header>
 

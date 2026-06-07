@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import AppNav from "../components/AppNav";
+import ConsumerNav from "../components/ConsumerNav";
 import { getSupabase } from "../../lib/supabaseServer";
 import { canPostScenario } from "../../lib/subscription";
 
@@ -73,7 +73,7 @@ export default async function ConnectPage() {
               <Link href="/connect/post" className="cn-nav-cta">Post My Scenario →</Link>
             )}
           </div>
-          <AppNav drawerOnly />
+          <ConsumerNav />
         </nav>
 
         {/* ── HERO ── */}

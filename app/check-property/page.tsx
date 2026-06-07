@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
-import AppNav from '@/components/AppNav';
+import ConsumerNav from '@/components/ConsumerNav';
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
@@ -401,7 +401,7 @@ function CheckPropertyInner() {
                     <Link href="/">
                         <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="cp-logo" />
                     </Link>
-                    <AppNav drawerOnly />
+                    <ConsumerNav />
                 </div>
             </header>
         <div className="cp-body">

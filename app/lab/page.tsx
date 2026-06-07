@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import AppNav from '../components/AppNav';
+import ConsumerNav from '../components/ConsumerNav';
 
 const MODULES = [
   {
@@ -315,7 +315,7 @@ export default function LabPage() {
         }
       `}</style>
 
-      <AppNav />
+      <ConsumerNav fullNav />
 
       <div className="lab-page">
         {/* Hero */}
