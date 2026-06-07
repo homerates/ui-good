@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState, use } from "react";
 import { useAuth } from "@clerk/nextjs";
 import AppNav from "../../components/AppNav";
+import { useConsumerMode } from "@/useConsumerMode";
 import DiscoverDock from "../../components/DiscoverDock";
 import type { LoanTypeKey, ScenarioSnapshot } from "../../../lib/discoverQuestions";
 import type { ChipSummary } from "../../components/DiscoverDock";
@@ -71,6 +72,7 @@ interface ProCard {
 export default function ThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = use(params);
   const { isLoaded, isSignedIn } = useAuth();
+  const isConsumer = useConsumerMode();
 
   const [thread, setThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -303,6 +305,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           backLabel="← Inbox"
           title={navTitle}
           titleBadge={contactShared ? <span className="ch-contact-badge">Contact shared</span> : undefined}
+          consumer={isConsumer}
         />
 
         {/* Mobile tab bar — only when dock is available */}

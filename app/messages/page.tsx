@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
-import AppNav from "../components/AppNav";
+import ConsumerNav from "../components/ConsumerNav";
 
 interface Thread {
   id: string;
@@ -78,7 +78,7 @@ export default function MessagesPage() {
   return (
     <>
       <div className="mb-root">
-        <AppNav activePage="messages" unreadCount={totalUnread} />
+        <ConsumerNav />
 
         <div className="mb-container">
           <h1 className="mb-heading">
