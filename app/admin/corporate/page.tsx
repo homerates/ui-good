@@ -69,6 +69,7 @@ export default function AdminCorporatePage() {
   const [orgType, setOrgType]             = useState("brokerage");
   const [contactName, setContactName]     = useState("");
   const [contactEmail, setContactEmail]   = useState("");
+  const [contactPhone, setContactPhone]   = useState("");
   const [notes, setNotes]                 = useState("");
   const [sending, setSending]             = useState(false);
   const [sendErr, setSendErr]             = useState("");
@@ -97,12 +98,12 @@ export default function AdminCorporatePage() {
     const res = await fetch("/api/admin/corporate-invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ org_name: orgName, org_type: orgType, contact_name: contactName, contact_email: contactEmail, notes }),
+      body: JSON.stringify({ org_name: orgName, org_type: orgType, contact_name: contactName, contact_email: contactEmail, contact_phone: contactPhone || undefined, notes }),
     });
     const d = await res.json();
     if (!res.ok) { setSendErr(d.error ?? "Failed to send"); setSending(false); return; }
     setSentLink(d.claim_url);
-    setOrgName(""); setOrgType("brokerage"); setContactName(""); setContactEmail(""); setNotes("");
+    setOrgName(""); setOrgType("brokerage"); setContactName(""); setContactEmail(""); setContactPhone(""); setNotes("");
     await loadData();
     setSending(false);
   }
@@ -165,6 +166,10 @@ export default function AdminCorporatePage() {
                 <div className="ac-field" style={{ flex: 2 }}>
                   <label className="ac-label">Contact email *</label>
                   <input className="ac-input" type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="jane@company.com" required />
+                </div>
+                <div className="ac-field">
+                  <label className="ac-label">Contact phone</label>
+                  <input className="ac-input" value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="(555) 000-0000" />
                 </div>
               </div>
               <div className="ac-field">

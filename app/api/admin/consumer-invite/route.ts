@@ -21,10 +21,11 @@ export async function POST(req: NextRequest) {
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
   const body = await req.json();
-  const { email, fullName, credits = 25, personalNote, senderName = "Rayaan" } = body;
+  const { email, fullName, phone, credits = 25, personalNote, senderName = "Rayaan" } = body;
 
   const cleanEmail = (email ?? "").trim().toLowerCase();
   const cleanName  = (fullName ?? "").trim();
+  const cleanPhone = (phone ?? "").trim() || null;
 
   if (!cleanEmail || !cleanName) {
     return NextResponse.json({ error: "email and fullName required" }, { status: 400 });
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
     // Refresh expiry
     const expiresAt = new Date(Date.now() + EXPIRES_HOURS * 3_600_000).toISOString();
     await sb.from("consumer_invites")
-      .update({ credits, personal_note: personalNote ?? null, expires_at: expiresAt, full_name: cleanName })
+      .update({ credits, personal_note: personalNote ?? null, expires_at: expiresAt, full_name: cleanName, phone: cleanPhone })
       .eq("id", existing.id);
   } else {
     token = randomBytes(24).toString("hex");
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
     const { error: insertErr } = await sb.from("consumer_invites").insert({
       email:         cleanEmail,
       full_name:     cleanName,
+      phone:         cleanPhone,
       token,
       credits,
       personal_note: personalNote?.trim() || null,

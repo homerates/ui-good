@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
   const body = await req.json().catch(() => ({}));
-  const { org_name, org_type = "brokerage", contact_name, contact_email, notes } = body;
+  const { org_name, org_type = "brokerage", contact_name, contact_email, contact_phone, notes } = body;
 
   if (!org_name?.trim()) return NextResponse.json({ error: "Organization name required" }, { status: 400 });
   if (!contact_email?.trim()) return NextResponse.json({ error: "Contact email required" }, { status: 400 });
@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
       org_type,
       contact_name: contact_name?.trim() || null,
       contact_email: contact_email.trim().toLowerCase(),
+      contact_phone: contact_phone?.trim() || null,
       invited_by: userId,
       notes: notes?.trim() || null,
     })

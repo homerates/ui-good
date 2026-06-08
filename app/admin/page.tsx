@@ -55,6 +55,7 @@ export default function AdminDashboard() {
   // Consumer invite state
   const [ciEmail, setCiEmail] = useState("");
   const [ciName, setCiName] = useState("");
+  const [ciPhone, setCiPhone] = useState("");
   const [ciCredits, setCiCredits] = useState("25");
   const [ciNote, setCiNote] = useState("");
   const [ciSending, setCiSending] = useState(false);
@@ -71,12 +72,12 @@ export default function AdminDashboard() {
       const res = await fetch("/api/admin/consumer-invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, fullName, credits, personalNote: ciNote.trim() || undefined }),
+        body: JSON.stringify({ email, fullName, phone: ciPhone.trim() || undefined, credits, personalNote: ciNote.trim() || undefined }),
       });
       const d = await res.json();
       if (res.ok) {
         setCiResult({ ok: true, msg: `Invite sent to ${email}`, url: d.inviteUrl });
-        setCiEmail(""); setCiName(""); setCiNote(""); setCiCredits("25");
+        setCiEmail(""); setCiName(""); setCiPhone(""); setCiNote(""); setCiCredits("25");
       } else {
         setCiResult({ ok: false, msg: d.error ?? "Failed to send invite" });
       }
@@ -616,10 +617,14 @@ export default function AdminDashboard() {
                     <input className="adm-input" placeholder="First Last" value={ciName} onChange={e => setCiName(e.target.value)} style={{ width: "100%" }} />
                   </div>
                   <div>
+                    <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>Phone (optional)</div>
+                    <input className="adm-input" placeholder="(555) 000-0000" value={ciPhone} onChange={e => setCiPhone(e.target.value)} style={{ width: "100%" }} />
+                  </div>
+                  <div>
                     <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>Credits</div>
                     <input className="adm-input" type="number" min={1} max={10000} placeholder="25" value={ciCredits} onChange={e => setCiCredits(e.target.value)} style={{ width: "100%" }} />
                   </div>
-                  <div>
+                  <div style={{ gridColumn: "1 / -1" }}>
                     <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>Personal Note (optional)</div>
                     <input className="adm-input" placeholder="e.g. Great meeting you at Pepperdine…" value={ciNote} onChange={e => setCiNote(e.target.value)} style={{ width: "100%" }} />
                   </div>
