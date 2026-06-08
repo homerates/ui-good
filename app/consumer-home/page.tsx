@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+import AddressAutocomplete from '../components/AddressAutocomplete';
 
 export default function ConsumerHomePage() {
   const [cmdInput, setCmdInput] = useState('');
@@ -661,20 +662,20 @@ export default function ConsumerHomePage() {
               <div className="ch-ic-title">Check Any Property</div>
               <div className="ch-ic-desc">Address or Zillow/Redfin link — instant payment, value & score.</div>
               <form className="ch-ic-row" onSubmit={handlePropSubmit}>
-                <input
+                <AddressAutocomplete
                   className="ch-ic-input blue"
                   placeholder="Address or Zillow / Redfin link"
                   value={propInput}
-                  onChange={(e) => setPropInput(e.target.value)}
-                  onPaste={(e) => {
-                    const text = e.clipboardData.getData('text').trim();
-                    if (text.startsWith('http')) {
-                      e.preventDefault();
-                      setPropInput(text);
-                      setTimeout(() => goChat(text), 50);
+                  onChange={(val) => {
+                    setPropInput(val);
+                    if (val.trim().startsWith('http')) {
+                      setTimeout(() => { goChat(val.trim()); setPropInput(''); }, 50);
                     }
                   }}
-                  autoComplete="off"
+                  onSelect={(val) => {
+                    setPropInput(val);
+                    setTimeout(() => { goChat(val); setPropInput(''); }, 50);
+                  }}
                 />
                 <button type="submit" className="ch-ic-go blue">→</button>
               </form>
