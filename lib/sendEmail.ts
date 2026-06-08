@@ -943,3 +943,61 @@ export async function emailDealRoomInvite({
     console.error("[sendEmail] emailDealRoomInvite failed:", err);
   }
 }
+
+// ─── Consumer invite ─────────────────────────────────────────────────────────
+
+export async function emailConsumerInvite({
+  toEmail,
+  firstName,
+  credits,
+  inviteUrl,
+  senderName = "Rayaan",
+  personalNote,
+}: {
+  toEmail: string;
+  firstName: string;
+  credits: number;
+  inviteUrl: string;
+  senderName?: string;
+  personalNote?: string;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  const noteBlock = personalNote
+    ? `<div style="background:#1c2433;border-left:3px solid #00e87a;border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 24px;font-size:14px;color:#e6edf3;line-height:1.6;">${personalNote}</div>`
+    : '';
+
+  try {
+    await resend.emails.send({
+      from: `HomeRates.ai <${FROM}>`,
+      to: toEmail,
+      subject: `${senderName} invited you to HomeRates.ai`,
+      html: emailShell(`
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Personal Invite</p>
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#e6edf3;line-height:1.2;">Hi ${firstName} — you're invited.</p>
+        <p style="margin:0 0 20px;font-size:15px;color:#8b949e;line-height:1.6;">
+          <strong style="color:#e6edf3;">${senderName}</strong> has given you private access to <strong style="color:#e6edf3;">HomeRates.ai</strong> — real mortgage intelligence, live market data, and property analysis. No forms. No sales calls.
+        </p>
+        ${noteBlock}
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#1c2433;border:1px solid rgba(0,232,122,0.18);border-radius:12px;padding:16px 20px;">
+          <tr>
+            <td>
+              <p style="margin:0 0 4px;font-size:12px;color:#8b949e;text-transform:uppercase;letter-spacing:0.08em;">Your credit balance</p>
+              <p style="margin:0;font-size:28px;font-weight:800;color:#00e87a;line-height:1;">${credits} <span style="font-size:14px;font-weight:500;color:#8b949e;">free credits</span></p>
+              <p style="margin:6px 0 0;font-size:12px;color:#8b949e;">Pre-loaded on your account — use them to run any scenario or property lookup.</p>
+            </td>
+          </tr>
+        </table>
+        <a href="${inviteUrl}" style="display:block;text-align:center;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 20px;border-radius:999px;text-decoration:none;margin-bottom:20px;">
+          Claim your access →
+        </a>
+        <p style="margin:0;font-size:12px;color:#8b949e;text-align:center;line-height:1.6;">
+          No account required to explore — sign in when you're ready to save your scenarios.
+        </p>
+      `, `Sent by ${senderName} via HomeRates.ai · Educational tool only, not financial advice.`),
+    });
+  } catch (err) {
+    console.error("[sendEmail] emailConsumerInvite failed:", err);
+  }
+}

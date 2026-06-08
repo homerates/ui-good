@@ -52,6 +52,41 @@ export default function AdminDashboard() {
   const [blasting, setBlasting] = useState(false);
   const [blastResult, setBlastResult] = useState<string | null>(null);
 
+  // Consumer invite state
+  const [ciEmail, setCiEmail] = useState("");
+  const [ciName, setCiName] = useState("");
+  const [ciCredits, setCiCredits] = useState("25");
+  const [ciNote, setCiNote] = useState("");
+  const [ciSending, setCiSending] = useState(false);
+  const [ciResult, setCiResult] = useState<{ ok: boolean; msg: string; url?: string } | null>(null);
+
+  async function sendConsumerInvite() {
+    const email = ciEmail.trim().toLowerCase();
+    const fullName = ciName.trim();
+    const credits = parseInt(ciCredits, 10);
+    if (!email || !fullName || !credits) return;
+    setCiSending(true);
+    setCiResult(null);
+    try {
+      const res = await fetch("/api/admin/consumer-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, fullName, credits, personalNote: ciNote.trim() || undefined }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setCiResult({ ok: true, msg: `Invite sent to ${email}`, url: d.inviteUrl });
+        setCiEmail(""); setCiName(""); setCiNote(""); setCiCredits("25");
+      } else {
+        setCiResult({ ok: false, msg: d.error ?? "Failed to send invite" });
+      }
+    } catch {
+      setCiResult({ ok: false, msg: "Network error" });
+    } finally {
+      setCiSending(false);
+    }
+  }
+
   // Scenario management state
   const [adminScenarios, setAdminScenarios] = useState<any[]>([]);
   const [scenariosLoading, setScenariosLoading] = useState(false);
@@ -563,6 +598,51 @@ export default function AdminDashboard() {
                 ) : (
                   <p style={{ color: "rgba(255,255,255,0.25)", fontSize: "0.82rem" }}>Loading…</p>
                 )}
+              </div>
+
+              {/* ── Consumer Invite ── */}
+              <div className="adm-section">
+                <div className="adm-section-title">Consumer Invite</div>
+                <p style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.35)", marginBottom: "1.25rem" }}>
+                  Send a personalised invite email with pre-loaded credits. The recipient clicks the link, signs up, and credits are auto-granted instantly.
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", maxWidth: 520 }}>
+                  <div>
+                    <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>Email</div>
+                    <input className="adm-input" placeholder="email@example.com" value={ciEmail} onChange={e => setCiEmail(e.target.value)} style={{ width: "100%" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>Full Name</div>
+                    <input className="adm-input" placeholder="First Last" value={ciName} onChange={e => setCiName(e.target.value)} style={{ width: "100%" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>Credits</div>
+                    <input className="adm-input" type="number" min={1} max={10000} placeholder="25" value={ciCredits} onChange={e => setCiCredits(e.target.value)} style={{ width: "100%" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>Personal Note (optional)</div>
+                    <input className="adm-input" placeholder="e.g. Great meeting you at Pepperdine…" value={ciNote} onChange={e => setCiNote(e.target.value)} style={{ width: "100%" }} />
+                  </div>
+                </div>
+                <div style={{ marginTop: "1rem", display: "flex", alignItems: "center", gap: "1rem" }}>
+                  <button
+                    className="adm-btn primary"
+                    onClick={sendConsumerInvite}
+                    disabled={ciSending || !ciEmail.trim() || !ciName.trim() || !parseInt(ciCredits)}
+                  >
+                    {ciSending ? "Sending…" : "Send Invite →"}
+                  </button>
+                  {ciResult && (
+                    <div style={{ fontSize: "0.82rem", color: ciResult.ok ? "#00e87a" : "#ff5f5f" }}>
+                      {ciResult.msg}
+                      {ciResult.ok && ciResult.url && (
+                        <span style={{ marginLeft: 8, color: "rgba(255,255,255,0.3)", fontSize: "0.72rem" }}>
+                          Link: <a href={ciResult.url} target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.4)" }}>{ciResult.url}</a>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* ── Manage Users ── */}

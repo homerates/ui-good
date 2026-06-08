@@ -1414,6 +1414,23 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSignedIn]);
 
+    // Consumer invite claim — fires once when user authenticates
+    useEffect(() => {
+        if (!isSignedIn) return;
+        const token = typeof window !== 'undefined' ? localStorage.getItem('pendingConsumerInvite') : null;
+        if (!token) return;
+        localStorage.removeItem('pendingConsumerInvite');
+        fetch('/api/invite/claim', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+        })
+            .then(r => r.json())
+            .then(d => { if (d.ok && d.credits > 0) refreshCreditState(); })
+            .catch(() => { /* non-blocking */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSignedIn]);
+
     const [history, setHistory] = useState<
         { id: string; title: string; updatedAt?: number }[]
     >([]);
@@ -1431,6 +1448,12 @@ export default function Page() {
     const pendingSeedRef = React.useRef<string | null>(null);
     useEffect(() => {
         if (!searchParams) return;
+
+        // ?invite=<token> — store for auto-claim after sign-in
+        const inviteToken = searchParams.get('invite');
+        if (inviteToken && typeof window !== 'undefined') {
+            localStorage.setItem('pendingConsumerInvite', inviteToken);
+        }
 
         // ?new=1 / ?pl=1 — always start a fresh thread (used by nav links from other pages)
         if (searchParams.get('new') === '1' || searchParams.get('pl') === '1') {
