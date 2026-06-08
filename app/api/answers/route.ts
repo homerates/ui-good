@@ -15,6 +15,7 @@ import {
 } from "../../../lib/calcEngine";
 import { buildAnswerMarkdown, runFormatTests } from "../../../lib/answerFormat";
 import { dispatch, isRefiQuestion, isLoanLimitsQuestion, isScenarioComparisonQuestion, isBuydownQuestion } from "../../../lib/calcDispatcher";
+import { logDrift } from "../../../lib/driftLogger";
 import {
     buildConventionalCard, buildFHACard, buildFHAEquityTimelineCard, buildRefiCard, buildRefiNeedsInputCard,
     buildRefi20vs30Card, buildExtraPaymentCard, buildRefiEarlySaleCard, buildOneExtraPaymentPerYearCard,
@@ -5070,6 +5071,11 @@ ${uwDatabase}`;
         if (typeof calcDispatch.type === 'string' && calcDispatch.type.endsWith('_needs_input')) {
             (calcDispatch as any).type = 'no_calc_match';
             (calcDispatch as any).params = null;
+        }
+
+        // Auto-log routing drift — fire-and-forget, never blocks response
+        if (calcDispatch.type === 'no_calc_match') {
+            void logDrift(question, 'grok');
         }
 
         try {
