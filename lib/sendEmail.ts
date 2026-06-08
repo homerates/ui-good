@@ -945,6 +945,63 @@ export async function emailDealRoomInvite({
 }
 
 // ─── Consumer invite ─────────────────────────────────────────────────────────
+// emailConsumerInviteReminder — softer follow-up for non-responders
+export async function emailConsumerInviteReminder({
+  toEmail,
+  firstName,
+  credits,
+  inviteUrl,
+  reminderNum,
+  senderName = "Rayaan",
+}: {
+  toEmail: string;
+  firstName: string;
+  credits: number;
+  inviteUrl: string;
+  reminderNum: number;
+  senderName?: string;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  const tagline = reminderNum === 1
+    ? "Just checking in — your invite is still waiting."
+    : "Last reminder — your free credits expire soon.";
+
+  try {
+    await resend.emails.send({
+      from: `HomeRates.ai <${FROM}>`,
+      to: toEmail,
+      subject: `${senderName}: your HomeRates invite is still open`,
+      html: emailShell(`
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Follow-up</p>
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#e6edf3;line-height:1.2;">${tagline}</p>
+        <p style="margin:0 0 20px;font-size:15px;color:#8b949e;line-height:1.6;">
+          Hi ${firstName} — <strong style="color:#e6edf3;">${senderName}</strong> here. I sent you an invite to <strong style="color:#e6edf3;">HomeRates.ai</strong> a little while back. Your <strong style="color:#00e87a;">${credits} free credits</strong> are still sitting there — I wanted to make sure you didn't miss it.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#1c2433;border:1px solid rgba(0,232,122,0.18);border-radius:12px;padding:16px 20px;">
+          <tr>
+            <td>
+              <p style="margin:0 0 4px;font-size:12px;color:#8b949e;text-transform:uppercase;letter-spacing:0.08em;">Credits waiting for you</p>
+              <p style="margin:0;font-size:28px;font-weight:800;color:#00e87a;line-height:1;">${credits} <span style="font-size:14px;font-weight:500;color:#8b949e;">free credits</span></p>
+              <p style="margin:6px 0 0;font-size:12px;color:#8b949e;">Run any scenario or property lookup — no forms, no sales calls.</p>
+            </td>
+          </tr>
+        </table>
+        <a href="${inviteUrl}" style="display:block;text-align:center;background:#00e87a;color:#07100f;font-weight:700;font-size:15px;padding:14px 20px;border-radius:999px;text-decoration:none;margin-bottom:20px;">
+          Claim your access →
+        </a>
+        <p style="margin:0;font-size:12px;color:#8b949e;text-align:center;line-height:1.6;">
+          No account required to explore — sign in when you're ready to save your scenarios.
+        </p>
+      `, `Sent by ${senderName} via HomeRates.ai · Educational tool only, not financial advice.`),
+    });
+  } catch (err) {
+    console.error("[sendEmail] emailConsumerInviteReminder failed:", err);
+  }
+}
+
+
 
 export async function emailConsumerInvite({
   toEmail,
