@@ -15,14 +15,20 @@ declare global {
   }
 }
 
+// Tracks whether the script load was attempted and failed, so pollers give up.
+declare global { interface Window { __mapsScriptFailed?: boolean; } }
+
 function loadMapsScript(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window === 'undefined') return reject('SSR');
     if (window.google?.maps?.places) return resolve();
+    if (window.__mapsScriptFailed) return reject('Maps script previously failed');
 
     if (window.__mapsScriptLoading) {
+      let attempts = 0;
       const poll = setInterval(() => {
-        if (window.google?.maps?.places) { clearInterval(poll); resolve(); }
+        if (window.google?.maps?.places) { clearInterval(poll); resolve(); return; }
+        if (window.__mapsScriptFailed || ++attempts > 100) { clearInterval(poll); reject('Maps script failed'); }
       }, 100);
       return;
     }
@@ -33,7 +39,7 @@ function loadMapsScript(): Promise<void> {
     script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () => reject('Maps script failed to load');
+    script.onerror = () => { window.__mapsScriptFailed = true; reject('Maps script failed to load'); };
     document.head.appendChild(script);
   });
 }
