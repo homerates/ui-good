@@ -5073,9 +5073,9 @@ ${uwDatabase}`;
             (calcDispatch as any).params = null;
         }
 
-        // Auto-log routing drift — fire-and-forget, never blocks response
+        // Auto-log routing drift — awaited so serverless doesn't terminate before the insert
         if (calcDispatch.type === 'no_calc_match') {
-            void logDrift(question, 'grok');
+            await logDrift(question, 'grok');
         }
 
         try {

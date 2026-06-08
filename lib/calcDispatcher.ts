@@ -220,7 +220,11 @@ export function isConventionalQuestion(q: string): boolean {
     if (isFHAQuestion(q)) return false;
     if (isAffordabilityQuestion(q)) return false;
     if (isDSCRQuestion(q)) return false;
-    const hasPrice = /\$\s*[\d,]+k?\b/i.test(q);
+    // Match prices with OR without leading $ — "850k home", "900K", "$850k", "$750,000"
+    const hasPrice =
+        /\$\s*[\d,]+[kKmM]?\b/.test(q) ||        // with $
+        /\b\d{3,4}[kK]\b/i.test(q) ||             // "850k", "900K" — 3-4 digit + k, no $
+        /\b\d+(?:\.\d+)?\s*[mM]\b/i.test(q);      // "1.2m", "2M" — million, no $
     const hasMortgageCtx = /home|house|property|loan|mortgage|buying|purchase|condo|townhouse|payment|monthly|piti/i.test(q);
     const hasDown = /\d+\s*%\s*down|\bdown\s*payment\b/i.test(q);
     const isIncomeQualify = /how much income|what income|what salary|income.*(?:need|qualify|required?)|(?:need|qualify).{0,20}income/i.test(q);

@@ -96,17 +96,17 @@ export async function logDrift(
 
   const suggested_card = suggestCard(seedPrompt, signals);
 
-  try {
-    await sb.from('routing_drift_log').insert({
-      seed_prompt:    seedPrompt,
-      landed_on:      landedOn,
-      suggested_card: suggested_card ?? null,
-      signals,
-      source:         options?.source ?? 'auto',
-      user_id:        options?.userId ?? null,
-      status:         'open',
-    });
-  } catch (err: any) {
-    console.warn('[driftLogger] insert failed:', err?.message);
+  // Supabase v2 returns { data, error } — it does NOT throw on failure
+  const { error } = await sb.from('routing_drift_log').insert({
+    seed_prompt:    seedPrompt,
+    landed_on:      landedOn,
+    suggested_card: suggested_card ?? null,
+    signals,
+    source:         options?.source ?? 'auto',
+    user_id:        options?.userId ?? null,
+    status:         'open',
+  });
+  if (error) {
+    console.warn('[driftLogger] insert failed:', error.message, error.code);
   }
 }
