@@ -195,24 +195,38 @@ interface ExtendedFields {
 function parseExtended(text: string, price: number | null, sqft: number | null): ExtendedFields {
     const t = text.slice(0, 150_000);
 
-    // Listing status — check strongest signals first to avoid false positives
-    // (sold pages contain "Contract Pending" in history; sold must win over pending)
-    // FOR_SALE requires specific signals — not just any "for sale" text which appears on all pages in nav/ads
+    // Listing status detection — priority order matters.
+    // Key insight: "Sold Price" appears in the sale HISTORY of every Redfin page (active or not),
+    // so it cannot be used as a primary SOLD signal. Active FOR_SALE pages also contain
+    // "for sale" in nav/ads globally, so we check the first ~3000 chars for that signal.
+    // Order: unambiguous SOLD → active FOR_SALE (top-of-page) → off-market → pending → broad fallbacks.
     let listingStatus: ExtendedFields['listingStatus'] = 'UNKNOWN';
-    if (/sold\s+(?:on\s+)?\w+\s+\d{1,2},?\s+\d{4}/i.test(t)   // "Sold on Feb 17, 2026"
-        || /sold\s+price/i.test(t)                               // "Sold Price"
-        || /\bsold\s+\w+\s+\d{4}\s+for\b/i.test(t)             // "Sold Feb 2026 for"
+
+    // 1. Unambiguous SOLD — date-specific patterns that only appear on truly-sold pages
+    if (/sold\s+(?:on\s+)?\w+\s+\d{1,2},?\s+\d{4}/i.test(t)    // "Sold on Feb 17, 2026"
+        || /\bsold\s+\w+\s+\d{4}\s+for\b/i.test(t)              // "Sold Feb 2026 for"
         || /this\s+home\s+(?:is\s+)?(?:no\s+longer\s+)?(?:sold|was\s+sold)/i.test(t))
                                                     { listingStatus = 'SOLD'; }
+
+    // 2. Active FOR_SALE — check before broad SOLD fallback; "for sale" in first 3000 chars
+    //    is the listing badge/header, not a nav link (which appears further down)
+    else if (/(?:^|\n|\.)\s*(?:this\s+home\s+is\s+for\s+sale|listed\s+for\s+sale|active\s+listing|price\s+reduced|new\s+listing)/i.test(t)
+        || /(?:beds?|baths?|sq\s*ft)[^.]{0,60}for\s+sale/i.test(t)
+        || /\bstatus[:\s]+active\b/i.test(t)
+        || /\bfor\s+sale\b/i.test(t.slice(0, 3000)))
+                                                    { listingStatus = 'FOR_SALE'; }
+
+    // 3. Off-market
     else if (/off[\s-]?market/i.test(t)
         || /not\s+(?:currently\s+)?(?:for\s+sale|listed|available)/i.test(t)
         || /no\s+longer\s+(?:for\s+sale|listed|available|accepting)/i.test(t))
                                                     { listingStatus = 'OFF_MARKET'; }
-    else if (/(?:^|\n|\.)\s*(?:this\s+home\s+is\s+for\s+sale|listed\s+for\s+sale|active\s+listing|price\s+reduced|new\s+listing)/i.test(t)
-        || /(?:beds?|baths?|sq\s*ft)[^.]{0,60}for\s+sale/i.test(t))
-                                                    { listingStatus = 'FOR_SALE'; }
-    else if (/\bpending\b/i.test(t))                { listingStatus = 'PENDING'; }
-    else if (/\bsold\b/i.test(t))                   { listingStatus = 'SOLD'; }
+
+    // 4. Pending — after FOR_SALE so "pending" in history of active listings doesn't win
+    else if (/\bpending\b/i.test(t))               { listingStatus = 'PENDING'; }
+
+    // 5. Broad SOLD fallback — "Sold Price" label or any "sold" text (only reaches here if no active signals above)
+    else if (/\bsold\s+price\b/i.test(t) || /\bsold\b/i.test(t)) { listingStatus = 'SOLD'; }
 
     // Days on market — match days or hours ("6 hours on Redfin" → 0 days)
     const domM = t.match(/(\d+)\s+days?\s+on\s+(?:redfin|market|zillow|trulia)/i)
@@ -220,12 +234,9 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
     const domHours = !domM ? t.match(/(\d+)\s+hours?\s+on\s+(?:redfin|market)/i) : null;
     const daysOnMarket = domM ? parseInt(domM[1]) : domHours ? 0 : null;
 
-    // Refine UNKNOWN: additional signals that Redfin Tavily text reliably contains for active listings
-    if (listingStatus === 'UNKNOWN') {
-        if (/\bstatus[:\s]+active\b/i.test(t)
-            || /\bfor\s+sale\b/i.test(t.slice(0, 4000))
-            || daysOnMarket !== null)
-        { listingStatus = 'FOR_SALE'; }
+    // Refine UNKNOWN with daysOnMarket (computed above) — days on market = active listing
+    if (listingStatus === 'UNKNOWN' && daysOnMarket !== null) {
+        listingStatus = 'FOR_SALE';
     }
 
     // Last sale — multiple formats:
