@@ -850,30 +850,23 @@ export function dispatch(
         // Back-calculate purchase price when user stated a loan amount
         const price = isLoanAmountInput(q) ? Math.round(rawJumbo / (1 - downPct / 100)) : rawJumbo;
         if (isLoanAmountInput(q)) assumptions.push('purchase price back-calculated from stated loan amount');
-        const loanAmt = price * (1 - downPct / 100);
-        // If loan is conforming, fall through to conventional even if user said "jumbo".
-        // Above $832,750 with explicit "jumbo" keyword → honour the request and route to jumbo card.
-        if (loanAmt <= 832_750) {
-            // fall through to conventional path
-        } else {
-            if (_jumboExtractedRate == null) assumptions.push(`rate assumed ${rate}% (FRED 30yr avg)`);
-            if (downPct === 20) assumptions.push('down payment assumed 20% (jumbo minimum)');
+        if (_jumboExtractedRate == null) assumptions.push(`rate assumed ${rate}% (FRED 30yr avg)`);
+        if (downPct === 20) assumptions.push('down payment assumed 20% (jumbo minimum)');
 
-            return {
-                type: 'jumbo',
-                params: {
-                    purchasePrice:   price,
-                    downPaymentPct:  downPct,
-                    annualRatePct:   rate,
-                    termYears:       30,
-                    annualIncome:    extractIncome(q) ?? pullFromHistory(hist, extractIncome),
-                    monthlyDebts:    extractMonthlyDebts(q),
-                    propertyTaxRate: extractTaxRate(q) ?? extractTaxRate(hist),
-                } as JumboInput,
-                confidence: 1.0,
-                assumptions,
-            };
-        }
+        return {
+            type: 'jumbo',
+            params: {
+                purchasePrice:   price,
+                downPaymentPct:  downPct,
+                annualRatePct:   rate,
+                termYears:       30,
+                annualIncome:    extractIncome(q) ?? pullFromHistory(hist, extractIncome),
+                monthlyDebts:    extractMonthlyDebts(q),
+                propertyTaxRate: extractTaxRate(q) ?? extractTaxRate(hist),
+            } as JumboInput,
+            confidence: 1.0,
+            assumptions,
+        };
     }
 
     // ── 7. IMPLICIT JUMBO — must run BEFORE conventional so high-price questions
