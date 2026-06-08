@@ -215,6 +215,12 @@ const NAV_LINKS = [
   { href: "/profile", label: "My Profile", icon: "👤", key: "profile" },
 ];
 
+const CONSUMER_NAV_LINKS = [
+  { href: "/chat?new=1", label: "New Chat", key: "chat" },
+  { href: "/chat?new=1&pl=1", label: "Property Lookup", key: "property" },
+  { href: "/track5", label: "Track 5", key: "track5" },
+];
+
 export default function AppNav({
   mode = "standard",
   backHref = "/messages",
@@ -434,6 +440,12 @@ export default function AppNav({
           <div className="an-title-wrap">
             {title}
             {titleBadge}
+          </div>
+        ) : consumer ? (
+          <div className="an-links">
+            {CONSUMER_NAV_LINKS.map(l => (
+              <Link key={l.href} href={l.href} className="an-link">{l.label}</Link>
+            ))}
           </div>
         ) : (
           <div className="an-links">

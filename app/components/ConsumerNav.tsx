@@ -16,7 +16,7 @@ export default function ConsumerNav({ fullNav = false }: { fullNav?: boolean }) 
 
   return (
     <AppNav
-      drawerOnly={!fullNav || isConsumer}
+      drawerOnly={!fullNav}
       consumer={isConsumer}
     />
   );

@@ -900,8 +900,11 @@ export default function LandingPage() {
             <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
           </Link>
           <ul className="lp-nav-links">
+            <li><Link href="/chat?new=1">New Chat</Link></li>
+            <li><Link href="/my-home">My Home</Link></li>
             <li><Link href="/chat?new=1">Scenario</Link></li>
             <li><Link href="/chat?new=1&pl=1">Property Lookup</Link></li>
+            <li><Link href="/track5">Track 5</Link></li>
           </ul>
           <div className="lp-nav-cta">
             <SignedOut>
@@ -932,11 +935,18 @@ export default function LandingPage() {
             </Link>
           </div>
           <div className="lp-mobile-menu-body">
-            <Link href="/" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/chat?new=1" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">💬</span>
+              <div className="lp-mobile-menu-link-inner">
+                <span>New Chat</span>
+                <span className="lp-mobile-menu-link-sub">Ask any mortgage question</span>
+              </div>
+            </Link>
+            <Link href="/my-home" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
               <span className="lp-mobile-menu-link-icon">🏠</span>
               <div className="lp-mobile-menu-link-inner">
-                <span>Home</span>
-                <span className="lp-mobile-menu-link-sub">HomeRates.ai</span>
+                <span>My Home</span>
+                <span className="lp-mobile-menu-link-sub">Your property intelligence hub</span>
               </div>
             </Link>
             <Link href="/chat?new=1" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
@@ -951,6 +961,13 @@ export default function LandingPage() {
               <div className="lp-mobile-menu-link-inner">
                 <span>Property Lookup</span>
                 <span className="lp-mobile-menu-link-sub">Enter an address — get full analysis</span>
+              </div>
+            </Link>
+            <Link href="/track5" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">🎯</span>
+              <div className="lp-mobile-menu-link-inner">
+                <span>Track 5</span>
+                <span className="lp-mobile-menu-link-sub">Buying Decision Score</span>
               </div>
             </Link>
           </div>
@@ -973,7 +990,7 @@ export default function LandingPage() {
           </div>
 
           <h1 className="lp-headline">
-            Your mortgage,<br />
+            Your Home + Mortgage,<br />
             <span className="lp-headline-green">understood.</span>
           </h1>
 
