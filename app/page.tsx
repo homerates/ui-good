@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
+import AddressAutocomplete from './components/AddressAutocomplete';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -1051,20 +1052,20 @@ export default function LandingPage() {
                   <polyline points="9 22 9 12 15 12 15 22" />
                 </svg>
               </div>
-              <input
+              <AddressAutocomplete
                 className="lp-prop-input"
-                placeholder="Paste a Redfin URL or enter an address — get instant refi analysis"
+                placeholder="Paste a Redfin / Zillow URL, or type an address"
                 value={propInput}
-                onChange={(e) => setPropInput(e.target.value)}
-                onPaste={(e) => {
-                  const text = e.clipboardData.getData('text').trim();
-                  if (text.startsWith('http')) {
-                    e.preventDefault();
-                    setPropInput(text);
-                    setTimeout(() => goChat(text), 50);
+                onChange={(val) => {
+                  setPropInput(val);
+                  if (val.trim().startsWith('http')) {
+                    setTimeout(() => { goChat(val.trim()); setPropInput(''); }, 50);
                   }
                 }}
-                autoComplete="off"
+                onSelect={(val) => {
+                  setPropInput(val);
+                  setTimeout(() => { goChat(val); setPropInput(''); }, 50);
+                }}
               />
               <button type="submit" className="lp-prop-btn" disabled={!propInput.trim()}>Analyze Property</button>
             </form>
