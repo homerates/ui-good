@@ -2503,47 +2503,58 @@ export default function Page() {
                         const _dsInterestLevel    = (d.interestLevel    as string | null | undefined) ?? null;
                         void (async () => {
                             try {
-                                const postRes = await fetch('/api/beta/grok-property', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        address: _dsAddress,
-                                        deep: true,
-                                        redfin: {
-                                            current_status:     'FOR_SALE',
-                                            current_list_price: _dsPrice              ?? undefined,
-                                            bedrooms:           d.beds                ?? undefined,
-                                            bathrooms:          d.baths               ?? undefined,
-                                            sqft:               d.sqft                ?? undefined,
-                                            // G5: pass all available Redfin fields so PITI/cache is accurate
-                                            year_built:         d.yearBuilt           ?? undefined,
-                                            days_on_market:     d.daysOnMarket        ?? undefined,
-                                            last_sold_price:    d.lastSalePrice       ?? undefined,
-                                            last_sold_date:     d.lastSaleDate        ?? undefined,
-                                            tax_rate_effective: d.taxRateEffective    ?? undefined,
-                                            hoa_monthly:        d.hoaMonthly          ?? undefined,
-                                            photo_url:          d.photoUrl            ?? undefined,
-                                        },
-                                    }),
-                                });
-                                if (!postRes.ok || !postRes.body) return;
-                                const reader = postRes.body.getReader();
-                                const dec    = new TextDecoder();
-                                let buf      = '';
+                                // ── Check featured_properties cache before Grok (zero API cost) ──
                                 let deepResult: Record<string, unknown> | null = null;
-                                while (true) {
-                                    const { done, value } = await reader.read();
-                                    if (done) break;
-                                    buf += dec.decode(value, { stream: true });
-                                    const lines = buf.split('\n');
-                                    buf = lines.pop() ?? '';
-                                    for (const line of lines) {
-                                        const t = line.trim();
-                                        if (!t.startsWith('data: ')) continue;
-                                        try {
-                                            const ev = JSON.parse(t.slice(6));
-                                            if (ev.done && ev.result) deepResult = ev.result as Record<string, unknown>;
-                                        } catch { /* ignore partial lines */ }
+                                try {
+                                    const fpRes = await fetch(`/api/featured-properties?address=${encodeURIComponent(_dsAddress)}&inc=1`);
+                                    if (fpRes.ok) {
+                                        const fp = await fpRes.json();
+                                        if (fp.hit && fp.rawData) deepResult = fp.rawData as Record<string, unknown>;
+                                    }
+                                } catch { /* cache check is best-effort — fall through to Grok */ }
+
+                                // ── Cache miss — run Grok deep analysis ──
+                                if (deepResult === null) {
+                                    const postRes = await fetch('/api/beta/grok-property', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            address: _dsAddress,
+                                            deep: true,
+                                            redfin: {
+                                                current_status:     'FOR_SALE',
+                                                current_list_price: _dsPrice              ?? undefined,
+                                                bedrooms:           d.beds                ?? undefined,
+                                                bathrooms:          d.baths               ?? undefined,
+                                                sqft:               d.sqft                ?? undefined,
+                                                year_built:         d.yearBuilt           ?? undefined,
+                                                days_on_market:     d.daysOnMarket        ?? undefined,
+                                                last_sold_price:    d.lastSalePrice       ?? undefined,
+                                                last_sold_date:     d.lastSaleDate        ?? undefined,
+                                                tax_rate_effective: d.taxRateEffective    ?? undefined,
+                                                hoa_monthly:        d.hoaMonthly          ?? undefined,
+                                                photo_url:          d.photoUrl            ?? undefined,
+                                            },
+                                        }),
+                                    });
+                                    if (!postRes.ok || !postRes.body) return;
+                                    const reader = postRes.body.getReader();
+                                    const dec    = new TextDecoder();
+                                    let buf      = '';
+                                    while (true) {
+                                        const { done, value } = await reader.read();
+                                        if (done) break;
+                                        buf += dec.decode(value, { stream: true });
+                                        const lines = buf.split('\n');
+                                        buf = lines.pop() ?? '';
+                                        for (const line of lines) {
+                                            const t = line.trim();
+                                            if (!t.startsWith('data: ')) continue;
+                                            try {
+                                                const ev = JSON.parse(t.slice(6));
+                                                if (ev.done && ev.result) deepResult = ev.result as Record<string, unknown>;
+                                            } catch { /* ignore partial lines */ }
+                                        }
                                     }
                                 }
                                 if (!deepResult) return;
@@ -2761,6 +2772,36 @@ export default function Page() {
                                         }),
                                     }).then(() => { (window as any).__portfolioRefresh?.(); });
                                 }
+
+                                // Save to featured_properties shared intelligence cache
+                                // Next user to look up this address gets scores instantly — no Grok call
+                                void fetch('/api/featured-properties', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        address:    _dsAddress,
+                                        photo_url:  (d.photoUrl && d.photoUrl.startsWith('https://ssl.cdn-redfin.com/')) ? d.photoUrl : null,
+                                        price:      _dsPrice,
+                                        beds:       d.beds       ?? null,
+                                        baths:      d.baths      ?? null,
+                                        sqft:       d.sqft       ?? null,
+                                        year_built: d.yearBuilt  ?? null,
+                                        l2_score:   dsL2ScoreFinal,   l2_summary: dsL2SummaryFinal,
+                                        l3_score:   dsL3Score,        l3_summary: dsL3Summary,
+                                        l4_score:   dsL4Score,        l4_summary: dsL4Summary,
+                                        raw_data: {
+                                            zillow_estimate:      deepResult.zillow_estimate      ?? null,
+                                            redfin_estimate:      deepResult.redfin_estimate      ?? null,
+                                            market_median_price:  deepResult.market_median_price  ?? null,
+                                            comparable_sales:     deepResult.comparable_sales     ?? null,
+                                            market_median_dom:    deepResult.market_median_dom    ?? null,
+                                            market_sale_to_list:  deepResult.market_sale_to_list  ?? null,
+                                            location_intelligence:deepResult.location_intelligence?? null,
+                                            school_score:         deepResult.school_score         ?? null,
+                                            walk_score:           deepResult.walk_score           ?? null,
+                                        },
+                                    }),
+                                });
 
                                 // G7: bridge deep result to property-intel localStorage cache
                                 // so "Full Analysis ↗" loads instantly without a Supabase round-trip
