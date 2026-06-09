@@ -1531,13 +1531,13 @@ body:has(.page-standalone) { display: block !important; height: auto !important;
 
 /* ── Portfolio sidebar — hidden below 1100px ── */
 .portfolio-sidebar {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
   height: 100dvh;
-  overflow: hidden;         /* scroll managed by inner PortfolioContent flex child */
+  overflow: hidden;
   position: sticky;
   top: 0;
-  align-self: flex-start;  /* prevents stretch from overriding the explicit height */
+  align-self: flex-start;
 }
 @media (max-width: 1099px) { .portfolio-sidebar { display: none !important; } }
 
@@ -1553,10 +1553,10 @@ body:has(.page-standalone) { display: block !important; height: auto !important;
   background: #080f1c;
   border-top: 1px solid #1e2d45;
   border-radius: 18px 18px 0 0;
-  height: 82dvh;            /* fixed height so flex children have a definite constraint */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;         /* clip; inner PortfolioContent handles scroll */
+  height: 82dvh;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  overflow: hidden;
   transform: translateY(100%);
   transition: transform 0.3s cubic-bezier(0.32,0,0.67,0);
   will-change: transform;
