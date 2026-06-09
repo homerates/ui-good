@@ -477,10 +477,27 @@ function mergeGpt4o(base: Record<string, unknown>, gpt: GPT4oPropertyFields | nu
 
 // ── Tavily extract helper ───────────────────────────────────────────────────
 
-async function tavilyExtract(url: string): Promise<string | null> {
+interface TavilyExtractResult { content: string | null; imageUrl: string | null; }
 
+// Pick the first plausible property photo from a Tavily images array.
+// Prefers known RE CDN domains; falls back to any non-logo http image.
+function pickPropertyPhoto(images: string[]): string | null {
+    const RE_CDN  = /ssl\.cdn-redfin\.com|photos\.zillowstatic\.com|ap\.rdcpix\.com|images\.homes\.com/i;
+    const RE_SKIP = /\/logo|logo\.|favicon|icon\.|placeholder/i;
+    for (const u of images) {
+        if (!u.startsWith('http') || RE_SKIP.test(u)) continue;
+        if (RE_CDN.test(u)) return u;
+    }
+    for (const u of images) {
+        if (!u.startsWith('http') || RE_SKIP.test(u)) continue;
+        return u;
+    }
+    return null;
+}
+
+async function tavilyExtract(url: string): Promise<TavilyExtractResult> {
     const key = process.env.TAVILY_API_KEY;
-    if (!key) return null;
+    if (!key) return { content: null, imageUrl: null };
     try {
         const res = await fetch('https://api.tavily.com/extract', {
             method: 'POST',
@@ -488,12 +505,14 @@ async function tavilyExtract(url: string): Promise<string | null> {
             body: JSON.stringify({ api_key: key, urls: [url] }),
             signal: AbortSignal.timeout(12_000),
         });
-        if (!res.ok) return null;
+        if (!res.ok) return { content: null, imageUrl: null };
         const json = await res.json();
-        return (json?.results?.[0]?.raw_content as string) ?? null;
+        const content  = (json?.results?.[0]?.raw_content as string) ?? null;
+        const imageUrl = pickPropertyPhoto((json?.results?.[0]?.images as string[]) ?? []);
+        return { content, imageUrl };
     } catch (e: unknown) {
         log.warn('[PropertyLookup] Tavily raw extract failed', { error: (e as Error)?.message });
-        return null;
+        return { content: null, imageUrl: null };
     }
 }
 
@@ -524,7 +543,7 @@ async function broadSearchFallback(address: string): Promise<Record<string, unkn
         if (reResults.length === 0) return null;
         // Extract full page content from the first real-estate result
         const firstUrl = reResults[0].url;
-        const text = await tavilyExtract(firstUrl);
+        const { content: text, imageUrl: broadPhotoUrl } = await tavilyExtract(firstUrl);
         if (!text || text.length < 200) return null;
         const tp  = parsePropertyFromText(text);
         const ext = parseExtended(text, tp.price, tp.sqft);
@@ -547,7 +566,7 @@ async function broadSearchFallback(address: string): Promise<Record<string, unkn
             annualTaxes:      (tp.price && rate) ? Math.round(tp.price * rate) : null,
             taxRateEffective: rate,
             taxSource:        'table',
-            photoUrl:         null,
+            photoUrl:         broadPhotoUrl ?? null,
             ...ext,
         };
         return mergeGpt4o(base, gpt);
@@ -599,8 +618,10 @@ async function handleUrl(rawUrl: string) {
         tavilyExtract(url),
     ]);
 
-    const base     = baseResult.status === 'fulfilled'  ? baseResult.value   : null;
-    const text     = tavilyText.status === 'fulfilled'  ? tavilyText.value   : null;
+    const base           = baseResult.status === 'fulfilled'  ? baseResult.value        : null;
+    const tavilyResult   = tavilyText.status === 'fulfilled'   ? tavilyText.value        : null;
+    const text           = tavilyResult?.content   ?? null;
+    const tavilyPhotoUrl = tavilyResult?.imageUrl  ?? null;
 
     if (!base || !base.ok) {
         // Direct fetch blocked — fall back to Tavily text if available
@@ -630,7 +651,7 @@ async function handleUrl(rawUrl: string) {
                     annualTaxes:      (tp.price && rate) ? Math.round(tp.price * rate) : null,
                     taxRateEffective: rate,
                     taxSource:        'table',
-                    photoUrl:         null,
+                    photoUrl:         tavilyPhotoUrl,
                     ...ext,
                 };
                 return NextResponse.json({ ok: true, data: mergeGpt4o(baseData, gpt) });
@@ -672,7 +693,7 @@ async function handleUrl(rawUrl: string) {
         annualTaxes:      d.annualTaxes,
         taxRateEffective: d.taxRateEffective,
         taxSource:        d.taxSource,
-        photoUrl:         (typeof d.photoUrl === 'string' && d.photoUrl.startsWith('http') && !/\/logo/i.test(d.photoUrl) && !/redfin-logo/i.test(d.photoUrl)) ? d.photoUrl : null,
+        photoUrl:         (typeof d.photoUrl === 'string' && d.photoUrl.startsWith('http') && !/\/logo/i.test(d.photoUrl) && !/redfin-logo/i.test(d.photoUrl)) ? d.photoUrl : (tavilyPhotoUrl ?? null),
         ...ext,
     };
 
