@@ -53,26 +53,28 @@ export default function HouseDrawIcon({ color = '#00e87a', size = 18 }: Props) {
       fill="none"
       style={{ overflow: 'visible', display: 'block' }}
     >
-      {/* floor */}
+      {/* All paths start hidden (dashoffset = large number > path length).
+          useEffect sets the exact length then animates to 0. */}
       <path data-h stroke={color} strokeWidth="1.8" strokeLinecap="round"
+        style={{ strokeDasharray: 200, strokeDashoffset: 200 }}
         d="M2 20h20" />
-      {/* left wall */}
       <path data-h stroke={color} strokeWidth="1.8" strokeLinecap="round"
+        style={{ strokeDasharray: 200, strokeDashoffset: 200 }}
         d="M4 20V11" />
-      {/* right wall */}
       <path data-h stroke={color} strokeWidth="1.8" strokeLinecap="round"
+        style={{ strokeDasharray: 200, strokeDashoffset: 200 }}
         d="M20 20V11" />
-      {/* roof left */}
       <path data-h stroke={color} strokeWidth="1.8" strokeLinecap="round"
+        style={{ strokeDasharray: 200, strokeDashoffset: 200 }}
         d="M2 12L12 4" />
-      {/* roof right */}
       <path data-h stroke={color} strokeWidth="1.8" strokeLinecap="round"
+        style={{ strokeDasharray: 200, strokeDashoffset: 200 }}
         d="M22 12L12 4" />
-      {/* door */}
       <path data-h stroke={color} strokeWidth="1.8" strokeLinecap="round"
+        style={{ strokeDasharray: 200, strokeDashoffset: 200 }}
         d="M10 20v-5h4v5" />
-      {/* window */}
       <path data-h stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+        style={{ strokeDasharray: 200, strokeDashoffset: 200 }}
         d="M6 12.5h3.5v4H6z" />
     </svg>
   );

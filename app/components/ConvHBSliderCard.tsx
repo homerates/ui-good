@@ -349,12 +349,37 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
     // ── Render ────────────────────────────────────────────────────────────────
 
+    // Inline styles applied synchronously by React — avoids CSS-in-JSX timing gap
+    const wrapStyle: React.CSSProperties = {
+        position: 'relative',
+        marginTop: 14,
+        opacity: entered ? 1 : 0,
+        transform: entered ? 'translateY(0)' : 'translateY(20px)',
+        transition: 'opacity 0.45s cubic-bezier(0.16,1,0.3,1), transform 0.45s cubic-bezier(0.16,1,0.3,1)',
+        ...zoneStyle,
+    };
+    const mkCorner = (
+        pos: React.CSSProperties,
+        bw: string,
+        br: string,
+        delay: string,
+    ): React.CSSProperties => ({
+        position: 'absolute', zIndex: 2, pointerEvents: 'none',
+        borderStyle: 'solid', borderColor: zc.color,
+        borderWidth: bw, borderRadius: br,
+        ...pos,
+        width: entered ? 28 : 0,
+        height: entered ? 28 : 0,
+        opacity: entered ? 1 : 0,
+        transition: `width .28s ${delay} ease, height .28s ${delay} ease, opacity .08s ${delay}`,
+    });
+
     return (
-        <div className={`chb-anim-wrap${entered ? ' chb-anim-wrap--entered' : ''}`} style={zoneStyle}>
-            <span className="chb-corner chb-corner--tl" />
-            <span className="chb-corner chb-corner--tr" />
-            <span className="chb-corner chb-corner--bl" />
-            <span className="chb-corner chb-corner--br" />
+        <div style={wrapStyle}>
+            <span style={mkCorner({ top: -1, left: -1 },  '2px 0 0 2px', '14px 0 0 0',  '0.13s')} />
+            <span style={mkCorner({ top: -1, right: -1 }, '2px 2px 0 0', '0 14px 0 0',  '0.18s')} />
+            <span style={mkCorner({ bottom: -1, left: -1 },  '0 0 2px 2px', '0 0 0 14px', '0.23s')} />
+            <span style={mkCorner({ bottom: -1, right: -1 }, '0 2px 2px 0', '0 0 14px 0', '0.28s')} />
         <div className="chb">
 
             {/* Header */}
@@ -654,34 +679,6 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
             </div>
 
             <style>{`
-                /* ── Entry animation wrapper ───────────────────── */
-                .chb-anim-wrap {
-                    position: relative;
-                    margin-top: 14px;
-                    opacity: 0;
-                    transform: translateY(18px);
-                    transition: opacity 0.42s cubic-bezier(0.16,1,0.3,1), transform 0.42s cubic-bezier(0.16,1,0.3,1);
-                }
-                .chb-anim-wrap--entered {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-
-                /* ── Corner bracket framing lines ──────────────── */
-                .chb-corner {
-                    position: absolute;
-                    z-index: 2;
-                    pointer-events: none;
-                    border-style: solid;
-                    border-color: var(--chb-color, #00e87a);
-                    width: 0; height: 0; opacity: 0;
-                }
-                .chb-corner--tl { top:-1px; left:-1px; border-width:2px 0 0 2px; border-radius:16px 0 0 0; transition:width .28s .14s ease,height .28s .14s ease,opacity .08s .14s; }
-                .chb-corner--tr { top:-1px; right:-1px; border-width:2px 2px 0 0; border-radius:0 16px 0 0; transition:width .28s .19s ease,height .28s .19s ease,opacity .08s .19s; }
-                .chb-corner--bl { bottom:-1px; left:-1px; border-width:0 0 2px 2px; border-radius:0 0 0 16px; transition:width .28s .24s ease,height .28s .24s ease,opacity .08s .24s; }
-                .chb-corner--br { bottom:-1px; right:-1px; border-width:0 2px 2px 0; border-radius:0 0 16px 0; transition:width .28s .29s ease,height .28s .29s ease,opacity .08s .29s; }
-                .chb-anim-wrap--entered .chb-corner { width:28px; height:28px; opacity:1; }
-
                 .chb {
                     background: #0d1117;
                     border: 1px solid rgba(255,255,255,0.08);
@@ -702,7 +699,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 /* Hero */
                 .chb-hero { margin:0 12px 12px; background:#0e1420; border:1px solid var(--chb-border); border-radius:12px; padding:16px; display:grid; grid-template-columns:1.4fr 1fr; gap:16px; align-items:center; }
                 .chb-hero-label { font-size:10px; font-weight:700; color:#8fa3b8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px; }
-                .chb-hero-amount { font-size:30px; font-weight:800; color:var(--chb-color); letter-spacing:-.5px; line-height:1; }
+                .chb-hero-amount { font-size:30px; font-weight:800; color:var(--chb-color); letter-spacing:-.5px; line-height:1; font-variant-numeric:tabular-nums; }
                 .chb-hero-mo { font-size:16px; font-weight:600; color: #94a3b8; }
                 .chb-hero-sub { font-size:11px; color: #94a3b8; margin-top:4px; }
                 .chb-hero-stats { display:flex; flex-direction:column; gap:10px; padding-left:16px; border-left:1px solid rgba(255,255,255,0.05); }
