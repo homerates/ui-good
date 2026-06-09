@@ -11,6 +11,8 @@ import AdminCardBadge from './AdminCardBadge';
 import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
 import { HIGH_COST_COUNTIES, type NationalCountyLimits } from '@/loanLimitsNational2026';
 import { calcPI } from '../../lib/math';
+import { useAnimatedNumber } from '../../lib/hooks/useAnimatedNumber';
+import HouseDrawIcon from './HouseDrawIcon';
 
 export interface SliderCardParams {
     price: number;
@@ -106,6 +108,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const [sellerCreditAmt, setSellerCreditAmt] = useState(props.sellerCredit ?? 0);
     const [sliderOpen,  setSliderOpen]  = useState(false);
     const [drawerPhase, setDrawerPhase] = useState<'idle'|'running'|'done'>('idle');
+    const [entered, setEntered] = useState(false);
     const router = useRouter();
 
     // ── Prop-sync for display-only mode (hideDrawer = property_lookup path) ──────
@@ -197,6 +200,11 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSubsequentUse, countyLimit, prevEntUsed, price, loanType]);
 
+    useEffect(() => {
+        const t = setTimeout(() => setEntered(true), 60);
+        return () => clearTimeout(t);
+    }, []);
+
     // ── Derived ──────────────────────────────────────────────────────────────
 
     const hasBuydownUI = props.buydownType !== undefined;
@@ -252,6 +260,14 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const insPct = total > 0 ? (ins / total) * 100 : 0;
     const pmiPct = pmi > 0 && total > 0 ? (pmi / total) * 100 : 0;
 
+    const animHeroTotal = useAnimatedNumber(Math.round(heroTotal));
+    const animPrice     = useAnimatedNumber(Math.round(price));
+    const animLoanAmt   = useAnimatedNumber(Math.round(loanAmt));
+    const animPi        = useAnimatedNumber(Math.round(pi));
+    const animTax       = useAnimatedNumber(Math.round(tax));
+    const animIns       = useAnimatedNumber(Math.round(ins));
+    const animPmi       = useAnimatedNumber(Math.round(pmi));
+
     // ── Functions ─────────────────────────────────────────────────────────────
 
     function switchTab(next: 'conventional' | 'fha' | 'va' | 'jumbo') {
@@ -300,6 +316,15 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
     // ── Render ────────────────────────────────────────────────────────────────
 
+    const mkCorner = (pos: React.CSSProperties, bw: string, br: string, delay: string): React.CSSProperties => ({
+        position: 'absolute', zIndex: 2, pointerEvents: 'none',
+        borderStyle: 'solid', borderColor: accent,
+        borderWidth: bw, borderRadius: br, ...pos,
+        width: entered ? 28 : 0, height: entered ? 28 : 0,
+        opacity: entered ? 1 : 0,
+        transition: `width .28s ${delay} ease, height .28s ${delay} ease, opacity .08s ${delay}`,
+    });
+
     const tabClass = (lt: string) => {
         if (loanType !== lt) return 'isc-tab';
         if (lt === 'va')    return 'isc-tab on-va';
@@ -309,13 +334,22 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     };
 
     return (
-        <div className="isc" style={{ position: 'relative' }}>
+        <div className="isc" style={{
+            position: 'relative',
+            opacity: entered ? 1 : 0,
+            transform: entered ? 'translateY(0)' : 'translateY(20px)',
+            transition: 'opacity 0.45s cubic-bezier(0.16,1,0.3,1), transform 0.45s cubic-bezier(0.16,1,0.3,1)',
+        }}>
+            <span style={mkCorner({ top: -2, left: -2 },    '2px 0 0 2px', '14px 0 0 0',  '0.13s')} />
+            <span style={mkCorner({ top: -2, right: -2 },   '2px 2px 0 0', '0 14px 0 0',  '0.18s')} />
+            <span style={mkCorner({ bottom: -2, left: -2 }, '0 0 2px 2px', '0 0 0 14px',  '0.23s')} />
+            <span style={mkCorner({ bottom: -2, right: -2 },'0 2px 2px 0', '0 0 14px 0',  '0.28s')} />
             <AdminCardBadge code="ISC-002" />
 
             {/* Topbar */}
             <div className="isc-topbar">
                 <div className="isc-topbar-l">
-                    <div className="isc-dot" />
+                    <HouseDrawIcon color={accent} size={14} />
                     <span className="isc-tl">AI Analysis</span>
                 </div>
                 <span className="isc-tr">Live · CalcEngine</span>
@@ -338,17 +372,17 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 <div className="isc-price-context">
                     <div className="isc-price-row">
                         <span className="isc-price-lbl">Purchase Price</span>
-                        <span className="isc-price-val">{fmtDollar(price)}</span>
+                        <span className="isc-price-val">{fmtDollar(animPrice)}</span>
                     </div>
                     <div className="isc-price-row">
                         <span className="isc-price-lbl">Loan Amount</span>
-                        <span className="isc-price-val">{fmtDollar(loanAmt)}</span>
+                        <span className="isc-price-val">{fmtDollar(animLoanAmt)}</span>
                     </div>
                 </div>
                 <div className="isc-price-divider" />
                 <div className="isc-piti-label">PITI · Monthly Total</div>
                 <div className="isc-hero-payment">
-                    <span className="isc-hero-amount">{fmtDollar(heroTotal)}</span>
+                    <span className="isc-hero-amount">{fmtDollar(animHeroTotal)}</span>
                     <span className="isc-hero-per">/mo{activeBdType !== 'none' ? ' yr 1' : ''}</span>
                 </div>
                 {heroSub && <div className="isc-hero-sub">{heroSub}</div>}
@@ -411,10 +445,10 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         </div>
                         <div className="isc-legend">
                             {([
-                                { color: C.pi,  name: 'P&I',      val: pi  },
-                                { color: C.tax, name: 'Tax',       val: tax },
-                                { color: C.ins, name: 'Insurance', val: ins },
-                                ...(pmi > 0 ? [{ color: C.pmi, name: pmiLabel, val: pmi }] : []),
+                                { color: C.pi,  name: 'P&I',      val: animPi  },
+                                { color: C.tax, name: 'Tax',       val: animTax },
+                                { color: C.ins, name: 'Insurance', val: animIns },
+                                ...(pmi > 0 ? [{ color: C.pmi, name: pmiLabel, val: animPmi }] : []),
                             ] as { color: string; name: string; val: number }[]).map(item => (
                                 <div key={item.name} className="isc-legend-item">
                                     <span className="isc-legend-dot" style={{ background: item.color }} />
@@ -429,9 +463,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 {activeBdType !== 'none' && (
                     <div className="isc-legend">
                         {([
-                            { color: C.tax, name: 'Tax', val: tax },
-                            { color: C.ins, name: 'Ins', val: ins },
-                            ...(pmi > 0 ? [{ color: C.pmi, name: pmiLabel, val: pmi }] : []),
+                            { color: C.tax, name: 'Tax', val: animTax },
+                            { color: C.ins, name: 'Ins', val: animIns },
+                            ...(pmi > 0 ? [{ color: C.pmi, name: pmiLabel, val: animPmi }] : []),
                         ] as { color: string; name: string; val: number }[]).map(item => (
                             <div key={item.name} className="isc-legend-item">
                                 <span className="isc-legend-dot" style={{ background: item.color }} />
