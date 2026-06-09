@@ -2697,56 +2697,46 @@ export default function Page() {
                                     } catch { /* session save is best-effort */ }
                                 }
 
-                                // Update card to complete state — preserve any user-adjusted l1Score from current state
-                                setMessages(prev => prev.map(m => {
-                                    if (m.id !== _dsAnswerId || m.role !== 'assistant') return m;
-                                    // Use interactiveSlider.downPct as source of truth — onScenarioChange writes there
-                                    const currentDown    = m.meta?.interactiveSlider?.downPct ?? _dsDown;
-                                    const currentLtStr   = (m.meta?.interactiveSlider?.loanType as string) ?? _dsLoanType;
-                                    const { score: currentL1Score, summary: currentL1Summary } = currentDown !== _dsDown
-                                        ? recalcDSL1(currentDown, currentLtStr)
-                                        : { score: m.meta?.decisionScoreCard?.l1Score ?? _dsL1Score, summary: m.meta?.decisionScoreCard?.l1Summary ?? _dsL1Summary };
-                                    // Composite must be recomputed inside callback so it uses current l1Score
-                                    const dsEntries = [
-                                        { s: currentL1Score,   w: 0.35 }, { s: dsL2ScoreFinal, w: 0.25 },
-                                        { s: dsL3Score,        w: 0.25 }, { s: dsL4Score,       w: 0.15 },
-                                    ].filter(e => e.s != null) as { s: number; w: number }[];
-                                    const dsComposite = dsEntries.length >= 2
-                                        ? Math.round(dsEntries.reduce((a, e) => a + e.s * e.w, 0) / dsEntries.reduce((a, e) => a + e.w, 0))
-                                        : null;
-                                    return {
-                                        ...m,
-                                        meta: {
-                                            ...m.meta!,
-                                            decisionScoreCard: {
-                                                state:          'complete' as const,
-                                                address:        _dsAddress,
-                                                l1Score:        currentL1Score,
-                                                l1Summary:      currentL1Summary,
-                                                l2Score:        dsL2ScoreFinal,
-                                                l2Summary:      dsL2SummaryFinal,
-                                                l3Score:        dsL3Score,
-                                                l3Summary:      dsL3Summary,
-                                                l4Score:        dsL4Score,
-                                                l4Summary:      dsL4Summary,
-                                                compositeScore: dsComposite ?? undefined,
-                                                sessionId:      dsSessionId ?? undefined,
-                                            },
-                                        },
-                                    };
-                                }));
+                                // Build final messages with complete DSC — read current slider state from ref
+                                // (ref is current at Grok completion; user may have adjusted sliders during the async wait)
+                                const _currentMsg  = messagesRef.current.find(m => m.id === _dsAnswerId && m.role === 'assistant') as Extract<ChatMsg, { role: 'assistant' }> | undefined;
+                                const _curDown     = _currentMsg?.meta?.interactiveSlider?.downPct ?? _dsDown;
+                                const _curLtStr    = (_currentMsg?.meta?.interactiveSlider?.loanType as string) ?? _dsLoanType;
+                                const { score: finalL1, summary: finalL1Summary } = _curDown !== _dsDown
+                                    ? recalcDSL1(_curDown, _curLtStr)
+                                    : { score: _currentMsg?.meta?.decisionScoreCard?.l1Score ?? _dsL1Score, summary: _currentMsg?.meta?.decisionScoreCard?.l1Summary ?? _dsL1Summary };
+                                const _finalEntries = [
+                                    { s: finalL1,        w: 0.35 }, { s: dsL2ScoreFinal, w: 0.25 },
+                                    { s: dsL3Score,      w: 0.25 }, { s: dsL4Score,      w: 0.15 },
+                                ].filter(e => e.s != null) as { s: number; w: number }[];
+                                const finalComposite = _finalEntries.length >= 2
+                                    ? Math.round(_finalEntries.reduce((a, e) => a + e.s * e.w, 0) / _finalEntries.reduce((a, e) => a + e.w, 0))
+                                    : null;
+                                const completeDsc = {
+                                    state:          'complete' as const,
+                                    address:        _dsAddress,
+                                    l1Score:        finalL1,
+                                    l1Summary:      finalL1Summary,
+                                    l2Score:        dsL2ScoreFinal,
+                                    l2Summary:      dsL2SummaryFinal,
+                                    l3Score:        dsL3Score,
+                                    l3Summary:      dsL3Summary,
+                                    l4Score:        dsL4Score,
+                                    l4Summary:      dsL4Summary,
+                                    compositeScore: finalComposite ?? undefined,
+                                    sessionId:      dsSessionId ?? undefined,
+                                };
+                                // Build updated array explicitly so it can be used for both UI + portfolio save
+                                const msgsWithCompleteDsc = messagesRef.current.map(m =>
+                                    m.id === _dsAnswerId && m.role === 'assistant' && m.meta
+                                        ? { ...m, meta: { ...m.meta, decisionScoreCard: completeDsc } }
+                                        : m
+                                );
+                                setMessages(msgsWithCompleteDsc);
 
                                 // Upsert portfolio item — buyer_journey with full L1-L4 scores
+                                // Uses msgsWithCompleteDsc (state:'complete') not messagesRef.current (not yet updated)
                                 if (user?.id) {
-                                    const dsCompositeForPortfolio = (() => {
-                                        const entries = [
-                                            { s: _dsL1Score,      w: 0.35 }, { s: dsL2ScoreFinal, w: 0.25 },
-                                            { s: dsL3Score,       w: 0.25 }, { s: dsL4Score,      w: 0.15 },
-                                        ].filter(e => e.s != null) as { s: number; w: number }[];
-                                        return entries.length >= 2
-                                            ? Math.round(entries.reduce((a, e) => a + e.s * e.w, 0) / entries.reduce((a, e) => a + e.w, 0))
-                                            : null;
-                                    })();
                                     void fetch('/api/portfolio', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
@@ -2755,17 +2745,17 @@ export default function Page() {
                                             title:     _dsAddress,
                                             address:   _dsAddress,
                                             photo_url: (d.photoUrl && d.photoUrl.startsWith('https://ssl.cdn-redfin.com/')) ? d.photoUrl : null,
-                                            messages:  messagesRef.current,
+                                            messages:  msgsWithCompleteDsc,
                                             data: {
-                                                l1Score: _dsL1Score,      l1Summary: _dsL1Summary,
-                                                l2Score: dsL2ScoreFinal,  l2Summary: dsL2SummaryFinal,
-                                                l3Score: dsL3Score,       l3Summary: dsL3Summary,
-                                                l4Score: dsL4Score,       l4Summary: dsL4Summary,
-                                                compositeScore: dsCompositeForPortfolio,
-                                                verdict: dsCompositeForPortfolio != null
-                                                    ? (dsCompositeForPortfolio >= 80 ? 'Strong Buy Signal'
-                                                    : dsCompositeForPortfolio >= 65 ? 'Ready to Offer'
-                                                    : dsCompositeForPortfolio >= 50 ? 'Proceed with Caution'
+                                                l1Score: finalL1,          l1Summary: finalL1Summary,
+                                                l2Score: dsL2ScoreFinal,   l2Summary: dsL2SummaryFinal,
+                                                l3Score: dsL3Score,        l3Summary: dsL3Summary,
+                                                l4Score: dsL4Score,        l4Summary: dsL4Summary,
+                                                compositeScore: finalComposite,
+                                                verdict: finalComposite != null
+                                                    ? (finalComposite >= 80 ? 'Strong Buy Signal'
+                                                    : finalComposite >= 65 ? 'Ready to Offer'
+                                                    : finalComposite >= 50 ? 'Proceed with Caution'
                                                     : 'High Risk')
                                                     : null,
                                                 price:    _dsPrice,
@@ -5371,9 +5361,7 @@ export default function Page() {
             <PortfolioSidebar
                 activeAddress={cmaContextRef.current?.cmaAddress ?? null}
                 onNewJourney={() => {
-                    setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
-                    setInput('');
-                    setTimeout(() => composerRef.current?.focus(), 80);
+                    router.push('/check-property');
                 }}
                 onResume={async (item) => {
                     // Try to restore the original chat thread from Supabase
