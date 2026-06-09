@@ -5327,13 +5327,12 @@ export default function Page() {
                 activeAddress={cmaContextRef.current?.cmaAddress ?? null}
                 onNewJourney={() => {
                     setRightMenuOpen(false);
-                    const seed = 'I want to start a buyer journey';
-                    setInput(seed);
-                    setTimeout(() => send(seed), 50);
+                    setInput("What's my payment on ");
+                    setTimeout(() => composerRef.current?.focus(), 80);
                 }}
                 onResume={(item) => {
                     if (item.address) {
-                        const seed = `Resume my journey for ${item.address}`;
+                        const seed = `What's my payment on ${item.address}`;
                         setInput(seed);
                         setTimeout(() => send(seed), 50);
                     }
