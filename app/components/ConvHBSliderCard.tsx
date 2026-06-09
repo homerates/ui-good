@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import { calcPI } from '../../lib/math';
 import { COLORS } from '../../lib/tokens';
+import { useAnimatedNumber } from '../../lib/hooks/useAnimatedNumber';
+import HouseDrawIcon from './HouseDrawIcon';
 
 // ── 2026 CA County Conforming Limits (1-unit, FHFA) ─────────────────────────
 const CA_LIMITS: Record<string, number> = {
@@ -162,6 +164,12 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
     const router = useRouter();
 
+    const [entered, setEntered] = useState(false);
+    useEffect(() => {
+        const t = setTimeout(() => setEntered(true), 60);
+        return () => clearTimeout(t);
+    }, []);
+
     // ── Journey: write L1 + bridge chip when launched from my-home property context ──
     const journeyFiredRef = useRef(false);
     const [journeySid, setJourneySid] = useState<string | null>(
@@ -284,6 +292,19 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
     const q43 = (totalObligation / 0.43) * 12;
     const q50 = (totalObligation / 0.50) * 12;
 
+    // ── Animated display values (count-up on mount, smooth transition on slider)
+    const animTotal    = useAnimatedNumber(Math.round(total));
+    const animLoan     = useAnimatedNumber(Math.round(loanAmt));
+    const animLtv      = useAnimatedNumber(Math.round(ltv * 10));
+    const animTotalInt = useAnimatedNumber(Math.round(totalInt));
+    const animPi       = useAnimatedNumber(Math.round(pi));
+    const animTax      = useAnimatedNumber(Math.round(tax));
+    const animIns      = useAnimatedNumber(Math.round(ins));
+    const animPmi      = useAnimatedNumber(Math.round(pmi));
+    const animQ36      = useAnimatedNumber(Math.round(q36));
+    const animQ43      = useAnimatedNumber(Math.round(q43));
+    const animQ50      = useAnimatedNumber(Math.round(q50));
+
     // ── County handler ────────────────────────────────────────────────────────
 
     function onLocInput(input: string) {
@@ -329,15 +350,18 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
     // ── Render ────────────────────────────────────────────────────────────────
 
     return (
-        <div className="chb" style={zoneStyle}>
+        <div className={`chb-anim-wrap${entered ? ' chb-anim-wrap--entered' : ''}`} style={zoneStyle}>
+            <span className="chb-corner chb-corner--tl" />
+            <span className="chb-corner chb-corner--tr" />
+            <span className="chb-corner chb-corner--bl" />
+            <span className="chb-corner chb-corner--br" />
+        <div className="chb">
 
             {/* Header */}
             <div className="chb-header">
                 <div className="chb-header-left">
                     <div className="chb-hicon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke={zc.color} strokeWidth="1.8" width="16" height="16">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"/>
-                        </svg>
+                        <HouseDrawIcon color={zc.color} size={18} />
                     </div>
                     <div>
                         <div className="chb-title">Purchase Payment Analysis</div>
@@ -351,23 +375,23 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
             <div className="chb-hero">
                 <div className="chb-hero-main">
                     <div className="chb-hero-label">Est. Monthly PITI</div>
-                    <div className="chb-hero-amount">{fmt$(total)}<span className="chb-hero-mo">/mo</span></div>
+                    <div className="chb-hero-amount">{fmt$(animTotal)}<span className="chb-hero-mo">/mo</span></div>
                     <div className="chb-hero-sub">
-                        {pmi > 0 ? `P&I + Tax + Ins + PMI (${fmt$(pmi)}/mo)` : `No PMI · ${downPct}% down`}
+                        {pmi > 0 ? `P&I + Tax + Ins + PMI (${fmt$(animPmi)}/mo)` : `No PMI · ${downPct}% down`}
                     </div>
                 </div>
                 <div className="chb-hero-stats">
                     <div className="chb-hero-stat">
                         <div className="chb-hsl">Loan Amount</div>
-                        <div className="chb-hsv">{fmt$(loanAmt)}</div>
+                        <div className="chb-hsv">{fmt$(animLoan)}</div>
                     </div>
                     <div className="chb-hero-stat">
                         <div className="chb-hsl">LTV</div>
-                        <div className="chb-hsv">{ltv.toFixed(1)}%</div>
+                        <div className="chb-hsv">{(animLtv / 10).toFixed(1)}%</div>
                     </div>
                     <div className="chb-hero-stat">
                         <div className="chb-hsl">Total Interest</div>
-                        <div className="chb-hsv">{fmtK(totalInt)}</div>
+                        <div className="chb-hsv">{fmtK(animTotalInt)}</div>
                     </div>
                 </div>
             </div>
@@ -375,11 +399,11 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
             {/* Monthly breakdown — always visible */}
             <div className="chb-bkd">
                 <div className="chb-bkd-title">Monthly Breakdown</div>
-                <div className="chb-bkd-row"><span>Principal &amp; Interest</span><span>{fmt$(pi)}</span></div>
-                <div className="chb-bkd-row"><span>Property Taxes ({(props.taxRate * 100).toFixed(2)}%)</span><span>{fmt$(tax)}</span></div>
-                <div className="chb-bkd-row"><span>Homeowner&apos;s Insurance</span><span>{fmt$(ins)}</span></div>
-                {pmi > 0 && <div className="chb-bkd-row chb-bkd-pmi"><span>PMI ({ltv.toFixed(1)}% LTV)</span><span>{fmt$(pmi)}</span></div>}
-                <div className="chb-bkd-row chb-bkd-total"><span>Total PITI</span><span>{fmt$(total)}/mo</span></div>
+                <div className="chb-bkd-row"><span>Principal &amp; Interest</span><span>{fmt$(animPi)}</span></div>
+                <div className="chb-bkd-row"><span>Property Taxes ({(props.taxRate * 100).toFixed(2)}%)</span><span>{fmt$(animTax)}</span></div>
+                <div className="chb-bkd-row"><span>Homeowner&apos;s Insurance</span><span>{fmt$(animIns)}</span></div>
+                {pmi > 0 && <div className="chb-bkd-row chb-bkd-pmi"><span>PMI ({ltv.toFixed(1)}% LTV)</span><span>{fmt$(animPmi)}</span></div>}
+                <div className="chb-bkd-row chb-bkd-total"><span>Total PITI</span><span>{fmt$(animTotal)}/mo</span></div>
             </div>
 
             {/* Sliders — always visible */}
@@ -454,7 +478,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 <div className="chb-qualify-title">Income to Qualify</div>
                 {debts > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#94a3b8', marginBottom: 8, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                        <span>PITI {fmt$(Math.round(total))} + Debts {fmt$(debts)}</span>
+                        <span>PITI {fmt$(animTotal)} + Debts {fmt$(debts)}</span>
                         <span style={{ color: zc.color, fontWeight: 600 }}>Total {fmt$(Math.round(totalObligation))}/mo</span>
                     </div>
                 )}
@@ -463,9 +487,9 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                         <tr><th>DTI</th><th>Guideline</th><th>Gross Annual</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td>36%</td><td>Conservative</td><td className="chb-qval">{fmt$(q36)}</td></tr>
-                        <tr className="chb-qrow-hi"><td>43%</td><td>Conv. standard</td><td className="chb-qval">{fmt$(q43)}</td></tr>
-                        <tr><td>50%</td><td>DU/LP max</td><td className="chb-qval">{fmt$(q50)}</td></tr>
+                        <tr><td>36%</td><td>Conservative</td><td className="chb-qval">{fmt$(animQ36)}</td></tr>
+                        <tr className="chb-qrow-hi"><td>43%</td><td>Conv. standard</td><td className="chb-qval">{fmt$(animQ43)}</td></tr>
+                        <tr><td>50%</td><td>DU/LP max</td><td className="chb-qval">{fmt$(animQ50)}</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -630,12 +654,39 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
             </div>
 
             <style>{`
+                /* ── Entry animation wrapper ───────────────────── */
+                .chb-anim-wrap {
+                    position: relative;
+                    margin-top: 14px;
+                    opacity: 0;
+                    transform: translateY(18px);
+                    transition: opacity 0.42s cubic-bezier(0.16,1,0.3,1), transform 0.42s cubic-bezier(0.16,1,0.3,1);
+                }
+                .chb-anim-wrap--entered {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+
+                /* ── Corner bracket framing lines ──────────────── */
+                .chb-corner {
+                    position: absolute;
+                    z-index: 2;
+                    pointer-events: none;
+                    border-style: solid;
+                    border-color: var(--chb-color, #00e87a);
+                    width: 0; height: 0; opacity: 0;
+                }
+                .chb-corner--tl { top:-1px; left:-1px; border-width:2px 0 0 2px; border-radius:16px 0 0 0; transition:width .28s .14s ease,height .28s .14s ease,opacity .08s .14s; }
+                .chb-corner--tr { top:-1px; right:-1px; border-width:2px 2px 0 0; border-radius:0 16px 0 0; transition:width .28s .19s ease,height .28s .19s ease,opacity .08s .19s; }
+                .chb-corner--bl { bottom:-1px; left:-1px; border-width:0 0 2px 2px; border-radius:0 0 0 16px; transition:width .28s .24s ease,height .28s .24s ease,opacity .08s .24s; }
+                .chb-corner--br { bottom:-1px; right:-1px; border-width:0 2px 2px 0; border-radius:0 0 16px 0; transition:width .28s .29s ease,height .28s .29s ease,opacity .08s .29s; }
+                .chb-anim-wrap--entered .chb-corner { width:28px; height:28px; opacity:1; }
+
                 .chb {
                     background: #0d1117;
                     border: 1px solid rgba(255,255,255,0.08);
                     border-radius: 16px;
                     overflow: clip;
-                    margin-top: 14px;
                     font-family: system-ui, -apple-system, sans-serif;
                     color: #f0f4ff;
                 }
@@ -777,6 +828,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 }
             `}</style>
 
+        </div>
         </div>
     );
 }
