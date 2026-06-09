@@ -1529,6 +1529,10 @@ html:has(.page-standalone) { height: auto !important; overflow: visible !importa
 body:has(.page-standalone) { display: block !important; height: auto !important; overflow: visible !important; }
 .page-standalone { min-height: 100vh; }
 
+/* ── Portfolio sidebar — hidden below 1100px ── */
+.portfolio-sidebar { display: flex; }
+@media (max-width: 1099px) { .portfolio-sidebar { display: none !important; } }
+
 .main {
   display: flex;
   flex-direction: column;

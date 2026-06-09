@@ -31,6 +31,7 @@ import ConsumerPropertyCard from '@/components/ConsumerPropertyCard';
 import AdminCardBadge from '@/components/AdminCardBadge';
 import ThemeToggle from '@/components/ThemeToggle';
 import InteractiveSliderCard from '@/components/InteractiveSliderCard';
+import PortfolioSidebar from '@/components/PortfolioSidebar';
 import BuydownSliderCard from '@/components/BuydownSliderCard';
 import ConvHBSliderCard from '@/components/ConvHBSliderCard';
 import PropertyEvaluationCard from '@/components/PropertyEvaluationCard';
@@ -2721,6 +2722,46 @@ export default function Page() {
                                     };
                                 }));
 
+                                // Upsert portfolio item — buyer_journey with full L1-L4 scores
+                                if (user?.id) {
+                                    const dsCompositeForPortfolio = (() => {
+                                        const entries = [
+                                            { s: _dsL1Score,      w: 0.35 }, { s: dsL2ScoreFinal, w: 0.25 },
+                                            { s: dsL3Score,       w: 0.25 }, { s: dsL4Score,      w: 0.15 },
+                                        ].filter(e => e.s != null) as { s: number; w: number }[];
+                                        return entries.length >= 2
+                                            ? Math.round(entries.reduce((a, e) => a + e.s * e.w, 0) / entries.reduce((a, e) => a + e.w, 0))
+                                            : null;
+                                    })();
+                                    void fetch('/api/portfolio', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            type:      'buyer_journey',
+                                            title:     _dsAddress,
+                                            address:   _dsAddress,
+                                            photo_url: (d.photoUrl && d.photoUrl.startsWith('https://ssl.cdn-redfin.com/')) ? d.photoUrl : null,
+                                            data: {
+                                                l1Score: _dsL1Score,      l1Summary: _dsL1Summary,
+                                                l2Score: dsL2ScoreFinal,  l2Summary: dsL2SummaryFinal,
+                                                l3Score: dsL3Score,       l3Summary: dsL3Summary,
+                                                l4Score: dsL4Score,       l4Summary: dsL4Summary,
+                                                compositeScore: dsCompositeForPortfolio,
+                                                verdict: dsCompositeForPortfolio != null
+                                                    ? (dsCompositeForPortfolio >= 80 ? 'Strong Buy Signal'
+                                                    : dsCompositeForPortfolio >= 65 ? 'Ready to Offer'
+                                                    : dsCompositeForPortfolio >= 50 ? 'Proceed with Caution'
+                                                    : 'High Risk')
+                                                    : null,
+                                                price:    _dsPrice,
+                                                loanType: _dsLoanType,
+                                                rate:     _dsRate,
+                                                downPct:  _dsDown,
+                                            },
+                                        }),
+                                    }).then(() => { (window as any).__portfolioRefresh?.(); });
+                                }
+
                                 // G7: bridge deep result to property-intel localStorage cache
                                 // so "Full Analysis ↗" loads instantly without a Supabase round-trip
                                 if (typeof window !== 'undefined') {
@@ -5280,6 +5321,24 @@ export default function Page() {
                     </a>
                 </div>
             </div>}
+
+            {/* ── Portfolio sidebar — persistent right panel, desktop ≥1100px, signed-in only ── */}
+            <PortfolioSidebar
+                activeAddress={cmaContextRef.current?.cmaAddress ?? null}
+                onNewJourney={() => {
+                    setRightMenuOpen(false);
+                    const seed = 'I want to start a buyer journey';
+                    setInput(seed);
+                    setTimeout(() => send(seed), 50);
+                }}
+                onResume={(item) => {
+                    if (item.address) {
+                        const seed = `Resume my journey for ${item.address}`;
+                        setInput(seed);
+                        setTimeout(() => send(seed), 50);
+                    }
+                }}
+            />
         </>
     );
 }
