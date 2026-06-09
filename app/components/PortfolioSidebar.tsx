@@ -271,13 +271,13 @@ function PortfolioContent({ items, loading, activeAddress, onResume, onNewJourne
       {!loading && !hasItems && (
         <div style={{ padding: '20px 8px', textAlign: 'center' }}>
           <div style={{ fontSize: 11, color: '#3a5070', lineHeight: 1.6, marginBottom: 12 }}>
-            Your built cards and journeys appear here — one per property.
+            Your Decision Portfolio lives here — one property per journey.
           </div>
           <button
             onClick={onNewJourney}
             style={{ padding: '8px 16px', background: '#0f2030', border: '1px solid #1e3450', borderRadius: 8, color: '#00aaff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
           >
-            Start a journey +
+            Start analysis +
           </button>
         </div>
       )}
@@ -376,7 +376,7 @@ export default function PortfolioSidebar({ onResume, onNewJourney, activeAddress
         background: '#080f1c', borderLeft: '1px solid #131f30',
       }} className="portfolio-sidebar">
         <div style={{ height: 52, borderBottom: '1px solid #131f30', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', flexShrink: 0 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.10em', textTransform: 'uppercase', color: '#4a6080' }}>My Portfolio</span>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.10em', textTransform: 'uppercase', color: '#4a6080' }}>My Decision Portfolio</span>
           <button
             onClick={onNewJourney}
             title="New journey"
@@ -387,7 +387,7 @@ export default function PortfolioSidebar({ onResume, onNewJourney, activeAddress
         </div>
         <PortfolioContent items={items} loading={loading} activeAddress={activeAddress} onResume={onResume} onNewJourney={onNewJourney} />
         <div style={{ borderTop: '1px solid #131f30', padding: '10px 14px', fontSize: 9.5, color: '#2a3d55', textAlign: 'center', flexShrink: 0 }}>
-          Saves automatically · tap to resume
+          My Decision Portfolio · powered by HomeRates.Ai
         </div>
       </div>
 
@@ -441,7 +441,7 @@ export default function PortfolioSidebar({ onResume, onNewJourney, activeAddress
         </div>
         {/* Sheet header */}
         <div style={{ height: 44, borderBottom: '1px solid #131f30', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', flexShrink: 0 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.10em', textTransform: 'uppercase', color: '#4a6080' }}>My Portfolio</span>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.10em', textTransform: 'uppercase', color: '#4a6080' }}>My Decision Portfolio</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={handleNewJourneyWithClose}

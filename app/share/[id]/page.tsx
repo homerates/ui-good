@@ -72,11 +72,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const street  = item.address.split(",")[0]?.trim() ?? item.address;
   const title   = item.score != null
-    ? `${street} — Decision Score ${item.score}/100 | HomeRates.Ai`
-    : `${street} — Property Analysis | HomeRates.Ai`;
+    ? `${street} — My Decision Portfolio ${item.score}/100 | HomeRates.Ai`
+    : `${street} — My Decision Portfolio | HomeRates.Ai`;
   const desc    = item.score != null
-    ? `${item.address}${item.verdict ? ` · ${item.verdict}` : ""}. Decision Score: ${item.score}/100. Analyzed with HomeRates.Ai Home + Mortgage AI.`
-    : `Property analysis for ${item.address} — powered by HomeRates.Ai.`;
+    ? `${item.address}${item.verdict ? ` · ${item.verdict}` : ""}. Decision Score: ${item.score}/100. My Decision Portfolio — powered by HomeRates.Ai.`
+    : `My Decision Portfolio entry for ${item.address} — powered by HomeRates.Ai.`;
 
   return {
     title,
@@ -119,7 +119,7 @@ export default async function SharePage({ params }: Props) {
 
           {/* Brand */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 32 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.10em", color: "#4a6080", textTransform: "uppercase" }}>HomeRates.Ai</span>
+            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.10em", color: "#4a6080", textTransform: "uppercase" }}>My Decision Portfolio</span>
           </div>
 
           {/* Card */}
@@ -139,7 +139,7 @@ export default async function SharePage({ params }: Props) {
 
               {/* Tag */}
               <div style={{ display: "inline-block", background: "rgba(0,232,122,0.10)", border: "1px solid rgba(0,232,122,0.30)", color: "#00e87a", fontSize: 10, fontWeight: 700, letterSpacing: "0.10em", padding: "4px 12px", borderRadius: 999, marginBottom: 20 }}>
-                DECISION SCORE
+                MY DECISION PORTFOLIO
               </div>
 
               {/* Address */}
@@ -186,7 +186,7 @@ export default async function SharePage({ params }: Props) {
               </Link>
 
               <div style={{ textAlign: "center", marginTop: 14, color: "rgba(200,214,230,0.30)", fontSize: 11 }}>
-                Home + Mortgage AI Chat · HomeRates.Ai
+                My Decision Portfolio — powered by HomeRates.Ai
               </div>
             </div>
           </div>

@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
               color: "#00e87a", fontSize: 11, fontWeight: 700, letterSpacing: "0.10em",
               padding: "5px 14px", borderRadius: 999, display: "flex",
             }}>
-              HOMERATES.AI  ·  DECISION SCORE
+              MY DECISION PORTFOLIO  ·  HOMERATES.AI
             </div>
           </div>
 
@@ -122,7 +122,7 @@ export async function GET(req: NextRequest) {
             color: "rgba(200,214,230,0.35)", fontSize: 13, fontWeight: 500,
             marginTop: 20, display: "flex",
           }}>
-            HomeRates.Ai  ·  Home + Mortgage AI Chat
+            My Decision Portfolio  ·  powered by HomeRates.Ai
           </div>
 
         </div>
