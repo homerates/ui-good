@@ -1365,6 +1365,9 @@ export default function Page() {
             content: 'New chat. What do you want to figure out?',
         },
     ]);
+    // Always-current ref — read inside async callbacks without stale-closure issues
+    const messagesRef = useRef<ChatMsg[]>([]);
+    messagesRef.current = messages;
 
     const [input, setInput] = useState('');
     const [priceCheckMode, setPriceCheckMode] = useState(false);
@@ -2752,6 +2755,7 @@ export default function Page() {
                                             title:     _dsAddress,
                                             address:   _dsAddress,
                                             photo_url: (d.photoUrl && d.photoUrl.startsWith('https://ssl.cdn-redfin.com/')) ? d.photoUrl : null,
+                                            messages:  messagesRef.current,
                                             data: {
                                                 l1Score: _dsL1Score,      l1Summary: _dsL1Summary,
                                                 l2Score: dsL2ScoreFinal,  l2Summary: dsL2SummaryFinal,
@@ -5371,21 +5375,37 @@ export default function Page() {
                     setInput("What's my payment on ");
                     setTimeout(() => composerRef.current?.focus(), 80);
                 }}
-                onResume={(item) => {
+                onResume={async (item) => {
+                    // Try to restore the original chat thread from Supabase
+                    try {
+                        const res = await fetch(`/api/portfolio/${item.id}`);
+                        if (res.ok) {
+                            const json = await res.json();
+                            const saved = json.item?.messages;
+                            if (Array.isArray(saved) && saved.length > 0) {
+                                setMessages(saved as ChatMsg[]);
+                                setTimeout(() => {
+                                    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                                }, 80);
+                                return;
+                            }
+                        }
+                    } catch { /* fall through to synthetic fallback */ }
+
+                    // Fallback for items saved before migration 051 — inject synthetic DSC card
                     const d = item.data;
                     const l1 = d.l1Score as number | null | undefined;
                     const l2 = d.l2Score as number | null | undefined;
                     if (!item.address || l1 == null) {
-                        // No saved score yet — open fresh lookup
                         if (item.address) { setInput(`What's my payment on ${item.address}`); setTimeout(() => composerRef.current?.focus(), 80); }
                         return;
                     }
-                    const uid = () => Math.random().toString(36).slice(2);
+                    const _uid = () => Math.random().toString(36).slice(2);
                     const addr = item.address!;
                     setMessages(prev => [...prev,
-                        { id: uid(), role: 'user' as const, content: `Review ${addr}` },
+                        { id: _uid(), role: 'user' as const, content: `Review ${addr}` },
                         {
-                            id: uid(), role: 'assistant' as const, content: '',
+                            id: _uid(), role: 'assistant' as const, content: '',
                             meta: {
                                 path: 'property_lookup' as const, usedFRED: false,
                                 decisionScoreCard: {

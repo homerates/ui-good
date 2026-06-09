@@ -50,7 +50,7 @@ export async function POST(req: Request) {
   if (!sb) return NextResponse.json({ ok: false, error: 'DB unavailable' }, { status: 503 });
 
   const body = await req.json();
-  const { type, title, address, photo_url, data } = body as Partial<PortfolioItem>;
+  const { type, title, address, photo_url, data, messages } = body as Partial<PortfolioItem> & { messages?: unknown[] };
 
   if (!type || !data) return NextResponse.json({ ok: false, error: 'type and data required' }, { status: 400 });
 
@@ -70,9 +70,11 @@ export async function POST(req: Request) {
     if (existing) {
       // Merge data — new fields win, existing fields kept if not overwritten
       const merged = { ...existing.data, ...data };
+      const updatePayload: Record<string, unknown> = { title, photo_url, data: merged, last_accessed_at: now, updated_at: now };
+      if (messages !== undefined) updatePayload.messages = messages;
       const { data: updated, error } = await sb
         .from('portfolio_items')
-        .update({ title, photo_url, data: merged, last_accessed_at: now, updated_at: now })
+        .update(updatePayload)
         .eq('id', existing.id)
         .select()
         .single();
@@ -84,7 +86,7 @@ export async function POST(req: Request) {
   // Insert new
   const { data: inserted, error } = await sb
     .from('portfolio_items')
-    .insert({ user_id: userId, type, title, address: address?.trim() ?? null, photo_url: photo_url ?? null, data, last_accessed_at: now, created_at: now, updated_at: now })
+    .insert({ user_id: userId, type, title, address: address?.trim() ?? null, photo_url: photo_url ?? null, data, messages: messages ?? null, last_accessed_at: now, created_at: now, updated_at: now })
     .select()
     .single();
 

@@ -1535,9 +1535,6 @@ body:has(.page-standalone) { display: block !important; height: auto !important;
   grid-template-rows: auto 1fr auto;
   height: 100dvh;
   overflow: hidden;
-  position: sticky;
-  top: 0;
-  align-self: flex-start;
 }
 @media (max-width: 1099px) { .portfolio-sidebar { display: none !important; } }
 
