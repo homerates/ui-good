@@ -20,8 +20,8 @@ const BASE_URL = "https://chat.homerates.ai";
 export const metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: "HomeRates.ai — Mortgage AI Chat",
-    template: "%s | HomeRates.ai",
+    default: "HomeRates.Ai — Home + Mortgage AI Chat",
+    template: "%s | HomeRates.Ai",
   },
   description:
     "Ask anything about buying a home, refinancing, or investing in real estate. Real mortgage math, live rates, no sales pitch.",
@@ -34,8 +34,8 @@ export const metadata = {
     "refinance calculator",
     "mortgage rates",
   ],
-  authors: [{ name: "HomeRates.ai", url: BASE_URL }],
-  creator: "HomeRates.ai",
+  authors: [{ name: "HomeRates.Ai", url: BASE_URL }],
+  creator: "HomeRates.Ai",
   icons: {
     apple: "/apple-touch-icon.png",
   },
@@ -43,8 +43,8 @@ export const metadata = {
     type: "website",
     locale: "en_US",
     url: BASE_URL,
-    siteName: "HomeRates.ai",
-    title: "HomeRates.ai — Mortgage AI Chat",
+    siteName: "HomeRates.Ai",
+    title: "HomeRates.Ai — Home + Mortgage AI Chat",
     description:
       "Ask anything about buying a home, refinancing, or investing. Real math. Live rates. No sales pitch.",
     images: [
@@ -52,13 +52,13 @@ export const metadata = {
         url: "/assets/share/og/homerates-brand-default-og-1200x630-v1.png",
         width: 1200,
         height: 630,
-        alt: "HomeRates.ai — Mortgage AI Intelligence",
+        alt: "HomeRates.Ai — Home + Mortgage AI Intelligence",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "HomeRates.ai — Mortgage AI Chat",
+    title: "HomeRates.Ai — Home + Mortgage AI Chat",
     description:
       "Real mortgage math, live rates, no sales pitch. Ask anything about buying, refinancing, or investing.",
     images: ["/assets/share/og/homerates-brand-default-og-1200x630-v1.png"],

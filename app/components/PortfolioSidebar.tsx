@@ -79,6 +79,7 @@ function LevelBar({ label, pct, score, total }: { label: string; pct: string; sc
 // ── Journey thumbnail ─────────────────────────────────────────────────────────
 
 function JourneyCard({ item, active, onResume }: { item: PortfolioItem; active: boolean; onResume?: (i: PortfolioItem) => void }) {
+  const [copied, setCopied] = useState(false);
   const d = item.data;
   const l1 = (d.l1Score as number | null) ?? null;
   const l2 = (d.l2Score as number | null) ?? null;
@@ -162,21 +163,50 @@ function JourneyCard({ item, active, onResume }: { item: PortfolioItem; active: 
         <LevelBar label="L4" pct="15%" score={l4} total={100} />
       </div>
 
-      {/* CTA */}
-      <div style={{
-        margin: '0 9px 9px',
-        padding: '6px 11px',
-        borderRadius: 7,
-        fontSize: 10,
-        fontWeight: 700,
-        textAlign: 'center',
-        ...(isComplete
-          ? { background: '#00e87a10', color: '#00e87a', border: '1px solid #00e87a22' }
-          : completedLevels > 0
-          ? { background: '#00aaff14', color: '#00aaff', border: '1px solid #00aaff2a' }
-          : { background: '#f5a62314', color: '#f5a623', border: '1px solid #f5a6232a' }),
-      }}>
-        {isComplete ? 'View Full Score →' : completedLevels > 0 ? `Continue — L${completedLevels + 1} next →` : 'Start L1 Analysis →'}
+      {/* CTA + Share row */}
+      <div style={{ margin: '0 9px 9px', display: 'flex', gap: 6 }}>
+        <div style={{
+          flex: 1,
+          padding: '6px 11px',
+          borderRadius: 7,
+          fontSize: 10,
+          fontWeight: 700,
+          textAlign: 'center',
+          ...(isComplete
+            ? { background: '#00e87a10', color: '#00e87a', border: '1px solid #00e87a22' }
+            : completedLevels > 0
+            ? { background: '#00aaff14', color: '#00aaff', border: '1px solid #00aaff2a' }
+            : { background: '#f5a62314', color: '#f5a623', border: '1px solid #f5a6232a' }),
+        }}>
+          {isComplete ? 'View Full Score →' : completedLevels > 0 ? `Continue — L${completedLevels + 1} next →` : 'Start L1 Analysis →'}
+        </div>
+        {/* Share button */}
+        <button
+          title={copied ? 'Link copied!' : 'Share this property'}
+          onClick={e => {
+            e.stopPropagation();
+            const url = `https://chat.homerates.ai/share/${item.id}`;
+            navigator.clipboard.writeText(url).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            });
+          }}
+          style={{
+            flexShrink: 0,
+            width: 30, height: 30,
+            background: copied ? '#0f2918' : '#0f1e30',
+            border: `1px solid ${copied ? '#00e87a33' : '#1e3450'}`,
+            borderRadius: 7,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'background .15s, border-color .15s',
+          }}
+        >
+          {copied
+            ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00e87a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4a6080" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          }
+        </button>
       </div>
     </div>
   );
