@@ -479,18 +479,11 @@ function mergeGpt4o(base: Record<string, unknown>, gpt: GPT4oPropertyFields | nu
 
 interface TavilyExtractResult { content: string | null; imageUrl: string | null; }
 
-// Pick the first plausible property photo from a Tavily images array.
-// Prefers known RE CDN domains; falls back to any non-logo http image.
+// Pick the first Redfin CDN photo from a Tavily images array.
+// Hard rule: only ssl.cdn-redfin.com images are accepted — no other sources.
 function pickPropertyPhoto(images: string[]): string | null {
-    const RE_CDN  = /ssl\.cdn-redfin\.com|photos\.zillowstatic\.com|ap\.rdcpix\.com|images\.homes\.com/i;
-    const RE_SKIP = /\/logo|logo\.|favicon|icon\.|placeholder/i;
     for (const u of images) {
-        if (!u.startsWith('http') || RE_SKIP.test(u)) continue;
-        if (RE_CDN.test(u)) return u;
-    }
-    for (const u of images) {
-        if (!u.startsWith('http') || RE_SKIP.test(u)) continue;
-        return u;
+        if (u.startsWith('https://ssl.cdn-redfin.com/')) return u;
     }
     return null;
 }
