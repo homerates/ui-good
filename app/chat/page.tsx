@@ -3833,7 +3833,7 @@ export default function Page() {
                                         <Bubble role={m.role}>
                                             {m.role === 'assistant' ? (
                                                 // If this is a Grok-style answer with markdown, use GrokCard
-                                                m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
+                                                m.meta && (m.meta.grok || m.meta.answerMarkdown || m.meta.decisionScoreCard) ? (
                                                     <>
                                                         {/* GrokCard: shown for plain AI answers only.
                                                             Suppressed whenever any slider card is present in meta — card stack is the full UI.
