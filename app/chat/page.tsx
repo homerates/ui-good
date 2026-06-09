@@ -3427,9 +3427,19 @@ export default function Page() {
                     return `Here's your ${sl.buydownType} buydown breakdown for a ${prK} home at ${sl.rate.toFixed(2)}% — ${sl.downPct}% down.`;
                 })()
                 : friendly;
-            // Short constructed sentences use slow tick (3 chars/tick) so typewriter is visible
             const _hasBuydownCard = meta.interactiveSlider?.buydownType && meta.interactiveSlider.buydownType !== 'none';
-            typeOutAssistant(answerId, fullText, (meta.affordabilitySlider || meta.conventionalAffordabilitySlider || meta.fhaAffordabilitySlider || meta.convHBSlider || meta.incomeQualifySlider || meta.fhaSlider || meta.jumboSlider || meta.dscrSlider || meta.vaSlider || meta.refiIntelligenceCard || meta.refiSlider || meta.loanLimitsSlider || meta.jumboAffordabilitySlider || _hasBuydownCard) ? 3 : 24);
+            const _hasSliderCard = !!(meta.affordabilitySlider || meta.conventionalAffordabilitySlider || meta.fhaAffordabilitySlider || meta.convHBSlider || meta.incomeQualifySlider || meta.fhaSlider || meta.jumboSlider || meta.dscrSlider || meta.vaSlider || meta.refiIntelligenceCard || meta.refiSlider || meta.loanLimitsSlider || meta.jumboAffordabilitySlider || meta.helocCard || _hasBuydownCard);
+            if (_hasSliderCard) {
+                // Slider card queries: skip typewriter — card entry animation is the visual feedback.
+                // Setting content directly keeps the summary in message state for future reads.
+                setMessages((prev) => prev.map((m) => m.id === answerId ? { ...m, content: fullText } : m));
+                setTimeout(() => {
+                    const el = document.querySelector(`[data-message-id="${answerId}"]`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 200);
+            } else {
+                typeOutAssistant(answerId, fullText, 24);
+            }
 
             // Save which route we used for this thread
             // If the response was a refi intercept (from either route), always treat as 'scenario'
@@ -3743,14 +3753,11 @@ export default function Page() {
                                                 // If this is a Grok-style answer with markdown, use GrokCard
                                                 m.meta && (m.meta.grok || m.meta.answerMarkdown) ? (
                                                     <>
-                                                        {/* GrokCard:
-                                                            - For non-affordability: always shown
-                                                            - For affordability while typing: shown with m.content only
-                                                              (gives typewriter effect without flashing old table content)
-                                                            - For affordability after typing: suppressed (card takes over)
+                                                        {/* GrokCard: shown for plain AI answers only.
+                                                            Suppressed whenever any slider card is present in meta — card stack is the full UI.
                                                         */}
-                                                        {/* Suppress GrokCard text on property_lookup for all users — card stack speaks for itself */}
-                                                        {!m.meta.interactiveSlider?.cmaAddress && ((!m.meta.affordabilitySlider && !m.meta.conventionalAffordabilitySlider && !m.meta.fhaAffordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) || (typingId === m.id && typeof m.content === 'string' && m.content.length > 0)) && (
+                                                        {/* Suppress GrokCard when any slider card is present — card stack speaks for itself */}
+                                                        {!m.meta.interactiveSlider?.cmaAddress && (!m.meta.affordabilitySlider && !m.meta.conventionalAffordabilitySlider && !m.meta.fhaAffordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
