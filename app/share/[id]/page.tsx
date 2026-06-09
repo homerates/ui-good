@@ -1,10 +1,13 @@
 // app/share/[id]/page.tsx
-// Public share page for a portfolio property decision score
-// Crawlers read the OG meta here. Humans see the card + CTA to open in HomeRates.Ai
+// Public share page for a portfolio property — dynamic OG image for social sharing
+// Crawlers read the per-property OG meta. Humans see the card + CTA.
 
 import { Metadata } from "next";
 import { getSupabase } from "../../../lib/supabaseServer";
 import Link from "next/link";
+
+// Force server-side render on every request — never cache with empty data at build time
+export const dynamic = 'force-dynamic';
 
 const BASE = "https://chat.homerates.ai";
 
@@ -35,13 +38,13 @@ async function fetchItemData(id: string): Promise<ItemData> {
 
   const d = data.data as Record<string, unknown>;
   return {
-    address:  data.address ?? fallback.address,
-    photo:    (data.photo_url && /^https:\/\/ssl\.cdn-redfin\.com\//.test(data.photo_url)) ? data.photo_url : null,
-    score:    (d.compositeScore as number | null) ?? null,
-    verdict:  (d.verdict as string | null) ?? "",
-    price:    (d.price as number | null) ?? null,
-    beds:     d.beds != null ? String(d.beds) : null,
-    baths:    d.baths != null ? String(d.baths) : null,
+    address: data.address ?? fallback.address,
+    photo:   (data.photo_url && /^https:\/\/ssl\.cdn-redfin\.com\//.test(data.photo_url)) ? data.photo_url : null,
+    score:   (d.compositeScore as number | null) ?? null,
+    verdict: (d.verdict as string | null) ?? "",
+    price:   (d.price as number | null) ?? null,
+    beds:    d.beds != null ? String(d.beds) : null,
+    baths:   d.baths != null ? String(d.baths) : null,
   };
 }
 
@@ -63,18 +66,18 @@ function fmt$(n: number) {
   return `$${n}`;
 }
 
-// ── Dynamic metadata (OG image) ────────────────────────────────────────────
+// ── Dynamic OG metadata ────────────────────────────────────────────────────
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const item    = await fetchItemData(id);
-  const ogUrl   = buildOgUrl(item);
+  const item   = await fetchItemData(id);
+  const ogUrl  = buildOgUrl(item);
 
-  const street  = item.address.split(",")[0]?.trim() ?? item.address;
-  const title   = item.score != null
+  const street = item.address.split(",")[0]?.trim() ?? item.address;
+  const title  = item.score != null
     ? `${street} — My Decision Portfolio ${item.score}/100 | HomeRates.Ai`
     : `${street} — My Decision Portfolio | HomeRates.Ai`;
-  const desc    = item.score != null
+  const desc   = item.score != null
     ? `${item.address}${item.verdict ? ` · ${item.verdict}` : ""}. Decision Score: ${item.score}/100. My Decision Portfolio — powered by HomeRates.Ai.`
     : `My Decision Portfolio entry for ${item.address} — powered by HomeRates.Ai.`;
 
@@ -83,21 +86,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: desc,
     openGraph: {
       title, description: desc,
-      url: `${BASE}/share/${id}`,
+      url:      `${BASE}/share/${id}`,
       siteName: "HomeRates.Ai",
-      images: [{ url: ogUrl, width: 1200, height: 630, alt: `Decision Score for ${street}` }],
-      type: "website",
+      images:   [{ url: ogUrl, width: 1200, height: 630, alt: `My Decision Portfolio — ${street}` }],
+      type:     "website",
     },
     twitter: { card: "summary_large_image", title, description: desc, images: [ogUrl] },
   };
 }
 
-// ── Page component — rendered for both humans and crawlers ─────────────────
+// ── Page component ─────────────────────────────────────────────────────────
 
 export default async function SharePage({ params }: Props) {
-  const { id }  = await params;
-  const item     = await fetchItemData(id);
-  const street   = item.address.split(",")[0]?.trim() ?? item.address;
+  const { id }    = await params;
+  const item      = await fetchItemData(id);
+  const street    = item.address.split(",")[0]?.trim() ?? item.address;
   const cityState = item.address.split(",").slice(1, 3).join(",").trim();
 
   const scoreColor = item.score == null ? "#4a6080"
@@ -105,94 +108,84 @@ export default async function SharePage({ params }: Props) {
     : item.score >= 55 ? "#f0c040"
     : "#ff5a5a";
 
-  const chatUrl = `${BASE}/chat`;
-
   const detailParts: string[] = [];
-  if (item.price)  detailParts.push(fmt$(item.price));
-  if (item.beds)   detailParts.push(`${item.beds} bd`);
-  if (item.baths)  detailParts.push(`${item.baths} ba`);
+  if (item.price) detailParts.push(fmt$(item.price));
+  if (item.beds)  detailParts.push(`${item.beds} bd`);
+  if (item.baths) detailParts.push(`${item.baths} ba`);
 
   return (
-    <html lang="en">
-      <body style={{ margin: 0, padding: 0, background: "#080f1c", fontFamily: "system-ui, -apple-system, sans-serif", minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: "100%", maxWidth: 600, padding: "24px 16px" }}>
+    <div className="page-standalone" style={{ minHeight: "100dvh", background: "#080f1c", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+      <div style={{ width: "100%", maxWidth: 600 }}>
 
-          {/* Brand */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 32 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.10em", color: "#4a6080", textTransform: "uppercase" }}>My Decision Portfolio</span>
-          </div>
+        {/* Brand */}
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", color: "#3a5070", textTransform: "uppercase" }}>
+            My Decision Portfolio
+          </span>
+        </div>
 
-          {/* Card */}
-          <div style={{ background: "#0b1221", border: "1px solid #1e2d45", borderRadius: 18, overflow: "hidden" }}>
+        {/* Card */}
+        <div style={{ background: "#0b1221", border: "1px solid #1e2d45", borderRadius: 18, overflow: "hidden" }}>
 
-            {/* Photo */}
-            {item.photo && (
-              <div style={{ width: "100%", height: 220, overflow: "hidden", position: "relative" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={item.photo} alt={street} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 50%, #0b1221 100%)" }} />
+          {/* Property photo */}
+          {item.photo && (
+            <div style={{ width: "100%", height: 220, overflow: "hidden", position: "relative" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.photo} alt={street} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 50%, #0b1221 100%)" }} />
+            </div>
+          )}
+
+          <div style={{ padding: "28px 28px 32px" }}>
+
+            {/* Tag */}
+            <div style={{ display: "inline-block", background: "rgba(0,232,122,0.10)", border: "1px solid rgba(0,232,122,0.30)", color: "#00e87a", fontSize: 10, fontWeight: 700, letterSpacing: "0.10em", padding: "4px 12px", borderRadius: 999, marginBottom: 20 }}>
+              MY DECISION PORTFOLIO
+            </div>
+
+            {/* Address */}
+            <div style={{ color: "#ffffff", fontSize: 26, fontWeight: 800, lineHeight: 1.2, letterSpacing: "-0.02em", marginBottom: 4 }}>
+              {street}
+            </div>
+            {cityState && (
+              <div style={{ color: "rgba(200,214,230,0.50)", fontSize: 16, fontWeight: 400, marginBottom: 16 }}>
+                {cityState}
+              </div>
+            )}
+            {detailParts.length > 0 && (
+              <div style={{ color: "rgba(200,214,230,0.45)", fontSize: 14, fontWeight: 500, marginBottom: 28 }}>
+                {detailParts.join("  ·  ")}
               </div>
             )}
 
-            {/* Content */}
-            <div style={{ padding: "28px 28px 32px" }}>
-
-              {/* Tag */}
-              <div style={{ display: "inline-block", background: "rgba(0,232,122,0.10)", border: "1px solid rgba(0,232,122,0.30)", color: "#00e87a", fontSize: 10, fontWeight: 700, letterSpacing: "0.10em", padding: "4px 12px", borderRadius: 999, marginBottom: 20 }}>
-                MY DECISION PORTFOLIO
-              </div>
-
-              {/* Address */}
-              <div style={{ color: "#ffffff", fontSize: 26, fontWeight: 800, lineHeight: 1.2, letterSpacing: "-0.02em", marginBottom: 4 }}>
-                {street}
-              </div>
-              {cityState && (
-                <div style={{ color: "rgba(200,214,230,0.50)", fontSize: 16, fontWeight: 400, marginBottom: 16 }}>
-                  {cityState}
-                </div>
-              )}
-
-              {detailParts.length > 0 && (
-                <div style={{ color: "rgba(200,214,230,0.45)", fontSize: 14, fontWeight: 500, marginBottom: 28 }}>
-                  {detailParts.join("  ·  ")}
-                </div>
-              )}
-
-              {/* Score */}
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 12, marginBottom: 32 }}>
-                <span style={{ fontSize: 72, fontWeight: 900, color: scoreColor, lineHeight: 1, letterSpacing: "-0.04em" }}>
-                  {item.score ?? "—"}
-                </span>
-                <div style={{ paddingBottom: 8, display: "flex", flexDirection: "column" }}>
-                  <span style={{ color: "rgba(200,214,230,0.40)", fontSize: 13, fontWeight: 600 }}> / 100</span>
-                  {item.verdict && (
-                    <span style={{ color: scoreColor, fontSize: 13, fontWeight: 700, marginTop: 2 }}>{item.verdict}</span>
-                  )}
-                </div>
-              </div>
-
-              {/* CTA */}
-              <Link
-                href={chatUrl}
-                style={{
-                  display: "block", textAlign: "center",
-                  background: "#00e87a", color: "#000",
-                  fontSize: 14, fontWeight: 800, letterSpacing: "0.03em",
-                  padding: "14px 24px", borderRadius: 10,
-                  textDecoration: "none",
-                }}
-              >
-                Open in HomeRates.Ai →
-              </Link>
-
-              <div style={{ textAlign: "center", marginTop: 14, color: "rgba(200,214,230,0.30)", fontSize: 11 }}>
-                My Decision Portfolio — powered by HomeRates.Ai
+            {/* Score */}
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 12, marginBottom: 32 }}>
+              <span style={{ fontSize: 72, fontWeight: 900, color: scoreColor, lineHeight: 1, letterSpacing: "-0.04em" }}>
+                {item.score ?? "—"}
+              </span>
+              <div style={{ paddingBottom: 8, display: "flex", flexDirection: "column" }}>
+                <span style={{ color: "rgba(200,214,230,0.40)", fontSize: 13, fontWeight: 600 }}> / 100</span>
+                {item.verdict && (
+                  <span style={{ color: scoreColor, fontSize: 13, fontWeight: 700, marginTop: 2 }}>{item.verdict}</span>
+                )}
               </div>
             </div>
-          </div>
 
+            {/* CTA */}
+            <Link
+              href={`${BASE}/chat`}
+              style={{ display: "block", textAlign: "center", background: "#00e87a", color: "#000", fontSize: 14, fontWeight: 800, letterSpacing: "0.03em", padding: "14px 24px", borderRadius: 10, textDecoration: "none" }}
+            >
+              Open in HomeRates.Ai →
+            </Link>
+
+            <div style={{ textAlign: "center", marginTop: 14, color: "rgba(200,214,230,0.30)", fontSize: 11 }}>
+              My Decision Portfolio — powered by HomeRates.Ai
+            </div>
+          </div>
         </div>
-      </body>
-    </html>
+
+      </div>
+    </div>
   );
 }
