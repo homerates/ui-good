@@ -66,15 +66,11 @@ export async function GET(req: NextRequest) {
 
   if (error || !data) return NextResponse.json({ hit: false });
 
-  // Increment search_count (fire-and-forget — uses RPC to avoid race condition)
+  // Increment search_count (fire-and-forget — atomic RPC avoids race condition)
   if (inc) {
-    void sb.rpc('increment_search_count', { row_id: (data as any).id }).catch(() => {
-      // Fallback if RPC not defined yet
-      void sb
-        .from('featured_properties')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', (data as any).id);
-    });
+    void (async () => {
+      try { await sb.rpc('increment_search_count', { row_id: (data as any).id }); } catch { /* non-critical */ }
+    })();
   }
 
   return NextResponse.json({
