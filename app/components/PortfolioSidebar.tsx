@@ -344,7 +344,7 @@ export default function PortfolioSidebar({ onResume, onNewJourney, activeAddress
       <div style={{
         width: 272, flexShrink: 0, display: 'flex', flexDirection: 'column',
         background: '#080f1c', borderLeft: '1px solid #131f30',
-        height: '100dvh', position: 'sticky', top: 0,
+        alignSelf: 'stretch', overflow: 'hidden',
       }} className="portfolio-sidebar">
         <div style={{ height: 52, borderBottom: '1px solid #131f30', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', flexShrink: 0 }}>
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.10em', textTransform: 'uppercase', color: '#4a6080' }}>My Portfolio</span>

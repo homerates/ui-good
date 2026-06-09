@@ -5331,11 +5331,38 @@ export default function Page() {
                     setTimeout(() => composerRef.current?.focus(), 80);
                 }}
                 onResume={(item) => {
-                    if (item.address) {
-                        const seed = `What's my payment on ${item.address}`;
-                        setInput(seed);
-                        setTimeout(() => send(seed), 50);
+                    const d = item.data;
+                    const l1 = d.l1Score as number | null | undefined;
+                    const l2 = d.l2Score as number | null | undefined;
+                    if (!item.address || l1 == null) {
+                        // No saved score yet — open fresh lookup
+                        if (item.address) { setInput(`What's my payment on ${item.address}`); setTimeout(() => composerRef.current?.focus(), 80); }
+                        return;
                     }
+                    const uid = () => Math.random().toString(36).slice(2);
+                    const addr = item.address!;
+                    setMessages(prev => [...prev,
+                        { id: uid(), role: 'user' as const, content: `Review ${addr}` },
+                        {
+                            id: uid(), role: 'assistant' as const, content: '',
+                            meta: {
+                                path: 'property_lookup' as const, usedFRED: false,
+                                decisionScoreCard: {
+                                    state: 'complete' as const,
+                                    address: addr,
+                                    l1Score: l1,
+                                    l1Summary: (d.l1Summary as string) ?? '',
+                                    l2Score: (l2 ?? null) as number | null,
+                                    l2Summary: (d.l2Summary as string) ?? '',
+                                    l3Score: (d.l3Score as number | null | undefined) ?? null,
+                                    l3Summary: (d.l3Summary as string) ?? '',
+                                    l4Score: (d.l4Score as number | null | undefined) ?? null,
+                                    l4Summary: (d.l4Summary as string) ?? '',
+                                    compositeScore: (d.compositeScore as number | undefined) ?? undefined,
+                                },
+                            } as ApiResponse,
+                        },
+                    ]);
                 }}
             />
         </>
