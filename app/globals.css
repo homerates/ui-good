@@ -1533,6 +1533,43 @@ body:has(.page-standalone) { display: block !important; height: auto !important;
 .portfolio-sidebar { display: flex; }
 @media (max-width: 1099px) { .portfolio-sidebar { display: none !important; } }
 
+/* ── Portfolio FAB — mobile only ── */
+.portfolio-fab { display: none; }
+@media (max-width: 1099px) { .portfolio-fab { display: flex; } }
+
+/* ── Portfolio bottom sheet ── */
+.portfolio-sheet {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 1100;
+  background: #080f1c;
+  border-top: 1px solid #1e2d45;
+  border-radius: 18px 18px 0 0;
+  max-height: 82dvh;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32,0,0.67,0);
+  will-change: transform;
+}
+.portfolio-sheet.open {
+  transform: translateY(0);
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+}
+.portfolio-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1099;
+  background: rgba(0,0,0,0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.portfolio-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .main {
   display: flex;
   flex-direction: column;
