@@ -1538,6 +1538,9 @@ body:has(.page-standalone) { display: block !important; height: auto !important;
 }
 @media (max-width: 1099px) { .portfolio-sidebar { display: none !important; } }
 
+/* Prevent flex children from shrinking — they must overflow to trigger scroll */
+.portfolio-scroll-content > * { flex-shrink: 0; }
+
 /* ── Portfolio FAB — mobile only ── */
 .portfolio-fab { display: none; }
 @media (max-width: 1099px) { .portfolio-fab { display: flex; } }

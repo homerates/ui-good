@@ -5371,8 +5371,8 @@ export default function Page() {
             <PortfolioSidebar
                 activeAddress={cmaContextRef.current?.cmaAddress ?? null}
                 onNewJourney={() => {
-                    setRightMenuOpen(false);
-                    setInput("What's my payment on ");
+                    setMessages([{ id: uid(), role: 'assistant', content: 'New chat. What do you want to figure out?' }]);
+                    setInput('');
                     setTimeout(() => composerRef.current?.focus(), 80);
                 }}
                 onResume={async (item) => {

@@ -234,7 +234,7 @@ function PortfolioContent({ items, loading, activeAddress, onResume, onNewJourne
   const snapshots = items.filter(i => i.type === 'snapshot' || i.type === 'lo_scenario');
   const hasItems  = items.length > 0;
   return (
-    <div style={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '10px 9px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="portfolio-scroll-content" style={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '10px 9px', display: 'flex', flexDirection: 'column', gap: 8 }}>
       {loading && items.length === 0 && (
         <div style={{ fontSize: 11, color: '#2a3d55', textAlign: 'center', paddingTop: 24 }}>Loading…</div>
       )}
