@@ -424,6 +424,41 @@ CREATE TABLE IF NOT EXISTS short_links (
   PRIMARY KEY (id)
 );
 
+-- user_answers (from app/setup-supabase.sql — not a numbered migration)
+CREATE TABLE IF NOT EXISTS public.user_answers (
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  clerk_user_id  text        NOT NULL,
+  question       text        NOT NULL,
+  answer         jsonb       NOT NULL,
+  created_at     timestamptz DEFAULT now()
+);
+ALTER TABLE public.user_answers ENABLE ROW LEVEL SECURITY;
+
+-- buyer_evaluation_sessions (from buyer_evaluation_sessions_migration.sql — not numbered)
+CREATE TABLE IF NOT EXISTS buyer_evaluation_sessions (
+  id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          text        NOT NULL,
+  property_address text,
+  session_name     text,
+  status           text        NOT NULL DEFAULT 'active',
+  scenario_json    jsonb,
+  l1_score         smallint,
+  l1_summary       text,
+  l2_score         smallint,
+  l2_summary       text,
+  l3_score         smallint,
+  l3_summary       text,
+  l4_score         smallint,
+  l4_summary       text,
+  composite_score  smallint,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS buyer_eval_sessions_user_address_uq
+  ON buyer_evaluation_sessions (user_id, property_address)
+  WHERE property_address IS NOT NULL;
+ALTER TABLE buyer_evaluation_sessions ENABLE ROW LEVEL SECURITY;
+
 CREATE TABLE IF NOT EXISTS white_label_partners (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   slug text NOT NULL,
