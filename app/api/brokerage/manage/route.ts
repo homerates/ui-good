@@ -146,7 +146,7 @@ export async function GET() {
     org_type: brokerage.org_type ?? "brokerage",
     website: brokerage.website ?? null,
     invite_token: brokerage.invite_token,
-    invite_link: `${process.env.NEXT_PUBLIC_BASE_URL ?? "https://chat.homerates.ai"}/join/${brokerage.invite_token}`,
+    invite_link: `${process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai"}/join/${brokerage.invite_token}`,
     created_at: brokerage.created_at,
     members: enriched,
   });

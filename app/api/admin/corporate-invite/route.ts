@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     invitedByName = [adminUser.firstName, adminUser.lastName].filter(Boolean).join(" ") || invitedByName;
   } catch { /* non-fatal */ }
 
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "https://chat.homerates.ai";
+  const base = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
   const claimUrl = `${base}/org/claim/${invite.token}`;
 
   await emailCorporateInvite({

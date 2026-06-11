@@ -163,7 +163,7 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
     return {
         answer,
         next_step: r.dscr >= 1.0
-            ? `DSCR is ${r.dscr.toFixed(2)}x — get quotes from DSCR lenders: LoanDepot, Griffin, JMAC.`
+            ? `DSCR is ${r.dscr.toFixed(2)}x — get quotes from multiple DSCR lenders to compare programs.`
             : `Rent needs to be ${f$(rentNeeded100)}/mo to hit 1.0x DSCR. Is that achievable in your market?`,
         follow_up: chips[0].label,
         follow_up_chips: chips,

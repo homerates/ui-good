@@ -220,7 +220,7 @@ HomeRates.ai pulls from primary sources — not aggregators, not scrapers.
 - VA Lenders Handbook (benefits.va.gov)
 - USDA HB-1-3555 (rd.usda.gov)
 
-**Lender overlays** tracked from LoanDepot, UWM, Pennymac, Fairway, Angel Oak, Acra, Citadel, and Newrez public bulletins.
+**Lender overlays** tracked from major wholesale and retail lenders' public bulletins.
 
 ---
 *Educational only — not financial or legal advice. Rates and eligibility vary by lender and profile.*`;

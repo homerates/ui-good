@@ -1200,7 +1200,7 @@ function buildDSCRMarkdown(params: ReturnType<typeof extractDSCRParams>): object
 
     const dscrStatus = dscr >= 1.25 ? '✅ **Excellent** — most lenders approve at 1.25x+'
         : dscr >= 1.0 ? '✅ **Qualifies** — meets minimum 1.0x (some lenders require 1.25x)'
-            : dscr >= 0.75 ? '⚠️ **Below 1.0x** — select lenders (LoanDepot, Griffin) allow 0.75x+ with reserves'
+            : dscr >= 0.75 ? '⚠️ **Below 1.0x** — some DSCR lenders allow 0.75x+ with reserves'
                 : '❌ **Does not qualify** — DSCR too low for standard programs';
 
     // Amortization snapshot
@@ -1269,7 +1269,7 @@ ${vacPct > 0 ? `| Vacancy Loss (${Math.round(vacPct * 100)}%) | -$${Math.round(g
 ${dscrStatus}
 
 **DSCR Lender Benchmarks:**
-- 1.25x+ → Most lenders (LoanDepot, Griffin, JMAC)
+- 1.25x+ → Most DSCR lenders
 - 1.0x → Minimum for standard programs
 - 0.75x–1.0x → Select lenders with 6–12 months reserves
 - <0.75x → Very limited options
@@ -1292,13 +1292,13 @@ ${dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent, reserves requir
 ---
 
 **Next Steps:**
-1. **Compare DSCR lenders** — LoanDepot, Griffin, JMAC, Angel Oak
+1. **Compare multiple DSCR lenders** — programs and minimums vary widely
 2. **Verify rent** — lender requires lease or 1007 rent schedule appraisal
 3. **Reserves** — most programs require 6–12 months PITIA after closing`;
 
     return {
         answer,
-        next_step: `DSCR is ${dscr.toFixed(2)}x. ${dscr >= 1.0 ? 'Get quotes from DSCR lenders — LoanDepot, Griffin, JMAC.' : 'Rent needs to be ~$' + Math.ceil(monthlyPITIA * 1.0).toLocaleString() + '/mo to hit 1.0x DSCR.'}`,
+        next_step: `DSCR is ${dscr.toFixed(2)}x. ${dscr >= 1.0 ? 'Get quotes from multiple DSCR lenders to compare programs.' : 'Rent needs to be ~$' + Math.ceil(monthlyPITIA * 1.0).toLocaleString() + '/mo to hit 1.0x DSCR.'}`,
         follow_up: dscr >= 1.0
             ? `Want to see how vacancy (5–10%) or maintenance costs affect your cash flow?`
             : `Rent of $${Math.ceil(monthlyPITIA * 1.25).toLocaleString()}/mo would hit 1.25x DSCR. Is that achievable in your market?`,
@@ -2290,7 +2290,8 @@ async function handle(req: NextRequest, intentParam?: string) {
             "Answer using ONLY:\n" +
             " • Fannie Mae Selling Guide (singlefamily.fanniemae.com)\n" +
             " • Freddie Mac Seller/Servicer Guide (freddiemac.com)\n" +
-            " • FHA (hud.gov), VA (va.gov / benefits.va.gov), USDA, lender overlays (LoanDepot, UWM, Pennymac, Fairway, Angel Oak, Acra, Citadel, Newrez).\n" +
+            " • FHA (hud.gov), VA (va.gov / benefits.va.gov), USDA, common lender overlays.\n" +
+            "NEVER name specific lenders in your answer — HomeRates does not endorse or recommend lenders.\n" +
             "MANDATORY: Cite exact section + URL (e.g., \"Fannie B3-3.2-01 [singlefamily.fanniemae.com/selling-guide]\").\n" +
             "Never 'it depends' without rule/citation. List paths (DU vs manual, FHA vs Conventional) as Path A/B with citations.\n" +
             "FORMATTING: In tables, write dollar amounts and numbers as plain text — never wrap them in ** bold markers.\n" +
@@ -2299,12 +2300,13 @@ async function handle(req: NextRequest, intentParam?: string) {
         dscr:
             "You are DSCR Lab — 2026 non-QM investor loan expert for residential rentals (1-4 units), Grok 4.1 Fast Non-Reasoning mode.\n" +
             "Parse inputs: gross rent, loan amount, rate, taxes, insurance, HOA — use exactly or ask once.\n" +
-            "LoanDepot DSCR RULE (Advantage FLEX DSCR): ALWAYS use 100% GROSS monthly rent.\n" +
-            "• DSCR (LoanDepot) = Gross Monthly Rent ÷ PITIA.\n" +
+            "DSCR RULE (gross-rent convention): ALWAYS use 100% GROSS monthly rent.\n" +
+            "• DSCR = Gross Monthly Rent ÷ PITIA.\n" +
             "• Do NOT apply 75% rent, vacancy factors, NOI, or reserves to the DSCR calculation.\n" +
             "• PITIA = P&I (amort formula) + Taxes + Insurance + HOA.\n" +
-            "Key 2025: Min 0.75-1.25 (LoanDepot/Griffin/JMAC <1.0 with reserves); no personal income.\n" +
-            "Structure: Definition + Formula + Example ($3k rent / $400k @ FRED rate) + Requirements + Lenders (cite Tavily). Tone: factual, empowering. Respond in 150-250 words max. End with disclaimer.",
+            "Key 2025: Min 0.75-1.25 (some lenders allow <1.0 with reserves); no personal income.\n" +
+            "NEVER name specific lenders in your answer — HomeRates does not endorse or recommend lenders.\n" +
+            "Structure: Definition + Formula + Example ($3k rent / $400k @ FRED rate) + Requirements. Tone: factual, empowering. Respond in 150-250 words max. End with disclaimer.",
 
         qualify:
             "You are Qualification Lab — fast, accurate, memory-aware, Grok 4.1 Fast Non-Reasoning mode.\n" +
@@ -4033,7 +4035,7 @@ Self-Employed: 2 years 1040s + business returns. Business must be 2+ years old.
 PMI Removal: Request at 80% LTV. Automatic at 78% LTV (original schedule).
 
 ── DSCR / INVESTMENT (Non-QM) ─────────────────────────────────────────
-Source: Lender guidelines — LoanDepot, Griffin Funding, Angel Oak, JMAC
+Source: Non-QM / DSCR lender program guidelines (industry-typical; programs vary by lender)
 DTI: Not used. Qualification based on DSCR = Gross Rent ÷ PITIA.
 DSCR Thresholds: 1.25x+ → most lenders approve. 1.0x → minimum for many. 0.75x–1.0x → select lenders with 6–12 months reserves. <0.75x → very limited.
 Credit Score: Minimum 620–640 most lenders. Best pricing 700+.
@@ -4063,7 +4065,7 @@ Reserves: Not required.
 Employment: 2-year history required.
 
 ── JUMBO / NON-QM ──────────────────────────────────────────────────────
-Source: Lender-specific (Chase, Wells Fargo, UWM, Angel Oak)
+Source: Lender-specific jumbo/non-QM program guidelines (vary by lender)
 DTI: Typically ≤43%. Non-QM bank statement up to 55%.
 Credit Score: Jumbo 680–720 min. Non-QM bank statement 620+.
 LTV / Down Payment: Standard jumbo 10–20% down. $1M–$2M typically 20% min. $2M+ typically 25–30% min.

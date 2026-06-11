@@ -970,7 +970,7 @@ function postParseValidateScenario(result: any, message: string, marketData: any
             return `${x.toFixed(2)}x`;
         };
 
-        lines.push(`- DSCR (LoanDepot, gross rent ÷ PITIA): ${fmtDSCRLocal(dscrLd)}`);
+        lines.push(`- DSCR (gross rent ÷ PITIA): ${fmtDSCRLocal(dscrLd)}`);
         lines.push(`- DSCR-like (economic, effective rent ÷ PITIA): ${fmtDSCRLocal(dscrEcon)}`);
 
     }

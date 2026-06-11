@@ -14,7 +14,7 @@ import type { TopicSeed } from '@/content/topics';
 const XAI_API_KEY    = process.env.XAI_API_KEY;
 const XAI_MODEL      = 'grok-4-1-fast-non-reasoning';
 const TAVILY_KEY     = process.env.TAVILY_API_KEY;
-const FRED_URL       = process.env.NEXT_PUBLIC_APP_URL ?? 'https://chat.homerates.ai';
+const FRED_URL       = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
 const SITE_HOST      = 'chat.homerates.ai';
 const INDEXNOW_KEY   = '41d38600a6084855bb51b535bddf8953';
 

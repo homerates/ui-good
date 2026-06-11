@@ -18,7 +18,7 @@ function db() {
   );
 }
 
-const APP_URL     = process.env.NEXT_PUBLIC_APP_URL ?? 'https://chat.homerates.ai';
+const APP_URL     = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
 const CRON_SECRET = process.env.CRON_SECRET;
 const ADMIN_EMAIL = 'legatum2005@gmail.com';
 
