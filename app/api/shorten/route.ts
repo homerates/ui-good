@@ -5,6 +5,30 @@ export const dynamic = 'force-dynamic';
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth } from "@clerk/nextjs/server";
+import { randomInt } from 'crypto';
+
+// Open-redirect guard: short links may only target our own properties.
+// A relative path ("/chat?...") is always allowed; absolute URLs must match an allowed host.
+const ALLOWED_HOSTS = new Set([
+    'chat.homerates.ai',
+    'homerates.ai',
+    'www.homerates.ai',
+    'dev.homerates.ai',
+    'dev.chat.homerates.ai',
+]);
+
+function isSafeTarget(raw: string): boolean {
+    if (!raw) return false;
+    // Relative path — same-origin by definition.
+    if (raw.startsWith('/') && !raw.startsWith('//')) return true;
+    try {
+        const u = new URL(raw);
+        if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+        return ALLOWED_HOSTS.has(u.hostname.toLowerCase());
+    } catch {
+        return false;
+    }
+}
 
 const SUPABASE_URL =
     process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
@@ -22,7 +46,7 @@ function randomSlug(length = 7): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
     let out = '';
     for (let i = 0; i < length; i++) {
-        out += chars[Math.floor(Math.random() * chars.length)];
+        out += chars[randomInt(chars.length)];
     }
     return out;
 }
@@ -88,6 +112,14 @@ export async function POST(req: NextRequest) {
     if (!longUrl) {
         return NextResponse.json(
             { ok: false, error: 'Missing url or messages' },
+            { status: 400 }
+        );
+    }
+
+    // Open-redirect guard — only allow same-origin / known HomeRates hosts.
+    if (!isSafeTarget(longUrl)) {
+        return NextResponse.json(
+            { ok: false, error: 'Invalid target URL' },
             { status: 400 }
         );
     }

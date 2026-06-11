@@ -12,9 +12,20 @@ import { NextResponse } from "next/server";
 import { getSupabase } from "./supabaseServer";
 
 // ── Bootstrap fallback — never remove this ID ────────────────────────────────
-const BOOTSTRAP_ADMIN_IDS = new Set([
-  "user_35xDE51bR0NTaKEpwZMbHtn752O", // Rayaan — bootstrap admin
-]);
+// Clerk user IDs are per-instance: the Production Clerk instance and the
+// Development instance (staging preview) issue DIFFERENT IDs for the same person.
+// The hardcoded ID below is the Production admin. Additional IDs (e.g. the staging
+// Dev-instance admin ID) can be supplied via the BOOTSTRAP_ADMIN_IDS env var
+// (comma-separated), scoped per environment in Vercel — no code change needed.
+const BOOTSTRAP_ADMIN_IDS = new Set(
+  [
+    "user_35xDE51bR0NTaKEpwZMbHtn752O", // Rayaan — Production bootstrap admin
+    ...(process.env.BOOTSTRAP_ADMIN_IDS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  ],
+);
 
 // ── In-memory cache (server process lifetime, refreshed every 5 min) ─────────
 let cachedAdminIds: Set<string> | null = null;

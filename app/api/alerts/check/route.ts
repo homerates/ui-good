@@ -115,9 +115,17 @@ async function checkPropertyAlert(
 // Main handler
 // ---------------------------------------------------------------------------
 export async function GET(req: NextRequest) {
-  // Verify cron secret (set CRON_SECRET in Vercel env)
-  const secret = req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("secret");
-  if (CRON_SECRET && secret !== CRON_SECRET) {
+  // Verify cron secret (set CRON_SECRET in Vercel env).
+  // Accept Vercel's "Authorization: Bearer <secret>" as well as the legacy
+  // x-cron-secret header / ?secret= query param.
+  // Fail closed: if the secret is not configured, reject rather than run open.
+  const bearer = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  const secret =
+    bearer ||
+    req.headers.get("x-cron-secret") ||
+    req.nextUrl.searchParams.get("secret") ||
+    "";
+  if (!CRON_SECRET || secret !== CRON_SECRET) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
