@@ -219,7 +219,7 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
     // 4. Run site-specific parser
     let siteData: Partial<PropertyData> | null = null;
     if (source === 'zillow')  siteData = parseZillow(html);
-    if (source === 'redfin')  siteData = parseRedfin(html);
+    if (source === 'redfin')  siteData = parseRedfin(html, cleanUrl);
 
     // 5. Merge — og:image always overwrites photo
     const m = merge(siteData, ogPartial);

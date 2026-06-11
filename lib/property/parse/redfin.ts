@@ -52,15 +52,38 @@ const LISTING_TYPES = [
     'Residence','Apartment','Condominium','Townhouse','Product',
 ];
 
-function findListingBlob(blobs: unknown[]): unknown | null {
+/** Street number + zip pulled from the Redfin URL slug, e.g.
+ *  /CA/Yorba-Linda/28525-Evening-Breeze-Dr-92887/home/4285772 → { streetNum: '28525', zip: '92887' } */
+function urlExpectations(url: string | undefined): { streetNum: string | null; zip: string | null } {
+    if (!url) return { streetNum: null, zip: null };
+    const seg = url.match(/redfin\.com\/[A-Za-z]{2}\/[^/]+\/([^/]+)\//i)?.[1] ?? '';
+    const streetNum = seg.match(/^(\d+)-/)?.[1] ?? null;
+    const zip = seg.match(/-(\d{5})$/)?.[1] ?? null;
+    return { streetNum, zip };
+}
+
+/** Redfin pages embed JSON-LD for the main listing AND for "similar homes" carousel
+ *  items. Without validating against the URL, the first carousel item can win and we
+ *  return a completely different property. When the URL gives us a street number/zip,
+ *  only accept a blob whose address matches; otherwise reject (og: fallback is safer). */
+function blobMatchesUrl(b: unknown, expect: { streetNum: string | null; zip: string | null }): boolean {
+    if (!expect.streetNum && !expect.zip) return true; // nothing to validate against
+    const street = toStr(dig(b, 'address', 'streetAddress')) ?? '';
+    const zip    = toStr(dig(b, 'address', 'postalCode')) ?? '';
+    if (expect.streetNum && street && street.trim().startsWith(expect.streetNum)) return true;
+    if (!street && expect.zip && zip === expect.zip) return true; // weak match if blob has no street
+    return false;
+}
+
+function findListingBlob(blobs: unknown[], expect: { streetNum: string | null; zip: string | null }): unknown | null {
     // Pass 1: known schema.org types
     for (const b of blobs) {
         const type = toStr(dig(b, '@type'));
-        if (type && LISTING_TYPES.some(t => type.includes(t))) return b;
+        if (type && LISTING_TYPES.some(t => type.includes(t)) && blobMatchesUrl(b, expect)) return b;
     }
     // Pass 2: anything with a price
     for (const b of blobs) {
-        if (dig(b, 'offers', 'price') ?? dig(b, 'price')) return b;
+        if ((dig(b, 'offers', 'price') ?? dig(b, 'price')) && blobMatchesUrl(b, expect)) return b;
     }
     return null;
 }
@@ -95,9 +118,9 @@ function detectRedfinStatus(html: string, blob: unknown): ListingStatus {
     return null;
 }
 
-export function parseRedfin(html: string): Partial<PropertyData> | null {
+export function parseRedfin(html: string, url?: string): Partial<PropertyData> | null {
     const blobs = extractAllJsonLd(html);
-    const blob  = findListingBlob(blobs);
+    const blob  = findListingBlob(blobs, urlExpectations(url));
     if (!blob) return null;
 
     const price =
