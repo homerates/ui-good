@@ -31,7 +31,9 @@ import {
     FHA_CEILING_2026,
     CONF_STANDARD,
     CONF_HIGH_BALANCE,
+    VA_FF_FIRST_LT5,
 } from './calcEngine';
+import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from './constants';
 
 // Canonical extractors — single source of truth (replaces local copies below)
 import {
@@ -724,7 +726,7 @@ export function dispatch(
         // Back-calculate purchase price when user stated a loan amount
         const price = (_rawSC && isLoanAmountInput(q)) ? Math.round(_rawSC / (1 - downPct / 100)) : _rawSC;
         if (isLoanAmountInput(q) && _rawSC) assumptions.push('purchase price back-calculated from stated loan amount');
-        const loanAmt = price ? Math.round(price * (1 - downPct / 100) * (vaHint ? 1.0215 : 1.0)) : null;
+        const loanAmt = price ? Math.round(price * (1 - downPct / 100) * (vaHint ? 1 + VA_FF_FIRST_LT5 : 1.0)) : null;
         if (price && credit && loanAmt) {
             if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
             if (vaHint) assumptions.push('VA loan — 2.15% funding fee financed into loan amount');
@@ -736,8 +738,8 @@ export function dispatch(
                     sellerCredit:  credit,
                     annualRatePct: rate,
                     isVA:          vaHint,
-                    annualTax:     price * 0.011,
-                    annualInsurance: price * 0.005,
+                    annualTax:     price * TAX_RATE_DEFAULT,
+                    annualInsurance: price * INS_RATE_DEFAULT,
                 } as SellerCreditInput,
                 confidence: 0.95,
                 assumptions,
@@ -755,7 +757,7 @@ export function dispatch(
         // Back-calculate purchase price when user stated a loan amount
         const price = (_rawBD && isLoanAmountInput(q)) ? Math.round(_rawBD / (1 - downPct / 100)) : _rawBD;
         if (isLoanAmountInput(q) && _rawBD) assumptions.push('purchase price back-calculated from stated loan amount');
-        const loanAmt = price ? Math.round(price * (1 - downPct / 100) * (vaHint ? 1.0215 : 1.0)) : null;
+        const loanAmt = price ? Math.round(price * (1 - downPct / 100) * (vaHint ? 1 + VA_FF_FIRST_LT5 : 1.0)) : null;
         if (price && loanAmt) {
             if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
             if (vaHint) assumptions.push('VA loan — 2.15% funding fee financed into loan amount');
@@ -768,8 +770,8 @@ export function dispatch(
                     buydownType:     /3[\s\/]2[\s\/]1/i.test(q) ? '3/2/1' : /\b1[\s\/]0\b/i.test(q) ? '1/0' : '2/1',
                     isVA:            vaHint,
                     sellerCredit:    credit,
-                    annualTax:       price * 0.011,
-                    annualInsurance: price * 0.005,
+                    annualTax:       price * TAX_RATE_DEFAULT,
+                    annualInsurance: price * INS_RATE_DEFAULT,
                     downPaymentPct:  downPct,
                 } as BuydownInput,
                 confidence: 0.95,
@@ -882,14 +884,14 @@ export function dispatch(
     //    route those to conventional (convHBSlider) so the card can prompt for county.
     if (!isAffordabilityQuestion(q)) {
         const _rawImplied = extractPrice(q) ?? pullFromHistory(hist, extractPrice);
-        if (_rawImplied && _rawImplied > 833_000) {
+        if (_rawImplied && _rawImplied > CONF_STANDARD) {
             const _impliedDown = Math.max(20, extractDownPct(q) ?? 20);
             // If user stated a loan amount, back-calculate purchase price
             const _impliedPrice = isLoanAmountInput(q)
                 ? Math.round(_rawImplied / (1 - _impliedDown / 100))
                 : _rawImplied;
             const _impliedLoan = _impliedPrice * (1 - _impliedDown / 100);
-            if (_impliedLoan > 1_249_125) {
+            if (_impliedLoan > CONF_HIGH_BALANCE) {
                 const _iRate = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
                 if (_iRate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
                 if (isLoanAmountInput(q)) assumptions.push(`purchase price back-calculated from stated loan amount`);

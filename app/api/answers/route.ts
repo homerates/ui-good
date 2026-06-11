@@ -6506,33 +6506,32 @@ ${_refRows}
     let fhaAnswer = null;
 
     // Consume mortgage->FHA reroute flag (set before mortgageAnswer block above)
+    // DEBT-01: now uses calcEngine calcFHA + buildFHACard — the legacy fhaCalculator
+    // computed MIP on the total loan (HUD spec: base loan) with 2024 loan limits.
     if (mortgageRerouteToFHA && !affordabilityAnswer) {
         try {
             const { price: rPrice, income: rIncome, savings: rSavings } = mortgageRerouteToFHA;
             const rFHAParams = extractFHAParams(question);
-            const rResult = calculateFHA({
+            const rRate = rFHAParams.interestRate || fred?.mort30Avg || 6.5;
+            const rAssumptions: string[] = [];
+            if (!rFHAParams.interestRate) rAssumptions.push(`rate assumed ${rRate}% (FRED avg)`);
+            if (!rFHAParams.downPaymentPct) rAssumptions.push('down payment assumed 3.5% (FHA minimum)');
+            const rResult = calcFHA({
                 purchasePrice: rPrice,
                 downPaymentPct: rFHAParams.downPaymentPct || 3.5,
-                interestRate: rFHAParams.interestRate || fred?.mort30Avg || 6.5,
+                annualRatePct: rRate,
+                termYears: 30,
                 creditScore: rFHAParams.creditScore || 580,
-                loanTerm: 30,
-                propertyTaxRate: rFHAParams.propertyTaxRate || 1.1,
-                homeInsuranceAnnual: 1200,
-                hoaMonthly: 0,
+                propertyTaxRate: rFHAParams.propertyTaxRate || undefined,
                 annualIncome: rIncome,
                 monthlyDebts: rFHAParams.monthlyDebts || 0,
             });
-            const rMarkdown = buildFHAMarkdown(
-                { ...rFHAParams, purchasePrice: rPrice, annualIncome: rIncome },
-                rResult,
-                null,
-                { ambiguous10pct: false, rate: !rFHAParams.interestRate, incomeNeeded: false }
-            );
+            const rCard = buildFHACard(rResult, rAssumptions);
             const priceK = Math.round(rPrice / 1000);
             const incK = Math.round(rIncome / 1000);
             const savK = Math.round(rSavings / 1000);
             fhaAnswer = {
-                answer: rMarkdown,
+                ...rCard,
                 next_step: "Get FHA pre-approval from an FHA-approved lender.",
                 follow_up: `Compare FHA vs conventional on this $${fmtPriceK(priceK)} home`,
                 follow_up_chips: [
@@ -6540,17 +6539,8 @@ ${_refRows}
                     { label: `What if I put 10% down instead?`, seed: `Show me FHA with 10% down on a $${fmtPriceK(priceK)} home — I make $${incK}k/year and have $${savK}k saved` },
                     { label: `What income do I need to qualify?`, seed: `What income do I need to qualify for a $${fmtPriceK(priceK)} home with FHA 3.5% down?` },
                 ],
-                confidence: "1.00 (calculated using FHA guidelines)",
-                fhaSlider: {
-                    price: rPrice,
-                    downPct: rFHAParams.downPaymentPct || 3.5,
-                    rate: rFHAParams.interestRate || fred?.mort30Avg || 6.5,
-                    term: 30,
-                    taxRate: rResult.purchasePrice > 0 ? (rResult.monthlyTax * 12) / rResult.purchasePrice : 0.012,
-                    insRate: rResult.purchasePrice > 0 ? (rResult.monthlyInsurance * 12) / rResult.purchasePrice : 0.005,
-                },
             };
-            console.log('[Mortgage->FHA] Reroute successful, fhaAnswer set');
+            console.log('[Mortgage->FHA] Reroute successful (calcEngine), fhaAnswer set');
         } catch (e: any) {
             console.warn('[Mortgage->FHA] Reroute failed:', e.message);
         }
