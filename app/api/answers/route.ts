@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
-import { calculateMortgage, compareRates } from "../../../lib/mortgageCalculator";
+import { calculateMortgage } from "../../../lib/mortgageCalculator";
 import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculator";
 // NEW unified calc engine
 import {
@@ -308,52 +308,6 @@ function safeJsonObjectSlice(input: string): string | null {
     // If we never close, return null to trigger repair
     return null;
 }
-
-// ===== MORTGAGE CALCULATOR HELPERS =====
-/**
- * Detect if question is about mortgage payment calculations
- */
-/**
- * Extract mortgage parameters from question using regex
- */
-function extractMortgageParams(question: string, fredMort30Avg?: number): {
-    price?: number;
-    downPaymentPct?: number;
-    rate?: number;
-    termYears?: number;
-} | null {
-    // Extract price: "$850,000" or "$850k" or "850000"
-    const priceMatch = question.match(/\$\s*([\d,]+(?:\.\d+)?)\s*k?\b/i);
-    if (!priceMatch) return null;
-
-    let price = parseFloat(priceMatch[1].replace(/,/g, ''));
-
-    // Check if it's in thousands (e.g., "850k")
-    if (question.match(/\$\s*[\d,]+\s*k\b/i)) {
-        price *= 1000;
-    }
-
-    // Extract down payment: "10% down" or "20 percent down"
-    const downMatch = question.match(/(\d+(?:\.\d+)?)\s*%?\s*down/i);
-    const downPaymentPct = downMatch ? parseFloat(downMatch[1]) : 20; // Default 20%
-
-    // Extract interest rate - look for rate mentioned AFTER down payment
-    let rateMatch = question.match(/down.*?(\d+(?:\.\d+)?)\s*%/i); // Rate after "down"
-    if (!rateMatch) {
-        rateMatch = question.match(/(?:rate|interest|at)\s*(\d+(?:\.\d+)?)\s*%/i); // Keywords + rate
-    }
-    if (!rateMatch) {
-        rateMatch = question.match(/(\d+(?:\.\d+)?)\s*%/); // Any percentage
-    }
-    const rate = rateMatch ? parseFloat(rateMatch[1]) : (fredMort30Avg || 6.5); // Prefer FRED live rate; 6.5 as last-resort only
-
-    // Extract term: "30 year" or "15-year"
-    const termMatch = question.match(/(\d+)[\s-]?year/i);
-    const termYears = termMatch ? parseInt(termMatch[1]) : 30; // Default 30 years
-
-    return { price, downPaymentPct, rate, termYears };
-}
-// ===== END MORTGAGE HELPERS =====
 
 // ===== AFFORDABILITY ADVISOR HELPERS =====
 
@@ -5652,23 +5606,6 @@ ${uwDatabase}`;
     let mortgageCalcContext = "";
 
     // Broad detection - any question with a price + mortgage context
-    /**
-     * Returns years until PMI can be requested for removal at 80% LTV of home value.
-     * Uses actual amortization schedule — not a formula approximation.
-     */
-    function calcPMIRemovalYears(loanAmount: number, homePrice: number, annualRate: number, termYears: number): number {
-        const target = homePrice * 0.80;
-        const monthlyRate = annualRate / 100 / 12;
-        const n = termYears * 12;
-        const payment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1);
-        let balance = loanAmount;
-        for (let month = 1; month <= n; month++) {
-            balance -= (payment - balance * monthlyRate);
-            if (balance <= target) return Math.round(month / 12 * 10) / 10;
-        }
-        return termYears;
-    }
-
     function isMortgageCalculation(q: string): boolean {
         // Follow-up phrasing without explicit loan type — let Grok handle with thread memory
         const isFollowUpPhrasing =
@@ -5722,139 +5659,10 @@ ${uwDatabase}`;
         }
     }
 
-    if (!isAskUnderwriting && !mortgageRerouteToFHA && isMortgageCalculation(question)) {
-        const params = extractMortgageParams(question, fred?.mort30Avg ?? undefined);
-
-        if (params && params.price) {
-            try {
-                console.log('[Mortgage Calc] Detected question, calling calculator with:', params);
-
-                const result = calculateMortgage({
-                    price: params.price,
-                    downPaymentPct: params.downPaymentPct!,
-                    rate: params.rate!,
-                    termYears: params.termYears!,
-                });
-
-                const scenarios = compareRates(
-                    params.price,
-                    params.downPaymentPct!,
-                    params.termYears!,
-                    [params.rate! - 0.5, params.rate!, params.rate! + 0.5]
-                );
-
-                console.log('[Mortgage Calc] Pre-calculated:', {
-                    monthlyPI: result.monthlyPI,
-                    totalInterest: result.totalInterest
-                });
-
-                // Extract income/debts for DTI if provided
-                const incomeMatch = question.match(/(?:i\s+earn|i\s+make|we\s+make|earn|makes?|income|salary)\s+[\$]?\s*([\d,]+)\s*k?\b/i) ||
-                    question.match(/[\$]\s*([\d,]+)\s*k?\s*(?:income|salary|a\s+year|per\s+year|annually)/i);
-                let annualIncome = incomeMatch ? parseFloat(incomeMatch[1].replace(/,/g, "")) : undefined;
-                if (annualIncome && annualIncome < 1000) annualIncome *= 1000;
-                const debtMatch = question.match(/\$\s*(\d+)\s*(?:car|student|debt|loan)\s*payment/i) ||
-                    question.match(/(?:car|student|debt|loan)\s*payment.*?\$?\s*(\d+)/i);
-                const monthlyDebts = debtMatch ? parseFloat(debtMatch[1]) : 0;
-
-                // Monthly tax + insurance estimates
-                const monthlyTax = Math.round((result.homePrice * 0.011) / 12);
-                const monthlyIns = 100;
-                const monthlyPMI = result.downPaymentPct < 20 ? Math.round((result.loanAmount * 0.006) / 12) : 0;
-                const totalMonthly = Math.round(result.monthlyPI + monthlyTax + monthlyIns + monthlyPMI);
-
-                // DTI
-                let frontEndDTI: number | undefined;
-                let totalDTI: number | undefined;
-                if (annualIncome) {
-                    const monthlyIncome = annualIncome / 12;
-                    frontEndDTI = Math.round((totalMonthly / monthlyIncome) * 1000) / 10;
-                    totalDTI = Math.round(((totalMonthly + monthlyDebts) / monthlyIncome) * 1000) / 10;
-                }
-
-                const pmiLine = monthlyPMI > 0 ? `| PMI (~0.6%) | $${monthlyPMI} |\n` : '';
-                const dtiSection = annualIncome ? `
----
-
-## 📈 Debt-to-Income Analysis
-
-| | Amount |
-|--|--|
-| Gross Monthly Income | $${Math.round(annualIncome / 12).toLocaleString()} |
-| Front-End DTI (housing) | ${frontEndDTI}% |
-| Back-End DTI (housing + debts) | ${totalDTI}% |
-
-${frontEndDTI! <= 28 ? '✅ **Excellent** — well within 28% front-end guideline' :
-                        frontEndDTI! <= 36 ? '✅ **Good** — within conventional 36% guideline' :
-                            frontEndDTI! <= 43 ? '⚠️ **Stretched** — above 36% but below 43% FHA max' :
-                                '❌ **Too High** — exceeds 43% guideline, lender approval uncertain'}
-` : '';
-
-                const mortgageMarkdown = `**Conventional Mortgage Breakdown**
-
-${annualIncome ? `**Your Situation:** $${(annualIncome / 1000).toFixed(0)}k income${monthlyDebts > 0 ? `, $${monthlyDebts}/month debt` : ''}` : ''}
-
----
-
-## 🏡 Loan Details
-
-| | |
-|--|--|
-| Home Price | $${result.homePrice.toLocaleString()} |
-| Down Payment | $${result.downPayment.toLocaleString()} (${result.downPaymentPct}%) |
-| Loan Amount | $${result.loanAmount.toLocaleString()} |
-| Interest Rate | ${result.rateAnnual}% (${result.termYears}-year fixed) |
-| Total Interest | $${result.totalInterest.toLocaleString()} |
-
----
-
-## 💰 Monthly Payment Breakdown
-
-| Component | Amount |
-|-----------|--------|
-| Principal & Interest | $${Math.round(result.monthlyPI).toLocaleString()} |
-| Property Taxes (~1.1%) | $${monthlyTax.toLocaleString()} |
-| Home Insurance | $${monthlyIns} |
-${pmiLine}| **Total Monthly (PITI${monthlyPMI > 0 ? '+PMI' : ''})** | **$${totalMonthly.toLocaleString()}** |
-
-${monthlyPMI > 0 ? `⚠️ **PMI applies** — less than 20% down. You can request removal once balance reaches 80% of home value (~${calcPMIRemovalYears(result.loanAmount, result.homePrice, params.rate!, params.termYears!)} years). Auto-cancels at 78% LTV per federal law.` : '✅ **No PMI** — 20%+ down payment.'}
-
----
-
-## 📊 Rate Comparison
-
-| Rate | Monthly P&I | Total Interest |
-|------|-------------|----------------|
-${scenarios.map((s: any) => `| ${s.label} | $${Math.round(s.monthlyPI).toLocaleString()} | $${Math.round(s.totalInterest).toLocaleString()} |`).join('\n')}
-${dtiSection}
----
-
-**Next Steps:**
-1. **Get pre-approved** with 2-3 lenders to compare rates
-2. **Lock your rate** once pre-approved
-3. **Factor in closing costs** (~2-3% of loan = $${Math.round(result.loanAmount * 0.025).toLocaleString()})`;
-
-                // Smart follow-up
-                let followUp = "Want to see a 15-year vs 30-year comparison, or factor in PMI removal timeline?";
-                if (annualIncome && frontEndDTI! > 43) {
-                    followUp = `Your DTI is ${frontEndDTI}%. Want to see what price range keeps you under 36%?`;
-                } else if (monthlyPMI > 0) {
-                    followUp = `PMI adds $${monthlyPMI}/month. Want to see how much extra to put down to eliminate it?`;
-                } else if (annualIncome && frontEndDTI! <= 28) {
-                    followUp = `Strong DTI at ${frontEndDTI}%. Want to compare 15-year vs 30-year to save on total interest?`;
-                }
-
-                mortgageAnswer = null; // disabled — calcEngine-conventional handles all conventional questions
-
-                // Keep context for Grok fallback (if mortgage answer somehow null)
-                mortgageCalcContext = `MORTGAGE CALCULATION (PRE-CALCULATED):\n- Monthly P&I: $${result.monthlyPI}\n- Total Interest: $${result.totalInterest}\nCRITICAL: Use these numbers EXACTLY.`;
-
-            } catch (err: any) {
-                console.error('[Mortgage Calc] Error:', err.message, err.stack);
-            }
-        }
-    }
-    // ========== END MORTGAGE CALCULATOR BYPASS ==========
+    // Legacy mortgage-calculator block removed (DEBT-03): it ran calculateMortgage(),
+    // built a full markdown answer, then discarded it (mortgageAnswer stayed null) while
+    // leaking legacy-assumption numbers into the Grok prompt. calcEngine dispatch owns
+    // conventional questions; dispatcher misses fall through to Grok unsteered.
 
     // ========== PROPERTY INTELLIGENCE REPORT (CMA CARD) ==========
     const cmaParams = (body as any)?.paramOverrides;

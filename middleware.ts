@@ -46,9 +46,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/health(.*)",
   "/api/answers(.*)",
   "/api/fred(.*)",
-  "/api/calc(.*)",
   "/api/piti(.*)",
-  "/api/calculate(.*)",
   "/api/property/lookup(.*)",
   "/api/alerts/check(.*)",
   // Webhooks — verified by their own signature checks, not Clerk
