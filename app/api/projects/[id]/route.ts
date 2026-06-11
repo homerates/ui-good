@@ -5,16 +5,14 @@ import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 
 // Minimal server-side Supabase client.
-// Uses service role if available, otherwise anon key as fallback.
+// Service role only — never fall back to the public anon key.
 function getSupabase() {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey =
-        process.env.SUPABASE_SERVICE_ROLE_KEY ||
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!url || !serviceKey) {
         throw new Error(
-            'Supabase env vars missing (NEXT_PUBLIC_SUPABASE_URL + service/anon key).'
+            'Supabase env vars missing (NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY).'
         );
     }
 
@@ -91,12 +89,12 @@ export async function PATCH(req: Request, ctx: any) {
             .eq('clerk_user_id', userId);
 
         if (error) {
+            console.error('[projects PATCH] supabase error:', error);
             const body: ProjectsMutationResponse = {
                 ok: false,
                 reason: 'supabase_error',
                 stage: 'renameProject_update',
-                message: error.message,
-                error,
+                message: 'Could not rename project.',
             };
             return NextResponse.json(body, { status: 500 });
         }
@@ -104,12 +102,12 @@ export async function PATCH(req: Request, ctx: any) {
         const body: ProjectsMutationResponse = { ok: true };
         return NextResponse.json(body, { status: 200 });
     } catch (err) {
+        console.error('[projects PATCH] exception:', err);
         const body: ProjectsMutationResponse = {
             ok: false,
             reason: 'exception',
             stage: 'renameProject_http',
-            message: err instanceof Error ? err.message : String(err),
-            error: err,
+            message: 'Unexpected error.',
         };
         return NextResponse.json(body, { status: 500 });
     }
@@ -156,12 +154,12 @@ export async function DELETE(_req: Request, ctx: any) {
             .eq('clerk_user_id', userId);
 
         if (mappingError) {
+            console.error('[projects DELETE] mapping error:', mappingError);
             const body: ProjectsMutationResponse = {
                 ok: false,
                 reason: 'supabase_error',
                 stage: 'deleteProject_mappings',
-                message: mappingError.message,
-                error: mappingError,
+                message: 'Could not delete project.',
             };
             return NextResponse.json(body, { status: 500 });
         }
@@ -174,12 +172,12 @@ export async function DELETE(_req: Request, ctx: any) {
             .eq('clerk_user_id', userId);
 
         if (projectError) {
+            console.error('[projects DELETE] project error:', projectError);
             const body: ProjectsMutationResponse = {
                 ok: false,
                 reason: 'supabase_error',
                 stage: 'deleteProject_delete',
-                message: projectError.message,
-                error: projectError,
+                message: 'Could not delete project.',
             };
             return NextResponse.json(body, { status: 500 });
         }
@@ -187,12 +185,12 @@ export async function DELETE(_req: Request, ctx: any) {
         const body: ProjectsMutationResponse = { ok: true };
         return NextResponse.json(body, { status: 200 });
     } catch (err) {
+        console.error('[projects DELETE] exception:', err);
         const body: ProjectsMutationResponse = {
             ok: false,
             reason: 'exception',
             stage: 'deleteProject_http',
-            message: err instanceof Error ? err.message : String(err),
-            error: err,
+            message: 'Unexpected error.',
         };
         return NextResponse.json(body, { status: 500 });
     }

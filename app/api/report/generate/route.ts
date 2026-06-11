@@ -7,6 +7,7 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
+import { randomInt } from 'crypto';
 
 function db() {
     return createClient(
@@ -15,10 +16,11 @@ function db() {
     );
 }
 
-function generateToken(len = 10): string {
+function generateToken(len = 22): string {
+    // Cryptographically secure token — guards public, unauthenticated report PII.
     const chars = 'abcdefghijkmnpqrstuvwxyz23456789';
     let t = '';
-    for (let i = 0; i < len; i++) t += chars[Math.floor(Math.random() * chars.length)];
+    for (let i = 0; i < len; i++) t += chars[randomInt(chars.length)];
     return t;
 }
 
