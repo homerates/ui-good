@@ -5361,7 +5361,11 @@ export default function Page() {
             <PortfolioSidebar
                 activeAddress={cmaContextRef.current?.cmaAddress ?? null}
                 onNewJourney={() => {
-                    router.push('/check-property');
+                    // A journey always starts as a fresh chat thread in property-lookup
+                    // mode (ConsumerWelcomeCard address entry) — mirrors the "Property
+                    // Lookup" nav action, not a navigation away to /check-property.
+                    newChat();
+                    setPropertyLookupMode(true);
                 }}
                 onResume={async (item) => {
                     // Try to restore the original chat thread from Supabase
