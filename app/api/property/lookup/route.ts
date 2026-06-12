@@ -705,6 +705,14 @@ async function handleUrl(rawUrl: string) {
         if (avm) merged.price = avm;
     }
 
+    // FOR_SALE with blocked structured price: GPT-4o/Tavily often still recover the
+    // list price from rendered text (listPrice). Use it so the full card stack
+    // (ISC/PITI/sliders) builds instead of the "enter the listing price" fallback.
+    if (!merged.price) {
+        const lp = (merged.listPrice as number | null) ?? null;
+        if (lp && lp > 50_000 && lp < 50_000_000) merged.price = lp;
+    }
+
     // Compute socialProofScore + interestLevel from engagement signals
     const spViews  = merged.zillowViews  as number | null ?? null;
     const spSaves  = merged.zillowSaves  as number | null ?? null;
