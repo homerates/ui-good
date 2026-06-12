@@ -62,26 +62,48 @@ function urlExpectations(url: string | undefined): { streetNum: string | null; z
     return { streetNum, zip };
 }
 
+/** Redfin's MAIN listing blob uses an ARRAY @type (["Product","RealEstateListing"]).
+ *  toStr() returns null for arrays — which made the old type check skip the main blob
+ *  and pick the first string-typed "similar homes" carousel item (wrong property). */
+function blobTypes(b: unknown): string[] {
+    const t = dig(b, '@type');
+    if (typeof t === 'string') return [t];
+    if (Array.isArray(t)) return t.filter((x): x is string => typeof x === 'string');
+    return [];
+}
+
 /** Redfin pages embed JSON-LD for the main listing AND for "similar homes" carousel
- *  items. Without validating against the URL, the first carousel item can win and we
- *  return a completely different property. When the URL gives us a street number/zip,
- *  only accept a blob whose address matches; otherwise reject (og: fallback is safer). */
+ *  items. Selection semantics (verified against live pages 2026-06-11):
+ *  - The MAIN blob often has NO address fields at all (street null) but carries the price.
+ *  - Carousel blobs DO carry street addresses — of OTHER properties.
+ *  So: reject only blobs whose address CONTRADICTS the URL. Absence of an address is
+ *  neutral (cannot contradict) and must not disqualify the main blob. */
 function blobMatchesUrl(b: unknown, expect: { streetNum: string | null; zip: string | null }): boolean {
     if (!expect.streetNum && !expect.zip) return true; // nothing to validate against
-    const street = toStr(dig(b, 'address', 'streetAddress')) ?? '';
-    const zip    = toStr(dig(b, 'address', 'postalCode')) ?? '';
-    if (expect.streetNum && street && street.trim().startsWith(expect.streetNum)) return true;
-    if (!street && expect.zip && zip === expect.zip) return true; // weak match if blob has no street
-    return false;
+    const street = toStr(dig(b, 'address', 'streetAddress'));
+    const zip    = toStr(dig(b, 'address', 'postalCode'));
+    if (street) {
+        // Street present — it must match the URL's street number
+        return expect.streetNum ? street.trim().startsWith(expect.streetNum) : true;
+    }
+    if (zip && expect.zip) return zip === expect.zip;
+    return true; // no address info — neutral
 }
 
 function findListingBlob(blobs: unknown[], expect: { streetNum: string | null; zip: string | null }): unknown | null {
-    // Pass 1: known schema.org types
-    for (const b of blobs) {
-        const type = toStr(dig(b, '@type'));
-        if (type && LISTING_TYPES.some(t => type.includes(t)) && blobMatchesUrl(b, expect)) return b;
+    // Pass 0: positive street-number match — the strongest possible signal
+    if (expect.streetNum) {
+        for (const b of blobs) {
+            const street = toStr(dig(b, 'address', 'streetAddress'));
+            if (street && street.trim().startsWith(expect.streetNum)) return b;
+        }
     }
-    // Pass 2: anything with a price
+    // Pass 1: known schema.org types (array @type supported), contradictions excluded
+    for (const b of blobs) {
+        const types = blobTypes(b);
+        if (types.some(t => LISTING_TYPES.some(lt => t.includes(lt))) && blobMatchesUrl(b, expect)) return b;
+    }
+    // Pass 2: anything with a price, contradictions excluded
     for (const b of blobs) {
         if ((dig(b, 'offers', 'price') ?? dig(b, 'price')) && blobMatchesUrl(b, expect)) return b;
     }
