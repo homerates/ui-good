@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://chat.homerates.ai';
+const APP_URL = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
 
 export async function GET(req: Request) {
     // Verify cron secret

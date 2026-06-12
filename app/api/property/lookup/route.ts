@@ -569,6 +569,67 @@ async function broadSearchFallback(address: string): Promise<Record<string, unkn
     }
 }
 
+// ── Snippet-first price rescue ───────────────────────────────────────────────
+// Used by the URL path when the listing page blocks its price per-request.
+// Search snippets ("…listed at $2,150,000…") usually carry the price without
+// needing any page fetch — and the page fetch would just re-hit the blocked URL.
+async function rescuePriceViaSearch(
+    address: string,
+    excludeUrl?: string,
+): Promise<{ price: number | null; estimatedValue: number | null } | null> {
+    const key = process.env.TAVILY_API_KEY;
+    if (!key) return null;
+    const clean = cleanAddressForSearch(address);
+    const RE_DOMAINS = /redfin\.com|zillow\.com|realtor\.com|trulia\.com|homes\.com|movoto\.com/i;
+    const streetNum = clean.match(/^(\d+)\b/)?.[1] ?? null;
+    try {
+        const res = await fetch('https://api.tavily.com/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(8_000),
+            body: JSON.stringify({
+                api_key: key,
+                query: `${clean} listing price`,
+                max_results: 6,
+                search_depth: 'basic',
+                include_answer: false,
+            }),
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        // Same-property guard: only results that mention this street number
+        const reResults: any[] = (data.results ?? [])
+            .filter((r: any) => RE_DOMAINS.test(r.url ?? ''))
+            .filter((r: any) => !streetNum || new RegExp(`\\b${streetNum}\\b`).test(`${r.title ?? ''} ${r.content ?? ''} ${r.url ?? ''}`));
+        if (reResults.length === 0) return null;
+
+        // 1. Parse price straight from snippets (no page fetch)
+        const snippetText = reResults.map((r: any) => `${r.title ?? ''}\n${r.content ?? ''}`).join('\n\n');
+        const sp = parsePropertyFromText(snippetText);
+        const spExt = parseExtended(snippetText, sp.price, sp.sqft);
+        if (sp.price || spExt.estimatedValue) {
+            return { price: sp.price ?? null, estimatedValue: (spExt.estimatedValue as number | null) ?? null };
+        }
+
+        // 2. Page-extract fallback — skip the URL that already failed
+        for (const r of reResults.slice(0, 3)) {
+            const candUrl = String(r.url ?? '');
+            if (excludeUrl && candUrl.replace(/\/+$/, '') === excludeUrl.replace(/\/+$/, '')) continue;
+            const { content: text } = await tavilyExtract(candUrl);
+            if (!text || text.length < 200) continue;
+            const tp  = parsePropertyFromText(text);
+            const ext = parseExtended(text, tp.price, tp.sqft);
+            if (tp.price || ext.estimatedValue) {
+                return { price: tp.price ?? null, estimatedValue: (ext.estimatedValue as number | null) ?? null };
+            }
+        }
+        return null;
+    } catch (e: unknown) {
+        log.warn('[PropertyLookup] Snippet price rescue failed', { error: (e as Error)?.message });
+        return null;
+    }
+}
+
 // Parse a human-readable address from a Redfin URL slug when the HTML scraper
 // returns null — prevents the raw URL from being shown as the property address.
 // e.g. redfin.com/CA/Trabuco-Canyon/8-Peachtree-92679/home/5019838
@@ -703,6 +764,43 @@ async function handleUrl(rawUrl: string) {
                   : (sp && sp > 50_000 && sp < 50_000_000) ? sp
                   : null;
         if (avm) merged.price = avm;
+    }
+
+    // FOR_SALE with blocked structured price: GPT-4o/Tavily often still recover the
+    // list price from rendered text (listPrice). Use it so the full card stack
+    // (ISC/PITI/sliders) builds instead of the "enter the listing price" fallback.
+    if (!merged.price) {
+        const lp = (merged.listPrice as number | null) ?? null;
+        if (lp && lp > 50_000 && lp < 50_000_000) merged.price = lp;
+    }
+
+    // Last-resort price rescue: Redfin's price-blocking is per-request, so when both
+    // the page scrape AND the page extract come back stripped, parse the price from
+    // web-search SNIPPETS by address (no page fetch — the page already blocked us).
+    if (!merged.price && typeof merged.address === 'string' && merged.address.length > 5) {
+        const pushWarning = (w: string) => {
+            merged.parseWarnings = [
+                ...(Array.isArray(merged.parseWarnings) ? merged.parseWarnings as string[] : []),
+                w,
+            ];
+        };
+        try {
+            const rescue = await rescuePriceViaSearch(merged.address, url);
+            const rp = rescue?.price ?? null;
+            if (rp && rp > 50_000 && rp < 50_000_000) {
+                merged.price = rp;
+                pushWarning('price recovered via web search');
+            } else {
+                pushWarning('price rescue: web search found no price');
+            }
+            if (!merged.estimatedValue && rescue?.estimatedValue) merged.estimatedValue = rescue.estimatedValue;
+            if (!merged.annualTaxes && merged.price && merged.taxRateEffective) {
+                merged.annualTaxes = Math.round((merged.price as number) * (merged.taxRateEffective as number));
+            }
+        } catch (e: unknown) {
+            pushWarning('price rescue: search errored');
+            log.warn('[PropertyLookup] Price rescue search failed (non-blocking)', { error: (e as Error)?.message });
+        }
     }
 
     // Compute socialProofScore + interestLevel from engagement signals

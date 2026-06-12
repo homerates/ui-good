@@ -144,7 +144,9 @@ export async function POST(req: NextRequest) {
 
     // ── L3 ───────────────────────────────────────────────────────────────────
     const dom = (deepResult.market_median_dom   as number | null) ?? null;
-    const stl = (deepResult.market_sale_to_list as number | null) ?? null;
+    const stlRaw = (deepResult.market_sale_to_list as number | null) ?? null;
+    // Grok sometimes returns percent (100.2) instead of ratio (1.002) — a real ratio is never > 2
+    const stl = stlRaw != null && stlRaw > 2 ? stlRaw / 100 : stlRaw;
     const sub = (deepResult.days_on_market      as number | null) ?? (d.daysOnMarket as number | null) ?? null;
     const spScore = (d.socialProofScore as number | null) ?? null;
     const spViews = (d.zillowViews     as number | null) ?? null;

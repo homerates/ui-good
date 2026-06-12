@@ -52,15 +52,60 @@ const LISTING_TYPES = [
     'Residence','Apartment','Condominium','Townhouse','Product',
 ];
 
-function findListingBlob(blobs: unknown[]): unknown | null {
-    // Pass 1: known schema.org types
-    for (const b of blobs) {
-        const type = toStr(dig(b, '@type'));
-        if (type && LISTING_TYPES.some(t => type.includes(t))) return b;
+/** Street number + zip pulled from the Redfin URL slug, e.g.
+ *  /CA/Yorba-Linda/28525-Evening-Breeze-Dr-92887/home/4285772 → { streetNum: '28525', zip: '92887' } */
+function urlExpectations(url: string | undefined): { streetNum: string | null; zip: string | null } {
+    if (!url) return { streetNum: null, zip: null };
+    const seg = url.match(/redfin\.com\/[A-Za-z]{2}\/[^/]+\/([^/]+)\//i)?.[1] ?? '';
+    const streetNum = seg.match(/^(\d+)-/)?.[1] ?? null;
+    const zip = seg.match(/-(\d{5})$/)?.[1] ?? null;
+    return { streetNum, zip };
+}
+
+/** Redfin's MAIN listing blob uses an ARRAY @type (["Product","RealEstateListing"]).
+ *  toStr() returns null for arrays — which made the old type check skip the main blob
+ *  and pick the first string-typed "similar homes" carousel item (wrong property). */
+function blobTypes(b: unknown): string[] {
+    const t = dig(b, '@type');
+    if (typeof t === 'string') return [t];
+    if (Array.isArray(t)) return t.filter((x): x is string => typeof x === 'string');
+    return [];
+}
+
+/** Redfin pages embed JSON-LD for the main listing AND for "similar homes" carousel
+ *  items. Selection semantics (verified against live pages 2026-06-11):
+ *  - The MAIN blob often has NO address fields at all (street null) but carries the price.
+ *  - Carousel blobs DO carry street addresses — of OTHER properties.
+ *  So: reject only blobs whose address CONTRADICTS the URL. Absence of an address is
+ *  neutral (cannot contradict) and must not disqualify the main blob. */
+function blobMatchesUrl(b: unknown, expect: { streetNum: string | null; zip: string | null }): boolean {
+    if (!expect.streetNum && !expect.zip) return true; // nothing to validate against
+    const street = toStr(dig(b, 'address', 'streetAddress'));
+    const zip    = toStr(dig(b, 'address', 'postalCode'));
+    if (street) {
+        // Street present — it must match the URL's street number
+        return expect.streetNum ? street.trim().startsWith(expect.streetNum) : true;
     }
-    // Pass 2: anything with a price
+    if (zip && expect.zip) return zip === expect.zip;
+    return true; // no address info — neutral
+}
+
+function findListingBlob(blobs: unknown[], expect: { streetNum: string | null; zip: string | null }): unknown | null {
+    // Pass 0: positive street-number match — the strongest possible signal
+    if (expect.streetNum) {
+        for (const b of blobs) {
+            const street = toStr(dig(b, 'address', 'streetAddress'));
+            if (street && street.trim().startsWith(expect.streetNum)) return b;
+        }
+    }
+    // Pass 1: known schema.org types (array @type supported), contradictions excluded
     for (const b of blobs) {
-        if (dig(b, 'offers', 'price') ?? dig(b, 'price')) return b;
+        const types = blobTypes(b);
+        if (types.some(t => LISTING_TYPES.some(lt => t.includes(lt))) && blobMatchesUrl(b, expect)) return b;
+    }
+    // Pass 2: anything with a price, contradictions excluded
+    for (const b of blobs) {
+        if ((dig(b, 'offers', 'price') ?? dig(b, 'price')) && blobMatchesUrl(b, expect)) return b;
     }
     return null;
 }
@@ -95,9 +140,9 @@ function detectRedfinStatus(html: string, blob: unknown): ListingStatus {
     return null;
 }
 
-export function parseRedfin(html: string): Partial<PropertyData> | null {
+export function parseRedfin(html: string, url?: string): Partial<PropertyData> | null {
     const blobs = extractAllJsonLd(html);
-    const blob  = findListingBlob(blobs);
+    const blob  = findListingBlob(blobs, urlExpectations(url));
     if (!blob) return null;
 
     const price =

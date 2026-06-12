@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
-import { calculateMortgage, compareRates } from "../../../lib/mortgageCalculator";
+import { calculateMortgage } from "../../../lib/mortgageCalculator";
 import { calculateFHA, compareFHAvsConventional } from "../../../lib/fhaCalculator";
 // NEW unified calc engine
 import {
@@ -308,52 +308,6 @@ function safeJsonObjectSlice(input: string): string | null {
     // If we never close, return null to trigger repair
     return null;
 }
-
-// ===== MORTGAGE CALCULATOR HELPERS =====
-/**
- * Detect if question is about mortgage payment calculations
- */
-/**
- * Extract mortgage parameters from question using regex
- */
-function extractMortgageParams(question: string, fredMort30Avg?: number): {
-    price?: number;
-    downPaymentPct?: number;
-    rate?: number;
-    termYears?: number;
-} | null {
-    // Extract price: "$850,000" or "$850k" or "850000"
-    const priceMatch = question.match(/\$\s*([\d,]+(?:\.\d+)?)\s*k?\b/i);
-    if (!priceMatch) return null;
-
-    let price = parseFloat(priceMatch[1].replace(/,/g, ''));
-
-    // Check if it's in thousands (e.g., "850k")
-    if (question.match(/\$\s*[\d,]+\s*k\b/i)) {
-        price *= 1000;
-    }
-
-    // Extract down payment: "10% down" or "20 percent down"
-    const downMatch = question.match(/(\d+(?:\.\d+)?)\s*%?\s*down/i);
-    const downPaymentPct = downMatch ? parseFloat(downMatch[1]) : 20; // Default 20%
-
-    // Extract interest rate - look for rate mentioned AFTER down payment
-    let rateMatch = question.match(/down.*?(\d+(?:\.\d+)?)\s*%/i); // Rate after "down"
-    if (!rateMatch) {
-        rateMatch = question.match(/(?:rate|interest|at)\s*(\d+(?:\.\d+)?)\s*%/i); // Keywords + rate
-    }
-    if (!rateMatch) {
-        rateMatch = question.match(/(\d+(?:\.\d+)?)\s*%/); // Any percentage
-    }
-    const rate = rateMatch ? parseFloat(rateMatch[1]) : (fredMort30Avg || 6.5); // Prefer FRED live rate; 6.5 as last-resort only
-
-    // Extract term: "30 year" or "15-year"
-    const termMatch = question.match(/(\d+)[\s-]?year/i);
-    const termYears = termMatch ? parseInt(termMatch[1]) : 30; // Default 30 years
-
-    return { price, downPaymentPct, rate, termYears };
-}
-// ===== END MORTGAGE HELPERS =====
 
 // ===== AFFORDABILITY ADVISOR HELPERS =====
 
@@ -1246,7 +1200,7 @@ function buildDSCRMarkdown(params: ReturnType<typeof extractDSCRParams>): object
 
     const dscrStatus = dscr >= 1.25 ? '✅ **Excellent** — most lenders approve at 1.25x+'
         : dscr >= 1.0 ? '✅ **Qualifies** — meets minimum 1.0x (some lenders require 1.25x)'
-            : dscr >= 0.75 ? '⚠️ **Below 1.0x** — select lenders (LoanDepot, Griffin) allow 0.75x+ with reserves'
+            : dscr >= 0.75 ? '⚠️ **Below 1.0x** — some DSCR lenders allow 0.75x+ with reserves'
                 : '❌ **Does not qualify** — DSCR too low for standard programs';
 
     // Amortization snapshot
@@ -1315,7 +1269,7 @@ ${vacPct > 0 ? `| Vacancy Loss (${Math.round(vacPct * 100)}%) | -$${Math.round(g
 ${dscrStatus}
 
 **DSCR Lender Benchmarks:**
-- 1.25x+ → Most lenders (LoanDepot, Griffin, JMAC)
+- 1.25x+ → Most DSCR lenders
 - 1.0x → Minimum for standard programs
 - 0.75x–1.0x → Select lenders with 6–12 months reserves
 - <0.75x → Very limited options
@@ -1338,13 +1292,13 @@ ${dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent, reserves requir
 ---
 
 **Next Steps:**
-1. **Compare DSCR lenders** — LoanDepot, Griffin, JMAC, Angel Oak
+1. **Compare multiple DSCR lenders** — programs and minimums vary widely
 2. **Verify rent** — lender requires lease or 1007 rent schedule appraisal
 3. **Reserves** — most programs require 6–12 months PITIA after closing`;
 
     return {
         answer,
-        next_step: `DSCR is ${dscr.toFixed(2)}x. ${dscr >= 1.0 ? 'Get quotes from DSCR lenders — LoanDepot, Griffin, JMAC.' : 'Rent needs to be ~$' + Math.ceil(monthlyPITIA * 1.0).toLocaleString() + '/mo to hit 1.0x DSCR.'}`,
+        next_step: `DSCR is ${dscr.toFixed(2)}x. ${dscr >= 1.0 ? 'Get quotes from multiple DSCR lenders to compare programs.' : 'Rent needs to be ~$' + Math.ceil(monthlyPITIA * 1.0).toLocaleString() + '/mo to hit 1.0x DSCR.'}`,
         follow_up: dscr >= 1.0
             ? `Want to see how vacancy (5–10%) or maintenance costs affect your cash flow?`
             : `Rent of $${Math.ceil(monthlyPITIA * 1.25).toLocaleString()}/mo would hit 1.25x DSCR. Is that achievable in your market?`,
@@ -2336,7 +2290,8 @@ async function handle(req: NextRequest, intentParam?: string) {
             "Answer using ONLY:\n" +
             " • Fannie Mae Selling Guide (singlefamily.fanniemae.com)\n" +
             " • Freddie Mac Seller/Servicer Guide (freddiemac.com)\n" +
-            " • FHA (hud.gov), VA (va.gov / benefits.va.gov), USDA, lender overlays (LoanDepot, UWM, Pennymac, Fairway, Angel Oak, Acra, Citadel, Newrez).\n" +
+            " • FHA (hud.gov), VA (va.gov / benefits.va.gov), USDA, common lender overlays.\n" +
+            "NEVER name specific lenders in your answer — HomeRates does not endorse or recommend lenders.\n" +
             "MANDATORY: Cite exact section + URL (e.g., \"Fannie B3-3.2-01 [singlefamily.fanniemae.com/selling-guide]\").\n" +
             "Never 'it depends' without rule/citation. List paths (DU vs manual, FHA vs Conventional) as Path A/B with citations.\n" +
             "FORMATTING: In tables, write dollar amounts and numbers as plain text — never wrap them in ** bold markers.\n" +
@@ -2345,12 +2300,13 @@ async function handle(req: NextRequest, intentParam?: string) {
         dscr:
             "You are DSCR Lab — 2026 non-QM investor loan expert for residential rentals (1-4 units), Grok 4.1 Fast Non-Reasoning mode.\n" +
             "Parse inputs: gross rent, loan amount, rate, taxes, insurance, HOA — use exactly or ask once.\n" +
-            "LoanDepot DSCR RULE (Advantage FLEX DSCR): ALWAYS use 100% GROSS monthly rent.\n" +
-            "• DSCR (LoanDepot) = Gross Monthly Rent ÷ PITIA.\n" +
+            "DSCR RULE (gross-rent convention): ALWAYS use 100% GROSS monthly rent.\n" +
+            "• DSCR = Gross Monthly Rent ÷ PITIA.\n" +
             "• Do NOT apply 75% rent, vacancy factors, NOI, or reserves to the DSCR calculation.\n" +
             "• PITIA = P&I (amort formula) + Taxes + Insurance + HOA.\n" +
-            "Key 2025: Min 0.75-1.25 (LoanDepot/Griffin/JMAC <1.0 with reserves); no personal income.\n" +
-            "Structure: Definition + Formula + Example ($3k rent / $400k @ FRED rate) + Requirements + Lenders (cite Tavily). Tone: factual, empowering. Respond in 150-250 words max. End with disclaimer.",
+            "Key 2025: Min 0.75-1.25 (some lenders allow <1.0 with reserves); no personal income.\n" +
+            "NEVER name specific lenders in your answer — HomeRates does not endorse or recommend lenders.\n" +
+            "Structure: Definition + Formula + Example ($3k rent / $400k @ FRED rate) + Requirements. Tone: factual, empowering. Respond in 150-250 words max. End with disclaimer.",
 
         qualify:
             "You are Qualification Lab — fast, accurate, memory-aware, Grok 4.1 Fast Non-Reasoning mode.\n" +
@@ -4079,7 +4035,7 @@ Self-Employed: 2 years 1040s + business returns. Business must be 2+ years old.
 PMI Removal: Request at 80% LTV. Automatic at 78% LTV (original schedule).
 
 ── DSCR / INVESTMENT (Non-QM) ─────────────────────────────────────────
-Source: Lender guidelines — LoanDepot, Griffin Funding, Angel Oak, JMAC
+Source: Non-QM / DSCR lender program guidelines (industry-typical; programs vary by lender)
 DTI: Not used. Qualification based on DSCR = Gross Rent ÷ PITIA.
 DSCR Thresholds: 1.25x+ → most lenders approve. 1.0x → minimum for many. 0.75x–1.0x → select lenders with 6–12 months reserves. <0.75x → very limited.
 Credit Score: Minimum 620–640 most lenders. Best pricing 700+.
@@ -4109,7 +4065,7 @@ Reserves: Not required.
 Employment: 2-year history required.
 
 ── JUMBO / NON-QM ──────────────────────────────────────────────────────
-Source: Lender-specific (Chase, Wells Fargo, UWM, Angel Oak)
+Source: Lender-specific jumbo/non-QM program guidelines (vary by lender)
 DTI: Typically ≤43%. Non-QM bank statement up to 55%.
 Credit Score: Jumbo 680–720 min. Non-QM bank statement 620+.
 LTV / Down Payment: Standard jumbo 10–20% down. $1M–$2M typically 20% min. $2M+ typically 25–30% min.
@@ -5652,23 +5608,6 @@ ${uwDatabase}`;
     let mortgageCalcContext = "";
 
     // Broad detection - any question with a price + mortgage context
-    /**
-     * Returns years until PMI can be requested for removal at 80% LTV of home value.
-     * Uses actual amortization schedule — not a formula approximation.
-     */
-    function calcPMIRemovalYears(loanAmount: number, homePrice: number, annualRate: number, termYears: number): number {
-        const target = homePrice * 0.80;
-        const monthlyRate = annualRate / 100 / 12;
-        const n = termYears * 12;
-        const payment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1);
-        let balance = loanAmount;
-        for (let month = 1; month <= n; month++) {
-            balance -= (payment - balance * monthlyRate);
-            if (balance <= target) return Math.round(month / 12 * 10) / 10;
-        }
-        return termYears;
-    }
-
     function isMortgageCalculation(q: string): boolean {
         // Follow-up phrasing without explicit loan type — let Grok handle with thread memory
         const isFollowUpPhrasing =
@@ -5722,139 +5661,10 @@ ${uwDatabase}`;
         }
     }
 
-    if (!isAskUnderwriting && !mortgageRerouteToFHA && isMortgageCalculation(question)) {
-        const params = extractMortgageParams(question, fred?.mort30Avg ?? undefined);
-
-        if (params && params.price) {
-            try {
-                console.log('[Mortgage Calc] Detected question, calling calculator with:', params);
-
-                const result = calculateMortgage({
-                    price: params.price,
-                    downPaymentPct: params.downPaymentPct!,
-                    rate: params.rate!,
-                    termYears: params.termYears!,
-                });
-
-                const scenarios = compareRates(
-                    params.price,
-                    params.downPaymentPct!,
-                    params.termYears!,
-                    [params.rate! - 0.5, params.rate!, params.rate! + 0.5]
-                );
-
-                console.log('[Mortgage Calc] Pre-calculated:', {
-                    monthlyPI: result.monthlyPI,
-                    totalInterest: result.totalInterest
-                });
-
-                // Extract income/debts for DTI if provided
-                const incomeMatch = question.match(/(?:i\s+earn|i\s+make|we\s+make|earn|makes?|income|salary)\s+[\$]?\s*([\d,]+)\s*k?\b/i) ||
-                    question.match(/[\$]\s*([\d,]+)\s*k?\s*(?:income|salary|a\s+year|per\s+year|annually)/i);
-                let annualIncome = incomeMatch ? parseFloat(incomeMatch[1].replace(/,/g, "")) : undefined;
-                if (annualIncome && annualIncome < 1000) annualIncome *= 1000;
-                const debtMatch = question.match(/\$\s*(\d+)\s*(?:car|student|debt|loan)\s*payment/i) ||
-                    question.match(/(?:car|student|debt|loan)\s*payment.*?\$?\s*(\d+)/i);
-                const monthlyDebts = debtMatch ? parseFloat(debtMatch[1]) : 0;
-
-                // Monthly tax + insurance estimates
-                const monthlyTax = Math.round((result.homePrice * 0.011) / 12);
-                const monthlyIns = 100;
-                const monthlyPMI = result.downPaymentPct < 20 ? Math.round((result.loanAmount * 0.006) / 12) : 0;
-                const totalMonthly = Math.round(result.monthlyPI + monthlyTax + monthlyIns + monthlyPMI);
-
-                // DTI
-                let frontEndDTI: number | undefined;
-                let totalDTI: number | undefined;
-                if (annualIncome) {
-                    const monthlyIncome = annualIncome / 12;
-                    frontEndDTI = Math.round((totalMonthly / monthlyIncome) * 1000) / 10;
-                    totalDTI = Math.round(((totalMonthly + monthlyDebts) / monthlyIncome) * 1000) / 10;
-                }
-
-                const pmiLine = monthlyPMI > 0 ? `| PMI (~0.6%) | $${monthlyPMI} |\n` : '';
-                const dtiSection = annualIncome ? `
----
-
-## 📈 Debt-to-Income Analysis
-
-| | Amount |
-|--|--|
-| Gross Monthly Income | $${Math.round(annualIncome / 12).toLocaleString()} |
-| Front-End DTI (housing) | ${frontEndDTI}% |
-| Back-End DTI (housing + debts) | ${totalDTI}% |
-
-${frontEndDTI! <= 28 ? '✅ **Excellent** — well within 28% front-end guideline' :
-                        frontEndDTI! <= 36 ? '✅ **Good** — within conventional 36% guideline' :
-                            frontEndDTI! <= 43 ? '⚠️ **Stretched** — above 36% but below 43% FHA max' :
-                                '❌ **Too High** — exceeds 43% guideline, lender approval uncertain'}
-` : '';
-
-                const mortgageMarkdown = `**Conventional Mortgage Breakdown**
-
-${annualIncome ? `**Your Situation:** $${(annualIncome / 1000).toFixed(0)}k income${monthlyDebts > 0 ? `, $${monthlyDebts}/month debt` : ''}` : ''}
-
----
-
-## 🏡 Loan Details
-
-| | |
-|--|--|
-| Home Price | $${result.homePrice.toLocaleString()} |
-| Down Payment | $${result.downPayment.toLocaleString()} (${result.downPaymentPct}%) |
-| Loan Amount | $${result.loanAmount.toLocaleString()} |
-| Interest Rate | ${result.rateAnnual}% (${result.termYears}-year fixed) |
-| Total Interest | $${result.totalInterest.toLocaleString()} |
-
----
-
-## 💰 Monthly Payment Breakdown
-
-| Component | Amount |
-|-----------|--------|
-| Principal & Interest | $${Math.round(result.monthlyPI).toLocaleString()} |
-| Property Taxes (~1.1%) | $${monthlyTax.toLocaleString()} |
-| Home Insurance | $${monthlyIns} |
-${pmiLine}| **Total Monthly (PITI${monthlyPMI > 0 ? '+PMI' : ''})** | **$${totalMonthly.toLocaleString()}** |
-
-${monthlyPMI > 0 ? `⚠️ **PMI applies** — less than 20% down. You can request removal once balance reaches 80% of home value (~${calcPMIRemovalYears(result.loanAmount, result.homePrice, params.rate!, params.termYears!)} years). Auto-cancels at 78% LTV per federal law.` : '✅ **No PMI** — 20%+ down payment.'}
-
----
-
-## 📊 Rate Comparison
-
-| Rate | Monthly P&I | Total Interest |
-|------|-------------|----------------|
-${scenarios.map((s: any) => `| ${s.label} | $${Math.round(s.monthlyPI).toLocaleString()} | $${Math.round(s.totalInterest).toLocaleString()} |`).join('\n')}
-${dtiSection}
----
-
-**Next Steps:**
-1. **Get pre-approved** with 2-3 lenders to compare rates
-2. **Lock your rate** once pre-approved
-3. **Factor in closing costs** (~2-3% of loan = $${Math.round(result.loanAmount * 0.025).toLocaleString()})`;
-
-                // Smart follow-up
-                let followUp = "Want to see a 15-year vs 30-year comparison, or factor in PMI removal timeline?";
-                if (annualIncome && frontEndDTI! > 43) {
-                    followUp = `Your DTI is ${frontEndDTI}%. Want to see what price range keeps you under 36%?`;
-                } else if (monthlyPMI > 0) {
-                    followUp = `PMI adds $${monthlyPMI}/month. Want to see how much extra to put down to eliminate it?`;
-                } else if (annualIncome && frontEndDTI! <= 28) {
-                    followUp = `Strong DTI at ${frontEndDTI}%. Want to compare 15-year vs 30-year to save on total interest?`;
-                }
-
-                mortgageAnswer = null; // disabled — calcEngine-conventional handles all conventional questions
-
-                // Keep context for Grok fallback (if mortgage answer somehow null)
-                mortgageCalcContext = `MORTGAGE CALCULATION (PRE-CALCULATED):\n- Monthly P&I: $${result.monthlyPI}\n- Total Interest: $${result.totalInterest}\nCRITICAL: Use these numbers EXACTLY.`;
-
-            } catch (err: any) {
-                console.error('[Mortgage Calc] Error:', err.message, err.stack);
-            }
-        }
-    }
-    // ========== END MORTGAGE CALCULATOR BYPASS ==========
+    // Legacy mortgage-calculator block removed (DEBT-03): it ran calculateMortgage(),
+    // built a full markdown answer, then discarded it (mortgageAnswer stayed null) while
+    // leaking legacy-assumption numbers into the Grok prompt. calcEngine dispatch owns
+    // conventional questions; dispatcher misses fall through to Grok unsteered.
 
     // ========== PROPERTY INTELLIGENCE REPORT (CMA CARD) ==========
     const cmaParams = (body as any)?.paramOverrides;
@@ -6696,33 +6506,32 @@ ${_refRows}
     let fhaAnswer = null;
 
     // Consume mortgage->FHA reroute flag (set before mortgageAnswer block above)
+    // DEBT-01: now uses calcEngine calcFHA + buildFHACard — the legacy fhaCalculator
+    // computed MIP on the total loan (HUD spec: base loan) with 2024 loan limits.
     if (mortgageRerouteToFHA && !affordabilityAnswer) {
         try {
             const { price: rPrice, income: rIncome, savings: rSavings } = mortgageRerouteToFHA;
             const rFHAParams = extractFHAParams(question);
-            const rResult = calculateFHA({
+            const rRate = rFHAParams.interestRate || fred?.mort30Avg || 6.5;
+            const rAssumptions: string[] = [];
+            if (!rFHAParams.interestRate) rAssumptions.push(`rate assumed ${rRate}% (FRED avg)`);
+            if (!rFHAParams.downPaymentPct) rAssumptions.push('down payment assumed 3.5% (FHA minimum)');
+            const rResult = calcFHA({
                 purchasePrice: rPrice,
                 downPaymentPct: rFHAParams.downPaymentPct || 3.5,
-                interestRate: rFHAParams.interestRate || fred?.mort30Avg || 6.5,
+                annualRatePct: rRate,
+                termYears: 30,
                 creditScore: rFHAParams.creditScore || 580,
-                loanTerm: 30,
-                propertyTaxRate: rFHAParams.propertyTaxRate || 1.1,
-                homeInsuranceAnnual: 1200,
-                hoaMonthly: 0,
+                propertyTaxRate: rFHAParams.propertyTaxRate || undefined,
                 annualIncome: rIncome,
                 monthlyDebts: rFHAParams.monthlyDebts || 0,
             });
-            const rMarkdown = buildFHAMarkdown(
-                { ...rFHAParams, purchasePrice: rPrice, annualIncome: rIncome },
-                rResult,
-                null,
-                { ambiguous10pct: false, rate: !rFHAParams.interestRate, incomeNeeded: false }
-            );
+            const rCard = buildFHACard(rResult, rAssumptions);
             const priceK = Math.round(rPrice / 1000);
             const incK = Math.round(rIncome / 1000);
             const savK = Math.round(rSavings / 1000);
             fhaAnswer = {
-                answer: rMarkdown,
+                ...rCard,
                 next_step: "Get FHA pre-approval from an FHA-approved lender.",
                 follow_up: `Compare FHA vs conventional on this $${fmtPriceK(priceK)} home`,
                 follow_up_chips: [
@@ -6730,17 +6539,8 @@ ${_refRows}
                     { label: `What if I put 10% down instead?`, seed: `Show me FHA with 10% down on a $${fmtPriceK(priceK)} home — I make $${incK}k/year and have $${savK}k saved` },
                     { label: `What income do I need to qualify?`, seed: `What income do I need to qualify for a $${fmtPriceK(priceK)} home with FHA 3.5% down?` },
                 ],
-                confidence: "1.00 (calculated using FHA guidelines)",
-                fhaSlider: {
-                    price: rPrice,
-                    downPct: rFHAParams.downPaymentPct || 3.5,
-                    rate: rFHAParams.interestRate || fred?.mort30Avg || 6.5,
-                    term: 30,
-                    taxRate: rResult.purchasePrice > 0 ? (rResult.monthlyTax * 12) / rResult.purchasePrice : 0.012,
-                    insRate: rResult.purchasePrice > 0 ? (rResult.monthlyInsurance * 12) / rResult.purchasePrice : 0.005,
-                },
             };
-            console.log('[Mortgage->FHA] Reroute successful, fhaAnswer set');
+            console.log('[Mortgage->FHA] Reroute successful (calcEngine), fhaAnswer set');
         } catch (e: any) {
             console.warn('[Mortgage->FHA] Reroute failed:', e.message);
         }

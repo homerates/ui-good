@@ -2384,9 +2384,10 @@ export default function Page() {
                         : `${priceStr ?? 'Listing'} in ${locationStr}.`;
                     const subline = [priceStr, detailStr, locationStr + domNote].filter(Boolean).join(' · ');
                     const rateLabel = liveRateIsLive ? `${liveRate.toFixed(2)}%` : `~${liveRate.toFixed(2)}% (est.)`;
+                    const _siteName = d.source === 'redfin' ? 'Redfin' : d.source === 'zillow' ? 'Zillow' : 'The listing site';
                     const cta = d.price
                         ? `Pre-loaded at today's ${rateLabel} with 20% down. Adjust the sliders to explore.`
-                        : `Zillow blocked price data — enter the listing price below to run the numbers.`;
+                        : `${_siteName} blocked price data — enter the listing price below to run the numbers.`;
 
                     const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
@@ -2598,7 +2599,9 @@ export default function Page() {
 
                                 // Compute L3 — market conditions (median DOM + sale-to-list) + social proof
                                 const dom = deepResult.market_median_dom as number | null | undefined;
-                                const stl = deepResult.market_sale_to_list as number | null | undefined;
+                                const _stlRaw = deepResult.market_sale_to_list as number | null | undefined;
+                                // Grok sometimes returns percent (100.2) instead of ratio (1.002) — a real ratio is never > 2
+                                const stl = _stlRaw != null && _stlRaw > 2 ? _stlRaw / 100 : _stlRaw;
                                 let dsL3Score: number | null = null;
                                 let dsL3Summary = '';
                                 if (dom != null || stl != null) {
@@ -3832,8 +3835,10 @@ export default function Page() {
                                                         {/* GrokCard: shown for plain AI answers only.
                                                             Suppressed whenever any slider card is present in meta — card stack is the full UI.
                                                         */}
-                                                        {/* Suppress GrokCard when any slider card is present — card stack speaks for itself */}
-                                                        {!m.meta.interactiveSlider?.cmaAddress && (!m.meta.affordabilitySlider && !m.meta.conventionalAffordabilitySlider && !m.meta.fhaAffordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) && (
+                                                        {/* Suppress GrokCard when any slider card is present — card stack speaks for itself.
+                                                            Also ALWAYS suppressed when a propertyCard exists (4CS1234 locked standard) —
+                                                            including the no-price path where interactiveSlider is null. */}
+                                                        {!m.meta.propertyCard && !m.meta.interactiveSlider?.cmaAddress && (!m.meta.affordabilitySlider && !m.meta.conventionalAffordabilitySlider && !m.meta.fhaAffordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely

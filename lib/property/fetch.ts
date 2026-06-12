@@ -219,7 +219,7 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
     // 4. Run site-specific parser
     let siteData: Partial<PropertyData> | null = null;
     if (source === 'zillow')  siteData = parseZillow(html);
-    if (source === 'redfin')  siteData = parseRedfin(html);
+    if (source === 'redfin')  siteData = parseRedfin(html, cleanUrl);
 
     // 5. Merge — og:image always overwrites photo
     const m = merge(siteData, ogPartial);
@@ -265,7 +265,11 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
         annualTaxes:      m.annualTaxes  ?? null,
         taxRateEffective: m.taxRateEffective ?? null,
         taxSource:        m.taxSource    ?? null,
-        photoUrl:         m.photoUrl     ?? null,
+        // HARD RULE: property photos must come from ssl.cdn-redfin.com only.
+        // Zillow/og photos (zillowstatic etc.) are dropped here — the downstream
+        // Tavily photo lookup supplies the Redfin photo instead.
+        photoUrl:         (m.photoUrl && /(^|\.)ssl\.cdn-redfin\.com\//.test(m.photoUrl.replace(/^https?:\/\//, '')))
+            ? m.photoUrl : null,
         listingStatus:    m.listingStatus ?? null,
     };
 

@@ -209,7 +209,7 @@ export function buildUWCard(input: UWCardInput): BuiltCard {
     if (tp.isConv || tp.isPMI) nextStep = 'Confirm conventional guidelines at fanniemae.com or with your lender.';
     if (tp.isVA) nextStep = 'Verify VA entitlement and eligibility at va.gov/housing-assistance.';
     if (tp.isUSDA) nextStep = 'Check USDA property and income eligibility at rd.usda.gov.';
-    if (tp.isDSCR) nextStep = 'Get DSCR quotes from: LoanDepot, Griffin Funding, JMAC, Angel Oak.';
+    if (tp.isDSCR) nextStep = 'Get quotes from multiple DSCR lenders — programs and minimums vary widely.';
     if (tp.isSelfEmp) nextStep = 'Work with a loan officer experienced in bank-statement or self-employed loans.';
     if (tp.isCredit) nextStep = 'Pull your full tri-merge credit report before applying — dispute errors early.';
 
