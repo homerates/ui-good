@@ -1222,7 +1222,7 @@ function buildDSCRMarkdown(params: ReturnType<typeof extractDSCRParams>): object
         }
     }
 
-    const rateNote = rateFromFRED ? ' (FRED avg)' : '';
+    const rateNote = rateFromFRED ? ' (live FRED avg)' : '';
     const hoaRow = monthlyHOA > 0 ? `| HOA | $${monthlyHOA.toLocaleString()} |\n` : '';
 
     const answer = `**DSCR Investment Property Analysis**
@@ -4945,7 +4945,16 @@ ${uwDatabase}`;
         }
     }
 
-    const fredRateForCard = fred?.mort30Avg != null ? `${fred.mort30Avg}% (FRED ${fred.asOf})` : undefined;
+    // Live-FRED note carries BOTH dates: FRED's as-of (daily series — the most recent
+    // published rate) and when we retrieved it, so live vs assumed is always obvious.
+    const fredRetrievedAt = new Date().toLocaleString('en-US', {
+        timeZone: 'America/Los_Angeles',
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit', hour12: true,
+    });
+    const fredRateForCard = fred?.mort30Avg != null
+        ? `${fred.mort30Avg}% — FRED 30-yr avg as of ${fred.asOf} · retrieved ${fredRetrievedAt} PT`
+        : undefined;
 
     // Helper: inject CMA chip onto any calc card.
     // Only runs when cmaAddress is present — no paste nudge on cards without CMA context.
@@ -6514,7 +6523,9 @@ ${_refRows}
             const rFHAParams = extractFHAParams(question);
             const rRate = rFHAParams.interestRate || fred?.mort30Avg || 6.5;
             const rAssumptions: string[] = [];
-            if (!rFHAParams.interestRate) rAssumptions.push(`rate assumed ${rRate}% (FRED avg)`);
+            if (!rFHAParams.interestRate) rAssumptions.push(fred?.mort30Avg != null
+                ? `rate ${rRate}% (live FRED 30-yr avg)`
+                : `rate assumed ${rRate}% (default — live FRED unavailable)`);
             if (!rFHAParams.downPaymentPct) rAssumptions.push('down payment assumed 3.5% (FHA minimum)');
             const rResult = calcFHA({
                 purchasePrice: rPrice,

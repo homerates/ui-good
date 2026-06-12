@@ -396,6 +396,12 @@ export function dispatch(
     const hist = conversationHistory;
     const assumptions: string[] = [];
     const fallbackRate = fredRate ?? 6.5;
+    // Provenance must be obvious: live FRED vs hardcoded default. The card builders'
+    // "📡 Live FRED rate" note carries the as-of date + retrieval time; this label
+    // states which source seeded the rate.
+    const rateAssumption = fredRate != null
+        ? `rate ${fallbackRate}% (live FRED 30-yr avg)`
+        : `rate assumed ${fallbackRate}% (default — live FRED unavailable)`;
 
     // ── -1. LAB CARD ──
     if (isLabQuestion(q)) {
@@ -610,7 +616,7 @@ export function dispatch(
         const allRates = Array.from(q.matchAll(/(\d+\.\d+)\s*%/g)).map(m => parseFloat(m[1])).filter(r => r > 2 && r < 15);
         const convRate = allRates.length > 1 ? allRates[1] : rate;
         const { fhaLimit, confLimit } = detectLoanLimits(q + ' ' + hist);
-        if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+        if (rate === fallbackRate) assumptions.push(rateAssumption);
         // Use the smaller down % to back-calculate so purchase price is as generous as possible
         const _fvcDown = Math.min(fhaDown, convDown);
         const price = isLoanAmountInput(q) ? Math.round(_rawFvC / (1 - _fvcDown / 100)) : _rawFvC;
@@ -654,7 +660,7 @@ export function dispatch(
 
         let rate = extractRate(q);
         if (!rate) rate = pullFromHistory(hist, extractRate);
-        if (!rate) { rate = fallbackRate; assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`); }
+        if (!rate) { rate = fallbackRate; assumptions.push(rateAssumption); }
 
         let downPct = extractDownPct(q) ?? extractDownPct(hist) ?? 3.5;
         if (downPct === 3.5) assumptions.push('down payment assumed 3.5% (FHA minimum)');
@@ -696,7 +702,9 @@ export function dispatch(
         const rate = _dscrExtractedRate ?? _dscrFallback;
         const downPct = extractDownPct(q) ?? 25;
         const taxRate = extractTaxRate(q);
-        if (_dscrExtractedRate == null) assumptions.push(`rate ${rate}% (FRED 30yr avg + 0.5% DSCR premium)`);
+        if (_dscrExtractedRate == null) assumptions.push(fredRate != null
+            ? `rate ${rate}% (live FRED 30-yr avg + 0.5% DSCR premium)`
+            : `rate assumed ${rate}% (default + 0.5% DSCR premium — live FRED unavailable)`);
         if (downPct === 25) assumptions.push('down payment assumed 25% (DSCR standard)');
         const price = isLoanAmountInput(q) ? Math.round(rawDSCR / (1 - downPct / 100)) : rawDSCR;
         if (isLoanAmountInput(q)) assumptions.push('purchase price back-calculated from stated loan amount');
@@ -728,7 +736,7 @@ export function dispatch(
         if (isLoanAmountInput(q) && _rawSC) assumptions.push('purchase price back-calculated from stated loan amount');
         const loanAmt = price ? Math.round(price * (1 - downPct / 100) * (vaHint ? 1 + VA_FF_FIRST_LT5 : 1.0)) : null;
         if (price && credit && loanAmt) {
-            if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+            if (rate === fallbackRate) assumptions.push(rateAssumption);
             if (vaHint) assumptions.push('VA loan — 2.15% funding fee financed into loan amount');
             return {
                 type: 'seller_credit',
@@ -759,7 +767,7 @@ export function dispatch(
         if (isLoanAmountInput(q) && _rawBD) assumptions.push('purchase price back-calculated from stated loan amount');
         const loanAmt = price ? Math.round(price * (1 - downPct / 100) * (vaHint ? 1 + VA_FF_FIRST_LT5 : 1.0)) : null;
         if (price && loanAmt) {
-            if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+            if (rate === fallbackRate) assumptions.push(rateAssumption);
             if (vaHint) assumptions.push('VA loan — 2.15% funding fee financed into loan amount');
             return {
                 type: 'buydown',
@@ -796,7 +804,7 @@ export function dispatch(
         if (!price || priorBalance === null) {
             return { type: 'va_entitlement_needs_input', params: { price: price ?? null, priorBalance }, confidence: 0, assumptions: [] };
         }
-        if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+        if (rate === fallbackRate) assumptions.push(rateAssumption);
 
         return {
             type: 'va_entitlement',
@@ -815,7 +823,7 @@ export function dispatch(
         const rate    = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
         const downPct = extractDownPct(q) ?? 0;
         const exempt  = /exempt|disability|disabled/i.test(q);
-        if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+        if (rate === fallbackRate) assumptions.push(rateAssumption);
         if (downPct === 0) assumptions.push('no down payment (VA default)');
         // Back-calculate purchase price; for 0% down loan amount = purchase price (no change)
         const price = (isLoanAmountInput(q) && downPct > 0)
@@ -856,7 +864,7 @@ export function dispatch(
         // Back-calculate purchase price when user stated a loan amount
         const price = isLoanAmountInput(q) ? Math.round(rawJumbo / (1 - downPct / 100)) : rawJumbo;
         if (isLoanAmountInput(q)) assumptions.push('purchase price back-calculated from stated loan amount');
-        if (_jumboExtractedRate == null) assumptions.push(`rate assumed ${rate}% (FRED 30yr avg)`);
+        if (_jumboExtractedRate == null) assumptions.push(rateAssumption);
         if (downPct === 20) assumptions.push('down payment assumed 20% (jumbo minimum)');
 
         return {
@@ -893,7 +901,7 @@ export function dispatch(
             const _impliedLoan = _impliedPrice * (1 - _impliedDown / 100);
             if (_impliedLoan > CONF_HIGH_BALANCE) {
                 const _iRate = extractRate(q) ?? pullFromHistory(hist, extractRate) ?? fallbackRate;
-                if (_iRate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+                if (_iRate === fallbackRate) assumptions.push(rateAssumption);
                 if (isLoanAmountInput(q)) assumptions.push(`purchase price back-calculated from stated loan amount`);
                 return {
                     type: 'jumbo',
@@ -926,7 +934,7 @@ export function dispatch(
             ? Math.round(rawPrice / (1 - downPct / 100))
             : rawPrice;
         if (loanAmtStated) assumptions.push(`purchase price back-calculated from stated loan amount`);
-        if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+        if (rate === fallbackRate) assumptions.push(rateAssumption);
         if (downPct === 20) assumptions.push('down payment assumed 20%');
 
         return {
@@ -954,7 +962,7 @@ export function dispatch(
         const rate = extractRate(q) ?? fallbackRate;
         const downOverride = extractDownPct(q);
         const { fhaLimit, confLimit, locationLabel } = detectLoanLimits(q + ' ' + hist);
-        if (rate === fallbackRate) assumptions.push(`rate assumed ${fallbackRate}% (FRED avg)`);
+        if (rate === fallbackRate) assumptions.push(rateAssumption);
 
         return {
             type: 'affordability',
