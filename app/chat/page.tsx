@@ -4624,68 +4624,6 @@ export default function Page() {
                     </div>
                 </div>
 
-                {/* ── Credit grace banner ── shown when balance=0 but grace messages remain */}
-                {isSignedIn && creditState.state === 'grace' && (
-                    <div style={{
-                        margin: '0 auto 6px', maxWidth: 640, width: '100%',
-                        background: 'rgba(255,180,0,0.08)',
-                        border: '1px solid rgba(255,180,0,0.22)',
-                        borderRadius: 10, padding: '8px 14px',
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        gap: 10, flexWrap: 'wrap',
-                        fontSize: '0.8rem', color: '#e8b800',
-                        fontFamily: "'DM Sans', system-ui, sans-serif",
-                    }}>
-                        <span>
-                            ⚡ Credits empty —{' '}
-                            <strong>{creditState.grace_remaining} grace {creditState.grace_remaining === 1 ? 'message' : 'messages'} left</strong>
-                        </span>
-                        <span style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                            <a href="/pricing" style={{
-                                background: '#00e87a', color: '#080c12',
-                                padding: '3px 10px', borderRadius: 6,
-                                fontWeight: 700, fontSize: '0.78rem', textDecoration: 'none',
-                            }}>Upgrade $7/mo</a>
-                            <a href="/profile" style={{
-                                border: '1px solid rgba(255,180,0,0.3)', color: '#e8b800',
-                                padding: '3px 10px', borderRadius: 6,
-                                fontWeight: 600, fontSize: '0.78rem', textDecoration: 'none',
-                            }}>Refer +500 credits</a>
-                        </span>
-                    </div>
-                )}
-
-                {/* ── Credit blocked banner ── shown when all grace used up */}
-                {isSignedIn && creditState.state === 'blocked' && (
-                    <div style={{
-                        margin: '0 auto 6px', maxWidth: 640, width: '100%',
-                        background: 'rgba(255,95,95,0.07)',
-                        border: '1px solid rgba(255,95,95,0.25)',
-                        borderRadius: 12, padding: '16px 18px',
-                        fontFamily: "'DM Sans', system-ui, sans-serif",
-                    }}>
-                        <div style={{ fontWeight: 700, color: '#ff5f5f', marginBottom: 4, fontSize: '0.9rem' }}>
-                            ⛔ Credit balance empty
-                        </div>
-                        <div style={{ color: '#8fa3b8', fontSize: '0.82rem', marginBottom: 12, lineHeight: 1.5 }}>
-                            You&apos;ve used your free credits and grace messages.
-                            Upgrade for $7/mo to get 500 credits/month — or refer a friend to earn 500 free credits instantly.
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <a href="/pricing" style={{
-                                background: '#00e87a', color: '#080c12',
-                                padding: '6px 16px', borderRadius: 8,
-                                fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none',
-                            }}>Upgrade to Plus — $7/mo</a>
-                            <a href="/profile" style={{
-                                border: '1px solid rgba(255,255,255,0.1)', color: '#8fa3b8',
-                                padding: '6px 14px', borderRadius: 8,
-                                fontWeight: 600, fontSize: '0.85rem', textDecoration: 'none',
-                            }}>Refer a friend (+500 credits)</a>
-                        </div>
-                    </div>
-                )}
-
                 {/* HR: main Ask composer; isolated classes so globals don't interfere */}
                 <div
                     className="hr-composer"
@@ -4707,6 +4645,68 @@ export default function Page() {
                                 onClick={(e) => { e.stopPropagation(); setPriceCheckMode(false); }}
                                 aria-label="Dismiss"
                             >✕</button>
+                        </div>
+                    )}
+
+                    {/* ── Credit banners — must live INSIDE the sticky composer. Rendered in page
+                        flow they end up physically underneath the fixed Ask pill (the "ghost
+                        buttons behind the composer" bug — regressed once before). */}
+                    {isSignedIn && creditState.state === 'grace' && (
+                        <div style={{
+                            margin: '0 auto 8px', maxWidth: 640, width: '100%',
+                            background: 'rgba(255,180,0,0.08)',
+                            border: '1px solid rgba(255,180,0,0.22)',
+                            borderRadius: 10, padding: '8px 14px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            gap: 10, flexWrap: 'wrap',
+                            fontSize: '0.8rem', color: '#e8b800',
+                            fontFamily: "'DM Sans', system-ui, sans-serif",
+                        }}>
+                            <span>
+                                ⚡ Credits empty —{' '}
+                                <strong>{creditState.grace_remaining} grace {creditState.grace_remaining === 1 ? 'message' : 'messages'} left</strong>
+                            </span>
+                            <span style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                                <a href="/pricing" style={{
+                                    background: '#00e87a', color: '#080c12',
+                                    padding: '3px 10px', borderRadius: 6,
+                                    fontWeight: 700, fontSize: '0.78rem', textDecoration: 'none',
+                                }}>Upgrade $7/mo</a>
+                                <a href="/profile" style={{
+                                    border: '1px solid rgba(255,180,0,0.3)', color: '#e8b800',
+                                    padding: '3px 10px', borderRadius: 6,
+                                    fontWeight: 600, fontSize: '0.78rem', textDecoration: 'none',
+                                }}>Refer +500 credits</a>
+                            </span>
+                        </div>
+                    )}
+                    {isSignedIn && creditState.state === 'blocked' && (
+                        <div style={{
+                            margin: '0 auto 8px', maxWidth: 640, width: '100%',
+                            background: 'rgba(255,95,95,0.07)',
+                            border: '1px solid rgba(255,95,95,0.25)',
+                            borderRadius: 12, padding: '16px 18px',
+                            fontFamily: "'DM Sans', system-ui, sans-serif",
+                        }}>
+                            <div style={{ fontWeight: 700, color: '#ff5f5f', marginBottom: 4, fontSize: '0.9rem' }}>
+                                ⛔ Credit balance empty
+                            </div>
+                            <div style={{ color: '#8fa3b8', fontSize: '0.82rem', marginBottom: 12, lineHeight: 1.5 }}>
+                                You&apos;ve used your free credits and grace messages.
+                                Upgrade for $7/mo to get 500 credits/month — or refer a friend to earn 500 free credits instantly.
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <a href="/pricing" style={{
+                                    background: '#00e87a', color: '#080c12',
+                                    padding: '6px 16px', borderRadius: 8,
+                                    fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none',
+                                }}>Upgrade to Plus — $7/mo</a>
+                                <a href="/profile" style={{
+                                    border: '1px solid rgba(255,255,255,0.1)', color: '#8fa3b8',
+                                    padding: '6px 14px', borderRadius: 8,
+                                    fontWeight: 600, fontSize: '0.85rem', textDecoration: 'none',
+                                }}>Refer a friend (+500 credits)</a>
+                            </div>
                         </div>
                     )}
 
