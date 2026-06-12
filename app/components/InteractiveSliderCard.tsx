@@ -28,6 +28,8 @@ export interface SliderCardParams {
     onRunScenario?: (seed: string, paramOverrides: Record<string, any>) => void;
     /** When true (property_lookup path): hide Adjust drawer + action buttons — income card is the sole interactive surface */
     hideDrawer?: boolean;
+    /** FRED provenance for the rate disclosure, e.g. "as of 2026-06-11 · retrieved Jun 12, 12:03 PM PT" */
+    fredStamp?: string;
     // CMA params — passed from property lookup path to enable Full Property Intelligence Report button
     cmaAddress?: string;
     cmaCity?: string;
@@ -333,6 +335,103 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
         return 'isc-tab on';
     };
 
+    // ── VA-specific controls: funding fee tier + subsequent use ─────────────────
+    // Rendered inside the drawer normally. In hideDrawer (4CS stack) mode the drawer
+    // never renders and IQC — the stack's adjustment surface — has no VA-specific
+    // controls, so these render directly on the card body instead (registry rule 1
+    // stays intact: the drawer itself remains hidden in stacks).
+    const vaControls = loanType === 'va' ? (
+        <>
+            {/* VA Funding Fee */}
+            <div className="isc-row">
+                <div className="isc-row-hdr">
+                    <span className="isc-row-name">Funding Fee</span>
+                    <span className="isc-row-val">{vaFfPct === 0 ? 'Exempt · $0' : `${vaFfPct}% · ${fmtDollar(fundingFee)}`}</span>
+                </div>
+                <div className="isc-terms">
+                    {VA_FF_OPTIONS.map(opt => (
+                        <button key={opt.pct}
+                            className={`isc-term${vaFfPct === opt.pct ? ' on-va' : ''}`}
+                            onClick={() => setVaFfPct(opt.pct)}
+                        >{opt.label}</button>
+                    ))}
+                </div>
+                <div className="isc-hint">First use: 0% down=2.15% · 5%+ down=1.50% · 10%+ down=1.25% · Disability=Exempt</div>
+            </div>
+
+            {/* VA Subsequent Use */}
+            <div className="isc-row">
+                <div className="isc-row-hdr">
+                    <span className="isc-row-name">Subsequent Use</span>
+                    <button
+                        className={`isc-subseq-toggle${isSubsequentUse ? ' on' : ''}`}
+                        onClick={() => setIsSubsequentUse(v => !v)}
+                    >
+                        {isSubsequentUse ? 'On — I have an active VA loan' : 'Off — First use / full entitlement'}
+                    </button>
+                </div>
+                {isSubsequentUse && (
+                    <>
+                        <div style={{ position: 'relative' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: '#8fa3b8' }}>County or ZIP</span>
+                                {countySelected && <span style={{ fontSize: 11, fontWeight: 700, color: '#00e87a' }}>✓ {countySelected}</span>}
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="e.g. San Diego  or  92101"
+                                value={countyQuery}
+                                onChange={e => { setCountyQuery(e.target.value); setCountySelected(''); }}
+                                style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,0.12)', fontSize: 13, outline: 'none', background: 'rgba(255,255,255,0.06)', color: '#c4cfe0', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                            />
+                            {countyMsg && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>{countyMsg}</div>}
+                            {countyResults.length > 0 && (
+                                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30, background: '#1a2035', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.4)', marginTop: 4, maxHeight: 220, overflowY: 'auto' }}>
+                                    {countyResults.map((r, i) => (
+                                        <button key={i}
+                                            onClick={() => { setCountyLimit(r.limit); setCountySelected(`${r.label}, ${r.state}`); setCountyQuery(''); setCountyResults([]); setCountyMsg(''); }}
+                                            style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', textAlign: 'left', fontSize: 12, color: '#c4cfe0', fontFamily: 'inherit' }}
+                                        >
+                                            <span>{r.label}, {r.state}</span>
+                                            <span style={{ fontWeight: 700, color: '#14b8a6', marginLeft: 8, flexShrink: 0 }}>${r.limit.toLocaleString()}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <SliderField
+                            label="County Loan Limit" value={countyLimit}
+                            min={647200} max={2000000} step={1000}
+                            onChange={setCountyLimit}
+                            format={v => fmtDollar(v)}
+                            minLabel="$647,200" maxLabel="$2M"
+                            trackColor={COLORS.teal} theme="dark"
+                        />
+                        <SliderField
+                            label="Previous Entitlement Used (Not Restored)" value={prevEntUsed}
+                            min={0} max={Math.round(countyLimit * 0.25)} step={100}
+                            onChange={setPrevEntUsed}
+                            format={v => fmtDollar(v)}
+                            minLabel="$0" maxLabel={fmtDollar(Math.round(countyLimit * 0.25))}
+                            trackColor={COLORS.teal} theme="dark"
+                        />
+                        <div className="isc-ent-table">
+                            <div className="isc-ent-row"><span>Max entitlement (25% of {fmtDollar(countyLimit)})</span><span>{fmtDollar(entTotalEntitlement)}</span></div>
+                            <div className="isc-ent-row"><span>Previous entitlement used</span><span className="isc-ent-used">−{fmtDollar(entUsed)}</span></div>
+                            <div className="isc-ent-row isc-ent-row--highlight"><span>Available entitlement</span><span>{fmtDollar(entRemaining)}</span></div>
+                            <div className="isc-ent-row"><span>Max loan at $0 down (4 × available)</span><span>{fmtDollar(entMaxZeroDn)}</span></div>
+                            <div className={`isc-ent-row${entDpNeeded > 0 ? ' isc-ent-row--warn' : ' isc-ent-row--ok'}`}>
+                                <span><strong>Down payment required</strong></span>
+                                <span><strong>{entDpNeeded > 0 ? `${fmtDollar(entDpNeeded)} (${entDpPct.toFixed(1)}%)` : '$0 — fully covered'}</strong></span>
+                            </div>
+                        </div>
+                        <div className="isc-hint">Per VA partial entitlement worksheet. Check with your lender for your COE details.</div>
+                    </>
+                )}
+            </div>
+        </>
+    ) : null;
+
     return (
         <div className="isc" style={{
             position: 'relative',
@@ -478,6 +577,12 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
             </div>
 
+            {/* VA controls in stack (hideDrawer) mode — drawer never renders and IQC has
+                no VA-specific surface, so funding fee + subsequent use live on the body */}
+            {props.hideDrawer && vaControls && (
+                <div className="isc-va-stack-controls">{vaControls}</div>
+            )}
+
             {/* Slider Drawer Trigger — hidden on property_lookup path (income card is the sole adjustment surface) */}
             {!props.hideDrawer && <button className={`isc-slider-trigger${sliderOpen ? ' open' : ''}`} onClick={() => setSliderOpen(o => !o)}>
                 <div className="isc-trigger-left">
@@ -513,97 +618,8 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     trackColor={accent} theme="dark"
                 />
 
-                {/* VA Funding Fee */}
-                {loanType === 'va' && (
-                    <div className="isc-row">
-                        <div className="isc-row-hdr">
-                            <span className="isc-row-name">Funding Fee</span>
-                            <span className="isc-row-val">{vaFfPct === 0 ? 'Exempt · $0' : `${vaFfPct}% · ${fmtDollar(fundingFee)}`}</span>
-                        </div>
-                        <div className="isc-terms">
-                            {VA_FF_OPTIONS.map(opt => (
-                                <button key={opt.pct}
-                                    className={`isc-term${vaFfPct === opt.pct ? ' on-va' : ''}`}
-                                    onClick={() => setVaFfPct(opt.pct)}
-                                >{opt.label}</button>
-                            ))}
-                        </div>
-                        <div className="isc-hint">First use: 0% down=2.15% · 5%+ down=1.50% · 10%+ down=1.25% · Disability=Exempt</div>
-                    </div>
-                )}
-
-                {/* VA Subsequent Use */}
-                {loanType === 'va' && (
-                    <div className="isc-row">
-                        <div className="isc-row-hdr">
-                            <span className="isc-row-name">Subsequent Use</span>
-                            <button
-                                className={`isc-subseq-toggle${isSubsequentUse ? ' on' : ''}`}
-                                onClick={() => setIsSubsequentUse(v => !v)}
-                            >
-                                {isSubsequentUse ? 'On — I have an active VA loan' : 'Off — First use / full entitlement'}
-                            </button>
-                        </div>
-                        {isSubsequentUse && (
-                            <>
-                                <div style={{ position: 'relative' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                                        <span style={{ fontSize: 12, fontWeight: 600, color: '#8fa3b8' }}>County or ZIP</span>
-                                        {countySelected && <span style={{ fontSize: 11, fontWeight: 700, color: '#00e87a' }}>✓ {countySelected}</span>}
-                                    </div>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. San Diego  or  92101"
-                                        value={countyQuery}
-                                        onChange={e => { setCountyQuery(e.target.value); setCountySelected(''); }}
-                                        style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,0.12)', fontSize: 13, outline: 'none', background: 'rgba(255,255,255,0.06)', color: '#c4cfe0', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                                    />
-                                    {countyMsg && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>{countyMsg}</div>}
-                                    {countyResults.length > 0 && (
-                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30, background: '#1a2035', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.4)', marginTop: 4, maxHeight: 220, overflowY: 'auto' }}>
-                                            {countyResults.map((r, i) => (
-                                                <button key={i}
-                                                    onClick={() => { setCountyLimit(r.limit); setCountySelected(`${r.label}, ${r.state}`); setCountyQuery(''); setCountyResults([]); setCountyMsg(''); }}
-                                                    style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', textAlign: 'left', fontSize: 12, color: '#c4cfe0', fontFamily: 'inherit' }}
-                                                >
-                                                    <span>{r.label}, {r.state}</span>
-                                                    <span style={{ fontWeight: 700, color: '#14b8a6', marginLeft: 8, flexShrink: 0 }}>${r.limit.toLocaleString()}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                                <SliderField
-                                    label="County Loan Limit" value={countyLimit}
-                                    min={647200} max={2000000} step={1000}
-                                    onChange={setCountyLimit}
-                                    format={v => fmtDollar(v)}
-                                    minLabel="$647,200" maxLabel="$2M"
-                                    trackColor={COLORS.teal} theme="dark"
-                                />
-                                <SliderField
-                                    label="Previous Entitlement Used (Not Restored)" value={prevEntUsed}
-                                    min={0} max={Math.round(countyLimit * 0.25)} step={100}
-                                    onChange={setPrevEntUsed}
-                                    format={v => fmtDollar(v)}
-                                    minLabel="$0" maxLabel={fmtDollar(Math.round(countyLimit * 0.25))}
-                                    trackColor={COLORS.teal} theme="dark"
-                                />
-                                <div className="isc-ent-table">
-                                    <div className="isc-ent-row"><span>Max entitlement (25% of {fmtDollar(countyLimit)})</span><span>{fmtDollar(entTotalEntitlement)}</span></div>
-                                    <div className="isc-ent-row"><span>Previous entitlement used</span><span className="isc-ent-used">−{fmtDollar(entUsed)}</span></div>
-                                    <div className="isc-ent-row isc-ent-row--highlight"><span>Available entitlement</span><span>{fmtDollar(entRemaining)}</span></div>
-                                    <div className="isc-ent-row"><span>Max loan at $0 down (4 × available)</span><span>{fmtDollar(entMaxZeroDn)}</span></div>
-                                    <div className={`isc-ent-row${entDpNeeded > 0 ? ' isc-ent-row--warn' : ' isc-ent-row--ok'}`}>
-                                        <span><strong>Down payment required</strong></span>
-                                        <span><strong>{entDpNeeded > 0 ? `${fmtDollar(entDpNeeded)} (${entDpPct.toFixed(1)}%)` : '$0 — fully covered'}</strong></span>
-                                    </div>
-                                </div>
-                                <div className="isc-hint">Per VA partial entitlement worksheet. Check with your lender for your COE details.</div>
-                            </>
-                        )}
-                    </div>
-                )}
+                {/* VA Funding Fee + Subsequent Use — shared JSX, also rendered on card body in hideDrawer mode */}
+                {vaControls}
 
                 {/* Rate Buydown toggle */}
                 {hasBuydownUI && (
@@ -732,7 +748,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
             {/* Rate note */}
             <div className="isc-note">
-                <p>Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live). Estimates only — not a loan offer.</p>
+                <p>Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live{props.fredStamp ? ` — ${props.fredStamp}` : ''}). Estimates only — not a loan offer.</p>
             </div>
 
             {/* ── Styles ── */}
@@ -838,6 +854,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc-exp-stat-val { font-size:12px; font-weight:700; color:#c4cfe0; }
 
                 /* row / term toggle */
+                .isc-va-stack-controls { display:flex; flex-direction:column; gap:14px; padding:12px 14px; margin-top:10px; border:1px solid rgba(20,184,166,0.18); border-radius:12px; background:rgba(20,184,166,0.04); }
                 .isc-row { display:flex; flex-direction:column; gap:8px; }
                 .isc-row-hdr { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; }
                 .isc-row-name { font-size:13px; font-weight:700; color:#c4cfe0; }
