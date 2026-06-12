@@ -28,6 +28,8 @@ export interface SliderCardParams {
     onRunScenario?: (seed: string, paramOverrides: Record<string, any>) => void;
     /** When true (property_lookup path): hide Adjust drawer + action buttons — income card is the sole interactive surface */
     hideDrawer?: boolean;
+    /** FRED provenance for the rate disclosure, e.g. "as of 2026-06-11 · retrieved Jun 12, 12:03 PM PT" */
+    fredStamp?: string;
     // CMA params — passed from property lookup path to enable Full Property Intelligence Report button
     cmaAddress?: string;
     cmaCity?: string;
@@ -746,7 +748,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
             {/* Rate note */}
             <div className="isc-note">
-                <p>Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live). Estimates only — not a loan offer.</p>
+                <p>Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live{props.fredStamp ? ` — ${props.fredStamp}` : ''}). Estimates only — not a loan offer.</p>
             </div>
 
             {/* ── Styles ── */}

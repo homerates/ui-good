@@ -28,6 +28,8 @@ export interface IncomeQualifySliderParams {
     loanType?: 'conventional' | 'fha' | 'jumbo' | 'va';
     annualIncome?: number;
     monthlyDebt?: number;
+    /** FRED provenance for the rate disclosure, e.g. "as of 2026-06-11 · retrieved Jun 12, 12:03 PM PT" */
+    fredStamp?: string;
     /** G4: DSC computing state — disable CTA until L2/L3/L4 resolve */
     decisionScoreState?: 'computing' | 'complete';
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
@@ -621,7 +623,7 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
 
             {/* Rate note */}
             <div className="iq2-rate-note">
-                <strong>Assumption:</strong> Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live).
+                <strong>Assumption:</strong> Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live{props.fredStamp ? ` — ${props.fredStamp}` : ''}).
                 {isJumbo ? ' Jumbo lenders typically require 38–43% DTI, 720+ credit, 20%+ down.' : isFHA ? ' FHA MIP per HUD 2024 Mortgagee Letter. UFMIP 1.75% financed.' : isVA ? ' VA uses 41% back-end DTI + residual income test. No PMI.' : ' DTI thresholds per Fannie Mae/Freddie Mac guidelines.'} Estimates only — not a loan offer.
             </div>
 

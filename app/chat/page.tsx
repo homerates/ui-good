@@ -1351,6 +1351,26 @@ function sanitizeMarkdown(md?: string): string {
 /* =========================
    Page
 ========================= */
+// Builds the FRED provenance stamp for slider-card disclosures: the as-of date is
+// FRED's daily-series data date; retrieved time is when this answer was generated.
+// Returns undefined when the response had no live FRED data (cards then show the
+// plain "live" wording — the markdown assumption line flags the fallback rate).
+function fredStampFromMeta(meta?: ApiResponse): string | undefined {
+    const asOf = (meta as { fred?: { asOf?: string | null } } | undefined)?.fred?.asOf;
+    if (!asOf) return undefined;
+    const gen = (meta as { generatedAt?: string } | undefined)?.generatedAt;
+    let retrieved = '';
+    if (gen) {
+        try {
+            retrieved = ' · retrieved ' + new Date(gen).toLocaleString('en-US', {
+                timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric',
+                hour: 'numeric', minute: '2-digit', hour12: true,
+            }) + ' PT';
+        } catch { /* malformed date — omit */ }
+    }
+    return `as of ${asOf}${retrieved}`;
+}
+
 export default function Page() {
     useMobileComposerPin();
 
@@ -3925,6 +3945,7 @@ export default function Page() {
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge code="4CS2341-CONV" position="top-left" />
                                                                 <InteractiveSliderCard
+                                                                    fredStamp={fredStampFromMeta(m.meta)}
                                                                     key={`isc-convhb-${m.id}`}
                                                                     price={m.meta.convHBSlider.price}
                                                                     downPct={m.meta.convHBSlider.downPct}
@@ -3949,6 +3970,7 @@ export default function Page() {
                                                         {/* Suppressed when incomeQualifySlider is explicitly set (e.g. affordability path seeds it with annualIncome) */}
                                                         {m.meta.convHBSlider && !m.meta.incomeQualifySlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-convhb-${m.id}`}
                                                                 price={m.meta.convHBSlider.price}
                                                                 downPct={m.meta.convHBSlider.downPct}
@@ -3968,6 +3990,7 @@ export default function Page() {
                                                         {/* Income Qualify slider card — explicit seed (e.g. affordability path with annualIncome); renders before LIC to preserve ISC→IQC→LIC order */}
                                                         {m.meta.incomeQualifySlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 {...m.meta.incomeQualifySlider}
                                                                 hideCheckPropertyButton={!!(m.meta.convHBSlider || m.meta.jumboSlider || m.meta.fhaSlider || m.meta.vaSlider)}
                                                                 journeyAddress={
@@ -3992,6 +4015,7 @@ export default function Page() {
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge code="4CS2341-FHA" position="top-left" />
                                                                 <InteractiveSliderCard
+                                                                    fredStamp={fredStampFromMeta(m.meta)}
                                                                     key={`isc-fha-${m.id}`}
                                                                     price={m.meta.fhaSlider.price}
                                                                     downPct={m.meta.fhaSlider.downPct}
@@ -4015,6 +4039,7 @@ export default function Page() {
                                                         {/* IQC — 4CS2341-FHA path */}
                                                         {m.meta.fhaSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-fha-${m.id}`}
                                                                 price={m.meta.fhaSlider.price}
                                                                 downPct={m.meta.fhaSlider.downPct}
@@ -4048,6 +4073,7 @@ export default function Page() {
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge code="4CS2341-JUMBO" position="top-left" />
                                                                 <InteractiveSliderCard
+                                                                    fredStamp={fredStampFromMeta(m.meta)}
                                                                     key={`isc-jumbo-${m.id}`}
                                                                     price={m.meta.jumboSlider.price}
                                                                     downPct={m.meta.jumboSlider.downPct}
@@ -4071,6 +4097,7 @@ export default function Page() {
                                                         {/* IQC — 4CS2341-JUMBO path */}
                                                         {m.meta.jumboSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-jumbo-${m.id}`}
                                                                 price={m.meta.jumboSlider.price}
                                                                 downPct={m.meta.jumboSlider.downPct}
@@ -4099,6 +4126,7 @@ export default function Page() {
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge code="4CS2341-VA" position="top-left" />
                                                                 <InteractiveSliderCard
+                                                                    fredStamp={fredStampFromMeta(m.meta)}
                                                                     key={`isc-va-${m.id}`}
                                                                     price={m.meta.vaSlider.price}
                                                                     downPct={m.meta.vaSlider.downPct}
@@ -4123,6 +4151,7 @@ export default function Page() {
                                                         {/* IQC — 4CS2341-VA path */}
                                                         {m.meta.vaSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-va-${m.id}`}
                                                                 price={m.meta.vaSlider.price}
                                                                 downPct={m.meta.vaSlider.downPct}
@@ -4166,6 +4195,7 @@ export default function Page() {
                                                         {/* Interactive slider card — non-buydown answers (VA handled by VaSliderCard) */}
                                                         {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`isc-${m.id}`}
                                                                 {...m.meta.interactiveSlider}
                                                                 // property_lookup path: income card is the sole adjustment surface — hide ISC drawer + buttons
@@ -4185,6 +4215,7 @@ export default function Page() {
                                                         {/* AFFD-010: New conventional affordability card */}
                                                         {m.meta.conventionalAffordabilitySlider && !loading && typingId === null && (
                                                             <AffordabilityIncomeSliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 {...m.meta.conventionalAffordabilitySlider}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
@@ -4196,6 +4227,7 @@ export default function Page() {
                                                         {/* AFFD-011: New FHA affordability card */}
                                                         {m.meta.fhaAffordabilitySlider && !loading && typingId === null && (
                                                             <AffordabilityIncomeSliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 {...m.meta.fhaAffordabilitySlider}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
@@ -4235,6 +4267,7 @@ export default function Page() {
                                                              (replaces the "What income do I need to qualify?" chip) */}
                                                         {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.interactiveSlider.cmaAddress && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-${m.id}`}
                                                                 price={m.meta.interactiveSlider.price}
                                                                 downPct={m.meta.interactiveSlider.downPct}

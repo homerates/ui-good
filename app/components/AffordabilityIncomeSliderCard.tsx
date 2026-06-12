@@ -103,6 +103,8 @@ export interface AffordabilityIncomeSliderParams {
     insRate: number;
     loanLimit?: number;
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
+    /** FRED provenance for the rate disclosure, e.g. "as of 2026-06-11 · retrieved Jun 12, 12:03 PM PT" */
+    fredStamp?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -405,7 +407,7 @@ export default function AffordabilityIncomeSliderCard(props: AffordabilityIncome
 
             {/* Rate note */}
             <div className="affi-rate-note">
-                <strong>Assumption:</strong> Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live).
+                <strong>Assumption:</strong> Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live{props.fredStamp ? ` — ${props.fredStamp}` : ''}).
                 {isFHA ? ' FHA MIP per HUD 2024 guidelines. UFMIP 1.75% financed.' : ' DTI thresholds per Fannie Mae/Freddie Mac guidelines.'}
                 {' '}Estimates only — not a loan offer.
             </div>
