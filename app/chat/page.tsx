@@ -3835,8 +3835,10 @@ export default function Page() {
                                                         {/* GrokCard: shown for plain AI answers only.
                                                             Suppressed whenever any slider card is present in meta — card stack is the full UI.
                                                         */}
-                                                        {/* Suppress GrokCard when any slider card is present — card stack speaks for itself */}
-                                                        {!m.meta.interactiveSlider?.cmaAddress && (!m.meta.affordabilitySlider && !m.meta.conventionalAffordabilitySlider && !m.meta.fhaAffordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) && (
+                                                        {/* Suppress GrokCard when any slider card is present — card stack speaks for itself.
+                                                            Also ALWAYS suppressed when a propertyCard exists (4CS1234 locked standard) —
+                                                            including the no-price path where interactiveSlider is null. */}
+                                                        {!m.meta.propertyCard && !m.meta.interactiveSlider?.cmaAddress && (!m.meta.affordabilitySlider && !m.meta.conventionalAffordabilitySlider && !m.meta.fhaAffordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
