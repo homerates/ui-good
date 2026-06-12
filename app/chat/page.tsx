@@ -4183,6 +4183,7 @@ export default function Page() {
                                                         {/* Buydown slider card — modern redesign */}
                                                         {m.meta.interactiveSlider && m.meta.interactiveSlider.buydownType && m.meta.interactiveSlider.buydownType !== 'none' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <BuydownSliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 {...m.meta.interactiveSlider}
                                                                 buydownType={m.meta.interactiveSlider.buydownType as '2/1' | '1/0' | '3/2/1'}
                                                                 onRunScenario={(seed, overrides) => {
@@ -4404,6 +4405,7 @@ export default function Page() {
                                                         {/* Jumbo affordability card */}
                                                         {m.meta.jumboAffordabilitySlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <JumboAffordabilitySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 {...m.meta.jumboAffordabilitySlider}
                                                                 onRunScenario={(seed, sliderParams) => {
                                                                     pendingParamOverridesRef.current = sliderParams;

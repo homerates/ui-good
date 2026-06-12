@@ -68,6 +68,8 @@ export interface JumboAffordabilitySliderParams {
     taxRate: number;
     insRate: number;
     onRunScenario?: (seed: string, params: Record<string, any>) => void;
+    /** FRED provenance for the rate disclosure, e.g. "as of 2026-06-11 · retrieved Jun 12, 12:03 PM PT" */
+    fredStamp?: string;
 }
 
 // ─── component ───────────────────────────────────────────────────────────────
@@ -210,7 +212,7 @@ export default function JumboAffordabilitySliderCard(props: JumboAffordabilitySl
                         onChange={setRate} format={fP} minLabel="3.5%" midLabel={`FRED: ${fP(props.baseRate)}`} maxLabel="10%"
                         trackColor={z.color} theme="dark" />
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(61,139,255,0.1)', border: '1px solid rgba(61,139,255,0.25)', borderRadius: 6, padding: '3px 8px', fontSize: '0.7rem', color: '#3d8bff', fontWeight: 600, marginTop: 6 }}>
-                        📡 Seeded from FRED live rate: {fP(props.baseRate)}
+                        📡 Seeded from FRED live rate: {fP(props.baseRate)}{props.fredStamp ? ` — ${props.fredStamp}` : ''}
                     </div>
                     {c.zone !== 'conforming' && (
                         <div style={{ fontSize: '0.7rem', color: 'rgba(185,208,192,0.4)', marginTop: 5, lineHeight: 1.5 }}>

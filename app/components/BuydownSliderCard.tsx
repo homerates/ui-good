@@ -78,6 +78,8 @@ export interface BuydownSliderParams {
     buydownType:  BdType;
     sellerCredit?: number;
     onRunScenario?: (seed: string, overrides: Record<string, unknown>) => void;
+    /** FRED provenance for the rate disclosure, e.g. "as of 2026-06-11 · retrieved Jun 12, 12:03 PM PT" */
+    fredStamp?: string;
 }
 
 const DP_CHIPS = [0, 5, 10, 20, 25] as const;
@@ -261,7 +263,7 @@ export default function BuydownSliderCard(props: BuydownSliderParams) {
                         onChange={setRate} format={v => fmtRate(v)}
                         minLabel="3%" maxLabel="12%" midLabel={`FRED: ${fmtRate(props.rate)}`}
                         trackColor={COLORS.amber} theme="dark" />
-                    <div className="bds-fred-tag">📡 Seeded from FRED live rate: {fmtRate(props.rate)}</div>
+                    <div className="bds-fred-tag">📡 Seeded from FRED live rate: {fmtRate(props.rate)}{props.fredStamp ? ` — ${props.fredStamp}` : ''}</div>
                 </div>
 
                 <div className="bds-slider-wrap">
