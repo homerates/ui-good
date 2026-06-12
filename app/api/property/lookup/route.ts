@@ -713,6 +713,31 @@ async function handleUrl(rawUrl: string) {
         if (lp && lp > 50_000 && lp < 50_000_000) merged.price = lp;
     }
 
+    // Last-resort price rescue: Redfin's price-blocking is per-request, so when both
+    // the page scrape AND the page extract come back stripped, search the web by
+    // address (same fallback the typed-address path uses — snippets carry the price).
+    if (!merged.price && typeof merged.address === 'string' && merged.address.length > 5) {
+        try {
+            const rescue = await broadSearchFallback(merged.address);
+            const rp = (rescue?.price as number | null)
+                ?? (rescue?.listPrice as number | null)
+                ?? null;
+            if (rp && rp > 50_000 && rp < 50_000_000) {
+                merged.price = rp;
+                merged.parseWarnings = [
+                    ...(Array.isArray(merged.parseWarnings) ? merged.parseWarnings as string[] : []),
+                    'price recovered via web search',
+                ];
+            }
+            if (!merged.estimatedValue && rescue?.estimatedValue) merged.estimatedValue = rescue.estimatedValue;
+            if (!merged.annualTaxes && merged.price && merged.taxRateEffective) {
+                merged.annualTaxes = Math.round((merged.price as number) * (merged.taxRateEffective as number));
+            }
+        } catch (e: unknown) {
+            log.warn('[PropertyLookup] Price rescue search failed (non-blocking)', { error: (e as Error)?.message });
+        }
+    }
+
     // Compute socialProofScore + interestLevel from engagement signals
     const spViews  = merged.zillowViews  as number | null ?? null;
     const spSaves  = merged.zillowSaves  as number | null ?? null;
