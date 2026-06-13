@@ -14,10 +14,10 @@ import { Resend } from "resend";
 import { emailShell } from "../../../../lib/sendEmail";
 import { unsubscribeUrl, isEmailSuppressed } from "../../../../lib/unsubscribe";
 import { getFredSnapshot } from "@/lib/fred";
+import { isAdminId } from "../../../../lib/adminAuth";
 
 const BASE = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
 const FROM = process.env.RESEND_FROM_EMAIL ?? "updates@homerates.ai";
-const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
 function db() {
   return createClient(
@@ -106,7 +106,7 @@ async function isAuthorized(req: NextRequest): Promise<boolean> {
 
   try {
     const { userId } = await auth();
-    if (userId && ADMIN_USER_IDS.includes(userId)) return true;
+    if (await isAdminId(userId)) return true;
   } catch { /* not authenticated */ }
 
   return false;

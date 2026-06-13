@@ -1351,6 +1351,26 @@ function sanitizeMarkdown(md?: string): string {
 /* =========================
    Page
 ========================= */
+// Builds the FRED provenance stamp for slider-card disclosures: the as-of date is
+// FRED's daily-series data date; retrieved time is when this answer was generated.
+// Returns undefined when the response had no live FRED data (cards then show the
+// plain "live" wording — the markdown assumption line flags the fallback rate).
+function fredStampFromMeta(meta?: ApiResponse): string | undefined {
+    const asOf = (meta as { fred?: { asOf?: string | null } } | undefined)?.fred?.asOf;
+    if (!asOf) return undefined;
+    const gen = (meta as { generatedAt?: string } | undefined)?.generatedAt;
+    let retrieved = '';
+    if (gen) {
+        try {
+            retrieved = ' · retrieved ' + new Date(gen).toLocaleString('en-US', {
+                timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric',
+                hour: 'numeric', minute: '2-digit', hour12: true,
+            }) + ' PT';
+        } catch { /* malformed date — omit */ }
+    }
+    return `as of ${asOf}${retrieved}`;
+}
+
 export default function Page() {
     useMobileComposerPin();
 
@@ -2384,9 +2404,10 @@ export default function Page() {
                         : `${priceStr ?? 'Listing'} in ${locationStr}.`;
                     const subline = [priceStr, detailStr, locationStr + domNote].filter(Boolean).join(' · ');
                     const rateLabel = liveRateIsLive ? `${liveRate.toFixed(2)}%` : `~${liveRate.toFixed(2)}% (est.)`;
+                    const _siteName = d.source === 'redfin' ? 'Redfin' : d.source === 'zillow' ? 'Zillow' : 'The listing site';
                     const cta = d.price
                         ? `Pre-loaded at today's ${rateLabel} with 20% down. Adjust the sliders to explore.`
-                        : `Zillow blocked price data — enter the listing price below to run the numbers.`;
+                        : `${_siteName} blocked price data — enter the listing price below to run the numbers.`;
 
                     const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
@@ -2598,7 +2619,9 @@ export default function Page() {
 
                                 // Compute L3 — market conditions (median DOM + sale-to-list) + social proof
                                 const dom = deepResult.market_median_dom as number | null | undefined;
-                                const stl = deepResult.market_sale_to_list as number | null | undefined;
+                                const _stlRaw = deepResult.market_sale_to_list as number | null | undefined;
+                                // Grok sometimes returns percent (100.2) instead of ratio (1.002) — a real ratio is never > 2
+                                const stl = _stlRaw != null && _stlRaw > 2 ? _stlRaw / 100 : _stlRaw;
                                 let dsL3Score: number | null = null;
                                 let dsL3Summary = '';
                                 if (dom != null || stl != null) {
@@ -3832,8 +3855,10 @@ export default function Page() {
                                                         {/* GrokCard: shown for plain AI answers only.
                                                             Suppressed whenever any slider card is present in meta — card stack is the full UI.
                                                         */}
-                                                        {/* Suppress GrokCard when any slider card is present — card stack speaks for itself */}
-                                                        {!m.meta.interactiveSlider?.cmaAddress && (!m.meta.affordabilitySlider && !m.meta.conventionalAffordabilitySlider && !m.meta.fhaAffordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) && (
+                                                        {/* Suppress GrokCard when any slider card is present — card stack speaks for itself.
+                                                            Also ALWAYS suppressed when a propertyCard exists (4CS1234 locked standard) —
+                                                            including the no-price path where interactiveSlider is null. */}
+                                                        {!m.meta.propertyCard && !m.meta.interactiveSlider?.cmaAddress && (!m.meta.affordabilitySlider && !m.meta.conventionalAffordabilitySlider && !m.meta.fhaAffordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
@@ -3920,6 +3945,7 @@ export default function Page() {
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge code="4CS2341-CONV" position="top-left" />
                                                                 <InteractiveSliderCard
+                                                                    fredStamp={fredStampFromMeta(m.meta)}
                                                                     key={`isc-convhb-${m.id}`}
                                                                     price={m.meta.convHBSlider.price}
                                                                     downPct={m.meta.convHBSlider.downPct}
@@ -3944,6 +3970,7 @@ export default function Page() {
                                                         {/* Suppressed when incomeQualifySlider is explicitly set (e.g. affordability path seeds it with annualIncome) */}
                                                         {m.meta.convHBSlider && !m.meta.incomeQualifySlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-convhb-${m.id}`}
                                                                 price={m.meta.convHBSlider.price}
                                                                 downPct={m.meta.convHBSlider.downPct}
@@ -3963,6 +3990,7 @@ export default function Page() {
                                                         {/* Income Qualify slider card — explicit seed (e.g. affordability path with annualIncome); renders before LIC to preserve ISC→IQC→LIC order */}
                                                         {m.meta.incomeQualifySlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 {...m.meta.incomeQualifySlider}
                                                                 hideCheckPropertyButton={!!(m.meta.convHBSlider || m.meta.jumboSlider || m.meta.fhaSlider || m.meta.vaSlider)}
                                                                 journeyAddress={
@@ -3987,6 +4015,7 @@ export default function Page() {
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge code="4CS2341-FHA" position="top-left" />
                                                                 <InteractiveSliderCard
+                                                                    fredStamp={fredStampFromMeta(m.meta)}
                                                                     key={`isc-fha-${m.id}`}
                                                                     price={m.meta.fhaSlider.price}
                                                                     downPct={m.meta.fhaSlider.downPct}
@@ -4010,6 +4039,7 @@ export default function Page() {
                                                         {/* IQC — 4CS2341-FHA path */}
                                                         {m.meta.fhaSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-fha-${m.id}`}
                                                                 price={m.meta.fhaSlider.price}
                                                                 downPct={m.meta.fhaSlider.downPct}
@@ -4043,6 +4073,7 @@ export default function Page() {
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge code="4CS2341-JUMBO" position="top-left" />
                                                                 <InteractiveSliderCard
+                                                                    fredStamp={fredStampFromMeta(m.meta)}
                                                                     key={`isc-jumbo-${m.id}`}
                                                                     price={m.meta.jumboSlider.price}
                                                                     downPct={m.meta.jumboSlider.downPct}
@@ -4066,6 +4097,7 @@ export default function Page() {
                                                         {/* IQC — 4CS2341-JUMBO path */}
                                                         {m.meta.jumboSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-jumbo-${m.id}`}
                                                                 price={m.meta.jumboSlider.price}
                                                                 downPct={m.meta.jumboSlider.downPct}
@@ -4094,6 +4126,7 @@ export default function Page() {
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge code="4CS2341-VA" position="top-left" />
                                                                 <InteractiveSliderCard
+                                                                    fredStamp={fredStampFromMeta(m.meta)}
                                                                     key={`isc-va-${m.id}`}
                                                                     price={m.meta.vaSlider.price}
                                                                     downPct={m.meta.vaSlider.downPct}
@@ -4118,6 +4151,7 @@ export default function Page() {
                                                         {/* IQC — 4CS2341-VA path */}
                                                         {m.meta.vaSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-va-${m.id}`}
                                                                 price={m.meta.vaSlider.price}
                                                                 downPct={m.meta.vaSlider.downPct}
@@ -4149,6 +4183,7 @@ export default function Page() {
                                                         {/* Buydown slider card — modern redesign */}
                                                         {m.meta.interactiveSlider && m.meta.interactiveSlider.buydownType && m.meta.interactiveSlider.buydownType !== 'none' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <BuydownSliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 {...m.meta.interactiveSlider}
                                                                 buydownType={m.meta.interactiveSlider.buydownType as '2/1' | '1/0' | '3/2/1'}
                                                                 onRunScenario={(seed, overrides) => {
@@ -4161,6 +4196,7 @@ export default function Page() {
                                                         {/* Interactive slider card — non-buydown answers (VA handled by VaSliderCard) */}
                                                         {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`isc-${m.id}`}
                                                                 {...m.meta.interactiveSlider}
                                                                 // property_lookup path: income card is the sole adjustment surface — hide ISC drawer + buttons
@@ -4180,6 +4216,7 @@ export default function Page() {
                                                         {/* AFFD-010: New conventional affordability card */}
                                                         {m.meta.conventionalAffordabilitySlider && !loading && typingId === null && (
                                                             <AffordabilityIncomeSliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 {...m.meta.conventionalAffordabilitySlider}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
@@ -4191,6 +4228,7 @@ export default function Page() {
                                                         {/* AFFD-011: New FHA affordability card */}
                                                         {m.meta.fhaAffordabilitySlider && !loading && typingId === null && (
                                                             <AffordabilityIncomeSliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 {...m.meta.fhaAffordabilitySlider}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
@@ -4230,6 +4268,7 @@ export default function Page() {
                                                              (replaces the "What income do I need to qualify?" chip) */}
                                                         {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.interactiveSlider.cmaAddress && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-${m.id}`}
                                                                 price={m.meta.interactiveSlider.price}
                                                                 downPct={m.meta.interactiveSlider.downPct}
@@ -4366,6 +4405,7 @@ export default function Page() {
                                                         {/* Jumbo affordability card */}
                                                         {m.meta.jumboAffordabilitySlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <JumboAffordabilitySliderCard
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 {...m.meta.jumboAffordabilitySlider}
                                                                 onRunScenario={(seed, sliderParams) => {
                                                                     pendingParamOverridesRef.current = sliderParams;
@@ -4584,68 +4624,6 @@ export default function Page() {
                     </div>
                 </div>
 
-                {/* ── Credit grace banner ── shown when balance=0 but grace messages remain */}
-                {isSignedIn && creditState.state === 'grace' && (
-                    <div style={{
-                        margin: '0 auto 6px', maxWidth: 640, width: '100%',
-                        background: 'rgba(255,180,0,0.08)',
-                        border: '1px solid rgba(255,180,0,0.22)',
-                        borderRadius: 10, padding: '8px 14px',
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        gap: 10, flexWrap: 'wrap',
-                        fontSize: '0.8rem', color: '#e8b800',
-                        fontFamily: "'DM Sans', system-ui, sans-serif",
-                    }}>
-                        <span>
-                            ⚡ Credits empty —{' '}
-                            <strong>{creditState.grace_remaining} grace {creditState.grace_remaining === 1 ? 'message' : 'messages'} left</strong>
-                        </span>
-                        <span style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                            <a href="/pricing" style={{
-                                background: '#00e87a', color: '#080c12',
-                                padding: '3px 10px', borderRadius: 6,
-                                fontWeight: 700, fontSize: '0.78rem', textDecoration: 'none',
-                            }}>Upgrade $7/mo</a>
-                            <a href="/profile" style={{
-                                border: '1px solid rgba(255,180,0,0.3)', color: '#e8b800',
-                                padding: '3px 10px', borderRadius: 6,
-                                fontWeight: 600, fontSize: '0.78rem', textDecoration: 'none',
-                            }}>Refer +500 credits</a>
-                        </span>
-                    </div>
-                )}
-
-                {/* ── Credit blocked banner ── shown when all grace used up */}
-                {isSignedIn && creditState.state === 'blocked' && (
-                    <div style={{
-                        margin: '0 auto 6px', maxWidth: 640, width: '100%',
-                        background: 'rgba(255,95,95,0.07)',
-                        border: '1px solid rgba(255,95,95,0.25)',
-                        borderRadius: 12, padding: '16px 18px',
-                        fontFamily: "'DM Sans', system-ui, sans-serif",
-                    }}>
-                        <div style={{ fontWeight: 700, color: '#ff5f5f', marginBottom: 4, fontSize: '0.9rem' }}>
-                            ⛔ Credit balance empty
-                        </div>
-                        <div style={{ color: '#8fa3b8', fontSize: '0.82rem', marginBottom: 12, lineHeight: 1.5 }}>
-                            You&apos;ve used your free credits and grace messages.
-                            Upgrade for $7/mo to get 500 credits/month — or refer a friend to earn 500 free credits instantly.
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <a href="/pricing" style={{
-                                background: '#00e87a', color: '#080c12',
-                                padding: '6px 16px', borderRadius: 8,
-                                fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none',
-                            }}>Upgrade to Plus — $7/mo</a>
-                            <a href="/profile" style={{
-                                border: '1px solid rgba(255,255,255,0.1)', color: '#8fa3b8',
-                                padding: '6px 14px', borderRadius: 8,
-                                fontWeight: 600, fontSize: '0.85rem', textDecoration: 'none',
-                            }}>Refer a friend (+500 credits)</a>
-                        </div>
-                    </div>
-                )}
-
                 {/* HR: main Ask composer; isolated classes so globals don't interfere */}
                 <div
                     className="hr-composer"
@@ -4667,6 +4645,68 @@ export default function Page() {
                                 onClick={(e) => { e.stopPropagation(); setPriceCheckMode(false); }}
                                 aria-label="Dismiss"
                             >✕</button>
+                        </div>
+                    )}
+
+                    {/* ── Credit banners — must live INSIDE the sticky composer. Rendered in page
+                        flow they end up physically underneath the fixed Ask pill (the "ghost
+                        buttons behind the composer" bug — regressed once before). */}
+                    {isSignedIn && creditState.state === 'grace' && (
+                        <div style={{
+                            margin: '0 auto 8px', maxWidth: 640, width: '100%',
+                            background: 'rgba(255,180,0,0.08)',
+                            border: '1px solid rgba(255,180,0,0.22)',
+                            borderRadius: 10, padding: '8px 14px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            gap: 10, flexWrap: 'wrap',
+                            fontSize: '0.8rem', color: '#e8b800',
+                            fontFamily: "'DM Sans', system-ui, sans-serif",
+                        }}>
+                            <span>
+                                ⚡ Credits empty —{' '}
+                                <strong>{creditState.grace_remaining} grace {creditState.grace_remaining === 1 ? 'message' : 'messages'} left</strong>
+                            </span>
+                            <span style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                                <a href="/pricing" style={{
+                                    background: '#00e87a', color: '#080c12',
+                                    padding: '3px 10px', borderRadius: 6,
+                                    fontWeight: 700, fontSize: '0.78rem', textDecoration: 'none',
+                                }}>Upgrade $7/mo</a>
+                                <a href="/profile" style={{
+                                    border: '1px solid rgba(255,180,0,0.3)', color: '#e8b800',
+                                    padding: '3px 10px', borderRadius: 6,
+                                    fontWeight: 600, fontSize: '0.78rem', textDecoration: 'none',
+                                }}>Refer +500 credits</a>
+                            </span>
+                        </div>
+                    )}
+                    {isSignedIn && creditState.state === 'blocked' && (
+                        <div style={{
+                            margin: '0 auto 8px', maxWidth: 640, width: '100%',
+                            background: 'rgba(255,95,95,0.07)',
+                            border: '1px solid rgba(255,95,95,0.25)',
+                            borderRadius: 12, padding: '16px 18px',
+                            fontFamily: "'DM Sans', system-ui, sans-serif",
+                        }}>
+                            <div style={{ fontWeight: 700, color: '#ff5f5f', marginBottom: 4, fontSize: '0.9rem' }}>
+                                ⛔ Credit balance empty
+                            </div>
+                            <div style={{ color: '#8fa3b8', fontSize: '0.82rem', marginBottom: 12, lineHeight: 1.5 }}>
+                                You&apos;ve used your free credits and grace messages.
+                                Upgrade for $7/mo to get 500 credits/month — or refer a friend to earn 500 free credits instantly.
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <a href="/pricing" style={{
+                                    background: '#00e87a', color: '#080c12',
+                                    padding: '6px 16px', borderRadius: 8,
+                                    fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none',
+                                }}>Upgrade to Plus — $7/mo</a>
+                                <a href="/profile" style={{
+                                    border: '1px solid rgba(255,255,255,0.1)', color: '#8fa3b8',
+                                    padding: '6px 14px', borderRadius: 8,
+                                    fontWeight: 600, fontSize: '0.85rem', textDecoration: 'none',
+                                }}>Refer a friend (+500 credits)</a>
+                            </div>
                         </div>
                     )}
 
@@ -5361,7 +5401,11 @@ export default function Page() {
             <PortfolioSidebar
                 activeAddress={cmaContextRef.current?.cmaAddress ?? null}
                 onNewJourney={() => {
-                    router.push('/check-property');
+                    // A journey always starts as a fresh chat thread in property-lookup
+                    // mode (ConsumerWelcomeCard address entry) — mirrors the "Property
+                    // Lookup" nav action, not a navigation away to /check-property.
+                    newChat();
+                    setPropertyLookupMode(true);
                 }}
                 onResume={async (item) => {
                     // Try to restore the original chat thread from Supabase

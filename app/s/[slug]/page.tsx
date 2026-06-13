@@ -17,7 +17,7 @@ function getSupabase() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
 }
 
-const BASE = "https://chat.homerates.ai";
+const BASE = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
 
 interface Props { params: Promise<{ slug: string }> }
 

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { getStripe } from "../../../../lib/stripe";
+import { getStripe, isKnownPriceId } from "../../../../lib/stripe";
 import { getSupabase } from "../../../../lib/supabaseServer";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
@@ -21,6 +21,12 @@ export async function POST(req: NextRequest) {
 
   if (!priceId) {
     return NextResponse.json({ error: "priceId is required" }, { status: 400 });
+  }
+
+  // Only allow the price IDs this app actually sells — never trust an arbitrary
+  // price from the client.
+  if (!isKnownPriceId(priceId)) {
+    return NextResponse.json({ error: "Invalid priceId" }, { status: 400 });
   }
 
   // Get user's email from Clerk

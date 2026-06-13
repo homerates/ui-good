@@ -35,8 +35,10 @@ const CORE_SOURCES: CoreSource[] = [
         id: "loandepot",
         title: "LoanDepot Mortgage Products",
         url: "https://www.loandepot.com/mortgage/products",
-        matchAny: [/loandepot/i, /\bld\b/i, /jumbo advantage/i, /advantage flex/i, /\bdscr\b/i, /bank statement/i],
-        priority: 120,
+        // Only when the user explicitly asks about this lender — never as a generic
+        // DSCR/jumbo source (no-vetting rule: HomeRates does not endorse lenders).
+        matchAny: [/loandepot/i, /jumbo advantage/i, /advantage flex/i],
+        priority: 50,
     },
     {
         id: "calhfa",

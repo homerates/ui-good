@@ -64,6 +64,17 @@ export const PLANS = {
 
 export type PlanKey = keyof typeof PLANS;
 
+/** True only for the four price IDs this app actually sells. */
+export function isKnownPriceId(priceId: string): boolean {
+  if (!priceId) return false;
+  return [
+    process.env.STRIPE_PLUS_MONTHLY_PRICE_ID,
+    process.env.STRIPE_PLUS_ANNUAL_PRICE_ID,
+    process.env.STRIPE_PRO_MONTHLY_PRICE_ID,
+    process.env.STRIPE_PRO_ANNUAL_PRICE_ID,
+  ].filter(Boolean).includes(priceId);
+}
+
 /** Resolve a Stripe price ID back to a plan key */
 export function getPlanFromPriceId(priceId: string): PlanKey {
   if (

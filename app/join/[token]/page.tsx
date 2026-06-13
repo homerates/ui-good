@@ -37,7 +37,7 @@ export default async function JoinBrokeragePage({
 
   if (userId) {
     // Signed in — attempt to join via API, then redirect
-    const base = process.env.NEXT_PUBLIC_BASE_URL ?? "https://chat.homerates.ai";
+    const base = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
     try {
       await fetch(`${base}/api/brokerage/join`, {
         method: "POST",
