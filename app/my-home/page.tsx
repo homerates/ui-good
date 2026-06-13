@@ -1431,11 +1431,12 @@ interface MyHomeRailProps {
   properties: HomeownerProperty[];
   activePropertyId: string | null;
   analysis: AnalysisData | null;
+  photoCache: Record<string, string | null>;
   onSelectProperty: (id: string) => void;
   onAddProperty: () => void;
 }
 
-function MyHomeRail({ properties, activePropertyId, analysis, onSelectProperty, onAddProperty }: MyHomeRailProps) {
+function MyHomeRail({ properties, activePropertyId, analysis, photoCache, onSelectProperty, onAddProperty }: MyHomeRailProps) {
   if (properties.length === 0) return null;
 
   return (
@@ -1448,16 +1449,21 @@ function MyHomeRail({ properties, activePropertyId, analysis, onSelectProperty, 
         {properties.map((p, idx) => {
           const isActive = p.id === activePropertyId || (!activePropertyId && p.is_primary && idx === 0);
           const isBuyer = isActive && (analysis?.listingStatus === 'FOR_SALE' || analysis?.listingStatus === 'PENDING');
-          const lensLabel = isBuyer ? 'Researching' : p.is_primary ? 'My Home' : `Property ${idx + 1}`;
+          const heading = p.is_primary ? 'My Home' : `Property ${idx + 1}`;
           const short = p.property_address.split(',')[0];
+          const city  = p.property_address.split(',').slice(1, 3).join(',').trim();
+
+          const photoUrl = photoCache[p.property_address] ?? (isActive ? analysis?.photoUrl : null) ?? null;
           const valueNum = isActive ? (analysis?.estimatedValue ?? p.actual_value) : p.actual_value;
-          const displayValue = valueNum ? `$${valueNum >= 1_000_000 ? (valueNum / 1_000_000).toFixed(2) + 'M' : Math.round(valueNum / 1000) + 'K'}` : null;
-          const equityPct = isActive ? analysis?.equityPct : null;
+          const fmtValue = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : `$${Math.round(n / 1000)}K`;
+          const displayValue = valueNum ? fmtValue(valueNum) : null;
+          const equityPct  = isActive ? analysis?.equityPct  : null;
+          const listPrice  = isActive && isBuyer ? analysis?.listPrice : null;
+          const dom        = isActive && isBuyer ? analysis?.daysOnMarket : null;
 
           const sid = lsGetPiSid(p.property_address);
-          const piHref = `/property-intel?address=${encodeURIComponent(p.property_address)}${sid ? `&sid=${sid}` : ''}`;
-          const chatParams = new URLSearchParams({ sq: `Run my numbers for ${p.property_address}` });
-          const chatHref = `/chat?${chatParams.toString()}`;
+          const piHref   = `/property-intel?address=${encodeURIComponent(p.property_address)}${sid ? `&sid=${sid}` : ''}`;
+          const chatHref = `/chat?${new URLSearchParams({ sq: `Run my numbers for ${p.property_address}` }).toString()}`;
 
           return (
             <div
@@ -1466,23 +1472,54 @@ function MyHomeRail({ properties, activePropertyId, analysis, onSelectProperty, 
               onClick={() => !isActive && onSelectProperty(p.id)}
               style={{ cursor: isActive ? 'default' : 'pointer' }}
             >
-              <div className="mh-rail-card-top">
-                <span className="mh-rail-card-label">{lensLabel}</span>
-                {isActive && <span className="mh-rail-active-dot"/>}
+              {/* Thumbnail */}
+              <div
+                className="mh-rail-thumb"
+                style={photoUrl ? { backgroundImage: `url(${photoUrl})` } : {}}
+              >
+                <div className="mh-rail-thumb-overlay"/>
+                {/* Heading badge top-left */}
+                <div className="mh-rail-thumb-heading">
+                  {heading}
+                  {isActive && <span className="mh-rail-active-dot" style={{ marginLeft: 6 }}/>}
+                </div>
+                {/* Status badge top-right */}
+                {isBuyer && (
+                  <div className="mh-rail-thumb-badge mh-rail-thumb-badge-sale">For Sale</div>
+                )}
+                {dom != null && (
+                  <div className="mh-rail-thumb-badge mh-rail-thumb-badge-dom" style={{ top: isBuyer ? 30 : 8 }}>{dom}d on market</div>
+                )}
+                {/* Address overlay bottom */}
+                <div className="mh-rail-thumb-address">
+                  <span className="mh-rail-thumb-street">{short}</span>
+                  {city && <span className="mh-rail-thumb-city">{city}</span>}
+                </div>
               </div>
-              <div className="mh-rail-card-addr">{short}</div>
-              {displayValue && (
-                <div className="mh-rail-card-metric">
-                  <span className="mh-rail-card-value">{displayValue}</span>
-                  {equityPct != null && <span className="mh-rail-card-equity">{equityPct.toFixed(0)}% equity</span>}
-                </div>
-              )}
-              {isActive && (
-                <div className="mh-rail-card-actions">
-                  <a href={piHref} className="mh-rail-btn mh-rail-btn-score">View Full Score →</a>
-                  <a href={chatHref} target="_blank" rel="noopener noreferrer" className="mh-rail-btn mh-rail-btn-numbers">Run My Numbers</a>
-                </div>
-              )}
+
+              {/* Card body */}
+              <div className="mh-rail-card-body">
+                {/* Key metrics */}
+                {(displayValue || listPrice) && (
+                  <div className="mh-rail-card-metric">
+                    <span className="mh-rail-card-value">
+                      {isBuyer && listPrice ? fmtValue(listPrice) : displayValue}
+                    </span>
+                    {equityPct != null && !isBuyer && (
+                      <span className="mh-rail-card-equity">{equityPct.toFixed(0)}% equity</span>
+                    )}
+                    {isBuyer && <span className="mh-rail-card-equity mh-rail-badge-buyer">list price</span>}
+                  </div>
+                )}
+
+                {/* Actions — active property only */}
+                {isActive && (
+                  <div className="mh-rail-card-actions">
+                    <a href={piHref} className="mh-rail-btn mh-rail-btn-score">View Full Score →</a>
+                    <a href={chatHref} target="_blank" rel="noopener noreferrer" className="mh-rail-btn mh-rail-btn-numbers">Run My Numbers</a>
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
@@ -1519,6 +1556,7 @@ function MyHomePageInner() {
   const [analysis, setAnalysis]               = useState<AnalysisData | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisErr, setAnalysisErr]         = useState('');
+  const [photoCache, setPhotoCache]           = useState<Record<string, string | null>>({});
 
   // Loan detail editor (consumer only)
   const loanEditorRef = useRef<HTMLDivElement>(null);
@@ -1688,6 +1726,7 @@ function MyHomePageInner() {
           // Show partial card if we have structural data — only hard-error if truly empty
           if (data.beds || data.sqft || data.address) {
             setAnalysis(data);
+            if (data.photoUrl && data.address) setPhotoCache(c => ({ ...c, [data.address]: data.photoUrl }));
             prefetchGrokProperty(activeProperty.property_address, {
               current_status:     normalizeListingStatus(data.listingStatus),
               current_list_price: data.estimatedValue ?? null,
@@ -1707,6 +1746,7 @@ function MyHomePageInner() {
           return;
         }
         setAnalysis(data);
+        if (data.photoUrl && data.address) setPhotoCache(c => ({ ...c, [data.address]: data.photoUrl }));
         prefetchGrokProperty(activeProperty.property_address, {
           current_status:     normalizeListingStatus(data.listingStatus),
           current_list_price: data.estimatedValue ?? null,
@@ -2811,6 +2851,7 @@ function MyHomePageInner() {
               properties={properties}
               activePropertyId={activeProperty?.id ?? null}
               analysis={analysis}
+              photoCache={photoCache}
               onSelectProperty={(id) => { setActivePropertyId(id); setAnalysis(null); }}
               onAddProperty={() => setTimeout(() => document.querySelector<HTMLInputElement>('.mh-command-input')?.focus(), 60)}
             />
@@ -2897,31 +2938,44 @@ const CSS = `
   .mh-lens-drawer-action-danger:hover{background:rgba(249,112,102,0.08);color:#f97066}
 
   /* MY HOME RAIL */
-  .mh-rail{flex:0 0 260px;width:260px;padding:1.5rem 1rem 5rem;border-left:1px solid rgba(255,255,255,0.06)}
-  .mh-rail-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+  .mh-rail{flex:0 0 268px;width:268px;padding:1.5rem 1rem 5rem;border-left:1px solid rgba(255,255,255,0.06);overflow-y:auto}
+  .mh-rail-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;padding:0 2px}
   .mh-rail-title{font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,0.35)}
-  .mh-rail-add{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.5);font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;transition:all .15s}
+  .mh-rail-add{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.5);font-size:1.05rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;transition:all .15s}
   .mh-rail-add:hover{background:rgba(0,232,122,0.12);border-color:rgba(0,232,122,0.35);color:#00e87a}
-  .mh-rail-list{display:flex;flex-direction:column;gap:8px}
-  .mh-rail-card{padding:12px 14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);transition:all .15s}
-  .mh-rail-card:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.14)}
-  .mh-rail-card-active{background:rgba(0,232,122,0.05);border-color:rgba(0,232,122,0.25)}
-  .mh-rail-card-active:hover{background:rgba(0,232,122,0.07)}
-  .mh-rail-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
-  .mh-rail-card-label{font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.32)}
-  .mh-rail-card-active .mh-rail-card-label{color:rgba(0,232,122,0.7)}
-  .mh-rail-active-dot{width:5px;height:5px;border-radius:50%;background:#00e87a;box-shadow:0 0 6px rgba(0,232,122,0.8);animation:mh-pulse 2s ease-in-out infinite;flex-shrink:0}
-  .mh-rail-card-addr{font-size:.82rem;font-weight:600;color:rgba(255,255,255,0.65);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px}
-  .mh-rail-card-active .mh-rail-card-addr{color:#f0f4ff}
-  .mh-rail-card-metric{display:flex;align-items:baseline;gap:6px;margin-bottom:8px}
-  .mh-rail-card-value{font-size:1.1rem;font-weight:800;color:#f1f5f9}
-  .mh-rail-card-equity{font-size:.7rem;color:rgba(0,232,122,0.7);font-weight:600}
+  .mh-rail-list{display:flex;flex-direction:column;gap:10px}
+
+  /* RAIL CARD */
+  .mh-rail-card{border-radius:14px;overflow:hidden;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);transition:border-color .15s,box-shadow .15s}
+  .mh-rail-card:hover{border-color:rgba(255,255,255,0.18);box-shadow:0 4px 16px rgba(0,0,0,0.3)}
+  .mh-rail-card-active{border-color:rgba(0,232,122,0.3);box-shadow:0 0 0 1px rgba(0,232,122,0.12)}
+  .mh-rail-card-active:hover{border-color:rgba(0,232,122,0.45)}
+
+  /* THUMBNAIL */
+  .mh-rail-thumb{position:relative;height:108px;background:linear-gradient(135deg,#0d1825 0%,#1c2e48 60%,#0f2035 100%);background-size:cover;background-position:center;overflow:hidden}
+  .mh-rail-thumb-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(5,9,20,0.92) 0%,rgba(5,9,20,0.45) 55%,rgba(0,0,0,0.1) 100%)}
+  .mh-rail-thumb-heading{position:absolute;top:8px;left:10px;display:flex;align-items:center;font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.9);z-index:1;text-shadow:0 1px 4px rgba(0,0,0,0.7);background:rgba(0,0,0,0.35);padding:3px 8px;border-radius:999px;backdrop-filter:blur(4px)}
+  .mh-rail-card-active .mh-rail-thumb-heading{color:#00e87a;background:rgba(0,232,122,0.15);border:1px solid rgba(0,232,122,0.3)}
+  .mh-rail-active-dot{width:5px;height:5px;border-radius:50%;background:#00e87a;box-shadow:0 0 6px rgba(0,232,122,0.9);animation:mh-pulse 2s ease-in-out infinite;flex-shrink:0;display:inline-block}
+  .mh-rail-thumb-badge{position:absolute;top:8px;right:8px;padding:3px 8px;border-radius:999px;font-size:.6rem;font-weight:700;letter-spacing:.05em;z-index:1;backdrop-filter:blur(4px)}
+  .mh-rail-thumb-badge-sale{background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.4);color:rgb(134,239,172)}
+  .mh-rail-thumb-badge-dom{background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.4);color:rgb(253,224,71)}
+  .mh-rail-thumb-address{position:absolute;bottom:0;left:0;right:0;padding:6px 10px 8px;z-index:1}
+  .mh-rail-thumb-street{display:block;font-size:.8rem;font-weight:700;color:#f0f4ff;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,0.8)}
+  .mh-rail-thumb-city{display:block;font-size:.65rem;color:rgba(255,255,255,0.52);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* CARD BODY */
+  .mh-rail-card-body{padding:10px 12px 12px}
+  .mh-rail-card-metric{display:flex;align-items:baseline;gap:7px;margin-bottom:9px}
+  .mh-rail-card-value{font-size:1.15rem;font-weight:800;color:#f1f5f9;line-height:1}
+  .mh-rail-card-equity{font-size:.68rem;color:rgba(0,232,122,0.75);font-weight:600}
+  .mh-rail-badge-buyer{color:rgba(134,239,172,0.85)}
   .mh-rail-card-actions{display:flex;flex-direction:column;gap:5px}
-  .mh-rail-btn{display:block;padding:6px 12px;border-radius:8px;font-size:.75rem;font-weight:700;text-decoration:none;text-align:center;transition:all .15s;font-family:inherit}
-  .mh-rail-btn-score{background:rgba(0,232,122,0.12);color:#00e87a;border:1px solid rgba(0,232,122,0.25)}
-  .mh-rail-btn-score:hover{background:rgba(0,232,122,0.2);border-color:rgba(0,232,122,0.45)}
-  .mh-rail-btn-numbers{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1)}
-  .mh-rail-btn-numbers:hover{background:rgba(255,255,255,0.09);color:#fff}
+  .mh-rail-btn{display:block;padding:7px 12px;border-radius:9px;font-size:.76rem;font-weight:700;text-decoration:none;text-align:center;transition:all .15s;font-family:inherit;letter-spacing:.01em}
+  .mh-rail-btn-score{background:rgba(0,232,122,0.12);color:#00e87a;border:1px solid rgba(0,232,122,0.28)}
+  .mh-rail-btn-score:hover{background:rgba(0,232,122,0.22);border-color:rgba(0,232,122,0.5);color:#00e87a}
+  .mh-rail-btn-numbers{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.62);border:1px solid rgba(255,255,255,0.1)}
+  .mh-rail-btn-numbers:hover{background:rgba(255,255,255,0.09);color:#f0f4ff}
 
   /* BANNERS */
   .mh-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-radius:10px;margin-bottom:16px;font-size:.85rem}
