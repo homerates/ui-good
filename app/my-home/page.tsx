@@ -7,6 +7,7 @@ import Link from 'next/link';
 import ConsumerNav from '../components/ConsumerNav';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import MarketIntelCard from '../components/MarketIntelCard';
+import PortfolioSidebar from '../components/PortfolioSidebar';
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
 
 interface HomeownerProperty {
@@ -1911,18 +1912,60 @@ function MyHomePageInner() {
     setTimeout(() => setLoanSaved(false), 2500);
   }
 
+  // ── AI insight strip — computed from analysis ──────────────────────────────
+  function buildInsightLine(a: AnalysisData): string {
+    const isBuyer = a.listingStatus === 'FOR_SALE' || a.listingStatus === 'PENDING';
+    if (isBuyer) {
+      const spread = (a.listPrice && a.estimatedValue)
+        ? Math.round((a.estimatedValue - a.listPrice) / a.listPrice * 100)
+        : null;
+      if (spread != null && spread >= 3) return `AVM is ${spread}% above ask — priced below Redfin's model. Run the numbers before someone else does.`;
+      if (spread != null && spread <= -3) return `List price is ${Math.abs(spread)}% above Redfin's AVM. Strong seller's market signal — comp analysis matters here.`;
+      if (a.daysOnMarket != null && a.daysOnMarket > 30) return `${a.daysOnMarket} days on market. Seller motivation may be growing — your negotiating position is stronger now than at listing.`;
+      return `${a.listingStatus === 'PENDING' ? 'Pending' : 'Active listing'} — run your numbers to know if this fits your budget before the window closes.`;
+    }
+    if (a.equityPct != null && a.equityPct >= 40 && a.helocMax && a.helocMax > 50_000) {
+      return `${a.equityPct}% equity — ${fmt(a.helocMax)} available for a HELOC at ~${a.helocRate.toFixed(2)}%. Your equity is a liquid asset.`;
+    }
+    if (a.purchaseRate && a.liveRate && a.purchaseRate - a.liveRate > 0.75 && a.refiMonthlySaving > 200) {
+      return `Your rate ${a.purchaseRate.toFixed(2)}% vs today's ${a.liveRate.toFixed(2)}% market. Potential ${fmt(a.refiMonthlySaving)}/mo savings — check refi math tab.`;
+    }
+    if (a.appreciationPct != null && a.appreciationPct > 15) {
+      return `Property up ${a.appreciationPct}% since purchase. ${a.estimatedEquity && a.estimatedEquity > 0 ? `${fmt(a.estimatedEquity)} equity built.` : ''} Wealth momentum is strong.`;
+    }
+    if (a.payoffYear) {
+      const yrs = a.payoffYear - new Date().getFullYear();
+      return `Mortgage free in ${yrs} years (${a.payoffYear}). On track — see milestones tab for your next milestone.`;
+    }
+    return 'Home intelligence loaded. Select a tab to explore your equity, refi timing, or HELOC capacity.';
+  }
+
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-      <div className="mh-root">
+      <div className="mh-root page-standalone">
+
+        {/* ── Top bar ── */}
         <nav className="mh-nav">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <Link href="/" className="mh-logo"><img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" /></Link>
+          <Link href="/" className="mh-logo"><img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.Ai" /></Link>
+          <div className="mh-nav-kicker">Home Intelligence</div>
           <ConsumerNav />
         </nav>
 
-        <div className="mh-shell">
+        {/* ── Two-column layout: content | portfolio rail ── */}
+        <div className="mh-layout">
+
+          {/* ── Main content column ── */}
+          <div className="mh-content">
+
           <SignedOut>
+            {/* ── Hero for signed-out state ── */}
+            <div className="mh-hero mh-hero-signed-out">
+              <div className="mh-hero-kicker">Home Intelligence</div>
+              <h1 className="mh-hero-h1">Every property. One brain.</h1>
+              <p className="mh-hero-sub">Equity, HELOC capacity, refi timing, and buyer intelligence — all in one place. No agent or lender required.</p>
+            </div>
             <div className="mh-signin-box">
               {chipParam ? (
                 <>
@@ -1942,12 +1985,84 @@ function MyHomePageInner() {
                 </>
               )}
               <SignInButton mode="modal">
-                <button className="mh-signin-cta">Sign In — See My Properties</button>
+                <button className="mh-signin-cta">Sign In — See My Home Intelligence</button>
               </SignInButton>
             </div>
           </SignedOut>
 
           <SignedIn>
+
+            {/* ── Hero + command bar ── */}
+            <div className="mh-hero">
+              <div className="mh-hero-kicker">Home Intelligence</div>
+              <h1 className="mh-hero-h1">
+                {borrowerId
+                  ? (analysis?.borrowerName ? `${analysis.borrowerName}'s Home` : 'Borrower Home')
+                  : previewAddress ? 'Property Intelligence'
+                  : 'My Home Intelligence'}
+              </h1>
+
+              {/* Command bar — primary action */}
+              {!borrowerId && (
+                <div className="mh-command-bar">
+                  <AddressAutocomplete
+                    className="mh-command-input"
+                    placeholder="Address, URL, or question — e.g. 'equity on my Irvine home'"
+                    value={newAddress}
+                    onChange={setNewAddress}
+                    onSelect={setNewAddress}
+                    onKeyDown={e => e.key === 'Enter' && newAddress.trim() && addProperty()}
+                  />
+                  <button
+                    className="mh-command-btn"
+                    onClick={() => newAddress.trim() && addProperty()}
+                    disabled={saving || !newAddress.trim()}
+                  >
+                    {saving ? 'Saving…' : 'Analyze →'}
+                  </button>
+                </div>
+              )}
+
+              {/* Quick chips */}
+              {!borrowerId && (
+                <div className="mh-quick-chips">
+                  <button className="mh-qchip" onClick={() => { setNewAddress(''); setTimeout(() => document.querySelector<HTMLInputElement>('.mh-command-input')?.focus(), 60); }}>Paste listing URL</button>
+                  <button className="mh-qchip" onClick={() => activeProperty && setActiveChip('equity')}>Check equity</button>
+                  <button className="mh-qchip" onClick={() => activeProperty && setActiveChip('refi')}>Refi check</button>
+                  <button className="mh-qchip" onClick={() => activeProperty && setActiveChip('heloc')}>HELOC power</button>
+                </div>
+              )}
+            </div>
+
+            {/* ── Lens tabs — property switcher reimagined ── */}
+            {!borrowerId && properties.length > 0 && (
+              <div className="mh-lens-bar">
+                {properties.map((p, idx) => {
+                  const isBuyer = analysis?.listingStatus === 'FOR_SALE' || analysis?.listingStatus === 'PENDING';
+                  const isActive = p.id === activeProperty?.id;
+                  const short = p.property_address.split(',')[0];
+                  const lensLabel = isBuyer && isActive ? 'Researching' : p.is_primary ? 'My Home' : `Property ${idx + 1}`;
+                  return (
+                    <button
+                      key={p.id}
+                      className={`mh-lens${isActive ? ' mh-lens-active' : ''}`}
+                      onClick={() => { if (!isActive) { setActivePropertyId(p.id); setAnalysis(null); } }}
+                    >
+                      <span className="mh-lens-label">{lensLabel}</span>
+                      <span className="mh-lens-addr">{short}</span>
+                      {isActive && properties.length > 1 && (
+                        <button
+                          className="mh-lens-remove"
+                          title="Remove property"
+                          onClick={e => { e.stopPropagation(); removeProperty(p.id); }}
+                        >×</button>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {loading ? (
               <div className="mh-loading">Loading your home profile…</div>
             ) : (
@@ -1982,153 +2097,38 @@ function MyHomePageInner() {
 
                 {/* Preview mode: save CTA — only for off-market/owned properties */}
                 {previewAddress && analysis && analysis.listingStatus !== 'FOR_SALE' && analysis.listingStatus !== 'PENDING' && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 16px', borderRadius: 10, marginBottom: 16, background: 'rgba(0,232,122,0.07)', border: '1px solid rgba(0,232,122,0.2)' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#e0f0e8' }}>Save this property to track value, equity &amp; rate alerts monthly.</span>
+                  <div className="mh-banner mh-banner-green">
+                    <span>Save this property to track value, equity &amp; rate alerts monthly.</span>
                     <SignedIn>
-                      <button
-                        onClick={async () => {
-                          void fetch('/api/homeowner/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: previewAddress }) });
-                          window.location.href = '/my-home';
-                        }}
-                        style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: '#00e87a', color: '#080c12', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                      >
-                        Save Property
-                      </button>
+                      <button className="mh-banner-btn mh-banner-btn-green" onClick={async () => {
+                        void fetch('/api/homeowner/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: previewAddress }) });
+                        window.location.href = '/my-home';
+                      }}>Save Property</button>
                     </SignedIn>
                     <SignedOut>
-                      <SignInButton mode="modal">
-                        <button style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: '#00e87a', color: '#080c12', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          Sign In to Save
-                        </button>
-                      </SignInButton>
+                      <SignInButton mode="modal"><button className="mh-banner-btn mh-banner-btn-green">Sign In to Save</button></SignInButton>
                     </SignedOut>
                   </div>
                 )}
-                {/* Buyer mode: prompt to sign in to get alerts when rate drops */}
                 {previewAddress && analysis && (analysis.listingStatus === 'FOR_SALE' || analysis.listingStatus === 'PENDING') && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 16px', borderRadius: 10, marginBottom: 16, background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.2)' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#bfdbfe' }}>Get a rate alert when 30Y drops — save money before you make an offer.</span>
+                  <div className="mh-banner mh-banner-blue">
+                    <span>Get a rate alert when 30Y drops — save money before you make an offer.</span>
                     <SignedIn>
-                      <button
-                        onClick={() => setShowAlertBox(true)}
-                        style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: '#3b82f6', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                      >
-                        Set Rate Alert
-                      </button>
+                      <button className="mh-banner-btn mh-banner-btn-blue" onClick={() => setShowAlertBox(true)}>Set Rate Alert</button>
                     </SignedIn>
                     <SignedOut>
-                      <SignInButton mode="modal">
-                        <button style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: '#3b82f6', color: '#fff', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          Sign In for Alerts
-                        </button>
-                      </SignInButton>
+                      <SignInButton mode="modal"><button className="mh-banner-btn mh-banner-btn-blue">Sign In for Alerts</button></SignInButton>
                     </SignedOut>
                   </div>
                 )}
 
-                {/* HEADER + PROPERTY SELECTOR */}
-                <div className="mh-header">
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                    <div>
-                      <h1>{borrowerId ? (analysis?.borrowerName ? `${analysis.borrowerName}'s Home` : 'Borrower Home') : previewAddress ? 'Home Analysis' : 'My Properties'}</h1>
-                      <p style={{ marginTop: 4 }}>{borrowerId
-                        ? `Viewing property intelligence for ${analysis?.address ?? '…'}`
-                        : activeProperty
-                          ? `${user?.firstName ? `Hi ${user.firstName}.` : ''} Your property intelligence is below.`
-                        : previewAddress
-                          ? `Property intelligence for ${analysis?.address || previewAddress}`
-                        : hasAddress
-                          ? `${user?.firstName ? `Hi ${user.firstName}.` : ''} Your property intelligence is below.`
-                          : 'Add your address to unlock equity tracking, HELOC capacity, and rate alerts.'
-                      }</p>
-                    </div>
-                    {!borrowerId && (
-                      <button
-                        className="mh-add-prop-btn"
-                        onClick={() => { setAddingNew(v => !v); setTimeout(() => document.querySelector<HTMLInputElement>('.mh-add-form input')?.focus(), 60); }}
-                      >
-                        {addingNew ? '✕ Cancel' : '+ Add property'}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Property pills — shown when ≥1 property */}
-                  {!borrowerId && properties.length > 0 && (
-                    <div className="mh-prop-selector">
-                      {properties.map(p => {
-                        const short = p.property_address.split(',')[0];
-                        const isActive = p.id === activeProperty?.id;
-                        return (
-                          <div key={p.id} className={`mh-prop-pill${isActive ? ' mh-prop-pill-active' : ''}`}>
-                            <button
-                              className="mh-prop-pill-inner"
-                              onClick={() => {
-                                if (!isActive) {
-                                  setActivePropertyId(p.id);
-                                  setAnalysis(null);
-                                }
-                              }}
-                            >
-                              <span>🏠</span>
-                              <span className="mh-prop-pill-addr">{short}</span>
-                              {p.is_primary && <span className="mh-prop-pill-star" title="Primary home">★</span>}
-                            </button>
-                            {/* Context menu: set primary / remove */}
-                            {isActive && properties.length > 1 && (
-                              <div className="mh-prop-pill-actions">
-                                {!p.is_primary && (
-                                  <button
-                                    className="mh-prop-action-btn"
-                                    title="Set as primary"
-                                    onClick={() => setPrimary(p.id)}
-                                  >★</button>
-                                )}
-                                <button
-                                  className="mh-prop-action-btn mh-prop-action-remove"
-                                  title="Remove property"
-                                  onClick={() => removeProperty(p.id)}
-                                >×</button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Add new property form */}
-                  {!borrowerId && addingNew && (
-                    <div className="mh-add-form mh-card" style={{ marginTop: 12, marginBottom: 0 }}>
-                      <div className="mh-card-label">Add a property</div>
-                      <div className="mh-form">
-                        <AddressAutocomplete
-                          className="mh-input"
-                          placeholder="e.g. 1234 Oak Street, Los Angeles, CA 90001"
-                          value={newAddress}
-                          onChange={setNewAddress}
-                          onSelect={setNewAddress}
-                          onKeyDown={e => e.key === 'Enter' && addProperty()}
-                        />
-                        <div className="mh-form-row">
-                          <button className="mh-save-btn" onClick={addProperty} disabled={saving || !newAddress.trim()}>
-                            {saving ? 'Saving…' : 'Add →'}
-                          </button>
-                          <button className="mh-cancel-btn" onClick={() => { setAddingNew(false); setNewAddress(''); }}>
-                            Cancel
-                          </button>
-                        </div>
-                        {saved && <div className="mh-saved-msg">Property added!</div>}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* ── INTELLIGENCE HERO — shown when analysis is loaded ── */}
+                {/* ── PROPERTY INTELLIGENCE CARD ── */}
                 {analysis && !analysisLoading && (() => {
                   const isBuyer = analysis.listingStatus === 'FOR_SALE' || analysis.listingStatus === 'PENDING';
                   const heroAddr = analysis.address || previewAddress || activeProperty?.property_address || '';
+                  const insightLine = buildInsightLine(analysis);
                   return (
-                    <div style={{ background: '#0f172a', borderRadius: 16, marginBottom: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.4)', overflow: 'hidden' }}>
+                    <div className="mh-intel-card">
                       {/* Accent line */}
                       <div style={{ height: 3, background: isBuyer ? 'linear-gradient(90deg,#3b82f6,#6366f1)' : 'linear-gradient(90deg,#00e87a,#00b459)' }} />
 
@@ -2175,81 +2175,92 @@ function MyHomePageInner() {
                         </div>
                       )}
 
-                      {/* Hero headline: ONE big number + secondary metric + mini equity bar */}
-                      <div style={{ padding: '18px 18px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {/* ── 4-KPI row ── */}
+                      <div className="mh-kpi-row">
                         {isBuyer ? (
-                          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                            <div>
-                              <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#60a5fa', lineHeight: 1 }}>
+                          <>
+                            <div className="mh-kpi">
+                              <div className="mh-kpi-label">List Price</div>
+                              <div className="mh-kpi-value" style={{ color: '#60a5fa' }}>
                                 {analysis.listPrice ? `$${Math.round(analysis.listPrice).toLocaleString()}` : (analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—')}
                               </div>
-                              <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#eaf8f7', marginTop: 4 }}>List Price</div>
+                              {analysis.beds && <div className="mh-kpi-sub">{analysis.beds}bd / {analysis.baths}ba{analysis.sqft ? ` · ${analysis.sqft.toLocaleString()} sqft` : ''}</div>}
                             </div>
-                            <div style={{ textAlign: 'right' }}>
-                              {analysis.estimatedValue && (
-                                <>
-                                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f1f5f9' }}>
-                                    {`$${Math.round(analysis.estimatedValue).toLocaleString()}`}
-                                    {analysis.daysOnMarket != null && <span style={{ fontSize: '0.78rem', color: '#f59e0b', marginLeft: 8, fontWeight: 600 }}>{analysis.daysOnMarket}d</span>}
-                                  </div>
-                                  <div style={{ fontSize: '0.65rem', color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Redfin AVM · Days on Mkt</div>
-                                </>
-                              )}
+                            <div className="mh-kpi">
+                              <div className="mh-kpi-label">Redfin AVM</div>
+                              <div className="mh-kpi-value" style={{ color: '#f1f5f9' }}>
+                                {analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—'}
+                              </div>
+                              {analysis.estimatedValue && analysis.listPrice && <div className="mh-kpi-sub" style={{ color: analysis.estimatedValue >= analysis.listPrice ? '#22c55e' : '#f97066' }}>
+                                {Math.round((analysis.estimatedValue - analysis.listPrice) / analysis.listPrice * 100) > 0 ? '+' : ''}{Math.round((analysis.estimatedValue - analysis.listPrice) / analysis.listPrice * 100)}% vs ask
+                              </div>}
                             </div>
-                          </div>
+                            <div className="mh-kpi">
+                              <div className="mh-kpi-label">Days on Market</div>
+                              <div className="mh-kpi-value" style={{ color: analysis.daysOnMarket != null && analysis.daysOnMarket > 30 ? '#f59e0b' : '#f1f5f9' }}>
+                                {analysis.daysOnMarket != null ? `${analysis.daysOnMarket}d` : '—'}
+                              </div>
+                              <div className="mh-kpi-sub">{analysis.listingStatus === 'PENDING' ? 'Pending' : 'Active'}</div>
+                            </div>
+                            <div className="mh-kpi">
+                              <div className="mh-kpi-label">Market Rate</div>
+                              <div className="mh-kpi-value">{analysis.liveRate.toFixed(2)}%</div>
+                              <div className="mh-kpi-sub">30yr fixed</div>
+                            </div>
+                          </>
                         ) : (
                           <>
-                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                              <div>
-                                <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#00e87a', lineHeight: 1 }}>
-                                  {analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—'}
-                                </div>
-                                <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#eaf8f7', marginTop: 4 }}>
-                                  {analysis.avmSource === 'attom' ? 'ATTOM AVM' : analysis.avmSource === 'attom_assessed' ? 'ATTOM Assessed' : 'Est. Value'}
-                                </div>
+                            <div className="mh-kpi">
+                              <div className="mh-kpi-label">Est. Value</div>
+                              <div className="mh-kpi-value" style={{ color: '#00e87a' }}>
+                                {analysis.estimatedValue ? `$${Math.round(analysis.estimatedValue).toLocaleString()}` : '—'}
                               </div>
-                              <div style={{ textAlign: 'right' }}>
-                                {analysis.estimatedEquity != null && analysis.estimatedEquity >= 0 ? (
-                                  <>
-                                    <div>
-                                      <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f1f5f9' }}>{fmt(analysis.estimatedEquity)}</span>
-                                      {analysis.appreciationPct != null && <span style={{ fontSize: '0.78rem', color: '#00e87a', marginLeft: 6, fontWeight: 600 }}>+{analysis.appreciationPct}%</span>}
-                                    </div>
-                                    <div style={{ fontSize: '0.65rem', color: '#eaf8f7', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>Total Equity</div>
-                                  </>
-                                ) : analysis.estimatedEquity == null && !borrowerId ? (
-                                  <button onClick={openLoanEditor} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#eaf8f7', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '6px 12px', lineHeight: 1.4 }}>Add balance →</button>
-                                ) : null}
+                              {analysis.appreciationPct != null && <div className="mh-kpi-sub" style={{ color: analysis.appreciationPct >= 0 ? '#22c55e' : '#f97066' }}>{analysis.appreciationPct > 0 ? '+' : ''}{analysis.appreciationPct}% since purchase</div>}
+                            </div>
+                            <div className="mh-kpi">
+                              <div className="mh-kpi-label">Equity</div>
+                              <div className="mh-kpi-value">
+                                {analysis.estimatedEquity != null && analysis.estimatedEquity >= 0 ? fmt(analysis.estimatedEquity)
+                                  : analysis.estimatedEquity != null && analysis.estimatedEquity < 0 ? <span style={{ color: '#f97066' }}>Underwater</span>
+                                  : <button onClick={openLoanEditor} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#eaf8f7', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', padding: '3px 8px' }}>Add balance →</button>}
+                              </div>
+                              {analysis.equityPct != null && <div className="mh-kpi-sub">{analysis.equityPct}% · {analysis.helocMax && analysis.helocMax > 10_000 ? 'HELOC ready' : 'building'}</div>}
+                            </div>
+                            <div className="mh-kpi">
+                              <div className="mh-kpi-label">Rate vs Market</div>
+                              <div className="mh-kpi-value">
+                                {analysis.purchaseRate ? `${analysis.purchaseRate.toFixed(2)}%` : '—'}
+                                <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500, marginLeft: 6 }}>vs {analysis.liveRate.toFixed(2)}%</span>
+                              </div>
+                              <div className="mh-kpi-sub" style={{ color: analysis.purchaseRate && analysis.purchaseRate <= analysis.liveRate ? '#22c55e' : '#f59e0b' }}>
+                                {analysis.purchaseRate && analysis.purchaseRate <= analysis.liveRate ? 'Below market — hold' : analysis.refiMonthlySaving > 0 ? `${fmt(analysis.refiMonthlySaving)}/mo savings` : 'Check refi'}
                               </div>
                             </div>
-                            {/* Mini equity bar */}
-                            {analysis.equityPct != null && analysis.estimatedEquity != null && analysis.estimatedEquity >= 0 && (
-                              <div style={{ marginTop: 14 }}>
-                                <div style={{ height: 4, background: 'rgba(255,255,255,0.07)', borderRadius: 999, overflow: 'hidden' }}>
-                                  <div style={{ height: '100%', width: `${Math.min(analysis.equityPct, 100)}%`, background: 'linear-gradient(90deg,#00e87a,#00b459)', borderRadius: 999 }} />
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, fontSize: '0.65rem' }}>
-                                  <span style={{ color: '#eaf8f7' }}>{analysis.equityPct}% equity</span>
-                                  <span style={{ color: '#eaf8f7' }}>
-                                    {analysis.estimatedBalance ? `${fmt(analysis.estimatedBalance)} ${analysis.balanceIsEstimated ? 'est.' : ''} balance` : ''}
-                                    {analysis.balanceIsEstimated && !borrowerId && (
-                                      <> · <button onClick={openLoanEditor} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00e87a', fontWeight: 600, fontSize: '0.65rem', padding: 0 }}>Enter actual →</button></>
-                                    )}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                            {/* Underwater warning */}
-                            {analysis.estimatedEquity != null && analysis.estimatedEquity < 0 && (
-                              <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8 }}>
-                                <div style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 700 }}>⚠️ Property is currently underwater</div>
-                                <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: 3 }}>
-                                  Balance exceeds estimated value by {analysis.estimatedBalance && analysis.estimatedValue ? `$${Math.round(Math.abs(analysis.estimatedBalance - analysis.estimatedValue) / 1000)}K` : '—'}.
-                                </div>
-                              </div>
-                            )}
+                            <div className="mh-kpi">
+                              <div className="mh-kpi-label">PITI</div>
+                              <div className="mh-kpi-value">{analysis.piti ? `${fmt(analysis.piti)}/mo` : '—'}</div>
+                              {analysis.balanceIsEstimated && <div className="mh-kpi-sub">
+                                {analysis.estimatedBalance ? fmt(analysis.estimatedBalance) + ' est. bal.' : ''}
+                                {!borrowerId && <> · <button onClick={openLoanEditor} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00e87a', fontWeight: 600, fontSize: '0.65rem', padding: 0 }}>Enter actual →</button></>}
+                              </div>}
+                            </div>
                           </>
                         )}
+                      </div>
+
+                      {/* Equity bar (homeowner only) */}
+                      {!isBuyer && analysis.equityPct != null && analysis.estimatedEquity != null && analysis.estimatedEquity >= 0 && (
+                        <div style={{ padding: '0 18px 14px' }}>
+                          <div style={{ height: 4, background: 'rgba(255,255,255,0.07)', borderRadius: 999, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${Math.min(analysis.equityPct, 100)}%`, background: 'linear-gradient(90deg,#00e87a,#00b459)', borderRadius: 999 }} />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* AI insight strip */}
+                      <div className="mh-insight-strip">
+                        <div className="mh-insight-dot" />
+                        <div className="mh-insight-text">{insightLine}</div>
                       </div>
 
                         {/* CTA buttons — full-width stretch */}
@@ -2474,12 +2485,9 @@ function MyHomePageInner() {
                             className="mh-save-btn"
                             style={{ width: 'auto', padding: '10px 28px' }}
                             onClick={() => {
-                              setAddingNew(true);
-                              setTimeout(() => {
-                                const el = document.querySelector<HTMLInputElement>('.mh-add-form input');
-                                el?.focus();
-                                el?.closest('.mh-add-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                              }, 60);
+                              const el = document.querySelector<HTMLInputElement>('.mh-command-input');
+                              el?.focus();
+                              el?.closest('.mh-command-bar')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             }}
                           >
                             Add my property →
@@ -2667,8 +2675,19 @@ function MyHomePageInner() {
               </>
             )}
           </SignedIn>
-        </div>
-      </div>
+          </div>{/* end mh-content */}
+
+          {/* ── My Decision Portfolio rail ── */}
+          <PortfolioSidebar
+            activeAddress={analysis?.address ?? activeProperty?.property_address ?? null}
+            onNewJourney={() => { window.location.href = '/chat?pl=1'; }}
+            onResume={(item) => {
+              if (item.address) window.location.href = `/chat?sq=${encodeURIComponent(item.address)}&from=%2Fmy-home&fromLabel=Home+Intelligence`;
+            }}
+          />
+
+        </div>{/* end mh-layout */}
+      </div>{/* end mh-root */}
 
       {/* Market Intelligence loading overlay */}
       {marketIntelLoading && <MarketIntelLoader />}
@@ -2696,50 +2715,95 @@ export default function MyHomePage() {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const CSS = `
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  html:has(.mh-root){height:auto!important;overflow:visible!important}
-  body:has(.mh-root){display:block!important;height:auto!important;overflow:visible!important;background:#0a0a0f!important}
-  .mh-root{min-height:100vh;background:#0a0a0f;color:#f0f0f0;font-family:'Inter',system-ui,sans-serif}
+  .mh-root{min-height:100vh;background:#080c12;color:#f0f4ff;font-family:'DM Sans',system-ui,sans-serif}
 
-  .mh-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:56px;background:rgba(10,10,15,0.95);border-bottom:1px solid rgba(255,255,255,0.07)}
-  .mh-logo img{height:26px;display:block}
-  .mh-shell{max-width:760px;margin:0 auto;padding:3rem 1.5rem 5rem}
+  /* TOP BAR */
+  .mh-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;background:rgba(8,12,18,0.95);border-bottom:1px solid rgba(255,255,255,0.07);backdrop-filter:blur(8px)}
+  .mh-logo img{height:24px;display:block}
+  .mh-nav-kicker{font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(0,232,122,0.6);margin-left:12px;flex:1}
 
-  .mh-signin-box{text-align:center;padding:5rem 2rem;border:1px solid rgba(255,255,255,0.08);border-radius:20px;background:rgba(255,255,255,0.02)}
-  .mh-signin-box h2{font-size:1.6rem;font-weight:700;margin-bottom:.75rem}
-  .mh-signin-box p{color:rgba(255,255,255,0.55);margin-bottom:2rem;font-size:.95rem}
-  .mh-signin-cta{display:inline-block;padding:.75rem 2rem;background:#22c55e;color:#000;font-weight:700;border-radius:10px;font-size:1rem;cursor:pointer;border:none}
-  .mh-loading{text-align:center;padding:6rem 0;color:rgba(255,255,255,0.4);font-size:.95rem}
+  /* TWO-COLUMN LAYOUT */
+  .mh-layout{display:flex;min-height:calc(100vh - 56px);align-items:stretch}
+  .mh-content{flex:1;min-width:0;padding:2rem 1.75rem 5rem;max-width:820px}
 
-  .mh-header{margin-bottom:2rem}
-  .mh-header h1{font-size:2rem;font-weight:800;letter-spacing:-.03em;margin-bottom:.4rem}
-  .mh-header p{color:rgba(255,255,255,0.5);font-size:.95rem}
+  /* HERO */
+  .mh-hero{margin-bottom:2rem}
+  .mh-hero-kicker{font-size:.65rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(0,232,122,0.7);margin-bottom:.5rem}
+  .mh-hero-h1{font-size:2.2rem;font-weight:800;letter-spacing:-.04em;color:#f0f4ff;line-height:1.1;margin-bottom:.6rem}
+  .mh-hero-sub{font-size:.95rem;color:rgba(255,255,255,0.45);line-height:1.6;max-width:520px}
+  .mh-hero-signed-out{text-align:center;padding-top:2rem}
+  .mh-hero-signed-out .mh-hero-h1{font-size:2.8rem}
+  .mh-hero-signed-out .mh-hero-kicker,.mh-hero-signed-out .mh-hero-sub{margin-left:auto;margin-right:auto}
 
+  /* COMMAND BAR */
+  .mh-command-bar{display:flex;gap:10px;background:rgba(255,255,255,0.04);border:1.5px solid rgba(0,232,122,0.35);border-radius:14px;padding:6px 6px 6px 16px;margin-top:1.25rem;box-shadow:0 0 0 0 rgba(0,232,122,0);transition:box-shadow .2s,border-color .2s}
+  .mh-command-bar:focus-within{border-color:rgba(0,232,122,0.7);box-shadow:0 0 24px rgba(0,232,122,0.12)}
+  .mh-command-input{flex:1;background:transparent;border:none;outline:none;color:#f0f4ff;font-size:.95rem;font-family:inherit;padding:8px 0}
+  .mh-command-input::placeholder{color:rgba(255,255,255,0.28)}
+  .mh-command-btn{flex-shrink:0;padding:9px 22px;background:#00e87a;color:#080c12;border:none;border-radius:10px;font-weight:800;font-size:.88rem;cursor:pointer;font-family:inherit;transition:opacity .15s}
+  .mh-command-btn:disabled{opacity:.4;cursor:not-allowed}
+
+  /* QUICK CHIPS */
+  .mh-quick-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:.85rem}
+  .mh-qchip{padding:5px 13px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:999px;color:rgba(255,255,255,0.55);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+  .mh-qchip:hover{background:rgba(255,255,255,0.09);color:#fff;border-color:rgba(255,255,255,0.22)}
+
+  /* LENS TABS */
+  .mh-lens-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem}
+  .mh-lens{display:flex;flex-direction:column;align-items:flex-start;padding:10px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s;position:relative;min-width:120px}
+  .mh-lens:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.18)}
+  .mh-lens-active{background:rgba(0,232,122,0.07);border-color:rgba(0,232,122,0.35)}
+  .mh-lens-label{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:2px}
+  .mh-lens-active .mh-lens-label{color:rgba(0,232,122,0.7)}
+  .mh-lens-addr{font-size:.8rem;font-weight:600;color:rgba(255,255,255,0.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+  .mh-lens-active .mh-lens-addr{color:#f0f4ff}
+  .mh-lens-remove{position:absolute;top:6px;right:8px;background:none;border:none;color:rgba(255,255,255,0.25);font-size:14px;cursor:pointer;line-height:1;padding:2px;font-family:inherit}
+  .mh-lens-remove:hover{color:#f97066}
+
+  /* BANNERS */
+  .mh-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-radius:10px;margin-bottom:16px;font-size:.85rem}
+  .mh-banner-green{background:rgba(0,232,122,0.07);border:1px solid rgba(0,232,122,0.2);color:#e0f0e8}
+  .mh-banner-blue{background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.2);color:#bfdbfe}
+  .mh-banner-btn{padding:6px 16px;border-radius:999px;border:none;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit}
+  .mh-banner-btn-green{background:#00e87a;color:#080c12}
+  .mh-banner-btn-blue{background:#3b82f6;color:#fff}
+
+  /* PROPERTY INTELLIGENCE CARD */
+  .mh-intel-card{background:#0f172a;border-radius:16px;margin-bottom:1.25rem;box-shadow:0 4px 24px rgba(0,0,0,0.4);overflow:hidden;border:1px solid rgba(255,255,255,0.06)}
+
+  /* 4-KPI ROW */
+  .mh-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,0.06)}
+  .mh-kpi{padding:0 12px}
+  .mh-kpi:first-child{padding-left:0}
+  .mh-kpi:last-child{padding-right:0}
+  .mh-kpi+.mh-kpi{border-left:1px solid rgba(255,255,255,0.07)}
+  .mh-kpi-label{font-size:.6rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,0.32);margin-bottom:4px}
+  .mh-kpi-value{font-size:1.2rem;font-weight:800;color:#f1f5f9;line-height:1.1;white-space:nowrap}
+  .mh-kpi-sub{font-size:.68rem;color:rgba(255,255,255,0.38);margin-top:3px;line-height:1.3}
+
+  /* AI INSIGHT STRIP */
+  .mh-insight-strip{display:flex;align-items:center;gap:10px;padding:12px 18px;background:rgba(0,232,122,0.04);border-bottom:1px solid rgba(255,255,255,0.06)}
+  .mh-insight-dot{width:7px;height:7px;border-radius:50%;background:#00e87a;flex-shrink:0;box-shadow:0 0 8px rgba(0,232,122,0.6);animation:mh-pulse 2s ease-in-out infinite}
+  @keyframes mh-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .mh-insight-text{font-size:.82rem;color:rgba(240,244,255,0.75);line-height:1.4}
+
+  /* SIGN IN */
+  .mh-signin-box{text-align:center;padding:4rem 2rem;border:1px solid rgba(255,255,255,0.08);border-radius:20px;background:rgba(255,255,255,0.02);margin-top:2rem}
+  .mh-signin-box h2{font-size:1.5rem;font-weight:700;margin-bottom:.75rem}
+  .mh-signin-box p{color:rgba(255,255,255,0.5);margin-bottom:2rem;font-size:.9rem;line-height:1.5}
+  .mh-signin-cta{display:inline-block;padding:.8rem 2.2rem;background:#00e87a;color:#080c12;font-weight:800;border-radius:10px;font-size:.95rem;cursor:pointer;border:none;font-family:inherit}
+  .mh-loading{text-align:center;padding:6rem 0;color:rgba(255,255,255,0.35);font-size:.9rem}
+
+  /* CARD */
   .mh-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:1.75rem 2rem;margin-bottom:1.25rem}
   .mh-card-label{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:.75rem}
-
-  .mh-address-display{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
-  .mh-address-text{font-size:1.1rem;font-weight:600;color:#fff}
-  .mh-edit-btn{font-size:.8rem;color:rgba(255,255,255,0.45);background:rgba(255,255,255,0.06);border:none;border-radius:6px;padding:.3rem .75rem;cursor:pointer}
-  .mh-edit-btn:hover{color:#fff;background:rgba(255,255,255,0.1)}
-
-  .mh-form{display:flex;flex-direction:column;gap:.75rem}
-  .mh-input{width:100%;padding:.75rem 1rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:.95rem;outline:none}
-  .mh-input:focus{border-color:#22c55e}
-  .mh-input::placeholder{color:rgba(255,255,255,0.3)}
-  .mh-form-row{display:flex;gap:.75rem}
-  .mh-save-btn{flex:1;padding:.75rem;background:#22c55e;color:#000;font-weight:700;border:none;border-radius:10px;cursor:pointer;font-size:.95rem}
-  .mh-save-btn:disabled{opacity:.5;cursor:not-allowed}
-  .mh-cancel-btn{padding:.75rem 1.25rem;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:none;border-radius:10px;cursor:pointer}
-  .mh-saved-msg{font-size:.8rem;color:#22c55e;text-align:center}
-  .mh-no-address h2{font-size:1.2rem;font-weight:700;margin-bottom:.4rem}
-  .mh-no-address p{color:rgba(255,255,255,0.5);font-size:.9rem;margin-bottom:1.25rem;line-height:1.6}
 
   /* CHIP NAV */
   .mh-chip-bar{display:flex;gap:6px;overflow-x:auto;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.07);scrollbar-width:none}
   .mh-chip-bar::-webkit-scrollbar{display:none}
-  .mh-chip{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.55);transition:all .15s}
+  .mh-chip{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.55);transition:all .15s;font-family:inherit}
   .mh-chip:hover{background:rgba(255,255,255,0.08);color:#fff;border-color:rgba(255,255,255,0.2)}
-  .mh-chip-active{background:rgba(34,197,94,0.12);color:#22c55e;border-color:rgba(34,197,94,0.35)}
+  .mh-chip-active{background:rgba(0,232,122,0.1);color:#00e87a;border-color:rgba(0,232,122,0.35)}
   .mh-chip-active-buyer{background:rgba(59,130,246,0.12);color:#60a5fa;border-color:rgba(59,130,246,0.35)}
   .mh-chip-dim{opacity:0.3;pointer-events:none}
   .mh-chip-icon{font-size:.85rem}
@@ -2747,44 +2811,40 @@ const CSS = `
   /* LOCKED PREVIEW */
   .mh-preview-wrap{position:relative;padding-bottom:24px}
   .mh-preview-ghost{opacity:0.18;pointer-events:none;user-select:none;filter:blur(2px)}
-  .mh-preview-cta{text-align:center;padding:28px 24px 8px;color:#f0f0f0}
-
-  /* PROPERTY SELECTOR */
-  .mh-add-prop-btn{flex-shrink:0;padding:7px 14px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:999px;color:#22c55e;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s}
-  .mh-add-prop-btn:hover{background:rgba(34,197,94,0.18)}
-  .mh-prop-selector{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-  .mh-prop-pill{display:flex;align-items:center;border-radius:999px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);overflow:hidden;transition:border-color .15s}
-  .mh-prop-pill-active{border-color:rgba(34,197,94,0.4);background:rgba(34,197,94,0.07)}
-  .mh-prop-pill-inner{display:flex;align-items:center;gap:6px;padding:7px 14px;background:none;border:none;color:rgba(255,255,255,0.6);font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap}
-  .mh-prop-pill-active .mh-prop-pill-inner{color:#22c55e}
-  .mh-prop-pill-addr{max-width:160px;overflow:hidden;text-overflow:ellipsis}
-  .mh-prop-pill-star{font-size:.7rem;color:#eab308;margin-left:2px}
-  .mh-prop-pill-actions{display:flex;gap:0;border-left:1px solid rgba(255,255,255,0.08)}
-  .mh-prop-action-btn{padding:7px 10px;background:none;border:none;color:rgba(255,255,255,0.3);font-size:.85rem;cursor:pointer;transition:color .15s;font-family:inherit}
-  .mh-prop-action-btn:hover{color:rgba(255,255,255,0.7)}
-  .mh-prop-action-remove:hover{color:#f97066}
-  .mh-add-form{margin-top:0}
+  .mh-preview-cta{text-align:center;padding:28px 24px 8px;color:#f0f4ff}
 
   /* CHIP BODY */
   .mh-chip-body{padding:24px}
   .mh-chip-footer{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;border-top:1px solid rgba(255,255,255,0.07)}
-  .mh-refresh-btn{font-size:.8rem;color:rgba(255,255,255,0.4);background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px}
+  .mh-refresh-btn{font-size:.8rem;color:rgba(255,255,255,0.4);background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px;font-family:inherit}
   .mh-refresh-btn:hover{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.06)}
+
+  /* FORMS */
+  .mh-form{display:flex;flex-direction:column;gap:.75rem}
+  .mh-input{width:100%;padding:.75rem 1rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:.95rem;outline:none;font-family:inherit}
+  .mh-input:focus{border-color:#00e87a}
+  .mh-input::placeholder{color:rgba(255,255,255,0.3)}
+  .mh-form-row{display:flex;gap:.75rem}
+  .mh-save-btn{flex:1;padding:.75rem;background:#00e87a;color:#080c12;font-weight:700;border:none;border-radius:10px;cursor:pointer;font-size:.95rem;font-family:inherit}
+  .mh-save-btn:disabled{opacity:.5;cursor:not-allowed}
+  .mh-cancel-btn{padding:.75rem 1.25rem;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:none;border-radius:10px;cursor:pointer;font-family:inherit}
+  .mh-saved-msg{font-size:.8rem;color:#00e87a;text-align:center}
+  .mh-add-form{margin-top:0}
 
   /* LOAN EDITOR */
   .mh-loan-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
   .mh-loan-field{display:flex;flex-direction:column;gap:.3rem}
   .mh-loan-label{font-size:.72rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:rgba(255,255,255,0.4)}
   .mh-est-notice{font-size:.78rem;color:rgba(255,255,255,0.4);background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.15);border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.5}
-  .mh-inline-btn{background:none;border:none;cursor:pointer;color:#eab308;font-size:.78rem;text-decoration:underline;padding:0}
+  .mh-inline-btn{background:none;border:none;cursor:pointer;color:#eab308;font-size:.78rem;text-decoration:underline;padding:0;font-family:inherit}
   @media(max-width:600px){.mh-loan-grid{grid-template-columns:1fr}}
 
   /* LOADING / ERROR */
   .mh-analysis-loading{display:flex;align-items:center;gap:12px;color:rgba(255,255,255,0.45);font-size:.9rem;padding:2rem 0}
-  .mh-spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,0.1);border-top-color:#22c55e;border-radius:50%;animation:mh-spin .7s linear infinite;flex-shrink:0}
+  .mh-spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,0.1);border-top-color:#00e87a;border-radius:50%;animation:mh-spin .7s linear infinite;flex-shrink:0}
   @keyframes mh-spin{to{transform:rotate(360deg)}}
   .mh-analysis-err{color:rgba(255,95,95,.8);font-size:.875rem;display:flex;align-items:center;gap:12px;padding:.75rem 0}
-  .mh-retry-btn{font-size:.8rem;padding:.3rem .75rem;background:rgba(255,95,95,.12);color:rgba(255,95,95,.8);border:1px solid rgba(255,95,95,.2);border-radius:6px;cursor:pointer}
+  .mh-retry-btn{font-size:.8rem;padding:.3rem .75rem;background:rgba(255,95,95,.12);color:rgba(255,95,95,.8);border:1px solid rgba(255,95,95,.2);border-radius:6px;cursor:pointer;font-family:inherit}
 
   /* STATS GRID */
   .mh-stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -2809,10 +2869,9 @@ const CSS = `
   .mh-section-sub-label{font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,0.35)}
   .mh-empty-note{font-size:.875rem;color:rgba(255,255,255,0.4);line-height:1.6;padding:.5rem 0}
   .mh-footnote{font-size:.72rem;color:rgba(255,255,255,0.3);margin-top:10px;line-height:1.5}
-  .mh-inline-link{color:#22c55e;text-decoration:none}
-  .mh-cta-link{color:#22c55e;font-size:.875rem;font-weight:600;text-decoration:none}
+  .mh-inline-link{color:#00e87a;text-decoration:none}
+  .mh-cta-link{color:#00e87a;font-size:.875rem;font-weight:600;text-decoration:none}
   .mh-cta-link:hover{opacity:.8}
-
   .mh-highlight-box{padding:16px;border-radius:10px;border:1px solid rgba(255,255,255,0.08)}
   .mh-highlight-title{font-size:.75rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px}
 
@@ -2827,7 +2886,7 @@ const CSS = `
   .mh-milestone-dot{width:10px;height:10px;border-radius:50%;margin-top:4px;flex-shrink:0}
   .mh-milestone-body{flex:1}
   .mh-milestone-label{font-size:.9rem;font-weight:700;display:flex;align-items:center;gap:8px}
-  .mh-milestone-done-badge{font-size:.7rem;font-weight:600;color:#22c55e;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);border-radius:4px;padding:1px 7px}
+  .mh-milestone-done-badge{font-size:.7rem;font-weight:600;color:#00e87a;background:rgba(0,232,122,0.12);border:1px solid rgba(0,232,122,0.25);border-radius:4px;padding:1px 7px}
   .mh-milestone-detail{font-size:.8rem;color:rgba(255,255,255,0.45);margin-top:3px}
 
   /* DIGEST */
@@ -2837,13 +2896,25 @@ const CSS = `
   .mh-toggle{position:relative;width:48px;height:26px;flex-shrink:0}
   .mh-toggle input{opacity:0;width:0;height:0;position:absolute}
   .mh-toggle-track{position:absolute;inset:0;background:rgba(255,255,255,0.12);border-radius:13px;cursor:pointer;transition:background .25s}
-  .mh-toggle input:checked+.mh-toggle-track{background:#22c55e}
+  .mh-toggle input:checked+.mh-toggle-track{background:#00e87a}
   .mh-toggle-track::after{content:'';position:absolute;left:3px;top:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .25s}
   .mh-toggle input:checked+.mh-toggle-track::after{transform:translateX(22px)}
 
-  @media(max-width:600px){
-    .mh-shell{padding:2rem 1rem 4rem}
-    .mh-header h1{font-size:1.5rem}
+  /* RESPONSIVE */
+  @media(max-width:1099px){.mh-layout{display:block}}
+  @media(max-width:768px){
+    .mh-content{padding:1.5rem 1.25rem 4rem}
+    .mh-hero-h1{font-size:1.7rem}
+    .mh-kpi-row{grid-template-columns:1fr 1fr;gap:8px}
+    .mh-kpi+.mh-kpi{border-left:none}
+    .mh-kpi{padding:0}
+    .mh-kpi-row{padding:14px}
+    .mh-lens-bar{gap:6px}
+    .mh-lens{min-width:100px;padding:8px 12px}
+  }
+  @media(max-width:500px){
+    .mh-hero-h1{font-size:1.45rem}
+    .mh-kpi-row{grid-template-columns:1fr 1fr}
     .mh-stat-row{grid-template-columns:1fr 1fr}
     .mh-stat-row .mh-stat:last-child{grid-column:span 2}
     .mh-compare-row{flex-direction:column;gap:10px}
