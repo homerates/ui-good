@@ -7,7 +7,6 @@ import Link from 'next/link';
 import ConsumerNav from '../components/ConsumerNav';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import MarketIntelCard from '../components/MarketIntelCard';
-import PortfolioSidebar from '../components/PortfolioSidebar';
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
 
 interface HomeownerProperty {
@@ -1426,6 +1425,72 @@ function openBuyerChat(chatUrl: string, address: string, price: number | null, r
   .catch(() => {});
 }
 
+// ── My Home Rail ─────────────────────────────────────────────────────────────
+
+interface MyHomeRailProps {
+  properties: HomeownerProperty[];
+  activePropertyId: string | null;
+  analysis: AnalysisData | null;
+  onSelectProperty: (id: string) => void;
+  onAddProperty: () => void;
+}
+
+function MyHomeRail({ properties, activePropertyId, analysis, onSelectProperty, onAddProperty }: MyHomeRailProps) {
+  if (properties.length === 0) return null;
+
+  return (
+    <aside className="mh-rail">
+      <div className="mh-rail-header">
+        <span className="mh-rail-title">My Properties</span>
+        <button className="mh-rail-add" title="Add property" onClick={onAddProperty}>+</button>
+      </div>
+      <div className="mh-rail-list">
+        {properties.map((p, idx) => {
+          const isActive = p.id === activePropertyId || (!activePropertyId && p.is_primary && idx === 0);
+          const isBuyer = isActive && (analysis?.listingStatus === 'FOR_SALE' || analysis?.listingStatus === 'PENDING');
+          const lensLabel = isBuyer ? 'Researching' : p.is_primary ? 'My Home' : `Property ${idx + 1}`;
+          const short = p.property_address.split(',')[0];
+          const valueNum = isActive ? (analysis?.estimatedValue ?? p.actual_value) : p.actual_value;
+          const displayValue = valueNum ? `$${valueNum >= 1_000_000 ? (valueNum / 1_000_000).toFixed(2) + 'M' : Math.round(valueNum / 1000) + 'K'}` : null;
+          const equityPct = isActive ? analysis?.equityPct : null;
+
+          const sid = lsGetPiSid(p.property_address);
+          const piHref = `/property-intel?address=${encodeURIComponent(p.property_address)}${sid ? `&sid=${sid}` : ''}`;
+          const chatParams = new URLSearchParams({ sq: `Run my numbers for ${p.property_address}` });
+          const chatHref = `/chat?${chatParams.toString()}`;
+
+          return (
+            <div
+              key={p.id}
+              className={`mh-rail-card${isActive ? ' mh-rail-card-active' : ''}`}
+              onClick={() => !isActive && onSelectProperty(p.id)}
+              style={{ cursor: isActive ? 'default' : 'pointer' }}
+            >
+              <div className="mh-rail-card-top">
+                <span className="mh-rail-card-label">{lensLabel}</span>
+                {isActive && <span className="mh-rail-active-dot"/>}
+              </div>
+              <div className="mh-rail-card-addr">{short}</div>
+              {displayValue && (
+                <div className="mh-rail-card-metric">
+                  <span className="mh-rail-card-value">{displayValue}</span>
+                  {equityPct != null && <span className="mh-rail-card-equity">{equityPct.toFixed(0)}% equity</span>}
+                </div>
+              )}
+              {isActive && (
+                <div className="mh-rail-card-actions">
+                  <a href={piHref} className="mh-rail-btn mh-rail-btn-score">View Full Score →</a>
+                  <a href={chatHref} target="_blank" rel="noopener noreferrer" className="mh-rail-btn mh-rail-btn-numbers">Run My Numbers</a>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 function MyHomePageInner() {
@@ -1443,6 +1508,8 @@ function MyHomePageInner() {
   const [addingNew, setAddingNew]             = useState(false);
   const [saving, setSaving]                   = useState(false);
   const [saved, setSaved]                     = useState(false);
+  const [lensDrawerOpen, setLensDrawerOpen]   = useState(false);
+  const lensDrawerRef                         = useRef<HTMLDivElement>(null);
 
   const CHIP_IDS: ChipId[] = ['equity', 'heloc', 'refi', 'economy', 'milestones'];
   const [activeChip, setActiveChip]           = useState<ChipId>(
@@ -1493,6 +1560,24 @@ function MyHomePageInner() {
     ?? properties[0]
     ?? null;
   const hasAddress = borrowerId ? true : previewAddress ? true : properties.length > 0;
+
+  // Close lens drawer on outside click
+  useEffect(() => {
+    if (!lensDrawerOpen) return;
+    function handleOutside(e: MouseEvent) {
+      if (lensDrawerRef.current && !lensDrawerRef.current.contains(e.target as Node)) {
+        setLensDrawerOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [lensDrawerOpen]);
+
+  function switchProperty(id: string) {
+    setActivePropertyId(id);
+    setAnalysis(null);
+    setLensDrawerOpen(false);
+  }
 
   // Load property list on mount
   useEffect(() => {
@@ -1956,7 +2041,8 @@ function MyHomePageInner() {
         {/* ── Two-column layout: content | portfolio rail ── */}
         <div className="mh-layout">
 
-          {/* ── Main content column ── */}
+          {/* ── Main content column — centering wrapper ── */}
+          <div className="mh-content-wrap">
           <div className="mh-content">
 
           <SignedOut>
@@ -2023,45 +2109,86 @@ function MyHomePageInner() {
                 </div>
               )}
 
-              {/* Quick chips */}
-              {!borrowerId && (
-                <div className="mh-quick-chips">
-                  <button className="mh-qchip" onClick={() => { setNewAddress(''); setTimeout(() => document.querySelector<HTMLInputElement>('.mh-command-input')?.focus(), 60); }}>Paste listing URL</button>
-                  <button className="mh-qchip" onClick={() => activeProperty && setActiveChip('equity')}>Check equity</button>
-                  <button className="mh-qchip" onClick={() => activeProperty && setActiveChip('refi')}>Refi check</button>
-                  <button className="mh-qchip" onClick={() => activeProperty && setActiveChip('heloc')}>HELOC power</button>
+              {/* Property lens chips — property switcher inline, More ▾ for overflow + org actions */}
+              {!borrowerId && properties.length > 0 && (
+                <div className="mh-quick-chips" style={{ position: 'relative' }} ref={lensDrawerRef}>
+                  {properties.slice(0, 3).map((p, idx) => {
+                    const isBuyer = (analysis?.listingStatus === 'FOR_SALE' || analysis?.listingStatus === 'PENDING') && p.id === activeProperty?.id;
+                    const isActive = p.id === activeProperty?.id;
+                    const short = p.property_address.split(',')[0];
+                    const chipLabel = isBuyer ? 'Researching' : p.is_primary ? 'My Home' : `Property ${idx + 1}`;
+                    return (
+                      <button
+                        key={p.id}
+                        className={`mh-qchip${isActive ? ' mh-qchip-active' : ''}`}
+                        onClick={() => !isActive && switchProperty(p.id)}
+                      >
+                        {chipLabel} — {short}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    className="mh-qchip mh-qchip-more"
+                    onClick={() => setLensDrawerOpen(o => !o)}
+                  >
+                    {properties.length > 3 ? `+${properties.length - 3} More ▾` : 'More ▾'}
+                  </button>
+
+                  {lensDrawerOpen && (
+                    <div className="mh-lens-drawer">
+                      {properties.length > 3 && (
+                        <div className="mh-lens-drawer-section">
+                          {properties.slice(3).map((p, idx) => {
+                            const isActive = p.id === activeProperty?.id;
+                            const short = p.property_address.split(',')[0];
+                            return (
+                              <button
+                                key={p.id}
+                                className={`mh-lens-drawer-item${isActive ? ' mh-lens-drawer-item-active' : ''}`}
+                                onClick={() => switchProperty(p.id)}
+                              >
+                                <span>{p.is_primary ? '⭐ My Home' : `Property ${idx + 4}`}</span>
+                                <span className="mh-lens-drawer-addr">{short}</span>
+                              </button>
+                            );
+                          })}
+                          <div className="mh-lens-drawer-divider"/>
+                        </div>
+                      )}
+                      <div className="mh-lens-drawer-section">
+                        {activeProperty && !activeProperty.is_primary && (
+                          <button
+                            className="mh-lens-drawer-action"
+                            onClick={() => {
+                              fetch('/api/homeowner/save', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ property_id: activeProperty.id, is_primary: true }),
+                              }).then(() => {
+                                setProperties(ps => ps.map(p => ({ ...p, is_primary: p.id === activeProperty.id })));
+                              });
+                              setLensDrawerOpen(false);
+                            }}
+                          >⭐ Set as Primary</button>
+                        )}
+                        {properties.length > 1 && activeProperty && (
+                          <button
+                            className="mh-lens-drawer-action mh-lens-drawer-action-danger"
+                            onClick={() => { removeProperty(activeProperty.id); setLensDrawerOpen(false); }}
+                          >Remove Property</button>
+                        )}
+                        <button
+                          className="mh-lens-drawer-action"
+                          onClick={() => { setLensDrawerOpen(false); setTimeout(() => document.querySelector<HTMLInputElement>('.mh-command-input')?.focus(), 60); }}
+                        >+ Add Another Property</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* ── Lens tabs — property switcher reimagined ── */}
-            {!borrowerId && properties.length > 0 && (
-              <div className="mh-lens-bar">
-                {properties.map((p, idx) => {
-                  const isBuyer = analysis?.listingStatus === 'FOR_SALE' || analysis?.listingStatus === 'PENDING';
-                  const isActive = p.id === activeProperty?.id;
-                  const short = p.property_address.split(',')[0];
-                  const lensLabel = isBuyer && isActive ? 'Researching' : p.is_primary ? 'My Home' : `Property ${idx + 1}`;
-                  return (
-                    <button
-                      key={p.id}
-                      className={`mh-lens${isActive ? ' mh-lens-active' : ''}`}
-                      onClick={() => { if (!isActive) { setActivePropertyId(p.id); setAnalysis(null); } }}
-                    >
-                      <span className="mh-lens-label">{lensLabel}</span>
-                      <span className="mh-lens-addr">{short}</span>
-                      {isActive && properties.length > 1 && (
-                        <button
-                          className="mh-lens-remove"
-                          title="Remove property"
-                          onClick={e => { e.stopPropagation(); removeProperty(p.id); }}
-                        >×</button>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
 
             {loading ? (
               <div className="mh-loading">Loading your home profile…</div>
@@ -2676,15 +2803,18 @@ function MyHomePageInner() {
             )}
           </SignedIn>
           </div>{/* end mh-content */}
+          </div>{/* end mh-content-wrap */}
 
-          {/* ── My Decision Portfolio rail ── */}
-          <PortfolioSidebar
-            activeAddress={analysis?.address ?? activeProperty?.property_address ?? null}
-            onNewJourney={() => { window.location.href = '/chat?pl=1'; }}
-            onResume={(item) => {
-              if (item.address) window.location.href = `/chat?sq=${encodeURIComponent(item.address)}&from=%2Fmy-home&fromLabel=Home+Intelligence`;
-            }}
-          />
+          {/* ── My Home Properties rail ── */}
+          <SignedIn>
+            <MyHomeRail
+              properties={properties}
+              activePropertyId={activeProperty?.id ?? null}
+              analysis={analysis}
+              onSelectProperty={(id) => { setActivePropertyId(id); setAnalysis(null); }}
+              onAddProperty={() => setTimeout(() => document.querySelector<HTMLInputElement>('.mh-command-input')?.focus(), 60)}
+            />
+          </SignedIn>
 
         </div>{/* end mh-layout */}
       </div>{/* end mh-root */}
@@ -2723,8 +2853,9 @@ const CSS = `
   .mh-nav-kicker{font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(0,232,122,0.6);margin-left:12px;flex:1}
 
   /* TWO-COLUMN LAYOUT */
-  .mh-layout{display:flex;min-height:calc(100vh - 56px);align-items:stretch}
-  .mh-content{flex:1;min-width:0;padding:2rem 1.75rem 5rem;max-width:820px}
+  .mh-layout{display:flex;min-height:calc(100vh - 56px);align-items:flex-start}
+  .mh-content-wrap{flex:1;display:flex;justify-content:center;min-width:0;overflow:hidden}
+  .mh-content{width:100%;max-width:820px;padding:2rem 1.75rem 5rem}
 
   /* HERO */
   .mh-hero{margin-bottom:2rem}
@@ -2743,22 +2874,54 @@ const CSS = `
   .mh-command-btn{flex-shrink:0;padding:9px 22px;background:#00e87a;color:#080c12;border:none;border-radius:10px;font-weight:800;font-size:.88rem;cursor:pointer;font-family:inherit;transition:opacity .15s}
   .mh-command-btn:disabled{opacity:.4;cursor:not-allowed}
 
-  /* QUICK CHIPS */
+  /* QUICK CHIPS (property lens tabs) */
   .mh-quick-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:.85rem}
   .mh-qchip{padding:5px 13px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:999px;color:rgba(255,255,255,0.55);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
   .mh-qchip:hover{background:rgba(255,255,255,0.09);color:#fff;border-color:rgba(255,255,255,0.22)}
+  .mh-qchip-active{background:rgba(0,232,122,0.1);color:#00e87a;border-color:rgba(0,232,122,0.4);cursor:default}
+  .mh-qchip-active:hover{background:rgba(0,232,122,0.1);color:#00e87a;border-color:rgba(0,232,122,0.4)}
+  .mh-qchip-more{border-style:dashed}
 
-  /* LENS TABS */
-  .mh-lens-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem}
-  .mh-lens{display:flex;flex-direction:column;align-items:flex-start;padding:10px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;cursor:pointer;font-family:inherit;text-align:left;transition:all .15s;position:relative;min-width:120px}
-  .mh-lens:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.18)}
-  .mh-lens-active{background:rgba(0,232,122,0.07);border-color:rgba(0,232,122,0.35)}
-  .mh-lens-label{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:2px}
-  .mh-lens-active .mh-lens-label{color:rgba(0,232,122,0.7)}
-  .mh-lens-addr{font-size:.8rem;font-weight:600;color:rgba(255,255,255,0.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
-  .mh-lens-active .mh-lens-addr{color:#f0f4ff}
-  .mh-lens-remove{position:absolute;top:6px;right:8px;background:none;border:none;color:rgba(255,255,255,0.25);font-size:14px;cursor:pointer;line-height:1;padding:2px;font-family:inherit}
-  .mh-lens-remove:hover{color:#f97066}
+  /* LENS DRAWER */
+  .mh-lens-drawer{position:absolute;top:calc(100% + 6px);left:0;z-index:200;min-width:220px;background:#141c28;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:6px;box-shadow:0 12px 40px rgba(0,0,0,0.55)}
+  .mh-lens-drawer-section{display:flex;flex-direction:column;gap:2px}
+  .mh-lens-drawer-divider{height:1px;background:rgba(255,255,255,0.08);margin:4px 0}
+  .mh-lens-drawer-item{display:flex;flex-direction:column;align-items:flex-start;padding:8px 12px;border-radius:8px;background:none;border:none;color:#f0f4ff;font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;text-align:left;gap:2px;transition:background .12s}
+  .mh-lens-drawer-item:hover{background:rgba(255,255,255,0.07)}
+  .mh-lens-drawer-item-active{background:rgba(0,232,122,0.08);color:#00e87a}
+  .mh-lens-drawer-item-active:hover{background:rgba(0,232,122,0.12)}
+  .mh-lens-drawer-addr{font-size:.72rem;font-weight:400;color:rgba(255,255,255,0.4);margin-top:1px}
+  .mh-lens-drawer-action{display:block;width:100%;padding:8px 12px;border-radius:8px;background:none;border:none;color:rgba(255,255,255,0.6);font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;text-align:left;transition:all .12s}
+  .mh-lens-drawer-action:hover{background:rgba(255,255,255,0.07);color:#f0f4ff}
+  .mh-lens-drawer-action-danger{color:rgba(249,112,102,0.7)}
+  .mh-lens-drawer-action-danger:hover{background:rgba(249,112,102,0.08);color:#f97066}
+
+  /* MY HOME RAIL */
+  .mh-rail{flex:0 0 260px;width:260px;padding:1.5rem 1rem 5rem;border-left:1px solid rgba(255,255,255,0.06)}
+  .mh-rail-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+  .mh-rail-title{font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,0.35)}
+  .mh-rail-add{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.5);font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;transition:all .15s}
+  .mh-rail-add:hover{background:rgba(0,232,122,0.12);border-color:rgba(0,232,122,0.35);color:#00e87a}
+  .mh-rail-list{display:flex;flex-direction:column;gap:8px}
+  .mh-rail-card{padding:12px 14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);transition:all .15s}
+  .mh-rail-card:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.14)}
+  .mh-rail-card-active{background:rgba(0,232,122,0.05);border-color:rgba(0,232,122,0.25)}
+  .mh-rail-card-active:hover{background:rgba(0,232,122,0.07)}
+  .mh-rail-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+  .mh-rail-card-label{font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.32)}
+  .mh-rail-card-active .mh-rail-card-label{color:rgba(0,232,122,0.7)}
+  .mh-rail-active-dot{width:5px;height:5px;border-radius:50%;background:#00e87a;box-shadow:0 0 6px rgba(0,232,122,0.8);animation:mh-pulse 2s ease-in-out infinite;flex-shrink:0}
+  .mh-rail-card-addr{font-size:.82rem;font-weight:600;color:rgba(255,255,255,0.65);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px}
+  .mh-rail-card-active .mh-rail-card-addr{color:#f0f4ff}
+  .mh-rail-card-metric{display:flex;align-items:baseline;gap:6px;margin-bottom:8px}
+  .mh-rail-card-value{font-size:1.1rem;font-weight:800;color:#f1f5f9}
+  .mh-rail-card-equity{font-size:.7rem;color:rgba(0,232,122,0.7);font-weight:600}
+  .mh-rail-card-actions{display:flex;flex-direction:column;gap:5px}
+  .mh-rail-btn{display:block;padding:6px 12px;border-radius:8px;font-size:.75rem;font-weight:700;text-decoration:none;text-align:center;transition:all .15s;font-family:inherit}
+  .mh-rail-btn-score{background:rgba(0,232,122,0.12);color:#00e87a;border:1px solid rgba(0,232,122,0.25)}
+  .mh-rail-btn-score:hover{background:rgba(0,232,122,0.2);border-color:rgba(0,232,122,0.45)}
+  .mh-rail-btn-numbers{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1)}
+  .mh-rail-btn-numbers:hover{background:rgba(255,255,255,0.09);color:#fff}
 
   /* BANNERS */
   .mh-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-radius:10px;margin-bottom:16px;font-size:.85rem}
@@ -2901,7 +3064,7 @@ const CSS = `
   .mh-toggle input:checked+.mh-toggle-track::after{transform:translateX(22px)}
 
   /* RESPONSIVE */
-  @media(max-width:1099px){.mh-layout{display:block}}
+  @media(max-width:1099px){.mh-layout{display:block}.mh-rail{display:none}.mh-content-wrap{display:block}}
   @media(max-width:768px){
     .mh-content{padding:1.5rem 1.25rem 4rem}
     .mh-hero-h1{font-size:1.7rem}
