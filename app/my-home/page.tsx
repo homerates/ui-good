@@ -1437,94 +1437,120 @@ interface MyHomeRailProps {
 }
 
 function MyHomeRail({ properties, activePropertyId, analysis, photoCache, onSelectProperty, onAddProperty }: MyHomeRailProps) {
+  const [sheetOpen, setSheetOpen] = useState(false);
+
   if (properties.length === 0) return null;
 
-  return (
-    <aside className="mh-rail">
-      <div className="mh-rail-header">
-        <span className="mh-rail-title">My Properties</span>
-        <button className="mh-rail-add" title="Add property" onClick={onAddProperty}>+</button>
-      </div>
-      <div className="mh-rail-list">
-        {properties.map((p, idx) => {
-          const isActive = p.id === activePropertyId || (!activePropertyId && p.is_primary && idx === 0);
-          const isBuyer = isActive && (analysis?.listingStatus === 'FOR_SALE' || analysis?.listingStatus === 'PENDING');
-          const heading = p.is_primary ? 'My Home' : `Property ${idx + 1}`;
-          const short = p.property_address.split(',')[0];
-          const city  = p.property_address.split(',').slice(1, 3).join(',').trim();
+  const fmtValue = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : `$${Math.round(n / 1000)}K`;
 
-          const photoUrl = photoCache[p.property_address] ?? (isActive ? analysis?.photoUrl : null) ?? null;
-          const valueNum = isActive ? (analysis?.estimatedValue ?? p.actual_value) : p.actual_value;
-          const fmtValue = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2)}M` : `$${Math.round(n / 1000)}K`;
-          const displayValue = valueNum ? fmtValue(valueNum) : null;
-          const equityPct  = isActive ? analysis?.equityPct  : null;
-          const listPrice  = isActive && isBuyer ? analysis?.listPrice : null;
-          const dom        = isActive && isBuyer ? analysis?.daysOnMarket : null;
+  function renderCards(onCardSelect: (id: string) => void) {
+    return properties.map((p, idx) => {
+      const isActive = p.id === activePropertyId || (!activePropertyId && p.is_primary && idx === 0);
+      const isBuyer  = isActive && (analysis?.listingStatus === 'FOR_SALE' || analysis?.listingStatus === 'PENDING');
+      const heading  = p.is_primary ? 'My Home' : `Property ${idx + 1}`;
+      const short    = p.property_address.split(',')[0];
+      const city     = p.property_address.split(',').slice(1, 3).join(',').trim();
 
-          const sid = lsGetPiSid(p.property_address);
-          const piHref   = `/property-intel?address=${encodeURIComponent(p.property_address)}${sid ? `&sid=${sid}` : ''}`;
-          const chatHref = `/chat?${new URLSearchParams({ sq: `Run my numbers for ${p.property_address}` }).toString()}`;
+      const photoUrl     = photoCache[p.property_address] ?? (isActive ? analysis?.photoUrl : null) ?? null;
+      const valueNum     = isActive ? (analysis?.estimatedValue ?? p.actual_value) : p.actual_value;
+      const displayValue = valueNum ? fmtValue(valueNum) : null;
+      const equityPct    = isActive ? analysis?.equityPct  : null;
+      const listPrice    = isActive && isBuyer ? analysis?.listPrice : null;
+      const dom          = isActive && isBuyer ? analysis?.daysOnMarket : null;
 
-          return (
-            <div
-              key={p.id}
-              className={`mh-rail-card${isActive ? ' mh-rail-card-active' : ''}`}
-              onClick={() => !isActive && onSelectProperty(p.id)}
-              style={{ cursor: isActive ? 'default' : 'pointer' }}
-            >
-              {/* Thumbnail */}
-              <div
-                className="mh-rail-thumb"
-                style={photoUrl ? { backgroundImage: `url(${photoUrl})` } : {}}
-              >
-                <div className="mh-rail-thumb-overlay"/>
-                {/* Heading badge top-left */}
-                <div className="mh-rail-thumb-heading">
-                  {heading}
-                  {isActive && <span className="mh-rail-active-dot" style={{ marginLeft: 6 }}/>}
-                </div>
-                {/* Status badge top-right */}
-                {isBuyer && (
-                  <div className="mh-rail-thumb-badge mh-rail-thumb-badge-sale">For Sale</div>
-                )}
-                {dom != null && (
-                  <div className="mh-rail-thumb-badge mh-rail-thumb-badge-dom" style={{ top: isBuyer ? 30 : 8 }}>{dom}d on market</div>
-                )}
-                {/* Address overlay bottom */}
-                <div className="mh-rail-thumb-address">
-                  <span className="mh-rail-thumb-street">{short}</span>
-                  {city && <span className="mh-rail-thumb-city">{city}</span>}
-                </div>
-              </div>
+      const sid      = lsGetPiSid(p.property_address);
+      const piHref   = `/property-intel?address=${encodeURIComponent(p.property_address)}${sid ? `&sid=${sid}` : ''}`;
+      const chatHref = `/chat?${new URLSearchParams({ sq: `Run my numbers for ${p.property_address}` }).toString()}`;
 
-              {/* Card body */}
-              <div className="mh-rail-card-body">
-                {/* Key metrics */}
-                {(displayValue || listPrice) && (
-                  <div className="mh-rail-card-metric">
-                    <span className="mh-rail-card-value">
-                      {isBuyer && listPrice ? fmtValue(listPrice) : displayValue}
-                    </span>
-                    {equityPct != null && !isBuyer && (
-                      <span className="mh-rail-card-equity">{equityPct.toFixed(0)}% equity</span>
-                    )}
-                    {isBuyer && <span className="mh-rail-card-equity mh-rail-badge-buyer">list price</span>}
-                  </div>
-                )}
-
-                {/* Actions — active property only */}
-                {isActive && (
-                  <div className="mh-rail-card-actions">
-                    <a href={piHref} className="mh-rail-btn mh-rail-btn-score">View Full Score →</a>
-                    <a href={chatHref} target="_blank" rel="noopener noreferrer" className="mh-rail-btn mh-rail-btn-numbers">Run My Numbers</a>
-                  </div>
-                )}
-              </div>
+      return (
+        <div
+          key={p.id}
+          className={`mh-rail-card${isActive ? ' mh-rail-card-active' : ''}`}
+          onClick={() => !isActive && onCardSelect(p.id)}
+          style={{ cursor: isActive ? 'default' : 'pointer' }}
+        >
+          <div className="mh-rail-thumb" style={photoUrl ? { backgroundImage: `url(${photoUrl})` } : {}}>
+            <div className="mh-rail-thumb-overlay"/>
+            <div className="mh-rail-thumb-heading">
+              {heading}
+              {isActive && <span className="mh-rail-active-dot" style={{ marginLeft: 6 }}/>}
             </div>
-          );
-        })}
+            {isBuyer && <div className="mh-rail-thumb-badge mh-rail-thumb-badge-sale">For Sale</div>}
+            {dom != null && <div className="mh-rail-thumb-badge mh-rail-thumb-badge-dom" style={{ top: isBuyer ? 30 : 8 }}>{dom}d on market</div>}
+            <div className="mh-rail-thumb-address">
+              <span className="mh-rail-thumb-street">{short}</span>
+              {city && <span className="mh-rail-thumb-city">{city}</span>}
+            </div>
+          </div>
+
+          <div className="mh-rail-card-body">
+            {(displayValue || listPrice) && (
+              <div className="mh-rail-card-metric">
+                <span className="mh-rail-card-value">{isBuyer && listPrice ? fmtValue(listPrice) : displayValue}</span>
+                {equityPct != null && !isBuyer && <span className="mh-rail-card-equity">{equityPct.toFixed(0)}% equity</span>}
+                {isBuyer && <span className="mh-rail-card-equity mh-rail-badge-buyer">list price</span>}
+              </div>
+            )}
+            {isActive && (
+              <div className="mh-rail-card-actions">
+                <a href={piHref} className="mh-rail-btn mh-rail-btn-score">View Full Score →</a>
+                <a href={chatHref} target="_blank" rel="noopener noreferrer" className="mh-rail-btn mh-rail-btn-numbers">Run My Numbers</a>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    });
+  }
+
+  return (
+    <>
+      {/* ── Desktop sidebar ── */}
+      <aside className="mh-rail">
+        <div className="mh-rail-header">
+          <span className="mh-rail-title">My Properties</span>
+          <button className="mh-rail-add" title="Add property" onClick={onAddProperty}>+</button>
+        </div>
+        <div className="mh-rail-list">
+          {renderCards(onSelectProperty)}
+        </div>
+      </aside>
+
+      {/* ── Mobile FAB ── */}
+      <button
+        className="mh-rail-fab"
+        onClick={() => setSheetOpen(true)}
+        aria-label="My properties"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00e87a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
+          <path d="M9 21V12h6v9"/>
+        </svg>
+        <div className="mh-rail-fab-badge">{properties.length > 9 ? '9+' : properties.length}</div>
+      </button>
+
+      {/* ── Mobile backdrop ── */}
+      <div
+        className={`mh-rail-backdrop${sheetOpen ? ' open' : ''}`}
+        onClick={() => setSheetOpen(false)}
+      />
+
+      {/* ── Mobile bottom sheet ── */}
+      <div className={`mh-rail-sheet${sheetOpen ? ' open' : ''}`}>
+        <div className="mh-rail-sheet-handle"/>
+        <div className="mh-rail-sheet-header">
+          <span className="mh-rail-title">My Properties</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="mh-rail-sheet-add" onClick={() => { setSheetOpen(false); onAddProperty(); }}>+ Add</button>
+            <button className="mh-rail-sheet-close" onClick={() => setSheetOpen(false)}>×</button>
+          </div>
+        </div>
+        <div className="mh-rail-sheet-body">
+          {renderCards((id) => { onSelectProperty(id); setSheetOpen(false); })}
+        </div>
+        <div style={{ height: 'env(safe-area-inset-bottom, 12px)', flexShrink: 0 }} />
       </div>
-    </aside>
+    </>
   );
 }
 
@@ -3117,8 +3143,23 @@ const CSS = `
   .mh-toggle-track::after{content:'';position:absolute;left:3px;top:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .25s}
   .mh-toggle input:checked+.mh-toggle-track::after{transform:translateX(22px)}
 
+  /* MOBILE RAIL — FAB + sheet */
+  .mh-rail-fab{display:none;position:fixed;bottom:88px;right:16px;z-index:1098;width:48px;height:48px;border-radius:50%;background:#0a1628;border:1px solid rgba(0,232,122,0.25);align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.5);transition:background .15s,transform .12s}
+  .mh-rail-fab:hover{background:#0f2035;transform:scale(1.08)}
+  .mh-rail-fab-badge{position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;border-radius:9px;background:#00e87a;color:#000;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;border:1.5px solid #080c12}
+  .mh-rail-backdrop{position:fixed;inset:0;z-index:1099;background:rgba(0,0,0,0.55);opacity:0;pointer-events:none;transition:opacity .25s ease}
+  .mh-rail-backdrop.open{opacity:1;pointer-events:auto}
+  .mh-rail-sheet{position:fixed;left:0;right:0;bottom:0;z-index:1100;height:82dvh;background:#080c12;border-top:1px solid rgba(255,255,255,0.1);border-radius:20px 20px 0 0;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s cubic-bezier(0.32,0,0.67,0);will-change:transform}
+  .mh-rail-sheet.open{transform:translateY(0);transition:transform .35s cubic-bezier(0.16,1,0.3,1)}
+  .mh-rail-sheet-handle{width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);margin:10px auto 4px;flex-shrink:0}
+  .mh-rail-sheet-header{height:48px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0}
+  .mh-rail-sheet-add{padding:5px 12px;background:rgba(0,232,122,0.1);border:1px solid rgba(0,232,122,0.25);border-radius:7px;color:#00e87a;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+  .mh-rail-sheet-close{width:28px;height:28px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,0.45);font-size:16px;font-family:inherit}
+  .mh-rail-sheet-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+  .mh-rail-sheet-body::-webkit-scrollbar{display:none}
+
   /* RESPONSIVE */
-  @media(max-width:1099px){.mh-layout{display:block}.mh-rail{display:none}.mh-content-wrap{display:block}}
+  @media(max-width:1099px){.mh-layout{display:block}.mh-rail{display:none}.mh-content-wrap{display:block}.mh-rail-fab{display:flex}}
   @media(max-width:768px){
     .mh-content{padding:1.5rem 1.25rem 4rem}
     .mh-hero-h1{font-size:1.7rem}
