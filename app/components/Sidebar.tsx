@@ -372,6 +372,12 @@ export default function Sidebar(props: SidebarProps) {
               HomeRates Lab
             </a>
 
+            {/* Market Rate Intelligence */}
+            <a href="/market-intelligence" className="btn sidebar-tool-btn">
+              <span className="sidebar-tool-icon">📈</span>
+              Rate Intelligence
+            </a>
+
             {/* Property Lookup — paste a listing URL (leads to Pro Intelligence Report) */}
             {onPriceCheck && (
               <button

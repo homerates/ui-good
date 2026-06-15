@@ -74,6 +74,7 @@ const isPublicRoute = createRouteMatcher([
   // OG image generation — must be public so Twitter/LinkedIn crawlers can fetch card images
   "/api/og(.*)",
   // Market intelligence — server-side AI keys only, no user PII; auth guard not needed
+  "/market-intelligence(.*)",
   "/api/market-intelligence(.*)",
   // Beta test endpoints — guarded by BETA_ACCESS_KEY header check inside each route
   "/api/beta(.*)",
