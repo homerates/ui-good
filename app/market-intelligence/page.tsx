@@ -166,9 +166,18 @@ export default function MarketIntelligencePage() {
       if (done) setLoadingChip(null);
     });
 
-    // Auto-scroll to new card
+    // Initial scroll to new card
     setTimeout(() => threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 100);
   }
+
+  // ── Auto-scroll during typewriter streaming ──────────────────────────────────
+  // Fires on every token update while any card is still streaming
+  useEffect(() => {
+    const isStreaming = thread.some(item => 'streaming' in item && (item as { streaming: boolean }).streaming);
+    if (isStreaming) {
+      threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [thread]);
 
   // ── Date label ──────────────────────────────────────────────────────────────
 
@@ -209,7 +218,7 @@ export default function MarketIntelligencePage() {
         )}
 
         {/* Thread */}
-        <div style={{ display: 'flex', flexDirection: 'column', paddingBottom: 160 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', paddingBottom: 90 }}>
           {thread.map((item, idx) => (
             <ThreadCard key={idx} item={item} />
           ))}
@@ -218,46 +227,51 @@ export default function MarketIntelligencePage() {
 
       </div>
 
-      {/* Sticky chips */}
+      {/* Sticky chips — horizontal scroll row, single line on all screen sizes */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
-        background: 'linear-gradient(to top, #0a0f1a 70%, transparent)',
-        padding: '16px 20px 24px', zIndex: 10,
+        background: 'linear-gradient(to top, #0a0f1a 80%, transparent)',
+        paddingTop: 20, paddingBottom: 'env(safe-area-inset-bottom, 16px)',
+        zIndex: 10,
       }}>
-        <div style={{ maxWidth: 860, margin: '0 auto' }}>
-          <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-            Explore deeper →
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {CHIPS.map(chip => (
-              <button
-                key={chip.type}
-                onClick={() => handleChip(chip.type, chip.label)}
-                disabled={!!loadingChip || !data}
-                style={{
-                  fontSize: '0.75rem', fontWeight: 600,
-                  padding: '7px 14px', borderRadius: 20,
-                  border: usedChips.has(chip.type)
-                    ? '1px solid rgba(0,232,122,0.35)'
-                    : '1px solid rgba(255,255,255,0.12)',
-                  background: loadingChip === chip.type
-                    ? 'rgba(0,232,122,0.15)'
-                    : usedChips.has(chip.type)
-                    ? 'rgba(0,232,122,0.08)'
-                    : 'rgba(255,255,255,0.05)',
-                  color: usedChips.has(chip.type) ? '#00e87a' : '#cbd5e1',
-                  cursor: loadingChip || !data ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  opacity: loadingChip && loadingChip !== chip.type ? 0.5 : 1,
-                  transition: 'all 0.15s',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span style={{ fontSize: '0.7rem' }}>{chip.icon}</span>
-                {loadingChip === chip.type ? 'Analyzing…' : chip.label}
-              </button>
-            ))}
-          </div>
+        <div
+          className="chip-scroll-row"
+          style={{
+            display: 'flex', gap: 8, overflowX: 'auto', overflowY: 'hidden',
+            padding: '4px 20px 16px',
+            WebkitOverflowScrolling: 'touch' as any,
+            scrollSnapType: 'x mandatory',
+          }}
+        >
+          {CHIPS.map(chip => (
+            <button
+              key={chip.type}
+              onClick={() => handleChip(chip.type, chip.label)}
+              disabled={!!loadingChip || !data}
+              style={{
+                fontSize: '0.75rem', fontWeight: 600,
+                padding: '8px 16px', borderRadius: 20, flexShrink: 0,
+                scrollSnapAlign: 'start',
+                border: usedChips.has(chip.type)
+                  ? '1px solid rgba(0,232,122,0.35)'
+                  : '1px solid rgba(255,255,255,0.14)',
+                background: loadingChip === chip.type
+                  ? 'rgba(0,232,122,0.15)'
+                  : usedChips.has(chip.type)
+                  ? 'rgba(0,232,122,0.08)'
+                  : 'rgba(15,22,35,0.9)',
+                color: usedChips.has(chip.type) ? '#00e87a' : '#cbd5e1',
+                cursor: loadingChip || !data ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+                opacity: loadingChip && loadingChip !== chip.type ? 0.45 : 1,
+                transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{ fontSize: '0.75rem' }}>{chip.icon}</span>
+              {loadingChip === chip.type ? 'Analyzing…' : chip.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -267,6 +281,9 @@ export default function MarketIntelligencePage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes cursor-blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
         .streaming-cursor::after { content: '▋'; animation: cursor-blink 1s step-end infinite; margin-left: 2px; font-size: 0.85em; color: #00e87a; }
+        /* Hide scrollbar on chip row — swiping still works */
+        .chip-scroll-row { scrollbar-width: none; -ms-overflow-style: none; }
+        .chip-scroll-row::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
   );
