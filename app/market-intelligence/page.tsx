@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { RateIntelData, RatePoint } from '../api/rate-intelligence/route';
+import AppNav from '../components/AppNav';
 
 // ── SVG path builder ──────────────────────────────────────────────────────────
 
@@ -178,14 +179,8 @@ export default function MarketIntelligencePage() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ background: '#0a0f1a', minHeight: '100vh', color: '#e2e8f0', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-
-      {/* Nav */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <a href="/chat" style={{ fontSize: '0.78rem', fontWeight: 700, color: '#00e87a', letterSpacing: '0.04em', textDecoration: 'none' }}>HomeRates.Ai</a>
-        <span style={{ color: 'rgba(255,255,255,0.15)' }}>/</span>
-        <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>Market Rate Intelligence</span>
-      </div>
+    <div className="page-standalone" style={{ background: '#0a0f1a', color: '#e2e8f0', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <AppNav />
 
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 20px' }}>
 
