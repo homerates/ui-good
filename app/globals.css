@@ -782,7 +782,6 @@ ul {
   align-items: center;
   gap: 0.25rem;
 
-  white-space: nowrap;
   z-index: 800;
 
   transition: transform 0.3s ease;
@@ -793,11 +792,14 @@ ul {
   .footer-meta--hidden {
     transform: translateY(100%);
   }
+  .footer-meta {
+    padding: 6px 12px;
+    align-items: flex-start;
+  }
 }
 
-
 .footer-meta span {
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .footer-meta-row {
