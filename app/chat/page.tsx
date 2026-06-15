@@ -2561,7 +2561,28 @@ export default function Page() {
                                             },
                                         }),
                                     });
-                                    if (!postRes.ok || !postRes.body) return;
+                                    if (!postRes.ok || !postRes.body) {
+                                        // API unavailable — resolve DSC with L1+L2 only so card exits computing state
+                                        const partialEntries = [
+                                            { s: _dsL1Score, w: 0.35 },
+                                            ...(_dsL2Score != null ? [{ s: _dsL2Score, w: 0.25 }] : []),
+                                        ];
+                                        const partialComposite = partialEntries.length >= 2
+                                            ? Math.round(partialEntries.reduce((a, e) => a + e.s * e.w, 0) / partialEntries.reduce((a, e) => a + e.w, 0))
+                                            : null;
+                                        setMessages(messagesRef.current.map(m =>
+                                            m.id === _dsAnswerId && m.role === 'assistant' && m.meta
+                                                ? { ...m, meta: { ...m.meta, decisionScoreCard: {
+                                                    state: 'complete' as const,
+                                                    address: _dsAddress,
+                                                    l1Score: _dsL1Score, l1Summary: _dsL1Summary,
+                                                    l2Score: _dsL2Score, l2Summary: _dsL2Summary,
+                                                    compositeScore: partialComposite ?? undefined,
+                                                } } }
+                                                : m
+                                        ));
+                                        return;
+                                    }
                                     const reader = postRes.body.getReader();
                                     const dec    = new TextDecoder();
                                     let buf      = '';
