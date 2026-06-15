@@ -219,7 +219,7 @@ const NAV_LINKS = [
 const CONSUMER_NAV_LINKS = [
   { href: "/chat?new=1", label: "New Chat", key: "chat" },
   { href: "/chat?new=1&pl=1", label: "Property Lookup", key: "property" },
-  { href: "/track5", label: "Track 5", key: "track5" },
+  { href: "/market-intelligence", label: "Market Rates", key: "market" },
 ];
 
 export default function AppNav({

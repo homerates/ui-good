@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
 import type { RateIntelData, RatePoint } from '../api/rate-intelligence/route';
 import AppNav from '../components/AppNav';
+import { ShareAnswerButton } from '../components/ShareAnswerButton';
 
 // ── SVG path builder ──────────────────────────────────────────────────────────
 
@@ -66,9 +67,20 @@ export default function MarketIntelligencePage() {
   const [usedChips,     setUsedChips]     = useState<Set<string>>(new Set());
   const threadEndRef = useRef<HTMLDivElement>(null);
 
-  // ── Share state ──────────────────────────────────────────────────────────────
-  const [sharing,    setSharing]    = useState(false);
-  const [shareCopied, setShareCopied] = useState(false);
+  // ── Share messages (built from thread for ShareAnswerButton) ─────────────────
+  const shareMessages = thread.flatMap(item => {
+    if (item.kind === 'oracle-brief' && item.text)
+      return [
+        { id: 'q-initial', role: 'user' as const, content: 'Show me current mortgage rate intelligence' },
+        { id: 'a-initial', role: 'assistant' as const, content: item.text },
+      ];
+    if (item.kind === 'chip-card' && item.text)
+      return [
+        { id: `q-${item.chipType}`, role: 'user' as const, content: item.chipLabel },
+        { id: `a-${item.chipType}`, role: 'assistant' as const, content: item.text },
+      ];
+    return [];
+  });
 
   // ── Rate alert state ─────────────────────────────────────────────────────────
   const [showAlertModal,   setShowAlertModal]   = useState(false);
@@ -187,45 +199,6 @@ export default function MarketIntelligencePage() {
     setTimeout(() => threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 100);
   }
 
-  // ── Share ────────────────────────────────────────────────────────────────────
-
-  async function onShare() {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      // Build a messages array from the current thread
-      const messages: { role: string; content: string }[] = [];
-      for (const item of thread) {
-        if (item.kind === 'oracle-brief' && item.text) {
-          messages.push({ role: 'user', content: 'Show me current mortgage rate intelligence' });
-          messages.push({ role: 'assistant', content: item.text });
-        }
-        if (item.kind === 'chip-card' && item.text) {
-          messages.push({ role: 'user', content: item.chipLabel });
-          messages.push({ role: 'assistant', content: item.text });
-        }
-      }
-      if (messages.length === 0 && data) {
-        messages.push(
-          { role: 'user', content: 'Current mortgage rate snapshot' },
-          { role: 'assistant', content: `30Y Fixed: ${data.current.rate30y}% · 15Y: ${data.current.rate15y}% · 10Y Treasury: ${data.current.rate10y}% · Fed Funds: ${data.current.fedFunds}% · MBS Spread: ${data.meta.spread}bps (FRED ${data.current.lastUpdated})` },
-        );
-      }
-      const res = await fetch('/api/share', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages }),
-      });
-      const result = await res.json();
-      if (result.url) {
-        await navigator.clipboard.writeText(result.url).catch(() => {});
-        setShareCopied(true);
-        setTimeout(() => setShareCopied(false), 3000);
-      }
-    } catch { /* non-fatal */ }
-    setSharing(false);
-  }
-
   // ── Rate alert ───────────────────────────────────────────────────────────────
 
   async function openAlertModal() {
@@ -329,23 +302,14 @@ export default function MarketIntelligencePage() {
               >
                 🔔 Watch Rate
               </button>
-              {/* Share button */}
-              <button
-                onClick={onShare}
-                disabled={sharing || thread.length === 0}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  fontSize: '0.75rem', fontWeight: 600,
-                  padding: '8px 14px', borderRadius: 20,
-                  background: shareCopied ? 'rgba(0,232,122,0.12)' : 'rgba(255,255,255,0.06)',
-                  border: shareCopied ? '1px solid rgba(0,232,122,0.35)' : '1px solid rgba(255,255,255,0.14)',
-                  color: shareCopied ? '#00e87a' : '#cbd5e1',
-                  cursor: sharing || thread.length === 0 ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {shareCopied ? '✓ Copied!' : sharing ? '…' : '↗ Share'}
-              </button>
+              {/* Share button — same modal as scenario cards */}
+              {shareMessages.length > 0 && (
+                <ShareAnswerButton
+                  messages={shareMessages}
+                  question="Current mortgage rate intelligence"
+                  label="↗ Share"
+                />
+              )}
             </div>
           </div>
         </div>
