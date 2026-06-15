@@ -507,7 +507,7 @@ export default function ConsumerHomePage() {
               </div>
             </li>
             <li><Link href="/chat?new=1&pl=1">Property Lookup</Link></li>
-            <li><Link href="/track5">Track 5</Link></li>
+            <li><Link href="/market-intelligence">Market Rates</Link></li>
             <li className="ch-nav-dd">
               <button className="ch-nav-dd-trigger">
                 Tools <span className="ch-nav-dd-arrow">▾</span>
@@ -587,9 +587,9 @@ export default function ConsumerHomePage() {
               <span className="ch-mm-icon">📤</span>
               <div className="ch-mm-inner"><span>Share with Pro</span><span className="ch-mm-sub">Send your scenario privately</span></div>
             </Link>
-            <Link href="/track5" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="ch-mm-icon">🎯</span>
-              <div className="ch-mm-inner"><span>Track 5</span><span className="ch-mm-sub">Your home buyer decision score</span></div>
+            <Link href="/market-intelligence" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="ch-mm-icon">📈</span>
+              <div className="ch-mm-inner"><span>Market Rates</span><span className="ch-mm-sub">Live FRED data · Grok Oracle</span></div>
             </Link>
             <div className="ch-mm-section">Tools & Resources</div>
             <Link href="/calculators" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
@@ -734,10 +734,10 @@ export default function ConsumerHomePage() {
               <div className="ch-feat-title">Share with Pro</div>
               <div className="ch-feat-desc">Send your scenario to a loan officer — privately. No cold calls.</div>
             </Link>
-            <Link href="/track5" className="ch-feat o">
-              <span className="ch-feat-icon">🎯</span>
-              <div className="ch-feat-title">Track 5</div>
-              <div className="ch-feat-desc">Your buyer decision score — 5 signals that tell you when you&apos;re ready.</div>
+            <Link href="/market-intelligence" className="ch-feat o">
+              <span className="ch-feat-icon">📈</span>
+              <div className="ch-feat-title">Market Rates</div>
+              <div className="ch-feat-desc">Live FRED rates, Grok Oracle analysis & rate alerts — know when to lock.</div>
             </Link>
           </div>
         </section>
