@@ -92,6 +92,14 @@ const PILLARS = [
     accent: '#fb923c',
   },
   {
+    icon: '📈',
+    eyebrow: 'Market Rates',
+    title: 'Market Rate Intelligence — Live FRED Data, Grok Oracle & Rate Forecasts',
+    summary: 'Real-time 30Y/15Y/10Y rates from the Federal Reserve, AI-powered Oracle analysis, correlation matrix, 90-day forecasts, and 7 deep-dive chips — Fed impact, lock window, ARM vs fixed, jumbo spread, and more.',
+    href: '/market-intelligence',
+    accent: '#00e87a',
+  },
+  {
     icon: '🏆',
     eyebrow: 'Full Buyer Journey',
     title: 'From First Number to Final Score — The Complete Decision Journey',
