@@ -346,11 +346,20 @@ export default function Sidebar(props: SidebarProps) {
             </button>
           </div>
 
-          {/* ── Section: New chat + Tools ── */}
+          {/* ── Section: New chat ── */}
           <div className="sidebar-section">
             <button className="btn primary" onClick={onNewChat} type="button">
               + New chat
             </button>
+          </div>
+
+          {/* ── Section: Market Rates ── */}
+          <div className="sidebar-section">
+            <div className="sidebar-section-label">Market Rates</div>
+            <a href="/market-intelligence" className="btn sidebar-tool-btn">
+              <span className="sidebar-tool-icon">📈</span>
+              Market Rates
+            </a>
           </div>
 
           <div className="sidebar-section">
@@ -370,12 +379,6 @@ export default function Sidebar(props: SidebarProps) {
             <a href="/lab" className="btn sidebar-tool-btn">
               <span className="sidebar-tool-icon">🧪</span>
               HomeRates Lab
-            </a>
-
-            {/* Market Rate Intelligence */}
-            <a href="/market-intelligence" className="btn sidebar-tool-btn">
-              <span className="sidebar-tool-icon">📈</span>
-              Rate Intelligence
             </a>
 
             {/* Property Lookup — paste a listing URL (leads to Pro Intelligence Report) */}

@@ -2144,6 +2144,28 @@ export default function Page() {
         const q = (typeof overrideValue === 'string' ? overrideValue : input).trim();
         if (!q || loading) return;
 
+        // Market Rates intent — redirect to dedicated Market Rate Intelligence page
+        // Catches: "mortgage rates today", "what are rates", "rate forecast", "when will rates drop",
+        // "market rates", "mbs spread", "30 year rate", "fed funds", "rate outlook" etc.
+        const isMarketRatesIntent =
+            /\b(mortgage|home loan|housing)\s+rates?\s*(today|now|currently|this week|2024|2025|2026)?\b/i.test(q) ||
+            /\b(current|today.?s?|what.?s?|where.?s?|show me|check)\s+(are\s+)?(mortgage\s+)?rates?\b/i.test(q) ||
+            /\brate\s+(forecast|outlook|prediction|trend|update|alert|news|watch)\b/i.test(q) ||
+            /\b(market|daily|live|weekly)\s+rates?\b/i.test(q) ||
+            /\bwhen\s+(will|do|are|could|might)\s+rates?\s*(drop|fall|go down|come down|decrease)\b/i.test(q) ||
+            /\b(mbs|mortgage.backed|spread|10.year.+mortgage|treasury.+mortgage)\b/i.test(q) ||
+            /\b(rate|rates)\s+(right now|today|currently|this\s+week)\b/i.test(q) ||
+            /\b(lock|float|rate lock|lock.in)\s+(my|a)?\s*rate\b/i.test(q) ||
+            /\b(arm|adjustable|fixed)\s+vs\s+(fixed|arm|adjustable)\b/i.test(q) ||
+            /\bjumbo\s+(rate|rates|spread)\b/i.test(q) ||
+            /\bfed\s+(rate|fund|funds|pivot|cut|hike|pause)\b/i.test(q) ||
+            /\b(rate|rates)\s+intelligence\b/i.test(q);
+
+        if (isMarketRatesIntent) {
+            router.push('/market-intelligence');
+            return;
+        }
+
         // Enforce simple daily limits before we send anything
         // Guard with clerkLoaded: isSignedIn is undefined while Clerk hydrates,
         // which makes !isSignedIn === true and incorrectly fires the anon wall.
@@ -5386,6 +5408,14 @@ export default function Page() {
                                     </div>
                                 </a>
                             ))}
+                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Market Rates</div>
+                            <a href="/market-intelligence" onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>📈</span>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontSize: 14, fontWeight: 500 }}>Market Rates</span>
+                                    <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 1 }}>Live rates, forecast & Oracle analysis</span>
+                                </div>
+                            </a>
                             <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Resources</div>
                             {[
                                 { href: '/calculators',   icon: '🧮', label: 'Calculators' },
@@ -5416,6 +5446,11 @@ export default function Page() {
                                     </div>
                                 </a>
                             ))}
+                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Market Rates</div>
+                            <a href="/market-intelligence" onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>📈</span>
+                                <span style={{ fontSize: 14, fontWeight: 500 }}>Market Rates</span>
+                            </a>
                             <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Resources</div>
                             {[
                                 { href: '/market-news',   icon: '📰', label: 'Market News' },
