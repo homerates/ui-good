@@ -1447,7 +1447,7 @@ function MyHomeRail({ properties, activePropertyId, analysis, photoCache, onSele
     return properties.map((p, idx) => {
       const isActive = p.id === activePropertyId || (!activePropertyId && p.is_primary && idx === 0);
       const isBuyer  = isActive && (analysis?.listingStatus === 'FOR_SALE' || analysis?.listingStatus === 'PENDING');
-      const heading  = p.is_primary ? 'My Home' : `Property ${idx + 1}`;
+      const heading  = p.is_primary ? 'My Home' : short;
       const short    = p.property_address.split(',')[0];
       const city     = p.property_address.split(',').slice(1, 3).join(',').trim();
 
@@ -2182,7 +2182,7 @@ function MyHomePageInner() {
                     const isBuyer = (analysis?.listingStatus === 'FOR_SALE' || analysis?.listingStatus === 'PENDING') && p.id === activeProperty?.id;
                     const isActive = p.id === activeProperty?.id;
                     const short = p.property_address.split(',')[0];
-                    const chipLabel = isBuyer ? 'Researching' : p.is_primary ? 'My Home' : `Property ${idx + 1}`;
+                    const chipLabel = isBuyer ? 'Researching' : p.is_primary ? 'My Home' : short;
                     return (
                       <button
                         key={p.id}
@@ -2214,7 +2214,7 @@ function MyHomePageInner() {
                                 className={`mh-lens-drawer-item${isActive ? ' mh-lens-drawer-item-active' : ''}`}
                                 onClick={() => switchProperty(p.id)}
                               >
-                                <span>{p.is_primary ? '⭐ My Home' : `Property ${idx + 4}`}</span>
+                                <span>{p.is_primary ? '⭐ My Home' : short}</span>
                                 <span className="mh-lens-drawer-addr">{short}</span>
                               </button>
                             );
