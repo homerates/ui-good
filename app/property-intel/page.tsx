@@ -626,6 +626,7 @@ function PropertyIntelInner() {
       if (!postRes.ok || !postRes.body) {
         setDeepLoading(false);
         if (deepTimerRef.current) clearInterval(deepTimerRef.current);
+        setError('Full Market Analysis is temporarily unavailable — please try again shortly.');
         return;
       }
       const reader = postRes.body.getReader();
@@ -646,6 +647,9 @@ function PropertyIntelInner() {
               setFinalResult(ev.result as PropResult);
               setSummary((ev.result as PropResult).grok_intelligence_summary ?? '');
               setCacheHit(false);
+            }
+            if (ev.error) {
+              setError('Full Market Analysis failed — please try again.');
             }
           } catch { /* skip */ }
         }
