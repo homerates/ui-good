@@ -414,12 +414,12 @@ export default function MarketIntelligencePage() {
           style={{
             position: 'fixed', inset: 0, zIndex: 50,
             background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-            padding: '0 0 20px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px',
           }}
         >
           <div style={{
-            width: '100%', maxWidth: 480, margin: '0 20px',
+            width: '100%', maxWidth: 480,
             background: '#111827', border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: 20, padding: '28px 24px',
             boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
