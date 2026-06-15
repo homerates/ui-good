@@ -209,6 +209,7 @@ function ensureStyles() {
 
 const NAV_LINKS = [
   { href: "/chat", label: "Chat", icon: "💬", key: "chat" },
+  { href: "/market-intelligence", label: "Market Rates", icon: "📈", key: "market" },
   { href: "/messages", label: "Messages", icon: "✉️", key: "messages" },
   { href: "/library", label: "My Vault", icon: "🗂", key: "library" },
   { href: "/dashboard", label: "Dashboard", icon: "⚡", key: "dashboard" },
@@ -314,6 +315,10 @@ export default function AppNav({
             <>
               <Link href="/chat" className={`an-drawer-link ${activePage === "chat" ? "an-drawer-active" : ""}`} onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">💬</span>Chat
+              </Link>
+              <div className="an-drawer-label">Market Rates</div>
+              <Link href="/market-intelligence" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">📈</span>Market Rate Intelligence
               </Link>
               <Link href="/lab" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">🧪</span>Lab
