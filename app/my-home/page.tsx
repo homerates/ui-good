@@ -1447,9 +1447,9 @@ function MyHomeRail({ properties, activePropertyId, analysis, photoCache, onSele
     return properties.map((p, idx) => {
       const isActive = p.id === activePropertyId || (!activePropertyId && p.is_primary && idx === 0);
       const isBuyer  = isActive && (analysis?.listingStatus === 'FOR_SALE' || analysis?.listingStatus === 'PENDING');
-      const heading  = p.is_primary ? 'My Home' : short;
       const short    = p.property_address.split(',')[0];
       const city     = p.property_address.split(',').slice(1, 3).join(',').trim();
+      const heading  = p.is_primary ? 'My Home' : short;
 
       const photoUrl     = photoCache[p.property_address] ?? (isActive ? analysis?.photoUrl : null) ?? null;
       const valueNum     = isActive ? (analysis?.estimatedValue ?? p.actual_value) : p.actual_value;
