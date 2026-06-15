@@ -905,7 +905,7 @@ export default function LandingPage() {
             <li><Link href="/my-home">My Home</Link></li>
             <li><Link href="/chat?new=1">Scenario</Link></li>
             <li><Link href="/chat?new=1&pl=1">Property Lookup</Link></li>
-            <li><Link href="/track5">Track 5</Link></li>
+            <li><Link href="/market-intelligence">Market Rates</Link></li>
           </ul>
           <div className="lp-nav-cta">
             <SignedOut>
@@ -964,11 +964,11 @@ export default function LandingPage() {
                 <span className="lp-mobile-menu-link-sub">Enter an address — get full analysis</span>
               </div>
             </Link>
-            <Link href="/track5" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="lp-mobile-menu-link-icon">🎯</span>
+            <Link href="/market-intelligence" className="lp-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="lp-mobile-menu-link-icon">📈</span>
               <div className="lp-mobile-menu-link-inner">
-                <span>Track 5</span>
-                <span className="lp-mobile-menu-link-sub">Buying Decision Score</span>
+                <span>Market Rates</span>
+                <span className="lp-mobile-menu-link-sub">Live FRED data · Grok Oracle</span>
               </div>
             </Link>
           </div>

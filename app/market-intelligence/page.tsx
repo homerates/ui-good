@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useAuth, useUser } from '@clerk/nextjs';
 import type { RateIntelData, RatePoint } from '../api/rate-intelligence/route';
 import AppNav from '../components/AppNav';
 
@@ -55,12 +56,27 @@ const CHIPS = [
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function MarketIntelligencePage() {
+  const { isSignedIn } = useAuth();
+  const { user }       = useUser();
+
   const [data,          setData]          = useState<RateIntelData | null>(null);
   const [loadingData,   setLoadingData]   = useState(true);
   const [thread,        setThread]        = useState<ThreadItem[]>([]);
   const [loadingChip,   setLoadingChip]   = useState<string | null>(null);
   const [usedChips,     setUsedChips]     = useState<Set<string>>(new Set());
   const threadEndRef = useRef<HTMLDivElement>(null);
+
+  // ── Share state ──────────────────────────────────────────────────────────────
+  const [sharing,    setSharing]    = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+
+  // ── Rate alert state ─────────────────────────────────────────────────────────
+  const [showAlertModal,   setShowAlertModal]   = useState(false);
+  const [alertThreshold,   setAlertThreshold]   = useState('');
+  const [alertSaving,      setAlertSaving]      = useState(false);
+  const [alertSaved,       setAlertSaved]       = useState(false);
+  const [lastPortfolio,    setLastPortfolio]    = useState<{ title: string | null; address: string | null; created_at: string } | null>(null);
+  const [loadingPortfolio, setLoadingPortfolio] = useState(false);
 
   // ── Load FRED data ──────────────────────────────────────────────────────────
 
@@ -104,15 +120,16 @@ export default function MarketIntelligencePage() {
         body: JSON.stringify({
           chipType,
           rateContext: {
-            rate30y:    d.current.rate30y,
-            rate15y:    d.current.rate15y,
-            rate10y:    d.current.rate10y,
-            fedFunds:   d.current.fedFunds,
-            cpi:        d.current.cpi,
-            week52High: d.meta.week52High,
-            week52Low:  d.meta.week52Low,
-            spread:     d.meta.spread,
-            ytdChange:  d.meta.ytdChange,
+            rate30y:     d.current.rate30y,
+            rate15y:     d.current.rate15y,
+            rate10y:     d.current.rate10y,
+            fedFunds:    d.current.fedFunds,
+            cpi:         d.current.cpi,
+            lastUpdated: d.current.lastUpdated,
+            week52High:  d.meta.week52High,
+            week52Low:   d.meta.week52Low,
+            spread:      d.meta.spread,
+            ytdChange:   d.meta.ytdChange,
           },
         }),
       });
@@ -170,6 +187,94 @@ export default function MarketIntelligencePage() {
     setTimeout(() => threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 100);
   }
 
+  // ── Share ────────────────────────────────────────────────────────────────────
+
+  async function onShare() {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      // Build a messages array from the current thread
+      const messages: { role: string; content: string }[] = [];
+      for (const item of thread) {
+        if (item.kind === 'oracle-brief' && item.text) {
+          messages.push({ role: 'user', content: 'Show me current mortgage rate intelligence' });
+          messages.push({ role: 'assistant', content: item.text });
+        }
+        if (item.kind === 'chip-card' && item.text) {
+          messages.push({ role: 'user', content: item.chipLabel });
+          messages.push({ role: 'assistant', content: item.text });
+        }
+      }
+      if (messages.length === 0 && data) {
+        messages.push(
+          { role: 'user', content: 'Current mortgage rate snapshot' },
+          { role: 'assistant', content: `30Y Fixed: ${data.current.rate30y}% · 15Y: ${data.current.rate15y}% · 10Y Treasury: ${data.current.rate10y}% · Fed Funds: ${data.current.fedFunds}% · MBS Spread: ${data.meta.spread}bps (FRED ${data.current.lastUpdated})` },
+        );
+      }
+      const res = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages }),
+      });
+      const result = await res.json();
+      if (result.url) {
+        await navigator.clipboard.writeText(result.url).catch(() => {});
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 3000);
+      }
+    } catch { /* non-fatal */ }
+    setSharing(false);
+  }
+
+  // ── Rate alert ───────────────────────────────────────────────────────────────
+
+  async function openAlertModal() {
+    if (data) setAlertThreshold((data.current.rate30y - 0.25).toFixed(2));
+    setShowAlertModal(true);
+    if (isSignedIn && !lastPortfolio) {
+      setLoadingPortfolio(true);
+      try {
+        const res  = await fetch('/api/portfolio');
+        const json = await res.json();
+        if (json.items?.length > 0) {
+          const item = json.items[0];
+          setLastPortfolio({ title: item.title, address: item.address, created_at: item.created_at });
+        }
+      } catch { /* non-fatal */ }
+      setLoadingPortfolio(false);
+    }
+  }
+
+  async function onSaveAlert() {
+    if (!isSignedIn) {
+      window.location.href = '/sign-in?redirect_url=/market-intelligence';
+      return;
+    }
+    const email = user?.emailAddresses?.[0]?.emailAddress ?? '';
+    if (!email) return;
+    const threshold = parseFloat(alertThreshold);
+    if (isNaN(threshold) || threshold < 3 || threshold > 12) return;
+    setAlertSaving(true);
+    try {
+      await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'rate',
+          label: `30Y Fixed drops below ${threshold.toFixed(2)}%`,
+          params: { threshold, series: 'MORTGAGE30US', source: 'market-intelligence' },
+          email,
+        }),
+      });
+      setAlertSaved(true);
+      setTimeout(() => {
+        setAlertSaved(false);
+        setShowAlertModal(false);
+      }, 2500);
+    } catch { /* non-fatal */ }
+    setAlertSaving(false);
+  }
+
   // ── Auto-scroll during typewriter streaming ──────────────────────────────────
   // Fires on every token update while any card is still streaming
   useEffect(() => {
@@ -198,11 +303,50 @@ export default function MarketIntelligencePage() {
           <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#00e87a', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
             Live · Updated {updatedLabel}
           </div>
-          <h1 style={{ fontSize: '1.9rem', fontWeight: 700, color: '#fff', lineHeight: 1.15, marginBottom: 6 }}>
-            Market Rate Intelligence
-          </h1>
-          <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)' }}>
-            AI-powered rate analysis, correlation tracking, and forecast oracle — powered by FRED &amp; Grok
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <h1 style={{ fontSize: '1.9rem', fontWeight: 700, color: '#fff', lineHeight: 1.15, marginBottom: 6 }}>
+                Market Rate Intelligence
+              </h1>
+              <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)' }}>
+                AI-powered rate analysis, correlation tracking, and forecast oracle — powered by FRED &amp; Grok
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0, paddingTop: 4 }}>
+              {/* Watch Rate alert button */}
+              <button
+                onClick={openAlertModal}
+                disabled={!data}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  fontSize: '0.75rem', fontWeight: 700,
+                  padding: '8px 14px', borderRadius: 20,
+                  background: 'rgba(0,232,122,0.12)',
+                  border: '1px solid rgba(0,232,122,0.35)',
+                  color: '#00e87a', cursor: data ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.15s',
+                }}
+              >
+                🔔 Watch Rate
+              </button>
+              {/* Share button */}
+              <button
+                onClick={onShare}
+                disabled={sharing || thread.length === 0}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  fontSize: '0.75rem', fontWeight: 600,
+                  padding: '8px 14px', borderRadius: 20,
+                  background: shareCopied ? 'rgba(0,232,122,0.12)' : 'rgba(255,255,255,0.06)',
+                  border: shareCopied ? '1px solid rgba(0,232,122,0.35)' : '1px solid rgba(255,255,255,0.14)',
+                  color: shareCopied ? '#00e87a' : '#cbd5e1',
+                  cursor: sharing || thread.length === 0 ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {shareCopied ? '✓ Copied!' : sharing ? '…' : '↗ Share'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -227,53 +371,185 @@ export default function MarketIntelligencePage() {
 
       </div>
 
-      {/* Sticky chips — horizontal scroll row, single line on all screen sizes */}
+      {/* Sticky chips */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         background: 'linear-gradient(to top, #0a0f1a 80%, transparent)',
-        paddingTop: 20, paddingBottom: 'env(safe-area-inset-bottom, 16px)',
-        zIndex: 10,
+        padding: '20px 0 16px', zIndex: 10,
       }}>
-        <div
-          className="chip-scroll-row"
-          style={{
-            display: 'flex', gap: 8, overflowX: 'auto', overflowY: 'hidden',
-            padding: '4px 20px 16px',
-            WebkitOverflowScrolling: 'touch' as any,
-            scrollSnapType: 'x mandatory',
-          }}
-        >
-          {CHIPS.map(chip => (
-            <button
-              key={chip.type}
-              onClick={() => handleChip(chip.type, chip.label)}
-              disabled={!!loadingChip || !data}
-              style={{
-                fontSize: '0.75rem', fontWeight: 600,
-                padding: '8px 16px', borderRadius: 20, flexShrink: 0,
-                scrollSnapAlign: 'start',
-                border: usedChips.has(chip.type)
-                  ? '1px solid rgba(0,232,122,0.35)'
-                  : '1px solid rgba(255,255,255,0.14)',
-                background: loadingChip === chip.type
-                  ? 'rgba(0,232,122,0.15)'
-                  : usedChips.has(chip.type)
-                  ? 'rgba(0,232,122,0.08)'
-                  : 'rgba(15,22,35,0.9)',
-                color: usedChips.has(chip.type) ? '#00e87a' : '#cbd5e1',
-                cursor: loadingChip || !data ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', gap: 6,
-                opacity: loadingChip && loadingChip !== chip.type ? 0.45 : 1,
-                transition: 'all 0.15s',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span style={{ fontSize: '0.75rem' }}>{chip.icon}</span>
-              {loadingChip === chip.type ? 'Analyzing…' : chip.label}
-            </button>
-          ))}
+        <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 20px' }}>
+          <div className="chip-scroll-row">
+            {CHIPS.map(chip => (
+              <button
+                key={chip.type}
+                onClick={() => handleChip(chip.type, chip.label)}
+                disabled={!!loadingChip || !data}
+                className="chip-btn"
+                style={{
+                  border: usedChips.has(chip.type)
+                    ? '1px solid rgba(0,232,122,0.35)'
+                    : '1px solid rgba(255,255,255,0.14)',
+                  background: loadingChip === chip.type
+                    ? 'rgba(0,232,122,0.15)'
+                    : usedChips.has(chip.type)
+                    ? 'rgba(0,232,122,0.08)'
+                    : 'rgba(15,22,35,0.9)',
+                  color: usedChips.has(chip.type) ? '#00e87a' : '#cbd5e1',
+                  cursor: loadingChip || !data ? 'not-allowed' : 'pointer',
+                  opacity: loadingChip && loadingChip !== chip.type ? 0.45 : 1,
+                }}
+              >
+                <span style={{ fontSize: '0.75rem' }}>{chip.icon}</span>
+                {loadingChip === chip.type ? 'Analyzing…' : chip.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* ── Rate Alert Modal ─────────────────────────────────────────────────── */}
+      {showAlertModal && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setShowAlertModal(false); }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 50,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px',
+          }}
+        >
+          <div style={{
+            width: '100%', maxWidth: 480,
+            background: '#111827', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 20, padding: '28px 24px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#00e87a', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Rate Watch</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f0f4ff' }}>🔔 Watch This Rate</div>
+              </div>
+              <button onClick={() => setShowAlertModal(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '1.2rem', cursor: 'pointer', padding: 4 }}>✕</button>
+            </div>
+
+            {/* Memory context */}
+            {isSignedIn && (
+              <div style={{ marginBottom: 20, padding: '12px 14px', background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.15)', borderRadius: 12 }}>
+                {loadingPortfolio ? (
+                  <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>Loading your scenarios…</div>
+                ) : lastPortfolio ? (
+                  <>
+                    <div style={{ fontSize: '0.68rem', color: '#00e87a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Based on your last scenario</div>
+                    <div style={{ fontSize: '0.85rem', color: '#e2e8f0', fontWeight: 600 }}>
+                      {lastPortfolio.address ?? lastPortfolio.title ?? 'Saved scenario'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+                      Saved {new Date(lastPortfolio.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>No saved scenarios yet — this alert will track the market rate.</div>
+                )}
+              </div>
+            )}
+
+            {/* Alert not signed in prompt */}
+            {!isSignedIn && (
+              <div style={{ marginBottom: 20, padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>
+                Sign in to save this alert to your account and receive email notifications.
+              </div>
+            )}
+
+            {/* Threshold input */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>
+                Alert me when 30Y Fixed drops to:
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <input
+                    type="number"
+                    step="0.125"
+                    min="3"
+                    max="12"
+                    value={alertThreshold}
+                    onChange={e => setAlertThreshold(e.target.value)}
+                    style={{
+                      width: '100%', padding: '12px 40px 12px 16px',
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: 10, color: '#fff',
+                      fontSize: '1.3rem', fontWeight: 700, outline: 'none',
+                    }}
+                  />
+                  <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', fontSize: '1rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>%</span>
+                </div>
+                {data && (
+                  <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
+                    Current: {data.current.rate30y.toFixed(2)}%<br />
+                    <span style={{ color: '#4ade80' }}>Save {((data.current.rate30y - parseFloat(alertThreshold || '0')) * 100).toFixed(0)} bps</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Email display */}
+            {isSignedIn && user?.emailAddresses?.[0]?.emailAddress && (
+              <div style={{ marginBottom: 20, padding: '10px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)' }}>
+                Alert will be sent to <strong style={{ color: '#e2e8f0' }}>{user.emailAddresses[0].emailAddress}</strong>
+              </div>
+            )}
+
+            {/* Actions */}
+            {alertSaved ? (
+              <div style={{ textAlign: 'center', padding: '14px', background: 'rgba(0,232,122,0.1)', borderRadius: 12, color: '#00e87a', fontWeight: 700 }}>
+                ✓ Rate alert set! We&apos;ll email you when rates drop.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 10 }}>
+                {isSignedIn ? (
+                  <button
+                    onClick={onSaveAlert}
+                    disabled={alertSaving}
+                    style={{
+                      flex: 1, padding: '13px', borderRadius: 12,
+                      background: '#00e87a', color: '#080c12',
+                      fontWeight: 700, fontSize: '0.9rem', border: 'none',
+                      cursor: alertSaving ? 'not-allowed' : 'pointer',
+                      opacity: alertSaving ? 0.7 : 1,
+                    }}
+                  >
+                    {alertSaving ? 'Saving…' : '🔔 Set Alert'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { window.location.href = '/sign-in?redirect_url=/market-intelligence'; }}
+                    style={{
+                      flex: 1, padding: '13px', borderRadius: 12,
+                      background: '#00e87a', color: '#080c12',
+                      fontWeight: 700, fontSize: '0.9rem', border: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Sign in to Set Alert →
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowAlertModal(false)}
+                  style={{
+                    padding: '13px 18px', borderRadius: 12,
+                    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -281,9 +557,25 @@ export default function MarketIntelligencePage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes cursor-blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
         .streaming-cursor::after { content: '▋'; animation: cursor-blink 1s step-end infinite; margin-left: 2px; font-size: 0.85em; color: #00e87a; }
-        /* Hide scrollbar on chip row — swiping still works */
-        .chip-scroll-row { scrollbar-width: none; -ms-overflow-style: none; }
+        /* Chip row — mobile: horizontal scroll; desktop: wrap */
+        .chip-scroll-row {
+          display: flex; gap: 8px; flex-wrap: nowrap;
+          overflow-x: auto; overflow-y: hidden;
+          padding: 4px 0 4px;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none; -ms-overflow-style: none;
+        }
         .chip-scroll-row::-webkit-scrollbar { display: none; }
+        @media (min-width: 640px) {
+          .chip-scroll-row { flex-wrap: wrap; overflow-x: visible; }
+        }
+        .chip-btn {
+          flex-shrink: 0; white-space: nowrap;
+          font-size: 0.75rem; font-weight: 600;
+          padding: 8px 16px; border-radius: 20px;
+          display: inline-flex; align-items: center; gap: 6px;
+          transition: all 0.15s;
+        }
       `}</style>
     </div>
   );

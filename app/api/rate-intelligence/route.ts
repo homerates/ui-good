@@ -110,8 +110,16 @@ export async function GET() {
   const fromPeak    = parseFloat((cur30y - week52High).toFixed(2));
   const spread      = parseFloat(((cur30y - cur10y) * 100).toFixed(0)); // bps
 
+  // YoY CPI change from monthly series (latest vs ~12 months ago)
+  const cpiYoY = (() => {
+    if (seriesCpi.length < 2) return null;
+    const latest = seriesCpi.at(-1)!.value;
+    const yearAgo = seriesCpi[0].value;
+    return parseFloat(((latest / yearAgo - 1) * 100).toFixed(2));
+  })();
+
   const data: RateIntelData = {
-    current: { rate30y: cur30y, rate15y: cur15y, rate10y: cur10y, fedFunds: curFed, cpi: curCpi, lastUpdated: lastDate },
+    current: { rate30y: cur30y, rate15y: cur15y, rate10y: cur10y, fedFunds: curFed, cpi: cpiYoY ?? curCpi, lastUpdated: lastDate },
     series: {
       weekly30y:    series30y,
       historical30y: hist30y,
@@ -133,75 +141,92 @@ export async function GET() {
 
 // ── POST — Grok Oracle streaming ──────────────────────────────────────────────
 
+// Hard grounding rule injected as system message on every call
+const GROUNDING_SYSTEM = `You are the HomeRates.AI Rate Oracle — a sharp, data-driven mortgage market analyst.
+
+HARD RULES — follow without exception:
+1. Every specific number (rates, spreads, Fed Funds level, CPI, Treasury yield, probabilities, basis points) you write must come directly from the LIVE FRED DATA provided. Never substitute values from your training knowledge.
+2. All future timelines, Fed meeting projections, cut forecasts, and rate-drop scenarios must be calculated forward from TODAY'S DATE (provided in the data). Never reference 2024 or 2025 dates as future events.
+3. The MBS spread is computed as: 30Y Mortgage Rate minus 10Y Treasury × 100 = basis points. Derive it from the provided numbers.
+4. If you are uncertain about a number that isn't in the data, say "not in live data" — never invent a figure.
+5. Write in present tense anchored to today's date. This analysis will be read in real time.`;
+
 const CHIP_PROMPTS: Record<string, (ctx: string) => string> = {
-  initial: (ctx) => `You are the HomeRates.AI Rate Oracle — a sharp, data-driven mortgage market analyst. Today's data: ${ctx}
+  initial: (ctx) => `Live FRED data as of today:
+${ctx}
 
 Write a concise, high-quality market intelligence brief in 2-3 short paragraphs. Cover:
-1. Current rate environment and what's driving it (MBS spread, treasury correlation, inflation)
-2. What buyers and homeowners should know right now
-3. Strategic signal — bullish, bearish, or neutral?
+1. Current rate environment and what's driving it — use the exact numbers above (MBS spread derived from 30Y minus 10Y, inflation, Fed Funds)
+2. What buyers and homeowners should know right now given these specific levels
+3. Strategic signal — bullish, bearish, or neutral? Anchor your reasoning to the 52-week range position.
 
 End your response with exactly this line:
 <<<TAGS:TagOne,TagTwo,TagThree,TagFour,TagFive>>>
 
-Tags should be 2-3 word market signals. Be authoritative, specific, not generic.`,
+Tags should be 2-3 word market signals reflecting the actual data. Be authoritative and specific.`,
 
-  'fed-impact': (ctx) => `You are the HomeRates.AI Rate Oracle. Data: ${ctx}
+  'fed-impact': (ctx) => `Live FRED data as of today:
+${ctx}
 
-Explain how Federal Reserve policy is flowing through to mortgage rates right now. Cover:
-1. The Fed Funds → 10Y Treasury → Mortgage Rate transmission mechanism
-2. Current spread dynamics and what they signal
-3. What upcoming FOMC decisions mean for borrowers
+Explain how Federal Reserve policy is flowing through to mortgage rates right now. Use only the figures provided:
+1. The Fed Funds → 10Y Treasury → Mortgage Rate transmission mechanism — cite actual values from the data
+2. Current MBS spread dynamics (compute from 30Y minus 10Y) and what this spread level signals
+3. What upcoming FOMC decisions mean for borrowers given current Fed Funds and CPI levels
 
 End with: <<<TAGS:TagOne,TagTwo,TagThree,TagFour>>>
-Be specific and analytical.`,
+Be specific and analytical. All numbers must match the live data.`,
 
-  'lock-window': (ctx) => `You are the HomeRates.AI Rate Oracle. Data: ${ctx}
+  'lock-window': (ctx) => `Live FRED data as of today:
+${ctx}
 
-Provide a strategic rate lock recommendation. Cover:
-1. Is this a good time to lock based on rate position in the 52-week range?
-2. Float vs lock risk/reward given current spread and trend
-3. Float-down option strategy for buyers under contract
-4. Specific recommendation with rationale
-
-End with: <<<TAGS:TagOne,TagTwo,TagThree,TagFour>>>`,
-
-  'rate-drop': (ctx) => `You are the HomeRates.AI Rate Oracle. Data: ${ctx}
-
-Analyze when and how much rates could fall. Cover:
-1. What conditions would need to be true for rates to reach 6.5%, 6%, 5.5%
-2. Fed cut timeline and magnitude needed
-3. Inflation trajectory required
-4. Realistic probability assessment and timeframe
+Provide a strategic rate lock recommendation grounded entirely in the data above:
+1. Where does the current 30Y rate sit within the 52-week range? Calculate the percentile position.
+2. Float vs lock risk/reward given current MBS spread (30Y minus 10Y × 100 bps) and rate trend
+3. Float-down option strategy for buyers under contract at these levels
+4. Specific lock/float recommendation with a data-backed rationale
 
 End with: <<<TAGS:TagOne,TagTwo,TagThree,TagFour>>>`,
 
-  'arm-vs-fixed': (ctx) => `You are the HomeRates.AI Rate Oracle. Data: ${ctx}
+  'rate-drop': (ctx) => `Live FRED data as of today:
+${ctx}
 
-Compare ARM vs 30Y Fixed in today's environment. Cover:
-1. Current spread between 30Y Fixed and 5/1 ARM
-2. Break-even analysis: how long before fixed wins?
-3. Who should consider an ARM right now?
-4. Rate cap risk if held past 5 years
+Analyze when and how much rates could fall from current levels. Base ALL projections on today's date and the live data — no 2024 or 2025 references as future dates:
+1. What 10Y Treasury and MBS spread conditions must be true for the 30Y rate to reach 6.5%, 6.0%, and 5.5%
+2. Fed cut timeline and magnitude needed starting from the current Fed Funds rate — project forward from today
+3. Inflation trajectory required from current CPI level to support each rate target
+4. Realistic probability and timeframe from today's date
 
 End with: <<<TAGS:TagOne,TagTwo,TagThree,TagFour>>>`,
 
-  jumbo: (ctx) => `You are the HomeRates.AI Rate Oracle. Data: ${ctx}
+  'arm-vs-fixed': (ctx) => `Live FRED data as of today:
+${ctx}
 
-Analyze the Jumbo mortgage rate premium. Cover:
-1. Current Jumbo vs conforming spread and why it's at this level
-2. How Jumbo is affected differently by Fed policy vs MBS market
-3. Which loan sizes benefit most from Jumbo today?
-4. Bank portfolio lending dynamics
+Compare ARM vs 30Y Fixed using today's actual rate environment:
+1. Current 30Y Fixed rate from the data; estimate 5/1 ARM based on typical spread to Fed Funds
+2. Break-even analysis: how many years before the 30Y fixed holder comes out ahead?
+3. Who should consider an ARM right now given current levels and the 52-week range?
+4. Rate cap risk if an ARM is held past 5 years given current Fed Funds trajectory
+
+End with: <<<TAGS:TagOne,TagTwo,TagThree,TagFour>>>`,
+
+  jumbo: (ctx) => `Live FRED data as of today:
+${ctx}
+
+Analyze the Jumbo mortgage rate environment using the live data:
+1. Jumbo vs conforming rate premium — estimate from the 30Y rate and typical bank portfolio dynamics
+2. How Jumbo pricing is affected differently by Fed policy vs MBS market given current spread levels
+3. Which loan size tiers benefit most from Jumbo at today's rate levels?
+4. Bank portfolio lending dynamics in the current Fed Funds environment
 
 End with: <<<TAGS:TagOne,TagTwo,TagThree>>>`,
 
-  global: (ctx) => `You are the HomeRates.AI Rate Oracle. Data: ${ctx}
+  global: (ctx) => `Live FRED data as of today:
+${ctx}
 
-Put US mortgage rates in global context. Cover:
-1. US 30Y rates vs typical EU/UK/Canada rates and why the US is uniquely high
-2. How global bond market movements affect US mortgage rates
-3. What foreign central bank policies (ECB, Bank of England) signal for US rates
+Put US mortgage rates in global context using the actual numbers provided:
+1. US 30Y rate vs typical EU/UK/Canada rates — contrast with the live US figure
+2. How the 10Y Treasury yield (from the data) connects to global bond market movements
+3. What divergence between US Fed Funds and other central bank policies signals for US rates from today forward
 
 End with: <<<TAGS:TagOne,TagTwo,TagThree,TagFour>>>`,
 };
@@ -246,25 +271,24 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const ctxStr = JSON.stringify({
-    '30Y Fixed': `${rateCtx.rate30y ?? 'N/A'}%`,
-    '15Y Fixed': `${rateCtx.rate15y ?? 'N/A'}%`,
-    '10Y Treasury': `${rateCtx.rate10y ?? 'N/A'}%`,
-    'Fed Funds': `${rateCtx.fedFunds ?? 'N/A'}%`,
-    'CPI': `${rateCtx.cpi ?? 'N/A'}%`,
-    '52-week High': `${rateCtx.week52High ?? 'N/A'}%`,
-    '52-week Low': `${rateCtx.week52Low ?? 'N/A'}%`,
-    'MBS Spread (bps)': rateCtx.spread ?? 'N/A',
-    'YTD Change': `${rateCtx.ytdChange ?? 'N/A'}%`,
-    ...(tavilyContext ? { 'Live News': tavilyContext } : {}),
+    'TODAY (analysis date)': today,
+    'FRED data as of': rateCtx.lastUpdated ?? today,
+    '30Y Fixed Rate': `${rateCtx.rate30y ?? 'N/A'}%`,
+    '15Y Fixed Rate': `${rateCtx.rate15y ?? 'N/A'}%`,
+    '10Y Treasury Yield': `${rateCtx.rate10y ?? 'N/A'}%`,
+    'MBS Spread (30Y minus 10Y)': `${rateCtx.spread ?? 'N/A'} bps`,
+    'Fed Funds Rate': `${rateCtx.fedFunds ?? 'N/A'}%`,
+    'CPI YoY Inflation': `${rateCtx.cpi ?? 'N/A'}%`,
+    '52-Week High (30Y)': `${rateCtx.week52High ?? 'N/A'}%`,
+    '52-Week Low (30Y)': `${rateCtx.week52Low ?? 'N/A'}%`,
+    'YTD Change (30Y)': `${rateCtx.ytdChange ?? 'N/A'}%`,
+    ...(tavilyContext ? { 'Live News Headlines': tavilyContext } : {}),
   }, null, 2);
 
   const promptFn = CHIP_PROMPTS[chipType] ?? CHIP_PROMPTS['initial'];
-  const systemPrompt = promptFn(ctxStr);
-
-  if (chipType === 'rate-news' && !tavilyContext) {
-    // Fallback to web-search Grok
-  }
+  const userPrompt = promptFn(ctxStr);
 
   let upstream: Response;
   try {
@@ -273,7 +297,10 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'grok-4.3',
-        messages: [{ role: 'user', content: systemPrompt }],
+        messages: [
+          { role: 'system', content: GROUNDING_SYSTEM },
+          { role: 'user', content: userPrompt },
+        ],
         temperature: 0.3,
         max_tokens: 800,
         stream: true,
