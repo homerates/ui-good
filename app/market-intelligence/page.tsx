@@ -227,51 +227,39 @@ export default function MarketIntelligencePage() {
 
       </div>
 
-      {/* Sticky chips — horizontal scroll row, single line on all screen sizes */}
+      {/* Sticky chips */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         background: 'linear-gradient(to top, #0a0f1a 80%, transparent)',
-        paddingTop: 20, paddingBottom: 'env(safe-area-inset-bottom, 16px)',
-        zIndex: 10,
+        padding: '20px 0 16px', zIndex: 10,
       }}>
-        <div
-          className="chip-scroll-row"
-          style={{
-            display: 'flex', gap: 8, overflowX: 'auto', overflowY: 'hidden',
-            padding: '4px 20px 16px',
-            WebkitOverflowScrolling: 'touch' as any,
-            scrollSnapType: 'x mandatory',
-          }}
-        >
-          {CHIPS.map(chip => (
-            <button
-              key={chip.type}
-              onClick={() => handleChip(chip.type, chip.label)}
-              disabled={!!loadingChip || !data}
-              style={{
-                fontSize: '0.75rem', fontWeight: 600,
-                padding: '8px 16px', borderRadius: 20, flexShrink: 0,
-                scrollSnapAlign: 'start',
-                border: usedChips.has(chip.type)
-                  ? '1px solid rgba(0,232,122,0.35)'
-                  : '1px solid rgba(255,255,255,0.14)',
-                background: loadingChip === chip.type
-                  ? 'rgba(0,232,122,0.15)'
-                  : usedChips.has(chip.type)
-                  ? 'rgba(0,232,122,0.08)'
-                  : 'rgba(15,22,35,0.9)',
-                color: usedChips.has(chip.type) ? '#00e87a' : '#cbd5e1',
-                cursor: loadingChip || !data ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', gap: 6,
-                opacity: loadingChip && loadingChip !== chip.type ? 0.45 : 1,
-                transition: 'all 0.15s',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span style={{ fontSize: '0.75rem' }}>{chip.icon}</span>
-              {loadingChip === chip.type ? 'Analyzing…' : chip.label}
-            </button>
-          ))}
+        <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 20px' }}>
+          <div className="chip-scroll-row">
+            {CHIPS.map(chip => (
+              <button
+                key={chip.type}
+                onClick={() => handleChip(chip.type, chip.label)}
+                disabled={!!loadingChip || !data}
+                className="chip-btn"
+                style={{
+                  border: usedChips.has(chip.type)
+                    ? '1px solid rgba(0,232,122,0.35)'
+                    : '1px solid rgba(255,255,255,0.14)',
+                  background: loadingChip === chip.type
+                    ? 'rgba(0,232,122,0.15)'
+                    : usedChips.has(chip.type)
+                    ? 'rgba(0,232,122,0.08)'
+                    : 'rgba(15,22,35,0.9)',
+                  color: usedChips.has(chip.type) ? '#00e87a' : '#cbd5e1',
+                  cursor: loadingChip || !data ? 'not-allowed' : 'pointer',
+                  opacity: loadingChip && loadingChip !== chip.type ? 0.45 : 1,
+                }}
+              >
+                <span style={{ fontSize: '0.75rem' }}>{chip.icon}</span>
+                {loadingChip === chip.type ? 'Analyzing…' : chip.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -281,9 +269,25 @@ export default function MarketIntelligencePage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes cursor-blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
         .streaming-cursor::after { content: '▋'; animation: cursor-blink 1s step-end infinite; margin-left: 2px; font-size: 0.85em; color: #00e87a; }
-        /* Hide scrollbar on chip row — swiping still works */
-        .chip-scroll-row { scrollbar-width: none; -ms-overflow-style: none; }
+        /* Chip row — mobile: horizontal scroll; desktop: wrap */
+        .chip-scroll-row {
+          display: flex; gap: 8px; flex-wrap: nowrap;
+          overflow-x: auto; overflow-y: hidden;
+          padding: 4px 0 4px;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none; -ms-overflow-style: none;
+        }
         .chip-scroll-row::-webkit-scrollbar { display: none; }
+        @media (min-width: 640px) {
+          .chip-scroll-row { flex-wrap: wrap; overflow-x: visible; }
+        }
+        .chip-btn {
+          flex-shrink: 0; white-space: nowrap;
+          font-size: 0.75rem; font-weight: 600;
+          padding: 8px 16px; border-radius: 20px;
+          display: inline-flex; align-items: center; gap: 6px;
+          transition: all 0.15s;
+        }
       `}</style>
     </div>
   );
