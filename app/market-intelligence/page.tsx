@@ -67,20 +67,6 @@ export default function MarketIntelligencePage() {
   const [usedChips,     setUsedChips]     = useState<Set<string>>(new Set());
   const threadEndRef = useRef<HTMLDivElement>(null);
 
-  // ── Share messages (built from thread for ShareAnswerButton) ─────────────────
-  const shareMessages = thread.flatMap(item => {
-    if (item.kind === 'oracle-brief' && item.text)
-      return [
-        { id: 'q-initial', role: 'user' as const, content: 'Show me current mortgage rate intelligence' },
-        { id: 'a-initial', role: 'assistant' as const, content: item.text },
-      ];
-    if (item.kind === 'chip-card' && item.text)
-      return [
-        { id: `q-${item.chipType}`, role: 'user' as const, content: item.chipLabel },
-        { id: `a-${item.chipType}`, role: 'assistant' as const, content: item.text },
-      ];
-    return [];
-  });
 
   // ── Rate alert state ─────────────────────────────────────────────────────────
   const [showAlertModal,   setShowAlertModal]   = useState(false);
@@ -302,14 +288,12 @@ export default function MarketIntelligencePage() {
               >
                 🔔 Watch Rate
               </button>
-              {/* Share button — same modal as scenario cards */}
-              {shareMessages.length > 0 && (
-                <ShareAnswerButton
-                  messages={shareMessages}
-                  question="Current mortgage rate intelligence"
-                  label="↗ Share"
-                />
-              )}
+              {/* Share button — shares the live page URL (data is always fresh) */}
+              <ShareAnswerButton
+                url={`${process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai'}/market-intelligence`}
+                question="Market Rate Intelligence — Live FRED data, Grok Oracle & Rate Forecasts"
+                label="↗ Share"
+              />
             </div>
           </div>
         </div>
