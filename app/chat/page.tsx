@@ -2527,7 +2527,7 @@ export default function Page() {
                         const _dsInterestLevel    = (d.interestLevel    as string | null | undefined) ?? null;
                         void (async () => {
                             try {
-                                // ── Check featured_properties cache before Grok (zero API cost) ──
+                                // ── Layer 1: featured_properties cache (shared discovery intelligence) ──
                                 let deepResult: Record<string, unknown> | null = null;
                                 try {
                                     const fpRes = await fetch(`/api/featured-properties?address=${encodeURIComponent(_dsAddress)}&inc=1`);
@@ -2535,9 +2535,20 @@ export default function Page() {
                                         const fp = await fpRes.json();
                                         if (fp.hit && fp.rawData) deepResult = fp.rawData as Record<string, unknown>;
                                     }
-                                } catch { /* cache check is best-effort — fall through to Grok */ }
+                                } catch { /* non-fatal */ }
 
-                                // ── Cache miss — run Grok deep analysis ──
+                                // ── Layer 2: grok_property_cache (written by property-intel page) ──
+                                if (deepResult === null) {
+                                    try {
+                                        const gcRes = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(_dsAddress)}`);
+                                        if (gcRes.ok) {
+                                            const gc = await gcRes.json();
+                                            if (gc.cached && gc.result) deepResult = gc.result as Record<string, unknown>;
+                                        }
+                                    } catch { /* non-fatal */ }
+                                }
+
+                                // ── Layer 3: cache miss — call Grok API ──
                                 if (deepResult === null) {
                                     const postRes = await fetch('/api/beta/grok-property', {
                                         method: 'POST',
@@ -3208,14 +3219,11 @@ export default function Page() {
                     // Background: L2 AVM + L3 + L4 via Grok deep analysis — non-blocking
                     void (async () => {
                         try {
-                            // Fetch live rate in parallel with Grok deep analysis
-                            const [tickerR, deepResp] = await Promise.all([
+                            // Fetch ticker + both caches in parallel before calling Grok
+                            const [tickerR, fpR, gcR] = await Promise.all([
                                 fetch('/api/ticker', { cache: 'no-store' }).catch(() => null),
-                                fetch('/api/beta/grok-property', {
-                                    method:  'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body:    JSON.stringify({ address: _dsAddress, price: _dsPrice, deep: true }),
-                                }),
+                                fetch(`/api/featured-properties?address=${encodeURIComponent(_dsAddress)}`).catch(() => null),
+                                fetch(`/api/beta/grok-property?address=${encodeURIComponent(_dsAddress)}`).catch(() => null),
                             ]);
 
                             let _dsRate = 6.65; // FRED fallback
@@ -3230,10 +3238,23 @@ export default function Page() {
                                 } catch { /* ignore */ }
                             }
 
+                            // Check caches in priority order — skip Grok POST on hit
+                            let deepResult: Record<string, any> | null = null;
+                            try { if (fpR?.ok) { const fp = await fpR.json(); if (fp.hit && fp.rawData) deepResult = fp.rawData; } } catch { /* non-fatal */ }
+                            if (!deepResult) {
+                                try { if (gcR?.ok) { const gc = await gcR.json(); if (gc.cached && gc.result) deepResult = gc.result; } } catch { /* non-fatal */ }
+                            }
+
+                            if (!deepResult) {
+                            // Cache miss — call Grok API
+                            const deepResp = await fetch('/api/beta/grok-property', {
+                                method:  'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body:    JSON.stringify({ address: _dsAddress, price: _dsPrice, deep: true }),
+                            });
                             if (!deepResp.ok || !deepResp.body) return;
                             const reader = deepResp.body.getReader();
                             const dec = new TextDecoder();
-                            let deepResult: Record<string, any> | null = null;
                             let buf = '';
                             while (true) {
                                 const { done, value } = await reader.read();
@@ -3247,6 +3268,7 @@ export default function Page() {
                                     catch { /* ignore */ }
                                 }
                             }
+                            } // end cache-miss block
                             if (!deepResult) return;
 
                             // L2 from deep analysis AVM (same fallback chain as FOR-SALE path)
