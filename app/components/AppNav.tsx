@@ -8,7 +8,8 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton, SignOutButton, UserButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton, SignOutButton } from "@clerk/nextjs";
+import SettingsPanel from "./SettingsPanel";
 import { useAdminStatus } from "../hooks/useAdminStatus";
 import { useCreditBalance } from "../hooks/useCreditBalance";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
@@ -95,16 +96,6 @@ function ensureStyles() {
     .an-right-zone {
       display: flex; align-items: center; gap: 8px; justify-self: end;
     }
-
-    /* Gear icon → /dashboard */
-    .an-gear {
-      display: flex; align-items: center; justify-content: center;
-      width: 32px; height: 32px; border-radius: 8px;
-      background: transparent; border: 1px solid rgba(255,255,255,0.08);
-      color: #8fa3b8; text-decoration: none; font-size: 1rem;
-      transition: background 0.15s, color 0.15s; flex-shrink: 0;
-    }
-    .an-gear:hover { background: rgba(255,255,255,0.06); color: #f0f4ff; border-color: rgba(255,255,255,0.18); }
 
     /* Sign in button */
     .an-signin-btn {
@@ -458,13 +449,10 @@ export default function AppNav({
     ? createPortal(drawerInner, document.body)
     : null;
 
-  // ── Right zone: gear (signed in) + user/signin + hamburger ──
+  // ── Right zone: settings gear (universal) + sign in (signed out) + hamburger ──
   const rightZone = (
     <div className="an-right-zone">
-      <SignedIn>
-        <Link href="/dashboard" className="an-gear" title="Dashboard">⚙</Link>
-        <UserButton appearance={{ elements: { avatarBox: { width: 28, height: 28 } } }} />
-      </SignedIn>
+      <SettingsPanel />
       <SignedOut>
         <SignInButton mode="modal">
           <button className="an-signin-btn">Sign in</button>
