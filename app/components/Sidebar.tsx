@@ -405,28 +405,6 @@ export default function Sidebar(props: SidebarProps) {
               </button>
             )}
 
-            {/* Home Value — homeowner analysis → leads to Pro Intelligence Report */}
-            <a
-              href="/homeowner"
-              className="btn sidebar-tool-btn"
-              style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
-            >
-              <span className="sidebar-tool-icon">🏠</span>
-              Home Value
-              <span style={{
-                marginLeft: 'auto',
-                fontSize: 9,
-                fontWeight: 800,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
-                color: '#1a0a00',
-                padding: '2px 6px',
-                borderRadius: 999,
-                flexShrink: 0,
-              }}>⭐ Pro</span>
-            </a>
-
             {/* Deal Rooms — AI transaction workspace (Pro) */}
             <a
               href="/deal-rooms"
