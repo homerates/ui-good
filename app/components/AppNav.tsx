@@ -469,11 +469,25 @@ export default function AppNav({
     </div>
   );
 
-  // drawerOnly mode — just hamburger + drawer (used in chat page header)
+  // drawerOnly mode — just hamburger + drawer, no SettingsPanel (host page owns it)
   if (drawerOnly) {
     return (
       <>
-        {rightZone}
+        <div className="an-right-zone">
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="an-signin-btn">Sign in</button>
+            </SignInButton>
+          </SignedOut>
+          <div className="an-hamburger-wrap">
+            <button className="an-hamburger" onClick={() => setDrawerOpen(true)} aria-label="Open menu">
+              <span /><span /><span />
+            </button>
+            {totalUnread > 0 && (
+              <span className="an-unread-dot">{totalUnread > 9 ? "9+" : totalUnread}</span>
+            )}
+          </div>
+        </div>
         {drawer}
       </>
     );
