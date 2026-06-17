@@ -468,6 +468,7 @@ type ApiResponse = {
         termMonths?: number; closingCosts?: number; remainingMonths?: number;
         address?: string; city?: string; state?: string; zip?: string;
         propertyValue?: number; origRateLabel?: string; fredDate?: string; sofr?: number;
+        photoUrl?: string;
     } | null;
     loanLimitsSlider?: {
         county: string; state?: string; stateName?: string;
@@ -2359,6 +2360,7 @@ export default function Page() {
                             city:            d.city ?? undefined,
                             state:           d.state ?? undefined,
                             zip:             d.zip ?? undefined,
+                            photoUrl:        (d.photoUrl && /ssl\.cdn-redfin\.com/i.test(d.photoUrl)) ? d.photoUrl : undefined,
                         };
 
                         const refiChips = [
