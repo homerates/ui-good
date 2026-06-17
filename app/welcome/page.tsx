@@ -32,7 +32,9 @@ type UserType = "borrower" | "lo" | "agent";
 export default function WelcomePage() {
   const searchParams = useSearchParams();
   const roleFromUrl = searchParams?.get("role") as UserType | null;
-  const [type, setType] = useState<UserType | "">(roleFromUrl ?? "");
+  const pilotSlug = searchParams?.get("pilot") ?? null;
+  // Pilot LOs default straight to "lo" — skip role picker ambiguity
+  const [type, setType] = useState<UserType | "">(pilotSlug ? "lo" : (roleFromUrl ?? ""));
   const [nmls, setNmls] = useState("");
   const [lender, setLender] = useState("");
   const [license, setLicense] = useState("");
@@ -86,7 +88,7 @@ export default function WelcomePage() {
       const res = await fetch("/api/onboarding/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: type, nmls, lender, license, brokerage }),
+        body: JSON.stringify({ role: type, nmls, lender, license, brokerage, pilotSlug }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -94,8 +96,8 @@ export default function WelcomePage() {
         setSubmitting(false);
         return;
       }
-      if (data.foundingNumber) {
-        setFoundingNumber(data.foundingNumber); // show founding confirmation → then /profile
+      if (data.foundingNumber || data.isPilot) {
+        setFoundingNumber(data.foundingNumber ?? -1); // -1 = pilot path (no sequential number)
       } else {
         window.location.href = "/dashboard";
       }
@@ -120,20 +122,34 @@ export default function WelcomePage() {
             <div className="wl-card" style={{ textAlign: "center", gap: "1.5rem" }}>
               <div style={{ fontSize: "3rem" }}>🏅</div>
               <div>
-                <div className="wl-eyebrow" style={{ marginBottom: 8 }}>Founding 500</div>
-                <h1 className="wl-title" style={{ fontSize: "1.5rem" }}>
-                  You&apos;re Founding Member #{foundingNumber}
-                </h1>
-                <p className="wl-sub" style={{ marginTop: 8 }}>
-                  Your badge is live on your HomeRates profile. You&apos;re locked in at founding pricing — forever.
-                </p>
+                {foundingNumber === -1 ? (
+                  <>
+                    <div className="wl-eyebrow" style={{ marginBottom: 8 }}>Pilot Access Activated</div>
+                    <h1 className="wl-title" style={{ fontSize: "1.5rem" }}>
+                      You&apos;re in. Full access unlocked.
+                    </h1>
+                    <p className="wl-sub" style={{ marginTop: 8 }}>
+                      Your Founding Member badge is live on your HomeRates profile. Credits are ready — start running scenarios for your clients now.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="wl-eyebrow" style={{ marginBottom: 8 }}>Founding 500</div>
+                    <h1 className="wl-title" style={{ fontSize: "1.5rem" }}>
+                      You&apos;re Founding Member #{foundingNumber}
+                    </h1>
+                    <p className="wl-sub" style={{ marginTop: 8 }}>
+                      Your badge is live on your HomeRates profile. You&apos;re locked in at founding pricing — forever.
+                    </p>
+                  </>
+                )}
               </div>
               <button
                 type="button"
                 className="wl-submit"
-                onClick={() => { window.location.href = "/profile"; }}
+                onClick={() => { window.location.href = "/chat"; }}
               >
-                View my profile →
+                Start using HomeRates →
               </button>
             </div>
           </div>

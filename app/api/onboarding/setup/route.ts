@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { role, nmls, lender, license, brokerage } = body;
+  const { role, nmls, lender, license, brokerage, pilotSlug } = body;
 
   if (!role || !["borrower", "lo", "agent"].includes(role)) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
@@ -173,9 +173,38 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // ── Company pilot attribution ─────────────────────────────────────────────
+  // If the LO came via /pilot/[slug], link them to the company pilot and
+  // grant founding member status + custom credit amount.
+  let pilotCredits = 0;
+  let pilotCompanyName: string | null = null;
+  if (pilotSlug && (role === "lo" || role === "agent")) {
+    const { data: pilot } = await sb
+      .from("company_pilots")
+      .select("id, company_name, credits_per_lo, is_active")
+      .eq("slug", pilotSlug.toLowerCase())
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (pilot) {
+      pilotCredits = pilot.credits_per_lo;
+      pilotCompanyName = pilot.company_name;
+      // Link LO to pilot and set founding member
+      await sb.from("loan_officers")
+        .update({ company_pilot_id: pilot.id, is_founding_member: true })
+        .eq("user_id", userId);
+    }
+  }
+
   // ── Credits ──────────────────────────────────────────────────────────────
-  // Founding bonus — 1,000 credits, once per user
-  await awardCredits(userId, 1000, "founding_bonus", "Welcome! Founding member bonus", `founding_${userId}`);
+  // Pilot credits (if applicable) — uses pilot's custom amount
+  if (pilotCredits > 0) {
+    await awardCredits(userId, pilotCredits, "founding_bonus",
+      `${pilotCompanyName ?? "Company"} pilot access — welcome!`, `pilot_${pilotSlug}_${userId}`);
+  } else {
+    // Standard founding bonus — 1,000 credits, once per user
+    await awardCredits(userId, 1000, "founding_bonus", "Welcome! Founding member bonus", `founding_${userId}`);
+  }
 
   // Free plan starter credits — 100, once per user
   await awardCredits(userId, 100, "plan_free_monthly", "Free plan starter credits", `free_start_${userId}`);
@@ -185,5 +214,5 @@ export async function POST(req: NextRequest) {
     await awardCredits(referrerId, 500, "referral_bonus", "Referral bonus — new member joined", `referral_${userId}`);
   }
 
-  return NextResponse.json({ ok: true, role, foundingNumber });
+  return NextResponse.json({ ok: true, role, foundingNumber, isPilot: pilotCredits > 0, pilotCompanyName });
 }

@@ -401,6 +401,7 @@ export default function AdminDashboard() {
             <Link href="/admin" className="adm-nav-link active">Dashboard</Link>
             <Link href="/admin/directory" className="adm-nav-link">Directory</Link>
             <Link href="/admin/waitlist" className="adm-nav-link">Waitlist</Link>
+            <Link href="/admin/pilots" className="adm-nav-link">Pilots</Link>
             <Link href="/admin/corporate" className="adm-nav-link">Corporate</Link>
             <Link href="/admin/outreach" className="adm-nav-link">Outreach</Link>
             <Link href="/admin/white-label" className="adm-nav-link">White Label</Link>
