@@ -468,6 +468,7 @@ type ApiResponse = {
         termMonths?: number; closingCosts?: number; remainingMonths?: number;
         address?: string; city?: string; state?: string; zip?: string;
         propertyValue?: number; origRateLabel?: string; fredDate?: string; sofr?: number;
+        photoUrl?: string;
     } | null;
     loanLimitsSlider?: {
         county: string; state?: string; stateName?: string;
@@ -589,6 +590,10 @@ function buildPdfPayload(meta: ApiResponse): { type: string; params: Record<stri
     if (meta.dscrSlider) {
         const s = meta.dscrSlider;
         return { type: 'dscr', params: { price: s.price, rent: s.rent, downPct: s.downPct, rate: s.rate, vacancyRate: s.vacancyRate, taxRate: s.taxRate, insRate: s.insRate } };
+    }
+    if (meta.refiIntelligenceCard) {
+        const s = meta.refiIntelligenceCard;
+        return { type: 'refi', params: { balance: s.balance, currentRate: s.currentRate, newRate: s.newRate, termMonths: s.termMonths ?? 360, closingCosts: s.closingCosts } };
     }
     if (meta.refiSlider) {
         const s = meta.refiSlider;
@@ -2343,13 +2348,19 @@ export default function Page() {
 
                         const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
-                        const refiSlider = {
-                            balance:       bal,
-                            currentRate:   curRate,
-                            newRate:       liveRate,
-                            termMonths:    termMo,
-                            closingCosts:  costs,
-                            propertyValue: propVal ?? undefined,
+                        const refiIntelligenceCard = {
+                            balance:         bal,
+                            currentRate:     curRate,
+                            newRate:         liveRate,
+                            termMonths:      termMo,
+                            closingCosts:    costs,
+                            remainingMonths: termMo,
+                            propertyValue:   propVal ?? undefined,
+                            address:         d.address?.split(',')[0]?.trim() ?? undefined,
+                            city:            d.city ?? undefined,
+                            state:           d.state ?? undefined,
+                            zip:             d.zip ?? undefined,
+                            photoUrl:        (d.photoUrl && /ssl\.cdn-redfin\.com/i.test(d.photoUrl)) ? d.photoUrl : undefined,
                         };
 
                         const refiChips = [
@@ -2399,7 +2410,7 @@ export default function Page() {
                             message: friendly,
                             answerMarkdown: friendly,
                             propertyCard: d,
-                            refiSlider,
+                            refiIntelligenceCard,
                             follow_up_chips: [],
                         };
 

@@ -24,6 +24,7 @@ export interface RefiIntelligenceParams {
     zip?: string;
     propertyValue?: number;    // AVM
     origRateLabel?: string;    // e.g. "Jul 2022"
+    photoUrl?: string;         // ssl.cdn-redfin.com only
 
     // FRED context
     fredDate?: string;         // e.g. "Apr 23, 2026"
@@ -89,8 +90,11 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
         origRateLabel,
         fredDate,
         sofr,
+        photoUrl,
         onRunScenario,
     } = props;
+
+    const safePhoto = photoUrl && /ssl\.cdn-redfin\.com/i.test(photoUrl) ? photoUrl : null;
 
     const initClosingCosts = props.closingCosts ?? Math.round(initBalance * 0.015 / 500) * 500;
 
@@ -273,9 +277,11 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
 
         {/* ── Property + Map Hero ── */}
         <div style={{ display:'grid', gridTemplateColumns:'60% 40%', height: mode==='simple' ? 190 : 140, borderBottom:'1px solid rgba(255,255,255,0.05)', position:'relative', flexShrink:0 }}>
-            {/* House illustration */}
+            {/* House photo or wireframe illustration */}
             <div style={{ position:'relative', background:'linear-gradient(160deg,#020c05,#041208)', overflow:'hidden', borderRight:'1px solid rgba(255,255,255,0.05)' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 190" preserveAspectRatio="xMidYMid slice" style={{ width:'100%', height:'100%', display:'block' }}>
+                {safePhoto ? (
+                    <img src={safePhoto} alt="Property" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                ) : <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 190" preserveAspectRatio="xMidYMid slice" style={{ width:'100%', height:'100%', display:'block' }}>
                     <defs>
                         <linearGradient id="ri-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#010a04"/><stop offset="100%" stopColor="#041409"/></linearGradient>
                         <radialGradient id="ri-glow" cx="50%" cy="100%" r="60%"><stop offset="0%" stopColor="rgba(0,232,122,0.05)"/><stop offset="100%" stopColor="rgba(0,232,122,0)"/></radialGradient>
@@ -326,7 +332,7 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                     <line x1="14" y1="142" x2="14" y2="152" stroke="rgba(0,232,122,0.18)" strokeWidth="1.2"/>
                     <ellipse cx="326" cy="132" rx="9" ry="12" fill="rgba(0,232,122,0.025)" stroke="rgba(0,232,122,0.14)" strokeWidth="0.8"/>
                     <rect width="340" height="190" fill="url(#ri-glow)" style={{ mixBlendMode:'screen' as any }}/>
-                </svg>
+                </svg>}
                 {/* Photo fade */}
                 <div style={{ position:'absolute', bottom:0, left:0, right:0, height:48, background:'linear-gradient(to bottom,transparent,rgba(13,17,23,0.85))', pointerEvents:'none' }}/>
             </div>
