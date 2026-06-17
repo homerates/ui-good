@@ -13,7 +13,7 @@ const QUICK_CHIPS = [
     { label: 'VA loan · $850k · no down payment', seed: 'VA loan on an $850,000 home with no down payment at current rates — show me the full breakdown including funding fee' },
     { label: 'Jumbo · $1.5M · 20% down', seed: 'Jumbo loan on a $1,500,000 home with 20% down at current rates' },
     { label: 'CA loan limits · LA County 2026', seed: 'California loan limits for Los Angeles County — show me the 2026 conforming, high balance, and jumbo thresholds' },
-    { label: 'Refi: $750k CA at 7.25% → breakeven?', seed: 'I have a $750,000 California mortgage at 7.25% — what rate do I need for a 3-year breakeven and what are my monthly savings today?' },
+    { label: 'Refi: $750k CA at 6.75% → breakeven?', seed: 'I have a $750,000 California mortgage at 6.75% — what rate do I need for a 3-year breakeven and what are my monthly savings today?' },
     { label: 'How much house on $180k salary?', seed: 'I make $180,000 a year and have $90,000 saved — how much house can I afford in California?' },
     { label: 'HomeRates vs ChatGPT', seed: 'About HomeRates: chatgpt — how is HomeRates.ai different from ChatGPT for mortgage questions?' },
 ];
@@ -34,7 +34,7 @@ const SCENARIOS = [
         accent: '#10b981',
         line1: '~$510/mo savings',
         line2: '$750k CA balance · break-even',
-        seed: 'What would refinancing look like on a $750,000 California mortgage at 7.25%? Show me breakeven and monthly savings.',
+        seed: 'What would refinancing look like on a $750,000 California mortgage at 6.75%? Show me breakeven and monthly savings.',
     },
     {
         icon: '📐',

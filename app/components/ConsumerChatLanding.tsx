@@ -25,9 +25,9 @@ const CARDS = [
     icon: '🔁',
     label: 'Should I refi?',
     line1: '~$510/mo savings · 3yr breakeven',
-    line2: '$750k CA balance · 7.25% → today',
+    line2: '$750k CA balance · 6.75% → today',
     accent: '#a78bfa',
-    seed: 'What would refinancing look like on a $750,000 California mortgage at 7.25%? Show me breakeven, monthly savings, and what rate I need for a 3-year payback.',
+    seed: 'What would refinancing look like on a $750,000 California mortgage at 6.75%? Show me breakeven, monthly savings, and what rate I need for a 3-year payback.',
   },
   {
     key: 'jumbo',
