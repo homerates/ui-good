@@ -670,9 +670,10 @@ function addressFromRedfinUrl(url: string): string | null {
 // ── Sold-data rescue via web-search snippets ────────────────────────────────
 // When Tavily extract returns nothing (Redfin JS-rendering blocked),
 // search snippets usually carry "Sold [Month Year] for $X" + "Redfin Estimate: $X".
-async function fetchSoldSnippets(address: string, excludeUrl?: string): Promise<string | null> {
+interface SoldSnippetResult { text: string | null; photoUrl: string | null; }
+async function fetchSoldSnippets(address: string): Promise<SoldSnippetResult> {
     const key = process.env.TAVILY_API_KEY;
-    if (!key || !address) return null;
+    if (!key || !address) return { text: null, photoUrl: null };
     const clean = cleanAddressForSearch(address);
     const streetNum = clean.match(/^(\d+)\b/)?.[1] ?? null;
     const RE_DOMAINS = /redfin\.com|zillow\.com|realtor\.com|trulia\.com|homes\.com/i;
@@ -687,9 +688,10 @@ async function fetchSoldSnippets(address: string, excludeUrl?: string): Promise<
                 max_results: 5,
                 search_depth: 'basic',
                 include_answer: false,
+                include_images: true,
             }),
         });
-        if (!res.ok) return null;
+        if (!res.ok) return { text: null, photoUrl: null };
         const data = await res.json();
         const results: Record<string, unknown>[] = (data.results ?? [])
             .filter((r: Record<string, unknown>) => RE_DOMAINS.test(String(r.url ?? '')))
@@ -697,13 +699,19 @@ async function fetchSoldSnippets(address: string, excludeUrl?: string): Promise<
                 if (!streetNum) return true;
                 const haystack = `${r.title ?? ''} ${r.content ?? ''} ${r.url ?? ''}`;
                 return new RegExp(`\\b${streetNum}\\b`).test(haystack);
-            })
-            .filter((r: Record<string, unknown>) => !excludeUrl || String(r.url ?? '') !== excludeUrl);
-        if (results.length === 0) return null;
-        return results.map((r) => `${r.title ?? ''}\n${r.content ?? ''}`).join('\n\n');
+            });
+        if (results.length === 0) return { text: null, photoUrl: null };
+        const text = results.map((r) => `${r.title ?? ''}\n${r.content ?? ''}`).join('\n\n');
+        // Also pick a property photo from Tavily search images (ssl.cdn-redfin.com only)
+        const allImages: string[] = [
+            ...((data.images as string[]) ?? []),
+            ...results.flatMap((r) => (r.images as string[] | undefined) ?? []),
+        ];
+        const photoUrl = pickPropertyPhoto(allImages);
+        return { text, photoUrl };
     } catch (e: unknown) {
         log.warn('[PropertyLookup] Sold snippets rescue failed', { error: (e as Error)?.message });
-        return null;
+        return { text: null, photoUrl: null };
     }
 }
 
@@ -828,10 +836,12 @@ async function handleUrl(rawUrl: string) {
     // SOLD/OFF_MARKET rescue: when Tavily extract returned no text (Redfin JS-blocked),
     // sale date + sold price + AVM come back null from parseExtended. Web-search snippets
     // indexed by Google/Bing usually carry this data in preview text — use them as fallback.
-    if ((finalStatus === 'SOLD' || finalStatus === 'OFF_MARKET') && !merged.lastSaleDate && typeof merged.address === 'string') {
+    if ((finalStatus === 'SOLD' || finalStatus === 'OFF_MARKET') && (!merged.lastSaleDate || !merged.photoUrl) && typeof merged.address === 'string') {
         try {
-            const snippets = await fetchSoldSnippets(merged.address as string, url);
-            if (snippets) {
+            const { text: snippets, photoUrl: rescuedPhoto } = await fetchSoldSnippets(merged.address as string);
+            // Recover property photo from search images when direct fetch missed it
+            if (!merged.photoUrl && rescuedPhoto) merged.photoUrl = rescuedPhoto;
+            if (snippets && !merged.lastSaleDate) {
                 // Prepend "SOLD" so parseExtended's status detection triggers balance calc
                 const rescueExt = parseExtended('SOLD\n' + snippets, merged.price as number | null, merged.sqft as number | null);
                 if (!merged.lastSaleDate  && rescueExt.lastSaleDate)   merged.lastSaleDate   = rescueExt.lastSaleDate;
