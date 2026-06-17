@@ -5,6 +5,8 @@
 // Property + map hero, Tesla-style rate delta, 3 scenarios, HELOC, equity map, AI verdict
 
 import React, { useState, useMemo } from 'react';
+import SliderField from './SliderField';
+import { COLORS } from '../../lib/tokens';
 
 export interface RefiIntelligenceParams {
     // Core refi data
@@ -74,10 +76,10 @@ function refiVerdict(rateDelta: number, beMonths: number | null): { emoji: strin
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
     const {
-        balance,
-        currentRate,
-        newRate,
-        termMonths = 360,
+        balance: initBalance,
+        currentRate: initCurrentRate,
+        newRate: initNewRate,
+        termMonths: initTermMonths = 360,
         remainingMonths,
         address,
         city,
@@ -90,7 +92,28 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
         onRunScenario,
     } = props;
 
-    const closingCosts = props.closingCosts ?? Math.round(balance * 0.015 / 500) * 500;
+    const initClosingCosts = props.closingCosts ?? Math.round(initBalance * 0.015 / 500) * 500;
+
+    // Adjustable state — init from props per slider-state pattern
+    const [balance, setBalance]           = useState(initBalance);
+    const [currentRate, setCurrentRate]   = useState(initCurrentRate);
+    const [newRate, setNewRate]           = useState(initNewRate);
+    const [termMonths, setTermMonths]     = useState(initTermMonths);
+    const [closingCosts, setClosingCosts] = useState(initClosingCosts);
+    const [noCost, setNoCost]             = useState(false);
+
+    const effNewRate = noCost ? parseFloat((newRate + 0.25).toFixed(3)) : newRate;
+    const effClosing = noCost ? 0 : closingCosts;
+    const termYears  = Math.round(termMonths / 12);
+    const balanceMax = Math.max(4_000_000, Math.ceil(balance * 1.5 / 500_000) * 500_000);
+
+    const isDirty =
+        balance !== initBalance ||
+        currentRate !== initCurrentRate ||
+        newRate !== initNewRate ||
+        termMonths !== initTermMonths ||
+        closingCosts !== initClosingCosts ||
+        noCost;
 
     const [mode, setMode] = useState<'simple' | 'deep'>('simple');
     const [activeScenario, setActiveScenario] = useState<'rate_term' | '15yr' | 'cashout'>('rate_term');
@@ -98,16 +121,16 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
     // ── Derived calculations ──────────────────────────────────────────────────
     const calc = useMemo(() => {
         const oldPI     = calcPI(balance, currentRate, remainingMonths ?? 360);
-        const refiRate  = parseFloat((newRate + 0.125).toFixed(3));
+        const refiRate  = parseFloat((effNewRate + 0.125).toFixed(3));
         const newPI30   = calcPI(balance, refiRate, termMonths);
         const savings   = oldPI - newPI30;
 
         const beMonths: number | null =
-            savings > 0 && closingCosts > 0 ? Math.ceil(closingCosts / savings) :
+            savings > 0 && effClosing > 0 ? Math.ceil(effClosing / savings) :
             savings > 0 ? 0 : null;
 
-        const net5yr  = Math.round(savings * 60  - closingCosts);
-        const net10yr = Math.round(savings * 120 - closingCosts);
+        const net5yr  = Math.round(savings * 60  - effClosing);
+        const net10yr = Math.round(savings * 120 - effClosing);
 
         const oldTotalInt = Math.round(oldPI * (remainingMonths ?? 360) - balance);
         const newTotalInt30 = Math.round(newPI30 * termMonths - balance);
@@ -160,7 +183,7 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
             access80, access75, access70,
             rateDelta, verdict, fwdRate,
         };
-    }, [balance, currentRate, newRate, termMonths, closingCosts, remainingMonths, propertyValue, sofr]);
+    }, [balance, currentRate, effNewRate, termMonths, effClosing, remainingMonths, propertyValue, sofr]);
 
     // ── Address formatting ────────────────────────────────────────────────────
     const shortAddr  = address ? address.split(',')[0] : null;
@@ -168,10 +191,16 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
     const addrLine2  = [city, state, zip].filter(Boolean).join(', ');
 
     function buildSeed(type: string): string {
-        if (type === '15yr') return `Refi ${fmt$(balance, true)} balance from ${fmtRate(currentRate)} to ${fmtRate(calc.rate15)} — 15yr fixed, closing costs ${fmt$(closingCosts)}`;
+        const costStr = effClosing > 0 ? `, closing costs ${fmt$(effClosing)}` : ', no closing costs';
+        if (type === '15yr') return `Refi ${fmt$(balance, true)} balance from ${fmtRate(currentRate)} to ${fmtRate(calc.rate15)} — 15yr fixed${costStr}`;
         if (type === 'cashout') return `Cash-out refinance ${fmt$(calc.maxCashLoan ?? balance, true)} at ${fmtRate(calc.cashOutRate)} — 30yr fixed`;
         if (type === 'heloc') return `HELOC on ${addrLine1} — property value ${fmt$(propertyValue ?? 0, true)}, balance ${fmt$(balance, true)}, max line ${fmt$(calc.helocMax ?? 0, true)}`;
-        return `Refi ${fmt$(balance, true)} balance from ${fmtRate(currentRate)} to ${fmtRate(calc.refiRate)} — 30yr fixed, closing costs ${fmt$(closingCosts)}`;
+        return `Refi ${fmt$(balance, true)} balance from ${fmtRate(currentRate)} to ${fmtRate(calc.refiRate)} — ${termYears}yr fixed${costStr}`;
+    }
+
+    function buildRunSeed(): string {
+        const costStr = effClosing > 0 ? `, closing costs $${Math.round(effClosing / 500) * 500}` : ', no closing costs';
+        return `Refi ${fmt$(balance, true)} balance from ${currentRate.toFixed(2)}% to ${effNewRate.toFixed(2)}% — ${termYears}yr fixed${costStr}`;
     }
 
     // ── Token colors ──────────────────────────────────────────────────────────
@@ -228,9 +257,17 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                 <div style={{ width:7, height:7, borderRadius:'50%', background:C.green, boxShadow:`0 0 7px rgba(0,232,122,0.6)` }} />
                 <span style={{ fontSize:10, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', color:C.muted }}>Refi Intelligence</span>
             </div>
-            <div style={{ display:'flex', gap:2, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:3 }}>
-                <button className={`ri-mode-btn${mode==='simple'?' active-simple':''}`} onClick={() => setMode('simple')}>Simple</button>
-                <button className={`ri-mode-btn${mode==='deep'?' active-deep':''}`} onClick={() => setMode('deep')}>Deep Dive AI</button>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <button
+                    onClick={() => setNoCost(v => !v)}
+                    style={{ fontSize:10, fontWeight:700, padding:'4px 10px', borderRadius:20, border:`1px solid ${noCost ? C.green : 'rgba(255,255,255,0.1)'}`, background: noCost ? 'rgba(0,232,122,0.1)' : 'rgba(255,255,255,0.04)', color: noCost ? C.green : C.muted, cursor:'pointer' }}
+                >
+                    {noCost ? '✓ No-Cost' : 'No-Cost Refi'}
+                </button>
+                <div style={{ display:'flex', gap:2, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:3 }}>
+                    <button className={`ri-mode-btn${mode==='simple'?' active-simple':''}`} onClick={() => setMode('simple')}>Simple</button>
+                    <button className={`ri-mode-btn${mode==='deep'?' active-deep':''}`} onClick={() => setMode('deep')}>Deep Dive AI</button>
+                </div>
             </div>
         </div>
 
@@ -401,6 +438,84 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                 <span style={{ fontSize:10, color:C.dim, fontWeight:600 }}>FRED data · not a lender quote</span>
             </div>
 
+            {/* ── Adjusters ── */}
+            <div style={{ padding:'16px 16px 4px', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', color:C.dim, marginBottom:12 }}>Adjust Scenario</div>
+
+                {/* Balance */}
+                <div style={{ marginBottom:12 }}>
+                    <SliderField
+                        label="Loan Balance" value={balance}
+                        min={50_000} max={balanceMax} step={balance >= 1_000_000 ? 25_000 : 5_000}
+                        onChange={setBalance}
+                        format={(n: number) => n >= 1_000_000 ? `$${(n/1_000_000).toFixed(2).replace(/\.?0+$/,'')}M` : `$${Math.round(n/1000)}k`}
+                        trackColor={COLORS.emerald} theme="dark"
+                    />
+                </div>
+
+                {/* Dual rate sliders */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 20px 1fr', gap:'0 6px', alignItems:'end', marginBottom:12 }}>
+                    <SliderField
+                        label="Current Rate" value={currentRate}
+                        min={3} max={12} step={0.125}
+                        onChange={setCurrentRate}
+                        format={(r: number) => `${r.toFixed(3).replace(/0+$/,'').replace(/\.$/,'')}%`}
+                        trackColor={COLORS.danger} theme="dark"
+                    />
+                    <div style={{ textAlign:'center', paddingBottom:6, fontSize:12, color:C.dim, fontWeight:700 }}>→</div>
+                    <SliderField
+                        label={`Target Rate${noCost ? ' +0.25%' : ''}`} value={newRate}
+                        min={3} max={12} step={0.125}
+                        onChange={setNewRate}
+                        disabled={noCost}
+                        format={(r: number) => `${r.toFixed(3).replace(/0+$/,'').replace(/\.$/,'')}%`}
+                        trackColor={COLORS.emeraldDark} theme="dark"
+                    />
+                </div>
+
+                {/* Closing costs */}
+                <div style={{ marginBottom:12 }}>
+                    <SliderField
+                        label="Closing Costs" value={closingCosts}
+                        min={0} max={Math.max(30_000, Math.ceil(balance * 0.04 / 1_000) * 1_000)} step={500}
+                        onChange={setClosingCosts}
+                        disabled={noCost}
+                        format={(n: number) => `$${Math.round(Math.abs(n)).toLocaleString()}`}
+                        trackColor={COLORS.emerald} theme="dark"
+                    />
+                </div>
+
+                {/* Term toggle */}
+                <div style={{ marginBottom:14 }}>
+                    <div style={{ fontSize:11, fontWeight:600, color:C.muted, marginBottom:6 }}>New Term</div>
+                    <div style={{ display:'flex', gap:6 }}>
+                        {[15, 20, 30].map(yr => (
+                            <button key={yr}
+                                onClick={() => setTermMonths(yr * 12)}
+                                style={{
+                                    flex:1, padding:'6px 0', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer',
+                                    border: termYears === yr ? `2px solid ${C.green}` : '1.5px solid rgba(255,255,255,0.1)',
+                                    background: termYears === yr ? 'rgba(0,232,122,0.1)' : 'rgba(255,255,255,0.04)',
+                                    color: termYears === yr ? C.green : C.muted,
+                                }}
+                            >{yr}yr</button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Run button */}
+                {isDirty && onRunScenario && (
+                    <div style={{ marginBottom:14 }}>
+                        <button
+                            onClick={() => onRunScenario(buildRunSeed(), { currentBalance: balance, currentRatePct: currentRate, newRatePct: effNewRate, closingCosts: effClosing })}
+                            style={{ width:'100%', padding:'11px 0', borderRadius:10, border:'none', background:C.green, color:'#07100f', fontSize:13, fontWeight:800, cursor:'pointer', letterSpacing:'-0.01em' }}
+                        >
+                            Run adjusted scenario →
+                        </button>
+                    </div>
+                )}
+            </div>
+
             {/* Savings hero */}
             <div style={{ padding:'28px 24px 20px', textAlign:'center', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
                 <div style={{ fontSize:10, fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:C.dim, marginBottom:10 }}>Estimated Monthly Savings</div>
@@ -410,7 +525,7 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                 </div>
                 <div style={{ fontSize:12, color:C.muted, marginTop:10, lineHeight:1.6 }}>
                     Based on {fmt$(balance, true)} balance · {calc.rateDelta > 0 ? calc.rateDelta.toFixed(3) : '0'}% rate drop<br/>
-                    <strong style={{ color:C.text }}>{fmt$(closingCosts)}</strong> closing costs · <strong style={{ color:C.text }}>{calc.beMonths != null ? `${calc.beMonths}-month` : 'N/A'}</strong> break-even
+                    <strong style={{ color:C.text }}>{fmt$(effClosing)}</strong> closing costs · <strong style={{ color:C.text }}>{calc.beMonths != null ? `${calc.beMonths}-month` : 'N/A'}</strong> break-even
                 </div>
             </div>
 
@@ -596,7 +711,7 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                                 </div>
                                 <div style={{ display:'flex', gap:16, marginTop:7, flexWrap:'wrap' }}>
                                     {[
-                                        { k:'Closing costs', v: fmt$(closingCosts) },
+                                        { k:'Closing costs', v: fmt$(effClosing) },
                                         { k:'Monthly savings', v: fmt$(calc.savings) },
                                         { k:'5-yr net', v: fmt$(calc.net5yr, true) },
                                         { k:'Lifetime int. saved', v: fmt$(calc.intSaved30, true) },
@@ -829,10 +944,10 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                     </div>
                     <div style={{ padding:'0 14px 14px' }}>
                         <div style={{ fontSize:12, color:C.sub, lineHeight:1.7, marginBottom:10 }}>
-                            Your {fmtRate(currentRate)} rate{origRateLabel ? ` from ${origRateLabel}` : ''} sits <strong style={{ color:C.text }}>{calc.rateDelta.toFixed(3)}% above today's FRED average</strong> of {fmtRate(newRate)}. At {fmt$(balance, true)} balance, that's <strong style={{ color:C.text }}>{fmt$(calc.savings)}/month in payment relief</strong> with {fmt$(closingCosts)} in closing costs — break-even at <strong style={{ color:C.text }}>{calc.beMonths != null ? `${calc.beMonths} months` : 'N/A'}</strong>.
+                            Your {fmtRate(currentRate)} rate{origRateLabel ? ` from ${origRateLabel}` : ''} sits <strong style={{ color:C.text }}>{calc.rateDelta.toFixed(3)}% above today's FRED average</strong> of {fmtRate(effNewRate)}. At {fmt$(balance, true)} balance, that's <strong style={{ color:C.text }}>{fmt$(calc.savings)}/month in payment relief</strong> with {fmt$(effClosing)} in closing costs — break-even at <strong style={{ color:C.text }}>{calc.beMonths != null ? `${calc.beMonths} months` : 'N/A'}</strong>.
                         </div>
                         <div style={{ fontSize:12, color:C.sub, lineHeight:1.7, marginBottom:12 }}>
-                            The forward curve implies rates could ease to ~{fmtRate(calc.fwdRate)} in 12–18 months — but that's only an additional ~{fmt$(Math.round(calcPI(balance, newRate, termMonths) - calcPI(balance, calc.fwdRate, termMonths)))}/mo in savings. Waiting 12 months costs you <strong style={{ color:C.text }}>{fmt$(calc.savings * 12, true)} in foregone savings</strong> while the improvement remains speculative.
+                            The forward curve implies rates could ease to ~{fmtRate(calc.fwdRate)} in 12–18 months — but that's only an additional ~{fmt$(Math.round(calcPI(balance, effNewRate, termMonths) - calcPI(balance, calc.fwdRate, termMonths)))}/mo in savings. Waiting 12 months costs you <strong style={{ color:C.text }}>{fmt$(calc.savings * 12, true)} in foregone savings</strong> while the improvement remains speculative.
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
                             {[
