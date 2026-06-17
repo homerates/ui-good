@@ -9,9 +9,9 @@ import { getSupabase } from "../../../../lib/supabaseServer";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
-  const { slug } = params;
+  const { slug } = await params;
   if (!slug) return NextResponse.json({ error: "Missing slug" }, { status: 400 });
 
   const sb = getSupabase();
