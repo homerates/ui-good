@@ -944,6 +944,86 @@ export async function emailDealRoomInvite({
   }
 }
 
+// ─── Company pilot invite: admin → CEO/owner ─────────────────────────────────
+// Sent from the admin pilots page when Rayaan clicks "Send Invite" per company.
+// The email goes to the CEO/contact, explains the pilot, and includes the link
+// for them to share with their LOs.
+
+export async function emailPilotInvite({
+  toEmail,
+  contactName,
+  companyName,
+  pilotUrl,
+  creditsPerLo,
+}: {
+  toEmail: string;
+  contactName: string | null;
+  companyName: string;
+  pilotUrl: string;
+  creditsPerLo: number;
+}) {
+  const resend = getResend();
+  if (!resend || !toEmail) return;
+
+  const greeting = contactName ? `Hi ${contactName},` : "Hi,";
+
+  try {
+    await resend.emails.send({
+      from: `Rayaan at HomeRates.Ai <${FROM}>`,
+      to: toEmail,
+      subject: `Free AI mortgage pilot for ${companyName}'s team — no strings attached`,
+      html: emailShell(`
+        <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Pilot Invite · ${companyName}</p>
+        <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#e6edf3;line-height:1.2;">${greeting}</p>
+        <p style="margin:0 0 16px;font-size:15px;color:#e6edf3;line-height:1.7;">
+          I'm Rayaan — founder of <strong style="color:#00e87a;">HomeRates.Ai</strong>, an AI mortgage intelligence platform.
+          I'd like to invite your team to test it free, no commitment, no pitch.
+        </p>
+        <p style="margin:0 0 24px;font-size:15px;color:#8b949e;line-height:1.7;">
+          The idea is simple: your LOs get instant AI-powered analysis — live FRED rates, property intelligence, affordability scenarios, and a Decision Score engine — without replacing any tools they already use. We want real feedback from the ground up, not top-down.
+        </p>
+
+        <!-- Pilot terms -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;background:#1c2433;border:1px solid rgba(255,255,255,0.07);border-radius:14px;overflow:hidden;">
+          <tr><td style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">What each LO gets</p>
+            <p style="margin:0;font-size:17px;font-weight:700;color:#00e87a;">${creditsPerLo.toLocaleString()} credits + Founding Member badge</p>
+            <p style="margin:4px 0 0;font-size:13px;color:#8b949e;">Full platform access from day one. No trial mode, no feature gates.</p>
+          </td></tr>
+          <tr><td style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">What it costs</p>
+            <p style="margin:0;font-size:17px;font-weight:700;color:#e6edf3;">$0. No contract. No credit card.</p>
+            <p style="margin:4px 0 0;font-size:13px;color:#8b949e;">This is a pilot — we learn from your team, your team gets a founding advantage.</p>
+          </td></tr>
+          <tr><td style="padding:14px 20px;">
+            <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">How to activate</p>
+            <p style="margin:0;font-size:14px;color:#e6edf3;line-height:1.6;">Share the link below with your LOs — they sign in and get instant founding access. No forms, no waitlist, no approval needed.</p>
+          </td></tr>
+        </table>
+
+        <!-- CTA -->
+        <a href="${pilotUrl}"
+           style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:15px;font-weight:800;padding:16px 20px;border-radius:999px;text-decoration:none;margin-bottom:16px;letter-spacing:0.01em;">
+          ${companyName} pilot link →
+        </a>
+        <p style="margin:0 0 24px;text-align:center;font-size:13px;color:#8b949e;">
+          Forward this link to your team or copy it from below:<br>
+          <span style="color:#00e87a;font-weight:600;word-break:break-all;">${pilotUrl}</span>
+        </p>
+
+        <div style="background:#1c2433;border-left:3px solid rgba(255,255,255,0.12);border-radius:0 8px 8px 0;padding:14px 16px;">
+          <p style="margin:0;font-size:13px;color:#8b949e;line-height:1.7;">
+            Happy to jump on a 15-min call if you'd like to see it first — just reply to this email.
+            If you're not the right person for this, I'd appreciate a forward to whoever manages tools for your LOs.
+          </p>
+        </div>
+      `, `HomeRates.Ai · chat.homerates.ai · Sent by Rayaan, Founder. Reply directly to this email.`),
+    });
+  } catch (err) {
+    console.error("[sendEmail] emailPilotInvite failed:", err);
+  }
+}
+
 // ─── Consumer invite ─────────────────────────────────────────────────────────
 // emailConsumerInviteReminder — softer follow-up for non-responders
 export async function emailConsumerInviteReminder({

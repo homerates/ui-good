@@ -16,6 +16,7 @@ interface Pilot {
   notes: string | null;
   created_at: string;
   activations: number;
+  invite_sent_at: string | null;
 }
 
 const BASE_URL = "https://chat.homerates.ai";
@@ -24,6 +25,8 @@ export default function AdminPilotsPage() {
   const [pilots, setPilots] = useState<Pilot[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
+  const [inviting, setInviting] = useState<string | null>(null);
+  const [invited, setInvited] = useState<string | null>(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -96,6 +99,22 @@ export default function AdminPilotsPage() {
     navigator.clipboard.writeText(`${BASE_URL}/pilot/${slug}`);
     setCopied(slug);
     setTimeout(() => setCopied(null), 2000);
+  }
+
+  async function sendInvite(pilot: Pilot) {
+    if (!pilot.contact_email) return;
+    setInviting(pilot.id);
+    const r = await fetch("/api/admin/pilots/invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pilotId: pilot.id }),
+    });
+    setInviting(null);
+    if (r.ok) {
+      setInvited(pilot.id);
+      setTimeout(() => setInvited(null), 3000);
+      void load();
+    }
   }
 
   return (
@@ -203,7 +222,25 @@ export default function AdminPilotsPage() {
               </div>
 
               {/* Actions */}
-              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+                {p.contact_email && p.is_active && (
+                  <button
+                    onClick={() => sendInvite(p)}
+                    disabled={inviting === p.id}
+                    title={p.invite_sent_at ? `Last sent ${new Date(p.invite_sent_at).toLocaleDateString()}` : "Send invite email to " + p.contact_email}
+                    style={{
+                      padding: "7px 14px", borderRadius: 8,
+                      border: invited === p.id ? "1px solid rgba(0,232,122,0.4)" : "1px solid rgba(0,232,122,0.25)",
+                      background: invited === p.id ? "rgba(0,232,122,0.14)" : "rgba(0,232,122,0.06)",
+                      color: invited === p.id ? "#00e87a" : "#b3f0d4",
+                      fontSize: "0.8rem", fontWeight: 700, cursor: inviting === p.id ? "not-allowed" : "pointer",
+                      fontFamily: "inherit", transition: "all 0.15s",
+                      opacity: inviting === p.id ? 0.6 : 1,
+                    }}
+                  >
+                    {inviting === p.id ? "Sending…" : invited === p.id ? "✓ Sent!" : p.invite_sent_at ? "Resend invite" : "Send invite ✉"}
+                  </button>
+                )}
                 <button
                   onClick={() => copyLink(p.slug)}
                   style={{
@@ -243,6 +280,11 @@ export default function AdminPilotsPage() {
                   {p.is_active ? "Deactivate" : "Reactivate"}
                 </button>
               </div>
+              {p.invite_sent_at && (
+                <div style={{ width: "100%", fontSize: "0.72rem", color: "#5a7a6a", paddingTop: 4 }}>
+                  Invite last sent {new Date(p.invite_sent_at).toLocaleString()}
+                </div>
+              )}
             </div>
           ))}
         </div>
