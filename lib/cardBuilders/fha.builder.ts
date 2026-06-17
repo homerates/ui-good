@@ -336,7 +336,7 @@ export function buildFHANeedsInputCard(parsed: FHANeedsInput, fredRate?: number)
     const rateHint = fredRate ? ` (or I'll use the current FRED rate: ${fPct(fredRate)})` : '';
     const chips: BuiltCard['follow_up_chips'] = [
         { label: 'FHA loan on $300k home at 6.5%', seed: 'FHA loan on a $300k home at 6.5%' },
-        { label: 'FHA with 3.5% down, $75k income', seed: 'FHA loan on a $300k home with 3.5% down at current rates — does $75k income qualify?' },
+        { label: 'FHA with 3.5% down, $75k income', seed: 'FHA loan on a $300k home with 3.5% down — does $75k income qualify?' },
         { label: 'FHA vs conventional — compare both', seed: 'Compare FHA 3.5% down vs conventional 5% down on a $350k home' },
     ];
     const answer = `**FHA Loan Calculator**

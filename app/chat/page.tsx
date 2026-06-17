@@ -2161,7 +2161,19 @@ export default function Page() {
             /\bfed\s+(rate|fund|funds|pivot|cut|hike|pause)\b/i.test(q) ||
             /\b(rate|rates)\s+intelligence\b/i.test(q);
 
-        if (isMarketRatesIntent) {
+        // Don't redirect to Market Intelligence if the message is asking about
+        // rates IN CONTEXT of a specific scenario (buydown, affordability, purchase, etc.).
+        // Market Intelligence is for pure "what are rates doing" questions only.
+        const isScenarioRateContext =
+            /\bbuydown|2\/1|1\/0|3\/2\/1|seller\s*concession|seller\s*credit\b/i.test(q) ||
+            /\b(afford|qualify|qualification|how\s+much\s+can\s+i\s+(afford|borrow))\b/i.test(q) ||
+            /\b(income\b.{0,30}\bqualif|qualif.{0,30}\bincome)\b/i.test(q) ||
+            /\b(fha|va\s+loan|jumbo\s+loan|dscr)\b.{0,40}\b(home|house|property|purchase|loan|down)\b/i.test(q) ||
+            /\b\d+\s*%\s*down\b/i.test(q) ||
+            /\$([\d,]+(?:\.\d+)?)\s*(?:k|m)?\b.{0,60}\b(home|house|property|purchase|loan|mortgage)\b/i.test(q) ||
+            /\b(purchase\s+price|loan\s+amount|down\s+payment)\b/i.test(q);
+
+        if (isMarketRatesIntent && !isScenarioRateContext) {
             router.push('/market-intelligence');
             return;
         }

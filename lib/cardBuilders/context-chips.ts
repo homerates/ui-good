@@ -80,7 +80,7 @@ export function getContextChips(
             { label: `With $500/mo in debts — what changes?`, seed: `What can I afford with $500/month in other debts — I make ${incomeLabel.replace('$','').replace(' income','')}${savingsLabel}`, paramOverrides: { monthlyDebt: 500 } },
             { label: `What if I put 20% down?`, seed: `Affordability with 20% down — I make ${incomeLabel.replace('$','').replace(' income','')}${savingsLabel}`, paramOverrides: { downPctOverride: 20 } },
             { label: `Show FHA option on max price`, seed: `What's the FHA loan option for someone with ${incomeLabel}${savingsLabel}?` },
-            { label: `What income do I need to qualify?`, seed: `How much income do I need to qualify for the maximum affordable home at current rates?` },
+            { label: `What income do I need to qualify?`, seed: `How much income do I need to qualify for a conventional home purchase?` },
         ];
     }
 
