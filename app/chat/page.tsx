@@ -590,6 +590,10 @@ function buildPdfPayload(meta: ApiResponse): { type: string; params: Record<stri
         const s = meta.dscrSlider;
         return { type: 'dscr', params: { price: s.price, rent: s.rent, downPct: s.downPct, rate: s.rate, vacancyRate: s.vacancyRate, taxRate: s.taxRate, insRate: s.insRate } };
     }
+    if (meta.refiIntelligenceCard) {
+        const s = meta.refiIntelligenceCard;
+        return { type: 'refi', params: { balance: s.balance, currentRate: s.currentRate, newRate: s.newRate, termMonths: s.termMonths ?? 360, closingCosts: s.closingCosts } };
+    }
     if (meta.refiSlider) {
         const s = meta.refiSlider;
         return { type: 'refi', params: { balance: s.balance, currentRate: s.currentRate, newRate: s.newRate, termMonths: s.termMonths, closingCosts: s.closingCosts } };
@@ -2343,13 +2347,18 @@ export default function Page() {
 
                         const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
-                        const refiSlider = {
-                            balance:       bal,
-                            currentRate:   curRate,
-                            newRate:       liveRate,
-                            termMonths:    termMo,
-                            closingCosts:  costs,
-                            propertyValue: propVal ?? undefined,
+                        const refiIntelligenceCard = {
+                            balance:         bal,
+                            currentRate:     curRate,
+                            newRate:         liveRate,
+                            termMonths:      termMo,
+                            closingCosts:    costs,
+                            remainingMonths: termMo,
+                            propertyValue:   propVal ?? undefined,
+                            address:         d.address?.split(',')[0]?.trim() ?? undefined,
+                            city:            d.city ?? undefined,
+                            state:           d.state ?? undefined,
+                            zip:             d.zip ?? undefined,
                         };
 
                         const refiChips = [
@@ -2399,7 +2408,7 @@ export default function Page() {
                             message: friendly,
                             answerMarkdown: friendly,
                             propertyCard: d,
-                            refiSlider,
+                            refiIntelligenceCard,
                             follow_up_chips: [],
                         };
 
