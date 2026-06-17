@@ -3985,7 +3985,7 @@ export default function Page() {
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
                                                         )}
                                                         {/* Property preview card — 4CS1234 stack opener. Badge identifies loan type. */}
-                                                        {m.meta.propertyCard && (
+                                                        {m.meta.propertyCard && !m.meta.refiIntelligenceCard && (
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge
                                                                     code={
