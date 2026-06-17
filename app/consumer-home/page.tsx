@@ -711,7 +711,7 @@ export default function ConsumerHomePage() {
             <button className="ch-chip" onClick={() => goChat('I make $180,000 a year and have $90,000 saved — can I afford a $900,000 home in California?')}>Can I afford $900k on $180k?</button>
             <button className="ch-chip" onClick={() => goChat('VA loan on an $850,000 home with no down payment — show me the full breakdown including funding fee')}>VA loan · $850k · $0 down</button>
             <button className="ch-chip" onClick={() => goChat('DSCR loan on a $650,000 rental property with $4,200/mo rent and 25% down — does it cash flow in California?')}>DSCR rental · $650k · $4,200 rent</button>
-            <button className="ch-chip" onClick={() => goChat('What would refinancing look like on a $750,000 California mortgage at 7.25%? Show me breakeven and monthly savings.')}>Refi · $750k · 7.25% → today</button>
+            <button className="ch-chip" onClick={() => goChat('What would refinancing look like on a $750,000 California mortgage at 6.75%? Show me breakeven and monthly savings.')}>Refi · $750k · 6.75% → today</button>
           </div>
         </section>
 

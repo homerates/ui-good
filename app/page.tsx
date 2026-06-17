@@ -1081,7 +1081,7 @@ export default function LandingPage() {
               <div className="lp-card-insight">~$850k–$950k range</div>
               <div className="lp-card-desc">~$4,800/mo on $180k salary · 36% DTI</div>
             </button>
-            <button className="lp-card lp-card-blue" onClick={() => goChat('What would refinancing look like on a $750,000 California mortgage at 7.25%? Show me breakeven and monthly savings.')}>
+            <button className="lp-card lp-card-blue" onClick={() => goChat('What would refinancing look like on a $750,000 California mortgage at 6.75%? Show me breakeven and monthly savings.')}>
               <span className="lp-card-icon">📉</span>
               <div className="lp-card-title">Should I refi?</div>
               <div className="lp-card-insight">~$510/mo savings</div>
