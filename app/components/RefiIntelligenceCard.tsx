@@ -280,11 +280,11 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
             {/* House photo or wireframe illustration */}
             <div style={{
                 position:'relative',
-                background: safePhoto
-                    ? `url(${safePhoto}) center/cover no-repeat, linear-gradient(160deg,#020c05,#041208)`
-                    : 'linear-gradient(160deg,#020c05,#041208)',
                 overflow:'hidden',
                 borderRight:'1px solid rgba(255,255,255,0.05)',
+                ...(safePhoto
+                    ? { backgroundImage: `url(${safePhoto})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                    : { background: 'linear-gradient(160deg,#020c05,#041208)' }),
             }}>
                 {!safePhoto && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 190" preserveAspectRatio="xMidYMid slice" style={{ width:'100%', height:'100%', display:'block' }}>
                     <defs>
