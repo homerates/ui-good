@@ -2423,6 +2423,29 @@ export default function Page() {
                         );
                         typeOutAssistant(answerId, friendly);
 
+                        // Auto-add to portfolio (SOLD/refi path has no DSC, so this is the only save)
+                        if (user?.id && d.address) {
+                            void fetch('/api/portfolio', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    type:      'snapshot',
+                                    title:     d.address,
+                                    address:   [d.address, d.city, d.state].filter(Boolean).join(', '),
+                                    photo_url: (d.photoUrl && d.photoUrl.startsWith('https://ssl.cdn-redfin.com/')) ? d.photoUrl : null,
+                                    data: {
+                                        beds:           d.beds           ?? null,
+                                        baths:          d.baths          ?? null,
+                                        sqft:           d.sqft           ?? null,
+                                        listingStatus:  d.listingStatus  ?? null,
+                                        estimatedValue: d.estimatedValue ?? null,
+                                        lastSaleDate:   d.lastSaleDate   ?? null,
+                                        lastSalePrice:  d.lastSalePrice  ?? null,
+                                    },
+                                }),
+                            }).then(() => { (window as any).__portfolioRefresh?.(); });
+                        }
+
                     } else {
                     // ── FOR-SALE / PURCHASE path ───────────────────────────────────────
 

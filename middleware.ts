@@ -135,7 +135,7 @@ const isPublicRoute = createRouteMatcher([
 export default clerkMiddleware((auth, req) => {
   // Domain-based routing: homerates.ai root → consumer homepage
   const hostname = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '';
-  const isConsumerDomain = hostname === 'homerates.ai' || hostname === 'www.homerates.ai';
+  const isConsumerDomain = hostname === 'homerates.ai' || hostname === 'www.homerates.ai' || hostname === 'dev.homerates.ai';
   if (isConsumerDomain && req.nextUrl.pathname === '/') {
     return NextResponse.rewrite(new URL('/consumer-home', req.url));
   }
