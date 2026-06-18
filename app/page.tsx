@@ -1059,7 +1059,14 @@ export default function LandingPage() {
                 onChange={(val) => {
                   setPropInput(val);
                   if (val.trim().startsWith('http')) {
-                    setTimeout(() => { goChat(val.trim()); setPropInput(''); }, 50);
+                    // Must call window.open synchronously inside the user-gesture event.
+                    // setTimeout breaks the gesture context and browsers silently block the popup.
+                    window.open(
+                      '/chat?sq=' + encodeURIComponent(val.trim()) + '&from=%2F&fromLabel=Home',
+                      '_blank',
+                      'noopener,noreferrer',
+                    );
+                    setTimeout(() => setPropInput(''), 50);
                   }
                 }}
                 onSelect={(val) => {
