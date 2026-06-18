@@ -1572,6 +1572,7 @@ function MyHomePageInner() {
   const [saving, setSaving]                   = useState(false);
   const [saved, setSaved]                     = useState(false);
   const [lensDrawerOpen, setLensDrawerOpen]   = useState(false);
+  const [drawerFocusId, setDrawerFocusId]     = useState<string | null>(null);
   const lensDrawerRef                         = useRef<HTMLDivElement>(null);
 
   const CHIP_IDS: ChipId[] = ['equity', 'heloc', 'refi', 'economy', 'milestones'];
@@ -1631,6 +1632,7 @@ function MyHomePageInner() {
     function handleOutside(e: MouseEvent) {
       if (lensDrawerRef.current && !lensDrawerRef.current.contains(e.target as Node)) {
         setLensDrawerOpen(false);
+        setDrawerFocusId(null);
       }
     }
     document.addEventListener('mousedown', handleOutside);
@@ -2207,20 +2209,46 @@ function MyHomePageInner() {
                       {properties.length > 3 && (
                         <div className="mh-lens-drawer-section mh-lens-drawer-overflow">
                           {properties.slice(3).map((p, idx) => {
-                            const isActive = p.id === activeProperty?.id;
+                            const isActive  = p.id === activeProperty?.id;
+                            const isFocused = p.id === drawerFocusId;
                             const short = p.property_address.split(',')[0];
                             return (
                               <div key={p.id} className="mh-lens-drawer-item-row">
                                 <button
-                                  className={`mh-lens-drawer-item${isActive ? ' mh-lens-drawer-item-active' : ''}`}
-                                  onClick={() => switchProperty(p.id)}
+                                  className={`mh-lens-drawer-item${isActive ? ' mh-lens-drawer-item-active' : ''}${isFocused && !isActive ? ' mh-lens-drawer-item-focused' : ''}`}
+                                  onClick={() => {
+                                    if (isFocused || isActive) {
+                                      switchProperty(p.id);
+                                      setDrawerFocusId(null);
+                                    } else {
+                                      setDrawerFocusId(p.id);
+                                    }
+                                  }}
                                 >
                                   <span>{p.is_primary ? '⭐ My Home' : short}</span>
                                   <span className="mh-lens-drawer-addr">{short}</span>
                                 </button>
+                                {!p.is_primary && (
+                                  <button
+                                    className="mh-lens-drawer-item-star"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      fetch('/api/homeowner/save', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ property_id: p.id, is_primary: true }),
+                                      }).then(() => {
+                                        setProperties(ps => ps.map(pp => ({ ...pp, is_primary: pp.id === p.id })));
+                                      });
+                                      setLensDrawerOpen(false);
+                                      setDrawerFocusId(null);
+                                    }}
+                                    title="Set as primary"
+                                  >⭐</button>
+                                )}
                                 <button
                                   className="mh-lens-drawer-item-del"
-                                  onClick={(e) => { e.stopPropagation(); removeProperty(p.id); setLensDrawerOpen(false); }}
+                                  onClick={(e) => { e.stopPropagation(); removeProperty(p.id); setLensDrawerOpen(false); setDrawerFocusId(null); }}
                                   title="Remove property"
                                 >×</button>
                               </div>
@@ -2230,30 +2258,39 @@ function MyHomePageInner() {
                         </div>
                       )}
                       <div className="mh-lens-drawer-section">
-                        {activeProperty && !activeProperty.is_primary && (
-                          <button
-                            className="mh-lens-drawer-action"
-                            onClick={() => {
-                              fetch('/api/homeowner/save', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ property_id: activeProperty.id, is_primary: true }),
-                              }).then(() => {
-                                setProperties(ps => ps.map(p => ({ ...p, is_primary: p.id === activeProperty.id })));
-                              });
-                              setLensDrawerOpen(false);
-                            }}
-                          >⭐ Set as Primary</button>
-                        )}
-                        {activeProperty && (
-                          <button
-                            className="mh-lens-drawer-action mh-lens-drawer-action-danger"
-                            onClick={() => { removeProperty(activeProperty.id); setLensDrawerOpen(false); }}
-                          >Remove Property</button>
-                        )}
+                        {/* drawerTarget: focused item (selected but not yet navigated) or the active property */}
+                        {(() => {
+                          const drawerTarget = drawerFocusId
+                            ? properties.find(p => p.id === drawerFocusId) ?? activeProperty
+                            : activeProperty;
+                          return (<>
+                            {drawerTarget && !drawerTarget.is_primary && (
+                              <button
+                                className="mh-lens-drawer-action"
+                                onClick={() => {
+                                  fetch('/api/homeowner/save', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ property_id: drawerTarget.id, is_primary: true }),
+                                  }).then(() => {
+                                    setProperties(ps => ps.map(p => ({ ...p, is_primary: p.id === drawerTarget.id })));
+                                  });
+                                  setLensDrawerOpen(false);
+                                  setDrawerFocusId(null);
+                                }}
+                              >⭐ Set as Primary{drawerFocusId ? ` — ${drawerTarget.property_address.split(',')[0]}` : ''}</button>
+                            )}
+                            {drawerTarget && (
+                              <button
+                                className="mh-lens-drawer-action mh-lens-drawer-action-danger"
+                                onClick={() => { removeProperty(drawerTarget.id); setLensDrawerOpen(false); setDrawerFocusId(null); }}
+                              >Remove{drawerFocusId ? ` — ${drawerTarget.property_address.split(',')[0]}` : ' Property'}</button>
+                            )}
+                          </>);
+                        })()}
                         <button
                           className="mh-lens-drawer-action"
-                          onClick={() => { setLensDrawerOpen(false); setTimeout(() => document.querySelector<HTMLInputElement>('.mh-command-input')?.focus(), 60); }}
+                          onClick={() => { setLensDrawerOpen(false); setDrawerFocusId(null); setTimeout(() => document.querySelector<HTMLInputElement>('.mh-command-input')?.focus(), 60); }}
                         >+ Add Another Property</button>
                       </div>
                     </div>
@@ -2966,6 +3003,10 @@ const CSS = `
   .mh-lens-drawer-item:hover{background:rgba(255,255,255,0.07)}
   .mh-lens-drawer-item-active{background:rgba(0,232,122,0.08);color:#00e87a}
   .mh-lens-drawer-item-active:hover{background:rgba(0,232,122,0.12)}
+  .mh-lens-drawer-item-focused{background:rgba(255,255,255,0.09);color:#fff}
+  .mh-lens-drawer-item-focused:hover{background:rgba(255,255,255,0.12)}
+  .mh-lens-drawer-item-star{flex:0 0 auto;padding:3px 6px;border-radius:6px;background:none;border:none;color:rgba(255,200,0,0.4);font-size:.8rem;line-height:1;cursor:pointer;font-family:inherit;transition:all .12s}
+  .mh-lens-drawer-item-star:hover{background:rgba(255,200,0,0.08);color:rgba(255,200,0,0.9)}
   .mh-lens-drawer-item-del{flex:0 0 auto;padding:3px 8px;border-radius:6px;background:none;border:none;color:rgba(249,112,102,0.45);font-size:1.1rem;line-height:1;cursor:pointer;font-family:inherit;transition:all .12s}
   .mh-lens-drawer-item-del:hover{background:rgba(249,112,102,0.1);color:#f97066}
   .mh-lens-drawer-addr{font-size:.72rem;font-weight:400;color:rgba(255,255,255,0.4);margin-top:1px}
