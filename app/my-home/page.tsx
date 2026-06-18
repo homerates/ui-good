@@ -2205,7 +2205,7 @@ function MyHomePageInner() {
                   {lensDrawerOpen && (
                     <div className="mh-lens-drawer">
                       {properties.length > 3 && (
-                        <div className="mh-lens-drawer-section">
+                        <div className="mh-lens-drawer-section mh-lens-drawer-overflow">
                           {properties.slice(3).map((p, idx) => {
                             const isActive = p.id === activeProperty?.id;
                             const short = p.property_address.split(',')[0];
@@ -2957,8 +2957,9 @@ const CSS = `
   .mh-qchip-more{border-style:dashed}
 
   /* LENS DRAWER */
-  .mh-lens-drawer{position:absolute;top:calc(100% + 6px);left:0;z-index:200;width:280px;background:#141c28;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:6px;box-shadow:0 12px 40px rgba(0,0,0,0.55)}
+  .mh-lens-drawer{position:absolute;top:calc(100% + 6px);left:0;z-index:200;width:280px;max-height:70vh;display:flex;flex-direction:column;background:#141c28;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:6px;box-shadow:0 12px 40px rgba(0,0,0,0.55)}
   .mh-lens-drawer-section{display:flex;flex-direction:column;gap:2px}
+  .mh-lens-drawer-overflow{overflow-y:auto;flex:1;min-height:0}
   .mh-lens-drawer-divider{height:1px;background:rgba(255,255,255,0.08);margin:4px 0}
   .mh-lens-drawer-item-row{display:flex;align-items:center;gap:2px;width:100%}
   .mh-lens-drawer-item{display:flex;flex-direction:column;align-items:flex-start;padding:8px 12px;border-radius:8px;background:none;border:none;color:#f0f4ff;font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;text-align:left;gap:2px;transition:background .12s;flex:1;min-width:0;overflow:hidden}
