@@ -2573,29 +2573,6 @@ export default function Page() {
                         });
                     }
 
-                    // Immediate portfolio save — appears in sidebar right away before DSC finishes.
-                    // DSC will later upsert a buyer_journey row (different type) with full scores.
-                    if (user?.id && d.address) {
-                        void fetch('/api/portfolio', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                type:      'snapshot',
-                                title:     d.address,
-                                address:   [d.address, d.city, d.state].filter(Boolean).join(', '),
-                                photo_url: (d.photoUrl && d.photoUrl.startsWith('https://ssl.cdn-redfin.com/')) ? d.photoUrl : null,
-                                data: {
-                                    beds:          d.beds          ?? null,
-                                    baths:         d.baths         ?? null,
-                                    sqft:          d.sqft          ?? null,
-                                    listingStatus: d.listingStatus ?? null,
-                                    price:         d.price         ?? null,
-                                    estimatedValue: d.estimatedValue ?? null,
-                                },
-                            }),
-                        }).then(() => { (window as any).__portfolioRefresh?.(); });
-                    }
-
                     // ── Background: L3 + L4 via Grok deep analysis ───────────────────────
                     // Fires silently — existing cards render at full speed, this is additive.
                     // When complete, updates the decisionScoreCard meta to 'complete' state.
