@@ -1641,6 +1641,7 @@ function MyHomePageInner() {
     setActivePropertyId(id);
     setAnalysis(null);
     setLensDrawerOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // Load property list on mount
@@ -2209,14 +2210,20 @@ function MyHomePageInner() {
                             const isActive = p.id === activeProperty?.id;
                             const short = p.property_address.split(',')[0];
                             return (
-                              <button
-                                key={p.id}
-                                className={`mh-lens-drawer-item${isActive ? ' mh-lens-drawer-item-active' : ''}`}
-                                onClick={() => switchProperty(p.id)}
-                              >
-                                <span>{p.is_primary ? '⭐ My Home' : short}</span>
-                                <span className="mh-lens-drawer-addr">{short}</span>
-                              </button>
+                              <div key={p.id} className="mh-lens-drawer-item-row">
+                                <button
+                                  className={`mh-lens-drawer-item${isActive ? ' mh-lens-drawer-item-active' : ''}`}
+                                  onClick={() => switchProperty(p.id)}
+                                >
+                                  <span>{p.is_primary ? '⭐ My Home' : short}</span>
+                                  <span className="mh-lens-drawer-addr">{short}</span>
+                                </button>
+                                <button
+                                  className="mh-lens-drawer-item-del"
+                                  onClick={(e) => { e.stopPropagation(); removeProperty(p.id); setLensDrawerOpen(false); }}
+                                  title="Remove property"
+                                >×</button>
+                              </div>
                             );
                           })}
                           <div className="mh-lens-drawer-divider"/>
@@ -2950,13 +2957,16 @@ const CSS = `
   .mh-qchip-more{border-style:dashed}
 
   /* LENS DRAWER */
-  .mh-lens-drawer{position:absolute;top:calc(100% + 6px);left:0;z-index:200;min-width:220px;background:#141c28;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:6px;box-shadow:0 12px 40px rgba(0,0,0,0.55)}
+  .mh-lens-drawer{position:absolute;top:calc(100% + 6px);left:0;z-index:200;min-width:240px;background:#141c28;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:6px;box-shadow:0 12px 40px rgba(0,0,0,0.55)}
   .mh-lens-drawer-section{display:flex;flex-direction:column;gap:2px}
   .mh-lens-drawer-divider{height:1px;background:rgba(255,255,255,0.08);margin:4px 0}
-  .mh-lens-drawer-item{display:flex;flex-direction:column;align-items:flex-start;padding:8px 12px;border-radius:8px;background:none;border:none;color:#f0f4ff;font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;text-align:left;gap:2px;transition:background .12s}
+  .mh-lens-drawer-item-row{display:flex;align-items:center;gap:2px}
+  .mh-lens-drawer-item{display:flex;flex-direction:column;align-items:flex-start;padding:8px 12px;border-radius:8px;background:none;border:none;color:#f0f4ff;font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;text-align:left;gap:2px;transition:background .12s;flex:1;min-width:0}
   .mh-lens-drawer-item:hover{background:rgba(255,255,255,0.07)}
   .mh-lens-drawer-item-active{background:rgba(0,232,122,0.08);color:#00e87a}
   .mh-lens-drawer-item-active:hover{background:rgba(0,232,122,0.12)}
+  .mh-lens-drawer-item-del{flex:0 0 auto;padding:3px 8px;border-radius:6px;background:none;border:none;color:rgba(249,112,102,0.45);font-size:1.1rem;line-height:1;cursor:pointer;font-family:inherit;transition:all .12s}
+  .mh-lens-drawer-item-del:hover{background:rgba(249,112,102,0.1);color:#f97066}
   .mh-lens-drawer-addr{font-size:.72rem;font-weight:400;color:rgba(255,255,255,0.4);margin-top:1px}
   .mh-lens-drawer-action{display:block;width:100%;padding:8px 12px;border-radius:8px;background:none;border:none;color:rgba(255,255,255,0.6);font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;text-align:left;transition:all .12s}
   .mh-lens-drawer-action:hover{background:rgba(255,255,255,0.07);color:#f0f4ff}
