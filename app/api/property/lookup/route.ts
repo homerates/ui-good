@@ -245,26 +245,45 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
     //  "Last sold: May 2024 · $1,200,000"
     let lastSaleDate: string | null = null;
     let lastSalePrice: number | null = null;
+    // Helper: parse "$X", "$X,XXX", "$1.2M", "$980K" → integer dollars
+    const parseMoney = (s: string | null | undefined): number | null => {
+        if (!s) return null;
+        const m = s.replace(/[$,]/g, '').match(/^([\d.]+)\s*([KkMm]?)$/);
+        if (!m) return null;
+        const raw = parseFloat(m[1]);
+        const suf = m[2].toUpperCase();
+        const val = suf === 'M' ? Math.round(raw * 1_000_000)
+                  : suf === 'K' ? Math.round(raw * 1_000)
+                  : Math.round(raw);
+        return val > 10_000 ? val : null;
+    };
+
     const soldM =
         // "Sold May 2025 for $2,150,000"
-        t.match(/sold\s+([A-Za-z]+\s+\d{4})\s+for\s+\$?([\d,]+)/i)
+        t.match(/sold\s+([A-Za-z]+\s+\d{4})\s+for\s+\$?([\d,]+(?:\.\d+)?[KkMm]?)/i)
+        // "Sold May 2025 $2,150,000" (no "for") or "Sold • May 2025 $2,150,000"
+        ?? t.match(/sold\s+[•·\-–]?\s*([A-Za-z]+\s+\d{4})[^$\d]*\$?([\d,]+(?:\.\d+)?[KkMm]?)/i)
         // "Last sold: May 2024 · $1,200,000"
-        ?? t.match(/last\s+sold[:\s]+([A-Za-z]+\s+\d{4})[^$\d]*\$?([\d,]+)/i)
+        ?? t.match(/last\s+sold[:\s]+([A-Za-z]+\s+\d{4})[^$\d]*\$?([\d,]+(?:\.\d+)?[KkMm]?)/i)
         // "SOLD ON FEB 17, 2026" then nearby "$1,250,000 Sold Price"
         ?? (() => {
             const dateM = t.match(/sold\s+on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
-            const priceM = t.match(/\$([\d,]+)\s+sold\s+price/i) ?? t.match(/sold\s+price[:\s]+\$?([\d,]+)/i);
+            const priceM = t.match(/\$([\d,]+(?:\.\d+)?[KkMm]?)\s+sold\s+price/i) ?? t.match(/sold\s+price[:\s]+\$?([\d,]+(?:\.\d+)?[KkMm]?)/i);
             if (dateM && priceM) {
-                // normalize "Feb 17, 2026" → "February 2026"
                 const d = new Date(dateM[1]);
                 const label = isNaN(d.getTime()) ? dateM[1] : d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                 return [null, label, priceM[1]] as unknown as RegExpMatchArray;
             }
             return null;
+        })()
+        // "$932,000 Sold Sep 2020" (price before date)
+        ?? (() => {
+            const m = t.match(/\$([\d,]+(?:\.\d+)?[KkMm]?)\s+sold\s+([A-Za-z]+\s+\d{4})/i);
+            return m ? [null, m[2], m[1]] as unknown as RegExpMatchArray : null;
         })();
     if (soldM) {
         lastSaleDate  = soldM[1] ?? null;
-        lastSalePrice = soldM[2] ? parseInt(soldM[2].replace(/,/g, '')) : null;
+        lastSalePrice = parseMoney(soldM[2]);
     }
 
     // HOA
@@ -272,11 +291,11 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
         ?? t.match(/\$?([\d,]+)\s*\/\s*mo(?:nth)?\s+hoa/i);
     const hoaMonthly = hoaM ? parseInt(hoaM[1].replace(/,/g, '')) : null;
 
-    // Estimated value — Redfin Estimate section OR the "$X Est. refi payment" shown in off-market headers
+    // Estimated value — Redfin Estimate section. Handles $980K and $1.2M formats.
     let estimatedValue: number | null = null;
-    const evM = t.match(/(?:redfin\s+estimate|estimated?\s+(?:sale\s+)?(?:value|price)|zestimate)[:\s$]+([\d,]+)/i)
-      ?? t.match(/\$?([\d,]+)\s+Est\.\s+refi\s+payment/i);
-    if (evM) estimatedValue = parseInt(evM[1].replace(/,/g, ''));
+    const evRaw = t.match(/(?:redfin\s+estimate|estimated?\s+(?:sale\s+)?(?:value|price)|zestimate)[:\s$]*([\d,]+(?:\.\d+)?)\s*([KkMm]?)/i)
+      ?? t.match(/\$?([\d,]+(?:\.\d+)?)\s*([KkMm]?)\s+Est\.\s+refi\s+payment/i);
+    if (evRaw) estimatedValue = parseMoney(`${evRaw[1]}${evRaw[2] ?? ''}`);
 
     // Value range "$2.19M – $2.65M"
     let estimatedValueLow:  number | null = null;
@@ -648,6 +667,54 @@ function addressFromRedfinUrl(url: string): string | null {
     return `${m2[3].replace(/-/g, ' ')}, ${m2[2].replace(/-/g, ' ')}, ${m2[1].toUpperCase()}`;
 }
 
+// ── Sold-data rescue via web-search snippets ────────────────────────────────
+// When Tavily extract returns nothing (Redfin JS-rendering blocked),
+// search snippets usually carry "Sold [Month Year] for $X" + "Redfin Estimate: $X".
+interface SoldSnippetResult { text: string | null; photoUrl: string | null; }
+async function fetchSoldSnippets(address: string): Promise<SoldSnippetResult> {
+    const key = process.env.TAVILY_API_KEY;
+    if (!key || !address) return { text: null, photoUrl: null };
+    const clean = cleanAddressForSearch(address);
+    const streetNum = clean.match(/^(\d+)\b/)?.[1] ?? null;
+    const RE_DOMAINS = /redfin\.com|zillow\.com|realtor\.com|trulia\.com|homes\.com/i;
+    try {
+        const res = await fetch('https://api.tavily.com/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(8_000),
+            body: JSON.stringify({
+                api_key: key,
+                query: `${clean} sold price redfin estimate sale history`,
+                max_results: 5,
+                search_depth: 'basic',
+                include_answer: false,
+                include_images: true,
+            }),
+        });
+        if (!res.ok) return { text: null, photoUrl: null };
+        const data = await res.json();
+        const results: Record<string, unknown>[] = (data.results ?? [])
+            .filter((r: Record<string, unknown>) => RE_DOMAINS.test(String(r.url ?? '')))
+            .filter((r: Record<string, unknown>) => {
+                if (!streetNum) return true;
+                const haystack = `${r.title ?? ''} ${r.content ?? ''} ${r.url ?? ''}`;
+                return new RegExp(`\\b${streetNum}\\b`).test(haystack);
+            });
+        if (results.length === 0) return { text: null, photoUrl: null };
+        const text = results.map((r) => `${r.title ?? ''}\n${r.content ?? ''}`).join('\n\n');
+        // Also pick a property photo from Tavily search images (ssl.cdn-redfin.com only)
+        const allImages: string[] = [
+            ...((data.images as string[]) ?? []),
+            ...results.flatMap((r) => (r.images as string[] | undefined) ?? []),
+        ];
+        const photoUrl = pickPropertyPhoto(allImages);
+        return { text, photoUrl };
+    } catch (e: unknown) {
+        log.warn('[PropertyLookup] Sold snippets rescue failed', { error: (e as Error)?.message });
+        return { text: null, photoUrl: null };
+    }
+}
+
 // ── Main handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
@@ -764,6 +831,31 @@ async function handleUrl(rawUrl: string) {
                   : (sp && sp > 50_000 && sp < 50_000_000) ? sp
                   : null;
         if (avm) merged.price = avm;
+    }
+
+    // SOLD/OFF_MARKET rescue: when Tavily extract returned no text (Redfin JS-blocked),
+    // sale date + sold price + AVM come back null from parseExtended. Web-search snippets
+    // indexed by Google/Bing usually carry this data in preview text — use them as fallback.
+    if ((finalStatus === 'SOLD' || finalStatus === 'OFF_MARKET') && (!merged.lastSaleDate || !merged.photoUrl) && typeof merged.address === 'string') {
+        try {
+            const { text: snippets, photoUrl: rescuedPhoto } = await fetchSoldSnippets(merged.address as string);
+            // Recover property photo from search images when direct fetch missed it
+            if (!merged.photoUrl && rescuedPhoto) merged.photoUrl = rescuedPhoto;
+            if (snippets && !merged.lastSaleDate) {
+                // Prepend "SOLD" so parseExtended's status detection triggers balance calc
+                const rescueExt = parseExtended('SOLD\n' + snippets, merged.price as number | null, merged.sqft as number | null);
+                if (!merged.lastSaleDate  && rescueExt.lastSaleDate)   merged.lastSaleDate   = rescueExt.lastSaleDate;
+                if (!merged.lastSalePrice && rescueExt.lastSalePrice)   merged.lastSalePrice  = rescueExt.lastSalePrice;
+                if (!merged.estimatedValue && rescueExt.estimatedValue) merged.estimatedValue = rescueExt.estimatedValue;
+                // Recompute balance/equity/rate now that we have sale data
+                if (!merged.estimatedBalance && rescueExt.estimatedBalance) merged.estimatedBalance = rescueExt.estimatedBalance;
+                if (!merged.estimatedEquity  && rescueExt.estimatedEquity)  merged.estimatedEquity  = rescueExt.estimatedEquity;
+                if (!merged.purchaseRate     && rescueExt.purchaseRate)     merged.purchaseRate     = rescueExt.purchaseRate;
+                if (!merged.remainingMonths  && rescueExt.remainingMonths)  merged.remainingMonths  = rescueExt.remainingMonths;
+            }
+        } catch (e: unknown) {
+            log.warn('[PropertyLookup] Sold data rescue failed (non-blocking)', { error: (e as Error)?.message });
+        }
     }
 
     // FOR_SALE with blocked structured price: GPT-4o/Tavily often still recover the

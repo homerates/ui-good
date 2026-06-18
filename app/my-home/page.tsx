@@ -2238,7 +2238,7 @@ function MyHomePageInner() {
                             }}
                           >⭐ Set as Primary</button>
                         )}
-                        {properties.length > 1 && activeProperty && (
+                        {activeProperty && (
                           <button
                             className="mh-lens-drawer-action mh-lens-drawer-action-danger"
                             onClick={() => { removeProperty(activeProperty.id); setLensDrawerOpen(false); }}

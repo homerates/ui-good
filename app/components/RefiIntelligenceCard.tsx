@@ -278,10 +278,15 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
         {/* ── Property + Map Hero ── */}
         <div style={{ display:'grid', gridTemplateColumns:'60% 40%', height: mode==='simple' ? 190 : 140, borderBottom:'1px solid rgba(255,255,255,0.05)', position:'relative', flexShrink:0 }}>
             {/* House photo or wireframe illustration */}
-            <div style={{ position:'relative', background:'linear-gradient(160deg,#020c05,#041208)', overflow:'hidden', borderRight:'1px solid rgba(255,255,255,0.05)' }}>
-                {safePhoto ? (
-                    <img src={safePhoto} alt="Property" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
-                ) : <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 190" preserveAspectRatio="xMidYMid slice" style={{ width:'100%', height:'100%', display:'block' }}>
+            <div style={{
+                position:'relative',
+                overflow:'hidden',
+                borderRight:'1px solid rgba(255,255,255,0.05)',
+                ...(safePhoto
+                    ? { backgroundImage: `url(${safePhoto})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                    : { background: 'linear-gradient(160deg,#020c05,#041208)' }),
+            }}>
+                {!safePhoto && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 190" preserveAspectRatio="xMidYMid slice" style={{ width:'100%', height:'100%', display:'block' }}>
                     <defs>
                         <linearGradient id="ri-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#010a04"/><stop offset="100%" stopColor="#041409"/></linearGradient>
                         <radialGradient id="ri-glow" cx="50%" cy="100%" r="60%"><stop offset="0%" stopColor="rgba(0,232,122,0.05)"/><stop offset="100%" stopColor="rgba(0,232,122,0)"/></radialGradient>
