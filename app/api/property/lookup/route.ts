@@ -258,11 +258,14 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
         return val > 10_000 ? val : null;
     };
 
+    // Month alternation — rejects prepositions like "in"/"on" that Redfin uses in "Sold in 2026 for $X"
+    const MONTH_RE = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+
     const soldM =
         // "Sold May 2025 for $2,150,000"
-        t.match(/sold\s+([A-Za-z]+\s+\d{4})\s+for\s+\$?([\d,]+(?:\.\d+)?[KkMm]?)/i)
+        t.match(new RegExp(`sold\\s+(${MONTH_RE}\\s+\\d{4})\\s+for\\s+\\$?([\\d,]+(?:\\.\\d+)?[KkMm]?)`, 'i'))
         // "Sold May 2025 $2,150,000" (no "for") or "Sold • May 2025 $2,150,000"
-        ?? t.match(/sold\s+[•·\-–]?\s*([A-Za-z]+\s+\d{4})[^$\d]*\$?([\d,]+(?:\.\d+)?[KkMm]?)/i)
+        ?? t.match(new RegExp(`sold\\s+[•·\\-–]?\\s*(${MONTH_RE}\\s+\\d{4})[^$\\d]*\\$?([\\d,]+(?:\\.\\d+)?[KkMm]?)`, 'i'))
         // "Last sold: May 2024 · $1,200,000"
         ?? t.match(/last\s+sold[:\s]+([A-Za-z]+\s+\d{4})[^$\d]*\$?([\d,]+(?:\.\d+)?[KkMm]?)/i)
         // "SOLD ON FEB 17, 2026" then nearby "$1,250,000 Sold Price"
