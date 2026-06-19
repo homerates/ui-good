@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
   // Admin check
-  const { data: user } = await sb.from("users").select("is_admin").eq("id", userId).maybeSingle();
-  if (!user?.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { data: user } = await sb.from("users").select("role").eq("id", userId).maybeSingle();
+  if (user?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { pilotId } = await req.json();
   if (!pilotId) return NextResponse.json({ error: "pilotId required" }, { status: 400 });

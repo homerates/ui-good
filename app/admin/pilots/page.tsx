@@ -27,6 +27,8 @@ export default function AdminPilotsPage() {
   const [copied, setCopied] = useState<string | null>(null);
   const [inviting, setInviting] = useState<string | null>(null);
   const [invited, setInvited] = useState<string | null>(null);
+  const [bulkSending, setBulkSending] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ sent: number; total: number } | null>(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -101,6 +103,24 @@ export default function AdminPilotsPage() {
     setTimeout(() => setCopied(null), 2000);
   }
 
+  async function sendAllUnsent() {
+    const unsent = pilots.filter(p => p.contact_email && p.is_active && !p.invite_sent_at);
+    if (!unsent.length) return;
+    setBulkSending(true);
+    setBulkProgress({ sent: 0, total: unsent.length });
+    for (let i = 0; i < unsent.length; i++) {
+      await fetch("/api/admin/pilots/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pilotId: unsent[i].id }),
+      });
+      setBulkProgress({ sent: i + 1, total: unsent.length });
+    }
+    setBulkSending(false);
+    setBulkProgress(null);
+    void load();
+  }
+
   async function sendInvite(pilot: Pilot) {
     if (!pilot.contact_email) return;
     setInviting(pilot.id);
@@ -122,14 +142,37 @@ export default function AdminPilotsPage() {
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32, flexWrap: "wrap" }}>
           <Link href="/admin" style={{ color: "#3d8bff", textDecoration: "none", fontSize: "0.875rem" }}>← Admin</Link>
-          <div>
+          <div style={{ flex: 1 }}>
             <h1 style={{ margin: 0, fontSize: "1.4rem", fontWeight: 800 }}>Company Pilot Links</h1>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "#8fa3b8", marginTop: 4 }}>
               Create a unique link per mortgage company. Send to CEO/owner. LOs activate instantly — no waitlist, no pricing, full founding access.
             </p>
           </div>
+          {(() => {
+            const unsent = pilots.filter(p => p.contact_email && p.is_active && !p.invite_sent_at);
+            if (!unsent.length) return null;
+            return (
+              <button
+                onClick={sendAllUnsent}
+                disabled={bulkSending}
+                style={{
+                  padding: "10px 20px", borderRadius: 10,
+                  background: bulkSending ? "rgba(0,232,122,0.1)" : "rgba(0,232,122,0.12)",
+                  border: "1px solid rgba(0,232,122,0.35)",
+                  color: "#00e87a", fontSize: "0.85rem", fontWeight: 700,
+                  cursor: bulkSending ? "not-allowed" : "pointer",
+                  fontFamily: "inherit", whiteSpace: "nowrap",
+                  opacity: bulkSending ? 0.7 : 1,
+                }}
+              >
+                {bulkSending && bulkProgress
+                  ? `Sending ${bulkProgress.sent}/${bulkProgress.total}…`
+                  : `Send all unsent ✉ (${unsent.length})`}
+              </button>
+            );
+          })()}
         </div>
 
         {/* Create form */}
