@@ -30,6 +30,12 @@ export default function AdminPilotsPage() {
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ sent: number; total: number } | null>(null);
 
+  // Bulk import state
+  const [bulkText, setBulkText] = useState("");
+  const [bulkPreview, setBulkPreview] = useState<{ company_name: string; contact_name: string; contact_email: string }[]>([]);
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ created: string[]; skipped: string[]; failed: { company: string; error: string }[] } | null>(null);
+
   // Form state
   const [form, setForm] = useState({
     company_name: "",
@@ -101,6 +107,34 @@ export default function AdminPilotsPage() {
     navigator.clipboard.writeText(`${BASE_URL}/pilot/${slug}`);
     setCopied(slug);
     setTimeout(() => setCopied(null), 2000);
+  }
+
+  function parseBulkText(text: string) {
+    const rows = text.split("\n").map(l => l.trim()).filter(Boolean);
+    const parsed = rows.map(row => {
+      const cols = row.split(",").map(s => s.trim());
+      return {
+        company_name:  cols[0] ?? "",
+        contact_name:  cols[1] ?? "",
+        contact_email: cols[2] ?? "",
+      };
+    }).filter(r => r.company_name);
+    setBulkPreview(parsed);
+  }
+
+  async function runBulkImport(sendInvites: boolean) {
+    if (!bulkPreview.length) return;
+    setBulkImporting(true);
+    setBulkResult(null);
+    const r = await fetch("/api/admin/pilots/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contacts: bulkPreview, sendInvites }),
+    });
+    const d = await r.json();
+    setBulkResult(d);
+    setBulkImporting(false);
+    if (r.ok) { setBulkText(""); setBulkPreview([]); void load(); }
   }
 
   async function sendAllUnsent() {
@@ -230,6 +264,73 @@ export default function AdminPilotsPage() {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* Bulk import */}
+        <div style={{ background: "#0e1420", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "1.75rem", marginBottom: 32 }}>
+          <div style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#3d8bff", marginBottom: 8 }}>
+            Bulk Import
+          </div>
+          <p style={{ margin: "0 0 12px", fontSize: "0.8rem", color: "#8fa3b8" }}>
+            Paste one contact per line: <code style={{ background: "rgba(255,255,255,0.06)", padding: "1px 6px", borderRadius: 4, color: "#eaf8f7" }}>Company Name, Contact Name, email@domain.com</code>
+          </p>
+          <textarea
+            value={bulkText}
+            onChange={e => { setBulkText(e.target.value); parseBulkText(e.target.value); setBulkResult(null); }}
+            placeholder={"NEXA Mortgage, Mike Kortas, mike@nexamortgage.com\nLoanDepot, Alec Hanson, ahanson@loandepot.com\nUWM, Mat Ishbia, mat@uwm.com"}
+            rows={6}
+            style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", background: "#141b28", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#f0f4ff", fontSize: "0.8rem", fontFamily: "'DM Mono', monospace", resize: "vertical", outline: "none" }}
+          />
+
+          {bulkPreview.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: "0.72rem", color: "#8fa3b8", marginBottom: 6 }}>{bulkPreview.length} contact{bulkPreview.length !== 1 ? "s" : ""} parsed</div>
+              <div style={{ background: "#0a1018", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", marginBottom: 14 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      {["Company", "Contact", "Email"].map(h => (
+                        <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "#8fa3b8", fontWeight: 600, fontSize: "0.7rem", letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bulkPreview.map((r, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <td style={{ padding: "7px 12px", color: "#f0f4ff", fontWeight: 600 }}>{r.company_name || <span style={{ color: "#ff5f5f" }}>missing</span>}</td>
+                        <td style={{ padding: "7px 12px", color: "#c8d8ea" }}>{r.contact_name || <span style={{ color: "#8fa3b8" }}>—</span>}</td>
+                        <td style={{ padding: "7px 12px", color: "#c8d8ea" }}>{r.contact_email || <span style={{ color: "#ff9966" }}>no email</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  onClick={() => runBulkImport(true)}
+                  disabled={bulkImporting}
+                  style={{ padding: "10px 20px", borderRadius: 10, background: "#00e87a", color: "#080c12", border: "none", fontWeight: 700, fontSize: "0.85rem", cursor: bulkImporting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: bulkImporting ? 0.6 : 1 }}
+                >
+                  {bulkImporting ? "Importing…" : `Create ${bulkPreview.length} + send invites →`}
+                </button>
+                <button
+                  onClick={() => runBulkImport(false)}
+                  disabled={bulkImporting}
+                  style={{ padding: "10px 20px", borderRadius: 10, background: "transparent", color: "#8fa3b8", border: "1px solid rgba(255,255,255,0.12)", fontWeight: 600, fontSize: "0.85rem", cursor: bulkImporting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: bulkImporting ? 0.6 : 1 }}
+                >
+                  Create only (send later)
+                </button>
+              </div>
+            </div>
+          )}
+
+          {bulkResult && (
+            <div style={{ marginTop: 12, fontSize: "0.8rem", display: "flex", flexDirection: "column", gap: 4 }}>
+              {bulkResult.created.length > 0 && <div style={{ color: "#00e87a" }}>✓ Created: {bulkResult.created.join(", ")}</div>}
+              {bulkResult.skipped.length > 0 && <div style={{ color: "#8fa3b8" }}>↩ Already existed (skipped): {bulkResult.skipped.join(", ")}</div>}
+              {bulkResult.failed.length > 0 && <div style={{ color: "#ff5f5f" }}>✗ Failed: {bulkResult.failed.map(f => `${f.company} (${f.error})`).join(", ")}</div>}
+            </div>
+          )}
         </div>
 
         {/* Pilot list */}
