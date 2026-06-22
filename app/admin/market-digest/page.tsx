@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import AppNav from '../../components/AppNav';
 
 interface Stats {
   subscriber_count: number;
@@ -45,14 +46,14 @@ export default function MarketDigestAdmin() {
     fetch('/api/market-rates-digest').then(r => r.json()).then(d => setStats(d)).catch(() => {});
   }
 
-  const bg = { background: '#080c12', minHeight: '100vh', color: '#f0f4ff', fontFamily: "'DM Sans', sans-serif", padding: '32px 24px' };
-  const card = { background: '#0e1420', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '1.75rem', marginBottom: 24 };
+  const card ={ background: '#0e1420', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '1.75rem', marginBottom: 24 };
   const label = { fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#8fa3b8', marginBottom: 4 };
   const val = { fontSize: '1.6rem', fontWeight: 800, color: '#f0f4ff', margin: 0 };
 
   return (
-    <div style={bg}>
-      <div style={{ maxWidth: 680, margin: '0 auto' }}>
+    <div className="page-standalone" style={{ minHeight: '100vh', width: '100%', background: '#080c12', color: '#f0f4ff', fontFamily: "'DM Sans', sans-serif", overflowY: 'auto' }}>
+      <AppNav />
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '2rem 1.5rem', boxSizing: 'border-box' as const }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
