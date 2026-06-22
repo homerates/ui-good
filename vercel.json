@@ -28,6 +28,10 @@
     {
       "path": "/api/cron/consumer-invite-reminder",
       "schedule": "3 9 * * 1"
+    },
+    {
+      "path": "/api/market-rates-digest/cron",
+      "schedule": "0 13 * * 1-5"
     }
   ]
 }
