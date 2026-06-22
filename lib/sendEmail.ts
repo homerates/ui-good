@@ -976,7 +976,7 @@ export async function emailPilotInvite({
         <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Pilot Invite · ${companyName}</p>
         <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#e6edf3;line-height:1.2;">${greeting}</p>
         <p style="margin:0 0 16px;font-size:15px;color:#e6edf3;line-height:1.7;">
-          I'm Rayaan — founder of <strong style="color:#00e87a;">HomeRates.Ai</strong>, an AI mortgage intelligence platform.
+          I'm Rayaan — founder of <strong style="color:#00e87a;">HomeRates.Ai</strong> — The First AI Home + Mortgage Intelligence Platform.
           I'd like to invite your team to test it free, no commitment, no pitch.
         </p>
         <p style="margin:0 0 24px;font-size:15px;color:#8b949e;line-height:1.7;">
@@ -987,7 +987,7 @@ export async function emailPilotInvite({
         <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;background:#1c2433;border:1px solid rgba(255,255,255,0.07);border-radius:14px;overflow:hidden;">
           <tr><td style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
             <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">What each LO gets</p>
-            <p style="margin:0;font-size:17px;font-weight:700;color:#00e87a;">${creditsPerLo.toLocaleString()} credits + Founding Member badge</p>
+            <p style="margin:0;font-size:17px;font-weight:700;color:#00e87a;">${creditsPerLo.toLocaleString()} credits + Founding Member status</p>
             <p style="margin:4px 0 0;font-size:13px;color:#8b949e;">Full platform access from day one. No trial mode, no feature gates.</p>
           </td></tr>
           <tr><td style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">

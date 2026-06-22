@@ -104,7 +104,7 @@ export default function PilotPage() {
           <div style={styles.benefits}>
             {[
               { icon: "⚡", label: `${pilot.credits_per_lo.toLocaleString()} AI analysis credits`, sub: "Enough to run full scenarios for multiple clients" },
-              { icon: "🏅", label: "Founding Member badge", sub: "Permanently on your profile — visible to every borrower" },
+              { icon: "🏅", label: "Founding Member", sub: "Permanently on your profile — visible to every borrower" },
               { icon: "💬", label: "Full platform access", sub: "Chat, Market Rates, Decision Score, Deal Rooms — everything" },
               { icon: "🎯", label: "Direct line to the founders", sub: "Shape the product from day one" },
             ].map(b => (
