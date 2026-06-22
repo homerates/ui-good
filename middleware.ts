@@ -130,6 +130,12 @@ const isPublicRoute = createRouteMatcher([
   "/grovesiq(.*)",
   // Groves IQ partnership proposal — password-gated shareable doc
   "/groves(.*)",
+  // LO pilot landing page — public-facing link sent to company CEOs
+  "/pilot(.*)",
+  "/api/pilot(.*)",
+  // Agent pilot landing page — public-facing link sent to principal brokers
+  "/agent-pilot(.*)",
+  "/api/agent-pilot(.*)",
 ]);
 
 export default clerkMiddleware((auth, req) => {
