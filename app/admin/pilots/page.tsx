@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import AppNav from "../../components/AppNav";
 
 interface Pilot {
   id: string;
@@ -172,8 +173,9 @@ export default function AdminPilotsPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080c12", color: "#f0f4ff", fontFamily: "'DM Sans', system-ui, sans-serif", padding: "2rem" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+    <div className="page-standalone" style={{ minHeight: "100vh", width: "100%", background: "#080c12", color: "#f0f4ff", fontFamily: "'DM Sans', system-ui, sans-serif", overflowY: "auto" }}>
+      <AppNav />
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "2rem 1.5rem", boxSizing: "border-box" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32, flexWrap: "wrap" }}>
