@@ -116,11 +116,7 @@ const schemaSoftwareApp = {
     description:
         'Free mortgage refinance calculator. Enter your balance and rates to get breakeven months, monthly savings, trigger rate for 3-year breakeven, no-cost refi analysis, and FHA-to-conventional refi math.',
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-    author: {
-        '@type': 'Person',
-        name: 'Rayaan Arif',
-        jobTitle: 'Licensed Loan Consultant',
-    },
+    author: { '@type': 'Organization', name: 'HomeRates.ai', url: 'https://chat.homerates.ai' },
     featureList: [
         'Breakeven months calculation',
         'Monthly P&I savings',
@@ -437,17 +433,12 @@ export default function RefinanceCalculatorPage() {
                 {/* ── E-E-A-T / AUTHOR ── */}
                 <section className="author-section">
                     <div className="author-card">
-                        <div className="author-avatar">RA</div>
-                        <div className="author-info">
-                            <div className="author-name">Rayaan Arif</div>
-                            <div className="author-cred">Licensed Loan Consultant</div>
-                            <p className="author-bio">
+                        <p className="author-bio">
                                 HomeRates.ai was built to give borrowers the same refi analysis
                                 that loan officers run — including the trigger rate and no-cost
                                 comparison that most calculators skip. Every number reflects
                                 actual amortization math and live market data.
                             </p>
-                        </div>
                     </div>
                     <p className="last-updated">
                         Content last reviewed: March 2026 · Rate data: FRED Freddie Mac PMMS (weekly) ·

@@ -102,7 +102,7 @@ const schemaSoftwareApp = {
     description:
         'VA loan payment calculator with entitlement tracking. Handles first use, subsequent use, partial entitlement, VA Jumbo, and funding fee exemptions. Uses 2026 VA funding fee tables.',
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-    author: { '@type': 'Person', name: 'Rayaan Arif', jobTitle: 'Licensed Loan Consultant' },
+    author: { '@type': 'Organization', name: 'HomeRates.ai', url: 'https://chat.homerates.ai' },
     featureList: [
         'First use and subsequent use modes',
         'Remaining entitlement calculation (25% of county limit − 25% of prior balance)',
