@@ -110,7 +110,7 @@ const schemaSoftwareApp = {
   description:
     'Decodes mortgage pricing by computing the exact Fannie Mae LLPA breakdown for any conventional loan scenario. Shows the full rate/cost curve, discount point break-even analysis, and a consumer negotiation brief. Uses live FRED par rate data.',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-  author: { '@type': 'Person', name: 'Rayaan Arif', jobTitle: 'Licensed Loan Consultant' },
+  author: { '@type': 'Organization', name: 'HomeRates.ai', url: 'https://chat.homerates.ai' },
   featureList: [
     'Fannie Mae LLPA matrix — credit score × LTV breakdown',
     'Occupancy, loan purpose, and property type surcharges',
@@ -291,20 +291,13 @@ export default function RateIntelligenceEnginePage() {
           </p>
         </section>
 
-        {/* Author / E-E-A-T */}
+        {/* About this tool */}
         <section className="rie-author">
-          <div className="rie-author-card">
-            <div className="rie-author-avatar">RA</div>
-            <div>
-              <div className="rie-author-name">Rayaan Arif</div>
-              <div className="rie-author-cred">Licensed Loan Consultant</div>
-              <p className="rie-author-bio">
-                The LLPA matrix has been public since Fannie Mae created it — but most consumers never see it.
-                HomeRates.ai was built to close that gap: the same pricing intelligence loan officers use,
-                available to every borrower before they ever talk to a lender.
-              </p>
-            </div>
-          </div>
+          <p className="rie-author-bio">
+            The LLPA matrix has been public since Fannie Mae created it — but most consumers never see it.
+            HomeRates.ai was built to close that gap: the same pricing intelligence loan officers use,
+            available to every borrower before they ever talk to a lender.
+          </p>
           <p className="rie-last-updated">
             Matrix source: Fannie Mae LLPA Matrix, 2024 · Rate data: FRED Freddie Mac PMMS (updated weekly) · Last reviewed: June 2026
           </p>
@@ -442,17 +435,7 @@ export default function RateIntelligenceEnginePage() {
           background: #0e1420; border-radius: 12px; padding: 1.5rem;
           border: 1px solid rgba(255,255,255,0.07); margin-bottom: 3rem;
         }
-        .rie-author-card { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 1rem; }
-        .rie-author-avatar {
-          width: 44px; height: 44px; border-radius: 50%;
-          background: rgba(0,232,122,0.12); border: 1px solid rgba(0,232,122,0.3);
-          display: flex; align-items: center; justify-content: center;
-          font-weight: 700; font-size: 14px; color: #00e87a; flex-shrink: 0;
-          font-family: 'DM Mono', monospace;
-        }
-        .rie-author-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; color: #f0f4ff; }
-        .rie-author-cred { font-size: 0.82rem; color: #8fa3b8; margin-bottom: 0.4rem; }
-        .rie-author-bio { font-size: 0.875rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
+        .rie-author-bio { font-size: 0.9rem; color: #8fa3b8; margin: 0 0 1rem; line-height: 1.65; }
         .rie-last-updated { font-size: 0.78rem; color: #8fa3b8; margin: 0 0 0.5rem; font-family: 'DM Mono', monospace; }
         .rie-disclaimer { font-size: 0.78rem; color: #8fa3b8; margin: 0; line-height: 1.55; }
 
