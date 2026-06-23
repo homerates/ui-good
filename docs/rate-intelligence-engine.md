@@ -341,4 +341,231 @@ These are the legal and ethical constraints that must never be overridden regard
 
 ---
 
-*This document was prepared June 2026 and should be reviewed before any Phase 2 launch decision. Regulatory citations are current as of research date. Consult qualified mortgage/fintech counsel before launch.*
+## Addendum: The Complete Pricing Picture (June 2026 — Product Evolution)
+
+*The following captures additional product context added after the initial ADR. These components extend the Rate Intelligence Engine into a full pricing transparency and private exchange platform.*
+
+---
+
+### The Three Parts of a Mortgage Rate (What Consumers Never See)
+
+The industry structures rates as a **product with a menu of cost options**. There is no single "rate" — there is a rate curve tied to price. Consumers are typically shown only one point on that curve.
+
+```
+Rate Menu (same loan, same profile — different cost options):
+┌─────────────────────────────────────────────────────────────────┐
+│  RATE     │  POINTS / COST       │  WHAT IT MEANS              │
+├───────────┼──────────────────────┼─────────────────────────────┤
+│  6.50%    │  -0.50 pts (credit)  │  Lender pays you $2,250     │
+│           │                      │  at close. Rate is higher.  │
+├───────────┼──────────────────────┼─────────────────────────────┤
+│  6.25%    │  0 pts (PAR)         │  No cost, no credit.        │
+│           │                      │  The "neutral" rate.        │
+├───────────┼──────────────────────┼─────────────────────────────┤
+│  6.00%    │  +0.50 pts           │  You pay $2,250 at close    │
+│           │                      │  to buy the rate down.      │
+├───────────┼──────────────────────┼─────────────────────────────┤
+│  5.75%    │  +1.00 pt            │  You pay $4,500 at close.   │
+├───────────┼──────────────────────┼─────────────────────────────┤
+│  5.50%    │  +2.00 pts           │  You pay $9,000 at close.   │
+└───────────┴──────────────────────┴─────────────────────────────┘
+(Example: $450,000 loan. 1 point = $4,500.)
+```
+
+**The rule of thumb:** Every 1 discount point typically buys approximately 0.25% lower rate (4 points per 1%). This ratio shifts with market conditions but is the standard approximation.
+
+**What the Rate Intelligence Engine must show:**
+- Not just the rate, but the full points/cost curve for the user's profile
+- The PAR rate (zero-cost baseline) so consumers can see what "neutral" looks like
+- Break-even calculator: "At this rate/point combination, you break even in X months"
+- Lender credits scenario: "Taking a lender credit of 0.5 pts raises your rate by ~0.125% but gives you $X at close — worth it if you sell or refi within Y years"
+
+**Architecture implication:** The LLPA engine already computes price points. Extending it to a rate curve means computing multiple (rate, cost) pairs from the same LLPA base by moving along the par curve. This is a pure calculation — no additional data sources needed.
+
+---
+
+### Part 2: Lender Fee Scoring
+
+The second component of true cost transparency is **lender fees** — the non-rate charges that vary significantly by lender and are a major source of consumer confusion and overcharging.
+
+**The standard fee categories on every Loan Estimate (Section A):**
+
+| Fee | Industry Typical Range | Red Flag Threshold | Notes |
+|---|---|---|---|
+| Origination fee | 0–1.00% of loan | > 1.00% without points | Often bundled with discount points |
+| Underwriting fee | $500–$1,100 | > $1,500 | Should be flat, not % of loan |
+| Processing fee | $300–$700 | > $1,000 | Some lenders call this "administrative" |
+| Application fee | $0 | Any amount > $0 | Should never exist. Collected before Loan Estimate = potential TILA violation |
+| Rate lock fee | $0 (initial lock) | Any upfront amount | Extensions are acceptable |
+| Document prep fee | $0–$75 | > $200 | Legacy holdover; increasingly rare at legitimate lenders |
+| Flood determination | $10–$25 | > $50 | Third-party cost, should not be marked up |
+| Tax service fee | $50–$80 | > $150 | Third-party cost, should not be marked up |
+
+**Scoring approach:**
+- Score each fee line against the industry benchmark range
+- Flag as: Normal / Above Average / Red Flag
+- Produce a total "Lender Fee Score" (A through F or 0–100)
+- Display: "This lender's fees are X% above/below the industry average for this loan type"
+
+**Data sources for benchmarking:**
+- HMDA (Home Mortgage Disclosure Act) public data — contains origination charges by lender, loan type, geography
+- CFPB Consumer Complaint database — fee-related complaints by lender
+- Historical Loan Estimate data (if users consent to upload their Loan Estimates to the vault, HomeRates builds a proprietary benchmark over time)
+
+**This is the feature that makes us indispensable to rate-shopping consumers.** A consumer who has two competing Loan Estimates can upload both, get a side-by-side fee score, and know immediately which has inflated fees — without asking their LO to explain their own markup.
+
+---
+
+### Part 3: The Private Exchange Model (The Hotel Pricing Architecture)
+
+This is the most significant business model innovation in this document. It solves the fundamental tension in consumer mortgage comparison: consumers want real rates, lenders want qualified leads, and the RESPA framework makes pay-per-lead referral models legally fraught.
+
+**The model:**
+
+```
+TIER 0 — Industry Benchmark Rates (always public, no lender identity)
+  │
+  │  Source: FRED, Freddie Mac PMMS, HMDA aggregates
+  │  Display: "For your profile, the market range today is 6.25%–6.875%"
+  │  No lender named. No lender involved.
+  │
+TIER 1 — Anonymous Member Rates (lender pays flat membership fee)
+  │
+  │  Source: Participating lenders submit live rates via API or daily upload
+  │  Display: "Lender A: 6.375% / PAR / UW $750 / Score: A"
+  │           "Lender B: 6.25% / +0.5 pts / UW $1,100 / Score: B+"
+  │           "Lender C: 6.50% / -0.25 pts credit / UW $600 / Score: A-"
+  │  No lender name. No logo. No contact info.
+  │  User sees: rate, points, estimated fees, fee score, lock options
+  │
+TIER 2 — Discovery (user-initiated, user-controlled)
+  │
+  │  User selects a rate they want to pursue
+  │  User clicks "Reveal & Connect"
+  │  HomeRates shows: lender identity, NMLS number, LO options
+  │  User decides whether to proceed
+  │  HomeRates facilitates introduction — user data is NEVER cold-called
+  │  Lender only gets contact info when user explicitly consents
+  │
+  └── The vault saves the full comparison, the selected lender, and the date
+      so the user has a complete record of their rate-shopping decision
+```
+
+**Why this is the hotel pricing model:**
+Hotels.com shows "4-star hotel, downtown Chicago, $189/night" before revealing it's the Marriott Magnificent Mile. The consumer shops on price and category first, brand second. This radically changes the power dynamic — the hotel competes on rate, not on brand recognition alone. HomeRates does the same for mortgages.
+
+---
+
+### RESPA Legal Analysis — The Flat Fee Model
+
+This is where careful legal architecture is essential. The difference between this model and LendingTree's lead-gen model is significant — but must be preserved precisely.
+
+**The critical RESPA distinction:**
+
+| Model | Structure | RESPA Risk |
+|---|---|---|
+| LendingTree / Bankrate | Lender pays per lead/click/referral | HIGH — classic Section 8(b) kickback structure |
+| HomeRates Private Exchange | Lender pays flat annual/monthly fee for platform participation | LOW — if structured correctly |
+
+**What makes the flat fee model defensible:**
+
+Under RESPA Section 8(c)(2), payments for "goods or facilities actually furnished or for services actually performed" are not prohibited. A flat platform fee buys the lender:
+- Rate sheet API access / submission infrastructure
+- Profile matching (which rate appears for which consumer profile)
+- Compliance verification (NMLS confirmation, licensing check)
+- Anonymous display (lender's rate reaches consumers without advertising spend)
+- Discovery infrastructure (when consumer opts in, HomeRates facilitates)
+
+These are real services. A flat fee for real services ≠ a payment for a referral.
+
+**The line that cannot be crossed:**
+
+The flat fee must be:
+1. **Uniform** — same fee structure regardless of loan volume generated. A lender who generates 100 connections through HomeRates must pay the same fee as one who generates 2. The moment fee scales with volume = per-referral economics = RESPA risk.
+2. **Not contingent on connection/referral outcomes** — lenders pay to be listed, not for each user who clicks through
+3. **Not tied to rate ranking** — a lender paying more cannot buy a better position in results. Results must sort on objective criteria (rate, APR, total cost) or randomly for ties
+
+**What's permissible and what's not:**
+
+| Action | RESPA Status |
+|---|---|
+| Flat annual membership fee for all participating lenders | ✅ Permissible — payment for platform services |
+| Volume-based fee (per connection, per funded loan) | ❌ RESPA risk — approaches kickback structure |
+| Premium placement for higher-paying lenders | ❌ RESPA risk — non-neutral presentation = steering |
+| Fee for verified NMLS badge / compliance status display | ✅ Permissible — specific identifiable service |
+| Fee for API rate submission infrastructure | ✅ Permissible — specific identifiable service |
+| Results sorted by APR ascending (neutral) | ✅ Explicitly protected by 2023 CFPB advisory opinion |
+| Results sorted by lender fee paid (non-neutral) | ❌ RESPA violation |
+
+**The 2023 CFPB advisory opinion safe harbor applies here:**
+The opinion specifically protects platforms that present lender information neutrally without receiving payment for steering. The HomeRates model — flat fee for platform participation + neutral display by rate — falls within the safe harbor IF the fee is not tied to referral outcomes and display is neutral.
+
+**Attorney opinion required before lender onboarding:** Before signing the first lender to this model, get a written RESPA opinion from counsel. Budget $5,000–$10,000. This is a one-time cost that protects the entire model.
+
+---
+
+### Non-Member Lender Rate Display (Industry Benchmarks)
+
+The model also includes displaying industry-wide rates for profiles where no member lender has submitted a matching rate. These come from:
+- FRED / Freddie Mac PMMS (weekly averages by loan type)
+- CFPB/FHFA HMDA aggregated data (loan-level data by region, profile)
+- HomeRates LLPA engine output (estimated rate range from wholesale cost basis)
+
+These are displayed as: "Market range for your profile: 6.25%–6.875% (30-day average)" — no lender named, no specific lender implied. This provides the consumer a benchmark even before any member lender submits a rate.
+
+**Why this matters for positioning:** Even if HomeRates has zero lender members on Day 1, the platform delivers value through benchmark rates. Lender membership adds precision, not existence — which makes the pitch to lenders honest: "We already show your potential customers rate ranges. Join to show them YOUR rate."
+
+---
+
+### Competitive Moat Analysis — Private Exchange vs. Existing Models
+
+| Platform | Business model | Consumer gets | RESPA risk | Lender cost |
+|---|---|---|---|---|
+| LendingTree | Lead gen (per-lead fee) | Rate quotes + 4+ lender calls | HIGH | $20–$300/lead |
+| Bankrate | Advertising (CPM + lead) | Rate listings + click-throughs | MEDIUM | $5–$50/click |
+| NerdWallet | Affiliate (CPA) | Rate listings + application links | MEDIUM | $200–$500/funded loan |
+| Zillow Home Loans | Vertical integration | Zillow-owned lending | N/A | N/A |
+| **HomeRates Private Exchange** | **Flat membership** | **Anonymous rates → user-controlled discovery** | **LOW** | **Flat annual/monthly** |
+
+The HomeRates model is the only one that:
+- Aligns consumer interest (unbiased results) with platform economics (flat fee ≠ steering incentive)
+- Gives the consumer control of when they reveal themselves to a lender
+- Is explicitly RESPA-safe by design rather than by compliance retrofitting
+
+---
+
+### Revenue Model — Private Exchange
+
+**Lender membership tiers (proposed):**
+
+| Tier | Annual fee | Included |
+|---|---|---|
+| Explorer | $2,400/year ($200/mo) | Rate submission, anonymous display, NMLS badge |
+| Member | $7,200/year ($600/mo) | Above + featured in discovery, fee score display, vault integration |
+| Partner | $18,000/year ($1,500/mo) | Above + API access, co-branded Intelligence Cards, analytics dashboard |
+
+**Revenue math at scale:**
+- 50 Explorer lenders: $120,000/year
+- 30 Member lenders: $216,000/year
+- 10 Partner lenders: $180,000/year
+- Total at modest scale: **$516,000 ARR** — before any consumer subscription revenue
+
+**This is not lead gen revenue.** It is platform subscription revenue — predictable, recurring, and not dependent on transaction volume. This is why the flat fee model is strategically superior to per-lead, not just legally superior.
+
+---
+
+### Phased Build Sequence (Updated)
+
+| Phase | Feature | Timeline | Legal requirement |
+|---|---|---|---|
+| 1 | LLPA educational page (no rate computation) | Immediate | None |
+| 2 | Rate Intelligence Engine — full LLPA + rate range + points/cost curve | 4–6 weeks | CA/NY attorney opinion on educational framing |
+| 3 | Lender fee scoring (HMDA benchmark, Loan Estimate upload) | 8–12 weeks | None new |
+| 4 | Industry benchmark rate display (anonymous, no lenders) | 10–14 weeks | None new |
+| 5 | Private Exchange — lender onboarding, anonymous rate submission | 3–4 months | RESPA flat-fee attorney opinion ($5k–$10k) |
+| 6 | Discovery flow — user-initiated reveal + connection | 4–5 months | State licensing review in CA, NY, TX |
+| 7 | Vault integration — saved comparisons, historical rate tracking | Parallel to Phase 5+ | None new |
+
+---
+
+*Addendum prepared June 2026. Supersedes no prior sections — extends them.*
