@@ -182,12 +182,7 @@ export default function Income95kPage() {
                 </section>
                 <section className="author-section">
                     <div className="author-card">
-                        <div className="author-avatar">RA</div>
-                        <div className="author-info">
-                            <div className="author-name">Rayaan Arif</div>
-                            <div className="author-cred">Licensed Loan Consultant</div>
-                            <p className="author-bio">Numbers calculated using Fannie Mae 43% DTI guidelines, live FRED 30-year rate data, and 2026 FHA/conforming loan limits.</p>
-                        </div>
+                        <p className="author-bio">Numbers calculated using Fannie Mae 43% DTI guidelines, live FRED 30-year rate data, and 2026 FHA/conforming loan limits.</p>
                     </div>
                     <p className="disclaimer"><strong>Educational purposes only.</strong> Not a lender or pre-approval. Consult a licensed mortgage professional. Equal Housing Opportunity.</p>
                 </section>

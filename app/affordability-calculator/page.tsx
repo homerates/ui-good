@@ -125,11 +125,7 @@ const schemaSoftwareApp = {
         price: '0',
         priceCurrency: 'USD',
     },
-    author: {
-        '@type': 'Person',
-        name: 'Rayaan Arif',
-        jobTitle: 'Licensed Loan Consultant',
-    },
+    author: { '@type': 'Organization', name: 'HomeRates.ai', url: 'https://chat.homerates.ai' },
     featureList: [
         'Three affordability scenarios: FHA, Conventional 3%, Conventional 20%',
         'Live FRED mortgage rate data',
@@ -428,16 +424,11 @@ export default function AffordabilityCalculatorPage() {
                 ── */}
                 <section className="author-section">
                     <div className="author-card">
-                        <div className="author-avatar">RA</div>
-                        <div className="author-info">
-                            <div className="author-name">Rayaan Arif</div>
-                            <div className="author-cred">Licensed Loan Consultant</div>
-                            <p className="author-bio">
+                        <p className="author-bio">
                                 HomeRates.ai was built to give consumers the same analysis that loan
                                 officers use — without the sales pressure. Every calculation in this
                                 tool reflects real agency guidelines and live market data.
                             </p>
-                        </div>
                     </div>
                     <p className="last-updated">
                         Content last reviewed: March 2026 · Loan limits: 2026 FHFA ·

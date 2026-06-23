@@ -121,11 +121,7 @@ const schemaSoftwareApp = {
         price: '0',
         priceCurrency: 'USD',
     },
-    author: {
-        '@type': 'Person',
-        name: 'Rayaan Arif',
-        jobTitle: 'Licensed Loan Consultant',
-    },
+    author: { '@type': 'Organization', name: 'HomeRates.ai', url: 'https://chat.homerates.ai' },
     featureList: [
         'DSCR ratio calculation (rent ÷ full PITIA)',
         'Full PITIA breakdown: P&I, taxes, insurance, HOA',
@@ -473,17 +469,12 @@ export default function DSCRCalculatorPage() {
                 {/* ── E-E-A-T / AUTHOR ── */}
                 <section className="author-section">
                     <div className="author-card">
-                        <div className="author-avatar">RA</div>
-                        <div className="author-info">
-                            <div className="author-name">Rayaan Arif</div>
-                            <div className="author-cred">Licensed Loan Consultant</div>
-                            <p className="author-bio">
+                        <p className="author-bio">
                                 HomeRates.ai was built to give real estate investors the same
                                 DSCR analysis that non-QM lenders run — before you pay for an
                                 appraisal or submit a full application. Every number reflects
                                 real lender guidelines and live market data.
                             </p>
-                        </div>
                     </div>
                     <p className="last-updated">
                         Content last reviewed: March 2026 · DSCR guidelines: non-QM lender standards ·

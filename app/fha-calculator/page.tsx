@@ -124,11 +124,7 @@ const schemaSoftwareApp = {
         price: '0',
         priceCurrency: 'USD',
     },
-    author: {
-        '@type': 'Person',
-        name: 'Rayaan Arif',
-        jobTitle: 'Licensed Loan Consultant',
-    },
+    author: { '@type': 'Organization', name: 'HomeRates.ai', url: 'https://chat.homerates.ai' },
     featureList: [
         'Full FHA monthly payment: P&I, MIP, taxes, insurance',
         'UFMIP (1.75%) added to loan before P&I calculation',
@@ -513,17 +509,12 @@ export default function FHACalculatorPage() {
                 {/* ── E-E-A-T / AUTHOR ── */}
                 <section className="author-section">
                     <div className="author-card">
-                        <div className="author-avatar">RA</div>
-                        <div className="author-info">
-                            <div className="author-name">Rayaan Arif</div>
-                            <div className="author-cred">Licensed Loan Consultant</div>
-                            <p className="author-bio">
+                        <p className="author-bio">
                                 HomeRates.ai was built to give borrowers the same FHA analysis
                                 that loan officers use — without the sales pressure. Every number
                                 in this calculator reflects real HUD guidelines and live market data,
                                 not rounded estimates or hidden assumptions.
                             </p>
-                        </div>
                     </div>
                     <p className="last-updated">
                         Content last reviewed: March 2026 · FHA MIP rates: HUD ML 2023-05 ·

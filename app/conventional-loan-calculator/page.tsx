@@ -106,11 +106,7 @@ const schemaSoftwareApp = {
     url: 'https://chat.homerates.ai/conventional-loan-calculator',
     description: 'Free conventional loan calculator. Monthly payment with PMI breakdown, PMI cancellation timeline, DTI analysis, conventional vs FHA comparison, and 2026 FHFA loan limit check.',
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-    author: {
-        '@type': 'Person',
-        name: 'Rayaan Arif',
-        jobTitle: 'Licensed Loan Consultant',
-    },
+    author: { '@type': 'Organization', name: 'HomeRates.ai', url: 'https://chat.homerates.ai' },
     featureList: [
         'Full monthly payment: P&I, PMI, taxes, insurance',
         'PMI cancellation year via actual amortization',
@@ -417,12 +413,7 @@ export default function ConventionalLoanCalculatorPage() {
 
                 <section className="author-section">
                     <div className="author-card">
-                        <div className="author-avatar">RA</div>
-                        <div className="author-info">
-                            <div className="author-name">Rayaan Arif</div>
-                            <div className="author-cred">Licensed Loan Consultant</div>
-                            <p className="author-bio">HomeRates.ai was built to give borrowers the same conventional loan analysis that loan officers run — including the exact PMI cancellation date and FHA comparison that most calculators skip.</p>
-                        </div>
+                        <p className="author-bio">HomeRates.ai was built to give borrowers the same conventional loan analysis that loan officers run — including the exact PMI cancellation date and FHA comparison that most calculators skip.</p>
                     </div>
                     <p className="last-updated">Content last reviewed: March 2026 · Loan limits: FHFA CY2026 · Rate data: FRED Freddie Mac PMMS (weekly) · Guidelines: Fannie Mae Selling Guide B3-6</p>
                     <p className="disclaimer"><strong>Educational purposes only.</strong> HomeRates.ai is not a lender, broker, or mortgage advisor. Results are estimates. Consult a licensed mortgage professional for a formal pre-approval. Equal Housing Opportunity.</p>

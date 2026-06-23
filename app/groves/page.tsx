@@ -607,8 +607,8 @@ function FrameworkDoc() {
               <div className="grv-lo-strip">
                 <div className="grv-lo-ava">RA</div>
                 <div>
-                  <div className="grv-lo-label">Your loan officer</div>
-                  <div className="grv-lo-name">Rayaan Arif</div>
+                  <div className="grv-lo-label">Your contact</div>
+                  <div className="grv-lo-name">Rayaan Arif, Founder</div>
                 </div>
               </div>
               <div className="grv-mini-card">
