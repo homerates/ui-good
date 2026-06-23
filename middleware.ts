@@ -130,6 +130,9 @@ const isPublicRoute = createRouteMatcher([
   "/grovesiq(.*)",
   // Groves IQ partnership proposal — password-gated shareable doc
   "/groves(.*)",
+  // Rate Intelligence Engine — consumer-facing LLPA calculator, no auth required
+  "/rate-intelligence-engine(.*)",
+  "/api/rate-intelligence-engine(.*)",
   // LO pilot landing page — public-facing link sent to company CEOs
   "/pilot(.*)",
   "/api/pilot(.*)",
