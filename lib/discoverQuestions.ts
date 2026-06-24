@@ -17,6 +17,9 @@ export type ScenarioSnapshot = {
   monthlyMIP?:   number;   // FHA
   monthlyPMI?:   number;   // Conventional
   fundingFee?:   number;   // VA — dollar amount
+  // L5 Rate Intelligence — populated when borrower decoded their rate before matching
+  fairParRate?:   number;  // decoded lender par rate (FRED + LLPA)
+  fairParCounty?: string;  // county used in LLPA calculation
 };
 
 export type DiscoverQuestion = {
@@ -63,7 +66,9 @@ function makeRateQuestion(lt: LoanTypeKey): DiscoverQuestion {
     subtopics: 'Exact rate · APR · fixed vs ARM · rate lock options & extension cost',
     aiValue: s => `${s.rate.toFixed(3)}%`,
     aiSub:   () => 'FRED 30yr avg interest rate · live benchmark',
-    prompt:  s => `What is your interest rate on a ${fmt$(s.loanAmount)} ${lt.toUpperCase()} loan at ${s.downPct}% down? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost? ${loanSpecific[lt]}`,
+    prompt:  s => s.fairParRate
+      ? `My LLPA analysis shows fair par at ${s.fairParRate.toFixed(3)}%${s.fairParCounty ? ` (${s.fairParCounty})` : ''}. What rate can you offer on a ${fmt$(s.loanAmount)} ${lt.toUpperCase()} ${s.downPct}% down purchase? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost? ${loanSpecific[lt]}`
+      : `What is your interest rate on a ${fmt$(s.loanAmount)} ${lt.toUpperCase()} loan at ${s.downPct}% down? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost? ${loanSpecific[lt]}`,
     inputType: 'pct',
     inputPlaceholder: 'e.g. 6.875',
     evaluateGap(raw, s) {

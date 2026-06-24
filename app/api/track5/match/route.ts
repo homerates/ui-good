@@ -67,9 +67,12 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const body = await req.json().catch(() => ({})) as Record<string, unknown>;
-  const sessionId      = typeof body.sessionId  === 'string' ? body.sessionId.trim() : null;
+  const sessionId      = typeof body.sessionId   === 'string' ? body.sessionId.trim() : null;
   // Accept composite from frontend as fallback when DB session hasn't been updated yet
-  const bodyComposite  = typeof body.composite  === 'number' ? body.composite  : null;
+  const bodyComposite  = typeof body.composite   === 'number' ? body.composite   : null;
+  // L5 Rate Intelligence — optional, set when borrower decoded their rate before matching
+  const fairParRate    = typeof body.fairParRate  === 'number' ? body.fairParRate  : null;
+  const fairParCounty  = typeof body.fairParCounty === 'string' ? body.fairParCounty : null;
 
   if (!sessionId) {
     return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
@@ -166,14 +169,17 @@ export async function POST(req: NextRequest) {
     verdict_label:   verdict,
     from_track5:     true,
     // Card data (exact scenario numbers)
-    has_card_data:   price != null,
-    card_price:      price,
-    card_dp_pct:     dpPct,
-    card_rate:       rate,
-    card_term:       term,
+    has_card_data:       price != null,
+    card_price:          price,
+    card_dp_pct:         dpPct,
+    card_rate:           rate,
+    card_term:           term,
+    // L5 Rate Intelligence decoded rate (nullable — set only when borrower ran RIE before matching)
+    card_fair_par_rate:  fairParRate,
     // posted_by_role added in migration 045
-    posted_by_role:  'borrower',
+    posted_by_role:      'borrower',
   };
+  void fairParCounty; // stored in message metadata via fire-to-pe; not needed in scenario_briefs
 
   const { data: newBrief, error: insertErr } = await supabase
     .from('scenario_briefs')

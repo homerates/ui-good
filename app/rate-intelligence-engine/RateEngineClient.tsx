@@ -189,6 +189,16 @@ export default function RateEngineClient() {
       const data = await r.json();
       if (!r.ok) { setError(data.error ?? "Calculation failed"); return; }
       setResult(data);
+      // Persist decoded rate so Track 5 can enrich the match request and Discover Rate chip
+      try {
+        localStorage.setItem('hr_rie_result', JSON.stringify({
+          lenderParRate: data.lenderParRate,
+          county: county || null,
+          state: state || null,
+          fico: inputs.creditScore,
+          ltv: inputs.ltv,
+        }));
+      } catch { /* storage full — non-fatal */ }
     } catch {
       setError("Network error — please try again");
     } finally {

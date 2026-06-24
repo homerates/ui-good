@@ -275,6 +275,17 @@ function Track5Inner() {
   const [matchConsent,    setMatchConsent]    = useState(false);
   const [matchScenarioId, setMatchScenarioId] = useState<string | null>(null);
   const [matchError,      setMatchError]      = useState<string | null>(null);
+  // L5 Rate Intelligence — read from localStorage when borrower has already decoded their rate
+  const [rieResult, setRieResult] = useState<{ lenderParRate: number; county?: string | null } | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('hr_rie_result');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { lenderParRate?: number; county?: string };
+        if (typeof parsed.lenderParRate === 'number') setRieResult({ lenderParRate: parsed.lenderParRate, county: parsed.county ?? null });
+      }
+    } catch { /* non-fatal */ }
+  }, []);
 
   // ── Clamp helper ──────────────────────────────────────────────────────────
   function clampScore(raw: string | null | undefined): number | null {
@@ -341,7 +352,12 @@ function Track5Inner() {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         // Send composite from UI state as fallback for race where DB session hasn't been updated yet
-        body:    JSON.stringify({ sessionId, composite: idx?.score ?? null }),
+        body:    JSON.stringify({
+          sessionId,
+          composite:    idx?.score ?? null,
+          fairParRate:  rieResult?.lenderParRate ?? null,
+          fairParCounty: rieResult?.county ?? null,
+        }),
       });
       const d = await res.json();
       if (!res.ok) {
@@ -772,6 +788,7 @@ function Track5Inner() {
                     { dot: '#4ade80', label: 'Decision Score', val: `${idx.score} · ${v?.label}` },
                     { dot: '#4ade80', label: 'ZIP Code',       val: matchZip },
                     { dot: '#4ade80', label: 'Loan scenario',  val: [ctxLt ? loanTypeLabel(ctxLt) : null, ctxPrice ? fmtK(ctxPrice) : null, ctxDp ? `${ctxDp}% down` : null].filter(Boolean).join(' · ') || 'From scenario' },
+                    ...(rieResult ? [{ dot: '#a78bfa', label: 'Rate Intelligence', val: `${rieResult.lenderParRate.toFixed(3)}% fair par · L5 decoded` }] : []),
                     { dot: '#f87171', label: 'Full address',   val: null },
                     { dot: '#f87171', label: 'Your name & contact', val: null },
                   ].map(row => (

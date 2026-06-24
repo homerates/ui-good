@@ -23,10 +23,12 @@ interface Message {
     session_id?: string;
     loan_type?: string;
     question_id?: string;
+    chipId?: string;
     title?: string;
     icon?: string;
     ai_value?: string;
     ai_sub?: string;
+    fairParRate?: number;   // L5 decoded rate — set on Rate chip when borrower ran RIE
     // lo_prompt fields
     prompt_id?: string;
     options?: Array<{ group: string; choices: string[] }>;
@@ -165,6 +167,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           term: ds.term ?? 30,
           ltv: ds.ltv ?? 0.965,
           monthlyPayment: ds.monthlyPayment ?? 0,
+          fairParRate: ds.fairParRate ?? undefined,
         },
       });
     }
@@ -285,7 +288,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   const loReplies: Record<string, string> = {};
   for (const chipId of sentChipIds) {
     const chipMsg = messagesAfterReset.find(
-      m => m.metadata?.type === "discover_chip" && (m.metadata as { chipId?: string })?.chipId === chipId
+      m => m.metadata?.type === "discover_chip" && m.metadata?.chipId === chipId
     );
     if (!chipMsg) continue;
     const loReply = messagesAfterReset.find(m => m.sender_role === "professional" && m.created_at > chipMsg.created_at);
@@ -293,6 +296,28 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
       loRepliedChipIds.push(chipId);
       loReplies[chipId] = loReply.content;
     }
+  }
+
+  // L5 comparison strip — find the Rate chip message and its LO reply for inline delta display
+  const rateChipMsg = messagesAfterReset.find(
+    m => m.metadata?.type === "discover_chip" && m.metadata?.chipId === "rate"
+  );
+  const fairParRateFromChip = rateChipMsg?.metadata?.fairParRate ?? null;
+  const loRateReplyMsg = rateChipMsg
+    ? messagesAfterReset.find(m => m.sender_role === "professional" && m.created_at > rateChipMsg.created_at)
+    : null;
+
+  function extractFirstRate(text: string): number | null {
+    const stripped = text.replace(/APR\s*(?:of\s*|:?\s*)(\d+\.\d+)\s*%/gi, '');
+    const matches  = Array.from(stripped.matchAll(/(\d+\.\d+)\s*%/g));
+    const rates    = matches.map((m: RegExpMatchArray) => parseFloat(m[1])).filter((v: number) => v >= 1 && v <= 20);
+    return rates.length > 0 ? rates[0] : null;
+  }
+
+  function calcMonthlyPmt(rate: number, loanAmount: number, termYears: number = 30): number {
+    const mr = rate / 100 / 12;
+    const n  = termYears * 12;
+    return mr > 0 ? (loanAmount * mr * Math.pow(1 + mr, n)) / (Math.pow(1 + mr, n) - 1) : loanAmount / n;
   }
 
   return (
@@ -502,6 +527,26 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
               </div>
             )}
 
+            {/* L5 Rate Intelligence reference bar — shown when borrower decoded their rate */}
+            {isBorrower && discoverScenario?.snapshot.fairParRate && (
+              <div style={{
+                padding: '6px 16px',
+                background: 'rgba(139,92,246,0.04)',
+                borderBottom: '1px solid rgba(139,92,246,0.12)',
+                display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const,
+              }}>
+                <span style={{ fontSize: '0.6rem', color: 'rgba(167,139,250,0.45)' }}>🔬 Your decoded fair par:</span>
+                <span style={{
+                  fontSize: '0.68rem', fontWeight: 700, color: 'rgba(167,139,250,0.8)',
+                  background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)',
+                  borderRadius: 5, padding: '2px 8px',
+                }}>
+                  {discoverScenario.snapshot.fairParRate.toFixed(3)}%
+                </span>
+                <span style={{ fontSize: '0.6rem', color: 'rgba(185,208,192,0.25)' }}>Use this as your reference when reading the lender&apos;s rate reply</span>
+              </div>
+            )}
+
             {/* Messages scroll area */}
             <div className="ch-messages-wrap">
               {loading && <div className="ch-loading">Loading conversation…</div>}
@@ -621,21 +666,59 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                 }
 
                 const mine = (isBorrower && m.sender_role === "borrower") || (!isBorrower && m.sender_role === "professional");
+
+                // L5 comparison strip — shown below the LO's first reply to the Rate chip
+                const isLoRateReply = isBorrower && loRateReplyMsg && m.id === loRateReplyMsg.id && fairParRateFromChip != null;
+                const loOfferedRate = isLoRateReply ? extractFirstRate(m.content) : null;
+                const loanAmt = discoverScenario?.snapshot.loanAmount ?? 0;
+                const term    = discoverScenario?.snapshot.term ?? 30;
+                const deltaRate    = isLoRateReply && loOfferedRate != null && fairParRateFromChip != null
+                  ? parseFloat((loOfferedRate - fairParRateFromChip).toFixed(3))
+                  : null;
+                const deltaMonthly = deltaRate != null && loanAmt > 0
+                  ? Math.round(calcMonthlyPmt(loOfferedRate!, loanAmt, term) - calcMonthlyPmt(fairParRateFromChip!, loanAmt, term))
+                  : null;
+                const deltaColor = deltaRate != null && deltaRate <= 0 ? '#4ade80' : '#fbbf24';
+
                 return (
-                  <div key={m.id} className={`ch-bubble-row ${mine ? "ch-mine" : "ch-theirs"}`}>
-                    {!mine && (
-                      <div className="ch-avatar">
-                        {isBorrower ? loInitials(proCard?.name ?? null) : 'B'}
+                  <div key={m.id}>
+                    <div className={`ch-bubble-row ${mine ? "ch-mine" : "ch-theirs"}`}>
+                      {!mine && (
+                        <div className="ch-avatar">
+                          {isBorrower ? loInitials(proCard?.name ?? null) : 'B'}
+                        </div>
+                      )}
+                      <div className={`ch-bubble ${mine ? "ch-bubble-mine" : "ch-bubble-theirs"}`}>
+                        <div className="ch-bubble-content">
+                          {m.content.split("\n").map((line, i) => (
+                            <span key={i}>{line}{i < m.content.split("\n").length - 1 ? <br /> : null}</span>
+                          ))}
+                        </div>
+                        <div className="ch-bubble-time">{fmt(m.created_at)}</div>
                       </div>
-                    )}
-                    <div className={`ch-bubble ${mine ? "ch-bubble-mine" : "ch-bubble-theirs"}`}>
-                      <div className="ch-bubble-content">
-                        {m.content.split("\n").map((line, i) => (
-                          <span key={i}>{line}{i < m.content.split("\n").length - 1 ? <br /> : null}</span>
+                    </div>
+                    {isLoRateReply && loOfferedRate != null && fairParRateFromChip != null && deltaRate != null && (
+                      <div style={{
+                        margin: '6px 0 10px 40px',
+                        padding: '10px 14px',
+                        background: deltaRate <= 0 ? 'rgba(0,232,122,0.04)' : 'rgba(251,191,36,0.04)',
+                        border: `1px solid ${deltaRate <= 0 ? 'rgba(0,232,122,0.15)' : 'rgba(251,191,36,0.15)'}`,
+                        borderRadius: 10,
+                        display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8,
+                      }}>
+                        {[
+                          { label: 'LO offered', val: `${loOfferedRate.toFixed(3)}%`, color: 'rgba(185,208,192,0.7)' },
+                          { label: 'Your fair par', val: `${fairParRateFromChip.toFixed(3)}%`, color: '#a78bfa' },
+                          { label: 'Delta', val: `${deltaRate > 0 ? '+' : ''}${deltaRate.toFixed(3)}%`, color: deltaColor },
+                          { label: 'Monthly diff', val: deltaMonthly != null ? `${deltaMonthly > 0 ? '+' : ''}$${Math.abs(deltaMonthly).toLocaleString()}/mo` : '—', color: deltaMonthly != null && deltaMonthly <= 0 ? '#4ade80' : deltaColor },
+                        ].map(item => (
+                          <div key={item.label}>
+                            <div style={{ fontSize: '0.57rem', color: 'rgba(185,208,192,0.28)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 3 }}>{item.label}</div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: item.color }}>{item.val}</div>
+                          </div>
                         ))}
                       </div>
-                      <div className="ch-bubble-time">{fmt(m.created_at)}</div>
-                    </div>
+                    )}
                   </div>
                 );
               })}
