@@ -69,6 +69,18 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
   const [complete, setComplete] = useState(data.state === 'complete');
   const prevState = useRef(data.state);
 
+  // L5 Rate Intelligence — read decoded result from localStorage (set by RIE page after decode)
+  const [rieDecoded, setRieDecoded] = useState<number | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('hr_rie_result');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { lenderParRate?: number };
+        if (typeof parsed.lenderParRate === 'number') setRieDecoded(parsed.lenderParRate);
+      }
+    } catch { /* non-fatal */ }
+  }, []);
+
   // Trigger bar animation on mount (for L1/L2)
   useEffect(() => {
     const t = requestAnimationFrame(() => setMounted(true));
@@ -293,47 +305,74 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
         })}
       </div>
 
-      {/* ── Footer ── */}
-      {complete ? (
-        <div style={{ padding: '12px 20px 16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-            <a
-              href={fullAnalysisUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'rgba(0,232,122,0.07)', border: '1px solid rgba(0,232,122,0.2)',
-                color: '#00e87a', fontWeight: 700, fontSize: '0.77rem',
-                borderRadius: 10, padding: '10px 14px', textDecoration: 'none', whiteSpace: 'nowrap',
+      {/* ── L5 Rate Intelligence row (appears after DSC completes) ── */}
+      {complete && rateIntelUrl && (
+        <div style={{ padding: '9px 20px 10px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Label */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, width: 148, flexShrink: 0 }}>
+              <span style={{ fontSize: '0.61rem', fontWeight: 800, color: rieDecoded != null ? '#a78bfa' : 'rgba(139,92,246,0.42)', textTransform: 'uppercase', letterSpacing: '0.08em', transition: 'color 0.4s ease' }}>
+                L5
+              </span>
+              <span style={{ fontSize: '0.75rem', color: rieDecoded != null ? 'rgba(185,208,192,0.7)' : 'rgba(185,208,192,0.3)', transition: 'color 0.4s ease' }}>
+                Rate Intelligence
+              </span>
+              <span style={{ fontSize: '0.58rem', color: 'rgba(185,208,192,0.18)', marginLeft: 'auto' }}>🔬</span>
+            </div>
+
+            {/* Bar when decoded; CTA link when not */}
+            {rieDecoded != null ? (
+              <div style={{ flex: 1, height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', borderRadius: 3,
+                  background: 'linear-gradient(90deg, #7c3aed, #a78bfa)',
+                  width: mounted ? '100%' : '0%',
+                  transition: 'width 0.9s cubic-bezier(0.34,1.56,0.64,1) 0.55s',
+                }} />
+              </div>
+            ) : (
+              <a href={rateIntelUrl} style={{
+                flex: 1, fontSize: '0.72rem', fontWeight: 700,
+                color: 'rgba(167,139,250,0.62)', textDecoration: 'none',
+                letterSpacing: '0.01em', transition: 'color 0.2s ease',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.13)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.07)')}
-            >
-              Full Analysis ↗
-            </a>
-            {rateIntelUrl && (
-              <a
-                href={rateIntelUrl}
-                style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.28)',
-                  color: '#c4b5fd', fontWeight: 700, fontSize: '0.82rem',
-                  borderRadius: 10, padding: '10px 16px', textDecoration: 'none', whiteSpace: 'nowrap',
-                  minWidth: 0,
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(139,92,246,0.17)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(139,92,246,0.1)')}
+              onMouseEnter={e => (e.currentTarget.style.color = '#c4b5fd')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(167,139,250,0.62)')}
               >
-                🔬 Run Rate Intelligence
+                → Decode your rate
               </a>
             )}
+
+            {/* Fair par rate value or spacer */}
+            {rieDecoded != null ? (
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#a78bfa', width: 44, textAlign: 'right', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                {rieDecoded.toFixed(2)}%
+              </div>
+            ) : (
+              <div style={{ width: 44 }} />
+            )}
           </div>
-          {rateIntelUrl && (
-            <div style={{ fontSize: '0.65rem', color: 'rgba(185,208,192,0.28)', marginTop: 8, lineHeight: 1.5 }}>
-              Decode the exact Fannie Mae pricing lenders apply to your loan — the step before any rate is quoted.
-            </div>
-          )}
+        </div>
+      )}
+
+      {/* ── Footer ── */}
+      {complete ? (
+        <div style={{ padding: '10px 20px 14px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <a
+            href={fullAnalysisUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(0,232,122,0.07)', border: '1px solid rgba(0,232,122,0.2)',
+              color: '#00e87a', fontWeight: 700, fontSize: '0.77rem',
+              borderRadius: 10, padding: '10px 14px', textDecoration: 'none', whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.13)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,232,122,0.07)')}
+          >
+            Full Analysis ↗
+          </a>
         </div>
       ) : (
         <div style={{ padding: '11px 20px 13px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
