@@ -735,7 +735,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
 
             {/* Check a property — only in standalone (no journeyAddress, no hideDrawer) context */}
             {!props.hideDrawer && !props.journeyAddress && (
-                <div className="isc-property-row">
+                <div className="isc-property-row" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <button className="isc-btn-property" onClick={() => {
                         const lt = loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType === 'fha' ? 'fha' : 'conventional';
                         const p = new URLSearchParams({ price: String(Math.round(price)), dp: String(downPct), rate: rate.toFixed(3), term: String(term), lt, taxRate: props.taxRate.toFixed(5), insRate: props.insRate.toFixed(5) });
@@ -743,6 +743,25 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     }}>
                         Check a property →
                     </button>
+                    {/* Rate Intelligence — pricing-only path (no property address required) */}
+                    {(loanType === 'conventional' || loanType === 'fha') && (
+                        <button className="isc-btn-report" onClick={() => {
+                            const loanAmt = Math.round(price * (1 - downPct / 100));
+                            const ltvVal  = parseFloat(((loanAmt / price) * 100).toFixed(2));
+                            const p = new URLSearchParams({
+                                price:   String(Math.round(price)),
+                                downPct: String(downPct),
+                                loan:    String(loanAmt),
+                                ltv:     String(ltvVal),
+                                purpose: 'purchase',
+                                occupancy: 'primary',
+                                lt:      loanType,
+                            });
+                            router.push(`/rate-intelligence-engine?${p.toString()}`);
+                        }}>
+                            🔬 Run Rate Intelligence →
+                        </button>
+                    )}
                 </div>
             )}
 

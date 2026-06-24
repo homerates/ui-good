@@ -3,10 +3,17 @@
 // Interactive form + 4 output cards: A-1 Rate Range · A-2 LLPA Breakdown · B-2 Rate Options · B-1 Negotiation Brief
 // + Rate marketplace table below results
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import type { LLPAInput, RateCurvePoint } from "../../lib/pricing/llpa-engine";
 import type { LoanType } from "../../lib/pricing/marketplace-engine";
 import RateMarketplaceTable from "../components/RateMarketplaceTable";
+import {
+  HIGH_COST_COUNTIES,
+  HIGH_COST_STATES,
+  NATIONAL_CONFORMING_BASELINE,
+} from "../../lib/loanLimitsNational2026";
+import { CA_LOAN_LIMITS_2026 } from "../../lib/loanLimits2026";
 
 // ─── Types for API response ────────────────────────────────────────────────────
 
@@ -20,6 +27,11 @@ interface EngineResult {
   rateCurve: RateCurvePoint[];
   recommendedCurvePoint: { point: RateCurvePoint; reasoning: string };
   negotiationBrief: string[];
+  conformingStatus: 'standard' | 'high_balance' | 'above_limit';
+  conformingBaseline: number;
+  highBalanceCeiling: number;
+  isHighCostState: boolean;
+  stateName: string;
   dataSource: string;
   disclaimer: string;
 }
@@ -67,23 +79,47 @@ function fmt$(n: number): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function RateEngineClient() {
-  const [inputs, setInputs] = useState<LLPAInput>(DEFAULTS);
-  const [homePrice, setHomePrice] = useState(562_500); // 450k loan at 80% LTV
-  const [downPayment, setDownPayment] = useState(112_500);
-  const [state, setState] = useState("CA");          // 2-letter state for marketplace filter
-  const [loanType, setLoanType] = useState<LoanType>("conventional");
+  const params = useSearchParams();
+
+  // Parse scenario URL params (set by DSC "🔬 Run Rate Intelligence" or ISC CTA)
+  const paramPrice   = params?.get('price')     ? Number(params.get('price'))    : null;
+  const paramDownPct = params?.get('downPct')   ? Number(params.get('downPct'))  : null;
+  const paramPurpose = (params?.get('purpose')   ?? null) as LLPAInput['loanPurpose'] | null;
+  const paramOcc     = (params?.get('occupancy') ?? null) as LLPAInput['occupancy']   | null;
+  const paramLT      = (params?.get('lt')        ?? null) as LoanType | null;
+  const paramSt      = params?.get('st') ?? null;
+  const fromScenario = paramPrice != null;
+
+  // Derived initial values — used to seed useState once on mount
+  const initPrice    = paramPrice ?? 562_500;
+  const initDownPct  = paramDownPct ?? 20;
+  const initDown     = Math.round(initPrice * initDownPct / 100);
+  const initLoan     = initPrice - initDown;
+  const initLTV      = parseFloat(((initLoan / initPrice) * 100).toFixed(2));
+
+  const [inputs, setInputs] = useState<LLPAInput>(() => ({
+    ...DEFAULTS,
+    loanAmount: Math.round(initLoan),
+    ltv:        initLTV,
+    loanPurpose: paramPurpose ?? DEFAULTS.loanPurpose,
+    occupancy:   paramOcc    ?? DEFAULTS.occupancy,
+  }));
+  const [homePrice,   setHomePrice]   = useState(initPrice);
+  const [downPayment, setDownPayment] = useState(initDown);
+  const [state, setState] = useState(paramSt ?? "CA");
+  const [loanType, setLoanType] = useState<LoanType>(paramLT ?? "conventional");
   const [result, setResult] = useState<EngineResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error,   setError]   = useState<string | null>(null);
 
-  // Down payment input mode — '%' or '$'
   const [downMode, setDownMode] = useState<'%' | '$'>('%');
 
-  // String draft states — inputs display these; sync to numeric state on blur only.
-  // priceDraft / downDraft are formatted on blur ("$562,500", "20%") and stripped on focus.
-  const [priceDraft, setPriceDraft]   = useState(fmtCurrency(562_500)); // "$562,500"
-  const [downDraft,  setDownDraft]    = useState("20");                  // 20% of $562,500
-  const [scoreDraft, setScoreDraft]   = useState(String(DEFAULTS.creditScore));
+  const [priceDraft, setPriceDraft] = useState(fmtCurrency(initPrice));
+  const [downDraft,  setDownDraft]  = useState(String(initDownPct));  // start in % mode
+  const [scoreDraft, setScoreDraft] = useState(String(DEFAULTS.creditScore));
+
+  // County selector — derived from FHFA data files, same as /loan-limits page
+  const [county, setCounty] = useState<string>('');
 
   // Sync loan amount / LTV from home price + down payment
   function syncLTV(price: number, down: number) {
@@ -120,14 +156,35 @@ export default function RateEngineClient() {
     }
   }
 
+  // County options + exact limit — same data source as /loan-limits page
+  const countyOptions = useMemo(() => {
+    if (!HIGH_COST_STATES.has(state)) return [];
+    if (state === 'CA') return CA_LOAN_LIMITS_2026.map(c => c.county);
+    return (HIGH_COST_COUNTIES[state] ?? []).map(c => c.county);
+  }, [state]);
+
+  const countyLimit = useMemo((): number | null => {
+    if (!county) return null;
+    if (state === 'CA') return CA_LOAN_LIMITS_2026.find(c => c.county === county)?.conforming.units1 ?? null;
+    return (HIGH_COST_COUNTIES[state] ?? []).find(c => c.county === county)?.conforming.units1 ?? null;
+  }, [state, county]);
+
+  function handleStateChange(val: string) {
+    const s = val.toUpperCase().slice(0, 2);
+    setState(s);
+    setCounty(''); // reset county when state changes
+  }
+
   const runCalc = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const body: Record<string, unknown> = { ...inputs, state };
+      if (countyLimit != null) body.highBalanceCeiling = countyLimit;
       const r = await fetch("/api/rate-intelligence-engine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(inputs),
+        body: JSON.stringify(body),
       });
       const data = await r.json();
       if (!r.ok) { setError(data.error ?? "Calculation failed"); return; }
@@ -137,7 +194,7 @@ export default function RateEngineClient() {
     } finally {
       setLoading(false);
     }
-  }, [inputs]);
+  }, [inputs, state, countyLimit]);
 
   const inp: React.CSSProperties = {
     width: "100%", boxSizing: "border-box" as const,
@@ -154,8 +211,33 @@ export default function RateEngineClient() {
     borderRadius: 14, padding: "1.5rem",
   };
 
+  // Styles that vary based on whether field is pre-filled from scenario
+  const inpFilled: React.CSSProperties = {
+    ...inp, borderColor: 'rgba(0,232,122,0.28)', background: 'rgba(0,232,122,0.04)',
+    color: '#4ade80', fontWeight: 600,
+  };
+  const labelTag = (filled: boolean) => filled ? (
+    <span style={{ fontSize: '0.62rem', color: 'rgba(0,232,122,0.55)', marginLeft: 5 }}>✓ from scenario</span>
+  ) : null;
+
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: "#f0f4ff" }}>
+
+      {/* ── ORIGIN BAR — only when launched from a scenario ─────────────────── */}
+      {fromScenario && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 9,
+          background: 'rgba(0,232,122,0.04)', border: '1px solid rgba(0,232,122,0.18)',
+          borderRadius: 10, padding: '10px 14px', marginBottom: 20,
+          fontSize: '0.82rem', color: 'rgba(185,208,192,0.65)', lineHeight: 1.45,
+        }}>
+          <span style={{ color: '#00e87a', fontWeight: 700, marginTop: 1 }}>✓</span>
+          <span>
+            <strong style={{ color: '#00e87a' }}>Loan details pre-filled from your scenario.</strong>
+            {' '}Enter your credit score — that&apos;s the one input we need to run the full LLPA pricing.
+          </span>
+        </div>
+      )}
 
       {/* ── INPUT FORM ───────────────────────────────────────────────────────── */}
       <div style={{ ...card, marginBottom: 28 }}>
@@ -165,8 +247,19 @@ export default function RateEngineClient() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
 
-          {/* Credit score — slider + direct number entry */}
-          <div style={{ gridColumn: "1/-1" }}>
+          {/* Credit score — spotlight when from scenario (the one missing piece) */}
+          <div style={{
+            gridColumn: "1/-1",
+            ...(fromScenario ? {
+              background: 'linear-gradient(135deg, rgba(139,92,246,0.07), rgba(139,92,246,0.03))',
+              border: '1px solid rgba(139,92,246,0.22)', borderRadius: 10, padding: '12px 12px 8px',
+            } : {}),
+          }}>
+            {fromScenario && (
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'rgba(167,139,250,0.75)', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>
+                ⚡ Required — the biggest single pricing factor
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
               <label style={{ ...label, marginBottom: 0 }}>{creditBucketLabel(inputs.creditScore)}</label>
               <input
@@ -197,9 +290,13 @@ export default function RateEngineClient() {
 
           {/* Home price */}
           <div>
-            <label style={label}>Home Price</label>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+              <label style={{ ...label, marginBottom: 0 }}>Home Price</label>
+              {labelTag(fromScenario && paramPrice != null)}
+            </div>
             <input
-              type="text" inputMode="numeric" style={inp}
+              type="text" inputMode="numeric"
+              style={fromScenario && paramPrice != null ? inpFilled : inp}
               value={priceDraft}
               onChange={e => setPriceDraft(e.target.value)}
               onFocus={() => setPriceDraft(String(homePrice))}
@@ -215,7 +312,10 @@ export default function RateEngineClient() {
           <div>
             {/* Label row with mode toggle */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-              <label style={{ ...label, marginBottom: 0 }}>Down Payment</label>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <label style={{ ...label, marginBottom: 0 }}>Down Payment</label>
+                {labelTag(fromScenario && paramDownPct != null)}
+              </div>
               <div style={{ display: "flex", gap: 3 }}>
                 {(['$', '%'] as const).map(m => (
                   <button
@@ -237,7 +337,8 @@ export default function RateEngineClient() {
               </div>
             </div>
             <input
-              type="text" inputMode="numeric" style={inp}
+              type="text" inputMode="numeric"
+              style={fromScenario && paramDownPct != null ? inpFilled : inp}
               value={downDraft}
               placeholder={downMode === '%' ? "e.g. 20" : "e.g. 112500"}
               onChange={e => setDownDraft(e.target.value)}
@@ -271,18 +372,45 @@ export default function RateEngineClient() {
             </div>
           </div>
 
-          {/* Loan amount display */}
+          {/* Loan amount + conforming status */}
           <div>
             <label style={label}>Loan Amount</label>
             <div style={{ ...inp, background: "rgba(0,232,122,0.05)", color: "#00e87a", fontWeight: 700, border: "1px solid rgba(0,232,122,0.15)" }}>
               {fmt$(inputs.loanAmount)}
             </div>
+            {/* Conforming status chip — uses county limit when selected, falls back to baseline check */}
+            {(() => {
+              const BASELINE = NATIONAL_CONFORMING_BASELINE.units1;
+              const status = result?.conformingStatus ?? (() => {
+                if (inputs.loanAmount <= BASELINE) return 'standard';
+                if (countyLimit != null && inputs.loanAmount <= countyLimit) return 'high_balance';
+                if (countyLimit != null) return 'above_limit';
+                return 'check';
+              })();
+              const countyDisplay = county ? county.replace(/ COUNTY$/, '').replace(/ BOROUGH$/, '').replace(/ MUNICIPALITY$/, '').replace(/ CENSUS AREA$/, '') : null;
+              const ceilingDisplay = countyLimit ?? result?.highBalanceCeiling;
+              const chips = {
+                standard:    { bg: 'rgba(0,232,122,0.08)',   border: 'rgba(0,232,122,0.22)',   color: '#00e87a',  text: `Standard conforming ≤ $${BASELINE.toLocaleString()}` },
+                high_balance:{ bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.25)',  color: '#fbbf24',  text: `High-balance conforming${countyDisplay ? ` — ${countyDisplay} ($${(ceilingDisplay ?? 0).toLocaleString()})` : ceilingDisplay ? ` — ceiling $${ceilingDisplay.toLocaleString()}` : ''}` },
+                above_limit: { bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.25)', color: '#f87171',  text: `Above conforming limit${countyDisplay ? ` — ${countyDisplay} max $${(ceilingDisplay ?? 0).toLocaleString()}` : ' — jumbo territory'}` },
+                check:       { bg: 'rgba(251,191,36,0.06)',  border: 'rgba(251,191,36,0.18)',  color: 'rgba(251,191,36,0.7)', text: `> $${BASELINE.toLocaleString()} — select county above to confirm zone` },
+              };
+              const c = chips[status];
+              return (
+                <div style={{ fontSize: '0.68rem', fontWeight: 600, marginTop: 6, padding: '4px 9px', borderRadius: 6, background: c.bg, border: `1px solid ${c.border}`, color: c.color, lineHeight: 1.4 }}>
+                  {c.text}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Occupancy */}
           <div>
-            <label style={label}>Occupancy</label>
-            <select style={inp} value={inputs.occupancy}
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+              <label style={{ ...label, marginBottom: 0 }}>Occupancy</label>
+              {labelTag(fromScenario && paramOcc != null)}
+            </div>
+            <select style={fromScenario && paramOcc != null ? inpFilled : inp} value={inputs.occupancy}
               onChange={e => setInputs(p => ({ ...p, occupancy: e.target.value as LLPAInput['occupancy'] }))}>
               <option value="primary">Primary residence</option>
               <option value="second">Second home</option>
@@ -292,8 +420,11 @@ export default function RateEngineClient() {
 
           {/* Loan purpose */}
           <div>
-            <label style={label}>Loan Purpose</label>
-            <select style={inp} value={inputs.loanPurpose}
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+              <label style={{ ...label, marginBottom: 0 }}>Loan Purpose</label>
+              {labelTag(fromScenario && paramPurpose != null)}
+            </div>
+            <select style={fromScenario && paramPurpose != null ? inpFilled : inp} value={inputs.loanPurpose}
               onChange={e => setInputs(p => ({ ...p, loanPurpose: e.target.value as LLPAInput['loanPurpose'] }))}>
               <option value="purchase">Purchase</option>
               <option value="rate_term_refi">Rate / term refinance</option>
@@ -338,23 +469,47 @@ export default function RateEngineClient() {
             </select>
           </div>
 
-          {/* State — for marketplace eligibility */}
+          {/* Property State */}
           <div>
             <label style={label}>Property State</label>
             <input
               style={inp}
               value={state}
-              onChange={e => setState(e.target.value.toUpperCase().slice(0, 2))}
+              onChange={e => handleStateChange(e.target.value)}
               maxLength={2}
               placeholder="CA"
             />
           </div>
 
+          {/* County — shown only for high-cost states; uses same FHFA data as /loan-limits */}
+          {HIGH_COST_STATES.has(state) && countyOptions.length > 0 && (
+            <div>
+              <label style={label}>County</label>
+              <select
+                style={inp}
+                value={county}
+                onChange={e => setCounty(e.target.value)}
+              >
+                <option value="">— Select county —</option>
+                {countyOptions.map(c => (
+                  <option key={c} value={c}>
+                    {c.replace(/ COUNTY$/, '').replace(/ BOROUGH$/, '').replace(/ MUNICIPALITY$/, '').replace(/ CENSUS AREA$/, '')}
+                  </option>
+                ))}
+              </select>
+              {countyLimit != null && (
+                <div style={{ fontSize: '0.7rem', color: 'rgba(251,191,36,0.6)', marginTop: 4 }}>
+                  Conforming ceiling: ${countyLimit.toLocaleString()}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
 
         {/* CTA */}
         <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" as const }}>
-          <button onClick={runCalc} disabled={loading} style={{
+          <button onClick={() => runCalc()} disabled={loading} style={{
             padding: "12px 32px", borderRadius: 999,
             background: loading ? "rgba(0,232,122,0.4)" : "#00e87a",
             color: "#080c12", fontWeight: 700, fontSize: "0.95rem",
@@ -370,6 +525,39 @@ export default function RateEngineClient() {
       {/* ── OUTPUT CARDS ─────────────────────────────────────────────────────── */}
       {result && (
         <div style={{ display: "flex", flexDirection: "column" as const, gap: 20 }}>
+
+          {/* ── ABOVE-LIMIT WARNING — shown when loan exceeds conforming ceiling ── */}
+          {result.conformingStatus === 'above_limit' && (
+            <div style={{
+              background: 'rgba(248,113,113,0.07)', border: '1px solid rgba(248,113,113,0.25)',
+              borderRadius: 12, padding: '14px 18px',
+            }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#f87171', marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
+                ⚠ Loan exceeds conforming limit — jumbo territory
+              </div>
+              <div style={{ fontSize: '0.82rem', color: 'rgba(248,113,113,0.8)', lineHeight: 1.55 }}>
+                Your loan amount ({fmt$(inputs.loanAmount)}) exceeds the highest conforming limit
+                in {result.stateName} (${result.highBalanceCeiling.toLocaleString()}).
+                Fannie Mae LLPA pricing applies to conforming loans only.
+                Jumbo loans are priced by each lender&apos;s own portfolio guidelines and will differ
+                significantly from these estimates. Use this as a directional reference only.
+              </div>
+            </div>
+          )}
+
+          {/* ── HIGH-BALANCE NOTE — informational when applicable ── */}
+          {result.conformingStatus === 'high_balance' && (
+            <div style={{
+              background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.18)',
+              borderRadius: 10, padding: '10px 14px', fontSize: '0.78rem',
+              color: 'rgba(251,191,36,0.75)', lineHeight: 1.5,
+            }}>
+              <strong style={{ color: '#fbbf24' }}>High-balance conforming loan</strong> — your loan exceeds the national
+              baseline (${result.conformingBaseline.toLocaleString()}) but is within the {result.stateName} high-cost
+              ceiling (${result.highBalanceCeiling.toLocaleString()}). Fannie Mae LLPA pricing applies with the
+              high-balance surcharge shown in the breakdown below.
+            </div>
+          )}
 
           {/* ── STAT BAR ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>

@@ -16,8 +16,9 @@ export const LLPA_DISCLAIMER =
 // This ratio shifts with market conditions — update when the market moves significantly.
 export const POINTS_PER_QUARTER_PERCENT = 1.0;
 
-// 2026 FHFA conforming / high-balance limits
-const CONFORMING_LIMIT = 806_500;
+// 2026 FHFA standard conforming baseline (all non-high-cost counties)
+// High-cost county ceilings vary by county — passed in via input.highBalanceCeiling
+export const CONFORMING_BASELINE = 832_750;
 
 // ─── Input / Output types ──────────────────────────────────────────────────────
 
@@ -29,6 +30,13 @@ export type LLPAInput = {
   propertyType: 'sfr' | '2unit' | '3_4unit' | 'condo' | 'manufactured';
   loanAmount: number;
   lockDays: 15 | 30 | 45 | 60;
+  /**
+   * Highest conforming 1-unit limit for the borrower's area.
+   * Provided by the API route after a state lookup.
+   * Defaults to CONFORMING_BASELINE ($832,750) when omitted.
+   * Loans above this ceiling are non-conforming — LLPA results are indicative only.
+   */
+  highBalanceCeiling?: number;
 };
 
 export type RateCurvePoint = {
@@ -45,6 +53,8 @@ export type LLPAOutput = {
   rateEquivalent: number;      // approx rate impact: totalLLPA / 4 in %
   breakdown: { label: string; points: number }[];
   rateCurve: RateCurvePoint[]; // 5 points: +0.5 credit → par → -0.5/-1.0 discount
+  /** Loan classification against the conforming limit for the borrower's area */
+  conformingStatus: 'standard' | 'high_balance' | 'above_limit';
   dataSource: string;
   disclaimer: string;
 };
@@ -160,10 +170,14 @@ function propertyTypeSurcharge(ltv: number, type: LLPAInput['propertyType']): nu
 }
 
 // ─── High-balance surcharge ───────────────────────────────────────────────────
-// Applies to loan amounts above the 2026 conforming limit ($806,500).
+// Standard conforming (≤ $832,750):       no surcharge
+// High-balance conforming (> baseline, ≤ area ceiling): Fannie HB surcharge
+// Above area ceiling (jumbo territory):   max HB surcharge applied; results flagged
 
-function highBalanceSurcharge(loanAmount: number, ltv: number): number {
-  if (loanAmount <= CONFORMING_LIMIT) return 0;
+function highBalanceSurcharge(loanAmount: number, ltv: number, ceiling: number): number {
+  if (loanAmount <= CONFORMING_BASELINE) return 0;
+  // Both high-balance and above-ceiling cases apply the surcharge —
+  // above-ceiling results are flagged separately via conformingStatus.
   if (ltv <= 80)  return 0.250;
   if (ltv <= 90)  return 0.500;
   return 0.750;
@@ -276,17 +290,26 @@ export function computeLLPA(input: LLPAInput, parRate: number): LLPAOutput & { i
       rateEquivalent: 0,
       breakdown: [],
       rateCurve: [],
+      conformingStatus: 'standard' as const,
       dataSource: LLPA_DATA_SOURCE,
       disclaimer: LLPA_DISCLAIMER,
       ineligible: `Credit score < 620 is not eligible for conventional financing at ${input.ltv}% LTV. Consider FHA financing.`,
     };
   }
 
+  // Area ceiling — defaults to national baseline if caller didn't look up county
+  const ceiling = input.highBalanceCeiling ?? CONFORMING_BASELINE;
+
+  // Conforming classification
+  const conformingStatus: LLPAOutput['conformingStatus'] =
+    input.loanAmount <= CONFORMING_BASELINE ? 'standard' :
+    input.loanAmount <= ceiling             ? 'high_balance' : 'above_limit';
+
   // Surcharges
   const occupancy = occupancySurcharge(input.ltv, input.occupancy);
   const purpose   = loanPurposeSurcharge(input.ltv, input.creditScore, input.loanPurpose);
   const propType  = propertyTypeSurcharge(input.ltv, input.propertyType);
-  const highBal   = highBalanceSurcharge(input.loanAmount, input.ltv);
+  const highBal   = highBalanceSurcharge(input.loanAmount, input.ltv, ceiling);
   const lock      = lockAdjustment(input.lockDays);
 
   const totalLLPA = parseFloat(
@@ -315,6 +338,7 @@ export function computeLLPA(input: LLPAInput, parRate: number): LLPAOutput & { i
     rateEquivalent,
     breakdown,
     rateCurve,
+    conformingStatus,
     dataSource: LLPA_DATA_SOURCE,
     disclaimer: LLPA_DISCLAIMER,
   };

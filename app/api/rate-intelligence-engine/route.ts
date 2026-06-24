@@ -12,6 +12,7 @@ import {
   recommendCurvePoint,
   type LLPAInput,
 } from '../../../lib/pricing/llpa-engine';
+import { getStateLimitInfo } from '../../../lib/pricing/conforming-limits';
 
 const FALLBACK_PAR_RATE = 6.82; // used if FRED fetch fails
 
@@ -33,7 +34,7 @@ async function fetchParRate(): Promise<number> {
 }
 
 export async function POST(req: NextRequest) {
-  let body: LLPAInput;
+  let body: LLPAInput & { state?: string };
   try {
     body = await req.json();
   } catch {
@@ -64,15 +65,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'loanAmount out of range' }, { status: 400 });
   }
 
+  // County-aware conforming limit lookup.
+  // If the client already resolved an exact county ceiling (via ZIP lookup), trust it.
+  // Otherwise fall back to the state-level max ceiling.
+  const stateLimitInfo = getStateLimitInfo(body.state ?? '');
+  const engineInput: LLPAInput = {
+    ...body,
+    highBalanceCeiling:
+      typeof body.highBalanceCeiling === 'number'
+        ? body.highBalanceCeiling
+        : stateLimitInfo.ceiling,
+  };
+
   const parRate = await fetchParRate();
-  const result  = computeLLPA(body, parRate);
+  const result  = computeLLPA(engineInput, parRate);
 
   if ('ineligible' in result && result.ineligible) {
     return NextResponse.json({ error: result.ineligible, ineligible: true }, { status: 422 });
   }
 
   const { index: recommendedIdx, reasoning } = recommendCurvePoint(result.rateCurve);
-  const negotiationBrief = buildNegotiationBrief(body, result, parRate);
+  const negotiationBrief = buildNegotiationBrief(engineInput, result, parRate);
 
   return NextResponse.json({
     ...result,
@@ -83,5 +96,10 @@ export async function POST(req: NextRequest) {
       reasoning,
     },
     negotiationBrief,
+    // Expose limit context to the UI
+    conformingBaseline:  stateLimitInfo.baseline,
+    highBalanceCeiling:  stateLimitInfo.ceiling,
+    isHighCostState:     stateLimitInfo.isHighCostState,
+    stateName:           stateLimitInfo.stateName,
   });
 }

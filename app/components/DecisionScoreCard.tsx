@@ -57,13 +57,14 @@ interface Props {
   data: DecisionScoreData;
   /** Current scenario params — threaded through to "Full Analysis ↗" URL so
    *  property-intel renders at the user's adjusted down/rate/income, not always 20% */
+  scenarioPrice?:  number;
   scenarioDown?:   number;
   scenarioRate?:   number;
   scenarioIncome?: number;
   scenarioDebt?:   number;
 }
 
-export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, scenarioIncome, scenarioDebt }: Props) {
+export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, scenarioRate, scenarioIncome, scenarioDebt }: Props) {
   const [mounted,  setMounted]  = useState(false);
   const [complete, setComplete] = useState(data.state === 'complete');
   const prevState = useRef(data.state);
@@ -126,6 +127,24 @@ export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, sc
 
   // "Get Matched" deep-links directly to the match section — skips scrolling past 4-level DSC
   const getMatchedUrl = `${track5Url}#get-matched`;
+
+  // "🔬 Run Rate Intelligence" — builds URL with all scenario data pre-filled.
+  // Only shown when scenarioPrice is available (launched from chat with a loan scenario).
+  const rateIntelUrl = (() => {
+    if (!scenarioPrice || scenarioPrice <= 0) return null;
+    const downPct = scenarioDown ?? 20;
+    const loan    = Math.round(scenarioPrice * (1 - downPct / 100));
+    const ltv     = parseFloat(((loan / scenarioPrice) * 100).toFixed(2));
+    const p = new URLSearchParams({
+      price:   String(Math.round(scenarioPrice)),
+      downPct: String(downPct),
+      loan:    String(loan),
+      ltv:     String(ltv),
+      purpose: 'purchase',
+      occupancy: 'primary',
+    });
+    return `/rate-intelligence-engine?${p.toString()}`;
+  })();
 
   const levels = [
     { num: 'L1', name: 'Financial', weight: '35%', score: l1Score,        done: true },
@@ -272,7 +291,7 @@ export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, sc
       {/* ── Footer ── */}
       {complete ? (
         <div style={{ padding: '12px 20px 16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
             <a
               href={fullAnalysisUrl}
               target="_blank"
@@ -288,7 +307,28 @@ export default function DecisionScoreCard({ data, scenarioDown, scenarioRate, sc
             >
               Full Analysis ↗
             </a>
+            {rateIntelUrl && (
+              <a
+                href={rateIntelUrl}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.28)',
+                  color: '#c4b5fd', fontWeight: 700, fontSize: '0.82rem',
+                  borderRadius: 10, padding: '10px 16px', textDecoration: 'none', whiteSpace: 'nowrap',
+                  minWidth: 0,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(139,92,246,0.17)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(139,92,246,0.1)')}
+              >
+                🔬 Run Rate Intelligence
+              </a>
+            )}
           </div>
+          {rateIntelUrl && (
+            <div style={{ fontSize: '0.65rem', color: 'rgba(185,208,192,0.28)', marginTop: 8, lineHeight: 1.5 }}>
+              Decode the exact Fannie Mae pricing lenders apply to your loan — the step before any rate is quoted.
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ padding: '11px 20px 13px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
