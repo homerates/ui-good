@@ -50,6 +50,16 @@ function creditBucketLabel(score: number): string {
   return "760+ (excellent)";
 }
 
+// ─── Format / parse helpers ───────────────────────────────────────────────────
+
+function fmtCurrency(n: number): string {
+  return '$' + Math.round(n).toLocaleString('en-US');
+}
+
+function parseNum(s: string): number {
+  return parseFloat(s.replace(/[$,%\s]/g, '').replace(/,/g, '')) || 0;
+}
+
 function fmt$(n: number): string {
   return "$" + Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
@@ -66,11 +76,13 @@ export default function RateEngineClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // String draft states — inputs display these so the user can freely
-  // clear/retype without React overwriting mid-entry with the numeric value.
-  // Sync to numeric state only on blur.
-  const [priceDraft, setPriceDraft]   = useState("562500");
-  const [downDraft,  setDownDraft]    = useState("112500");
+  // Down payment input mode — '%' or '$'
+  const [downMode, setDownMode] = useState<'%' | '$'>('%');
+
+  // String draft states — inputs display these; sync to numeric state on blur only.
+  // priceDraft / downDraft are formatted on blur ("$562,500", "20%") and stripped on focus.
+  const [priceDraft, setPriceDraft]   = useState(fmtCurrency(562_500)); // "$562,500"
+  const [downDraft,  setDownDraft]    = useState("20");                  // 20% of $562,500
   const [scoreDraft, setScoreDraft]   = useState(String(DEFAULTS.creditScore));
 
   // Sync loan amount / LTV from home price + down payment
@@ -82,11 +94,30 @@ export default function RateEngineClient() {
 
   function setPrice(v: number) {
     setHomePrice(v);
-    syncLTV(v, downPayment);
+    if (downMode === '%') {
+      // Recompute dollar down from current % draft so LTV stays accurate
+      const pct = parseNum(downDraft);
+      const newDown = Math.round(v * pct / 100);
+      setDownPayment(newDown);
+      syncLTV(v, newDown);
+    } else {
+      syncLTV(v, downPayment);
+    }
   }
   function setDown(v: number) {
     setDownPayment(v);
     syncLTV(homePrice, v);
+  }
+
+  function switchDownMode(mode: '%' | '$') {
+    setDownMode(mode);
+    // Convert current downPayment to the new mode's draft format
+    if (mode === '%') {
+      const pct = homePrice > 0 ? Math.round((downPayment / homePrice) * 100) : 20;
+      setDownDraft(String(pct));
+    } else {
+      setDownDraft(fmtCurrency(downPayment));
+    }
   }
 
   const runCalc = useCallback(async () => {
@@ -171,27 +202,73 @@ export default function RateEngineClient() {
               type="text" inputMode="numeric" style={inp}
               value={priceDraft}
               onChange={e => setPriceDraft(e.target.value)}
+              onFocus={() => setPriceDraft(String(homePrice))}
               onBlur={() => {
-                const v = Math.max(50000, parseFloat(priceDraft.replace(/,/g, '')) || 50000);
-                setPriceDraft(String(v));
+                const v = Math.max(50000, parseNum(priceDraft) || 50000);
+                setPriceDraft(fmtCurrency(v));
                 setPrice(v);
               }}
             />
           </div>
 
-          {/* Down payment */}
+          {/* Down payment — accepts $ amount or % */}
           <div>
-            <label style={label}>Down Payment → LTV: {inputs.ltv.toFixed(1)}%</label>
+            {/* Label row with mode toggle */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+              <label style={{ ...label, marginBottom: 0 }}>Down Payment</label>
+              <div style={{ display: "flex", gap: 3 }}>
+                {(['$', '%'] as const).map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => switchDownMode(m)}
+                    style={{
+                      padding: "2px 9px", borderRadius: 5,
+                      fontSize: "0.7rem", fontWeight: 700, cursor: "pointer",
+                      fontFamily: "inherit",
+                      border: `1px solid ${downMode === m ? 'rgba(0,232,122,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                      background: downMode === m ? 'rgba(0,232,122,0.12)' : 'rgba(255,255,255,0.03)',
+                      color: downMode === m ? '#00e87a' : 'rgba(185,208,192,0.35)',
+                    }}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
             <input
               type="text" inputMode="numeric" style={inp}
               value={downDraft}
+              placeholder={downMode === '%' ? "e.g. 20" : "e.g. 112500"}
               onChange={e => setDownDraft(e.target.value)}
+              onFocus={() => {
+                // Strip formatting on focus so user can type cleanly
+                if (downMode === '$') {
+                  setDownDraft(String(downPayment));
+                } else {
+                  setDownDraft(String(Math.round((downPayment / homePrice) * 100)));
+                }
+              }}
               onBlur={() => {
-                const v = Math.max(0, Math.min(homePrice * 0.99, parseFloat(downDraft.replace(/,/g, '')) || 0));
-                setDownDraft(String(v));
-                setDown(v);
+                const raw = parseNum(downDraft);
+                let dollars: number;
+                if (downMode === '%') {
+                  dollars = Math.round(homePrice * Math.min(raw, 99) / 100);
+                  const clampedPct = Math.min(99, Math.max(0, raw));
+                  setDownDraft(`${clampedPct}%`);
+                } else {
+                  dollars = Math.min(homePrice * 0.99, Math.max(0, raw));
+                  setDownDraft(fmtCurrency(dollars));
+                }
+                setDown(dollars);
               }}
             />
+            {/* Derived value hint */}
+            <div style={{ fontSize: "0.7rem", color: "rgba(185,208,192,0.35)", marginTop: 4 }}>
+              {downMode === '%'
+                ? `= ${fmtCurrency(downPayment)} · ${inputs.ltv.toFixed(1)}% LTV`
+                : `= ${homePrice > 0 ? Math.round((downPayment / homePrice) * 100) : 0}% down · ${inputs.ltv.toFixed(1)}% LTV`}
+            </div>
           </div>
 
           {/* Loan amount display */}
