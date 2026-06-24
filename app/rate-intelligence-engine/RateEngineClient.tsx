@@ -3,7 +3,7 @@
 // Interactive form + 4 output cards: A-1 Rate Range · A-2 LLPA Breakdown · B-2 Rate Options · B-1 Negotiation Brief
 // + Rate marketplace table below results
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import type { LLPAInput, RateCurvePoint } from "../../lib/pricing/llpa-engine";
 import type { LoanType } from "../../lib/pricing/marketplace-engine";
@@ -120,6 +120,26 @@ export default function RateEngineClient() {
 
   // County selector — derived from FHFA data files, same as /loan-limits page
   const [county, setCounty] = useState<string>('');
+  const [countyFromZip, setCountyFromZip] = useState(false); // true when auto-resolved from property ZIP
+  const paramZip = params?.get('zip') ?? null;
+
+  // Auto-resolve ZIP → county when launched from DSC with a known property address
+  useEffect(() => {
+    if (!paramZip) return;
+    fetch(`/api/zip-county-lookup?zip=${paramZip}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d && !d.notFound && d.county) {
+          // Normalise county name to match the FHFA options list (all-caps, no suffix)
+          const raw = (d.county as string).toUpperCase().replace(/\s+COUNTY$/i, '').trim();
+          setCounty(raw);
+          setCountyFromZip(true);
+        }
+      })
+      .catch(() => {});
+  // Only run on initial mount — paramZip from URL is fixed
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync loan amount / LTV from home price + down payment
   function syncLTV(price: number, down: number) {
@@ -494,11 +514,13 @@ export default function RateEngineClient() {
           {/* County — shown only for high-cost states; uses same FHFA data as /loan-limits */}
           {HIGH_COST_STATES.has(state) && countyOptions.length > 0 && (
             <div>
-              <label style={label}>County</label>
+              <label style={label}>
+                County {labelTag(countyFromZip)}
+              </label>
               <select
-                style={inp}
+                style={countyFromZip ? inpFilled : inp}
                 value={county}
-                onChange={e => setCounty(e.target.value)}
+                onChange={e => { setCounty(e.target.value); setCountyFromZip(false); }}
               >
                 <option value="">— Select county —</option>
                 {countyOptions.map(c => (

@@ -136,13 +136,18 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
     const loan    = Math.round(scenarioPrice * (1 - downPct / 100));
     const ltv     = parseFloat(((loan / scenarioPrice) * 100).toFixed(2));
     const p = new URLSearchParams({
-      price:   String(Math.round(scenarioPrice)),
-      downPct: String(downPct),
-      loan:    String(loan),
-      ltv:     String(ltv),
-      purpose: 'purchase',
+      price:    String(Math.round(scenarioPrice)),
+      downPct:  String(downPct),
+      loan:     String(loan),
+      ltv:      String(ltv),
+      purpose:  'purchase',
       occupancy: 'primary',
     });
+    // Extract state + ZIP from address so the RIE page can auto-resolve the county
+    const stMatch  = address.match(/,\s*([A-Z]{2})\s*(?:\d{5})?(?:\s*$|,)/i);
+    const zipMatch = address.match(/\b(\d{5})\b/);
+    if (stMatch?.[1])  p.set('st',  stMatch[1].toUpperCase());
+    if (zipMatch?.[1]) p.set('zip', zipMatch[1]);
     return `/rate-intelligence-engine?${p.toString()}`;
   })();
 
