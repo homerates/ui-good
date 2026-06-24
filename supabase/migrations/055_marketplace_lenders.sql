@@ -51,7 +51,7 @@ alter table marketplace_lenders enable row level security;
 create policy "Admin full access to marketplace_lenders"
   on marketplace_lenders for all
   using (
-    exists (select 1 from users where id = auth.uid() and role = 'admin')
+    exists (select 1 from users where id = auth.uid()::text and role = 'admin')
   );
 
 create index if not exists marketplace_lenders_status_idx
@@ -87,7 +87,7 @@ alter table marketplace_opt_ins enable row level security;
 create policy "Admin full access to marketplace_opt_ins"
   on marketplace_opt_ins for all
   using (
-    exists (select 1 from users where id = auth.uid() and role = 'admin')
+    exists (select 1 from users where id = auth.uid()::text and role = 'admin')
   );
 
 create index if not exists marketplace_opt_ins_lender_idx
