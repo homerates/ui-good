@@ -127,30 +127,63 @@ export default function RateEngineClient() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
 
-          {/* Credit score */}
+          {/* Credit score — slider + direct number entry */}
           <div style={{ gridColumn: "1/-1" }}>
-            <label style={label}>Credit Score — {inputs.creditScore} · {creditBucketLabel(inputs.creditScore)}</label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <label style={{ ...label, marginBottom: 0 }}>{creditBucketLabel(inputs.creditScore)}</label>
+              <input
+                type="number" min={580} max={820} step={5}
+                value={inputs.creditScore}
+                onChange={e => {
+                  const v = +e.target.value;
+                  if (!isNaN(v)) setInputs(p => ({ ...p, creditScore: v }));
+                }}
+                onBlur={e => {
+                  const v = Math.min(820, Math.max(580, +e.target.value || 580));
+                  setInputs(p => ({ ...p, creditScore: v }));
+                }}
+                style={{ ...inp, width: 82, textAlign: "center" as const, padding: "6px 10px" }}
+              />
+            </div>
             <input type="range" min={580} max={820} step={5} value={inputs.creditScore}
               onChange={e => setInputs(p => ({ ...p, creditScore: +e.target.value }))}
               style={{ width: "100%", accentColor: "#00e87a" }}
             />
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "#8fa3b8", marginTop: 3 }}>
-              <span>580 (floor)</span><span>760+ (best tier)</span><span>820</span>
+              <span>580</span><span>760+ best tier</span><span>820</span>
             </div>
           </div>
 
           {/* Home price */}
           <div>
             <label style={label}>Home Price</label>
-            <input type="number" style={inp} value={homePrice}
-              onChange={e => setPrice(Math.max(50000, +e.target.value))} step={1000} />
+            <input
+              type="number" style={inp} value={homePrice} step={5000} min={50000}
+              onChange={e => {
+                const v = +e.target.value;
+                if (!isNaN(v) && v > 0) { setHomePrice(v); syncLTV(v, downPayment); }
+              }}
+              onBlur={e => {
+                const v = Math.max(50000, +e.target.value || 50000);
+                setPrice(v);
+              }}
+            />
           </div>
 
           {/* Down payment */}
           <div>
             <label style={label}>Down Payment → LTV: {inputs.ltv.toFixed(1)}%</label>
-            <input type="number" style={inp} value={downPayment}
-              onChange={e => setDown(Math.max(0, +e.target.value))} step={1000} />
+            <input
+              type="number" style={inp} value={downPayment} step={5000} min={0}
+              onChange={e => {
+                const v = +e.target.value;
+                if (!isNaN(v) && v >= 0) { setDownPayment(v); syncLTV(homePrice, v); }
+              }}
+              onBlur={e => {
+                const v = Math.max(0, Math.min(homePrice * 0.99, +e.target.value || 0));
+                setDown(v);
+              }}
+            />
           </div>
 
           {/* Loan amount display */}
