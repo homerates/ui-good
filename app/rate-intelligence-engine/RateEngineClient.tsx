@@ -66,6 +66,13 @@ export default function RateEngineClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // String draft states — inputs display these so the user can freely
+  // clear/retype without React overwriting mid-entry with the numeric value.
+  // Sync to numeric state only on blur.
+  const [priceDraft, setPriceDraft]   = useState("562500");
+  const [downDraft,  setDownDraft]    = useState("112500");
+  const [scoreDraft, setScoreDraft]   = useState(String(DEFAULTS.creditScore));
+
   // Sync loan amount / LTV from home price + down payment
   function syncLTV(price: number, down: number) {
     const loan = Math.max(price - down, 1);
@@ -132,21 +139,24 @@ export default function RateEngineClient() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
               <label style={{ ...label, marginBottom: 0 }}>{creditBucketLabel(inputs.creditScore)}</label>
               <input
-                type="number" min={580} max={820} step={5}
-                value={inputs.creditScore}
-                onChange={e => {
-                  const v = +e.target.value;
-                  if (!isNaN(v)) setInputs(p => ({ ...p, creditScore: v }));
-                }}
-                onBlur={e => {
-                  const v = Math.min(820, Math.max(580, +e.target.value || 580));
+                type="text" inputMode="numeric"
+                value={scoreDraft}
+                onChange={e => setScoreDraft(e.target.value)}
+                onBlur={() => {
+                  const v = Math.min(820, Math.max(580, parseInt(scoreDraft, 10) || 620));
+                  setScoreDraft(String(v));
                   setInputs(p => ({ ...p, creditScore: v }));
                 }}
                 style={{ ...inp, width: 82, textAlign: "center" as const, padding: "6px 10px" }}
               />
             </div>
-            <input type="range" min={580} max={820} step={5} value={inputs.creditScore}
-              onChange={e => setInputs(p => ({ ...p, creditScore: +e.target.value }))}
+            <input
+              type="range" min={580} max={820} step={5} value={inputs.creditScore}
+              onChange={e => {
+                const v = +e.target.value;
+                setScoreDraft(String(v));                // keep text input in sync with slider
+                setInputs(p => ({ ...p, creditScore: v }));
+              }}
               style={{ width: "100%", accentColor: "#00e87a" }}
             />
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "#8fa3b8", marginTop: 3 }}>
@@ -158,13 +168,12 @@ export default function RateEngineClient() {
           <div>
             <label style={label}>Home Price</label>
             <input
-              type="number" style={inp} value={homePrice} step={5000} min={50000}
-              onChange={e => {
-                const v = +e.target.value;
-                if (!isNaN(v) && v > 0) { setHomePrice(v); syncLTV(v, downPayment); }
-              }}
-              onBlur={e => {
-                const v = Math.max(50000, +e.target.value || 50000);
+              type="text" inputMode="numeric" style={inp}
+              value={priceDraft}
+              onChange={e => setPriceDraft(e.target.value)}
+              onBlur={() => {
+                const v = Math.max(50000, parseFloat(priceDraft.replace(/,/g, '')) || 50000);
+                setPriceDraft(String(v));
                 setPrice(v);
               }}
             />
@@ -174,13 +183,12 @@ export default function RateEngineClient() {
           <div>
             <label style={label}>Down Payment → LTV: {inputs.ltv.toFixed(1)}%</label>
             <input
-              type="number" style={inp} value={downPayment} step={5000} min={0}
-              onChange={e => {
-                const v = +e.target.value;
-                if (!isNaN(v) && v >= 0) { setDownPayment(v); syncLTV(homePrice, v); }
-              }}
-              onBlur={e => {
-                const v = Math.max(0, Math.min(homePrice * 0.99, +e.target.value || 0));
+              type="text" inputMode="numeric" style={inp}
+              value={downDraft}
+              onChange={e => setDownDraft(e.target.value)}
+              onBlur={() => {
+                const v = Math.max(0, Math.min(homePrice * 0.99, parseFloat(downDraft.replace(/,/g, '')) || 0));
+                setDownDraft(String(v));
                 setDown(v);
               }}
             />
