@@ -1,47 +1,51 @@
 // app/api/zip-county-lookup/route.ts
 // GET /api/zip-county-lookup?zip=90210
-// Calls the Census Bureau geocoding API (free, no key) to resolve ZIP → county.
+// Resolves ZIP → county using the geo_crosswalk Supabase table (same source used by geoFeatures.ts).
 // Returns county name, state code, and the exact conforming loan limit for that county.
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { CA_LOAN_LIMITS_2026 } from '../../../lib/loanLimits2026';
 import {
   HIGH_COST_COUNTIES,
   NATIONAL_CONFORMING_BASELINE,
 } from '../../../lib/loanLimitsNational2026';
 
-// CA stores "LOS ANGELES". National stores "KING COUNTY", "ANCHORAGE MUNICIPALITY", etc.
-// Census API returns "Los Angeles", "King", "Anchorage Municipality".
-// Two-pass matching: exact uppercase, then append/strip " COUNTY".
-function findCountyLimit(stateCode: string, censusCountyName: string): number {
-  const baseline  = NATIONAL_CONFORMING_BASELINE.units1;
-  const searchRaw = censusCountyName.toUpperCase().trim();
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Missing Supabase env vars');
+  return createClient(url, key);
+}
+
+// geo_crosswalk stores county names in title case without suffix ("Los Angeles", "King").
+// CA data: "LOS ANGELES" (no suffix). National: "KING COUNTY", "ANCHORAGE MUNICIPALITY".
+// Two-pass matching handles both.
+function findCountyLimit(stateCode: string, countyName: string): number {
+  const baseline = NATIONAL_CONFORMING_BASELINE.units1;
+  const raw      = countyName.toUpperCase().trim();
+  const stripped = raw.replace(/\s+COUNTY$/i, '').trim();
 
   if (stateCode === 'CA') {
-    // CA data has no suffix — just the bare county name
-    return CA_LOAN_LIMITS_2026.find(c => c.county === searchRaw)?.conforming.units1 ?? baseline;
+    return (
+      CA_LOAN_LIMITS_2026.find(c => c.county === stripped || c.county === raw)
+        ?.conforming.units1 ?? baseline
+    );
   }
 
   const counties = HIGH_COST_COUNTIES[stateCode];
   if (!counties?.length) return baseline;
 
-  // Pass 1: exact match (handles AK boroughs, municipalities, etc.)
-  const exact = counties.find(c => c.county === searchRaw);
+  // Pass 1: exact match — covers AK boroughs/municipalities stored with their suffix
+  const exact = counties.find(c => c.county === raw);
   if (exact) return exact.conforming.units1;
 
-  // Pass 2: Census returns just the name ("King") — national data has "KING COUNTY"
-  const withCounty = counties.find(c => c.county === searchRaw + ' COUNTY');
-  if (withCounty) return withCounty.conforming.units1;
-
-  // Pass 3: Census returned "King County" style — strip and retry
-  const stripped = searchRaw.replace(/\s+COUNTY$/, '').trim();
-  const strippedMatch = counties.find(
-    c => c.county === stripped || c.county === stripped + ' COUNTY',
-  );
-  if (strippedMatch) return strippedMatch.conforming.units1;
+  // Pass 2: append " COUNTY" — geo_crosswalk returns "King", national data has "KING COUNTY"
+  const withSuffix = counties.find(c => c.county === raw + ' COUNTY' || c.county === stripped + ' COUNTY');
+  if (withSuffix) return withSuffix.conforming.units1;
 
   return baseline;
 }
@@ -53,31 +57,24 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Census Bureau geocoder — free, no API key, authoritative for US addresses
-    const url = new URL('https://geocoding.geo.census.gov/geocoder/geographies/address');
-    url.searchParams.set('benchmark', 'Public_AR_Current');
-    url.searchParams.set('vintage', 'Current_Current');
-    url.searchParams.set('format',    'json');
-    url.searchParams.set('layers',    'Counties');
-    url.searchParams.set('street',    '1 Main St');
-    url.searchParams.set('zip',       zip);
+    const sb = getServiceClient();
 
-    const r = await fetch(url.toString(), {
-      headers: { 'User-Agent': 'HomeRates.ai Rate Intelligence/1.0' },
-      signal: AbortSignal.timeout(9000),
-    });
-    if (!r.ok) throw new Error(`Census API ${r.status}`);
+    // Pick the row with the highest residential ratio when a ZIP spans multiple counties
+    const { data, error } = await sb
+      .from('geo_crosswalk')
+      .select('county_name, state_abbr')
+      .eq('zip', zip)
+      .order('res_ratio', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    const json = await r.json();
-    const match = json?.result?.addressMatches?.[0];
-    if (!match) {
+    if (error) throw new Error(error.message);
+    if (!data) {
       return NextResponse.json({ error: 'ZIP code not found — double-check and try again' }, { status: 404 });
     }
 
-    const stateCode  = (match.addressComponents?.state ?? '').toUpperCase();
-    const countyName = match.geographies?.Counties?.[0]?.NAME ?? '';
-
-    if (!stateCode || !countyName) {
+    const { county_name: countyName, state_abbr: stateCode } = data;
+    if (!countyName || !stateCode) {
       return NextResponse.json({ error: 'Could not determine county for this ZIP' }, { status: 404 });
     }
 
@@ -87,7 +84,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       zip,
       county:         countyName,
-      stateCode,
+      stateCode:      stateCode.toUpperCase(),
       conformingLimit,
       conformingBaseline: baseline,
       isHighBalance:  conformingLimit > baseline,
