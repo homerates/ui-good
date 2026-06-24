@@ -75,8 +75,9 @@ create table if not exists marketplace_opt_ins (
   -- Never contains: name, email, address, behavioral history
   scenario_snapshot jsonb not null,
 
-  -- The deal room created to facilitate their discovery exchange
-  deal_room_id      uuid references deal_rooms(id),
+  -- The discover session created for their AI-assisted exploration exchange
+  -- (NOT deal rooms — the marketplace uses the discover session + AI message board)
+  discover_session_id uuid references discover_sessions(id),
 
   -- Billing
   fee_charged       boolean not null default false
