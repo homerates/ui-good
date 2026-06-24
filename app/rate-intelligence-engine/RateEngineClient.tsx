@@ -21,6 +21,11 @@ interface EngineResult {
   rateCurve: RateCurvePoint[];
   recommendedCurvePoint: { point: RateCurvePoint; reasoning: string };
   negotiationBrief: string[];
+  conformingStatus: 'standard' | 'high_balance' | 'above_limit';
+  conformingBaseline: number;
+  highBalanceCeiling: number;
+  isHighCostState: boolean;
+  stateName: string;
   dataSource: string;
   disclaimer: string;
 }
@@ -149,7 +154,7 @@ export default function RateEngineClient() {
       const r = await fetch("/api/rate-intelligence-engine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(inputs),
+        body: JSON.stringify({ ...inputs, state }),
       });
       const data = await r.json();
       if (!r.ok) { setError(data.error ?? "Calculation failed"); return; }
@@ -337,12 +342,30 @@ export default function RateEngineClient() {
             </div>
           </div>
 
-          {/* Loan amount display */}
+          {/* Loan amount + conforming status */}
           <div>
             <label style={label}>Loan Amount</label>
             <div style={{ ...inp, background: "rgba(0,232,122,0.05)", color: "#00e87a", fontWeight: 700, border: "1px solid rgba(0,232,122,0.15)" }}>
               {fmt$(inputs.loanAmount)}
             </div>
+            {/* Conforming status chip — pre-calc estimate; post-calc uses API result */}
+            {(() => {
+              const BASELINE = 832_750;
+              const status = result?.conformingStatus
+                ?? (inputs.loanAmount <= BASELINE ? 'standard' : 'check');
+              const chips = {
+                standard:    { bg: 'rgba(0,232,122,0.08)',   border: 'rgba(0,232,122,0.22)',   color: '#00e87a',  text: `Standard conforming ≤ $${BASELINE.toLocaleString()}` },
+                high_balance:{ bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.25)',  color: '#fbbf24',  text: `High-balance conforming${result ? ` — ${result.stateName} ceiling $${result.highBalanceCeiling.toLocaleString()}` : ''}` },
+                above_limit: { bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.25)', color: '#f87171',  text: `Above conforming limit — jumbo territory` },
+                check:       { bg: 'rgba(251,191,36,0.06)',  border: 'rgba(251,191,36,0.18)',  color: 'rgba(251,191,36,0.7)', text: `> $${BASELINE.toLocaleString()} — may be high-balance (run calc to confirm)` },
+              };
+              const c = chips[status];
+              return (
+                <div style={{ fontSize: '0.68rem', fontWeight: 600, marginTop: 6, padding: '4px 9px', borderRadius: 6, background: c.bg, border: `1px solid ${c.border}`, color: c.color, lineHeight: 1.4 }}>
+                  {c.text}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Occupancy */}
@@ -442,6 +465,39 @@ export default function RateEngineClient() {
       {/* ── OUTPUT CARDS ─────────────────────────────────────────────────────── */}
       {result && (
         <div style={{ display: "flex", flexDirection: "column" as const, gap: 20 }}>
+
+          {/* ── ABOVE-LIMIT WARNING — shown when loan exceeds conforming ceiling ── */}
+          {result.conformingStatus === 'above_limit' && (
+            <div style={{
+              background: 'rgba(248,113,113,0.07)', border: '1px solid rgba(248,113,113,0.25)',
+              borderRadius: 12, padding: '14px 18px',
+            }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#f87171', marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
+                ⚠ Loan exceeds conforming limit — jumbo territory
+              </div>
+              <div style={{ fontSize: '0.82rem', color: 'rgba(248,113,113,0.8)', lineHeight: 1.55 }}>
+                Your loan amount ({fmt$(inputs.loanAmount)}) exceeds the highest conforming limit
+                in {result.stateName} (${result.highBalanceCeiling.toLocaleString()}).
+                Fannie Mae LLPA pricing applies to conforming loans only.
+                Jumbo loans are priced by each lender&apos;s own portfolio guidelines and will differ
+                significantly from these estimates. Use this as a directional reference only.
+              </div>
+            </div>
+          )}
+
+          {/* ── HIGH-BALANCE NOTE — informational when applicable ── */}
+          {result.conformingStatus === 'high_balance' && (
+            <div style={{
+              background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.18)',
+              borderRadius: 10, padding: '10px 14px', fontSize: '0.78rem',
+              color: 'rgba(251,191,36,0.75)', lineHeight: 1.5,
+            }}>
+              <strong style={{ color: '#fbbf24' }}>High-balance conforming loan</strong> — your loan exceeds the national
+              baseline (${result.conformingBaseline.toLocaleString()}) but is within the {result.stateName} high-cost
+              ceiling (${result.highBalanceCeiling.toLocaleString()}). Fannie Mae LLPA pricing applies with the
+              high-balance surcharge shown in the breakdown below.
+            </div>
+          )}
 
           {/* ── STAT BAR ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
