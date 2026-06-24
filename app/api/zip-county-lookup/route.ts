@@ -69,13 +69,16 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
 
     if (error) throw new Error(error.message);
+
+    // geo_crosswalk covers HUD-tracked ZIPs but not every US ZIP code.
+    // Return notFound (not an error) so the client can fall back gracefully to the state estimate.
     if (!data) {
-      return NextResponse.json({ error: 'ZIP code not found — double-check and try again' }, { status: 404 });
+      return NextResponse.json({ notFound: true }, { status: 200 });
     }
 
     const { county_name: countyName, state_abbr: stateCode } = data;
     if (!countyName || !stateCode) {
-      return NextResponse.json({ error: 'Could not determine county for this ZIP' }, { status: 404 });
+      return NextResponse.json({ notFound: true }, { status: 200 });
     }
 
     const conformingLimit = findCountyLimit(stateCode, countyName);

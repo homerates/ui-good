@@ -116,6 +116,7 @@ export default function RateEngineClient() {
   const [zipDraft,        setZipDraft]        = useState('');
   const [zipLoading,      setZipLoading]      = useState(false);
   const [zipError,        setZipError]        = useState<string | null>(null);
+  const [zipErrorSoft,    setZipErrorSoft]    = useState(false); // true = amber info, false = red error
   const [zipResult,       setZipResult]       = useState<{ county: string; stateCode: string; conformingLimit: number } | null>(null);
   const [resolvedCeiling, setResolvedCeiling] = useState<number | null>(null);
 
@@ -185,6 +186,12 @@ export default function RateEngineClient() {
       const r = await fetch(`/api/zip-county-lookup?zip=${zip}`);
       const data = await r.json();
       if (!r.ok) { setZipError(data.error ?? 'Lookup failed'); return; }
+      if (data.notFound) {
+        setZipErrorSoft(true);
+        setZipError('County data not available for this ZIP — state estimate is already applied');
+        return;
+      }
+      setZipErrorSoft(false);
       setZipResult(data);
       setResolvedCeiling(data.conformingLimit);
       setState(data.stateCode);
@@ -432,7 +439,7 @@ export default function RateEngineClient() {
                     >
                       {zipLoading ? 'Looking up…' : 'Refine →'}
                     </button>
-                    {zipError && <span style={{ fontSize: '0.7rem', color: '#f87171' }}>{zipError}</span>}
+                    {zipError && <span style={{ fontSize: '0.7rem', color: zipErrorSoft ? 'rgba(251,191,36,0.65)' : '#f87171' }}>{zipError}</span>}
                   </div>
                 )}
               </div>
