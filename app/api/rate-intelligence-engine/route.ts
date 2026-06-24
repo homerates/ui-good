@@ -65,11 +65,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'loanAmount out of range' }, { status: 400 });
   }
 
-  // County-aware conforming limit lookup
+  // County-aware conforming limit lookup.
+  // If the client already resolved an exact county ceiling (via ZIP lookup), trust it.
+  // Otherwise fall back to the state-level max ceiling.
   const stateLimitInfo = getStateLimitInfo(body.state ?? '');
   const engineInput: LLPAInput = {
     ...body,
-    highBalanceCeiling: stateLimitInfo.ceiling,
+    highBalanceCeiling:
+      typeof body.highBalanceCeiling === 'number'
+        ? body.highBalanceCeiling
+        : stateLimitInfo.ceiling,
   };
 
   const parRate = await fetchParRate();

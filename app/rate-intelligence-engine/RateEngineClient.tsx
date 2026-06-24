@@ -112,6 +112,13 @@ export default function RateEngineClient() {
   const [downDraft,  setDownDraft]  = useState(String(initDownPct));  // start in % mode
   const [scoreDraft, setScoreDraft] = useState(String(DEFAULTS.creditScore));
 
+  // ZIP lookup state
+  const [zipDraft,        setZipDraft]        = useState('');
+  const [zipLoading,      setZipLoading]      = useState(false);
+  const [zipError,        setZipError]        = useState<string | null>(null);
+  const [zipResult,       setZipResult]       = useState<{ county: string; stateCode: string; conformingLimit: number } | null>(null);
+  const [resolvedCeiling, setResolvedCeiling] = useState<number | null>(null);
+
   // Sync loan amount / LTV from home price + down payment
   function syncLTV(price: number, down: number) {
     const loan = Math.max(price - down, 1);
@@ -147,14 +154,18 @@ export default function RateEngineClient() {
     }
   }
 
-  const runCalc = useCallback(async () => {
+  // ceilingOverride + stateOverride allow ZIP-lookup to pass exact values without waiting for state updates
+  const runCalc = useCallback(async (ceilingOverride?: number, stateOverride?: string) => {
     setLoading(true);
     setError(null);
     try {
+      const body: Record<string, unknown> = { ...inputs, state: stateOverride ?? state };
+      if      (ceilingOverride  != null) body.highBalanceCeiling = ceilingOverride;
+      else if (resolvedCeiling  != null) body.highBalanceCeiling = resolvedCeiling;
       const r = await fetch("/api/rate-intelligence-engine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...inputs, state }),
+        body: JSON.stringify(body),
       });
       const data = await r.json();
       if (!r.ok) { setError(data.error ?? "Calculation failed"); return; }
@@ -164,7 +175,27 @@ export default function RateEngineClient() {
     } finally {
       setLoading(false);
     }
-  }, [inputs]);
+  }, [inputs, state, resolvedCeiling]);
+
+  const handleZipLookup = useCallback(async (zip: string) => {
+    if (!/^\d{5}$/.test(zip)) return;
+    setZipLoading(true);
+    setZipError(null);
+    try {
+      const r = await fetch(`/api/zip-county-lookup?zip=${zip}`);
+      const data = await r.json();
+      if (!r.ok) { setZipError(data.error ?? 'Lookup failed'); return; }
+      setZipResult(data);
+      setResolvedCeiling(data.conformingLimit);
+      setState(data.stateCode);
+      // Auto-recalculate with exact county ceiling — pass values directly to avoid stale state
+      await runCalc(data.conformingLimit, data.stateCode);
+    } catch {
+      setZipError('Network error — try again');
+    } finally {
+      setZipLoading(false);
+    }
+  }, [runCalc]);
 
   const inp: React.CSSProperties = {
     width: "100%", boxSizing: "border-box" as const,
@@ -355,7 +386,7 @@ export default function RateEngineClient() {
                 ?? (inputs.loanAmount <= BASELINE ? 'standard' : 'check');
               const chips = {
                 standard:    { bg: 'rgba(0,232,122,0.08)',   border: 'rgba(0,232,122,0.22)',   color: '#00e87a',  text: `Standard conforming ≤ $${BASELINE.toLocaleString()}` },
-                high_balance:{ bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.25)',  color: '#fbbf24',  text: `High-balance conforming${result ? ` — ${result.stateName} ceiling $${result.highBalanceCeiling.toLocaleString()}` : ''}` },
+                high_balance:{ bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.25)',  color: '#fbbf24',  text: `High-balance conforming${zipResult ? ` — ${zipResult.county} County ($${zipResult.conformingLimit.toLocaleString()})` : result ? ` — ${result.stateName} ceiling $${result.highBalanceCeiling.toLocaleString()}` : ''}` },
                 above_limit: { bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.25)', color: '#f87171',  text: `Above conforming limit — jumbo territory` },
                 check:       { bg: 'rgba(251,191,36,0.06)',  border: 'rgba(251,191,36,0.18)',  color: 'rgba(251,191,36,0.7)', text: `> $${BASELINE.toLocaleString()} — may be high-balance (run calc to confirm)` },
               };
@@ -366,6 +397,46 @@ export default function RateEngineClient() {
                 </div>
               );
             })()}
+
+            {/* ZIP refinement — post-decode: resolves exact county limit */}
+            {result && (
+              <div style={{ marginTop: 9 }}>
+                {zipResult ? (
+                  <div style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>📍 {zipResult.county} County · ${zipResult.conformingLimit.toLocaleString()} limit</span>
+                    <button
+                      onClick={() => { setZipResult(null); setResolvedCeiling(null); setZipDraft(''); }}
+                      style={{ fontSize: '0.6rem', color: 'rgba(185,208,192,0.3)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
+                    >✕</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' as const }}>
+                    <input
+                      type="text" inputMode="numeric" maxLength={5}
+                      value={zipDraft}
+                      placeholder="ZIP for exact county limit"
+                      onChange={e => setZipDraft(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                      onKeyDown={e => { if (e.key === 'Enter' && zipDraft.length === 5) handleZipLookup(zipDraft); }}
+                      style={{ ...inp, width: 170, padding: '5px 9px', fontSize: '0.75rem' }}
+                    />
+                    <button
+                      onClick={() => handleZipLookup(zipDraft)}
+                      disabled={zipDraft.length !== 5 || zipLoading}
+                      style={{
+                        padding: '5px 12px', borderRadius: 7, fontFamily: 'inherit',
+                        background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.22)',
+                        color: '#fbbf24', fontSize: '0.72rem', fontWeight: 700,
+                        cursor: zipDraft.length !== 5 || zipLoading ? 'not-allowed' : 'pointer',
+                        opacity: zipDraft.length !== 5 ? 0.5 : 1,
+                      }}
+                    >
+                      {zipLoading ? 'Looking up…' : 'Refine →'}
+                    </button>
+                    {zipError && <span style={{ fontSize: '0.7rem', color: '#f87171' }}>{zipError}</span>}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Occupancy */}
@@ -449,7 +520,7 @@ export default function RateEngineClient() {
 
         {/* CTA */}
         <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" as const }}>
-          <button onClick={runCalc} disabled={loading} style={{
+          <button onClick={() => runCalc()} disabled={loading} style={{
             padding: "12px 32px", borderRadius: 999,
             background: loading ? "rgba(0,232,122,0.4)" : "#00e87a",
             color: "#080c12", fontWeight: 700, fontSize: "0.95rem",
