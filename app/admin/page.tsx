@@ -405,6 +405,7 @@ export default function AdminDashboard() {
             <Link href="/admin/agent-pilots" className="adm-nav-link">Agent Pilots</Link>
             <Link href="/admin/corporate" className="adm-nav-link">Corporate</Link>
             <Link href="/admin/outreach" className="adm-nav-link">Outreach</Link>
+            <Link href="/admin/marketplace" className="adm-nav-link">Rate Marketplace</Link>
             <Link href="/admin/white-label" className="adm-nav-link">White Label</Link>
             <Link href="/admin/blueprint" className="adm-nav-link">Blueprint</Link>
             <span className="adm-nav-badge">ADMIN</span>

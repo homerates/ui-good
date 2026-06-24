@@ -47,7 +47,7 @@ create table if not exists marketplace_lenders (
 
 alter table marketplace_lenders enable row level security;
 
--- Only admins can read or write lender identity
+drop policy if exists "Admin full access to marketplace_lenders" on marketplace_lenders;
 create policy "Admin full access to marketplace_lenders"
   on marketplace_lenders for all
   using (
@@ -75,8 +75,9 @@ create table if not exists marketplace_opt_ins (
   -- Never contains: name, email, address, behavioral history
   scenario_snapshot jsonb not null,
 
-  -- The deal room created to facilitate their discovery exchange
-  deal_room_id      uuid references deal_rooms(id),
+  -- The discover session created for their AI-assisted exploration exchange
+  -- (NOT deal rooms — the marketplace uses the discover session + AI message board)
+  discover_session_id uuid references discover_sessions(id),
 
   -- Billing
   fee_charged       boolean not null default false
@@ -84,6 +85,7 @@ create table if not exists marketplace_opt_ins (
 
 alter table marketplace_opt_ins enable row level security;
 
+drop policy if exists "Admin full access to marketplace_opt_ins" on marketplace_opt_ins;
 create policy "Admin full access to marketplace_opt_ins"
   on marketplace_opt_ins for all
   using (
