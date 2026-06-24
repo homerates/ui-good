@@ -1,9 +1,12 @@
 "use client";
 // app/rate-intelligence-engine/RateEngineClient.tsx
 // Interactive form + 4 output cards: A-1 Rate Range · A-2 LLPA Breakdown · B-2 Rate Options · B-1 Negotiation Brief
+// + Rate marketplace table below results
 
 import { useState, useCallback } from "react";
 import type { LLPAInput, RateCurvePoint } from "../../lib/pricing/llpa-engine";
+import type { LoanType } from "../../lib/pricing/marketplace-engine";
+import RateMarketplaceTable from "../components/RateMarketplaceTable";
 
 // ─── Types for API response ────────────────────────────────────────────────────
 
@@ -57,6 +60,8 @@ export default function RateEngineClient() {
   const [inputs, setInputs] = useState<LLPAInput>(DEFAULTS);
   const [homePrice, setHomePrice] = useState(562_500); // 450k loan at 80% LTV
   const [downPayment, setDownPayment] = useState(112_500);
+  const [state, setState] = useState("CA");          // 2-letter state for marketplace filter
+  const [loanType, setLoanType] = useState<LoanType>("conventional");
   const [result, setResult] = useState<EngineResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -201,6 +206,30 @@ export default function RateEngineClient() {
               <option value={45}>45-day (+0.125 pts)</option>
               <option value={60}>60-day (+0.250 pts)</option>
             </select>
+          </div>
+
+          {/* Loan type — for marketplace filter */}
+          <div>
+            <label style={label}>Loan Type</label>
+            <select style={inp} value={loanType}
+              onChange={e => setLoanType(e.target.value as LoanType)}>
+              <option value="conventional">Conventional</option>
+              <option value="fha">FHA</option>
+              <option value="va">VA</option>
+              <option value="jumbo">Jumbo</option>
+            </select>
+          </div>
+
+          {/* State — for marketplace eligibility */}
+          <div>
+            <label style={label}>Property State</label>
+            <input
+              style={inp}
+              value={state}
+              onChange={e => setState(e.target.value.toUpperCase().slice(0, 2))}
+              maxLength={2}
+              placeholder="CA"
+            />
           </div>
 
         </div>
@@ -424,6 +453,20 @@ export default function RateEngineClient() {
           <p style={{ fontSize: "0.75rem", color: "rgba(143,163,184,0.6)", lineHeight: 1.55, margin: 0 }}>
             {result.disclaimer}
           </p>
+
+          {/* ── RATE MARKETPLACE TABLE ── */}
+          {state.length === 2 && (
+            <div>
+              <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#8fa3b8", marginBottom: 12, marginTop: 8 }}>
+                Rate marketplace
+              </div>
+              <RateMarketplaceTable scenario={{
+                ...inputs,
+                state: state.toUpperCase(),
+                loanType,
+              }} />
+            </div>
+          )}
 
         </div>
       )}
