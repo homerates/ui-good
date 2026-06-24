@@ -3,11 +3,17 @@
 // Interactive form + 4 output cards: A-1 Rate Range · A-2 LLPA Breakdown · B-2 Rate Options · B-1 Negotiation Brief
 // + Rate marketplace table below results
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import type { LLPAInput, RateCurvePoint } from "../../lib/pricing/llpa-engine";
 import type { LoanType } from "../../lib/pricing/marketplace-engine";
 import RateMarketplaceTable from "../components/RateMarketplaceTable";
+import {
+  HIGH_COST_COUNTIES,
+  HIGH_COST_STATES,
+  NATIONAL_CONFORMING_BASELINE,
+} from "../../lib/loanLimitsNational2026";
+import { CA_LOAN_LIMITS_2026 } from "../../lib/loanLimits2026";
 
 // ─── Types for API response ────────────────────────────────────────────────────
 
@@ -112,13 +118,8 @@ export default function RateEngineClient() {
   const [downDraft,  setDownDraft]  = useState(String(initDownPct));  // start in % mode
   const [scoreDraft, setScoreDraft] = useState(String(DEFAULTS.creditScore));
 
-  // ZIP lookup state
-  const [zipDraft,        setZipDraft]        = useState('');
-  const [zipLoading,      setZipLoading]      = useState(false);
-  const [zipError,        setZipError]        = useState<string | null>(null);
-  const [zipErrorSoft,    setZipErrorSoft]    = useState(false); // true = amber info, false = red error
-  const [zipResult,       setZipResult]       = useState<{ county: string; stateCode: string; conformingLimit: number } | null>(null);
-  const [resolvedCeiling, setResolvedCeiling] = useState<number | null>(null);
+  // County selector — derived from FHFA data files, same as /loan-limits page
+  const [county, setCounty] = useState<string>('');
 
   // Sync loan amount / LTV from home price + down payment
   function syncLTV(price: number, down: number) {
@@ -155,14 +156,31 @@ export default function RateEngineClient() {
     }
   }
 
-  // ceilingOverride + stateOverride allow ZIP-lookup to pass exact values without waiting for state updates
-  const runCalc = useCallback(async (ceilingOverride?: number, stateOverride?: string) => {
+  // County options + exact limit — same data source as /loan-limits page
+  const countyOptions = useMemo(() => {
+    if (!HIGH_COST_STATES.has(state)) return [];
+    if (state === 'CA') return CA_LOAN_LIMITS_2026.map(c => c.county);
+    return (HIGH_COST_COUNTIES[state] ?? []).map(c => c.county);
+  }, [state]);
+
+  const countyLimit = useMemo((): number | null => {
+    if (!county) return null;
+    if (state === 'CA') return CA_LOAN_LIMITS_2026.find(c => c.county === county)?.conforming.units1 ?? null;
+    return (HIGH_COST_COUNTIES[state] ?? []).find(c => c.county === county)?.conforming.units1 ?? null;
+  }, [state, county]);
+
+  function handleStateChange(val: string) {
+    const s = val.toUpperCase().slice(0, 2);
+    setState(s);
+    setCounty(''); // reset county when state changes
+  }
+
+  const runCalc = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const body: Record<string, unknown> = { ...inputs, state: stateOverride ?? state };
-      if      (ceilingOverride  != null) body.highBalanceCeiling = ceilingOverride;
-      else if (resolvedCeiling  != null) body.highBalanceCeiling = resolvedCeiling;
+      const body: Record<string, unknown> = { ...inputs, state };
+      if (countyLimit != null) body.highBalanceCeiling = countyLimit;
       const r = await fetch("/api/rate-intelligence-engine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -176,33 +194,7 @@ export default function RateEngineClient() {
     } finally {
       setLoading(false);
     }
-  }, [inputs, state, resolvedCeiling]);
-
-  const handleZipLookup = useCallback(async (zip: string) => {
-    if (!/^\d{5}$/.test(zip)) return;
-    setZipLoading(true);
-    setZipError(null);
-    try {
-      const r = await fetch(`/api/zip-county-lookup?zip=${zip}`);
-      const data = await r.json();
-      if (!r.ok) { setZipError(data.error ?? 'Lookup failed'); return; }
-      if (data.notFound) {
-        setZipErrorSoft(true);
-        setZipError('County data not available for this ZIP — state estimate is already applied');
-        return;
-      }
-      setZipErrorSoft(false);
-      setZipResult(data);
-      setResolvedCeiling(data.conformingLimit);
-      setState(data.stateCode);
-      // Auto-recalculate with exact county ceiling — pass values directly to avoid stale state
-      await runCalc(data.conformingLimit, data.stateCode);
-    } catch {
-      setZipError('Network error — try again');
-    } finally {
-      setZipLoading(false);
-    }
-  }, [runCalc]);
+  }, [inputs, state, countyLimit]);
 
   const inp: React.CSSProperties = {
     width: "100%", boxSizing: "border-box" as const,
@@ -386,16 +378,22 @@ export default function RateEngineClient() {
             <div style={{ ...inp, background: "rgba(0,232,122,0.05)", color: "#00e87a", fontWeight: 700, border: "1px solid rgba(0,232,122,0.15)" }}>
               {fmt$(inputs.loanAmount)}
             </div>
-            {/* Conforming status chip — pre-calc estimate; post-calc uses API result */}
+            {/* Conforming status chip — uses county limit when selected, falls back to baseline check */}
             {(() => {
-              const BASELINE = 832_750;
-              const status = result?.conformingStatus
-                ?? (inputs.loanAmount <= BASELINE ? 'standard' : 'check');
+              const BASELINE = NATIONAL_CONFORMING_BASELINE.units1;
+              const status = result?.conformingStatus ?? (() => {
+                if (inputs.loanAmount <= BASELINE) return 'standard';
+                if (countyLimit != null && inputs.loanAmount <= countyLimit) return 'high_balance';
+                if (countyLimit != null) return 'above_limit';
+                return 'check';
+              })();
+              const countyDisplay = county ? county.replace(/ COUNTY$/, '').replace(/ BOROUGH$/, '').replace(/ MUNICIPALITY$/, '').replace(/ CENSUS AREA$/, '') : null;
+              const ceilingDisplay = countyLimit ?? result?.highBalanceCeiling;
               const chips = {
                 standard:    { bg: 'rgba(0,232,122,0.08)',   border: 'rgba(0,232,122,0.22)',   color: '#00e87a',  text: `Standard conforming ≤ $${BASELINE.toLocaleString()}` },
-                high_balance:{ bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.25)',  color: '#fbbf24',  text: `High-balance conforming${zipResult ? ` — ${zipResult.county} County ($${zipResult.conformingLimit.toLocaleString()})` : result ? ` — ${result.stateName} ceiling $${result.highBalanceCeiling.toLocaleString()}` : ''}` },
-                above_limit: { bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.25)', color: '#f87171',  text: `Above conforming limit — jumbo territory` },
-                check:       { bg: 'rgba(251,191,36,0.06)',  border: 'rgba(251,191,36,0.18)',  color: 'rgba(251,191,36,0.7)', text: `> $${BASELINE.toLocaleString()} — may be high-balance (run calc to confirm)` },
+                high_balance:{ bg: 'rgba(251,191,36,0.08)',  border: 'rgba(251,191,36,0.25)',  color: '#fbbf24',  text: `High-balance conforming${countyDisplay ? ` — ${countyDisplay} ($${(ceilingDisplay ?? 0).toLocaleString()})` : ceilingDisplay ? ` — ceiling $${ceilingDisplay.toLocaleString()}` : ''}` },
+                above_limit: { bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.25)', color: '#f87171',  text: `Above conforming limit${countyDisplay ? ` — ${countyDisplay} max $${(ceilingDisplay ?? 0).toLocaleString()}` : ' — jumbo territory'}` },
+                check:       { bg: 'rgba(251,191,36,0.06)',  border: 'rgba(251,191,36,0.18)',  color: 'rgba(251,191,36,0.7)', text: `> $${BASELINE.toLocaleString()} — select county above to confirm zone` },
               };
               const c = chips[status];
               return (
@@ -404,46 +402,6 @@ export default function RateEngineClient() {
                 </div>
               );
             })()}
-
-            {/* ZIP refinement — post-decode: resolves exact county limit */}
-            {result && (
-              <div style={{ marginTop: 9 }}>
-                {zipResult ? (
-                  <div style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>📍 {zipResult.county} County · ${zipResult.conformingLimit.toLocaleString()} limit</span>
-                    <button
-                      onClick={() => { setZipResult(null); setResolvedCeiling(null); setZipDraft(''); }}
-                      style={{ fontSize: '0.6rem', color: 'rgba(185,208,192,0.3)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
-                    >✕</button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' as const }}>
-                    <input
-                      type="text" inputMode="numeric" maxLength={5}
-                      value={zipDraft}
-                      placeholder="ZIP for exact county limit"
-                      onChange={e => setZipDraft(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                      onKeyDown={e => { if (e.key === 'Enter' && zipDraft.length === 5) handleZipLookup(zipDraft); }}
-                      style={{ ...inp, width: 170, padding: '5px 9px', fontSize: '0.75rem' }}
-                    />
-                    <button
-                      onClick={() => handleZipLookup(zipDraft)}
-                      disabled={zipDraft.length !== 5 || zipLoading}
-                      style={{
-                        padding: '5px 12px', borderRadius: 7, fontFamily: 'inherit',
-                        background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.22)',
-                        color: '#fbbf24', fontSize: '0.72rem', fontWeight: 700,
-                        cursor: zipDraft.length !== 5 || zipLoading ? 'not-allowed' : 'pointer',
-                        opacity: zipDraft.length !== 5 ? 0.5 : 1,
-                      }}
-                    >
-                      {zipLoading ? 'Looking up…' : 'Refine →'}
-                    </button>
-                    {zipError && <span style={{ fontSize: '0.7rem', color: zipErrorSoft ? 'rgba(251,191,36,0.65)' : '#f87171' }}>{zipError}</span>}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Occupancy */}
@@ -511,17 +469,41 @@ export default function RateEngineClient() {
             </select>
           </div>
 
-          {/* State — for marketplace eligibility */}
+          {/* Property State */}
           <div>
             <label style={label}>Property State</label>
             <input
               style={inp}
               value={state}
-              onChange={e => setState(e.target.value.toUpperCase().slice(0, 2))}
+              onChange={e => handleStateChange(e.target.value)}
               maxLength={2}
               placeholder="CA"
             />
           </div>
+
+          {/* County — shown only for high-cost states; uses same FHFA data as /loan-limits */}
+          {HIGH_COST_STATES.has(state) && countyOptions.length > 0 && (
+            <div>
+              <label style={label}>County</label>
+              <select
+                style={inp}
+                value={county}
+                onChange={e => setCounty(e.target.value)}
+              >
+                <option value="">— Select county —</option>
+                {countyOptions.map(c => (
+                  <option key={c} value={c}>
+                    {c.replace(/ COUNTY$/, '').replace(/ BOROUGH$/, '').replace(/ MUNICIPALITY$/, '').replace(/ CENSUS AREA$/, '')}
+                  </option>
+                ))}
+              </select>
+              {countyLimit != null && (
+                <div style={{ fontSize: '0.7rem', color: 'rgba(251,191,36,0.6)', marginTop: 4 }}>
+                  Conforming ceiling: ${countyLimit.toLocaleString()}
+                </div>
+              )}
+            </div>
+          )}
 
         </div>
 
