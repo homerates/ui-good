@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
       .eq('status', 'active'),
   ]);
 
-  const lenders = (lendersResult.data ?? []) as MarketplaceLender[];
+  const lenders = (lendersResult.data ?? []) as unknown as MarketplaceLender[];
 
   const result = buildRateTable(
     body as MarketplaceInput,
