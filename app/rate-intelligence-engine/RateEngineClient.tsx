@@ -4,6 +4,7 @@
 // + Rate marketplace table below results
 
 import { useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import type { LLPAInput, RateCurvePoint } from "../../lib/pricing/llpa-engine";
 import type { LoanType } from "../../lib/pricing/marketplace-engine";
 import RateMarketplaceTable from "../components/RateMarketplaceTable";
@@ -67,23 +68,44 @@ function fmt$(n: number): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function RateEngineClient() {
-  const [inputs, setInputs] = useState<LLPAInput>(DEFAULTS);
-  const [homePrice, setHomePrice] = useState(562_500); // 450k loan at 80% LTV
-  const [downPayment, setDownPayment] = useState(112_500);
-  const [state, setState] = useState("CA");          // 2-letter state for marketplace filter
-  const [loanType, setLoanType] = useState<LoanType>("conventional");
+  const params = useSearchParams();
+
+  // Parse scenario URL params (set by DSC "🔬 Run Rate Intelligence" or ISC CTA)
+  const paramPrice   = params?.get('price')     ? Number(params.get('price'))    : null;
+  const paramDownPct = params?.get('downPct')   ? Number(params.get('downPct'))  : null;
+  const paramPurpose = (params?.get('purpose')   ?? null) as LLPAInput['loanPurpose'] | null;
+  const paramOcc     = (params?.get('occupancy') ?? null) as LLPAInput['occupancy']   | null;
+  const paramLT      = (params?.get('lt')        ?? null) as LoanType | null;
+  const paramSt      = params?.get('st') ?? null;
+  const fromScenario = paramPrice != null;
+
+  // Derived initial values — used to seed useState once on mount
+  const initPrice    = paramPrice ?? 562_500;
+  const initDownPct  = paramDownPct ?? 20;
+  const initDown     = Math.round(initPrice * initDownPct / 100);
+  const initLoan     = initPrice - initDown;
+  const initLTV      = parseFloat(((initLoan / initPrice) * 100).toFixed(2));
+
+  const [inputs, setInputs] = useState<LLPAInput>(() => ({
+    ...DEFAULTS,
+    loanAmount: Math.round(initLoan),
+    ltv:        initLTV,
+    loanPurpose: paramPurpose ?? DEFAULTS.loanPurpose,
+    occupancy:   paramOcc    ?? DEFAULTS.occupancy,
+  }));
+  const [homePrice,   setHomePrice]   = useState(initPrice);
+  const [downPayment, setDownPayment] = useState(initDown);
+  const [state, setState] = useState(paramSt ?? "CA");
+  const [loanType, setLoanType] = useState<LoanType>(paramLT ?? "conventional");
   const [result, setResult] = useState<EngineResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error,   setError]   = useState<string | null>(null);
 
-  // Down payment input mode — '%' or '$'
   const [downMode, setDownMode] = useState<'%' | '$'>('%');
 
-  // String draft states — inputs display these; sync to numeric state on blur only.
-  // priceDraft / downDraft are formatted on blur ("$562,500", "20%") and stripped on focus.
-  const [priceDraft, setPriceDraft]   = useState(fmtCurrency(562_500)); // "$562,500"
-  const [downDraft,  setDownDraft]    = useState("20");                  // 20% of $562,500
-  const [scoreDraft, setScoreDraft]   = useState(String(DEFAULTS.creditScore));
+  const [priceDraft, setPriceDraft] = useState(fmtCurrency(initPrice));
+  const [downDraft,  setDownDraft]  = useState(String(initDownPct));  // start in % mode
+  const [scoreDraft, setScoreDraft] = useState(String(DEFAULTS.creditScore));
 
   // Sync loan amount / LTV from home price + down payment
   function syncLTV(price: number, down: number) {
@@ -154,8 +176,33 @@ export default function RateEngineClient() {
     borderRadius: 14, padding: "1.5rem",
   };
 
+  // Styles that vary based on whether field is pre-filled from scenario
+  const inpFilled: React.CSSProperties = {
+    ...inp, borderColor: 'rgba(0,232,122,0.28)', background: 'rgba(0,232,122,0.04)',
+    color: '#4ade80', fontWeight: 600,
+  };
+  const labelTag = (filled: boolean) => filled ? (
+    <span style={{ fontSize: '0.62rem', color: 'rgba(0,232,122,0.55)', marginLeft: 5 }}>✓ from scenario</span>
+  ) : null;
+
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: "#f0f4ff" }}>
+
+      {/* ── ORIGIN BAR — only when launched from a scenario ─────────────────── */}
+      {fromScenario && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 9,
+          background: 'rgba(0,232,122,0.04)', border: '1px solid rgba(0,232,122,0.18)',
+          borderRadius: 10, padding: '10px 14px', marginBottom: 20,
+          fontSize: '0.82rem', color: 'rgba(185,208,192,0.65)', lineHeight: 1.45,
+        }}>
+          <span style={{ color: '#00e87a', fontWeight: 700, marginTop: 1 }}>✓</span>
+          <span>
+            <strong style={{ color: '#00e87a' }}>Loan details pre-filled from your scenario.</strong>
+            {' '}Enter your credit score — that&apos;s the one input we need to run the full LLPA pricing.
+          </span>
+        </div>
+      )}
 
       {/* ── INPUT FORM ───────────────────────────────────────────────────────── */}
       <div style={{ ...card, marginBottom: 28 }}>
@@ -165,8 +212,19 @@ export default function RateEngineClient() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
 
-          {/* Credit score — slider + direct number entry */}
-          <div style={{ gridColumn: "1/-1" }}>
+          {/* Credit score — spotlight when from scenario (the one missing piece) */}
+          <div style={{
+            gridColumn: "1/-1",
+            ...(fromScenario ? {
+              background: 'linear-gradient(135deg, rgba(139,92,246,0.07), rgba(139,92,246,0.03))',
+              border: '1px solid rgba(139,92,246,0.22)', borderRadius: 10, padding: '12px 12px 8px',
+            } : {}),
+          }}>
+            {fromScenario && (
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'rgba(167,139,250,0.75)', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>
+                ⚡ Required — the biggest single pricing factor
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
               <label style={{ ...label, marginBottom: 0 }}>{creditBucketLabel(inputs.creditScore)}</label>
               <input
@@ -197,9 +255,13 @@ export default function RateEngineClient() {
 
           {/* Home price */}
           <div>
-            <label style={label}>Home Price</label>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+              <label style={{ ...label, marginBottom: 0 }}>Home Price</label>
+              {labelTag(fromScenario && paramPrice != null)}
+            </div>
             <input
-              type="text" inputMode="numeric" style={inp}
+              type="text" inputMode="numeric"
+              style={fromScenario && paramPrice != null ? inpFilled : inp}
               value={priceDraft}
               onChange={e => setPriceDraft(e.target.value)}
               onFocus={() => setPriceDraft(String(homePrice))}
@@ -215,7 +277,10 @@ export default function RateEngineClient() {
           <div>
             {/* Label row with mode toggle */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-              <label style={{ ...label, marginBottom: 0 }}>Down Payment</label>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <label style={{ ...label, marginBottom: 0 }}>Down Payment</label>
+                {labelTag(fromScenario && paramDownPct != null)}
+              </div>
               <div style={{ display: "flex", gap: 3 }}>
                 {(['$', '%'] as const).map(m => (
                   <button
@@ -237,7 +302,8 @@ export default function RateEngineClient() {
               </div>
             </div>
             <input
-              type="text" inputMode="numeric" style={inp}
+              type="text" inputMode="numeric"
+              style={fromScenario && paramDownPct != null ? inpFilled : inp}
               value={downDraft}
               placeholder={downMode === '%' ? "e.g. 20" : "e.g. 112500"}
               onChange={e => setDownDraft(e.target.value)}
@@ -281,8 +347,11 @@ export default function RateEngineClient() {
 
           {/* Occupancy */}
           <div>
-            <label style={label}>Occupancy</label>
-            <select style={inp} value={inputs.occupancy}
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+              <label style={{ ...label, marginBottom: 0 }}>Occupancy</label>
+              {labelTag(fromScenario && paramOcc != null)}
+            </div>
+            <select style={fromScenario && paramOcc != null ? inpFilled : inp} value={inputs.occupancy}
               onChange={e => setInputs(p => ({ ...p, occupancy: e.target.value as LLPAInput['occupancy'] }))}>
               <option value="primary">Primary residence</option>
               <option value="second">Second home</option>
@@ -292,8 +361,11 @@ export default function RateEngineClient() {
 
           {/* Loan purpose */}
           <div>
-            <label style={label}>Loan Purpose</label>
-            <select style={inp} value={inputs.loanPurpose}
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+              <label style={{ ...label, marginBottom: 0 }}>Loan Purpose</label>
+              {labelTag(fromScenario && paramPurpose != null)}
+            </div>
+            <select style={fromScenario && paramPurpose != null ? inpFilled : inp} value={inputs.loanPurpose}
               onChange={e => setInputs(p => ({ ...p, loanPurpose: e.target.value as LLPAInput['loanPurpose'] }))}>
               <option value="purchase">Purchase</option>
               <option value="rate_term_refi">Rate / term refinance</option>

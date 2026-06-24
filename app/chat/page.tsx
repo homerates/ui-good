@@ -4441,6 +4441,7 @@ export default function Page() {
                                                         {m.meta.decisionScoreCard && (
                                                             <DecisionScoreCard
                                                                 data={m.meta.decisionScoreCard}
+                                                                scenarioPrice={m.meta.interactiveSlider?.price}
                                                                 scenarioDown={m.meta.interactiveSlider?.downPct}
                                                                 scenarioRate={m.meta.interactiveSlider?.rate}
                                                                 scenarioIncome={m.meta.interactiveSlider?.annualIncome}

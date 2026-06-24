@@ -4,6 +4,7 @@
 //                  "how are mortgage rates calculated" (12,000/mo) · "mortgage rate breakdown" (2,400/mo)
 
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import RateEngineClient from './RateEngineClient';
 
@@ -214,7 +215,9 @@ export default function RateIntelligenceEnginePage() {
 
         {/* Interactive calculator */}
         <section id="calculator" style={{ marginBottom: '3rem' }}>
-          <RateEngineClient />
+          <Suspense fallback={<div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8fa3b8', fontSize: '0.9rem' }}>Loading calculator…</div>}>
+            <RateEngineClient />
+          </Suspense>
         </section>
 
         {/* What you get */}
