@@ -133,6 +133,8 @@ const isPublicRoute = createRouteMatcher([
   // Rate Intelligence Engine — consumer-facing LLPA calculator, no auth required
   "/rate-intelligence-engine(.*)",
   "/api/rate-intelligence-engine(.*)",
+  // Rate Marketplace — anonymous lender rate table, no auth required
+  "/api/rate-marketplace(.*)",
   // LO pilot landing page — public-facing link sent to company CEOs
   "/pilot(.*)",
   "/api/pilot(.*)",
