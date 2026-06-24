@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
       .eq('status', 'active'),
   ]);
 
-  const lenders: MarketplaceLender[] = lendersResult.data ?? [];
+  const lenders = (lendersResult.data ?? []) as MarketplaceLender[];
 
   const result = buildRateTable(
     body as MarketplaceInput,
@@ -103,10 +103,9 @@ export async function POST(req: NextRequest) {
   // Increment view counters for matched lenders (fire-and-forget)
   if (result.rows.length > 0) {
     const ids = result.rows.map(r => r.anonymousId);
-    db()
-      .rpc('increment_marketplace_views', { lender_ids: ids })
-      .then(() => {})
-      .catch(() => {});
+    Promise.resolve(
+      db().rpc('increment_marketplace_views', { lender_ids: ids })
+    ).catch(() => {});
   }
 
   return NextResponse.json(result);
