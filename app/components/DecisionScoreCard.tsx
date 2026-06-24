@@ -10,6 +10,8 @@ import AdminCardBadge from './AdminCardBadge';
 export type DecisionScoreData = {
   state: 'computing' | 'complete';
   address: string;
+  propertyState?: string; // 2-letter state abbrev (e.g. "CA") — used for RIE URL
+  zip?: string;           // 5-digit ZIP — auto-fills county on RIE page
   l1Score: number;
   l1Summary: string;
   l2Score: number | null;
@@ -155,11 +157,11 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
       purpose:  'purchase',
       occupancy: 'primary',
     });
-    // Extract state + ZIP from address so the RIE page can auto-resolve the county
-    const stMatch  = address.match(/,\s*([A-Z]{2})\s*(?:\d{5})?(?:\s*$|,)/i);
-    const zipMatch = address.match(/\b(\d{5})\b/);
-    if (stMatch?.[1])  p.set('st',  stMatch[1].toUpperCase());
-    if (zipMatch?.[1]) p.set('zip', zipMatch[1]);
+    // Use explicit propertyState/zip fields first; fall back to parsing the address string
+    const st  = data.propertyState ?? address.match(/,\s*([A-Z]{2})\s*(?:\d{5})?(?:\s*$|,)/i)?.[1]?.toUpperCase() ?? null;
+    const zip = data.zip           ?? address.match(/\b(\d{5})\b/)?.[1] ?? null;
+    if (st)  p.set('st',  st);
+    if (zip) p.set('zip', zip);
     return `/rate-intelligence-engine?${p.toString()}`;
   })();
 

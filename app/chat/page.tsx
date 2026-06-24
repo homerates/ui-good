@@ -2548,6 +2548,8 @@ export default function Page() {
                         decisionScoreCard: {
                             state: 'computing',
                             address: d.address ?? '',
+                            propertyState: d.state ?? undefined,
+                            zip: d.zip ?? undefined,
                             l1Score: dsL1Score,
                             l1Summary: dsL1Summary,
                             l2Score: dsL2Score,
@@ -2583,6 +2585,8 @@ export default function Page() {
                         const _dsL2Score          = dsL2Score;
                         const _dsL2Summary        = dsL2Summary;
                         const _dsAddress          = d.address;
+                        const _dsPropertyState    = d.state ?? undefined;
+                        const _dsZip              = d.zip ?? undefined;
                         const _dsPrice            = d.price;
                         const _dsLoanType         = sliderLoanType;
                         const _dsDown             = defaultDown;
@@ -2838,6 +2842,8 @@ export default function Page() {
                                 const completeDsc = {
                                     state:          'complete' as const,
                                     address:        _dsAddress,
+                                    propertyState:  _dsPropertyState,
+                                    zip:            _dsZip,
                                     l1Score:        finalL1,
                                     l1Summary:      finalL1Summary,
                                     l2Score:        dsL2ScoreFinal,
@@ -3255,7 +3261,9 @@ export default function Page() {
                 if (!autoScoreFiredRef.current && _cmaAddr && _cmaPrice) {
                     autoScoreFiredRef.current = true;
 
-                    const _dsAddress  = _cmaAddr;
+                    const _dsAddress       = _cmaAddr;
+                    const _dsPropertyState = searchParams?.get('cmaState') || undefined;
+                    const _dsZip           = searchParams?.get('cmaZip')   || undefined;
                     const _dsPrice    = parseFloat(_cmaPrice);
                     // Down payment + loan type: compute same way as property-lookup path (20% default)
                     const _dsDown     = 20;
@@ -3447,6 +3455,8 @@ export default function Page() {
                                     ? { ...m, meta: { ...m.meta!, decisionScoreCard: {
                                         state:          'complete' as const,
                                         address:        _dsAddress,
+                                        propertyState:  _dsPropertyState,
+                                        zip:            _dsZip,
                                         l1Score:        _dsL1Score,     l1Summary:      _dsL1Summary,
                                         l2Score:        dsL2ScoreFinal, l2Summary:      dsL2SummaryFinal,
                                         l3Score:        dsL3Score,      l3Summary:      dsL3Summary,
