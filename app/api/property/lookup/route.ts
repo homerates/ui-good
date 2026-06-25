@@ -810,7 +810,8 @@ async function handleUrl(rawUrl: string) {
         address:          d.address ?? (/redfin\.com/i.test(url) ? addressFromRedfinUrl(url) : null),
         city:             d.city,
         state:            d.state,
-        zip:              d.zip,
+        // Redfin URL slug always contains ZIP (-92672/home/...) — use as fallback when scraper misses it
+        zip:              d.zip ?? (/redfin\.com/i.test(url) ? (url.match(/redfin\.com\/[A-Z]{2}\/[^/]+\/.+?-(\d{5})(?:\/|$)/i)?.[1] ?? null) : null),
         beds:             d.beds,
         baths:            d.baths,
         sqft:             d.sqft,
