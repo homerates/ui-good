@@ -119,13 +119,16 @@ export default function RateEngineClient() {
   const [scoreDraft, setScoreDraft] = useState(String(DEFAULTS.creditScore));
 
   // County selector — derived from FHFA data files, same as /loan-limits page
-  const [county, setCounty] = useState<string>('');
-  const [countyFromZip, setCountyFromZip] = useState(false); // true when auto-resolved from property ZIP
+  const paramCounty = params?.get('county') ?? null;
+  const [county, setCounty] = useState<string>(
+    paramCounty ? paramCounty.toUpperCase().replace(/\s+COUNTY$/i, '').trim() : ''
+  );
+  const [countyFromZip, setCountyFromZip] = useState(!!paramCounty);
   const paramZip = params?.get('zip') ?? null;
 
-  // Auto-resolve ZIP → county when launched from DSC with a known property address
+  // Auto-resolve ZIP → county only when county wasn't already passed in the URL
   useEffect(() => {
-    if (!paramZip) return;
+    if (!paramZip || paramCounty) return;
     fetch(`/api/zip-county-lookup?zip=${paramZip}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {

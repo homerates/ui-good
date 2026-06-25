@@ -149,8 +149,9 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
     // Use explicit propertyState/zip fields first; fall back to parsing the address string
     const st  = data.propertyState ?? address.match(/,\s*([A-Z]{2})\s*(?:\d{5})?(?:\s*$|,)/i)?.[1]?.toUpperCase() ?? null;
     const zip = data.zip           ?? address.match(/\b(\d{5})\b/)?.[1] ?? null;
-    if (st)  p.set('st',  st);
-    if (zip) p.set('zip', zip);
+    if (st)           p.set('st',     st);
+    if (zip)          p.set('zip',    zip);
+    if (data.county)  p.set('county', data.county);
     return `/rate-intelligence-engine?${p.toString()}`;
   })();
 
