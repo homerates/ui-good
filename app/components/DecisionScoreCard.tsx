@@ -23,6 +23,9 @@ export type DecisionScoreData = {
   l4Summary?: string;
   compositeScore?: number;
   sessionId?: string;
+  l5LenderParRate?: number | null;
+  l5TotalLLPA?: number | null;
+  l5CreditScore?: number | null;
 };
 
 function verdict(score: number): { label: string; color: string } {
@@ -65,12 +68,16 @@ interface Props {
   scenarioRate?:   number;
   scenarioIncome?: number;
   scenarioDebt?:   number;
+  onL5Complete?: (result: { lenderParRate: number; totalLLPA: number; creditScore: number }) => void;
 }
 
-export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, scenarioRate, scenarioIncome, scenarioDebt }: Props) {
+export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, scenarioRate, scenarioIncome, scenarioDebt, onL5Complete }: Props) {
   const [mounted,  setMounted]  = useState(false);
   const [complete, setComplete] = useState(data.state === 'complete');
   const prevState = useRef(data.state);
+  const [creditDraft, setCreditDraft] = useState(String(data.l5CreditScore ?? 740));
+  const [l5Loading,   setL5Loading]   = useState(false);
+  const [l5Error,     setL5Error]     = useState<string | null>(null);
 
   // Trigger bar animation on mount (for L1/L2)
   useEffect(() => {
@@ -154,6 +161,46 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
     if (data.county)  p.set('county', data.county);
     return `/rate-intelligence-engine?${p.toString()}`;
   })();
+
+  async function runL5() {
+    if (!onL5Complete || !scenarioPrice) return;
+    const creditScore = parseInt(creditDraft, 10);
+    if (!creditScore || creditScore < 580 || creditScore > 850) {
+      setL5Error('Enter a credit score between 580 and 850');
+      return;
+    }
+    const downPct = scenarioDown ?? 20;
+    const loan    = Math.round(scenarioPrice * (1 - downPct / 100));
+    const ltv     = parseFloat(((loan / scenarioPrice) * 100).toFixed(2));
+    setL5Loading(true);
+    setL5Error(null);
+    try {
+      const res = await fetch('/api/rate-intelligence-engine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creditScore,
+          loanAmount:   loan,
+          ltv,
+          loanPurpose:  'purchase',
+          occupancy:    'primary',
+          propertyType: 'sfr',
+          lockDays:     30,
+          state:        data.propertyState ?? undefined,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok || d.lenderParRate == null) {
+        setL5Error(d.error ?? 'Calculation failed');
+        return;
+      }
+      onL5Complete({ lenderParRate: d.lenderParRate, totalLLPA: d.totalLLPA, creditScore });
+    } catch {
+      setL5Error('Network error — please try again');
+    } finally {
+      setL5Loading(false);
+    }
+  }
 
   const levels = [
     { num: 'L1', name: 'Financial', weight: '35%', score: l1Score,        done: true },
@@ -325,6 +372,65 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
             </a>
 
             <div style={{ width: 44 }} />
+          </div>
+        </div>
+      )}
+
+      {/* ── L5 inline credit-score input ── */}
+      {complete && onL5Complete != null && scenarioPrice != null && data.l5LenderParRate == null && (
+        <div style={{ padding: '9px 20px 12px', borderTop: '1px solid rgba(139,92,246,0.08)' }}>
+          <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'rgba(139,92,246,0.5)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
+            Rate Intelligence · L5
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={creditDraft}
+              onChange={e => setCreditDraft(e.target.value.replace(/\D/g, '').slice(0, 3))}
+              onKeyDown={e => e.key === 'Enter' && runL5()}
+              placeholder="740"
+              style={{
+                width: 72, padding: '7px 10px', borderRadius: 8,
+                border: '1px solid rgba(139,92,246,0.2)',
+                background: 'rgba(139,92,246,0.06)', color: '#e2e8f0',
+                fontSize: '0.83rem', fontFamily: 'inherit', outline: 'none', textAlign: 'center',
+              }}
+            />
+            <span style={{ fontSize: '0.72rem', color: 'rgba(185,208,192,0.4)' }}>credit score</span>
+            <button
+              onClick={runL5}
+              disabled={l5Loading}
+              style={{
+                marginLeft: 'auto', padding: '7px 14px', borderRadius: 8,
+                background: l5Loading ? 'rgba(139,92,246,0.06)' : 'rgba(139,92,246,0.15)',
+                border: '1px solid rgba(139,92,246,0.25)',
+                color: 'rgba(167,139,250,0.9)', fontSize: '0.75rem', fontWeight: 700,
+                cursor: l5Loading ? 'default' : 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              {l5Loading ? 'Calculating…' : 'Decode rate →'}
+            </button>
+          </div>
+          {l5Error && <div style={{ marginTop: 6, fontSize: '0.7rem', color: '#f87171' }}>{l5Error}</div>}
+        </div>
+      )}
+
+      {/* ── L5 decoded result row ── */}
+      {complete && data.l5LenderParRate != null && (
+        <div style={{ padding: '9px 20px 12px', borderTop: '1px solid rgba(139,92,246,0.12)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, width: 148, flexShrink: 0 }}>
+              <span style={{ fontSize: '0.61rem', fontWeight: 800, color: 'rgba(139,92,246,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>L5</span>
+              <span style={{ fontSize: '0.75rem', color: 'rgba(185,208,192,0.55)' }}>Rate Intel</span>
+            </div>
+            <div style={{ flex: 1, fontSize: '0.75rem', color: '#c4b5fd', fontWeight: 700 }}>
+              {data.l5LenderParRate.toFixed(3)}% fair par
+              <span style={{ fontWeight: 400, color: 'rgba(185,208,192,0.45)', marginLeft: 6 }}>
+                FICO {data.l5CreditScore}{data.l5TotalLLPA != null ? ` · ${data.l5TotalLLPA > 0 ? '+' : ''}${data.l5TotalLLPA.toFixed(3)} pts LLPA` : ''}
+              </span>
+            </div>
+            <div style={{ width: 30 }} />
           </div>
         </div>
       )}
