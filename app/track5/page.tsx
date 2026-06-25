@@ -745,7 +745,7 @@ function Track5Inner() {
             </div>
             <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '16px 18px 16px 0' }}>
               <a
-                href={sessionId ? `/rate-intelligence-engine?sid=${sessionId}` : '/rate-intelligence-engine'}
+                href="/rate-intelligence-engine"
                 style={{
                   display: 'inline-block', padding: '8px 14px', borderRadius: 8,
                   fontSize: '0.72rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap',
