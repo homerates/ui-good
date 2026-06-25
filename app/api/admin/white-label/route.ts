@@ -15,14 +15,16 @@ import { createClient } from '@supabase/supabase-js';
 import { isAdminId } from '../../../../lib/adminAuth';
 import { auth } from '@clerk/nextjs/server';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+function db() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 async function ensureTable() {
   try {
-    await supabase.rpc('exec_sql', {
+    await db().rpc('exec_sql', {
       sql: `
         CREATE TABLE IF NOT EXISTS white_label_partners (
           id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -59,7 +61,7 @@ export async function GET(req: NextRequest) {
   if (slug) {
     // Try DB first; fall back to hardcoded demo config if table missing
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db()
         .from('white_label_partners')
         .select('slug, name, logo_url, tagline, accent_color, contact_email')
         .eq('slug', slug)
@@ -77,7 +79,7 @@ export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!await isAdminId(userId)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    const { data } = await supabase
+    const { data } = await db()
       .from('white_label_partners')
       .select('*')
       .order('created_at', { ascending: false });
@@ -96,7 +98,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { slug, name, logo_url, tagline, accent_color, contact_email } = body;
   if (!slug || !name) return NextResponse.json({ error: 'slug and name required' }, { status: 400 });
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('white_label_partners')
     .insert({ slug, name, logo_url, tagline, accent_color: accent_color ?? '#00e87a', contact_email })
     .select()
@@ -112,7 +114,7 @@ export async function PATCH(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get('slug');
   if (!slug) return NextResponse.json({ error: 'slug param required' }, { status: 400 });
   const body = await req.json();
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('white_label_partners')
     .update({ ...body, updated_at: new Date().toISOString() })
     .eq('slug', slug)
@@ -128,6 +130,6 @@ export async function DELETE(req: NextRequest) {
   if (!await isAdminId(userId)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const slug = req.nextUrl.searchParams.get('slug');
   if (!slug) return NextResponse.json({ error: 'slug param required' }, { status: 400 });
-  await supabase.from('white_label_partners').delete().eq('slug', slug);
+  await db().from('white_label_partners').delete().eq('slug', slug);
   return NextResponse.json({ ok: true });
 }
