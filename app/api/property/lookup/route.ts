@@ -670,6 +670,35 @@ function addressFromRedfinUrl(url: string): string | null {
     return `${m2[3].replace(/-/g, ' ')}, ${m2[2].replace(/-/g, ' ')}, ${m2[1].toUpperCase()}`;
 }
 
+// ── Single-authority ZIP resolver ─────────────────────────────────────────────
+// Priority: text scraper > GPT-4o extract > Redfin URL slug.
+// Called once per response — replaces three downstream patches.
+function resolveZip(url: string, scraperZip: string | null, gptZip: string | null | undefined): string | null {
+    if (scraperZip) return scraperZip;
+    if (gptZip)     return gptZip;
+    return url.match(/redfin\.com\/[A-Z]{2}\/[^/]+\/.+?-(\d{5})(?:\/|$)/i)?.[1] ?? null;
+}
+
+// Derives county name from ZIP via geo_crosswalk.
+// CA rows are stored as "LOS ANGELES", "ORANGE" — uppercase, no suffix.
+// This matches CA_LOAN_LIMITS_2026 keys directly; no normalization needed.
+async function resolveCounty(zip: string | null): Promise<string | null> {
+    if (!zip || !/^\d{5}$/.test(zip)) return null;
+    try {
+        const sb = getSupabase();
+        if (!sb) return null;
+        const { data } = await sb
+            .from('geo_crosswalk')
+            .select('county_name')
+            .eq('zip', zip)
+            .limit(1)
+            .single();
+        return (data?.county_name as string | null) ?? null;
+    } catch {
+        return null;
+    }
+}
+
 // ── Sold-data rescue via web-search snippets ────────────────────────────────
 // When Tavily extract returns nothing (Redfin JS-rendering blocked),
 // search snippets usually carry "Sold [Month Year] for $X" + "Redfin Estimate: $X".
@@ -810,8 +839,7 @@ async function handleUrl(rawUrl: string) {
         address:          d.address ?? (/redfin\.com/i.test(url) ? addressFromRedfinUrl(url) : null),
         city:             d.city,
         state:            d.state,
-        // Redfin URL slug always contains ZIP (-92672/home/...) — use as fallback when scraper misses it
-        zip:              d.zip ?? (/redfin\.com/i.test(url) ? (url.match(/redfin\.com\/[A-Z]{2}\/[^/]+\/.+?-(\d{5})(?:\/|$)/i)?.[1] ?? null) : null),
+        zip:              resolveZip(url, d.zip ?? null, gpt?.zip ?? null),
         beds:             d.beds,
         baths:            d.baths,
         sqft:             d.sqft,
@@ -931,6 +959,8 @@ async function handleUrl(rawUrl: string) {
     }
     merged.socialProofScore = Math.min(100, Math.max(0, Math.round(spScore)));
     merged.interestLevel    = spScore >= 80 ? 'Very High' : spScore >= 65 ? 'High' : spScore >= 50 ? 'Moderate' : 'Low';
+
+    merged.county = await resolveCounty((merged.zip as string | null) ?? null);
 
     return NextResponse.json({ ok: true, data: merged });
 }
@@ -1059,10 +1089,12 @@ async function findRedfinUrl(address: string): Promise<string | null> {
 async function handleAddress(rawAddress: string) {
     let cached = await getCachedSnapshot(rawAddress);
     if (cached) {
-        // Patch zip from Redfin URL slug when the cached scrape originally missed it
-        if (!cached.zip && typeof cached.url === 'string' && /redfin\.com/i.test(cached.url as string)) {
-            const zm = (cached.url as string).match(/redfin\.com\/[A-Z]{2}\/[^/]+\/.+?-(\d{5})(?:\/|$)/i);
-            if (zm) cached = { ...cached, zip: zm[1] };
+        if (!cached.zip) {
+            const z = resolveZip((cached.url as string | undefined) ?? '', null, null);
+            if (z) cached = { ...cached, zip: z };
+        }
+        if (!cached.county && cached.zip) {
+            cached = { ...cached, county: await resolveCounty(cached.zip as string) };
         }
         console.log('[property/lookup] served from cache:', rawAddress);
         return NextResponse.json({ ok: true, data: cached, fromCache: true });

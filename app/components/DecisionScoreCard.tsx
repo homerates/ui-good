@@ -11,7 +11,8 @@ export type DecisionScoreData = {
   state: 'computing' | 'complete';
   address: string;
   propertyState?: string; // 2-letter state abbrev (e.g. "CA") — used for RIE URL
-  zip?: string;           // 5-digit ZIP — auto-fills county on RIE page
+  zip?: string;           // 5-digit ZIP — used to resolve county
+  county?: string;        // county name e.g. "ORANGE" — pre-fills county selector on RIE page
   l1Score: number;
   l1Summary: string;
   l2Score: number | null;
