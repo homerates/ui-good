@@ -15,14 +15,16 @@ import { createClient } from '@supabase/supabase-js';
 import { isAdminId } from '../../../../lib/adminAuth';
 import { auth } from '@clerk/nextjs/server';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+function db() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 async function ensureTable() {
   try {
-    await supabase.rpc('exec_sql', {
+    await db().rpc('exec_sql', {
       sql: `
         CREATE TABLE IF NOT EXISTS white_label_partners (
           id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -128,6 +130,6 @@ export async function DELETE(req: NextRequest) {
   if (!await isAdminId(userId)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const slug = req.nextUrl.searchParams.get('slug');
   if (!slug) return NextResponse.json({ error: 'slug param required' }, { status: 400 });
-  await supabase.from('white_label_partners').delete().eq('slug', slug);
+  await db().from('white_label_partners').delete().eq('slug', slug);
   return NextResponse.json({ ok: true });
 }

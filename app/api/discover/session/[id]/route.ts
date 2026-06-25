@@ -4,10 +4,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function db() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -23,7 +25,7 @@ export async function PATCH(
     }
 
     // Fetch current session
-    const { data: session, error: fetchErr } = await supabase
+    const { data: session, error: fetchErr } = await db()
       .from('discover_sessions')
       .select('lender_responses, gap_analysis')
       .eq('id', id)
@@ -42,7 +44,7 @@ export async function PATCH(
       [questionId]: { status: gapStatus, note: gapNote },
     };
 
-    const { error: updateErr } = await supabase
+    const { error: updateErr } = await db()
       .from('discover_sessions')
       .update({ lender_responses: lenderResponses, gap_analysis: gapAnalysis })
       .eq('id', id);

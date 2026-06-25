@@ -4,16 +4,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error(
-        "Missing SUPABASE env vars: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+function db() {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 }
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 type OnboardingPayload = {
     inviteCode: string;
@@ -59,7 +55,7 @@ export async function POST(req: NextRequest) {
         const fullName = `${firstName} ${lastName}`.trim();
 
         // 3) Look up invite in invite_codes using `code`
-        const { data: invite, error: inviteError } = await supabase
+        const { data: invite, error: inviteError } = await db()
             .from("invite_codes")
             .select(
                 "id, code, created_by_loan_officer, max_uses, used_count, expires_at"
@@ -114,7 +110,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Look up the LO's Clerk userId so we can store it as referred_by
-        const { data: loRecord } = await supabase
+        const { data: loRecord } = await db()
             .from("loan_officers")
             .select("user_id")
             .eq("id", loanOfficerId)
@@ -123,7 +119,7 @@ export async function POST(req: NextRequest) {
         const referredByClerkId = (loRecord?.user_id as string | null) ?? null;
 
         // 4) Create borrower row using your actual schema
-        const { data: newBorrower, error: insertBorrowerError } = await supabase
+        const { data: newBorrower, error: insertBorrowerError } = await db()
             .from("borrowers")
             .insert({
                 loan_officer_id: loanOfficerId, // NOT NULL
@@ -155,7 +151,7 @@ export async function POST(req: NextRequest) {
 
         // 5) Record the referral on the borrower's users row (upsert — row may already exist from Clerk webhook)
         if (referredByClerkId) {
-            await supabase
+            await db()
                 .from("users")
                 .upsert(
                     { id: userId, referred_by: referredByClerkId },
@@ -164,7 +160,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 6) Increment used_count on invite
-        const { error: updateInviteError } = await supabase
+        const { error: updateInviteError } = await db()
             .from("invite_codes")
             .update({
                 used_count: usedCount + 1,
@@ -184,10 +180,10 @@ export async function POST(req: NextRequest) {
 
         // 7) Auto-set role = borrower so /welcome is skipped entirely
         // Only sets if row has no role yet — never overwrites an existing role
-        await supabase
+        await db()
             .from("users")
             .upsert({ id: userId, role: "borrower", plan: "free" }, { onConflict: "id", ignoreDuplicates: true });
-        await supabase
+        await db()
             .from("users")
             .update({ role: "borrower" })
             .eq("id", userId)

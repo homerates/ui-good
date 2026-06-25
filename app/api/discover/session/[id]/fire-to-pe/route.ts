@@ -6,10 +6,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getQuestions, type LoanTypeKey } from '../../../../../../lib/discoverQuestions';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function db() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export async function POST(
   req: NextRequest,
@@ -24,7 +26,7 @@ export async function POST(
     }
 
     // Fetch session
-    const { data: session, error: sessErr } = await supabase
+    const { data: session, error: sessErr } = await db()
       .from('discover_sessions')
       .select('loan_type, scenario_snapshot')
       .eq('id', id)
@@ -37,7 +39,7 @@ export async function POST(
     // Guard: don't fire the same chip twice within the same scenario context.
     // If the thread has been reused for a new scenario (scenario_reset marker present),
     // only look for duplicates AFTER the last reset — chips from prior scenarios don't count.
-    const { data: lastReset } = await supabase
+    const { data: lastReset } = await db()
       .from('messages')
       .select('created_at')
       .eq('thread_id', threadId)
@@ -46,7 +48,7 @@ export async function POST(
       .limit(1)
       .maybeSingle();
 
-    let dupQuery = supabase
+    let dupQuery = db()
       .from('messages')
       .select('id')
       .eq('thread_id', threadId)
@@ -85,7 +87,7 @@ export async function POST(
       metadata.fairParRate = snap.fairParRate;
     }
 
-    await supabase.from('messages').insert({
+    await db().from('messages').insert({
       thread_id:   threadId,
       sender_role: 'borrower',
       content:     question.prompt(snap),
@@ -93,13 +95,13 @@ export async function POST(
     });
 
     // Update thread: last_message_at + unread for professional
-    const { data: thread } = await supabase
+    const { data: thread } = await db()
       .from('conversation_threads')
       .select('unread_professional')
       .eq('id', threadId)
       .maybeSingle();
 
-    await supabase
+    await db()
       .from('conversation_threads')
       .update({
         last_message_at:     new Date().toISOString(),
@@ -108,7 +110,7 @@ export async function POST(
       .eq('id', threadId);
 
     // Link session to thread if not already linked
-    await supabase
+    await db()
       .from('discover_sessions')
       .update({ thread_id: threadId })
       .eq('id', id)

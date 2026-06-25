@@ -4,10 +4,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function db() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,7 +25,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'invalid loanType' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db()
       .from('discover_sessions')
       .insert({
         loan_type: loanType,
