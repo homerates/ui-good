@@ -698,7 +698,7 @@ async function resolveCounty(zip: string | null): Promise<string | null> {
         .order('res_ratio', { ascending: false })
         .limit(1);
     if (xwErr || !xwRows?.length) {
-        log.warn('[BUGTRACE] resolveCounty miss', { zip, fips: null, state: null, reason: 'no_crosswalk' });
+        log.warn('[BUGTRACE] resolveCounty miss', { zip, fips: null, state: null, reason: 'no_crosswalk', err: xwErr?.message ?? null, errCode: (xwErr as any)?.code ?? null, rowCount: xwRows?.length ?? 0 });
         return null;
     }
     const { county_fips: fips, state_abbr: state } = xwRows[0];
