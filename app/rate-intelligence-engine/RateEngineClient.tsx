@@ -88,6 +88,7 @@ export default function RateEngineClient() {
   const paramOcc     = (params?.get('occupancy') ?? null) as LLPAInput['occupancy']   | null;
   const paramLT      = (params?.get('lt')        ?? null) as LoanType | null;
   const paramSt      = params?.get('st') ?? null;
+  const paramSid     = params?.get('sid') ?? null;
   const fromScenario = paramPrice != null;
 
   // Derived initial values — used to seed useState once on mount
@@ -562,14 +563,14 @@ export default function RateEngineClient() {
           </button>
 
           {result && (
-            <a href="/track5" style={{
+            <a href={paramSid ? `/track5?session=${paramSid}` : '/track5'} style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               background: "rgba(139,92,246,0.85)",
               color: "#fff", fontWeight: 700, fontSize: "0.92rem",
               borderRadius: 999, padding: "12px 28px",
               textDecoration: "none", letterSpacing: "0.01em",
             }}>
-              Continue → Get Matched
+              {paramSid ? '← Back to Decision Score' : 'Continue → Get Matched'}
             </a>
           )}
 
