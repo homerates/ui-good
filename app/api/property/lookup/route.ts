@@ -689,11 +689,11 @@ async function resolveCounty(zip: string | null): Promise<string | null> {
         if (!sb) return null;
         const { data } = await sb
             .from('geo_crosswalk')
-            .select('county_name')
+            .select('county_name, res_ratio')
             .eq('zip', zip)
-            .limit(1)
-            .single();
-        return (data?.county_name as string | null) ?? null;
+            .order('res_ratio', { ascending: false })
+            .limit(1);
+        return (data?.[0]?.county_name as string | null) ?? null;
     } catch {
         return null;
     }
