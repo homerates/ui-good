@@ -684,8 +684,10 @@ function resolveZip(url: string, scraperZip: string | null, gptZip: string | nul
 // hud_features.county_name is title case ("Orange"); CA normalized to ALLCAPS ("ORANGE").
 // Non-CA returns null — national keys need suffix handling not built yet.
 async function resolveCounty(zip: string | null): Promise<string | null> {
+    console.log('[COUNTY_TRACE] enter', { zip, typeofZip: typeof zip, passesGuard: zip ? /^\d{5}$/.test(zip) : false });
     if (!zip || !/^\d{5}$/.test(zip)) return null;
     const sb = getSupabase();
+    console.log('[COUNTY_TRACE] supabase', { hasClient: !!sb });
     if (!sb) return null;
 
     // Call 1: ZIP -> county_fips + state_abbr (dominant county by res_ratio)
