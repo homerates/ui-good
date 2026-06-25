@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
   if (slug) {
     // Try DB first; fall back to hardcoded demo config if table missing
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db()
         .from('white_label_partners')
         .select('slug, name, logo_url, tagline, accent_color, contact_email')
         .eq('slug', slug)
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!await isAdminId(userId)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    const { data } = await supabase
+    const { data } = await db()
       .from('white_label_partners')
       .select('*')
       .order('created_at', { ascending: false });
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { slug, name, logo_url, tagline, accent_color, contact_email } = body;
   if (!slug || !name) return NextResponse.json({ error: 'slug and name required' }, { status: 400 });
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('white_label_partners')
     .insert({ slug, name, logo_url, tagline, accent_color: accent_color ?? '#00e87a', contact_email })
     .select()
@@ -114,7 +114,7 @@ export async function PATCH(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get('slug');
   if (!slug) return NextResponse.json({ error: 'slug param required' }, { status: 400 });
   const body = await req.json();
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('white_label_partners')
     .update({ ...body, updated_at: new Date().toISOString() })
     .eq('slug', slug)
