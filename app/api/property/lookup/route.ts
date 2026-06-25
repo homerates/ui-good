@@ -679,24 +679,45 @@ function resolveZip(url: string, scraperZip: string | null, gptZip: string | nul
     return url.match(/redfin\.com\/[A-Z]{2}\/[^/]+\/.+?-(\d{5})(?:\/|$)/i)?.[1] ?? null;
 }
 
-// Derives county name from ZIP via geo_crosswalk.
-// CA rows are stored as "LOS ANGELES", "ORANGE" — uppercase, no suffix.
-// This matches CA_LOAN_LIMITS_2026 keys directly; no normalization needed.
+// Derives county name from ZIP via two-step join:
+//   geo_crosswalk (zip -> county_fips + state_abbr) -> hud_features (county_fips -> county_name)
+// hud_features.county_name is title case ("Orange"); CA normalized to ALLCAPS ("ORANGE").
+// Non-CA returns null — national keys need suffix handling not built yet.
 async function resolveCounty(zip: string | null): Promise<string | null> {
     if (!zip || !/^\d{5}$/.test(zip)) return null;
-    try {
-        const sb = getSupabase();
-        if (!sb) return null;
-        const { data } = await sb
-            .from('geo_crosswalk')
-            .select('county_name, res_ratio')
-            .eq('zip', zip)
-            .order('res_ratio', { ascending: false })
-            .limit(1);
-        return (data?.[0]?.county_name as string | null) ?? null;
-    } catch {
+    const sb = getSupabase();
+    if (!sb) return null;
+
+    // Call 1: ZIP -> county_fips + state_abbr (dominant county by res_ratio)
+    const { data: xwRows, error: xwErr } = await sb
+        .from('geo_crosswalk')
+        .select('county_fips, state_abbr, res_ratio')
+        .eq('zip', zip)
+        .order('res_ratio', { ascending: false })
+        .limit(1);
+    if (xwErr || !xwRows?.length) {
+        log.warn('[BUGTRACE] resolveCounty miss', { zip, fips: null, state: null, reason: 'no_crosswalk' });
         return null;
     }
+    const { county_fips: fips, state_abbr: state } = xwRows[0];
+
+    // Call 2: county_fips -> county_name via hud_features
+    const { data: hudRows, error: hudErr } = await sb
+        .from('hud_features')
+        .select('county_name')
+        .eq('county_fips', fips)
+        .limit(1);
+    const rawName = hudRows?.[0]?.county_name ?? null;
+    if (hudErr || !rawName) {
+        log.warn('[BUGTRACE] resolveCounty miss', { zip, fips, state, reason: 'no_hud_row' });
+        return null;
+    }
+
+    // CA only — ALLCAPS matches CA_LOAN_LIMITS_2026 keys exactly
+    if (state === 'CA') return rawName.toUpperCase();
+
+    log.warn('[BUGTRACE] resolveCounty miss', { zip, fips, state, reason: 'non_ca' });
+    return null;
 }
 
 // ── Sold-data rescue via web-search snippets ────────────────────────────────
