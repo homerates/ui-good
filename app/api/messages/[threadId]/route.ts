@@ -172,16 +172,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
   let discoverScenario: {
     loanType: string; price: number; loanAmount: number; downPct: number;
     rate: number; term: number; ltv: number; monthlyPayment: number;
+    fairParRate?: number;
   } | null = null;
   let viewerRole: 'borrower' | 'agent' = 'borrower';
 
   try {
     // 1. Try linked scenario first
-    let scenario: { loan_type: string; card_price: number | null; card_rate: number | null; card_dp_pct: number | null; card_monthly: number | null; card_term: number | null; has_card_data: boolean; posted_by_role?: string } | null = null;
+    let scenario: { loan_type: string; card_price: number | null; card_rate: number | null; card_dp_pct: number | null; card_monthly: number | null; card_term: number | null; card_fair_par_rate: number | null; has_card_data: boolean; posted_by_role?: string } | null = null;
 
     if (thread.scenario_id) {
       const { data } = await sb.from("scenario_briefs")
-        .select("loan_type, card_price, card_rate, card_dp_pct, card_monthly, card_term, has_card_data, posted_by_role")
+        .select("loan_type, card_price, card_rate, card_dp_pct, card_monthly, card_term, card_fair_par_rate, has_card_data, posted_by_role")
         .eq("id", thread.scenario_id)
         .maybeSingle();
       scenario = data ?? null;
@@ -190,7 +191,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
     // 2. If linked scenario has no card data, fall back to borrower's most recent scenario that does
     if (!scenario?.card_price || !scenario?.card_rate) {
       const { data } = await sb.from("scenario_briefs")
-        .select("loan_type, card_price, card_rate, card_dp_pct, card_monthly, card_term, has_card_data, posted_by_role")
+        .select("loan_type, card_price, card_rate, card_dp_pct, card_monthly, card_term, card_fair_par_rate, has_card_data, posted_by_role")
         .eq("borrower_id", thread.borrower_id)
         .not("card_price", "is", null)
         .not("card_rate", "is", null)
@@ -215,6 +216,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
         term: scenario.card_term ?? 30,
         ltv: baseLoan / scenario.card_price,
         monthlyPayment: scenario.card_monthly ?? 0,
+        fairParRate: scenario.card_fair_par_rate ?? undefined,
       };
     }
   } catch { /* non-fatal — dock just won't appear */ }

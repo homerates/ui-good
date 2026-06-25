@@ -72,17 +72,24 @@ export async function POST(
       return NextResponse.json({ error: 'unknown questionId' }, { status: 400 });
     }
 
-    // Insert the chip question as a borrower message
+    // Insert the chip question as a borrower message.
+    // For the Rate chip, include fairParRate in metadata so the thread page can render
+    // the L5 comparison strip after the LO replies.
+    const metadata: Record<string, unknown> = {
+      type:   'discover_chip',
+      chipId: questionId,
+      icon:   question.icon,
+      title:  question.title,
+    };
+    if (questionId === 'rate' && typeof snap?.fairParRate === 'number') {
+      metadata.fairParRate = snap.fairParRate;
+    }
+
     await supabase.from('messages').insert({
       thread_id:   threadId,
       sender_role: 'borrower',
       content:     question.prompt(snap),
-      metadata:    {
-        type:    'discover_chip',
-        chipId:  questionId,
-        icon:    question.icon,
-        title:   question.title,
-      },
+      metadata,
     });
 
     // Update thread: last_message_at + unread for professional

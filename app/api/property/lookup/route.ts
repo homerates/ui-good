@@ -670,6 +670,56 @@ function addressFromRedfinUrl(url: string): string | null {
     return `${m2[3].replace(/-/g, ' ')}, ${m2[2].replace(/-/g, ' ')}, ${m2[1].toUpperCase()}`;
 }
 
+// ── Single-authority ZIP resolver ─────────────────────────────────────────────
+// Priority: text scraper > GPT-4o extract > Redfin URL slug.
+// Called once per response — replaces three downstream patches.
+function resolveZip(url: string, scraperZip: string | null, gptZip: string | null | undefined): string | null {
+    if (scraperZip) return scraperZip;
+    if (gptZip)     return gptZip;
+    return url.match(/redfin\.com\/[A-Z]{2}\/[^/]+\/.+?-(\d{5})(?:\/|$)/i)?.[1] ?? null;
+}
+
+// Derives county name from ZIP via two-step join:
+//   geo_crosswalk (zip -> county_fips + state_abbr) -> hud_features (county_fips -> county_name)
+// hud_features.county_name is title case ("Orange"); CA normalized to ALLCAPS ("ORANGE").
+// Non-CA returns null — national keys need suffix handling not built yet.
+async function resolveCounty(zip: string | null): Promise<string | null> {
+    if (!zip || !/^\d{5}$/.test(zip)) return null;
+    const sb = getSupabase();
+    if (!sb) return null;
+
+    // Call 1: ZIP -> county_fips + state_abbr (dominant county by res_ratio)
+    const { data: xwRows, error: xwErr } = await sb
+        .from('geo_crosswalk')
+        .select('county_fips, state_abbr, res_ratio')
+        .eq('zip', zip)
+        .order('res_ratio', { ascending: false })
+        .limit(1);
+    if (xwErr || !xwRows?.length) {
+        log.warn('[BUGTRACE] resolveCounty miss', { zip, fips: null, state: null, reason: 'no_crosswalk', err: xwErr?.message ?? null, errCode: (xwErr as any)?.code ?? null, rowCount: xwRows?.length ?? 0 });
+        return null;
+    }
+    const { county_fips: fips, state_abbr: state } = xwRows[0];
+
+    // Call 2: county_fips -> county_name via hud_features
+    const { data: hudRows, error: hudErr } = await sb
+        .from('hud_features')
+        .select('county_name')
+        .eq('county_fips', fips)
+        .limit(1);
+    const rawName = hudRows?.[0]?.county_name ?? null;
+    if (hudErr || !rawName) {
+        log.warn('[BUGTRACE] resolveCounty miss', { zip, fips, state, reason: 'no_hud_row' });
+        return null;
+    }
+
+    // CA only — ALLCAPS matches CA_LOAN_LIMITS_2026 keys exactly
+    if (state === 'CA') return rawName.toUpperCase();
+
+    log.warn('[BUGTRACE] resolveCounty miss', { zip, fips, state, reason: 'non_ca' });
+    return null;
+}
+
 // ── Sold-data rescue via web-search snippets ────────────────────────────────
 // When Tavily extract returns nothing (Redfin JS-rendering blocked),
 // search snippets usually carry "Sold [Month Year] for $X" + "Redfin Estimate: $X".
@@ -810,7 +860,7 @@ async function handleUrl(rawUrl: string) {
         address:          d.address ?? (/redfin\.com/i.test(url) ? addressFromRedfinUrl(url) : null),
         city:             d.city,
         state:            d.state,
-        zip:              d.zip,
+        zip:              resolveZip(url, d.zip ?? null, gpt?.zip ?? null),
         beds:             d.beds,
         baths:            d.baths,
         sqft:             d.sqft,
@@ -930,6 +980,8 @@ async function handleUrl(rawUrl: string) {
     }
     merged.socialProofScore = Math.min(100, Math.max(0, Math.round(spScore)));
     merged.interestLevel    = spScore >= 80 ? 'Very High' : spScore >= 65 ? 'High' : spScore >= 50 ? 'Moderate' : 'Low';
+
+    merged.county = await resolveCounty((merged.zip as string | null) ?? null);
 
     return NextResponse.json({ ok: true, data: merged });
 }
@@ -1056,8 +1108,15 @@ async function findRedfinUrl(address: string): Promise<string | null> {
 // ── Address handler (cache-first → Redfin via Tavily → broad web search) ───
 
 async function handleAddress(rawAddress: string) {
-    const cached = await getCachedSnapshot(rawAddress);
+    let cached = await getCachedSnapshot(rawAddress);
     if (cached) {
+        if (!cached.zip) {
+            const z = resolveZip((cached.url as string | undefined) ?? '', null, null);
+            if (z) cached = { ...cached, zip: z };
+        }
+        if (!cached.county && cached.zip) {
+            cached = { ...cached, county: await resolveCounty(cached.zip as string) };
+        }
         console.log('[property/lookup] served from cache:', rawAddress);
         return NextResponse.json({ ok: true, data: cached, fromCache: true });
     }

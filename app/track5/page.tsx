@@ -275,6 +275,17 @@ function Track5Inner() {
   const [matchConsent,    setMatchConsent]    = useState(false);
   const [matchScenarioId, setMatchScenarioId] = useState<string | null>(null);
   const [matchError,      setMatchError]      = useState<string | null>(null);
+  // L5 Rate Intelligence — read from localStorage when borrower has already decoded their rate
+  const [rieResult, setRieResult] = useState<{ lenderParRate: number; county?: string | null } | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('hr_rie_result');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { lenderParRate?: number; county?: string };
+        if (typeof parsed.lenderParRate === 'number') setRieResult({ lenderParRate: parsed.lenderParRate, county: parsed.county ?? null });
+      }
+    } catch { /* non-fatal */ }
+  }, []);
 
   // ── Clamp helper ──────────────────────────────────────────────────────────
   function clampScore(raw: string | null | undefined): number | null {
@@ -341,7 +352,12 @@ function Track5Inner() {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         // Send composite from UI state as fallback for race where DB session hasn't been updated yet
-        body:    JSON.stringify({ sessionId, composite: idx?.score ?? null }),
+        body:    JSON.stringify({
+          sessionId,
+          composite:    idx?.score ?? null,
+          fairParRate:  rieResult?.lenderParRate ?? null,
+          fairParCounty: rieResult?.county ?? null,
+        }),
       });
       const d = await res.json();
       if (!res.ok) {
@@ -624,7 +640,7 @@ function Track5Inner() {
 
         {/* ── Section label ── */}
         <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#eaf8f7', marginBottom: 12 }}>
-          4 Decision Levels
+          5 Decision Levels
         </div>
 
         {/* ── Level Cards ── */}
@@ -674,6 +690,75 @@ function Track5Inner() {
             href: address ? `${piUrlS}${sessionId ? `&sid=${sessionId}` : ''}` : '/property-intel',
           }}
         />
+
+        {/* L5 Rate Intelligence — purple accent, decoded rate from localStorage */}
+        <div style={{
+          background: '#0d1117',
+          border: `1px solid ${rieResult ? 'rgba(167,139,250,0.25)' : 'rgba(255,255,255,0.06)'}`,
+          borderRadius: 12, overflow: 'hidden', marginBottom: 8,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'stretch' }}>
+            <div style={{ width: 3, flexShrink: 0, background: rieResult ? 'rgba(167,139,250,0.6)' : 'rgba(255,255,255,0.08)' }} />
+            <div style={{
+              flexShrink: 0, width: 72, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', padding: '16px 0',
+              borderRight: '1px solid rgba(255,255,255,0.05)',
+            }}>
+              <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', color: rieResult ? 'rgba(167,139,250,0.8)' : '#eaf8f7', marginBottom: 8 }}>L5</div>
+              <div style={{ position: 'relative', width: 48, height: 48 }}>
+                <svg width={48} height={48} viewBox="0 0 48 48">
+                  <circle cx={24} cy={24} r={19.2} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={3.1} />
+                  {rieResult && (
+                    <circle cx={24} cy={24} r={19.2} fill="none"
+                      stroke="rgba(167,139,250,0.7)" strokeWidth={3.1}
+                      strokeDasharray={`${2 * Math.PI * 19.2} 0`}
+                      strokeLinecap="round" transform="rotate(-90 24 24)" />
+                  )}
+                </svg>
+                <div style={{
+                  position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: rieResult ? '0.55rem' : '0.8rem', fontWeight: 800,
+                  color: rieResult ? 'rgba(167,139,250,0.9)' : '#94a3b8',
+                }}>
+                  {rieResult ? `${rieResult.lenderParRate.toFixed(2)}%` : '—'}
+                </div>
+              </div>
+            </div>
+            <div style={{ flex: 1, minWidth: 0, padding: '16px 18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#e2e8f0' }}>Rate Intelligence</span>
+                <span style={{
+                  fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.05em',
+                  background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)',
+                  borderRadius: 4, padding: '2px 6px', color: 'rgba(167,139,250,0.7)',
+                }}>LLPA</span>
+              </div>
+              <div style={{
+                fontSize: '0.78rem', lineHeight: 1.65,
+                color: rieResult ? '#94a3b8' : '#eaf8f7',
+                fontStyle: rieResult ? 'normal' : 'italic',
+              }}>
+                {rieResult
+                  ? `${rieResult.lenderParRate.toFixed(3)}% fair par rate decoded — use this as your lender benchmark.`
+                  : 'Not yet decoded — run Rate Intelligence to reveal your LLPA-adjusted fair par rate.'}
+              </div>
+            </div>
+            <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '16px 18px 16px 0' }}>
+              <a
+                href="/rate-intelligence-engine"
+                style={{
+                  display: 'inline-block', padding: '8px 14px', borderRadius: 8,
+                  fontSize: '0.72rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap',
+                  background: 'rgba(167,139,250,0.08)',
+                  color: 'rgba(167,139,250,0.9)',
+                  border: '1px solid rgba(167,139,250,0.2)',
+                }}
+              >
+                {rieResult ? 'Re-decode ↗' : 'Decode your rate ↗'}
+              </a>
+            </div>
+          </div>
+        </div>
 
         {/* ── Homeowner Journey — back-nav to source cards ── */}
         <div style={{
@@ -772,6 +857,7 @@ function Track5Inner() {
                     { dot: '#4ade80', label: 'Decision Score', val: `${idx.score} · ${v?.label}` },
                     { dot: '#4ade80', label: 'ZIP Code',       val: matchZip },
                     { dot: '#4ade80', label: 'Loan scenario',  val: [ctxLt ? loanTypeLabel(ctxLt) : null, ctxPrice ? fmtK(ctxPrice) : null, ctxDp ? `${ctxDp}% down` : null].filter(Boolean).join(' · ') || 'From scenario' },
+                    ...(rieResult ? [{ dot: '#a78bfa', label: 'Rate Intelligence', val: `${rieResult.lenderParRate.toFixed(3)}% fair par · L5 decoded` }] : []),
                     { dot: '#f87171', label: 'Full address',   val: null },
                     { dot: '#f87171', label: 'Your name & contact', val: null },
                   ].map(row => (
