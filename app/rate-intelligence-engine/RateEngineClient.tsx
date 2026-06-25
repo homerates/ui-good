@@ -539,17 +539,37 @@ export default function RateEngineClient() {
 
         </div>
 
-        {/* CTA */}
+        {/* CTA — transforms after decode: Decode dims, Get Matched appears */}
         <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" as const }}>
           <button onClick={() => runCalc()} disabled={loading} style={{
             padding: "12px 32px", borderRadius: 999,
-            background: loading ? "rgba(0,232,122,0.4)" : "#00e87a",
-            color: "#080c12", fontWeight: 700, fontSize: "0.95rem",
-            border: "none", cursor: loading ? "not-allowed" : "pointer",
+            background: loading
+              ? "rgba(0,232,122,0.4)"
+              : result
+                ? "rgba(0,232,122,0.12)"
+                : "#00e87a",
+            color: result ? "rgba(0,232,122,0.6)" : "#080c12",
+            fontWeight: 700, fontSize: "0.95rem",
+            border: result ? "1px solid rgba(0,232,122,0.25)" : "none",
+            cursor: loading ? "not-allowed" : "pointer",
             fontFamily: "inherit",
+            transition: "all 0.2s ease",
           }}>
-            {loading ? "Calculating…" : "Decode my rate →"}
+            {loading ? "Calculating…" : result ? "Re-decode →" : "Decode my rate →"}
           </button>
+
+          {result && (
+            <a href="/track5" style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: "rgba(139,92,246,0.85)",
+              color: "#fff", fontWeight: 700, fontSize: "0.92rem",
+              borderRadius: 999, padding: "12px 28px",
+              textDecoration: "none", letterSpacing: "0.01em",
+            }}>
+              Continue → Get Matched
+            </a>
+          )}
+
           {error && <span style={{ fontSize: "0.85rem", color: "#ff5f5f" }}>{error}</span>}
         </div>
       </div>
@@ -806,38 +826,6 @@ export default function RateEngineClient() {
             </div>
           )}
 
-          {/* ── NEXT STEPS — continue to Get Matched after decode ── */}
-          <div style={{
-            borderRadius: 14,
-            border: '1px solid rgba(167,139,250,0.22)',
-            background: 'rgba(139,92,246,0.06)',
-            padding: '20px 22px',
-          }}>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#e8edf5', marginBottom: 8 }}>
-              Rate decoded — ready to get matched?
-            </div>
-            <div style={{ fontSize: '0.81rem', color: 'rgba(185,208,192,0.65)', lineHeight: 1.6, marginBottom: 16 }}>
-              You now know your LLPA-adjusted fair par rate. Use it as your benchmark when evaluating any lender quote — or continue to Track 5 to get matched with lenders who must compete against this floor.
-            </div>
-            <a
-              href="/track5"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: 'rgba(139,92,246,0.85)',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                borderRadius: 999,
-                padding: '10px 24px',
-                textDecoration: 'none',
-                letterSpacing: '0.01em',
-              }}
-            >
-              Continue → Get Matched
-            </a>
-          </div>
 
         </div>
       )}

@@ -1057,8 +1057,13 @@ async function findRedfinUrl(address: string): Promise<string | null> {
 // ── Address handler (cache-first → Redfin via Tavily → broad web search) ───
 
 async function handleAddress(rawAddress: string) {
-    const cached = await getCachedSnapshot(rawAddress);
+    let cached = await getCachedSnapshot(rawAddress);
     if (cached) {
+        // Patch zip from Redfin URL slug when the cached scrape originally missed it
+        if (!cached.zip && typeof cached.url === 'string' && /redfin\.com/i.test(cached.url as string)) {
+            const zm = (cached.url as string).match(/redfin\.com\/[A-Z]{2}\/[^/]+\/.+?-(\d{5})(?:\/|$)/i);
+            if (zm) cached = { ...cached, zip: zm[1] };
+        }
         console.log('[property/lookup] served from cache:', rawAddress);
         return NextResponse.json({ ok: true, data: cached, fromCache: true });
     }
