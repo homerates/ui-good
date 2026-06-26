@@ -349,7 +349,7 @@ function Track5Inner() {
           sessionId,
           composite:    idx?.score ?? null,
           fairParRate:  rieResult?.lenderParRate ?? null,
-          fairParCounty: rieResult?.county ?? null,
+          fairParCounty: (sessionData?.county as string | null) ?? null,
         }),
       });
       const d = await res.json();
