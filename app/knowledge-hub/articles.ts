@@ -781,6 +781,133 @@ If you stay longer than 7 years and the ARM adjusts to max (10.5%), your payment
     `,
   },
   {
+    slug: 'how-mortgage-rate-pricing-works',
+    title: 'How Your Mortgage Rate Is Actually Priced: LLPAs Explained',
+    excerpt: 'Most buyers think lenders set rates arbitrarily. They don\'t. Your rate is built from a public Fannie Mae pricing matrix — here\'s exactly how it works and what lenders control.',
+    category: 'Rate Education',
+    readTime: '6 min read',
+    date: 'June 2026',
+    body: `
+## How Your Mortgage Rate Is Actually Priced
+
+When a lender quotes you a rate, it isn't arbitrary. For conforming loans — those eligible to be sold to Fannie Mae or Freddie Mac — your rate is built from a publicly available pricing grid called the **Loan-Level Price Adjustment (LLPA) matrix**.
+
+Understanding this matrix is one of the most practical things a borrower can learn. It explains why two buyers with slightly different profiles get different rates, why negotiating is possible, and what lenders actually control.
+
+---
+
+## What Are LLPAs?
+
+Loan-Level Price Adjustments are pricing surcharges — expressed in points (1 point = 1% of the loan amount) — that Fannie Mae and Freddie Mac add to a loan based on its risk profile.
+
+They are **mandatory**. Every lender selling a conforming loan to Fannie Mae or Freddie Mac must pay these adjustments to the agency. There is no workaround.
+
+The two primary LLPA inputs are:
+
+- **Credit score** — the higher your score, the lower your LLPA
+- **Loan-to-Value ratio (LTV)** — the more equity you have (lower LTV), the lower your LLPA
+
+Additional factors that trigger their own LLPA layers:
+
+| Factor | Examples |
+|---|---|
+| Property type | Condo, 2–4 unit, manufactured |
+| Occupancy | Primary, second home, investment |
+| Loan purpose | Purchase, rate-term refi, cash-out refi |
+| Loan size | High-balance loans in high-cost counties |
+| Lock period | 30-day vs. 60-day rate lock |
+| Cash-out amount | Higher amounts = higher LLPA |
+
+---
+
+## Where This Data Comes From
+
+The Fannie Mae LLPA matrix is a **public document**, updated periodically and posted at:
+
+**singlefamily.fanniemae.com** — Single-Family > Selling Guide > Loan-Level Price Adjustments
+
+Freddie Mac publishes its own version as well — the two are similar but not identical. When a lender tells you your rate is "just what the market is," they mean: the market for that specific combination of credit, LTV, property type, and purpose, as defined by the agency pricing grid they must adhere to.
+
+HomeRates.AI's rate engine uses this public Fannie Mae matrix directly to calculate your LLPA estimate. Every pricing result includes a direct citation to the source document.
+
+---
+
+## Agency LLPAs vs. Lender Overlays
+
+Here's where it gets important: **the Fannie Mae matrix is the floor, not the ceiling.**
+
+Lenders have two levers beyond the agency grid:
+
+**1. Lender overlays (additive)**
+Some lenders add their own pricing adjustments on top of the Fannie Mae LLPA. Common examples:
+- Extra hits for condos in certain states
+- Minimum credit score requirements tighter than Fannie's (e.g., requiring 660 when Fannie allows 620)
+- Additional penalties for low loan amounts (loans under $150k may not be profitable to service)
+- Geography-specific surcharges
+
+**2. LLPA absorption (beneficial to borrower)**
+High-volume lenders sometimes absorb specific LLPAs rather than passing them through to the borrower — they eat the cost in their margin to stay competitive. For example, a large retail lender might absorb the condo LLPA entirely to win that segment.
+
+**Lender margin** sits on top of all of this. After paying Fannie Mae the LLPA cost, the lender adds their own profit margin — typically 0.50–1.50 points expressed as a rate premium.
+
+---
+
+## A Practical Example
+
+**Scenario: $600,000 purchase, 20% down, 760 credit score, primary residence, 30-day lock**
+
+Under the 2024 Fannie Mae matrix:
+- Credit/LTV LLPA: **0.000** (760+ credit + 80% LTV = no hit)
+- Property type: SFR primary = no additional hit
+- Total LLPA: **0 points**
+
+This buyer is at **par** — the cleanest pricing tier. Their rate reflects the benchmark rate plus lender margin only.
+
+Now change one variable — drop the credit score to 699:
+- Credit/LTV LLPA at 80% LTV: **1.375 points**
+- On a $600k loan: **$8,250** in additional cost
+- In rate terms: roughly **+0.25–0.375% in rate**
+
+Same lender, same property, same down payment — $8,250 difference driven entirely by credit score.
+
+---
+
+## What Lenders Control vs. What They Don't
+
+| Component | Set by | Negotiable? |
+|---|---|---|
+| LLPA grid | Fannie Mae (public) | No — mandatory |
+| LLPA absorption | Lender decision | Ask — varies by lender |
+| Lender overlays | Lender decision | Sometimes — can shop |
+| Lender margin | Lender decision | Yes — this is where negotiation lives |
+| Rate lock period | Lender policy | Some flexibility |
+
+**The negotiation lives in lender margin.** When you get competing quotes, you're largely comparing how different lenders price their margin on top of the same mandatory LLPA base.
+
+---
+
+## What to Ask Your Lender
+
+1. **"Can you show me the LLPA breakdown for my scenario?"** — Any competent lender can produce this. If they can't, that's a signal.
+
+2. **"Is there a lender credit or points option?"** — You can pay points to buy down the rate, or take a higher rate in exchange for lender credits that offset closing costs. The right choice depends on how long you hold the loan.
+
+3. **"Is there an overlay on [condo / investment / high-balance]?"** — If your scenario triggers a specific LLPA category, ask whether the lender has an additional overlay or whether they absorb it.
+
+4. **"What's your margin?"** — Few lenders answer directly, but the question signals you understand the structure and will shop if the answer is evasive.
+
+---
+
+## The Bottom Line
+
+Your mortgage rate isn't a black box. For conforming loans, the foundation is a public Fannie Mae pricing matrix that every lender must follow. The variables you control — credit score, down payment, loan purpose, property type — directly determine your LLPA cost tier.
+
+What lenders control is their margin on top, and whether they absorb or overlay specific hits. That's where comparison shopping has real leverage.
+
+*Rate adjustments shown in HomeRates.AI are based on the publicly posted Fannie Mae LLPA Matrix (2024) at singlefamily.fanniemae.com. Lender pricing may include additional overlays and margin not reflected in these estimates. Not a commitment to lend.*
+    `,
+  },
+  {
     slug: 'bank-statement-loans',
     title: 'Bank Statement Loans: Self-Employed Mortgage Guide',
     excerpt: 'If your tax returns show low income after write-offs, bank statement loans let you qualify on actual deposits instead.',
@@ -854,6 +981,128 @@ If the property's rent doesn't support a strong DSCR but your income does, bank 
 ---
 
 **Bottom line:** Bank statement loans are an established non-QM product for self-employed borrowers. The rate is higher than conventional, but the trade-off — actually being able to buy the home — is obvious. The key is finding a lender who specializes in non-QM.
+    `,
+  },
+  {
+    slug: 'market-rates-engine-explained',
+    title: 'The Market Rates Engine: How Live Rate Data Powers Your Entire Experience',
+    excerpt: 'Every rate you see on HomeRates.AI starts with a single live data feed. Here\'s how FRED data flows from market benchmarks through to your decoded personal rate and Track 5 decision score.',
+    category: 'Rate Education',
+    readTime: '5 min read',
+    date: 'June 2026',
+    body: `
+## Where Every Rate Starts
+
+Most mortgage platforms show you a rate without explaining where it came from or how it was calculated. On HomeRates.AI, every rate figure — from the market summary on your dashboard to the decoded rate in your Decision Score — originates from the same live data source and flows through a transparent, traceable chain.
+
+This article explains exactly how that works.
+
+---
+
+## The Foundation: FRED
+
+The Federal Reserve Bank of St. Louis publishes a public data system called **FRED** (Federal Reserve Economic Data). It is the most trusted source of U.S. economic data, updated in real time as new surveys and releases come in.
+
+HomeRates.AI pulls two primary FRED series:
+
+- **PMMS (Freddie Mac Primary Mortgage Market Survey):** The weekly 30-year fixed rate average, published every Thursday. This is the "headline rate" you see in the news.
+- **GS10 (10-Year Treasury Constant Maturity Rate):** The benchmark bond yield that mortgage rates are loosely priced against.
+
+These two numbers are fetched live — not cached or static. When you load Market Intelligence, you are seeing the most current published data, with a timestamp.
+
+---
+
+## Layer 1: Market Intelligence
+
+**Where:** [Market Intelligence](/market-intelligence) — available from the nav under Market Rates
+
+The Market Intelligence page is the top of the rate data stack. It shows:
+
+- The current FRED 30-year fixed benchmark
+- The 10-year Treasury yield
+- The spread between the two (typically 2.5–3.0% in a normal market; wider spreads indicate elevated lender risk premium)
+- An AI synthesis of what current conditions mean for buyers and homeowners
+
+This page gives you context — the market rate environment your personal rate will live inside. If the spread is unusually wide (as it was in 2023–2024), it tells you lenders are pricing in uncertainty above and beyond what the treasury yield alone would suggest.
+
+---
+
+## Layer 2: Rate Intelligence Engine
+
+**Where:** [Rate Intelligence Engine](/rate-intelligence-engine) — reached via "Decode your rate" from a Decision Score Card
+
+This is where the market rate becomes **your** rate.
+
+The Rate Intelligence Engine takes the FRED 30-year benchmark and layers in the Fannie Mae Loan-Level Price Adjustments (LLPAs) that apply specifically to your loan scenario:
+
+| Input | How it affects your rate |
+|---|---|
+| Credit score | Primary LLPA driver — lower score = higher adjustment |
+| Loan-to-Value (LTV) | Second driver — higher LTV = higher adjustment |
+| Loan purpose | Purchase / rate-term refi / cash-out — each has its own table |
+| Occupancy | Primary / second home / investment property |
+| Property type | SFR / condo / 2–4 unit — condos and multi-unit carry surcharges |
+| Loan size | High-balance loans in counties above the conforming limit |
+| Lock period | 30-day vs. 60-day — longer locks cost more |
+
+**The output** is your **Lender Par Rate** — the FRED benchmark adjusted for your specific LLPA cost tier. This is what a conforming lender would need to charge you to cover the mandatory agency adjustments, before adding their own margin.
+
+The engine also generates a **rate curve** showing the trade-off between rate and points: how much you'd pay to buy the rate down by 0.25–0.5%, and what the break-even looks like at different timelines.
+
+All LLPA data is sourced from the publicly posted Fannie Mae matrix at singlefamily.fanniemae.com.
+
+---
+
+## Layer 3: Track 5 — Level 5 (Decoded Rate)
+
+**Where:** [Track 5](/track5) — your 5-level Decision Score dashboard
+
+Track 5 organizes your buying decision across five levels:
+
+- **L1:** Financial readiness (income, credit, down payment)
+- **L2:** Property analysis (price, value, market conditions)
+- **L3:** Market context (rate environment, inventory, timing)
+- **L4:** Location intelligence (school scores, flood risk, neighborhood)
+- **L5:** Decoded rate (your personalized lender par rate)
+
+**L5 is powered entirely by the Rate Intelligence Engine.** When you complete the rate decode for a property, that lender par rate is stored to your session and surfaces in Track 5 as the fifth level of your decision score.
+
+This is what makes L5 different from the other four levels: it's not an AI summary or a market estimate — it's a **calculated output** derived from live FRED data and the public Fannie Mae LLPA matrix, personalized to your credit profile and loan scenario.
+
+The composite Decision Score across all five levels reflects not just whether a property is a good deal, but whether the financing is right for you at today's specific rate environment.
+
+---
+
+## The Full Data Flow
+
+**Step 1 →** FRED Live Data (30yr PMMS + GS10)
+
+**Step 2 →** Market Intelligence Page — benchmark + treasury spread + AI synthesis
+
+**Step 3 →** Rate Intelligence Engine — FRED + Fannie Mae LLPA matrix = Lender Par Rate
+
+**Step 4 →** Buyer Evaluation Session — stored to your account
+
+**Step 5 →** Track 5 Level 5: Decoded Rate — L5 in your Decision Score
+
+Every step in this chain is traceable. No black boxes, no hidden assumptions.
+
+---
+
+## Why This Architecture Matters
+
+Most mortgage tools show you one of two things: a generic market rate (which doesn't account for your specific scenario) or a rate from a lender who has a financial interest in what you see.
+
+HomeRates.AI does neither. The Market Rates engine is:
+
+- **Live** — FRED data is real-time, not a stale database
+- **Deterministic** — the same inputs produce the same output every time
+- **Transparent** — the LLPA source data is public and cited
+- **Unbiased** — no lender is paying to appear in your rate output
+
+The result is rate intelligence you can actually use in a real conversation with a lender — knowing what the base price is, what your specific adjustments cost, and where the margin lives.
+
+*Rate estimates use the publicly posted Fannie Mae LLPA Matrix (2024) and live FRED data. Lender pricing includes additional margin and may include overlays not reflected here. Not a commitment to lend.*
     `,
   },
 ];
