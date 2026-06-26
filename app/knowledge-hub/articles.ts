@@ -1075,24 +1075,15 @@ The composite Decision Score across all five levels reflects not just whether a 
 
 ## The Full Data Flow
 
-```
-FRED Live Data (30yr PMMS + GS10)
-        │
-        ▼
-Market Intelligence Page
-(benchmark + treasury + AI synthesis)
-        │
-        ▼
-Rate Intelligence Engine
-(FRED + Fannie Mae LLPA matrix → Lender Par Rate)
-        │
-        ▼
-Buyer Evaluation Session (stored to your account)
-        │
-        ▼
-Track 5 — Level 5: Decoded Rate
-(L5 in your 5-level Decision Score)
-```
+**Step 1 →** FRED Live Data (30yr PMMS + GS10)
+
+**Step 2 →** Market Intelligence Page — benchmark + treasury spread + AI synthesis
+
+**Step 3 →** Rate Intelligence Engine — FRED + Fannie Mae LLPA matrix = Lender Par Rate
+
+**Step 4 →** Buyer Evaluation Session — stored to your account
+
+**Step 5 →** Track 5 Level 5: Decoded Rate — L5 in your Decision Score
 
 Every step in this chain is traceable. No black boxes, no hidden assumptions.
 
