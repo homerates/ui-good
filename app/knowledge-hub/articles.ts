@@ -983,4 +983,135 @@ If the property's rent doesn't support a strong DSCR but your income does, bank 
 **Bottom line:** Bank statement loans are an established non-QM product for self-employed borrowers. The rate is higher than conventional, but the trade-off — actually being able to buy the home — is obvious. The key is finding a lender who specializes in non-QM.
     `,
   },
+  {
+    slug: 'market-rates-engine-explained',
+    title: 'The Market Rates Engine: How Live Rate Data Powers Your Entire Experience',
+    excerpt: 'Every rate you see on HomeRates.AI starts with a single live data feed. Here\'s how FRED data flows from market benchmarks through to your decoded personal rate and Track 5 decision score.',
+    category: 'Rate Education',
+    readTime: '5 min read',
+    date: 'June 2026',
+    body: `
+## Where Every Rate Starts
+
+Most mortgage platforms show you a rate without explaining where it came from or how it was calculated. On HomeRates.AI, every rate figure — from the market summary on your dashboard to the decoded rate in your Decision Score — originates from the same live data source and flows through a transparent, traceable chain.
+
+This article explains exactly how that works.
+
+---
+
+## The Foundation: FRED
+
+The Federal Reserve Bank of St. Louis publishes a public data system called **FRED** (Federal Reserve Economic Data). It is the most trusted source of U.S. economic data, updated in real time as new surveys and releases come in.
+
+HomeRates.AI pulls two primary FRED series:
+
+- **PMMS (Freddie Mac Primary Mortgage Market Survey):** The weekly 30-year fixed rate average, published every Thursday. This is the "headline rate" you see in the news.
+- **GS10 (10-Year Treasury Constant Maturity Rate):** The benchmark bond yield that mortgage rates are loosely priced against.
+
+These two numbers are fetched live — not cached or static. When you load Market Intelligence, you are seeing the most current published data, with a timestamp.
+
+---
+
+## Layer 1: Market Intelligence
+
+**Where:** [Market Intelligence](/market-intelligence) — available from the nav under Market Rates
+
+The Market Intelligence page is the top of the rate data stack. It shows:
+
+- The current FRED 30-year fixed benchmark
+- The 10-year Treasury yield
+- The spread between the two (typically 2.5–3.0% in a normal market; wider spreads indicate elevated lender risk premium)
+- An AI synthesis of what current conditions mean for buyers and homeowners
+
+This page gives you context — the market rate environment your personal rate will live inside. If the spread is unusually wide (as it was in 2023–2024), it tells you lenders are pricing in uncertainty above and beyond what the treasury yield alone would suggest.
+
+---
+
+## Layer 2: Rate Intelligence Engine
+
+**Where:** [Rate Intelligence Engine](/rate-intelligence-engine) — reached via "Decode your rate" from a Decision Score Card
+
+This is where the market rate becomes **your** rate.
+
+The Rate Intelligence Engine takes the FRED 30-year benchmark and layers in the Fannie Mae Loan-Level Price Adjustments (LLPAs) that apply specifically to your loan scenario:
+
+| Input | How it affects your rate |
+|---|---|
+| Credit score | Primary LLPA driver — lower score = higher adjustment |
+| Loan-to-Value (LTV) | Second driver — higher LTV = higher adjustment |
+| Loan purpose | Purchase / rate-term refi / cash-out — each has its own table |
+| Occupancy | Primary / second home / investment property |
+| Property type | SFR / condo / 2–4 unit — condos and multi-unit carry surcharges |
+| Loan size | High-balance loans in counties above the conforming limit |
+| Lock period | 30-day vs. 60-day — longer locks cost more |
+
+**The output** is your **Lender Par Rate** — the FRED benchmark adjusted for your specific LLPA cost tier. This is what a conforming lender would need to charge you to cover the mandatory agency adjustments, before adding their own margin.
+
+The engine also generates a **rate curve** showing the trade-off between rate and points: how much you'd pay to buy the rate down by 0.25–0.5%, and what the break-even looks like at different timelines.
+
+All LLPA data is sourced from the publicly posted Fannie Mae matrix at singlefamily.fanniemae.com.
+
+---
+
+## Layer 3: Track 5 — Level 5 (Decoded Rate)
+
+**Where:** [Track 5](/track5) — your 5-level Decision Score dashboard
+
+Track 5 organizes your buying decision across five levels:
+
+- **L1:** Financial readiness (income, credit, down payment)
+- **L2:** Property analysis (price, value, market conditions)
+- **L3:** Market context (rate environment, inventory, timing)
+- **L4:** Location intelligence (school scores, flood risk, neighborhood)
+- **L5:** Decoded rate (your personalized lender par rate)
+
+**L5 is powered entirely by the Rate Intelligence Engine.** When you complete the rate decode for a property, that lender par rate is stored to your session and surfaces in Track 5 as the fifth level of your decision score.
+
+This is what makes L5 different from the other four levels: it's not an AI summary or a market estimate — it's a **calculated output** derived from live FRED data and the public Fannie Mae LLPA matrix, personalized to your credit profile and loan scenario.
+
+The composite Decision Score across all five levels reflects not just whether a property is a good deal, but whether the financing is right for you at today's specific rate environment.
+
+---
+
+## The Full Data Flow
+
+```
+FRED Live Data (30yr PMMS + GS10)
+        │
+        ▼
+Market Intelligence Page
+(benchmark + treasury + AI synthesis)
+        │
+        ▼
+Rate Intelligence Engine
+(FRED + Fannie Mae LLPA matrix → Lender Par Rate)
+        │
+        ▼
+Buyer Evaluation Session (stored to your account)
+        │
+        ▼
+Track 5 — Level 5: Decoded Rate
+(L5 in your 5-level Decision Score)
+```
+
+Every step in this chain is traceable. No black boxes, no hidden assumptions.
+
+---
+
+## Why This Architecture Matters
+
+Most mortgage tools show you one of two things: a generic market rate (which doesn't account for your specific scenario) or a rate from a lender who has a financial interest in what you see.
+
+HomeRates.AI does neither. The Market Rates engine is:
+
+- **Live** — FRED data is real-time, not a stale database
+- **Deterministic** — the same inputs produce the same output every time
+- **Transparent** — the LLPA source data is public and cited
+- **Unbiased** — no lender is paying to appear in your rate output
+
+The result is rate intelligence you can actually use in a real conversation with a lender — knowing what the base price is, what your specific adjustments cost, and where the margin lives.
+
+*Rate estimates use the publicly posted Fannie Mae LLPA Matrix (2024) and live FRED data. Lender pricing includes additional margin and may include overlays not reflected here. Not a commitment to lend.*
+    `,
+  },
 ];
