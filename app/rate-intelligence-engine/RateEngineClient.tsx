@@ -119,6 +119,7 @@ export default function RateEngineClient() {
   const [scoreDraft, setScoreDraft] = useState(String(DEFAULTS.creditScore));
 
   // County selector — derived from FHFA data files, same as /loan-limits page
+  const paramSid    = params?.get('sid')    ?? null;
   const paramCounty = params?.get('county') ?? null;
   const [county, setCounty] = useState<string>(
     paramCounty ? paramCounty.toUpperCase().replace(/\s+COUNTY$/i, '').trim() : ''
@@ -212,16 +213,15 @@ export default function RateEngineClient() {
       const data = await r.json();
       if (!r.ok) { setError(data.error ?? "Calculation failed"); return; }
       setResult(data);
-      // Persist decoded rate so Track 5 can enrich the match request and Discover Rate chip
-      try {
-        localStorage.setItem('hr_rie_result', JSON.stringify({
-          lenderParRate: data.lenderParRate,
-          county: county || null,
-          state: state || null,
-          fico: inputs.creditScore,
-          ltv: inputs.ltv,
-        }));
-      } catch { /* storage full — non-fatal */ }
+      // Write decoded rate back to the originating buyer session (keyed by ?sid=)
+      // so Track 5 reads card_fair_par_rate from the same row as l1–l4.
+      if (paramSid) {
+        fetch(`/api/buyer-sessions/${paramSid}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ card_fair_par_rate: data.lenderParRate }),
+        }).catch(() => { /* best-effort */ });
+      }
     } catch {
       setError("Network error — please try again");
     } finally {
@@ -562,7 +562,7 @@ export default function RateEngineClient() {
           </button>
 
           {result && (
-            <a href="/track5" style={{
+            <a href={paramSid ? `/track5?session=${paramSid}` : '/track5'} style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               background: "rgba(139,92,246,0.85)",
               color: "#fff", fontWeight: 700, fontSize: "0.92rem",

@@ -1532,14 +1532,16 @@ export default function Page() {
     }, [searchParams]);
 
     // Fires send() once input is set from SEO seed — send is in scope here
+    // clerkLoaded gates the send so user?.id is non-null when the session write runs
     useEffect(() => {
+        if (!clerkLoaded) return;          // wait for Clerk auth to resolve
         if (!pendingSeedRef.current) return;
         const sq = pendingSeedRef.current;
         if (input !== sq) return; // wait until input state matches
         pendingSeedRef.current = null;
         const t = setTimeout(() => send(sq), 100);
         return () => clearTimeout(t);
-    }, [input]);
+    }, [input, clerkLoaded]);
 
     // Load shared thread from URL param ?shared=slug
     const hasLoadedSharedRef = React.useRef(false);
@@ -2648,6 +2650,7 @@ export default function Page() {
                                         }),
                                     });
                                     if (!postRes.ok || !postRes.body) {
+                                        console.error('[BUGTRACE] grok-property early-return: postRes not ok', { address: _dsAddress, status: postRes.status });
                                         // API unavailable — resolve DSC with L1+L2 only so card exits computing state
                                         const partialEntries = [
                                             { s: _dsL1Score, w: 0.35 },
@@ -2688,7 +2691,7 @@ export default function Page() {
                                         }
                                     }
                                 }
-                                if (!deepResult) return;
+                                if (!deepResult) { console.error('[BUGTRACE] grok-property early-return: deepResult null after all layers', { address: _dsAddress }); return; }
 
                                 // Compute L2 from deep analysis — fills in when property lookup had no AVM
                                 // Uses same fallback chain as property-intel: zillow → redfin → comps average
@@ -2952,7 +2955,7 @@ export default function Page() {
                                         }
                                     } catch { /* storage quota or SSR — non-fatal */ }
                                 }
-                            } catch { /* silently ignore — background task, non-critical */ }
+                            } catch (err) { console.error('[BUGTRACE] grok-property outer-catch swallowed', { address: _dsAddress, err: String(err) }); }
                         })();
                     }
                     } // close FOR_SALE else

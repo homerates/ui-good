@@ -275,17 +275,10 @@ function Track5Inner() {
   const [matchConsent,    setMatchConsent]    = useState(false);
   const [matchScenarioId, setMatchScenarioId] = useState<string | null>(null);
   const [matchError,      setMatchError]      = useState<string | null>(null);
-  // L5 Rate Intelligence — read from localStorage when borrower has already decoded their rate
-  const [rieResult, setRieResult] = useState<{ lenderParRate: number; county?: string | null } | null>(null);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('hr_rie_result');
-      if (raw) {
-        const parsed = JSON.parse(raw) as { lenderParRate?: number; county?: string };
-        if (typeof parsed.lenderParRate === 'number') setRieResult({ lenderParRate: parsed.lenderParRate, county: parsed.county ?? null });
-      }
-    } catch { /* non-fatal */ }
-  }, []);
+  // L5 Rate Intelligence — read from session row (card_fair_par_rate), set after rate engine writes back
+  const rieResult = typeof (sessionData?.card_fair_par_rate as number | null | undefined) === 'number'
+    ? { lenderParRate: sessionData!.card_fair_par_rate as number }
+    : null;
 
   // ── Clamp helper ──────────────────────────────────────────────────────────
   function clampScore(raw: string | null | undefined): number | null {
@@ -356,7 +349,7 @@ function Track5Inner() {
           sessionId,
           composite:    idx?.score ?? null,
           fairParRate:  rieResult?.lenderParRate ?? null,
-          fairParCounty: rieResult?.county ?? null,
+          fairParCounty: (sessionData?.county as string | null) ?? null,
         }),
       });
       const d = await res.json();
@@ -745,7 +738,7 @@ function Track5Inner() {
             </div>
             <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '16px 18px 16px 0' }}>
               <a
-                href="/rate-intelligence-engine"
+                href={`/rate-intelligence-engine${sessionId ? `?sid=${sessionId}` : ''}`}
                 style={{
                   display: 'inline-block', padding: '8px 14px', borderRadius: 8,
                   fontSize: '0.72rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap',

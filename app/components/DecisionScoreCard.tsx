@@ -152,6 +152,7 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
     if (st)           p.set('st',     st);
     if (zip)          p.set('zip',    zip);
     if (data.county)  p.set('county', data.county);
+    if (sessionId)    p.set('sid',    sessionId);
     return `/rate-intelligence-engine?${p.toString()}`;
   })();
 

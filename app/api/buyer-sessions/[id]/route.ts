@@ -35,7 +35,7 @@ const SEL = [
   'scenario_json',
   'l1_score', 'l1_summary', 'l2_score', 'l2_summary',
   'l3_score', 'l3_summary', 'l4_score', 'l4_summary',
-  'composite_score', 'created_at', 'updated_at',
+  'composite_score', 'card_fair_par_rate', 'created_at', 'updated_at',
 ].join(', ');
 
 // ── GET ────────────────────────────────────────────────────────────────────────
@@ -107,6 +107,7 @@ export async function PATCH(
   if (typeof body.session_name     === 'string') patch.session_name     = body.session_name.trim() || null;
   if (typeof body.property_address === 'string') patch.property_address = body.property_address.trim() || null;
   if (typeof body.status           === 'string') patch.status           = body.status;
+  if (typeof body.card_fair_par_rate === 'number') patch.card_fair_par_rate = body.card_fair_par_rate;
 
   const { data, error } = await supabase
     .from('buyer_evaluation_sessions')
