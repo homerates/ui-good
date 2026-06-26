@@ -781,6 +781,133 @@ If you stay longer than 7 years and the ARM adjusts to max (10.5%), your payment
     `,
   },
   {
+    slug: 'how-mortgage-rate-pricing-works',
+    title: 'How Your Mortgage Rate Is Actually Priced: LLPAs Explained',
+    excerpt: 'Most buyers think lenders set rates arbitrarily. They don\'t. Your rate is built from a public Fannie Mae pricing matrix — here\'s exactly how it works and what lenders control.',
+    category: 'Rate Education',
+    readTime: '6 min read',
+    date: 'June 2026',
+    body: `
+## How Your Mortgage Rate Is Actually Priced
+
+When a lender quotes you a rate, it isn't arbitrary. For conforming loans — those eligible to be sold to Fannie Mae or Freddie Mac — your rate is built from a publicly available pricing grid called the **Loan-Level Price Adjustment (LLPA) matrix**.
+
+Understanding this matrix is one of the most practical things a borrower can learn. It explains why two buyers with slightly different profiles get different rates, why negotiating is possible, and what lenders actually control.
+
+---
+
+## What Are LLPAs?
+
+Loan-Level Price Adjustments are pricing surcharges — expressed in points (1 point = 1% of the loan amount) — that Fannie Mae and Freddie Mac add to a loan based on its risk profile.
+
+They are **mandatory**. Every lender selling a conforming loan to Fannie Mae or Freddie Mac must pay these adjustments to the agency. There is no workaround.
+
+The two primary LLPA inputs are:
+
+- **Credit score** — the higher your score, the lower your LLPA
+- **Loan-to-Value ratio (LTV)** — the more equity you have (lower LTV), the lower your LLPA
+
+Additional factors that trigger their own LLPA layers:
+
+| Factor | Examples |
+|---|---|
+| Property type | Condo, 2–4 unit, manufactured |
+| Occupancy | Primary, second home, investment |
+| Loan purpose | Purchase, rate-term refi, cash-out refi |
+| Loan size | High-balance loans in high-cost counties |
+| Lock period | 30-day vs. 60-day rate lock |
+| Cash-out amount | Higher amounts = higher LLPA |
+
+---
+
+## Where This Data Comes From
+
+The Fannie Mae LLPA matrix is a **public document**, updated periodically and posted at:
+
+**singlefamily.fanniemae.com** — Single-Family > Selling Guide > Loan-Level Price Adjustments
+
+Freddie Mac publishes its own version as well — the two are similar but not identical. When a lender tells you your rate is "just what the market is," they mean: the market for that specific combination of credit, LTV, property type, and purpose, as defined by the agency pricing grid they must adhere to.
+
+HomeRates.AI's rate engine uses this public Fannie Mae matrix directly to calculate your LLPA estimate. Every pricing result includes a direct citation to the source document.
+
+---
+
+## Agency LLPAs vs. Lender Overlays
+
+Here's where it gets important: **the Fannie Mae matrix is the floor, not the ceiling.**
+
+Lenders have two levers beyond the agency grid:
+
+**1. Lender overlays (additive)**
+Some lenders add their own pricing adjustments on top of the Fannie Mae LLPA. Common examples:
+- Extra hits for condos in certain states
+- Minimum credit score requirements tighter than Fannie's (e.g., requiring 660 when Fannie allows 620)
+- Additional penalties for low loan amounts (loans under $150k may not be profitable to service)
+- Geography-specific surcharges
+
+**2. LLPA absorption (beneficial to borrower)**
+High-volume lenders sometimes absorb specific LLPAs rather than passing them through to the borrower — they eat the cost in their margin to stay competitive. For example, a large retail lender might absorb the condo LLPA entirely to win that segment.
+
+**Lender margin** sits on top of all of this. After paying Fannie Mae the LLPA cost, the lender adds their own profit margin — typically 0.50–1.50 points expressed as a rate premium.
+
+---
+
+## A Practical Example
+
+**Scenario: $600,000 purchase, 20% down, 760 credit score, primary residence, 30-day lock**
+
+Under the 2024 Fannie Mae matrix:
+- Credit/LTV LLPA: **0.000** (760+ credit + 80% LTV = no hit)
+- Property type: SFR primary = no additional hit
+- Total LLPA: **0 points**
+
+This buyer is at **par** — the cleanest pricing tier. Their rate reflects the benchmark rate plus lender margin only.
+
+Now change one variable — drop the credit score to 699:
+- Credit/LTV LLPA at 80% LTV: **1.375 points**
+- On a $600k loan: **$8,250** in additional cost
+- In rate terms: roughly **+0.25–0.375% in rate**
+
+Same lender, same property, same down payment — $8,250 difference driven entirely by credit score.
+
+---
+
+## What Lenders Control vs. What They Don't
+
+| Component | Set by | Negotiable? |
+|---|---|---|
+| LLPA grid | Fannie Mae (public) | No — mandatory |
+| LLPA absorption | Lender decision | Ask — varies by lender |
+| Lender overlays | Lender decision | Sometimes — can shop |
+| Lender margin | Lender decision | Yes — this is where negotiation lives |
+| Rate lock period | Lender policy | Some flexibility |
+
+**The negotiation lives in lender margin.** When you get competing quotes, you're largely comparing how different lenders price their margin on top of the same mandatory LLPA base.
+
+---
+
+## What to Ask Your Lender
+
+1. **"Can you show me the LLPA breakdown for my scenario?"** — Any competent lender can produce this. If they can't, that's a signal.
+
+2. **"Is there a lender credit or points option?"** — You can pay points to buy down the rate, or take a higher rate in exchange for lender credits that offset closing costs. The right choice depends on how long you hold the loan.
+
+3. **"Is there an overlay on [condo / investment / high-balance]?"** — If your scenario triggers a specific LLPA category, ask whether the lender has an additional overlay or whether they absorb it.
+
+4. **"What's your margin?"** — Few lenders answer directly, but the question signals you understand the structure and will shop if the answer is evasive.
+
+---
+
+## The Bottom Line
+
+Your mortgage rate isn't a black box. For conforming loans, the foundation is a public Fannie Mae pricing matrix that every lender must follow. The variables you control — credit score, down payment, loan purpose, property type — directly determine your LLPA cost tier.
+
+What lenders control is their margin on top, and whether they absorb or overlay specific hits. That's where comparison shopping has real leverage.
+
+*Rate adjustments shown in HomeRates.AI are based on the publicly posted Fannie Mae LLPA Matrix (2024) at singlefamily.fanniemae.com. Lender pricing may include additional overlays and margin not reflected in these estimates. Not a commitment to lend.*
+    `,
+  },
+  {
     slug: 'bank-statement-loans',
     title: 'Bank Statement Loans: Self-Employed Mortgage Guide',
     excerpt: 'If your tax returns show low income after write-offs, bank statement loans let you qualify on actual deposits instead.',

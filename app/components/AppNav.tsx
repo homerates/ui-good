@@ -362,6 +362,9 @@ export default function AppNav({
               <Link href="/knowledge-hub" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">📚</span>Knowledge Hub
               </Link>
+              <Link href="/platform" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">🧠</span>Platform Intelligence
+              </Link>
             </>
           ) : (
             /* ── PROFESSIONAL drawer ── */
@@ -398,6 +401,9 @@ export default function AppNav({
               </Link>
               <Link href="/loan-limits" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">🏠</span>Loan Limits
+              </Link>
+              <Link href="/platform" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">🧠</span>Platform Intelligence
               </Link>
 
               {/* Account */}
