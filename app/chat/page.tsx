@@ -4461,18 +4461,6 @@ export default function Page() {
                                                                 scenarioRate={m.meta.interactiveSlider?.rate}
                                                                 scenarioIncome={m.meta.interactiveSlider?.annualIncome}
                                                                 scenarioDebt={m.meta.interactiveSlider?.monthlyDebt}
-                                                                onL5Complete={({ lenderParRate, totalLLPA, creditScore }) => {
-                                                                    const msgId = m.id;
-                                                                    setMessages(prev => prev.map(msg => {
-                                                                        if (msg.id !== msgId || msg.role !== 'assistant' || !msg.meta?.decisionScoreCard) return msg;
-                                                                        return { ...msg, meta: { ...msg.meta, decisionScoreCard: {
-                                                                            ...msg.meta.decisionScoreCard,
-                                                                            l5LenderParRate: lenderParRate,
-                                                                            l5TotalLLPA:     totalLLPA,
-                                                                            l5CreditScore:   creditScore,
-                                                                        }}};
-                                                                    }));
-                                                                }}
                                                             />
                                                         )}
                                                         {/* DSCR slider card — investment property answers */}

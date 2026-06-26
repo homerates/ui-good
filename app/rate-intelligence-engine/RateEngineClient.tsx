@@ -562,7 +562,7 @@ export default function RateEngineClient() {
           </button>
 
           {result && (
-            <a href="/track5" style={{
+            <a href={paramSid ? `/track5?session=${paramSid}` : '/track5'} style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               background: "rgba(139,92,246,0.85)",
               color: "#fff", fontWeight: 700, fontSize: "0.92rem",
