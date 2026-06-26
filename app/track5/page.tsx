@@ -432,7 +432,7 @@ function Track5Inner() {
 
   const idx       = computeIndex(levels);
   const v         = idx ? verdict(idx.score) : null;
-  const scoredN   = Object.values(levels).filter(l => l.score != null).length;
+  const scoredN   = Object.values(levels).filter(l => l.score != null).length + (rieResult != null ? 1 : 0);
   const weightPct = idx ? Math.round(idx.pct * 100) : 0;
 
   // ── Effect 1: Load from ?session=<id> — restores all scores + scenario context ──
@@ -577,12 +577,12 @@ function Track5Inner() {
                 {v!.label}
               </div>
               <div style={{ fontSize: '0.82rem', color: '#eaf8f7', lineHeight: 1.65, marginBottom: 12 }}>
-                Based on {scoredN} of 4 levels.{' '}
-                {scoredN < 4 ? 'Complete remaining analyses to sharpen your score.' : 'All levels scored.'}
+                Based on {scoredN} of 5 levels.{' '}
+                {scoredN < 5 ? 'Complete remaining analyses to sharpen your score.' : 'All levels scored.'}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {[
-                  `${scoredN} of 4 levels scored`,
+                  `${scoredN} of 5 levels scored`,
                   `${weightPct}% of index weight`,
                 ].map(t => (
                   <div key={t} style={{
