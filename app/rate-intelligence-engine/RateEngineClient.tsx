@@ -815,7 +815,7 @@ export default function RateEngineClient() {
             {result.disclaimer}
           </p>
 
-          {/* ── RATE MARKETPLACE TABLE ── */}
+          {/* ── RATE MARKETPLACE TABLE — parked, revisit when lender model is ready
           {state.length === 2 && (
             <div>
               <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#8fa3b8", marginBottom: 12, marginTop: 8 }}>
@@ -828,6 +828,7 @@ export default function RateEngineClient() {
               }} />
             </div>
           )}
+          ── */}
 
 
         </div>
