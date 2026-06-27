@@ -413,7 +413,7 @@ export default function AmiQualifierPage() {
                     {
                       key: 'homeReady',
                       name: 'Fannie Mae HomeReady',
-                      desc: `≤80% of area AMI (HUD approx.) · ${fmt(result.ami80pct)} limit · 3% down · reduced MI · verify final limit at Fannie AMI Lookup`,
+                      desc: `≤80% of area AMI (${result.dataSource === 'FHFA' ? 'FHFA 2026' : 'HUD approx.'}) · ${fmt(result.ami80pct)} limit · 3% down · reduced MI · verify final limit at Fannie AMI Lookup`,
                       pass: result.programs.homeReady,
                       passLabel: 'Under limit',
                       failLabel: 'Over limit',
@@ -421,7 +421,7 @@ export default function AmiQualifierPage() {
                     {
                       key: 'homePossible',
                       name: 'Freddie Mac Home Possible',
-                      desc: `≤80% of area AMI (HUD approx.) · ${fmt(result.ami80pct)} limit · 3% down · verify final limit at Freddie AMI Tool`,
+                      desc: `≤80% of area AMI (${result.dataSource === 'FHFA' ? 'FHFA 2026' : 'HUD approx.'}) · ${fmt(result.ami80pct)} limit · 3% down · verify final limit at Freddie AMI Tool`,
                       pass: result.programs.homePossible,
                       passLabel: 'Under limit',
                       failLabel: 'Over limit',
@@ -470,9 +470,15 @@ export default function AmiQualifierPage() {
                     </tr>
                     <tr>
                       <td>
-                        80% AMI <span className="aq-pill pill-green">HUD approx.</span>
+                        80% AMI{' '}
+                        {result.dataSource === 'FHFA' ? (
+                          <span className="aq-pill pill-green">FHFA 2026</span>
+                        ) : (
+                          <span className="aq-pill pill-amber">HUD approx.</span>
+                        )}
                         <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
-                          4-person area AMI · no household adjustment · GSE figure may differ
+                          4-person area AMI · no household adjustment
+                          {result.dataSource !== 'FHFA' && ' · GSE figure may differ'}
                         </div>
                       </td>
                       <td>HomeReady · Home Possible</td>
