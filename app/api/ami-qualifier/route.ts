@@ -35,8 +35,10 @@ function amiForSize(ami4: number, size: number): number {
 
 function computeThresholds(ami4: number, size: number, stored80?: number | null, stored50?: number | null, stored120?: number | null) {
   const amiForHH = amiForSize(ami4, size);
-  // For 4-person use stored HUD values (most accurate); for other sizes scale from base AMI
-  const ami80  = size === 4 && stored80  ? stored80  : Math.round(amiForHH * 0.80);
+  // GSE programs (HomeReady, Home Possible) always use the 4-person area AMI — no household
+  // size adjustment. Stored HUD il80_p4 is the authoritative 4-person figure.
+  const ami80  = stored80 ?? Math.round(ami4 * 0.80);
+  // HUD / DPA thresholds are household-size adjusted
   const ami50  = size === 4 && stored50  ? stored50  : Math.round(amiForHH * 0.50);
   const ami120 = size === 4 && stored120 ? stored120 : Math.round(amiForHH * 1.20);
   return { amiForHH, ami80, ami50, ami120 };
@@ -135,7 +137,8 @@ export async function POST(req: NextRequest) {
       hud.ami_120pct ? Number(hud.ami_120pct) : null,
     );
 
-    const incomeAsPct = Math.round((income / amiForHH) * 100);
+    // Primary metric: income vs 4-person area AMI (GSE basis used by HomeReady/Home Possible)
+    const incomeAsPct = Math.round((income / ami4) * 100);
 
     return NextResponse.json({
       ok: true,

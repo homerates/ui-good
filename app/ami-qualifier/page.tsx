@@ -260,7 +260,7 @@ export default function AmiQualifierPage() {
 
         {/* Hero */}
         <div className="aq-hero">
-          <div className="aq-eyebrow">Powered by HUD FY2025 Data</div>
+          <div className="aq-eyebrow">HUD Income Limits · Verify 2026 GSE AMI at Agency Tools</div>
           <h1 className="aq-h1">Area Median Income Qualifier</h1>
           <p className="aq-sub">
             Check HomeReady, Home Possible, and DPA eligibility by ZIP code,
@@ -336,7 +336,7 @@ export default function AmiQualifierPage() {
                 <div className="aq-ami-row">
                   <div className="aq-ami-val">{fmt(result.ami4Person)}</div>
                   <div className="aq-ami-lbl">
-                    Area Median Income · 4-person household · HUD FY{result.fiscalYear}
+                    Area Median Income · 4-person (GSE basis) · HUD FY{result.fiscalYear}
                   </div>
                 </div>
               </div>
@@ -349,7 +349,7 @@ export default function AmiQualifierPage() {
                     {' '}· {result.householdSize}-person household
                     {result.householdSize !== 4 && (
                       <span style={{ color: '#8fa3b8', fontSize: 12 }}>
-                        {' '}(HH-adjusted AMI: {fmt(result.amiForHouseholdSize)})
+                        {' '}(HUD {result.householdSize}-person AMI: {fmt(result.amiForHouseholdSize)})
                       </span>
                     )}
                   </div>
@@ -386,19 +386,19 @@ export default function AmiQualifierPage() {
                     {
                       key: 'homeReady',
                       name: 'Fannie Mae HomeReady',
-                      desc: `≤80% AMI · 3% minimum down · reduced mortgage insurance · limit ${fmt(result.ami80pct)}`,
+                      desc: `≤80% of area AMI · limit ${fmt(result.ami80pct)} · 3% down · reduced MI · not adjusted for household size`,
                       pass: result.programs.homeReady,
                     },
                     {
                       key: 'homePossible',
                       name: 'Freddie Mac Home Possible',
-                      desc: `≤80% AMI · 3% minimum down · flexible income sources · limit ${fmt(result.ami80pct)}`,
+                      desc: `≤80% of area AMI · limit ${fmt(result.ami80pct)} · 3% down · flexible income sources · not adjusted for household size`,
                       pass: result.programs.homePossible,
                     },
                     {
                       key: 'dpa',
-                      name: 'Down Payment Assistance Programs',
-                      desc: `≤120% AMI · state/county DPA, bank CRA programs · limit ${fmt(result.ami120pct)}`,
+                      name: 'Down Payment Assistance / CRA Programs',
+                      desc: `≤120% AMI · limit ${fmt(result.ami120pct)} · household-size adjusted · state/county DPA, bank CRA`,
                       pass: result.programs.dpa,
                     },
                   ].map(p => (
@@ -425,8 +425,8 @@ export default function AmiQualifierPage() {
                   <thead>
                     <tr>
                       <th>AMI Threshold</th>
-                      <th>Used by</th>
-                      <th>{result.householdSize}-person limit</th>
+                      <th>Programs</th>
+                      <th>Income Limit</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -436,24 +436,36 @@ export default function AmiQualifierPage() {
                       <td>{fmt(result.ami50pct)}</td>
                     </tr>
                     <tr>
-                      <td>80% AMI <span className="aq-pill pill-green">Low</span></td>
+                      <td>
+                        80% AMI <span className="aq-pill pill-green">GSE</span>
+                        <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
+                          4-person area AMI · no household size adjustment
+                        </div>
+                      </td>
                       <td>HomeReady · Home Possible</td>
                       <td>{fmt(result.ami80pct)}</td>
                     </tr>
                     <tr>
                       <td>100% AMI</td>
                       <td>Area median benchmark</td>
-                      <td>{fmt(result.amiForHouseholdSize)}</td>
+                      <td>{fmt(result.ami4Person)}</td>
                     </tr>
                     <tr>
-                      <td>120% AMI <span className="aq-pill pill-amber">Moderate</span></td>
+                      <td>
+                        120% AMI <span className="aq-pill pill-amber">Moderate</span>
+                        {result.householdSize !== 4 && (
+                          <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
+                            {result.householdSize}-person household adjusted
+                          </div>
+                        )}
+                      </td>
                       <td>DPA · bank CRA programs</td>
                       <td>{fmt(result.ami120pct)}</td>
                     </tr>
                     <tr className="aq-your-row">
                       <td>Your income</td>
                       <td>—</td>
-                      <td>{fmt(result.annualIncome)} · {result.incomeAsPctOfAmi}% AMI</td>
+                      <td>{fmt(result.annualIncome)} · {result.incomeAsPctOfAmi}% of area AMI</td>
                     </tr>
                   </tbody>
                 </table>
@@ -477,13 +489,23 @@ export default function AmiQualifierPage() {
 
           {/* Data note */}
           <div className="aq-note">
-            <div className="aq-note-lbl">Data Source</div>
+            <div className="aq-note-lbl">Data Source &amp; Methodology</div>
             <p>
-              AMI limits from HUD FY2025 Income Limits (huduser.gov). Income limits are adjusted
-              by household size using standard HUD factors (1-person = 70% of 4-person AMI;
-              5-person = 108%, etc.). Fannie Mae HomeReady and Freddie Mac Home Possible both use
-              80% AMI as the qualifying threshold. Program approval depends on additional factors
-              including credit score, property type, and lender overlays.
+              <strong style={{ color: '#f0f4ff', fontWeight: 700 }}>HomeReady / Home Possible:</strong>{' '}
+              Income limits use the 4-person area AMI at 80% — no household size adjustment.
+              These are GSE programs; Fannie Mae and Freddie Mac publish their own AMI designation
+              (updated June 13, 2026) which may differ from HUD figures. Verify the precise limit
+              for the subject property address at{' '}
+              <a href="https://ami-lookup-tool.fanniemae.com" target="_blank" rel="noopener noreferrer"
+                style={{ color: '#00e87a' }}>Fannie Mae AMI Lookup</a> or{' '}
+              <a href="https://sf.freddiemac.com/working-with-us/affordable-lending/area-median-income-and-property-eligibility-tool"
+                target="_blank" rel="noopener noreferrer" style={{ color: '#00e87a' }}>Freddie Mac AMI Tool</a>.
+            </p>
+            <p style={{ marginTop: 8 }}>
+              <strong style={{ color: '#f0f4ff', fontWeight: 700 }}>DPA / 120% limits:</strong>{' '}
+              Adjusted by household size using HUD standard factors (1-person = 70% of 4-person;
+              5-person = 108%, etc.). Sourced from HUD Income Limits (huduser.gov). ZIP 93065
+              and high-cost areas may have higher applicable limits — confirm with program guidelines.
             </p>
           </div>
 
