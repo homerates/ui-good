@@ -434,7 +434,7 @@ export default function AmiQualifierPage() {
                     {
                       key: 'dpa',
                       name: 'Down Payment Assistance / CRA',
-                      desc: `Household-size-adjusted HUD income reference: ${fmt(result.ami120pct)} · Program availability depends on property, household composition, funding source, lender, and specific assistance program`,
+                      desc: `HUD household-size-adjusted reference: ${fmt(result.ami120pct)} · Not derived from FHFA/GSE AMI · Actual program limits vary by lender, property, household, and funding source`,
                       pass: result.programs.dpa,
                       passLabel: 'Threshold met',
                       failLabel: 'Over threshold',
@@ -496,12 +496,10 @@ export default function AmiQualifierPage() {
                     </tr>
                     <tr>
                       <td>
-                        120% AMI <span className="aq-pill pill-amber">Moderate</span>
-                        {result.householdSize !== 4 && (
-                          <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
-                            {result.householdSize}-person household adjusted
-                          </div>
-                        )}
+                        HUD DPA / CRA Reference
+                        <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
+                          Household-size-adjusted screening threshold · not derived from FHFA/GSE AMI above
+                        </div>
                       </td>
                       <td>DPA · bank CRA programs</td>
                       <td>{fmt(result.ami120pct)}</td>
