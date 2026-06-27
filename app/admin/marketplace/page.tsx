@@ -37,6 +37,8 @@ interface Lender {
   total_views: number;
   total_opt_ins: number;
   created_at: string;
+  invite_token: string | null;
+  invited_at: string | null;
 }
 
 interface DpaProgram {
@@ -263,6 +265,8 @@ export default function MarketplaceLendersPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [updating, setUpdating]         = useState<string | null>(null);
   const [expandedDpa, setExpandedDpa]   = useState<string | null>(null);
+  const [inviting, setInviting]         = useState<string | null>(null);
+  const [invitedUrl, setInvitedUrl]     = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -314,6 +318,21 @@ export default function MarketplaceLendersPage() {
     setForm(EMPTY_FORM);
     setShowAdvanced(false);
     setCreating(false);
+    void load();
+  }
+
+  async function sendInvite(lender: Lender) {
+    setInviting(lender.id);
+    const r = await fetch("/api/admin/marketplace-lenders/invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lender_id: lender.id }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      setInvitedUrl(prev => ({ ...prev, [lender.id]: d.portalUrl }));
+    }
+    setInviting(null);
     void load();
   }
 
@@ -500,8 +519,36 @@ export default function MarketplaceLendersPage() {
                     onClick={() => setExpandedDpa(expandedDpa === lender.id ? null : lender.id)}
                     style={{ ...actionBtn, borderColor: expandedDpa === lender.id ? "rgba(0,232,122,0.4)" : "rgba(0,232,122,0.2)", color: expandedDpa === lender.id ? "#00e87a" : "rgba(0,232,122,0.5)" }}
                   >
-                    DPA Programs {expandedDpa === lender.id ? "▲" : "▼"}
+                    DPA {expandedDpa === lender.id ? "▲" : "▼"}
                   </button>
+
+                  {/* Invite button */}
+                  {invitedUrl[lender.id] ? (
+                    <a href={invitedUrl[lender.id]} target="_blank" rel="noreferrer"
+                      style={{ ...actionBtn, borderColor: "rgba(96,165,250,0.3)", color: "#60a5fa", textDecoration: "none", fontSize: "0.75rem" }}>
+                      View portal ↗
+                    </a>
+                  ) : (
+                    <button
+                      onClick={() => sendInvite(lender)}
+                      disabled={inviting === lender.id}
+                      title={lender.invited_at ? `Re-send invite (last sent ${new Date(lender.invited_at).toLocaleDateString()})` : "Send invite email + generate portal link"}
+                      style={{ ...actionBtn, borderColor: "rgba(96,165,250,0.3)", color: "#60a5fa" }}
+                    >
+                      {inviting === lender.id ? "Sending…" : lender.invited_at ? "Re-invite" : "Send Invite"}
+                    </button>
+                  )}
+
+                  {lender.invite_token && !invitedUrl[lender.id] && (
+                    <a
+                      href={`/lender-portal/${lender.invite_token}`}
+                      target="_blank" rel="noreferrer"
+                      style={{ ...actionBtn, borderColor: "rgba(107,114,128,0.2)", color: "rgba(185,208,192,0.35)", textDecoration: "none", fontSize: "0.72rem" }}
+                    >
+                      Portal ↗
+                    </a>
+                  )}
+
                   {lender.status !== "active" && (
                     <button onClick={() => setStatus(lender, "active")} disabled={updating === lender.id} style={{ ...actionBtn, borderColor: "rgba(74,222,128,0.3)", color: "#4ade80" }}>Activate</button>
                   )}
