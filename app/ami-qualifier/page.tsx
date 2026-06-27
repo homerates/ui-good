@@ -22,7 +22,7 @@ interface AmiResult {
   incomeAsPctOfAmi: number;
   programs: { homeReady: boolean; homePossible: boolean; dpa: boolean };
   fiscalYear: number;
-  dataSource: string;
+  dataSource: 'FHFA' | 'HUD';
 }
 
 function fmt(n: number) {
@@ -260,7 +260,7 @@ export default function AmiQualifierPage() {
 
         {/* Hero */}
         <div className="aq-hero">
-          <div className="aq-eyebrow">HUD FY2026 Income Limits · Preliminary AMI Screen</div>
+          <div className="aq-eyebrow">AMI Income Qualifier · Preliminary Screen</div>
           <h1 className="aq-h1">Area Median Income Qualifier</h1>
           <p className="aq-sub">
             Check HomeReady, Home Possible, and DPA eligibility by ZIP code,
@@ -354,10 +354,16 @@ export default function AmiQualifierPage() {
                 <div className="aq-ami-row">
                   <div className="aq-ami-val">{fmt(result.ami4Person)}</div>
                   <div className="aq-ami-lbl">
-                    HUD FY{result.fiscalYear} Area Median Income · 4-person
-                    <span style={{ display: 'block', fontSize: 11, color: '#f59e0b', marginTop: 3 }}>
-                      ⚠ GSE/FHFA AMI (Fannie/Freddie source) may differ — verify at agency tools below
-                    </span>
+                    {result.dataSource === 'FHFA' ? (
+                      <>FHFA FY{result.fiscalYear} Area Median Income · 4-person · Fannie Mae / Freddie Mac source</>
+                    ) : (
+                      <>
+                        HUD FY{result.fiscalYear} Area Median Income · 4-person
+                        <span style={{ display: 'block', fontSize: 11, color: '#f59e0b', marginTop: 3 }}>
+                          ⚠ FHFA/GSE AMI data not yet loaded for this county — HUD approximation shown
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -515,32 +521,37 @@ export default function AmiQualifierPage() {
           )}
 
           {/* Data note */}
-          <div className="aq-note">
-            <div className="aq-note-lbl">Data Source &amp; Important Limitations</div>
-            <p>
-              <strong style={{ color: '#f59e0b', fontWeight: 700 }}>HUD AMI ≠ GSE/FHFA AMI.</strong>{' '}
-              Figures shown are from HUD FY2026 Income Limits (huduser.gov). Fannie Mae and
-              Freddie Mac use AMI figures published by FHFA — a separate methodology that
-              produces different numbers, especially in high-cost markets. The Fannie Mae 2026
-              AMI update became effective June 13, 2026.{' '}
-              <strong style={{ color: '#f0f4ff' }}>Do not use these figures as a final HomeReady or Home Possible determination.</strong>
-            </p>
-            <p style={{ marginTop: 8 }}>
-              Verify the subject property's precise AMI limit at:{' '}
-              <a href="https://ami-lookup-tool.fanniemae.com" target="_blank" rel="noopener noreferrer"
-                style={{ color: '#00e87a' }}>Fannie Mae AMI Lookup</a>
-              {' '}·{' '}
-              <a href="https://sf.freddiemac.com/working-with-us/affordable-lending/area-median-income-and-property-eligibility-tool"
-                target="_blank" rel="noopener noreferrer" style={{ color: '#00e87a' }}>Freddie Mac AMI Tool</a>
-            </p>
-            <p style={{ marginTop: 8 }}>
-              <strong style={{ color: '#f0f4ff', fontWeight: 700 }}>DPA / HUD programs:</strong>{' '}
-              HUD AMI adjusted by household size is the appropriate source for HUD, HFA, and
-              many DPA programs — but eligibility depends on specific program rules, lender
-              overlays, property location, and income documentation. Treat all results as
-              a preliminary AMI screen only.
-            </p>
-          </div>
+          {result && (
+            <div className="aq-note">
+              <div className="aq-note-lbl">Data Source &amp; Limitations</div>
+              {result.dataSource === 'FHFA' ? (
+                <p>
+                  <strong style={{ color: '#00e87a', fontWeight: 700 }}>FHFA source active.</strong>{' '}
+                  HomeReady / Home Possible limits use the same AMI published by FHFA and used
+                  by Fannie Mae (effective June 13, 2026) and Freddie Mac. For final determination,
+                  run the subject property address through DU or LPA, or verify at{' '}
+                  <a href="https://ami-lookup-tool.fanniemae.com" target="_blank" rel="noopener noreferrer"
+                    style={{ color: '#00e87a' }}>Fannie Mae AMI Lookup</a>
+                  {' '}·{' '}
+                  <a href="https://sf.freddiemac.com/working-with-us/affordable-lending/area-median-income-and-property-eligibility-tool"
+                    target="_blank" rel="noopener noreferrer" style={{ color: '#00e87a' }}>Freddie Mac AMI Tool</a>.
+                  DPA / 120% limits use HUD household-size adjusted figures.
+                </p>
+              ) : (
+                <p>
+                  <strong style={{ color: '#f59e0b', fontWeight: 700 }}>HUD approximation.</strong>{' '}
+                  FHFA/GSE AMI data is not yet loaded for this county. Figures are from HUD
+                  FY2026 Income Limits and may differ from the Fannie Mae / Freddie Mac AMI
+                  used in DU/LPA. Verify at{' '}
+                  <a href="https://ami-lookup-tool.fanniemae.com" target="_blank" rel="noopener noreferrer"
+                    style={{ color: '#00e87a' }}>Fannie Mae AMI Lookup</a>
+                  {' '}·{' '}
+                  <a href="https://sf.freddiemac.com/working-with-us/affordable-lending/area-median-income-and-property-eligibility-tool"
+                    target="_blank" rel="noopener noreferrer" style={{ color: '#00e87a' }}>Freddie Mac AMI Tool</a>.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="aq-disclosure">{EDUCATIONAL_DISCLAIMER}</div>
         </main>
