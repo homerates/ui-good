@@ -3504,11 +3504,10 @@ export default function Page() {
                     dpaCardFiredRef.current = true;
                     const _dpaHH = parseInt(searchParams?.get('hhSize') ?? '4', 10) || 4;
                     const _dpaCard = { zip: _dpaZip, income: parseFloat(_dpaIncome), householdSize: _dpaHH };
-                    setMessages(prev => prev.map(m =>
-                        m.id === answerId && m.role === 'assistant'
-                            ? { ...m, meta: { ...(m.meta ?? {}), dpaEligibilityCard: _dpaCard } }
-                            : m
-                    ));
+                    setMessages(prev => prev.map(m => {
+                        if (m.id !== answerId || m.role !== 'assistant') return m;
+                        return { ...m, meta: { ...m.meta, dpaEligibilityCard: _dpaCard } as ApiResponse };
+                    }));
                 }
             }
             // ── End DPA Eligibility Card ──────────────────────────────────────────────────
