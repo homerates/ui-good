@@ -530,7 +530,10 @@ export default function AmiQualifierPage() {
                   label="Share"
                   className="aq-btn-sec"
                 />
-                <Link href="/chat" className="aq-btn-pri">
+                <Link
+                  href={`/chat?dpaCheck=1&zip=${encodeURIComponent(result.zip ?? location)}&income=${result.annualIncome}&hhSize=${result.householdSize}`}
+                  className="aq-btn-pri"
+                >
                   Start My Scenario →
                 </Link>
               </div>

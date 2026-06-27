@@ -37,6 +37,7 @@ import ConvHBSliderCard from '@/components/ConvHBSliderCard';
 import PropertyEvaluationCard from '@/components/PropertyEvaluationCard';
 import IncomeQualifySliderCard from '@/components/IncomeQualifySliderCard';
 import DecisionScoreCard, { type DecisionScoreData } from '@/components/DecisionScoreCard';
+import DpaEligibilityCard from '@/components/DpaEligibilityCard';
 import LockedIntelligenceCard from '@/components/LockedIntelligenceCard';
 import FhaSliderCard from '@/components/FhaSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
@@ -533,6 +534,7 @@ type ApiResponse = {
     proGate?: ProGatePayload | null;
     labModules?: Array<{ icon: string; label: string; tag: string; desc: string; seed: string }> | null;
     decisionScoreCard?: DecisionScoreData | null;
+    dpaEligibilityCard?: { zip: string; income: number; householdSize?: number } | null;
 };
 
 
@@ -1401,7 +1403,8 @@ export default function Page() {
     // Seed composer once if we came from a shared-link card
     const hasSeededFromShareRef = React.useRef<string | null>(null); // tracks last processed sq value
     // Prevents Auto-Score from firing more than once per session (guards against re-fires on follow-up messages)
-    const autoScoreFiredRef = React.useRef(false);
+    const autoScoreFiredRef  = React.useRef(false);
+    const dpaCardFiredRef    = React.useRef(false);
     const searchParams = useSearchParams();
 
     // borrower-only mode fixed
@@ -3479,6 +3482,27 @@ export default function Page() {
             }
             // ── End Auto-Score: CMA-seeded chat ──────────────────────────────────────────
 
+            // ── DPA Eligibility Card: fires when ?dpaCheck=1&zip=xxx&income=xxx present ──
+            {
+                const _dpaZip    = searchParams?.get('zip')    ?? null;
+                const _dpaIncome = searchParams?.get('income') ?? null;
+                const _dpaCheck  = searchParams?.get('dpaCheck') ?? null;
+                if (!dpaCardFiredRef.current && _dpaCheck && _dpaZip && _dpaIncome) {
+                    dpaCardFiredRef.current = true;
+                    const _dpaHH = parseInt(searchParams?.get('hhSize') ?? '4', 10) || 4;
+                    setMessages(prev => prev.map(m =>
+                        m.id === answerId && m.role === 'assistant' && m.meta
+                            ? { ...m, meta: { ...m.meta, dpaEligibilityCard: {
+                                zip:          _dpaZip,
+                                income:       parseFloat(_dpaIncome),
+                                householdSize: _dpaHH,
+                            } } }
+                            : m
+                    ));
+                }
+            }
+            // ── End DPA Eligibility Card ──────────────────────────────────────────────────
+
             const friendly =
                 meta.message ??
                 meta.summary ??
@@ -4463,6 +4487,14 @@ export default function Page() {
                                                                 scenarioRate={m.meta.interactiveSlider?.rate}
                                                                 scenarioIncome={m.meta.interactiveSlider?.annualIncome}
                                                                 scenarioDebt={m.meta.interactiveSlider?.monthlyDebt}
+                                                            />
+                                                        )}
+                                                        {/* DPA Eligibility card — fires from AMI qualifier handoff (?dpaCheck=1) */}
+                                                        {m.meta.dpaEligibilityCard && (
+                                                            <DpaEligibilityCard
+                                                                zip={m.meta.dpaEligibilityCard.zip}
+                                                                income={m.meta.dpaEligibilityCard.income}
+                                                                householdSize={m.meta.dpaEligibilityCard.householdSize}
                                                             />
                                                         )}
                                                         {/* DSCR slider card — investment property answers */}
