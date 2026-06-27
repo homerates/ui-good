@@ -86,7 +86,7 @@ async function processState(stateAbbr) {
     const ami4 = il?.median_income ?? null;
     hudRows.push({
       county_fips:  countyFips,
-      fiscal_year:  2025,
+      fiscal_year:  2026,
       county_name:  county.county_name?.replace(/ County.*$/, '') ?? null,
       state_abbr:   stateAbbr,
       cbsa_code:    null,
@@ -116,7 +116,7 @@ async function processState(stateAbbr) {
   // Step 3: ZIP crosswalk
   let xwRows = [];
   try {
-    const xw = await hudGet(`/usps?type=2&query=${stateAbbr}&year=2024&quarter=4`);
+    const xw = await hudGet(`/usps?type=2&query=${stateAbbr}&year=2025&quarter=4`);
     const results = xw?.data?.results ?? [];
     xwRows = results.map(row => {
       const zip = String(row.zip ?? '').padStart(5, '0');

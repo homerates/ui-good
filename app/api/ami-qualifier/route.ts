@@ -1,0 +1,199 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+// HUD standard household size adjustment factors (relative to 4-person AMI)
+const AMI_SIZE_FACTORS: Record<number, number> = {
+  1: 0.70, 2: 0.80, 3: 0.90, 4: 1.00,
+  5: 1.08, 6: 1.16, 7: 1.24, 8: 1.32,
+};
+
+function db() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Missing Supabase env vars');
+  return createClient(url, key);
+}
+
+function extractZip(input: string): string | null {
+  const m = input.match(/\b(\d{5})\b/);
+  return m ? m[1] : null;
+}
+
+function parseCountyInput(input: string): { name: string; state: string | null } | null {
+  if (!/county/i.test(input)) return null;
+  const stateM = input.match(/,\s*([A-Z]{2})\s*$/i);
+  const state = stateM ? stateM[1].toUpperCase() : null;
+  const name = (stateM ? input.slice(0, stateM.index) : input).trim();
+  return name ? { name, state } : null;
+}
+
+function amiForSize(ami4: number, size: number): number {
+  const factor = AMI_SIZE_FACTORS[Math.max(1, Math.min(8, size))] ?? 1.00;
+  return Math.round(ami4 * factor);
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const { location, annualIncome, householdSize = 4 } = await req.json();
+
+    if (!location?.trim()) {
+      return NextResponse.json({ ok: false, error: 'Location is required' }, { status: 400 });
+    }
+    if (!annualIncome || Number(annualIncome) <= 0) {
+      return NextResponse.json({ ok: false, error: 'Annual income is required' }, { status: 400 });
+    }
+
+    const sb = db();
+    const income = Number(annualIncome);
+    const size = Math.max(1, Math.min(8, Number(householdSize) || 4));
+    const loc = location.trim();
+
+    let countyFips: string | null = null;
+    let countyName: string | null = null;
+    let stateAbbr: string | null = null;
+    let resolvedZip: string | null = null;
+    let resolvedFrom: 'zip' | 'address' | 'county' = 'address';
+
+    // ── Strategy 1: ZIP present in input ──────────────────────────────────────
+    const zip = extractZip(loc);
+    if (zip) {
+      resolvedZip = zip;
+      resolvedFrom = /^\d{5}$/.test(loc) ? 'zip' : 'address';
+
+      const { data: xw } = await sb
+        .from('geo_crosswalk')
+        .select('county_fips, county_name, state_abbr')
+        .eq('zip', zip)
+        .order('res_ratio', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (xw) {
+        countyFips = xw.county_fips as string;
+        countyName = xw.county_name as string;
+        stateAbbr  = xw.state_abbr  as string;
+      }
+    }
+
+    // ── Strategy 2: County name ────────────────────────────────────────────────
+    if (!countyFips) {
+      const parsed = parseCountyInput(loc);
+      if (parsed) {
+        resolvedFrom = 'county';
+        let q = sb
+          .from('hud_features')
+          .select('county_fips, county_name, state_abbr')
+          .ilike('county_name', `%${parsed.name}%`)
+          .order('fiscal_year', { ascending: false })
+          .limit(1);
+        if (parsed.state) q = (q as any).eq('state_abbr', parsed.state);
+        const { data } = await (q as any).maybeSingle();
+        if (data) {
+          countyFips = data.county_fips as string;
+          countyName = data.county_name as string;
+          stateAbbr  = data.state_abbr  as string;
+        }
+      }
+    }
+
+    if (!countyFips) {
+      return NextResponse.json({
+        ok: false,
+        error: 'No AMI data found for this location. Try a 5-digit ZIP code (e.g. 92679) or county name (e.g. Orange County, CA).',
+      }, { status: 404 });
+    }
+
+    // ── Fetch GSE AMI (FHFA basis — Fannie/Freddie source) and HUD AMI in parallel
+    const [gseRes, hudRes] = await Promise.all([
+      sb.from('gse_ami')
+        .select('ami_fhfa, fiscal_year')
+        .eq('county_fips', countyFips)
+        .maybeSingle(),
+      sb.from('hud_features')
+        .select('ami_4person, ami_50pct, ami_120pct, fiscal_year, county_name, state_abbr')
+        .eq('county_fips', countyFips)
+        .order('fiscal_year', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const gse = gseRes.data;
+    const hud = hudRes.data;
+
+    if (!gse && (!hud || !hud.ami_4person)) {
+      return NextResponse.json({
+        ok: false,
+        error: 'No AMI data found for this location. Try a 5-digit ZIP code (e.g. 92679) or county name (e.g. Orange County, CA).',
+      }, { status: 404 });
+    }
+
+    // Override county name/state from HUD if more complete
+    if (hud) {
+      countyName = (hud.county_name as string) ?? countyName;
+      stateAbbr  = (hud.state_abbr  as string) ?? stateAbbr;
+    }
+
+    // ── AMI for HomeReady / Home Possible: FHFA (GSE) source if available ─────
+    // This is the accurate agency figure used by DU/LPA. Falls back to HUD.
+    const gseAmi4   = gse ? Number(gse.ami_fhfa) : null;
+    const hudAmi4   = hud?.ami_4person ? Number(hud.ami_4person) : null;
+    const ami4      = gseAmi4 ?? hudAmi4 ?? 0;
+    const dataSource: 'FHFA' | 'HUD' = gseAmi4 ? 'FHFA' : 'HUD';
+
+    if (!ami4) {
+      return NextResponse.json({ ok: false, error: 'AMI data unavailable for this location.' }, { status: 404 });
+    }
+
+    // GSE 80% limit — always direct calculation, no hold-harmless adjustment
+    const ami80 = Math.round(ami4 * 0.80);
+
+    // HUD household-size adjusted thresholds (for DPA / Section 8 programs)
+    const hudBase   = hudAmi4 ?? ami4;
+    const amiForHH  = Math.round(hudBase * (AMI_SIZE_FACTORS[Math.max(1, Math.min(8, size))] ?? 1.00));
+    const hudAmi50  = hud?.ami_50pct  ? Number(hud.ami_50pct)  : Math.round(amiForHH * 0.50);
+    const hudAmi50Final = size === 4 ? hudAmi50 : Math.round(amiForHH * 0.50);
+    const hudAmi120 = hud?.ami_120pct ? Number(hud.ami_120pct) : Math.round(amiForHH * 1.20);
+    const hudAmi120Final = size === 4 ? hudAmi120 : Math.round(amiForHH * 1.20);
+
+    const incomeAsPct = Math.round((income / ami4) * 100);
+    const fiscalYear  = gse ? Number(gse.fiscal_year) : (hud ? Number(hud.fiscal_year) : 2026);
+
+    return NextResponse.json({
+      ok: true,
+      result: {
+        resolvedFrom,
+        county: countyName ?? 'Unknown County',
+        state:  stateAbbr  ?? '',
+        zip:    resolvedZip ?? undefined,
+
+        // Primary AMI — FHFA if available, HUD fallback
+        ami4Person:          ami4,
+        amiForHouseholdSize: amiForHH,
+
+        // HomeReady / Home Possible: 80% of FHFA area AMI (no household adjustment)
+        ami80pct: ami80,
+
+        // HUD household-adjusted thresholds (DPA / Section 8)
+        ami50pct:  hudAmi50Final,
+        ami120pct: hudAmi120Final,
+
+        annualIncome:     income,
+        householdSize:    size,
+        incomeAsPctOfAmi: incomeAsPct,
+
+        programs: {
+          homeReady:    income <= ami80,
+          homePossible: income <= ami80,
+          dpa:          income <= hudAmi120Final,
+        },
+
+        fiscalYear,
+        dataSource,
+      },
+    });
+
+  } catch (err) {
+    console.error('[ami-qualifier]', err);
+    return NextResponse.json({ ok: false, error: 'Server error' }, { status: 500 });
+  }
+}
