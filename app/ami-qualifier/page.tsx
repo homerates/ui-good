@@ -23,6 +23,7 @@ interface AmiResult {
   programs: { homeReady: boolean; homePossible: boolean; dpa: boolean };
   fiscalYear: number;
   dataSource: 'FHFA' | 'HUD';
+  dpaMatchCount: number;
 }
 
 function fmt(n: number) {
@@ -436,7 +437,9 @@ export default function AmiQualifierPage() {
                       name: 'Down Payment Assistance / CRA',
                       desc: `HUD household-size-adjusted reference: ${fmt(result.ami120pct)} · Not derived from FHFA/GSE AMI · Actual program limits vary by lender, property, household, and funding source`,
                       pass: result.programs.dpa,
-                      passLabel: 'Threshold met',
+                      passLabel: result.dpaMatchCount > 0
+                        ? `${result.dpaMatchCount} lender${result.dpaMatchCount !== 1 ? 's' : ''} on HomeRates`
+                        : 'Threshold met',
                       failLabel: 'Over threshold',
                     },
                   ].map(p => (
@@ -444,6 +447,11 @@ export default function AmiQualifierPage() {
                       <div className="aq-prog-left">
                         <div className="aq-prog-name">{p.name}</div>
                         <div className="aq-prog-desc">{p.desc}</div>
+                        {p.key === 'dpa' && p.pass && result.dpaMatchCount > 0 && (
+                          <Link href="/connect/my-scenario" style={{ fontSize: 11, color: '#00e87a', marginTop: 6, display: 'inline-block', fontWeight: 600 }}>
+                            Connect to see available programs →
+                          </Link>
+                        )}
                       </div>
                       <div className={`aq-prog-badge ${p.pass ? 'pass' : 'fail'}`}>
                         <div className={`aq-dot ${p.pass ? 'pass' : 'fail'}`} />

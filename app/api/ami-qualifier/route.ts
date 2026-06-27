@@ -103,8 +103,8 @@ export async function POST(req: NextRequest) {
       }, { status: 404 });
     }
 
-    // ── Fetch GSE AMI (FHFA basis — Fannie/Freddie source) and HUD AMI in parallel
-    const [gseRes, hudRes] = await Promise.all([
+    // ── Fetch GSE AMI, HUD AMI, and active DPA programs in parallel ──────────────
+    const [gseRes, hudRes, dpaProgramsRes] = await Promise.all([
       sb.from('gse_ami')
         .select('ami_fhfa, fiscal_year')
         .eq('county_fips', countyFips)
@@ -115,6 +115,10 @@ export async function POST(req: NextRequest) {
         .order('fiscal_year', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      // All active DPA programs (small set — filter in JS by geography)
+      sb.from('dpa_programs')
+        .select('id, lender_id, coverage_type, eligible_states, eligible_county_fips, income_limit')
+        .eq('active', true),
     ]);
 
     const gse = gseRes.data;
@@ -158,6 +162,33 @@ export async function POST(req: NextRequest) {
     const incomeAsPct = Math.round((income / ami4) * 100);
     const fiscalYear  = gse ? Number(gse.fiscal_year) : (hud ? Number(hud.fiscal_year) : 2026);
 
+    // ── DPA program matching ───────────────────────────────────────────────────
+    // Match programs by geography + income limit, then filter to active lenders
+    let dpaMatchCount = 0;
+    const allDpaPrograms = dpaProgramsRes.data ?? [];
+    if (allDpaPrograms.length > 0) {
+      const geoMatched = allDpaPrograms.filter(p => {
+        if (p.coverage_type === 'nationwide') return true;
+        if (p.coverage_type === 'state' && stateAbbr && (p.eligible_states as string[]).includes(stateAbbr)) return true;
+        if (p.coverage_type === 'county' && countyFips && (p.eligible_county_fips as string[]).includes(countyFips)) return true;
+        return false;
+      }).filter(p => {
+        if (p.income_limit && income > Number(p.income_limit)) return false;
+        return true;
+      });
+
+      if (geoMatched.length > 0) {
+        const lenderIds = [...new Set(geoMatched.map(p => p.lender_id))];
+        const { data: activeLenders } = await sb
+          .from('marketplace_lenders')
+          .select('id')
+          .eq('status', 'active')
+          .in('id', lenderIds);
+        const activeSet = new Set((activeLenders ?? []).map((l: { id: string }) => l.id));
+        dpaMatchCount = geoMatched.filter(p => activeSet.has(p.lender_id)).length;
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       result: {
@@ -189,6 +220,7 @@ export async function POST(req: NextRequest) {
 
         fiscalYear,
         dataSource,
+        dpaMatchCount,
       },
     });
 
