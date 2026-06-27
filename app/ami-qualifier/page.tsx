@@ -260,7 +260,7 @@ export default function AmiQualifierPage() {
 
         {/* Hero */}
         <div className="aq-hero">
-          <div className="aq-eyebrow">HUD Income Limits · Verify 2026 GSE AMI at Agency Tools</div>
+          <div className="aq-eyebrow">HUD FY2026 Income Limits · Preliminary AMI Screen</div>
           <h1 className="aq-h1">Area Median Income Qualifier</h1>
           <p className="aq-sub">
             Check HomeReady, Home Possible, and DPA eligibility by ZIP code,
@@ -275,19 +275,37 @@ export default function AmiQualifierPage() {
             <form onSubmit={handleSubmit}>
               <div className="aq-field">
                 <label>Location</label>
-                <AddressAutocomplete
-                  value={location}
-                  onChange={setLocation}
-                  onSelect={setLocation}
-                  placeholder="ZIP code, county (Orange County, CA), or full address..."
-                  style={{
-                    width: '100%', padding: '11px 14px',
-                    background: '#141b28', border: '1.5px solid rgba(255,255,255,0.13)',
-                    borderRadius: 9, fontSize: 15, color: '#f0f4ff', outline: 'none',
-                    fontFamily: 'inherit',
-                  }}
-                />
-                <div className="aq-hint">Any of: ZIP code (92679) · County (Orange County, CA) · Full address</div>
+                {/* Plain input for numeric-only (ZIP) — Places API shows unrelated global
+                    results for bare ZIPs. Switch to AddressAutocomplete once user types letters. */}
+                {/^\d*$/.test(location) ? (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={location}
+                    onChange={e => setLocation(e.target.value)}
+                    placeholder="ZIP code, county (Orange County, CA), or full address..."
+                    style={{
+                      width: '100%', padding: '11px 14px',
+                      background: '#141b28', border: '1.5px solid rgba(255,255,255,0.13)',
+                      borderRadius: 9, fontSize: 15, color: '#f0f4ff', outline: 'none',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                ) : (
+                  <AddressAutocomplete
+                    value={location}
+                    onChange={setLocation}
+                    onSelect={setLocation}
+                    placeholder="ZIP code, county (Orange County, CA), or full address..."
+                    style={{
+                      width: '100%', padding: '11px 14px',
+                      background: '#141b28', border: '1.5px solid rgba(255,255,255,0.13)',
+                      borderRadius: 9, fontSize: 15, color: '#f0f4ff', outline: 'none',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                )}
+                <div className="aq-hint">ZIP (90210) → type and press Check · County (Ventura County, CA) · Full address</div>
               </div>
 
               <div className="aq-row">
@@ -336,7 +354,10 @@ export default function AmiQualifierPage() {
                 <div className="aq-ami-row">
                   <div className="aq-ami-val">{fmt(result.ami4Person)}</div>
                   <div className="aq-ami-lbl">
-                    Area Median Income · 4-person (GSE basis) · HUD FY{result.fiscalYear}
+                    HUD FY{result.fiscalYear} Area Median Income · 4-person
+                    <span style={{ display: 'block', fontSize: 11, color: '#f59e0b', marginTop: 3 }}>
+                      ⚠ GSE/FHFA AMI (Fannie/Freddie source) may differ — verify at agency tools below
+                    </span>
                   </div>
                 </div>
               </div>
@@ -380,26 +401,32 @@ export default function AmiQualifierPage() {
 
               {/* Program rows */}
               <div className="aq-programs">
-                <div className="aq-section-lbl">Program Eligibility</div>
+                <div className="aq-section-lbl">AMI Threshold Screen · Preliminary Only</div>
                 <div className="aq-prog-list">
                   {[
                     {
                       key: 'homeReady',
                       name: 'Fannie Mae HomeReady',
-                      desc: `≤80% of area AMI · limit ${fmt(result.ami80pct)} · 3% down · reduced MI · not adjusted for household size`,
+                      desc: `≤80% of area AMI (HUD approx.) · ${fmt(result.ami80pct)} limit · 3% down · reduced MI · verify final limit at Fannie AMI Lookup`,
                       pass: result.programs.homeReady,
+                      passLabel: 'Under limit',
+                      failLabel: 'Over limit',
                     },
                     {
                       key: 'homePossible',
                       name: 'Freddie Mac Home Possible',
-                      desc: `≤80% of area AMI · limit ${fmt(result.ami80pct)} · 3% down · flexible income sources · not adjusted for household size`,
+                      desc: `≤80% of area AMI (HUD approx.) · ${fmt(result.ami80pct)} limit · 3% down · verify final limit at Freddie AMI Tool`,
                       pass: result.programs.homePossible,
+                      passLabel: 'Under limit',
+                      failLabel: 'Over limit',
                     },
                     {
                       key: 'dpa',
-                      name: 'Down Payment Assistance / CRA Programs',
-                      desc: `≤120% AMI · limit ${fmt(result.ami120pct)} · household-size adjusted · state/county DPA, bank CRA`,
+                      name: 'Down Payment Assistance / CRA',
+                      desc: `AMI threshold only — DPA eligibility depends on specific program, lender, and property rules · ${result.householdSize}-person HUD limit ${fmt(result.ami120pct)}`,
                       pass: result.programs.dpa,
+                      passLabel: 'Threshold met',
+                      failLabel: 'Over threshold',
                     },
                   ].map(p => (
                     <div key={p.key} className={`aq-prog-row${p.pass ? '' : ' fail'}`}>
@@ -409,7 +436,7 @@ export default function AmiQualifierPage() {
                       </div>
                       <div className={`aq-prog-badge ${p.pass ? 'pass' : 'fail'}`}>
                         <div className={`aq-dot ${p.pass ? 'pass' : 'fail'}`} />
-                        {p.pass ? 'Eligible' : 'Over limit'}
+                        {p.pass ? p.passLabel : p.failLabel}
                       </div>
                     </div>
                   ))}
@@ -437,9 +464,9 @@ export default function AmiQualifierPage() {
                     </tr>
                     <tr>
                       <td>
-                        80% AMI <span className="aq-pill pill-green">GSE</span>
+                        80% AMI <span className="aq-pill pill-green">HUD approx.</span>
                         <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
-                          4-person area AMI · no household size adjustment
+                          4-person area AMI · no household adjustment · GSE figure may differ
                         </div>
                       </td>
                       <td>HomeReady · Home Possible</td>
@@ -489,23 +516,29 @@ export default function AmiQualifierPage() {
 
           {/* Data note */}
           <div className="aq-note">
-            <div className="aq-note-lbl">Data Source &amp; Methodology</div>
+            <div className="aq-note-lbl">Data Source &amp; Important Limitations</div>
             <p>
-              <strong style={{ color: '#f0f4ff', fontWeight: 700 }}>HomeReady / Home Possible:</strong>{' '}
-              Income limits use the 4-person area AMI at 80% — no household size adjustment.
-              These are GSE programs; Fannie Mae and Freddie Mac publish their own AMI designation
-              (updated June 13, 2026) which may differ from HUD figures. Verify the precise limit
-              for the subject property address at{' '}
-              <a href="https://ami-lookup-tool.fanniemae.com" target="_blank" rel="noopener noreferrer"
-                style={{ color: '#00e87a' }}>Fannie Mae AMI Lookup</a> or{' '}
-              <a href="https://sf.freddiemac.com/working-with-us/affordable-lending/area-median-income-and-property-eligibility-tool"
-                target="_blank" rel="noopener noreferrer" style={{ color: '#00e87a' }}>Freddie Mac AMI Tool</a>.
+              <strong style={{ color: '#f59e0b', fontWeight: 700 }}>HUD AMI ≠ GSE/FHFA AMI.</strong>{' '}
+              Figures shown are from HUD FY2026 Income Limits (huduser.gov). Fannie Mae and
+              Freddie Mac use AMI figures published by FHFA — a separate methodology that
+              produces different numbers, especially in high-cost markets. The Fannie Mae 2026
+              AMI update became effective June 13, 2026.{' '}
+              <strong style={{ color: '#f0f4ff' }}>Do not use these figures as a final HomeReady or Home Possible determination.</strong>
             </p>
             <p style={{ marginTop: 8 }}>
-              <strong style={{ color: '#f0f4ff', fontWeight: 700 }}>DPA / 120% limits:</strong>{' '}
-              Adjusted by household size using HUD standard factors (1-person = 70% of 4-person;
-              5-person = 108%, etc.). Sourced from HUD Income Limits (huduser.gov). ZIP 93065
-              and high-cost areas may have higher applicable limits — confirm with program guidelines.
+              Verify the subject property's precise AMI limit at:{' '}
+              <a href="https://ami-lookup-tool.fanniemae.com" target="_blank" rel="noopener noreferrer"
+                style={{ color: '#00e87a' }}>Fannie Mae AMI Lookup</a>
+              {' '}·{' '}
+              <a href="https://sf.freddiemac.com/working-with-us/affordable-lending/area-median-income-and-property-eligibility-tool"
+                target="_blank" rel="noopener noreferrer" style={{ color: '#00e87a' }}>Freddie Mac AMI Tool</a>
+            </p>
+            <p style={{ marginTop: 8 }}>
+              <strong style={{ color: '#f0f4ff', fontWeight: 700 }}>DPA / HUD programs:</strong>{' '}
+              HUD AMI adjusted by household size is the appropriate source for HUD, HFA, and
+              many DPA programs — but eligibility depends on specific program rules, lender
+              overlays, property location, and income documentation. Treat all results as
+              a preliminary AMI screen only.
             </p>
           </div>
 
