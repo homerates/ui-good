@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
+import AddressAutocomplete from '../components/AddressAutocomplete';
+import { ShareAnswerButton } from '../components/ShareAnswerButton';
 import { EDUCATIONAL_DISCLAIMER } from '../../lib/disclosures';
 
 interface AmiResult {
@@ -273,13 +275,17 @@ export default function AmiQualifierPage() {
             <form onSubmit={handleSubmit}>
               <div className="aq-field">
                 <label>Location</label>
-                <input
-                  type="text"
-                  placeholder="ZIP code, county (Orange County, CA), or full address..."
+                <AddressAutocomplete
                   value={location}
-                  onChange={e => setLocation(e.target.value)}
-                  autoComplete="off"
-                  spellCheck={false}
+                  onChange={setLocation}
+                  onSelect={setLocation}
+                  placeholder="ZIP code, county (Orange County, CA), or full address..."
+                  style={{
+                    width: '100%', padding: '11px 14px',
+                    background: '#141b28', border: '1.5px solid rgba(255,255,255,0.13)',
+                    borderRadius: 9, fontSize: 15, color: '#f0f4ff', outline: 'none',
+                    fontFamily: 'inherit',
+                  }}
                 />
                 <div className="aq-hint">Any of: ZIP code (92679) · County (Orange County, CA) · Full address</div>
               </div>
@@ -455,20 +461,15 @@ export default function AmiQualifierPage() {
 
               {/* CTAs */}
               <div className="aq-actions">
-                <button
+                <ShareAnswerButton
+                  url={typeof window !== 'undefined' ? `${window.location.origin}/ami-qualifier` : 'https://chat.homerates.ai/ami-qualifier'}
+                  question="AMI Income Qualifier"
+                  answer={`${result.county}, ${result.state} — ${fmt(result.annualIncome)} is ${result.incomeAsPctOfAmi}% of AMI. HomeReady: ${result.programs.homeReady ? 'Eligible' : 'Over limit'}. Home Possible: ${result.programs.homePossible ? 'Eligible' : 'Over limit'}. DPA: ${result.programs.dpa ? 'Eligible' : 'Over limit'}.`}
+                  label="Share"
                   className="aq-btn-sec"
-                  onClick={() => {
-                    const txt = `AMI Qualifier — ${result.county}, ${result.state}\nIncome: ${fmt(result.annualIncome)} (${result.incomeAsPctOfAmi}% of AMI)\nHomeReady: ${result.programs.homeReady ? 'Eligible' : 'Over limit'} | Home Possible: ${result.programs.homePossible ? 'Eligible' : 'Over limit'} | DPA: ${result.programs.dpa ? 'Eligible' : 'Over limit'}\nSource: HUD FY${result.fiscalYear} · homerates.ai/ami-qualifier`;
-                    navigator.clipboard.writeText(txt).catch(() => {});
-                  }}
-                >
-                  Copy Results
-                </button>
-                <Link
-                  href={`/rate-intelligence-engine${result.zip ? `?zip=${result.zip}` : ''}`}
-                  className="aq-btn-pri"
-                >
-                  Explore Rate Options →
+                />
+                <Link href="/connect/my-scenario" className="aq-btn-pri">
+                  Run My Scenario →
                 </Link>
               </div>
             </div>
