@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '../../../../lib/adminAuth';
 
 function db() {
   return createClient(
@@ -10,6 +11,9 @@ function db() {
 
 // GET /api/admin/dpa-programs?lender_id=xxx
 export async function GET(req: NextRequest) {
+  const { error } = await requireAdmin();
+  if (error) return error;
+
   const lenderId = req.nextUrl.searchParams.get('lender_id');
   if (!lenderId) return NextResponse.json({ error: 'lender_id required' }, { status: 400 });
 
@@ -25,6 +29,9 @@ export async function GET(req: NextRequest) {
 
 // POST /api/admin/dpa-programs — create program
 export async function POST(req: NextRequest) {
+  const { error } = await requireAdmin();
+  if (error) return error;
+
   const body = await req.json();
   if (!body.lender_id || !body.program_name?.trim()) {
     return NextResponse.json({ error: 'lender_id and program_name required' }, { status: 400 });
@@ -63,6 +70,9 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/admin/dpa-programs — update fields (active toggle, etc.)
 export async function PATCH(req: NextRequest) {
+  const { error } = await requireAdmin();
+  if (error) return error;
+
   const body = await req.json();
   const { id, ...updates } = body;
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
@@ -78,6 +88,9 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/admin/dpa-programs?id=xxx
 export async function DELETE(req: NextRequest) {
+  const { error } = await requireAdmin();
+  if (error) return error;
+
   const id = req.nextUrl.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
