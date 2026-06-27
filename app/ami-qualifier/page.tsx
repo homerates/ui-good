@@ -305,7 +305,7 @@ export default function AmiQualifierPage() {
                     }}
                   />
                 )}
-                <div className="aq-hint">ZIP (90210) → type and press Check · County (Ventura County, CA) · Full address</div>
+                <div className="aq-hint">Enter a ZIP code or full property address. County and AMI source are confirmed after checking eligibility.</div>
               </div>
 
               <div className="aq-row">
@@ -413,7 +413,7 @@ export default function AmiQualifierPage() {
                     {
                       key: 'homeReady',
                       name: 'Fannie Mae HomeReady',
-                      desc: `≤80% of area AMI (${result.dataSource === 'FHFA' ? 'FHFA 2026' : 'HUD approx.'}) · ${fmt(result.ami80pct)} limit · 3% down · reduced MI · verify final limit at Fannie AMI Lookup`,
+                      desc: `≤80% of applicable GSE AMI · ${fmt(result.ami80pct)} income limit · 3% down · reduced MI · verify final limit at Fannie AMI Lookup`,
                       pass: result.programs.homeReady,
                       passLabel: 'Under limit',
                       failLabel: 'Over limit',
@@ -421,7 +421,7 @@ export default function AmiQualifierPage() {
                     {
                       key: 'homePossible',
                       name: 'Freddie Mac Home Possible',
-                      desc: `≤80% of area AMI (${result.dataSource === 'FHFA' ? 'FHFA 2026' : 'HUD approx.'}) · ${fmt(result.ami80pct)} limit · 3% down · verify final limit at Freddie AMI Tool`,
+                      desc: `≤80% of applicable GSE AMI · ${fmt(result.ami80pct)} income limit · 3% down · verify final limit at Freddie AMI Tool`,
                       pass: result.programs.homePossible,
                       passLabel: 'Under limit',
                       failLabel: 'Over limit',
@@ -429,7 +429,7 @@ export default function AmiQualifierPage() {
                     {
                       key: 'dpa',
                       name: 'Down Payment Assistance / CRA',
-                      desc: `AMI threshold only — DPA eligibility depends on specific program, lender, and property rules · ${result.householdSize}-person HUD limit ${fmt(result.ami120pct)}`,
+                      desc: `Household-size-adjusted HUD income reference: ${fmt(result.ami120pct)} · Program availability depends on property, household composition, funding source, lender, and specific assistance program`,
                       pass: result.programs.dpa,
                       passLabel: 'Threshold met',
                       failLabel: 'Over threshold',
