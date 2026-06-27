@@ -448,7 +448,7 @@ export default function AmiQualifierPage() {
                         <div className="aq-prog-name">{p.name}</div>
                         <div className="aq-prog-desc">{p.desc}</div>
                         {p.key === 'dpa' && p.pass && result.dpaMatchCount > 0 && (
-                          <Link href="/connect/my-scenario" style={{ fontSize: 11, color: '#00e87a', marginTop: 6, display: 'inline-block', fontWeight: 600 }}>
+                          <Link href="/chat" style={{ fontSize: 11, color: '#00e87a', marginTop: 6, display: 'inline-block', fontWeight: 600 }}>
                             Connect to see available programs →
                           </Link>
                         )}
@@ -530,8 +530,8 @@ export default function AmiQualifierPage() {
                   label="Share"
                   className="aq-btn-sec"
                 />
-                <Link href="/connect/my-scenario" className="aq-btn-pri">
-                  Run My Scenario →
+                <Link href="/chat" className="aq-btn-pri">
+                  Start My Scenario →
                 </Link>
               </div>
             </div>
