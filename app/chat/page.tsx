@@ -1496,6 +1496,19 @@ export default function Page() {
             return;
         }
 
+        // ?dpaCheck=1&zip=xxx&income=xxx — auto-seed a DPA eligibility check
+        const _dpaCheck  = searchParams.get('dpaCheck');
+        const _dpaZip    = searchParams.get('zip');
+        const _dpaIncome = searchParams.get('income');
+        if (_dpaCheck === '1' && _dpaZip && _dpaIncome) {
+            const _dpaHHSeed = searchParams.get('hhSize') ?? '4';
+            const _dpaSeed = `DPA eligibility — ZIP ${_dpaZip}, income $${parseInt(_dpaIncome).toLocaleString()}, ${_dpaHHSeed}-person household`;
+            newChat();
+            setInput(_dpaSeed);
+            pendingSeedRef.current = _dpaSeed;
+            return;
+        }
+
         const from = searchParams.get('fromShare');
         const sq = searchParams.get('sq');
 
@@ -3490,13 +3503,10 @@ export default function Page() {
                 if (!dpaCardFiredRef.current && _dpaCheck && _dpaZip && _dpaIncome) {
                     dpaCardFiredRef.current = true;
                     const _dpaHH = parseInt(searchParams?.get('hhSize') ?? '4', 10) || 4;
+                    const _dpaCard = { zip: _dpaZip, income: parseFloat(_dpaIncome), householdSize: _dpaHH };
                     setMessages(prev => prev.map(m =>
-                        m.id === answerId && m.role === 'assistant' && m.meta
-                            ? { ...m, meta: { ...m.meta, dpaEligibilityCard: {
-                                zip:          _dpaZip,
-                                income:       parseFloat(_dpaIncome),
-                                householdSize: _dpaHH,
-                            } } }
+                        m.id === answerId && m.role === 'assistant'
+                            ? { ...m, meta: { ...(m.meta ?? {}), dpaEligibilityCard: _dpaCard } }
                             : m
                     ));
                 }
@@ -4002,7 +4012,7 @@ export default function Page() {
                                         <Bubble role={m.role}>
                                             {m.role === 'assistant' ? (
                                                 // If this is a Grok-style answer with markdown, use GrokCard
-                                                m.meta && (m.meta.grok || m.meta.answerMarkdown || m.meta.decisionScoreCard) ? (
+                                                m.meta && (m.meta.grok || m.meta.answerMarkdown || m.meta.decisionScoreCard || m.meta.dpaEligibilityCard) ? (
                                                     <>
                                                         {/* GrokCard: shown for plain AI answers only.
                                                             Suppressed whenever any slider card is present in meta — card stack is the full UI.
