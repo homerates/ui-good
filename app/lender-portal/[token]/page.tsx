@@ -43,7 +43,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function LenderPortalPage() {
-  const { token } = useParams<{ token: string }>();
+  const params = useParams();
+  const token = params?.token as string | undefined;
   const [lender, setLender]     = useState<LenderData | null>(null);
   const [programs, setPrograms] = useState<DpaProgram[]>([]);
   const [loading, setLoading]   = useState(true);
