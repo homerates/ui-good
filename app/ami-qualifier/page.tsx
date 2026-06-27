@@ -382,6 +382,11 @@ export default function AmiQualifierPage() {
                   </div>
                   <div className="aq-meter-pct" style={{ color }}>
                     {result.incomeAsPctOfAmi}% of AMI
+                    {!result.programs.homeReady && result.incomeAsPctOfAmi === 80 && (
+                      <div style={{ fontSize: 11, fontWeight: 500, color: '#f59e0b', marginTop: 2 }}>
+                        ${(result.annualIncome - result.ami80pct).toLocaleString()} above HomeReady / Home Possible limit
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="aq-track">
