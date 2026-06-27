@@ -496,7 +496,7 @@ export default function AmiQualifierPage() {
                     </tr>
                     <tr>
                       <td>
-                        HUD DPA / CRA Reference
+                        HUD-Based DPA / CRA Reference
                         <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
                           Household-size-adjusted screening threshold · not derived from FHFA/GSE AMI above
                         </div>
@@ -507,7 +507,7 @@ export default function AmiQualifierPage() {
                     <tr className="aq-your-row">
                       <td>Your income</td>
                       <td>—</td>
-                      <td>{fmt(result.annualIncome)} · {result.incomeAsPctOfAmi}% of area AMI</td>
+                      <td>{fmt(result.annualIncome)} · {result.incomeAsPctOfAmi}% GSE AMI</td>
                     </tr>
                   </tbody>
                 </table>
