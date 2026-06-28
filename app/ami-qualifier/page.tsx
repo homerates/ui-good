@@ -382,8 +382,8 @@ export default function AmiQualifierPage() {
                     )}
                   </div>
                   <div className="aq-meter-pct" style={{ color }}>
-                    {result.incomeAsPctOfAmi}% of AMI
-                    {!result.programs.homeReady && result.incomeAsPctOfAmi === 80 && (
+                    {result.incomeAsPctOfAmi}% of {result.householdSize}-person AMI
+                    {!result.programs.homeReady && result.annualIncome > result.ami80pct && (
                       <div style={{ fontSize: 11, fontWeight: 500, color: '#f59e0b', marginTop: 2 }}>
                         ${(result.annualIncome - result.ami80pct).toLocaleString()} above HomeReady / Home Possible limit
                       </div>
@@ -515,7 +515,7 @@ export default function AmiQualifierPage() {
                     <tr className="aq-your-row">
                       <td>Your income</td>
                       <td>—</td>
-                      <td>{fmt(result.annualIncome)} · {result.incomeAsPctOfAmi}% GSE AMI</td>
+                      <td>{fmt(result.annualIncome)} · {result.incomeAsPctOfAmi}% of {result.householdSize}-person AMI</td>
                     </tr>
                   </tbody>
                 </table>

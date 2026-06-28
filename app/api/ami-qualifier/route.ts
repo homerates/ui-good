@@ -159,7 +159,9 @@ export async function POST(req: NextRequest) {
     const hudAmi120 = hud?.ami_120pct ? Number(hud.ami_120pct) : Math.round(amiForHH * 1.20);
     const hudAmi120Final = size === 4 ? hudAmi120 : Math.round(amiForHH * 1.20);
 
-    const incomeAsPct = Math.round((income / ami4) * 100);
+    // Compare income against household-size-adjusted AMI for the display bar.
+    // FNMA HomeReady / HP eligibility still uses the unadjusted ami80 (agency rule).
+    const incomeAsPct = Math.round((income / amiForHH) * 100);
     const fiscalYear  = gse ? Number(gse.fiscal_year) : (hud ? Number(hud.fiscal_year) : 2026);
 
     // ── DPA program matching ───────────────────────────────────────────────────
