@@ -1502,7 +1502,7 @@ export default function Page() {
         const _dpaIncome = searchParams.get('income');
         if (_dpaCheck === '1' && _dpaZip && _dpaIncome) {
             const _dpaHHSeed = searchParams.get('hhSize') ?? '4';
-            const _dpaSeed = `DPA eligibility — ZIP ${_dpaZip}, income $${parseInt(_dpaIncome).toLocaleString()}, ${_dpaHHSeed}-person household`;
+            const _dpaSeed = `Do I qualify for down payment assistance? My annual household income is $${parseInt(_dpaIncome).toLocaleString()} and I have a ${_dpaHHSeed}-person household in ZIP ${_dpaZip}.`;
             newChat();
             setInput(_dpaSeed);
             pendingSeedRef.current = _dpaSeed;
