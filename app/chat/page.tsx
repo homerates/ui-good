@@ -3506,7 +3506,8 @@ export default function Page() {
                     const _dpaCard = { zip: _dpaZip, income: parseFloat(_dpaIncome), householdSize: _dpaHH };
                     setMessages(prev => prev.map(m => {
                         if (m.id !== answerId || m.role !== 'assistant') return m;
-                        return { ...m, meta: { ...m.meta, dpaEligibilityCard: _dpaCard } as ApiResponse };
+                        // Suppress Grok/markdown answer — DPA card IS the response
+                        return { ...m, meta: { ...m.meta, grok: undefined, answerMarkdown: undefined, dpaEligibilityCard: _dpaCard } as ApiResponse };
                     }));
                 }
             }
