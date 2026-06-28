@@ -96,10 +96,34 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── Strategy 3: City + state from full address (ZIP missing from crosswalk) ──
+    // e.g. "10951 Lotta Ct, San Diego, CA 92126" → city=San Diego, state=CA
+    if (!countyFips) {
+      const cityStateM = loc.match(/,\s*([^,\d]+?)\s*,\s*([A-Z]{2})\s*(?:\d{5})?$/i);
+      if (cityStateM) {
+        const city  = cityStateM[1].trim();
+        const state = cityStateM[2].toUpperCase();
+        const { data: cityData } = await sb
+          .from('hud_features')
+          .select('county_fips, county_name, state_abbr')
+          .eq('state_abbr', state)
+          .ilike('county_name', `%${city}%`)
+          .order('fiscal_year', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (cityData) {
+          resolvedFrom = 'address';
+          countyFips = cityData.county_fips as string;
+          countyName = cityData.county_name as string;
+          stateAbbr  = cityData.state_abbr  as string;
+        }
+      }
+    }
+
     if (!countyFips) {
       return NextResponse.json({
         ok: false,
-        error: 'No AMI data found for this location. Try a 5-digit ZIP code (e.g. 92679) or county name (e.g. Orange County, CA).',
+        error: 'No AMI data found for this location. Try a 5-digit ZIP code (e.g. 92679) or county name (e.g. San Diego County, CA).',
       }, { status: 404 });
     }
 
