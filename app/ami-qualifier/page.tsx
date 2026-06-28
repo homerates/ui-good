@@ -531,10 +531,10 @@ export default function AmiQualifierPage() {
                   className="aq-btn-sec"
                 />
                 <Link
-                  href={`/chat?dpaCheck=1&zip=${encodeURIComponent(result.zip ?? location)}&income=${result.annualIncome}&hhSize=${result.householdSize}`}
+                  href={`/chat?${new URLSearchParams({ sq: `Run my numbers for ${location}` }).toString()}`}
                   className="aq-btn-pri"
                 >
-                  Start My Scenario →
+                  Run My Numbers →
                 </Link>
               </div>
             </div>
