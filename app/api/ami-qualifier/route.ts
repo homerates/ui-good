@@ -96,15 +96,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── Strategy 3: City + state from full address (ZIP missing from crosswalk) ──
+    // e.g. "10951 Lotta Ct, San Diego, CA 92126" → city=San Diego, state=CA
+    if (!countyFips) {
+      const cityStateM = loc.match(/,\s*([^,\d]+?)\s*,\s*([A-Z]{2})\s*(?:\d{5})?$/i);
+      if (cityStateM) {
+        const city  = cityStateM[1].trim();
+        const state = cityStateM[2].toUpperCase();
+        const { data: cityData } = await sb
+          .from('hud_features')
+          .select('county_fips, county_name, state_abbr')
+          .eq('state_abbr', state)
+          .ilike('county_name', `%${city}%`)
+          .order('fiscal_year', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (cityData) {
+          resolvedFrom = 'address';
+          countyFips = cityData.county_fips as string;
+          countyName = cityData.county_name as string;
+          stateAbbr  = cityData.state_abbr  as string;
+        }
+      }
+    }
+
     if (!countyFips) {
       return NextResponse.json({
         ok: false,
-        error: 'No AMI data found for this location. Try a 5-digit ZIP code (e.g. 92679) or county name (e.g. Orange County, CA).',
+        error: 'No AMI data found for this location. Try a 5-digit ZIP code (e.g. 92679) or county name (e.g. San Diego County, CA).',
       }, { status: 404 });
     }
 
-    // ── Fetch GSE AMI (FHFA basis — Fannie/Freddie source) and HUD AMI in parallel
-    const [gseRes, hudRes] = await Promise.all([
+    // ── Fetch GSE AMI, HUD AMI, and active DPA programs in parallel ──────────────
+    const [gseRes, hudRes, dpaProgramsRes] = await Promise.all([
       sb.from('gse_ami')
         .select('ami_fhfa, fiscal_year')
         .eq('county_fips', countyFips)
@@ -115,6 +139,10 @@ export async function POST(req: NextRequest) {
         .order('fiscal_year', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      // All active DPA programs (small set — filter in JS by geography)
+      sb.from('dpa_programs')
+        .select('id, lender_id, coverage_type, eligible_states, eligible_county_fips, income_limit')
+        .eq('active', true),
     ]);
 
     const gse = gseRes.data;
@@ -155,8 +183,37 @@ export async function POST(req: NextRequest) {
     const hudAmi120 = hud?.ami_120pct ? Number(hud.ami_120pct) : Math.round(amiForHH * 1.20);
     const hudAmi120Final = size === 4 ? hudAmi120 : Math.round(amiForHH * 1.20);
 
-    const incomeAsPct = Math.round((income / ami4) * 100);
+    // Compare income against household-size-adjusted AMI for the display bar.
+    // FNMA HomeReady / HP eligibility still uses the unadjusted ami80 (agency rule).
+    const incomeAsPct = Math.round((income / amiForHH) * 100);
     const fiscalYear  = gse ? Number(gse.fiscal_year) : (hud ? Number(hud.fiscal_year) : 2026);
+
+    // ── DPA program matching ───────────────────────────────────────────────────
+    // Match programs by geography + income limit, then filter to active lenders
+    let dpaMatchCount = 0;
+    const allDpaPrograms = dpaProgramsRes.data ?? [];
+    if (allDpaPrograms.length > 0) {
+      const geoMatched = allDpaPrograms.filter(p => {
+        if (p.coverage_type === 'nationwide') return true;
+        if (p.coverage_type === 'state' && stateAbbr && (p.eligible_states as string[]).includes(stateAbbr)) return true;
+        if (p.coverage_type === 'county' && countyFips && (p.eligible_county_fips as string[]).includes(countyFips)) return true;
+        return false;
+      }).filter(p => {
+        if (p.income_limit && income > Number(p.income_limit)) return false;
+        return true;
+      });
+
+      if (geoMatched.length > 0) {
+        const lenderIds = [...new Set(geoMatched.map(p => p.lender_id))];
+        const { data: activeLenders } = await sb
+          .from('marketplace_lenders')
+          .select('id')
+          .eq('status', 'active')
+          .in('id', lenderIds);
+        const activeSet = new Set((activeLenders ?? []).map((l: { id: string }) => l.id));
+        dpaMatchCount = geoMatched.filter(p => activeSet.has(p.lender_id)).length;
+      }
+    }
 
     return NextResponse.json({
       ok: true,
@@ -189,6 +246,7 @@ export async function POST(req: NextRequest) {
 
         fiscalYear,
         dataSource,
+        dpaMatchCount,
       },
     });
 

@@ -7,35 +7,26 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { requireAdmin } from "../../../../lib/adminAuth";
 import { getSupabase } from "../../../../lib/supabaseServer";
 
-async function requireAdmin() {
-  const { userId } = await auth();
-  if (!userId) return null;
-  const sb = getSupabase();
-  if (!sb) return null;
-  const { data } = await sb.from("users").select("role").eq("id", userId).maybeSingle();
-  return data?.role === "admin" ? userId : null;
-}
-
 export async function GET() {
-  const adminId = await requireAdmin();
-  if (!adminId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { error } = await requireAdmin();
+  if (error) return error;
 
   const sb = getSupabase()!;
-  const { data, error } = await sb
+  const { data, error: dbErr } = await sb
     .from("marketplace_lenders")
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
   return NextResponse.json({ ok: true, lenders: data ?? [] });
 }
 
 export async function POST(req: NextRequest) {
-  const adminId = await requireAdmin();
-  if (!adminId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { error } = await requireAdmin();
+  if (error) return error;
 
   const body = await req.json();
   const {
@@ -50,7 +41,7 @@ export async function POST(req: NextRequest) {
   }
 
   const sb = getSupabase()!;
-  const { data, error } = await sb
+  const { data, error: dbErr } = await sb
     .from("marketplace_lenders")
     .insert({
       lender_name: lender_name.trim(),
@@ -74,19 +65,18 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
   return NextResponse.json({ ok: true, lender: data });
 }
 
 export async function PATCH(req: NextRequest) {
-  const adminId = await requireAdmin();
-  if (!adminId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { error } = await requireAdmin();
+  if (error) return error;
 
   const body = await req.json();
   const { id, ...fields } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  // Whitelist updatable fields
   const allowed = [
     "status", "margin_over_par", "loan_types", "eligible_states",
     "min_loan_amount", "max_loan_amount", "min_credit_score", "max_ltv",
@@ -99,13 +89,13 @@ export async function PATCH(req: NextRequest) {
   }
 
   const sb = getSupabase()!;
-  const { data, error } = await sb
+  const { data, error: dbErr } = await sb
     .from("marketplace_lenders")
     .update(update)
     .eq("id", id)
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
   return NextResponse.json({ ok: true, lender: data });
 }

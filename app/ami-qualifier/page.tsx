@@ -23,6 +23,7 @@ interface AmiResult {
   programs: { homeReady: boolean; homePossible: boolean; dpa: boolean };
   fiscalYear: number;
   dataSource: 'FHFA' | 'HUD';
+  dpaMatchCount: number;
 }
 
 function fmt(n: number) {
@@ -381,7 +382,12 @@ export default function AmiQualifierPage() {
                     )}
                   </div>
                   <div className="aq-meter-pct" style={{ color }}>
-                    {result.incomeAsPctOfAmi}% of AMI
+                    {result.incomeAsPctOfAmi}% of {result.householdSize}-person AMI
+                    {!result.programs.homeReady && result.annualIncome > result.ami80pct && (
+                      <div style={{ fontSize: 11, fontWeight: 500, color: '#f59e0b', marginTop: 2 }}>
+                        ${(result.annualIncome - result.ami80pct).toLocaleString()} above HomeReady / Home Possible limit
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="aq-track">
@@ -429,9 +435,11 @@ export default function AmiQualifierPage() {
                     {
                       key: 'dpa',
                       name: 'Down Payment Assistance / CRA',
-                      desc: `Household-size-adjusted HUD income reference: ${fmt(result.ami120pct)} · Program availability depends on property, household composition, funding source, lender, and specific assistance program`,
+                      desc: `HUD household-size-adjusted reference: ${fmt(result.ami120pct)} · Not derived from FHFA/GSE AMI · Actual program limits vary by lender, property, household, and funding source`,
                       pass: result.programs.dpa,
-                      passLabel: 'Threshold met',
+                      passLabel: result.dpaMatchCount > 0
+                        ? `${result.dpaMatchCount} lender${result.dpaMatchCount !== 1 ? 's' : ''} on HomeRates`
+                        : 'Threshold met',
                       failLabel: 'Over threshold',
                     },
                   ].map(p => (
@@ -439,6 +447,11 @@ export default function AmiQualifierPage() {
                       <div className="aq-prog-left">
                         <div className="aq-prog-name">{p.name}</div>
                         <div className="aq-prog-desc">{p.desc}</div>
+                        {p.key === 'dpa' && p.pass && result.dpaMatchCount > 0 && (
+                          <Link href="/chat" style={{ fontSize: 11, color: '#00e87a', marginTop: 6, display: 'inline-block', fontWeight: 600 }}>
+                            Connect to see available programs →
+                          </Link>
+                        )}
                       </div>
                       <div className={`aq-prog-badge ${p.pass ? 'pass' : 'fail'}`}>
                         <div className={`aq-dot ${p.pass ? 'pass' : 'fail'}`} />
@@ -491,12 +504,10 @@ export default function AmiQualifierPage() {
                     </tr>
                     <tr>
                       <td>
-                        120% AMI <span className="aq-pill pill-amber">Moderate</span>
-                        {result.householdSize !== 4 && (
-                          <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
-                            {result.householdSize}-person household adjusted
-                          </div>
-                        )}
+                        HUD-Based DPA / CRA Reference
+                        <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
+                          Household-size-adjusted screening threshold · not derived from FHFA/GSE AMI above
+                        </div>
                       </td>
                       <td>DPA · bank CRA programs</td>
                       <td>{fmt(result.ami120pct)}</td>
@@ -504,7 +515,7 @@ export default function AmiQualifierPage() {
                     <tr className="aq-your-row">
                       <td>Your income</td>
                       <td>—</td>
-                      <td>{fmt(result.annualIncome)} · {result.incomeAsPctOfAmi}% of area AMI</td>
+                      <td>{fmt(result.annualIncome)} · {result.incomeAsPctOfAmi}% of {result.householdSize}-person AMI</td>
                     </tr>
                   </tbody>
                 </table>
@@ -519,8 +530,11 @@ export default function AmiQualifierPage() {
                   label="Share"
                   className="aq-btn-sec"
                 />
-                <Link href="/connect/my-scenario" className="aq-btn-pri">
-                  Run My Scenario →
+                <Link
+                  href={`/chat?${new URLSearchParams({ sq: `Run my numbers for ${location}` }).toString()}`}
+                  className="aq-btn-pri"
+                >
+                  Run My Numbers →
                 </Link>
               </div>
             </div>
