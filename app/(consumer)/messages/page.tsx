@@ -1,11 +1,12 @@
-﻿"use client";
-// app/messages/page.tsx
+"use client";
+// app/(consumer)/messages/page.tsx
 // Unified inbox for borrowers and professionals — thread list
+// Moved Stage 3: chrome (logo, nav, footer) now provided by (consumer)/layout.tsx → AppShell.
+// Removed: import ConsumerNav + <ConsumerNav /> (was bare hamburger, no logo — defect I6).
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
-import ConsumerNav from "../components/ConsumerNav";
 
 interface Thread {
   id: string;
@@ -78,8 +79,6 @@ export default function MessagesPage() {
   return (
     <>
       <div className="mb-root">
-        <ConsumerNav />
-
         <div className="mb-container">
           <h1 className="mb-heading">
             Inbox
