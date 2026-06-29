@@ -138,7 +138,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: '🗂',
     group: 'mine',
     modes: ['consumer', 'pro'],
-    surfaces: ['desktop', 'drawer', 'chatPanel'],
+    surfaces: ['drawer', 'chatPanel'],
   },
   {
     id: 'messages',
@@ -147,7 +147,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: '✉️',
     group: 'mine',
     modes: ['consumer', 'pro'],
-    surfaces: ['desktop', 'drawer', 'chatPanel'],
+    surfaces: ['drawer', 'chatPanel'],
   },
   // Fixes I7: /dashboard was absent from D5 (chat pro panel). Tagged chatPanel here.
   {
@@ -265,6 +265,28 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'account',
     modes: ['consumer', 'pro'],
     surfaces: ['drawer', 'chatPanel'],
+    footer: true,
+  },
+  {
+    id: 'settings',
+    href: '/settings',
+    label: 'Settings',
+    icon: '⚙️',
+    group: 'account',
+    modes: ['consumer', 'pro'],
+    surfaces: ['drawer'],
+    footer: true,
+  },
+  // Sign-out is a Clerk action — Stage 2 renderer detects id==='sign-out' and calls
+  // signOut() rather than navigating to this href.
+  {
+    id: 'sign-out',
+    href: '/sign-out',
+    label: 'Sign Out',
+    icon: '🚪',
+    group: 'account',
+    modes: ['consumer', 'pro'],
+    surfaces: ['drawer'],
     footer: true,
   },
   // Admin: drawer only — never chatPanel; rendered only when isAdmin gate passes.
