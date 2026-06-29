@@ -1,5 +1,4 @@
-// Stage 1 of the shell migration — single source of truth for every nav item.
-// Not yet consumed by any renderer; Stage 2 shells will filter from this array.
+// Shell migration source of truth for every nav item + top-bar selector.
 // See ARCHITECTURE_DECISIONS.md AD-7.
 
 export type NavMode    = 'consumer' | 'pro';
@@ -303,3 +302,19 @@ export const NAV_ITEMS: NavItem[] = [
   },
 
 ];
+
+// ── Top-bar selector ──────────────────────────────────────────────────────────
+// Explicit whitelist per mode — "desktop" surface items from the DECIDE group only.
+// Stage 2 shells derive the top bar by calling topBarItems(mode).
+// Consumer: My Home · Chat · Market Rates
+// Pro:      Chat · Market Rates · Dashboard
+export const TOP_BAR_IDS: Record<NavMode, string[]> = {
+  consumer: ['my-home', 'chat', 'market-intelligence'],
+  pro:      ['chat', 'market-intelligence', 'dashboard'],
+};
+
+export function topBarItems(mode: NavMode): NavItem[] {
+  return TOP_BAR_IDS[mode]
+    .map(id => NAV_ITEMS.find(i => i.id === id))
+    .filter((i): i is NavItem => i !== undefined);
+}
