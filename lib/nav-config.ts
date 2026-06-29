@@ -190,15 +190,22 @@ export const NAV_ITEMS: NavItem[] = [
     surfaces: ['drawer', 'chatPanel'],
     proBadge: true,
   },
+  {
+    id: 'investor',
+    href: '/investor',
+    label: 'Investor Portal',
+    icon: '📊',
+    group: 'mine',
+    modes: ['pro'],
+    surfaces: ['drawer'],
+  },
 
   // ── LEARN ────────────────────────────────────────────────────────────────────
-  // /lab: icon 🧠 per spec (D5 convention). Note: same icon as /platform — both 🧠.
-  // Stage 2 renderers may differentiate via label; flag if visual collision is a problem.
   {
     id: 'lab',
     href: '/lab',
     label: 'HomeRates Lab',
-    icon: '🧠',
+    icon: '🧪',
     group: 'learn',
     modes: ['pro'],
     surfaces: ['drawer', 'chatPanel'],
