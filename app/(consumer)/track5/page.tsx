@@ -7,7 +7,6 @@ import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
-import ConsumerNav from '../components/ConsumerNav';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -511,8 +510,6 @@ function Track5Inner() {
         html:has(.t5-root){ height:auto!important; overflow:visible!important; }
         body:has(.t5-root){ display:block!important; height:auto!important; overflow:visible!important; background:#080c12!important; }
       `}</style>
-
-      <ConsumerNav fullNav />
 
       <div style={{ maxWidth: 780, margin: '0 auto', padding: '2.5rem 1.5rem 6rem' }}>
 
