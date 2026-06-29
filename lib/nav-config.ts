@@ -56,7 +56,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     id: 'check-property',
     href: '/check-property',
-    label: 'Check Property',
+    label: 'Property Look Up',
     icon: '🔍',
     group: 'decide',
     modes: ['consumer'],
@@ -148,14 +148,15 @@ export const NAV_ITEMS: NavItem[] = [
     modes: ['consumer', 'pro'],
     surfaces: ['drawer', 'chatPanel'],
   },
-  // Fixes I7: /dashboard was absent from D5 (chat pro panel). Tagged chatPanel here.
+  // desktop surface: pro only (top bar). drawer+chatPanel: both modes so pro users
+  // on consumer-shell pages (e.g. /messages) can still reach Dashboard.
   {
     id: 'dashboard',
     href: '/dashboard',
     label: 'Dashboard',
     icon: '⚡',
     group: 'mine',
-    modes: ['pro'],
+    modes: ['consumer', 'pro'],
     surfaces: ['desktop', 'drawer', 'chatPanel'],
   },
   // Consumer-side: /connect ("Share with Pro") — distinct from pro /connect/my-scenario.
@@ -268,7 +269,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     id: 'settings',
-    href: '/settings',
+    href: '/profile',
     label: 'Settings',
     icon: '⚙️',
     group: 'account',
