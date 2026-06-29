@@ -65,7 +65,7 @@ export default function WelcomePage() {
         setFoundingNumber(claimData.foundingNumber);
         setChecking(false);
       } else if (setupData.role) {
-        window.location.replace("/dashboard");
+        window.location.replace(setupData.role === 'borrower' ? '/my-home' : '/dashboard');
       } else {
         setChecking(false); // new user with no invite — show role selection
       }
@@ -99,7 +99,7 @@ export default function WelcomePage() {
       if (data.foundingNumber || data.isPilot) {
         setFoundingNumber(data.foundingNumber ?? -1); // -1 = pilot path (no sequential number)
       } else {
-        window.location.href = "/dashboard";
+        window.location.href = type === 'borrower' ? '/my-home' : '/dashboard';
       }
     } catch {
       setError("Network error — please try again");

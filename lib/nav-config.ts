@@ -56,7 +56,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     id: 'check-property',
     href: '/check-property',
-    label: 'Property Look Up',
+    label: 'Property Look up',
     icon: '🔍',
     group: 'decide',
     modes: ['consumer'],
@@ -269,7 +269,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     id: 'settings',
-    href: '/profile',
+    href: '/settings',
     label: 'Settings',
     icon: '⚙️',
     group: 'account',
@@ -307,10 +307,10 @@ export const NAV_ITEMS: NavItem[] = [
 // ── Top-bar selector ──────────────────────────────────────────────────────────
 // Explicit whitelist per mode — "desktop" surface items from the DECIDE group only.
 // Stage 2 shells derive the top bar by calling topBarItems(mode).
-// Consumer: My Home · Chat · Market Rates
+// Consumer: My Home · Chat · Market Rates · Dashboard
 // Pro:      Chat · Market Rates · Dashboard
 export const TOP_BAR_IDS: Record<NavMode, string[]> = {
-  consumer: ['my-home', 'chat', 'market-intelligence'],
+  consumer: ['my-home', 'chat', 'market-intelligence', 'dashboard'],
   pro:      ['chat', 'market-intelligence', 'dashboard'],
 };
 

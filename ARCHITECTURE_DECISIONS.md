@@ -120,6 +120,30 @@ one "Tools" group defined once.
 
 ---
 
+## AD-9 — Consumer Dashboard = same surface, filtered by mode (AMENDS AD-6)
+
+**Decision:** The "consumer Dashboard" is NOT a separate page from the Pro Dashboard.
+It is `/dashboard` filtered by `userType` at the server. Borrowers see their scenario
+status, credit balance, and quick-links. LOs/agents see pipeline stats, borrower slots,
+and marketplace. Same URL (`/dashboard`), same file, different rendered content.
+
+**Route group assignment:** `/dashboard` sits in `(consumer)` so borrowers arriving
+after sign-up get the consumer AppShell (logo + My Home · Chat · Market Rates · Dashboard
+top bar + full drawer). Pro users visiting `/dashboard` will also see consumer chrome
+for now — acceptable because the page content is still role-differentiated server-side.
+
+**Post-login routing:** `welcome/page.tsx` routes borrowers to `/my-home` and
+LOs/agents to `/dashboard`. `/my-home` is the borrower's primary intelligence hub;
+`/dashboard` is the LO pipeline. Once the consumer Dashboard surface is fully fleshed out,
+borrowers can be routed there instead.
+
+**Amends AD-6:** AD-6 declared consumer/pro a structural route-group boundary.
+This decision establishes the single pragmatic exception: one page (`/dashboard`)
+serves both modes via server-side role detection, not a client-side toggle or two
+separate page files. All other pages follow the AD-6 boundary.
+
+---
+
 ## AD-8 — Shell migration: staging boundary CONFIRMED isolated
 
 Vercel has separate `NEXT_PUBLIC_SUPABASE_URL` values scoped to Preview vs
