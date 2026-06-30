@@ -226,7 +226,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     id: 'platform',
     href: '/platform',
-    label: 'Rate Intelligence',
+    label: 'Platform Intelligence',
     icon: '🧠',
     group: 'learn',
     modes: ['consumer', 'pro'],

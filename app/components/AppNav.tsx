@@ -375,7 +375,7 @@ export default function AppNav({
                 <span className="an-drawer-icon">📚</span>Knowledge Hub
               </Link>
               <Link href="/platform" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-                <span className="an-drawer-icon">🧠</span>Rate Intelligence
+                <span className="an-drawer-icon">🧠</span>Platform Intelligence
               </Link>
             </>
           ) : (
@@ -421,7 +421,7 @@ export default function AppNav({
                 <span className="an-drawer-icon">🟩</span>AMI Qualifier
               </Link>
               <Link href="/platform" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
-                <span className="an-drawer-icon">🧠</span>Rate Intelligence
+                <span className="an-drawer-icon">🧠</span>Platform Intelligence
               </Link>
 
               {/* Account */}
