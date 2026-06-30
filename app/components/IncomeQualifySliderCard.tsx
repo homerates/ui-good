@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminCardBadge from './AdminCardBadge';
 import { calcPI } from '../../lib/math';
@@ -33,6 +33,10 @@ export interface IncomeQualifySliderParams {
     /** G4: DSC computing state — disable CTA until L2/L3/L4 resolve */
     decisionScoreState?: 'computing' | 'complete';
     onRunScenario?: (seed: string, overrides: Record<string, any>) => void;
+    /** Fires on every scenario-field change (price/down/rate/term/loanType) so a sibling
+     *  card (e.g. InteractiveSliderCard) can mirror the live drag instead of staying frozen
+     *  at the last committed scenario until "Update Analysis" round-trips through chat. */
+    onLiveChange?: (vals: { price: number; downPct: number; rate: number; term: number; loanType: 'conventional' | 'fha' | 'va' | 'jumbo' }) => void;
     journeyAddress?: string;
     /** Suppress the "Check a specific property →" CTA — use when LIC already provides it */
     hideCheckPropertyButton?: boolean;
@@ -77,6 +81,13 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
     const [_journeySid] = useState<string | null>(
         props.journeyAddress ? iqGetSid(props.journeyAddress) : null,
     );
+
+    // Mirror live scenario-field drags up to the parent so a sibling card (ISC) can
+    // track this drawer in real time instead of freezing until a full chat round-trip.
+    useEffect(() => {
+        props.onLiveChange?.({ price, downPct, rate, term: termYrs, loanType: loanTypeState });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [price, downPct, rate, termYrs, loanTypeState]);
 
     // ── Derived ──────────────────────────────────────────────────────────────
 
