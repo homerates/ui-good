@@ -56,7 +56,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     id: 'check-property',
     href: '/check-property',
-    label: 'Property Look up',
+    label: 'Property Lookup',
     icon: '🔍',
     group: 'decide',
     modes: ['consumer'],
@@ -66,7 +66,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     id: 'track5',
     href: '/track5',
-    label: 'Track 5',
+    label: 'Level 5',
     icon: '🎯',
     group: 'decide',
     modes: ['consumer'],
@@ -89,7 +89,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     id: 'rate-intelligence-engine',
     href: '/rate-intelligence-engine',
-    label: 'Rate Intelligence',
+    label: 'Rate Engine',
     icon: '🔬',
     group: 'tools',
     modes: ['consumer', 'pro'],

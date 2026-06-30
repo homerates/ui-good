@@ -111,7 +111,7 @@ export default function ConsumerWelcomeCard({ onSend, onMount }: Props) {
           {/* Tile 2 — Decision Score */}
           <div className="cwc-tile">
             <div className="cwc-tile__sample">Sample</div>
-            <div className="cwc-tile__tag" style={{ color: '#3d8bff' }}>Track 5 · Decision Score</div>
+            <div className="cwc-tile__tag" style={{ color: '#3d8bff' }}>Level 5 · Decision Score</div>
             <div className="cwc-tile__score-wrap">
               <div className="cwc-tile__ring">
                 <svg width="52" height="52" viewBox="0 0 52 52">

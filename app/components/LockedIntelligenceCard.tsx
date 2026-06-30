@@ -128,7 +128,7 @@ export default function LockedIntelligenceCard({ onSubmitAddress }: Props) {
         {/* Tile 2 — Decision Score */}
         <div style={{ background: 'rgba(0,232,122,0.05)', border: '1px solid rgba(0,232,122,0.15)', borderRadius: 10, padding: '12px 10px' }}>
           <div style={{ fontSize: '0.55rem', fontWeight: 800, color: '#00e87a', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
-            Track 5 · Decision Score
+            Level 5 · Decision Score
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <div style={{ position: 'relative', width: 36, height: 36, flexShrink: 0 }}>
