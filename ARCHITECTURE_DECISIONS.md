@@ -156,3 +156,35 @@ Open watch item (non-blocking): confirm Preview-scoped Clerk key is a dev
 instance; local `.env.local` (development env) shows `pk_live_`, which is expected
 for local but should be verified separately for Preview. Mode resolution does not
 depend on Clerk claims (resolves from Supabase role), so not migration-blocking.
+
+---
+
+## AD-10 — /chat keeps standalone chrome permanently (AppShell structurally incompatible)
+
+**Decision:** `/chat` will never be wrapped in AppShell and will never be moved
+into the `(consumer)` or `(pro)` route groups. This is a permanent architectural
+boundary, not a deferred migration.
+
+**Root cause — two hard incompatibilities (audited 2026-06-30):**
+
+1. **Body-overflow override.** AppShell injects
+   `body:has(.ash-root){display:block!important;height:auto!important;overflow:visible!important;}`.
+   Chat's scroll model depends on `globals.css` keeping `html,body{height:100%;overflow:hidden}`
+   so only the `.scroll` flex child scrolls. AppShell's override releases body overflow, which
+   collapses the constrained scroll container and breaks auto-scroll-to-bottom.
+
+2. **Double full-height nesting.** AppShell's `.ash-root{min-height:100vh}` wraps
+   chat's `<section.main style={{minHeight:'100dvh'}}>`. The two stack to ~200dvh,
+   the page becomes document-scrollable, and the mobile fixed composer unpins.
+
+**Status quo is correct:** chat owns its own chrome — sticky `.header`, flex scroll
+column, fixed mobile composer. `useConsumerMode()` is already imported and resolves
+at runtime (hostname + Supabase role) to branch consumer vs pro rendering. The
+consumer hamburger (`ConsumerNav → AppNav drawerOnly`) already reads from nav-config.
+
+**What was migrated:** The pro right-panel item list was replaced with a
+nav-config-driven render (same groups/items as AppShell pro drawer, no hardcoded
+drift). Layout structure is untouched.
+
+**Do not retry:** Any future session that proposes wrapping `/chat` in AppShell or
+moving it into a route group should be rejected and pointed to this entry.

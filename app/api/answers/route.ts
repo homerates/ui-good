@@ -5103,6 +5103,17 @@ ${uwDatabase}`;
                     (calcCard as any).fhaSlider = null;
                     (calcCard as any).interactiveSlider = null;
                     (calcCard as any).incomeQualifySlider = { price: _fqpo.purchasePrice, downPct: _fqpo.downPaymentPct ?? 3.5, rate: _fqpo.annualRatePct ?? (fred?.mort30Avg ?? 6.75), term: 30, taxRate: 0.011, insRate: 0.003, loanType: 'fha' as const };
+                } else if ((calcCard as any).fhaSlider) {
+                    // Echo income/debt into fhaSlider regardless of path — paramOverrides for
+                    // "Update Analysis" round-trips, calcDispatch.params for initial renders.
+                    // buildFHACard is a pure calc mapper and has no slot for user-supplied inputs.
+                    const _po = paramOverrides as any;
+                    const _dp = calcDispatch.params as any;
+                    const _income = (_po?.annualIncome ?? 0) > 0 ? _po.annualIncome : ((_dp?.annualIncome ?? 0) > 0 ? _dp.annualIncome : undefined);
+                    const _debt   = (_po?.monthlyDebt   ?? 0) > 0 ? _po.monthlyDebt   : ((_dp?.monthlyDebts  ?? 0) > 0 ? _dp.monthlyDebts  : undefined);
+                    if (_income || _debt) {
+                        (calcCard as any).fhaSlider = { ...(calcCard as any).fhaSlider, annualIncome: _income, monthlyDebt: _debt };
+                    }
                 }
 
             } else if (calcDispatch.type === 'mip_duration_knowledge') {
@@ -5246,6 +5257,14 @@ ${uwDatabase}`;
                         insRate: 0.003,
                         loanType: 'va' as const,
                     };
+                } else if ((calcCard as any).vaSlider) {
+                    const _po = paramOverrides as any;
+                    const _dp = calcDispatch.params as any;
+                    const _income = (_po?.annualIncome ?? 0) > 0 ? _po.annualIncome : ((_dp?.annualIncome ?? 0) > 0 ? _dp.annualIncome : undefined);
+                    const _debt   = (_po?.monthlyDebt   ?? 0) > 0 ? _po.monthlyDebt   : ((_dp?.monthlyDebts  ?? 0) > 0 ? _dp.monthlyDebts  : undefined);
+                    if (_income || _debt) {
+                        (calcCard as any).vaSlider = { ...(calcCard as any).vaSlider, annualIncome: _income, monthlyDebt: _debt };
+                    }
                 }
 
             } else if (calcDispatch.type === 'va_needs_input') {
@@ -5280,6 +5299,14 @@ ${uwDatabase}`;
                         insRate:  0.003,
                         loanType: 'jumbo' as const,
                     };
+                } else if ((calcCard as any).jumboSlider) {
+                    const _po = paramOverrides as any;
+                    const _dp = calcDispatch.params as any;
+                    const _income = (_po?.annualIncome ?? 0) > 0 ? _po.annualIncome : ((_dp?.annualIncome ?? 0) > 0 ? _dp.annualIncome : undefined);
+                    const _debt   = (_po?.monthlyDebt   ?? 0) > 0 ? _po.monthlyDebt   : ((_dp?.monthlyDebts  ?? 0) > 0 ? _dp.monthlyDebts  : undefined);
+                    if (_income || _debt) {
+                        (calcCard as any).jumboSlider = { ...(calcCard as any).jumboSlider, annualIncome: _income, monthlyDebt: _debt };
+                    }
                 }
 
             } else if (calcDispatch.type === 'jumbo_needs_input') {
@@ -5450,6 +5477,14 @@ ${uwDatabase}`;
                     (calcCard as any).convHBSlider = null;
                     (calcCard as any).interactiveSlider = null;
                     (calcCard as any).incomeQualifySlider = { price: _cqpo.purchasePrice, downPct: _cqpo.downPaymentPct ?? 20, rate: _cqpo.annualRatePct ?? (fred?.mort30Avg ?? 6.75), term: 30, taxRate: 0.011, insRate: 0.003, loanType: 'conventional' as const };
+                } else if ((calcCard as any).convHBSlider) {
+                    const _po = paramOverrides as any;
+                    const _dp = calcDispatch.params as any;
+                    const _income = (_po?.annualIncome ?? 0) > 0 ? _po.annualIncome : ((_dp?.annualIncome ?? 0) > 0 ? _dp.annualIncome : undefined);
+                    const _debt   = (_po?.monthlyDebt   ?? 0) > 0 ? _po.monthlyDebt   : ((_dp?.monthlyDebts  ?? 0) > 0 ? _dp.monthlyDebts  : undefined);
+                    if (_income || _debt) {
+                        (calcCard as any).convHBSlider = { ...(calcCard as any).convHBSlider, annualIncome: _income, monthlyDebt: _debt };
+                    }
                 }
 
             } else if (calcDispatch.type === 'affordability' && calcDispatch.params) {
@@ -6551,6 +6586,14 @@ ${_refRows}
                     { label: `What income do I need to qualify?`, seed: `What income do I need to qualify for a $${fmtPriceK(priceK)} home with FHA 3.5% down?` },
                 ],
             };
+            // Echo income/debt into fhaSlider — buildFHACard drops them (pure calc mapper).
+            if ((fhaAnswer as any).fhaSlider && (rIncome > 0 || (rFHAParams.monthlyDebts ?? 0) > 0)) {
+                (fhaAnswer as any).fhaSlider = {
+                    ...(fhaAnswer as any).fhaSlider,
+                    annualIncome: rIncome > 0 ? rIncome : undefined,
+                    monthlyDebt: (rFHAParams.monthlyDebts ?? 0) > 0 ? rFHAParams.monthlyDebts : undefined,
+                };
+            }
             console.log('[Mortgage->FHA] Reroute successful (calcEngine), fhaAnswer set');
         } catch (e: any) {
             console.warn('[Mortgage->FHA] Reroute failed:', e.message);

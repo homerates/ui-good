@@ -14,6 +14,7 @@ import ConsumerNav from '../components/ConsumerNav';
 import { useMobileComposerPin } from '../hooks/useMobileComposerPin';
 import { useAdminStatus } from '../hooks/useAdminStatus';
 import { useConsumerMode } from '@/useConsumerMode';
+import { NAV_ITEMS } from '@/nav-config';
 import { logAnswerToLibrary } from '../../lib/logAnswerToLibrary';
 import './styles.css';
 import GrokCard from "@/components/GrokCard";
@@ -422,6 +423,7 @@ type ApiResponse = {
     convHBSlider?: {
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number; county?: string; countyLimit?: number;
+        annualIncome?: number; monthlyDebt?: number;
     } | null;
     incomeQualifySlider?: {
         price: number; downPct: number; rate: number; term: number;
@@ -431,10 +433,12 @@ type ApiResponse = {
     vaSlider?: {
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number; vaFundingFeePct: number;
+        annualIncome?: number; monthlyDebt?: number;
     } | null;
     fhaSlider?: {
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number;
+        annualIncome?: number; monthlyDebt?: number;
     } | null;
     evaluationCard?: {
         purchasePrice: number; listPrice?: number; downPct: number; rate: number; termYrs: number;
@@ -484,6 +488,7 @@ type ApiResponse = {
     jumboSlider?: {
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number;
+        annualIncome?: number; monthlyDebt?: number;
     } | null;
     lenderChecklist?: {
         loanType: 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
@@ -1625,6 +1630,11 @@ export default function Page() {
     const [lastRouteByThread, setLastRouteByThread] = useState<Record<string, string>>({});
     // Structured param overrides from chip clicks — avoids parsing question text for numbers
     const [pendingParamOverrides, setPendingParamOverrides] = useState<Record<string, any> | null>(null);
+    // Live scenario-field preview from an open IQC drawer (ISC → IQC stacks) — lets the top
+    // ISC card mirror price/down/rate/term drags in real time instead of freezing until
+    // "Update Analysis" round-trips through chat. Keyed to the message so it only applies
+    // to the card pair currently being adjusted.
+    const [liveScenarioPreview, setLiveScenarioPreview] = useState<{ msgId: string; price: number; downPct: number; rate: number; term: number; loanType: 'conventional' | 'fha' | 'va' | 'jumbo' } | null>(null);
     // Derived from messages — finds the most recent chip with cmaAddress across the conversation.
     // Works on page reload / restored sessions since messages are persisted.
     const activeCmaContext = React.useMemo(() => {
@@ -4103,31 +4113,35 @@ export default function Page() {
                                                             </>
                                                         )}
                                                         {/* ── 4CS2341-CONV: Scenario-first conventional stack (ISC → IQC → LIC) ── */}
-                                                        {m.meta.convHBSlider && !loading && typingId === null && (
+                                                        {m.meta.convHBSlider && !loading && typingId === null && (() => {
+                                                            const livePreview = liveScenarioPreview?.msgId === m.id ? liveScenarioPreview : null;
+                                                            return (
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge code="4CS2341-CONV" position="top-left" />
                                                                 <InteractiveSliderCard
                                                                     fredStamp={fredStampFromMeta(m.meta)}
                                                                     key={`isc-convhb-${m.id}`}
-                                                                    price={m.meta.convHBSlider.price}
-                                                                    downPct={m.meta.convHBSlider.downPct}
-                                                                    rate={m.meta.convHBSlider.rate}
-                                                                    term={m.meta.convHBSlider.term}
+                                                                    price={livePreview?.price ?? m.meta.convHBSlider.price}
+                                                                    downPct={livePreview?.downPct ?? m.meta.convHBSlider.downPct}
+                                                                    rate={livePreview?.rate ?? m.meta.convHBSlider.rate}
+                                                                    term={livePreview?.term ?? m.meta.convHBSlider.term}
                                                                     taxRate={m.meta.convHBSlider.taxRate}
                                                                     insRate={m.meta.convHBSlider.insRate}
-                                                                    loanType='conventional'
+                                                                    loanType={livePreview?.loanType ?? 'conventional'}
                                                                     hideDrawer={true}
                                                                     journeyAddress={
                                                                         cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                     }
                                                                     onRunScenario={(seed, overrides) => {
+                                                                        setLiveScenarioPreview(null);
                                                                         pendingParamOverridesRef.current = overrides;
                                                                         setPendingParamOverrides(overrides);
                                                                         setTimeout(() => send(seed), 50);
                                                                     }}
                                                                 />
                                                             </div>
-                                                        )}
+                                                            );
+                                                        })()}
                                                         {/* IQC — 4CS2341-CONV path: income qualify for scenario seed (no cmaAddress needed) */}
                                                         {/* Suppressed when incomeQualifySlider is explicitly set (e.g. affordability path seeds it with annualIncome) */}
                                                         {m.meta.convHBSlider && !m.meta.incomeQualifySlider && !loading && typingId === null && (
@@ -4141,8 +4155,12 @@ export default function Page() {
                                                                 taxRate={m.meta.convHBSlider.taxRate}
                                                                 insRate={m.meta.convHBSlider.insRate}
                                                                 loanType='conventional'
+                                                                annualIncome={m.meta.convHBSlider.annualIncome}
+                                                                monthlyDebt={m.meta.convHBSlider.monthlyDebt}
                                                                 hideCheckPropertyButton={true}
+                                                                onLiveChange={(vals) => setLiveScenarioPreview({ msgId: m.id, ...vals })}
                                                                 onRunScenario={(seed, overrides) => {
+                                                                    setLiveScenarioPreview(null);
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
@@ -4173,31 +4191,35 @@ export default function Page() {
                                                         )}
                                                         {/* FHA slider card */}
                                                         {/* ── 4CS2341-FHA: Scenario-first FHA stack (ISC → IQC → LIC) ── */}
-                                                        {m.meta.fhaSlider && !loading && typingId === null && (
+                                                        {m.meta.fhaSlider && !loading && typingId === null && (() => {
+                                                            const livePreview = liveScenarioPreview?.msgId === m.id ? liveScenarioPreview : null;
+                                                            return (
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge code="4CS2341-FHA" position="top-left" />
                                                                 <InteractiveSliderCard
                                                                     fredStamp={fredStampFromMeta(m.meta)}
                                                                     key={`isc-fha-${m.id}`}
-                                                                    price={m.meta.fhaSlider.price}
-                                                                    downPct={m.meta.fhaSlider.downPct}
-                                                                    rate={m.meta.fhaSlider.rate}
-                                                                    term={m.meta.fhaSlider.term}
+                                                                    price={livePreview?.price ?? m.meta.fhaSlider.price}
+                                                                    downPct={livePreview?.downPct ?? m.meta.fhaSlider.downPct}
+                                                                    rate={livePreview?.rate ?? m.meta.fhaSlider.rate}
+                                                                    term={livePreview?.term ?? m.meta.fhaSlider.term}
                                                                     taxRate={m.meta.fhaSlider.taxRate}
                                                                     insRate={m.meta.fhaSlider.insRate}
-                                                                    loanType='fha'
+                                                                    loanType={livePreview?.loanType ?? 'fha'}
                                                                     hideDrawer={true}
                                                                     journeyAddress={
                                                                         cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                     }
                                                                     onRunScenario={(seed, overrides) => {
+                                                                        setLiveScenarioPreview(null);
                                                                         pendingParamOverridesRef.current = overrides;
                                                                         setPendingParamOverrides(overrides);
                                                                         setTimeout(() => send(seed), 50);
                                                                     }}
                                                                 />
                                                             </div>
-                                                        )}
+                                                            );
+                                                        })()}
                                                         {/* IQC — 4CS2341-FHA path */}
                                                         {m.meta.fhaSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
@@ -4210,8 +4232,12 @@ export default function Page() {
                                                                 taxRate={m.meta.fhaSlider.taxRate}
                                                                 insRate={m.meta.fhaSlider.insRate}
                                                                 loanType='fha'
+                                                                annualIncome={m.meta.fhaSlider.annualIncome}
+                                                                monthlyDebt={m.meta.fhaSlider.monthlyDebt}
                                                                 hideCheckPropertyButton={true}
+                                                                onLiveChange={(vals) => setLiveScenarioPreview({ msgId: m.id, ...vals })}
                                                                 onRunScenario={(seed, overrides) => {
+                                                                    setLiveScenarioPreview(null);
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
@@ -4231,31 +4257,35 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* ── 4CS2341-JUMBO: Scenario-first jumbo stack (ISC → IQC → LIC) ── */}
-                                                        {m.meta.jumboSlider && !loading && typingId === null && (
+                                                        {m.meta.jumboSlider && !loading && typingId === null && (() => {
+                                                            const livePreview = liveScenarioPreview?.msgId === m.id ? liveScenarioPreview : null;
+                                                            return (
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge code="4CS2341-JUMBO" position="top-left" />
                                                                 <InteractiveSliderCard
                                                                     fredStamp={fredStampFromMeta(m.meta)}
                                                                     key={`isc-jumbo-${m.id}`}
-                                                                    price={m.meta.jumboSlider.price}
-                                                                    downPct={m.meta.jumboSlider.downPct}
-                                                                    rate={m.meta.jumboSlider.rate}
-                                                                    term={m.meta.jumboSlider.term ?? 30}
+                                                                    price={livePreview?.price ?? m.meta.jumboSlider.price}
+                                                                    downPct={livePreview?.downPct ?? m.meta.jumboSlider.downPct}
+                                                                    rate={livePreview?.rate ?? m.meta.jumboSlider.rate}
+                                                                    term={livePreview?.term ?? (m.meta.jumboSlider.term ?? 30)}
                                                                     taxRate={m.meta.jumboSlider.taxRate}
                                                                     insRate={m.meta.jumboSlider.insRate}
-                                                                    loanType='jumbo'
+                                                                    loanType={livePreview?.loanType ?? 'jumbo'}
                                                                     hideDrawer={true}
                                                                     journeyAddress={
                                                                         cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                     }
                                                                     onRunScenario={(seed, overrides) => {
+                                                                        setLiveScenarioPreview(null);
                                                                         pendingParamOverridesRef.current = overrides;
                                                                         setPendingParamOverrides(overrides);
                                                                         setTimeout(() => send(seed), 50);
                                                                     }}
                                                                 />
                                                             </div>
-                                                        )}
+                                                            );
+                                                        })()}
                                                         {/* IQC — 4CS2341-JUMBO path */}
                                                         {m.meta.jumboSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
@@ -4268,8 +4298,12 @@ export default function Page() {
                                                                 taxRate={m.meta.jumboSlider.taxRate}
                                                                 insRate={m.meta.jumboSlider.insRate}
                                                                 loanType='jumbo'
+                                                                annualIncome={m.meta.jumboSlider.annualIncome}
+                                                                monthlyDebt={m.meta.jumboSlider.monthlyDebt}
                                                                 hideCheckPropertyButton={true}
+                                                                onLiveChange={(vals) => setLiveScenarioPreview({ msgId: m.id, ...vals })}
                                                                 onRunScenario={(seed, overrides) => {
+                                                                    setLiveScenarioPreview(null);
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
@@ -4284,32 +4318,36 @@ export default function Page() {
                                                         )}
                                                         {/* VA purchase slider card */}
                                                         {/* ── 4CS2341-VA: Scenario-first VA stack (ISC → IQC → LIC) ── */}
-                                                        {m.meta.vaSlider && !loading && typingId === null && (
+                                                        {m.meta.vaSlider && !loading && typingId === null && (() => {
+                                                            const livePreview = liveScenarioPreview?.msgId === m.id ? liveScenarioPreview : null;
+                                                            return (
                                                             <div style={{ position: 'relative' }}>
                                                                 <AdminCardBadge code="4CS2341-VA" position="top-left" />
                                                                 <InteractiveSliderCard
                                                                     fredStamp={fredStampFromMeta(m.meta)}
                                                                     key={`isc-va-${m.id}`}
-                                                                    price={m.meta.vaSlider.price}
-                                                                    downPct={m.meta.vaSlider.downPct}
-                                                                    rate={m.meta.vaSlider.rate}
-                                                                    term={m.meta.vaSlider.term}
+                                                                    price={livePreview?.price ?? m.meta.vaSlider.price}
+                                                                    downPct={livePreview?.downPct ?? m.meta.vaSlider.downPct}
+                                                                    rate={livePreview?.rate ?? m.meta.vaSlider.rate}
+                                                                    term={livePreview?.term ?? m.meta.vaSlider.term}
                                                                     taxRate={m.meta.vaSlider.taxRate}
                                                                     insRate={m.meta.vaSlider.insRate}
-                                                                    loanType='va'
+                                                                    loanType={livePreview?.loanType ?? 'va'}
                                                                     vaFundingFeePct={m.meta.vaSlider.vaFundingFeePct}
                                                                     hideDrawer={true}
                                                                     journeyAddress={
                                                                         cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
                                                                     }
                                                                     onRunScenario={(seed, overrides) => {
+                                                                        setLiveScenarioPreview(null);
                                                                         pendingParamOverridesRef.current = overrides;
                                                                         setPendingParamOverrides(overrides);
                                                                         setTimeout(() => send(seed), 50);
                                                                     }}
                                                                 />
                                                             </div>
-                                                        )}
+                                                            );
+                                                        })()}
                                                         {/* IQC — 4CS2341-VA path */}
                                                         {m.meta.vaSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
@@ -4322,8 +4360,12 @@ export default function Page() {
                                                                 taxRate={m.meta.vaSlider.taxRate}
                                                                 insRate={m.meta.vaSlider.insRate}
                                                                 loanType='va'
+                                                                annualIncome={m.meta.vaSlider.annualIncome}
+                                                                monthlyDebt={m.meta.vaSlider.monthlyDebt}
                                                                 hideCheckPropertyButton={true}
+                                                                onLiveChange={(vals) => setLiveScenarioPreview({ msgId: m.id, ...vals })}
                                                                 onRunScenario={(seed, overrides) => {
+                                                                    setLiveScenarioPreview(null);
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
                                                                     setTimeout(() => send(seed), 50);
@@ -5504,7 +5546,7 @@ export default function Page() {
                             {[
                                 { href: '/check-property', icon: '🔍', label: 'Check Property', sub: 'Full property intelligence report' },
                                 { href: '/connect',        icon: '📤', label: 'Share with Pro',  sub: 'Send your scenario to a lender' },
-                                { href: '/track5',         icon: '🎯', label: 'Track 5',          sub: 'Your buyer decision score' },
+                                { href: '/track5',         icon: '🎯', label: 'Level 5',          sub: 'Your buyer decision score' },
                             ].map(item => (
                                 <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                     <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
@@ -5537,39 +5579,36 @@ export default function Page() {
                         </>
                     ) : (
                         <>
-                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Platform</div>
-                            {[
-                                { href: '/chat',       icon: '💬', label: 'AI Chat',         sub: 'Ask any mortgage question' },
-                                { href: '/chat',       icon: '⚡', label: 'Scenario Engine', sub: 'Payment breakdowns & comparisons' },
-                                { href: '/lab',        icon: '🧠', label: 'HomeRates Lab',   sub: 'Policy & guideline answers' },
-                                { href: '/homeowner',  icon: '🏡', label: 'Home Value',       sub: 'Estimate & refi readiness' },
-                            ].map(item => (
-                                <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
-                                        <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 1 }}>{item.sub}</span>
-                                    </div>
-                                </a>
-                            ))}
-                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Market Rates</div>
-                            <a href="/market-intelligence" onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>📈</span>
-                                <span style={{ fontSize: 14, fontWeight: 500 }}>Market Rates</span>
-                            </a>
-                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Resources</div>
-                            {[
-                                { href: '/market-news',   icon: '📰', label: 'Market News' },
-                                { href: '/knowledge-hub', icon: '📚', label: 'Knowledge Hub' },
-                                { href: '/loan-limits',   icon: '🏠', label: 'Loan Limits 2026' },
-                                { href: '/calculators',   icon: '🧮', label: 'Calculators' },
-                                { href: '/platform',      icon: '🔬', label: 'Platform Intelligence' },
-                            ].map(item => (
-                                <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-                                    <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
-                                </a>
-                            ))}
+                            {(['decide', 'tools', 'mine', 'learn'] as const).map((g) => {
+                                const items = NAV_ITEMS.filter(i =>
+                                    i.modes.includes('pro') && i.surfaces.includes('drawer') && !i.footer && i.group === g
+                                );
+                                if (!items.length) return null;
+                                const groupLabel: Record<string, string> = {
+                                    decide: 'Decide', tools: 'Tools', mine: 'Mine', learn: 'Learn',
+                                };
+                                return (
+                                    <React.Fragment key={g}>
+                                        <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>{groupLabel[g]}</div>
+                                        {items.map(item => {
+                                            const label = item.labelByMode?.['pro'] ?? item.label;
+                                            return (
+                                                <a key={item.id} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                                                    {item.subLabel ? (
+                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                            <span style={{ fontSize: 14, fontWeight: 500 }}>{label}</span>
+                                                            <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 1 }}>{item.subLabel}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span style={{ fontSize: 14, fontWeight: 500 }}>{label}</span>
+                                                    )}
+                                                </a>
+                                            );
+                                        })}
+                                    </React.Fragment>
+                                );
+                            })}
                         </>
                     )}
                 </div>
