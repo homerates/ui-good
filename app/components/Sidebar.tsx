@@ -16,6 +16,7 @@ import ProjectsPanel from './ProjectsPanel';
 import MoveToProjectDialog from './MoveToProjectDialog';
 import LegalLinks from "./LegalLinks";
 import SidebarLegal from "./SidebarLegal";
+import { NAV_ITEMS } from '@/nav-config';
 
 
 // ===== Types =====
@@ -353,81 +354,66 @@ export default function Sidebar(props: SidebarProps) {
             </button>
           </div>
 
-          {/* ── Section: Market Rates ── */}
-          <div className="sidebar-section">
-            <div className="sidebar-section-label">Market Rates</div>
-            <a href="/market-intelligence" className="btn sidebar-tool-btn">
-              <span className="sidebar-tool-icon">📈</span>
-              Market Rates
-            </a>
-          </div>
+          {/* ── Nav sections (nav-config driven: pro mode, chatPanel surface) ── */}
+          {(['decide', 'tools', 'mine', 'learn'] as const).map((g) => {
+            const groupItems = NAV_ITEMS.filter(i =>
+              i.modes.includes('pro') &&
+              i.surfaces.includes('chatPanel') &&
+              !i.footer &&
+              i.group === g &&
+              i.id !== 'chat'
+            );
+            // Inject the Property Lookup in-chat shortcut at the bottom of Decide
+            const showPropertyLookup = g === 'decide' && !!onPriceCheck;
+            if (!groupItems.length && !showPropertyLookup) return null;
 
-          <div className="sidebar-section">
-            <div className="sidebar-section-label">Tools</div>
+            const GROUP_LABEL: Record<string, string> = {
+              decide: 'Decide', tools: 'Tools', mine: 'Mine', learn: 'Learn',
+            };
+            const proBadgeStyle: React.CSSProperties = {
+              marginLeft: 'auto',
+              fontSize: 9,
+              fontWeight: 800,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
+              color: '#1a0a00',
+              padding: '2px 6px',
+              borderRadius: 999,
+              flexShrink: 0,
+            };
 
-            {/* Scenario Engine — starts a new chat (shows WelcomeScreen) */}
-            <button
-              className="btn sidebar-tool-btn"
-              type="button"
-              onClick={onNewChat}
-            >
-              <span className="sidebar-tool-icon">⚡</span>
-              Scenario Engine
-            </button>
-
-            {/* HomeRates Lab */}
-            <a href="/lab" className="btn sidebar-tool-btn">
-              <span className="sidebar-tool-icon">🧪</span>
-              HomeRates Lab
-            </a>
-
-            {/* Property Lookup — paste a listing URL (leads to Pro Intelligence Report) */}
-            {onPriceCheck && (
-              <button
-                className="btn sidebar-tool-btn"
-                type="button"
-                onClick={onPriceCheck}
-              >
-                <span className="sidebar-tool-icon">🔎</span>
-                Property Lookup
-                <span style={{
-                  marginLeft: 'auto',
-                  fontSize: 9,
-                  fontWeight: 800,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
-                  color: '#1a0a00',
-                  padding: '2px 6px',
-                  borderRadius: 999,
-                  flexShrink: 0,
-                }}>⭐ Pro</span>
-              </button>
-            )}
-
-            {/* Deal Rooms — AI transaction workspace (Pro) */}
-            <a
-              href="/deal-rooms"
-              className="btn sidebar-tool-btn"
-              style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
-            >
-              <span className="sidebar-tool-icon">🏡</span>
-              Deal Rooms
-              <span style={{
-                marginLeft: 'auto',
-                fontSize: 9,
-                fontWeight: 800,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
-                color: '#1a0a00',
-                padding: '2px 6px',
-                borderRadius: 999,
-                flexShrink: 0,
-              }}>⭐ Pro</span>
-            </a>
-
-          </div>
+            return (
+              <div key={g} className="sidebar-section">
+                <div className="sidebar-section-label">{GROUP_LABEL[g]}</div>
+                {groupItems.map(item => {
+                  const label = item.labelByMode?.['pro'] ?? item.label;
+                  return (
+                    <a
+                      key={item.id}
+                      href={item.href}
+                      className="btn sidebar-tool-btn"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      <span className="sidebar-tool-icon">{item.icon}</span>
+                      {label}
+                      {item.proBadge && <span style={proBadgeStyle}>⭐ Pro</span>}
+                    </a>
+                  );
+                })}
+                {showPropertyLookup && (
+                  <button
+                    className="btn sidebar-tool-btn"
+                    type="button"
+                    onClick={onPriceCheck}
+                  >
+                    <span className="sidebar-tool-icon">🔎</span>
+                    Property Lookup
+                  </button>
+                )}
+              </div>
+            );
+          })}
 
           {/* ── Projects list ── */}
           <div
