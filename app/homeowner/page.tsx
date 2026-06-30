@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
+import AppNav from '../components/AppNav';
 
 export default function HomeownerPage() {
   const router = useRouter();
@@ -91,25 +91,6 @@ export default function HomeownerPage() {
         }
         .ho-root * { box-sizing: border-box; }
         body:has(.ho-root) .app-footer { display: none !important; }
-
-        /* NAV */
-        .ho-nav {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 14px 40px;
-          border-bottom: 1px solid var(--border);
-          background: var(--bg);
-          position: sticky; top: 0; z-index: 20;
-        }
-        .ho-nav-logo { display: flex; align-items: center; text-decoration: none; }
-        .ho-nav-logo img { height: 34px; width: auto; }
-        .ho-nav-links { display: flex; gap: 28px; list-style: none; margin: 0; padding: 0; }
-        .ho-nav-links a { font-size: 13px; color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
-        .ho-nav-links a:hover { color: var(--text); }
-        .ho-nav-cta { display: flex; align-items: center; gap: 10px; }
-        .ho-btn-ghost { font-size: 13px; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 8px 14px; text-decoration: none; display: inline-block; font-family: inherit; transition: color 0.2s; }
-        .ho-btn-ghost:hover { color: var(--text); }
-        .ho-btn-primary { font-size: 13px; font-weight: 600; color: #000; background: var(--green); border: none; cursor: pointer; padding: 9px 20px; border-radius: 6px; text-decoration: none; display: inline-block; font-family: inherit; transition: opacity 0.2s; }
-        .ho-btn-primary:hover { opacity: 0.88; }
 
         /* HERO */
         .ho-hero {
@@ -338,9 +319,7 @@ export default function HomeownerPage() {
         @keyframes ho-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
         @media (max-width: 900px) {
-          .ho-nav { padding: 14px 20px; }
-          .ho-nav-links { display: none; }
-          .ho-hero { padding: 48px 20px 40px; }
+.ho-hero { padding: 48px 20px 40px; }
           .ho-h1 { font-size: 38px; }
           .ho-sub { font-size: 16px; }
           .ho-stats { gap: 28px; flex-wrap: wrap; padding: 36px 20px; }
@@ -353,29 +332,7 @@ export default function HomeownerPage() {
       `}</style>
 
       <div className="ho-root">
-        {/* NAV */}
-        <nav className="ho-nav">
-          <Link href="/" className="ho-nav-logo">
-            <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
-          </Link>
-          <ul className="ho-nav-links">
-            <li><Link href="/chat">Mortgage Calculator</Link></li>
-            <li><Link href="/knowledge-hub">Knowledge Hub</Link></li>
-            <li><Link href="/market-news">Market News</Link></li>
-          </ul>
-          <div className="ho-nav-cta">
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button className="ho-btn-ghost">Sign in</button>
-              </SignInButton>
-              <Link href="/my-home" className="ho-btn-primary">My Properties</Link>
-            </SignedOut>
-            <SignedIn>
-              <Link href="/my-home" className="ho-btn-primary">My Properties</Link>
-              <UserButton afterSignOutUrl="/homeowner" />
-            </SignedIn>
-          </div>
-        </nav>
+        <AppNav />
 
         {/* HERO */}
         <section className="ho-hero">

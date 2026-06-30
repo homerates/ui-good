@@ -7,6 +7,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import RateEngineClient from './RateEngineClient';
+import AppNav from '../components/AppNav';
 
 // ─────────────────────────────────────────────
 // META
@@ -175,14 +176,7 @@ export default function RateIntelligenceEnginePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaSoftwareApp) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaBreadcrumb) }} />
 
-      {/* Nav */}
-      <nav className="rie-nav">
-        <Link href="/" className="rie-nav-logo">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" style={{ height: 30, width: 'auto' }} />
-        </Link>
-        <Link href="/chat" className="rie-nav-cta">Try the AI →</Link>
-      </nav>
+      <AppNav />
 
       <main className="rie-page">
 
@@ -346,29 +340,12 @@ export default function RateIntelligenceEnginePage() {
       </main>
 
       <style>{`
-        body:has(.rie-nav) {
+        body:has(.rie-page) {
           display: block !important; height: auto !important;
           overflow: visible !important; background: #080c12 !important;
         }
-        html:has(.rie-nav) { height: auto !important; overflow: visible !important; background: #080c12 !important; }
-        body:has(.rie-nav) .app-footer { display: none; }
-
-        .rie-nav {
-          position: sticky; top: 0; z-index: 100;
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 16px 32px;
-          background: rgba(8,12,18,0.97); backdrop-filter: blur(10px);
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-        }
-        .rie-nav-logo { display: flex; align-items: center; text-decoration: none; }
-        .rie-nav-cta {
-          padding: 8px 20px;
-          background: #00e87a; color: #080c12;
-          border-radius: 999px; font-size: 0.875rem;
-          font-weight: 700; text-decoration: none; transition: opacity 0.15s;
-          font-family: 'DM Sans', sans-serif;
-        }
-        .rie-nav-cta:hover { opacity: 0.88; }
+        html:has(.rie-page) { height: auto !important; overflow: visible !important; background: #080c12 !important; }
+        body:has(.rie-page) .app-footer { display: none; }
 
         .rie-page {
           max-width: 900px; margin: 0 auto;
@@ -474,8 +451,7 @@ export default function RateIntelligenceEnginePage() {
         .rie-related-desc { font-size: 0.83rem; color: #8fa3b8; line-height: 1.5; }
 
         @media (max-width: 600px) {
-          .rie-nav { padding: 14px 20px; }
-          .rie-page { padding: 1.25rem 1rem 3rem; }
+.rie-page { padding: 1.25rem 1rem 3rem; }
           .rie-trust-bar { gap: 6px; }
           .rie-trust-item { font-size: 11px; padding: 3px 9px; }
           .rie-features-grid { grid-template-columns: 1fr; }
