@@ -2,7 +2,7 @@
 // app/library/VaultClient.tsx — PDF-only library (analyses tab removed)
 
 import React, { useState, useMemo } from 'react';
-import PageShell from '../components/PageShell';
+import Link from 'next/link';
 
 type PDF = { name: string; label: string; created_at: string; signedUrl: string | null };
 
@@ -36,7 +36,10 @@ export default function VaultClient({ pdfs }: { answers?: any[]; pdfs: PDF[] }) 
     [pdfs, q]);
 
     return (
-        <PageShell backHref="/chat" backLabel="Back to chat" maxWidth={800}>
+        <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 20px' }}>
+            <Link href="/chat" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', color: '#3d8bff', textDecoration: 'none', marginBottom: 24 }}>
+                ← Back to chat
+            </Link>
 
             {/* Page title */}
             <div style={{ marginBottom: 24 }}>
@@ -143,6 +146,6 @@ export default function VaultClient({ pdfs }: { answers?: any[]; pdfs: PDF[] }) 
                     ))}
                 </div>
             )}
-        </PageShell>
+        </div>
     );
 }

@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
-import ConsumerNav from '@/components/ConsumerNav';
+
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
@@ -396,14 +396,6 @@ function CheckPropertyInner() {
             .cp-step-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
         `}</style>
         <div className="ps-root">
-            <header className="cp-header">
-                <div className="cp-header-inner">
-                    <Link href="/">
-                        <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="cp-logo" />
-                    </Link>
-                    <ConsumerNav />
-                </div>
-            </header>
         <div className="cp-body">
 
             {/* ── Page title ─────────────────────────────────────────────── */}

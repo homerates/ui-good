@@ -1027,13 +1027,13 @@ This page gives you context — the market rate environment your personal rate w
 
 ---
 
-## Layer 2: Rate Intelligence Engine
+## Layer 2: Rate Engine
 
-**Where:** [Rate Intelligence Engine](/rate-intelligence-engine) — reached via "Decode your rate" from a Decision Score Card
+**Where:** [Rate Engine](/rate-intelligence-engine) — reached via "Decode your rate" from a Decision Score Card
 
 This is where the market rate becomes **your** rate.
 
-The Rate Intelligence Engine takes the FRED 30-year benchmark and layers in the Fannie Mae Loan-Level Price Adjustments (LLPAs) that apply specifically to your loan scenario:
+The Rate Engine takes the FRED 30-year benchmark and layers in the Fannie Mae Loan-Level Price Adjustments (LLPAs) that apply specifically to your loan scenario:
 
 | Input | How it affects your rate |
 |---|---|
@@ -1065,7 +1065,7 @@ Track 5 organizes your buying decision across five levels:
 - **L4:** Location intelligence (school scores, flood risk, neighborhood)
 - **L5:** Decoded rate (your personalized lender par rate)
 
-**L5 is powered entirely by the Rate Intelligence Engine.** When you complete the rate decode for a property, that lender par rate is stored to your session and surfaces in Track 5 as the fifth level of your decision score.
+**L5 is powered entirely by the Rate Engine.** When you complete the rate decode for a property, that lender par rate is stored to your session and surfaces in Track 5 as the fifth level of your decision score.
 
 This is what makes L5 different from the other four levels: it's not an AI summary or a market estimate — it's a **calculated output** derived from live FRED data and the public Fannie Mae LLPA matrix, personalized to your credit profile and loan scenario.
 
@@ -1079,7 +1079,7 @@ The composite Decision Score across all five levels reflects not just whether a 
 
 **Step 2 →** Market Intelligence Page — benchmark + treasury spread + AI synthesis
 
-**Step 3 →** Rate Intelligence Engine — FRED + Fannie Mae LLPA matrix = Lender Par Rate
+**Step 3 →** Rate Engine — FRED + Fannie Mae LLPA matrix = Lender Par Rate
 
 **Step 4 →** Buyer Evaluation Session — stored to your account
 

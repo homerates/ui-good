@@ -4,9 +4,8 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useUser, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import ConsumerNav from '../components/ConsumerNav';
-import AddressAutocomplete from '../components/AddressAutocomplete';
-import MarketIntelCard from '../components/MarketIntelCard';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
+import MarketIntelCard from '@/components/MarketIntelCard';
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
 
 interface HomeownerProperty {
@@ -2098,14 +2097,6 @@ function MyHomePageInner() {
     <>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div className="mh-root page-standalone">
-
-        {/* ── Top bar ── */}
-        <nav className="mh-nav">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <Link href="/" className="mh-logo"><img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.Ai" /></Link>
-          <div className="mh-nav-kicker">Home Intelligence</div>
-          <ConsumerNav />
-        </nav>
 
         {/* ── Two-column layout: content | portfolio rail ── */}
         <div className="mh-layout">

@@ -5,12 +5,11 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import ConsumerNav from "../components/ConsumerNav";
-import { getSupabase } from "../../lib/supabaseServer";
-import { getUserPlan, canPostScenario } from "../../lib/subscription";
-import { PLANS } from "../../lib/stripe";
-import BillingPortalButton from "../components/BillingPortalButton";
-import { getBalance, getHistory } from "../../lib/credits";
+import { getSupabase } from "@/supabaseServer";
+import { getUserPlan, canPostScenario } from "@/subscription";
+import { PLANS } from "@/stripe";
+import BillingPortalButton from "@/components/BillingPortalButton";
+import { getBalance, getHistory } from "@/credits";
 
 export const dynamic = "force-dynamic";
 
@@ -230,24 +229,6 @@ export default async function DashboardPage() {
       fontFamily: "var(--font-dm-sans, system-ui, sans-serif)",
       color: "#f0f4ff",
     }}>
-      {/* Top bar */}
-      <div style={{
-        position: "sticky", top: 0, zIndex: 50,
-        background: "rgba(8,12,18,0.95)", backdropFilter: "blur(8px)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        padding: "14px 32px",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-      }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" style={{ height: 26 }} />
-        </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <Link href="/chat" style={{ fontSize: "0.85rem", color: "#8fa3b8", textDecoration: "none" }}>← Back to chat</Link>
-          <ConsumerNav />
-        </div>
-      </div>
-
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "2.5rem 1.5rem 5rem" }}>
 
         {/* Page header */}

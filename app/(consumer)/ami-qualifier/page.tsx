@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import AppNav from '../components/AppNav';
-import AddressAutocomplete from '../components/AddressAutocomplete';
-import { ShareAnswerButton } from '../components/ShareAnswerButton';
-import { EDUCATIONAL_DISCLAIMER } from '../../lib/disclosures';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
+import { ShareAnswerButton } from '@/components/ShareAnswerButton';
+import { EDUCATIONAL_DISCLAIMER } from '@/disclosures';
 
 interface AmiResult {
   resolvedFrom: 'zip' | 'address' | 'county';
@@ -245,20 +244,6 @@ export default function AmiQualifierPage() {
       `}</style>
 
       <div className="aq-root">
-        {/* Header */}
-        <header className="aq-header">
-          <div className="aq-header-inner">
-            <Link href="/" className="aq-logo-link">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="aq-logo" />
-            </Link>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <span className="aq-header-badge">AMI Qualifier</span>
-              <AppNav drawerOnly />
-            </div>
-          </div>
-        </header>
-
         {/* Hero */}
         <div className="aq-hero">
           <div className="aq-eyebrow">AMI Income Qualifier · Preliminary Screen</div>

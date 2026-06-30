@@ -347,6 +347,18 @@ export default function AppNav({
 
               {/* Resources */}
               <div className="an-drawer-label">Resources</div>
+              <Link href="/check-property" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">🔍</span>Property Lookup
+              </Link>
+              <Link href="/track5" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">🎯</span>Level 5
+              </Link>
+              <Link href="/rate-intelligence-engine" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">🔬</span>Rate Engine
+              </Link>
+              <Link href="/ami-qualifier" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">🟩</span>AMI Qualifier
+              </Link>
               <Link href="/library" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">📁</span>My Library
               </Link>
@@ -401,6 +413,12 @@ export default function AppNav({
               </Link>
               <Link href="/loan-limits" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">🏠</span>Loan Limits
+              </Link>
+              <Link href="/rate-intelligence-engine" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">🔬</span>Rate Engine
+              </Link>
+              <Link href="/ami-qualifier" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
+                <span className="an-drawer-icon">🟩</span>AMI Qualifier
               </Link>
               <Link href="/platform" className="an-drawer-link" onClick={() => setDrawerOpen(false)}>
                 <span className="an-drawer-icon">🧠</span>Platform Intelligence

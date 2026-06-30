@@ -208,7 +208,7 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
 
           <div>
             <div style={{ fontSize: '0.6rem', fontWeight: 700, color: hasScore ? '#00e87a' : 'rgba(185,208,192,0.28)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2, transition: 'color 0.4s ease' }}>
-              Track 5 · Decision Score
+              Level 5 · Decision Score
             </div>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f0f4ff', lineHeight: 1.2 }}>
               {hasScore && v ? v.label : complete ? 'Scoring complete' : 'Analyzing property…'}

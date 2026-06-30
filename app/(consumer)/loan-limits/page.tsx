@@ -5,7 +5,6 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import ConsumerNav from '../components/ConsumerNav';
 import {
   STATE_NAMES,
   HIGH_COST_COUNTIES,
@@ -255,18 +254,6 @@ export default function LoanLimitsPage() {
       `}</style>
 
       <div className="ps-root">
-        {/* Header */}
-        <header className="ll-header">
-          <div className="ll-header-inner">
-            <Link href="/" className="ll-logo-link">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="ll-logo" />
-            </Link>
-            <Link href="/chat" className="ll-chat-link">Get personalized rates →</Link>
-            <ConsumerNav />
-          </div>
-        </header>
-
         <main className="ll-main">
           {/* Hero */}
           <div className="ll-hero">

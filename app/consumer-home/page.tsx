@@ -492,20 +492,6 @@ export default function ConsumerHomePage() {
           <ul className="ch-nav-links">
             <li><Link href="/chat?new=1">New Chat</Link></li>
             <li><Link href="/my-home">My Home <span className="ch-nav-badge">NEW</span></Link></li>
-            <li className="ch-nav-dd">
-              <button className="ch-nav-dd-trigger">
-                Scenario <span className="ch-nav-dd-arrow">▾</span>
-              </button>
-              <div className="ch-nav-dd-menu">
-                <div className="ch-nav-dd-inner">
-                  <Link href="/chat?new=1"><span className="ch-ddm-icon">🏦</span>Run a Scenario</Link>
-                  <Link href="/chat?new=1"><span className="ch-ddm-icon">🔁</span>Refi Analysis</Link>
-                  <Link href="/chat?new=1"><span className="ch-ddm-icon">🏢</span>DSCR / Investor</Link>
-                  <div className="ch-nav-dd-divider" />
-                  <Link href="/connect"><span className="ch-ddm-icon">📤</span>Share with Pro</Link>
-                </div>
-              </div>
-            </li>
             <li><Link href="/chat?new=1&pl=1">Property Lookup</Link></li>
             <li><Link href="/market-intelligence">Market Rates</Link></li>
             <li className="ch-nav-dd">
@@ -574,10 +560,6 @@ export default function ConsumerHomePage() {
             <Link href="/chat?new=1" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
               <span className="ch-mm-icon">💬</span>
               <div className="ch-mm-inner"><span>New Chat</span><span className="ch-mm-sub">Ask any home or mortgage question</span></div>
-            </Link>
-            <Link href="/chat?new=1" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="ch-mm-icon">⚡</span>
-              <div className="ch-mm-inner"><span>Scenario</span><span className="ch-mm-sub">Payment breakdowns & comparisons</span></div>
             </Link>
             <Link href="/chat?new=1&pl=1" className="ch-mm-link" onClick={() => setMobileMenuOpen(false)}>
               <span className="ch-mm-icon">🔍</span>

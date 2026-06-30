@@ -7,12 +7,13 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import RateEngineClient from './RateEngineClient';
+import AppNav from '../components/AppNav';
 
 // ─────────────────────────────────────────────
 // META
 // ─────────────────────────────────────────────
 export const metadata: Metadata = {
-  title: 'Mortgage Rate Intelligence Engine — Decode Your Real Rate | HomeRates.ai',
+  title: 'Mortgage Rate Engine — Decode Your Real Rate | HomeRates.ai',
   description:
     'See exactly why your mortgage rate is what it is. Enter your credit score, LTV, and loan type — get the Fannie Mae LLPA breakdown, full rate/cost curve, and a negotiation brief. Free, no login required.',
   keywords: [
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
     'Fannie Mae LLPA matrix 2026',
   ],
   openGraph: {
-    title: 'Mortgage Rate Intelligence Engine — Decode Your Real Rate | HomeRates.ai',
+    title: 'Mortgage Rate Engine — Decode Your Real Rate | HomeRates.ai',
     description:
       'Decode exactly why your mortgage rate is what it is. LLPA breakdown, rate/cost curve, and negotiation brief — powered by live FRED data and the public Fannie Mae matrix.',
     url: 'https://chat.homerates.ai/rate-intelligence-engine',
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Mortgage Rate Intelligence Engine | HomeRates.ai',
+    title: 'Mortgage Rate Engine | HomeRates.ai',
     description: 'Decode your real mortgage rate. LLPA breakdown, rate options, negotiation brief — live FRED data.',
   },
   alternates: {
@@ -63,7 +64,7 @@ const schemaFAQ = {
       name: 'Why is my mortgage rate higher than the rate I see advertised?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Advertised rates assume the best-case scenario: 760+ credit score, 20% down payment, owner-occupied single-family home, purchase loan. Your actual rate includes Fannie Mae LLPAs (risk adjustments based on your credit score, LTV, and loan type) plus the lender\'s own margin. Use the HomeRates.ai Rate Intelligence Engine to see exactly how each factor adds to your specific rate.',
+        text: 'Advertised rates assume the best-case scenario: 760+ credit score, 20% down payment, owner-occupied single-family home, purchase loan. Your actual rate includes Fannie Mae LLPAs (risk adjustments based on your credit score, LTV, and loan type) plus the lender\'s own margin. Use the HomeRates.ai Rate Engine to see exactly how each factor adds to your specific rate.',
       },
     },
     {
@@ -71,7 +72,7 @@ const schemaFAQ = {
       name: 'How do I use mortgage discount points to lower my rate?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Discount points are upfront fees that buy down your interest rate. Typically, 1 discount point (1% of loan amount) reduces your rate by approximately 0.25%. The break-even period is how many months it takes for the monthly savings to recoup the upfront cost — typically 48–72 months. If you plan to hold the loan longer than the break-even period, points are usually worth it. The HomeRates.ai Rate Intelligence Engine calculates the exact break-even for your scenario.',
+        text: 'Discount points are upfront fees that buy down your interest rate. Typically, 1 discount point (1% of loan amount) reduces your rate by approximately 0.25%. The break-even period is how many months it takes for the monthly savings to recoup the upfront cost — typically 48–72 months. If you plan to hold the loan longer than the break-even period, points are usually worth it. The HomeRates.ai Rate Engine calculates the exact break-even for your scenario.',
       },
     },
     {
@@ -104,7 +105,7 @@ const schemaFAQ = {
 const schemaSoftwareApp = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'HomeRates.ai Rate Intelligence Engine',
+  name: 'HomeRates.ai Rate Engine',
   applicationCategory: 'FinanceApplication',
   operatingSystem: 'Web',
   url: 'https://chat.homerates.ai/rate-intelligence-engine',
@@ -130,7 +131,7 @@ const schemaBreadcrumb = {
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'HomeRates.ai', item: 'https://chat.homerates.ai' },
     { '@type': 'ListItem', position: 2, name: 'Calculators', item: 'https://chat.homerates.ai/calculators' },
-    { '@type': 'ListItem', position: 3, name: 'Rate Intelligence Engine', item: 'https://chat.homerates.ai/rate-intelligence-engine' },
+    { '@type': 'ListItem', position: 3, name: 'Rate Engine', item: 'https://chat.homerates.ai/rate-intelligence-engine' },
   ],
 };
 
@@ -144,7 +145,7 @@ const faqs = [
   },
   {
     q: 'Why is my rate higher than the advertised rate?',
-    a: 'Advertised "as low as" rates assume a perfect borrower: 760+ FICO, 20% down, primary residence, purchase loan on an SFR. Your actual rate includes your LLPA total (which can add 0–4+ points to your base cost) plus the lender\'s own margin. The Rate Intelligence Engine shows exactly how each factor affects your specific rate.',
+    a: 'Advertised "as low as" rates assume a perfect borrower: 760+ FICO, 20% down, primary residence, purchase loan on an SFR. Your actual rate includes your LLPA total (which can add 0–4+ points to your base cost) plus the lender\'s own margin. The Rate Engine shows exactly how each factor affects your specific rate.',
   },
   {
     q: 'How do mortgage discount points work?',
@@ -160,7 +161,7 @@ const faqs = [
   },
   {
     q: 'How do I get the best rate for my scenario?',
-    a: 'The highest-impact moves: get your credit score to 760+ (best LLPA tier), put down 20% or more (drops LTV below 80%), close in 15 days if possible (-0.125 pts), and compare at least 3 Loan Estimates by origination fee (Line A). The Rate Intelligence Engine shows your break-even on each scenario.',
+    a: 'The highest-impact moves: get your credit score to 760+ (best LLPA tier), put down 20% or more (drops LTV below 80%), close in 15 days if possible (-0.125 pts), and compare at least 3 Loan Estimates by origination fee (Line A). The Rate Engine shows your break-even on each scenario.',
   },
 ];
 
@@ -175,14 +176,7 @@ export default function RateIntelligenceEnginePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaSoftwareApp) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaBreadcrumb) }} />
 
-      {/* Nav */}
-      <nav className="rie-nav">
-        <Link href="/" className="rie-nav-logo">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" style={{ height: 30, width: 'auto' }} />
-        </Link>
-        <Link href="/chat" className="rie-nav-cta">Try the AI →</Link>
-      </nav>
+      <AppNav />
 
       <main className="rie-page">
 
@@ -193,13 +187,13 @@ export default function RateIntelligenceEnginePage() {
             <li aria-hidden="true">›</li>
             <li><Link href="/calculators">Calculators</Link></li>
             <li aria-hidden="true">›</li>
-            <li aria-current="page">Rate Intelligence Engine</li>
+            <li aria-current="page">Rate Engine</li>
           </ol>
         </nav>
 
         {/* Hero */}
         <section className="rie-hero">
-          <h1>Mortgage Rate Intelligence Engine<br /><span className="rie-hero-sub">Decode exactly what your rate is — and why</span></h1>
+          <h1>Mortgage Rate Engine<br /><span className="rie-hero-sub">Decode exactly what your rate is — and why</span></h1>
           <p className="rie-hero-lead">
             Most borrowers never see the Fannie Mae pricing matrix that determines 60–80% of their rate.
             Enter your scenario — get the full LLPA breakdown, a rate/cost curve with break-even analysis,
@@ -222,7 +216,7 @@ export default function RateIntelligenceEnginePage() {
 
         {/* What you get */}
         <section className="rie-section">
-          <h2>What the Rate Intelligence Engine shows you</h2>
+          <h2>What the Rate Engine shows you</h2>
           <p className="rie-section-lead">
             Most mortgage calculators show you a payment. This tool shows you the <em>cost structure</em>
             behind your rate — the same analysis a loan officer runs before they quote you.
@@ -346,29 +340,12 @@ export default function RateIntelligenceEnginePage() {
       </main>
 
       <style>{`
-        body:has(.rie-nav) {
+        body:has(.rie-page) {
           display: block !important; height: auto !important;
           overflow: visible !important; background: #080c12 !important;
         }
-        html:has(.rie-nav) { height: auto !important; overflow: visible !important; background: #080c12 !important; }
-        body:has(.rie-nav) .app-footer { display: none; }
-
-        .rie-nav {
-          position: sticky; top: 0; z-index: 100;
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 16px 32px;
-          background: rgba(8,12,18,0.97); backdrop-filter: blur(10px);
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-        }
-        .rie-nav-logo { display: flex; align-items: center; text-decoration: none; }
-        .rie-nav-cta {
-          padding: 8px 20px;
-          background: #00e87a; color: #080c12;
-          border-radius: 999px; font-size: 0.875rem;
-          font-weight: 700; text-decoration: none; transition: opacity 0.15s;
-          font-family: 'DM Sans', sans-serif;
-        }
-        .rie-nav-cta:hover { opacity: 0.88; }
+        html:has(.rie-page) { height: auto !important; overflow: visible !important; background: #080c12 !important; }
+        body:has(.rie-page) .app-footer { display: none; }
 
         .rie-page {
           max-width: 900px; margin: 0 auto;
@@ -474,8 +451,7 @@ export default function RateIntelligenceEnginePage() {
         .rie-related-desc { font-size: 0.83rem; color: #8fa3b8; line-height: 1.5; }
 
         @media (max-width: 600px) {
-          .rie-nav { padding: 14px 20px; }
-          .rie-page { padding: 1.25rem 1rem 3rem; }
+.rie-page { padding: 1.25rem 1rem 3rem; }
           .rie-trust-bar { gap: 6px; }
           .rie-trust-item { font-size: 11px; padding: 3px 9px; }
           .rie-features-grid { grid-template-columns: 1fr; }

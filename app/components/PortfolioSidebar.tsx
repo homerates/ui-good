@@ -143,7 +143,7 @@ function JourneyCard({ item, active, onResume }: { item: PortfolioItem; active: 
         <ScoreRing score={composite} color={ringColor} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#3a5070', marginBottom: 2 }}>
-            Track 5 · Decision Score
+            Level 5 · Decision Score
           </div>
           <div style={{ fontSize: 12, fontWeight: 800, color: '#c8d8e8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {verdict}

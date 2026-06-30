@@ -5,6 +5,7 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import type { RateIntelData, RatePoint } from '../api/rate-intelligence/route';
 import AppNav from '../components/AppNav';
 import { ShareAnswerButton } from '../components/ShareAnswerButton';
+import { useConsumerMode } from '@/useConsumerMode';
 
 // ── SVG path builder ──────────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ const CHIPS = [
 export default function MarketIntelligencePage() {
   const { isSignedIn } = useAuth();
   const { user }       = useUser();
+  const isConsumer     = useConsumerMode();
 
   const [data,          setData]          = useState<RateIntelData | null>(null);
   const [loadingData,   setLoadingData]   = useState(true);
@@ -253,7 +255,7 @@ export default function MarketIntelligencePage() {
 
   return (
     <div className="page-standalone" style={{ background: '#0a0f1a', color: '#e2e8f0', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <AppNav />
+      <AppNav activePage="market" consumer={isConsumer} />
 
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 20px' }}>
 

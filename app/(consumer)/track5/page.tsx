@@ -7,7 +7,6 @@ import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
-import ConsumerNav from '../components/ConsumerNav';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -512,8 +511,6 @@ function Track5Inner() {
         body:has(.t5-root){ display:block!important; height:auto!important; overflow:visible!important; background:#080c12!important; }
       `}</style>
 
-      <ConsumerNav fullNav />
-
       <div style={{ maxWidth: 780, margin: '0 auto', padding: '2.5rem 1.5rem 6rem' }}>
 
         {/* ── Page title ── */}
@@ -931,7 +928,7 @@ function Track5Inner() {
             {matchState === 'modal' && (
               <>
                 <div style={{ padding: '22px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-                  <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#00e87a', marginBottom: 6 }}>Track 5 · Matching</div>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#00e87a', marginBottom: 6 }}>Level 5 · Matching</div>
                   <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.02em', marginBottom: 5 }}>Connect with a local loan officer</div>
                   <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.55 }}>Review exactly what gets shared. Your address and identity stay private until you choose to reveal them.</div>
                 </div>
