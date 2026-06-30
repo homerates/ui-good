@@ -2,7 +2,7 @@
 // app/library/VaultClient.tsx — PDF-only library (analyses tab removed)
 
 import React, { useState, useMemo } from 'react';
-import PageShell from '../components/PageShell';
+import PageShell from '@/components/PageShell';
 
 type PDF = { name: string; label: string; created_at: string; signedUrl: string | null };
 
