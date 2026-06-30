@@ -14,6 +14,7 @@ import ConsumerNav from '../components/ConsumerNav';
 import { useMobileComposerPin } from '../hooks/useMobileComposerPin';
 import { useAdminStatus } from '../hooks/useAdminStatus';
 import { useConsumerMode } from '@/useConsumerMode';
+import { NAV_ITEMS } from '@/nav-config';
 import { logAnswerToLibrary } from '../../lib/logAnswerToLibrary';
 import './styles.css';
 import GrokCard from "@/components/GrokCard";
@@ -5504,7 +5505,7 @@ export default function Page() {
                             {[
                                 { href: '/check-property', icon: '🔍', label: 'Check Property', sub: 'Full property intelligence report' },
                                 { href: '/connect',        icon: '📤', label: 'Share with Pro',  sub: 'Send your scenario to a lender' },
-                                { href: '/track5',         icon: '🎯', label: 'Track 5',          sub: 'Your buyer decision score' },
+                                { href: '/track5',         icon: '🎯', label: 'Level 5',          sub: 'Your buyer decision score' },
                             ].map(item => (
                                 <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                     <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
@@ -5537,39 +5538,36 @@ export default function Page() {
                         </>
                     ) : (
                         <>
-                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Platform</div>
-                            {[
-                                { href: '/chat',       icon: '💬', label: 'AI Chat',         sub: 'Ask any mortgage question' },
-                                { href: '/chat',       icon: '⚡', label: 'Scenario Engine', sub: 'Payment breakdowns & comparisons' },
-                                { href: '/lab',        icon: '🧠', label: 'HomeRates Lab',   sub: 'Policy & guideline answers' },
-                                { href: '/homeowner',  icon: '🏡', label: 'Home Value',       sub: 'Estimate & refi readiness' },
-                            ].map(item => (
-                                <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
-                                        <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 1 }}>{item.sub}</span>
-                                    </div>
-                                </a>
-                            ))}
-                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Market Rates</div>
-                            <a href="/market-intelligence" onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>📈</span>
-                                <span style={{ fontSize: 14, fontWeight: 500 }}>Market Rates</span>
-                            </a>
-                            <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>Resources</div>
-                            {[
-                                { href: '/market-news',   icon: '📰', label: 'Market News' },
-                                { href: '/knowledge-hub', icon: '📚', label: 'Knowledge Hub' },
-                                { href: '/loan-limits',   icon: '🏠', label: 'Loan Limits 2026' },
-                                { href: '/calculators',   icon: '🧮', label: 'Calculators' },
-                                { href: '/platform',      icon: '🔬', label: 'Platform Intelligence' },
-                            ].map(item => (
-                                <a key={item.label} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-                                    <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
-                                </a>
-                            ))}
+                            {(['decide', 'tools', 'mine', 'learn'] as const).map((g) => {
+                                const items = NAV_ITEMS.filter(i =>
+                                    i.modes.includes('pro') && i.surfaces.includes('drawer') && !i.footer && i.group === g
+                                );
+                                if (!items.length) return null;
+                                const groupLabel: Record<string, string> = {
+                                    decide: 'Decide', tools: 'Tools', mine: 'Mine', learn: 'Learn',
+                                };
+                                return (
+                                    <React.Fragment key={g}>
+                                        <div style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, letterSpacing: '0.18em', color: 'rgba(143,163,184,0.5)', textTransform: 'uppercase', padding: '20px 24px 8px' }}>{groupLabel[g]}</div>
+                                        {items.map(item => {
+                                            const label = item.labelByMode?.['pro'] ?? item.label;
+                                            return (
+                                                <a key={item.id} href={item.href} onClick={() => setRightMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '15px 24px', color: '#f0f4ff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <span style={{ fontSize: 17, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                                                    {item.subLabel ? (
+                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                            <span style={{ fontSize: 14, fontWeight: 500 }}>{label}</span>
+                                                            <span style={{ fontSize: 12, color: '#8fa3b8', marginTop: 1 }}>{item.subLabel}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span style={{ fontSize: 14, fontWeight: 500 }}>{label}</span>
+                                                    )}
+                                                </a>
+                                            );
+                                        })}
+                                    </React.Fragment>
+                                );
+                            })}
                         </>
                     )}
                 </div>
