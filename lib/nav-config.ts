@@ -187,7 +187,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: '🤝',
     group: 'mine',
     modes: ['pro'],
-    surfaces: ['drawer', 'chatPanel'],
+    surfaces: [],       // parked — not shown in any nav surface; direct URL still works
     proBadge: true,
   },
   {
@@ -206,10 +206,10 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/lab',
     label: 'HomeRates Lab',
     icon: '🧪',
-    group: 'learn',
+    group: 'decide',
     modes: ['pro'],
     surfaces: ['drawer', 'chatPanel'],
-    subLabel: 'Policy & guideline answers',
+    subLabel: 'Pre-built scenarios & guideline answers',
   },
   {
     id: 'knowledge-hub',
