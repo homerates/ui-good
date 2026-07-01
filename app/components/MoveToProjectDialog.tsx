@@ -35,6 +35,7 @@ export default function MoveToProjectDialog({
     const [projectsError, setProjectsError] = React.useState<string | null>(null);
 
     const [selectedProjectId, setSelectedProjectId] = React.useState<string>('');
+    const [newProjectName, setNewProjectName] = React.useState<string>('');
     const [moveState, setMoveState] = React.useState<MoveState>({ status: 'idle' });
 
     // Load projects when dialog opens
@@ -44,6 +45,7 @@ export default function MoveToProjectDialog({
         setProjects([]);
         setProjectsError(null);
         setSelectedProjectId('');
+        setNewProjectName('');
         setMoveState({ status: 'idle' });
 
         const load = async () => {
@@ -88,39 +90,63 @@ export default function MoveToProjectDialog({
     };
 
     const handleMove = async () => {
-        if (!threadId || !selectedProjectId) return;
+        if (!threadId) return;
 
+        const trimmedNewName = newProjectName.trim();
         setMoveState({ status: 'loading' });
 
         try {
-            const res = await fetch('/api/projects/move-chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    threadId,
-                    projectId: selectedProjectId,
-                }),
-            });
+            let projectId: string;
 
-            if (!res.ok) {
-                const json = await res.json().catch(() => ({}));
-                const msg =
-                    json?.message ||
-                    json?.error ||
-                    json?.reason ||
-                    `Move failed with status ${res.status}`;
-                setMoveState({ status: 'error', message: msg });
-                return;
+            if (trimmedNewName) {
+                // Create a new project and attach the thread in one call
+                const res = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ threadId, projectName: trimmedNewName }),
+                });
+
+                if (!res.ok) {
+                    const json = await res.json().catch(() => ({}));
+                    const msg =
+                        json?.message || json?.error || json?.reason ||
+                        `Create failed with status ${res.status}`;
+                    setMoveState({ status: 'error', message: msg });
+                    return;
+                }
+
+                const json = await res.json();
+                if (!json?.ok) {
+                    setMoveState({ status: 'error', message: json?.error ?? 'Failed to create project.' });
+                    return;
+                }
+                projectId = json.project?.id ?? '';
+            } else {
+                // Move to an existing project
+                if (!selectedProjectId) return;
+                const res = await fetch('/api/projects/move-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ threadId, projectId: selectedProjectId }),
+                });
+
+                if (!res.ok) {
+                    const json = await res.json().catch(() => ({}));
+                    const msg =
+                        json?.message || json?.error || json?.reason ||
+                        `Move failed with status ${res.status}`;
+                    setMoveState({ status: 'error', message: msg });
+                    return;
+                }
+                projectId = selectedProjectId;
             }
 
-            setMoveState({ status: 'success', projectId: selectedProjectId });
+            setMoveState({ status: 'success', projectId });
 
-            // Optional callback for the parent (Sidebar) to refresh mapping
             if (onMoved) {
-                onMoved(selectedProjectId);
+                onMoved(projectId);
             }
 
-            // Close shortly after success
             setTimeout(() => {
                 onClose();
                 setMoveState({ status: 'idle' });
@@ -136,11 +162,10 @@ export default function MoveToProjectDialog({
         }
     };
 
-    const disabled =
-        !threadId ||
-        !selectedProjectId ||
-        moveState.status === 'loading' ||
-        loadingProjects;
+    const trimmedNewName = newProjectName.trim();
+    const canMove = !!threadId && !loadingProjects && moveState.status !== 'loading' &&
+        (trimmedNewName.length > 0 || !!selectedProjectId);
+    const disabled = !canMove;
 
     return (
         <div
@@ -201,22 +226,39 @@ export default function MoveToProjectDialog({
                     </div>
                 )}
 
-                {!loadingProjects && !projectsError && projects.length === 0 && (
-                    <div style={{ fontSize: 13, opacity: 0.8 }}>
-                        You don&apos;t have any projects yet. Create one first, then move
-                        chats into it.
-                    </div>
-                )}
+                {/* Create new project */}
+                <div>
+                    <label
+                        htmlFor="new-project-name"
+                        style={{ fontSize: 12, opacity: 0.8, display: 'block', marginBottom: 4 }}
+                    >
+                        New project name
+                    </label>
+                    <input
+                        id="new-project-name"
+                        type="text"
+                        placeholder="e.g. First Home, Refi 2026…"
+                        value={newProjectName}
+                        onChange={(e) => setNewProjectName(e.target.value)}
+                        style={{
+                            width: '100%',
+                            fontSize: 13,
+                            padding: '5px 8px',
+                            borderRadius: 6,
+                            border: '1px solid rgba(0,0,0,0.15)',
+                            boxSizing: 'border-box',
+                        }}
+                    />
+                </div>
 
-                {!loadingProjects && !projectsError && projects.length > 0 && (
+                {!loadingProjects && !projectsError && projects.length > 0 && !newProjectName.trim() && (
                     <>
+                        <div style={{ fontSize: 11, opacity: 0.5, textAlign: 'center' }}>
+                            — or move to existing —
+                        </div>
                         <label
                             htmlFor="move-project-select"
-                            style={{
-                                fontSize: 12,
-                                opacity: 0.8,
-                                marginBottom: 4,
-                            }}
+                            style={{ fontSize: 12, opacity: 0.8, marginBottom: 4, display: 'block' }}
                         >
                             Choose a project
                         </label>
@@ -239,6 +281,12 @@ export default function MoveToProjectDialog({
                             ))}
                         </select>
                     </>
+                )}
+
+                {!loadingProjects && !projectsError && projects.length === 0 && !newProjectName.trim() && (
+                    <div style={{ fontSize: 12, opacity: 0.6 }}>
+                        No existing projects. Type a name above to create one.
+                    </div>
                 )}
 
                 {moveState.status === 'error' && (
