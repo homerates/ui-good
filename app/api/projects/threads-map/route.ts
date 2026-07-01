@@ -9,7 +9,7 @@ import { auth } from "@clerk/nextjs/server";
 // NOTE: this path is 4 levels up (same as move-chat route)
 import { getSupabase } from "../../../../lib/supabaseServer";
 
-const THREADS_TABLE = "chat_threads";
+const CHATS_TABLE = "chats";
 
 function noStore(json: unknown, status = 200) {
     const res = NextResponse.json(json, { status });
@@ -54,9 +54,10 @@ export async function GET(_req: NextRequest) {
         }
 
         const { data, error } = await supabase
-            .from(THREADS_TABLE)
-            .select("project_id, thread_id")
-            .eq("clerk_user_id", userId);
+            .from(CHATS_TABLE)
+            .select("project_id, id")
+            .eq("clerk_user_id", userId)
+            .not("project_id", "is", null);
 
         if (error) {
             console.error(
@@ -78,11 +79,11 @@ export async function GET(_req: NextRequest) {
 
         for (const row of data ?? []) {
             const pid = (row as any).project_id as string | null;
-            const tid = (row as any).thread_id as string | null;
-            if (!pid || !tid) continue;
+            const cid = (row as any).id as string | null;
+            if (!pid || !cid) continue;
 
             if (!map[pid]) map[pid] = [];
-            map[pid].push(tid);
+            map[pid].push(cid);
         }
 
         return noStore({ ok: true, map }, 200);
