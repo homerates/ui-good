@@ -200,6 +200,9 @@ export default function Sidebar(props: SidebarProps) {
   const [moveDialogThreadId, setMoveDialogThreadId] =
     React.useState<string | null>(null);
 
+  // Incremented to force ProjectsPanel to remount + reload its list from Supabase
+  const [projectsPanelKey, setProjectsPanelKey] = React.useState(0);
+
   const handleMoveToProject = React.useCallback((threadId: string) => {
     setMoveDialogThreadId(threadId);
     setMoveDialogOpen(true);
@@ -210,15 +213,28 @@ export default function Sidebar(props: SidebarProps) {
     setMoveDialogThreadId(null);
   }, []);
 
-  // Wrapper: when dialog fires onMoved(projectId), forward both threadId + projectId to parent
-  const handleMoveDialogMoved = React.useCallback(
-    (projectId: string) => {
-      if (moveDialogThreadId && onMoveChatToProject) {
-        onMoveChatToProject(moveDialogThreadId, projectId);
+  // Dialog already called the API — do not call onMoveChatToProject (would double-fire move-chat)
+  const handleMoveDialogMoved = React.useCallback((_projectId: string) => {
+    // no-op: API was handled by MoveToProjectDialog
+  }, []);
+
+  // ===== + New project handler =====
+  const handleNewProjectClick = React.useCallback(async () => {
+    const rawName = window.prompt('New project name:');
+    if (!rawName?.trim()) return;
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectName: rawName.trim() }),
+      });
+      if (res.ok) {
+        setProjectsPanelKey(k => k + 1);
       }
-    },
-    [moveDialogThreadId, onMoveChatToProject]
-  );
+    } catch (e) {
+      console.error('[Sidebar] Failed to create project:', e);
+    }
+  }, []);
 
   // ===== Project-aware chat filtering =====
   const [activeProjectId, setActiveProjectId] =
@@ -259,6 +275,7 @@ export default function Sidebar(props: SidebarProps) {
   React.useEffect(() => {
     if (!moveDialogOpen) {
       void loadProjectThreadsMap();
+      setProjectsPanelKey(k => k + 1); // reload projects list in case a new project was created
     }
   }, [moveDialogOpen, loadProjectThreadsMap]);
 
@@ -428,7 +445,7 @@ export default function Sidebar(props: SidebarProps) {
               <button
                 className="btn"
                 type="button"
-                onClick={onNewProject}
+                onClick={handleNewProjectClick}
                 title="New project"
                 style={{ fontSize: 11, padding: '2px 8px', minWidth: 0, opacity: 0.7 }}
               >
@@ -436,6 +453,7 @@ export default function Sidebar(props: SidebarProps) {
               </button>
             </div>
             <ProjectsPanel
+              key={projectsPanelKey}
               activeProjectId={activeProjectId}
               onSelectProject={handleSelectProject}
               onProjectAction={handleProjectPanelAction}
