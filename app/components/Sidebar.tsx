@@ -608,57 +608,25 @@ export default function Sidebar(props: SidebarProps) {
         {/* ── Sticky footer: user ── */}
         <div className="sidebar-sticky-footer">
           <SignedIn>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <UserButton
-                showName
-                appearance={{
-                  elements: {
-                    userButtonOuterIdentifier: {
-                      fontWeight: 600,
-                    },
+            <UserButton
+              showName
+              appearance={{
+                elements: {
+                  userButtonOuterIdentifier: {
+                    fontWeight: 600,
                   },
-                }}
-              />
-              <button
-                className="btn"
-                onClick={onSettings}
-                type="button"
-                title="Settings"
-                style={{ padding: '6px 10px', minWidth: 0, flexShrink: 0 }}
-              >
-                ⚙
-              </button>
-            </div>
+                },
+              }}
+            />
           </SignedIn>
 
           <SignedOut>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <SignInButton mode="modal">
-                <button className="btn primary" type="button" style={{ flex: 1 }}>
-                  Sign in
-                </button>
-              </SignInButton>
-              <button
-                className="btn"
-                onClick={onSettings}
-                type="button"
-                title="Settings"
-                style={{ padding: '6px 10px', minWidth: 0, flexShrink: 0 }}
-              >
-                ⚙
+            <SignInButton mode="modal">
+              <button className="btn primary" type="button" style={{ width: '100%' }}>
+                Sign in
               </button>
-            </div>
+            </SignInButton>
           </SignedOut>
-
-          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <SignedIn>
-              <a href="/library" className="sidebar-legal-link" style={{ color: 'rgba(0,232,122,0.6)', fontWeight: 600 }}>✦ My Vault</a>
-            </SignedIn>
-            <a href="/for-pros" className="sidebar-legal-link" style={{ color: 'rgba(61,139,255,0.7)', fontWeight: 600 }}>For Loan Officers & Agents</a>
-            <a href="/about" className="sidebar-legal-link">About HomeRates.ai</a>
-            <a href="/disclosures" className="sidebar-legal-link">Terms & Disclosures</a>
-            <a href="/privacy" className="sidebar-legal-link">Privacy & Data Policy</a>
-          </div>
         </div>
 
       </aside>
