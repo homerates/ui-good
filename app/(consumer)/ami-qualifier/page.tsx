@@ -516,7 +516,16 @@ export default function AmiQualifierPage() {
                   className="aq-btn-sec"
                 />
                 <Link
-                  href={`/chat?${new URLSearchParams({ sq: `Run my numbers for ${location}` }).toString()}`}
+                  href={(() => {
+                    const income = `$${result.annualIncome.toLocaleString()}`;
+                    const area = result.resolvedFrom === 'address'
+                      ? location
+                      : `${result.county}, ${result.state}`;
+                    const sq = result.resolvedFrom === 'address'
+                      ? `I make ${income} a year — run my scenario for ${area}`
+                      : `I make ${income} a year — how much home can I afford in ${area}?`;
+                    return `/chat?${new URLSearchParams({ sq }).toString()}`;
+                  })()}
                   className="aq-btn-pri"
                 >
                   Run My Numbers →
