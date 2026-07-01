@@ -261,36 +261,18 @@ export default function AmiQualifierPage() {
             <form onSubmit={handleSubmit}>
               <div className="aq-field">
                 <label>Location</label>
-                {/* Plain input for numeric-only (ZIP) — Places API shows unrelated global
-                    results for bare ZIPs. Switch to AddressAutocomplete once user types letters. */}
-                {/^\d*$/.test(location) ? (
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={location}
-                    onChange={e => setLocation(e.target.value)}
-                    placeholder="ZIP code, county (Orange County, CA), or full address..."
-                    style={{
-                      width: '100%', padding: '11px 14px',
-                      background: '#141b28', border: '1.5px solid rgba(255,255,255,0.13)',
-                      borderRadius: 9, fontSize: 15, color: '#f0f4ff', outline: 'none',
-                      fontFamily: 'inherit',
-                    }}
-                  />
-                ) : (
-                  <AddressAutocomplete
-                    value={location}
-                    onChange={setLocation}
-                    onSelect={setLocation}
-                    placeholder="ZIP code, county (Orange County, CA), or full address..."
-                    style={{
-                      width: '100%', padding: '11px 14px',
-                      background: '#141b28', border: '1.5px solid rgba(255,255,255,0.13)',
-                      borderRadius: 9, fontSize: 15, color: '#f0f4ff', outline: 'none',
-                      fontFamily: 'inherit',
-                    }}
-                  />
-                )}
+                <AddressAutocomplete
+                  value={location}
+                  onChange={setLocation}
+                  onSelect={setLocation}
+                  placeholder="ZIP code, county (Orange County, CA), or full address..."
+                  style={{
+                    width: '100%', padding: '11px 14px',
+                    background: '#141b28', border: '1.5px solid rgba(255,255,255,0.13)',
+                    borderRadius: 9, fontSize: 15, color: '#f0f4ff', outline: 'none',
+                    fontFamily: 'inherit',
+                  }}
+                />
                 <div className="aq-hint">Enter a ZIP code or full property address. County and AMI source are confirmed after checking eligibility.</div>
               </div>
 
@@ -516,7 +498,16 @@ export default function AmiQualifierPage() {
                   className="aq-btn-sec"
                 />
                 <Link
-                  href={`/chat?${new URLSearchParams({ sq: `Run my numbers for ${location}` }).toString()}`}
+                  href={(() => {
+                    const income = `$${result.annualIncome.toLocaleString()}`;
+                    const area = result.resolvedFrom === 'address'
+                      ? location
+                      : `${result.county}, ${result.state}`;
+                    const sq = result.resolvedFrom === 'address'
+                      ? `I make ${income} a year — run my scenario for ${area}`
+                      : `I make ${income} a year — how much home can I afford in ${area}?`;
+                    return `/chat?${new URLSearchParams({ sq }).toString()}`;
+                  })()}
                   className="aq-btn-pri"
                 >
                   Run My Numbers →
