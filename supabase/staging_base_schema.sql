@@ -459,6 +459,31 @@ CREATE UNIQUE INDEX IF NOT EXISTS buyer_eval_sessions_user_address_uq
   WHERE property_address IS NOT NULL;
 ALTER TABLE buyer_evaluation_sessions ENABLE ROW LEVEL SECURITY;
 
+-- Added by migration 061 (2026-07-01). Kept here so staging resets include it.
+-- See supabase/migrations/061_chat_projects_rebuild.sql for full context.
+CREATE TABLE IF NOT EXISTS public.chats (
+  id               text        NOT NULL,
+  clerk_user_id    text        NOT NULL,
+  project_id       uuid        REFERENCES public.projects(id)        ON DELETE SET NULL,
+  title            text,
+  messages         jsonb       NOT NULL DEFAULT '[]'::jsonb,
+  memory_thread_id uuid        REFERENCES public.memory_threads(id)  ON DELETE SET NULL,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (id, clerk_user_id)
+);
+CREATE INDEX IF NOT EXISTS chats_user_idx   ON public.chats (clerk_user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS chats_project_idx ON public.chats (clerk_user_id, project_id);
+ALTER TABLE public.chats ENABLE ROW LEVEL SECURITY;
+CREATE POLICY chats_owner_only ON public.chats
+  USING     (clerk_user_id = auth.uid()::text)
+  WITH CHECK (clerk_user_id = auth.uid()::text);
+
+-- Migration 061 also adds to existing tables:
+-- ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+-- CREATE UNIQUE INDEX projects_user_name_uq ON projects(clerk_user_id, name);
+-- (These IF NOT EXISTS guards make them safe to run against staging_base_schema too)
+
 CREATE TABLE IF NOT EXISTS white_label_partners (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   slug text NOT NULL,
