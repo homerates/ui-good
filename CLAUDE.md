@@ -25,3 +25,15 @@
 
 6. **Full process is in `DEPLOY_WORKFLOW.md`.** Reference it for branch
    strategy, migration steps, env var table, and staging reset instructions.
+
+## Navigation Hard Rules
+
+Before designing, scoping, or building ANY change that touches navigation menus,
+nav-config, AppShell, route groups (`(consumer)/` or `(pro)/`), tier detection
+(`useConsumerMode`), drawer content, top-bar links, chat chrome, or post-login
+routing, check it against `NAVIGATION_SPEC.md` (invariants I-1 through I-10).
+If a request, idea, or your own proposed approach could breach any of them —
+including "just this one page" exceptions or hardcoded link lists — STOP and
+flag it explicitly before proceeding. Name the invariant at risk. Do NOT quietly
+implement a noncompliant surface. This tripwire fires regardless of whether the
+request comes from Rayaan or from your own proposed plan.
