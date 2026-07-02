@@ -3221,7 +3221,16 @@ export default function Page() {
                     body: JSON.stringify({
                         title: chatTitle,
                         ...(returnedMemoryThreadId ? { memory_thread_id: returnedMemoryThreadId } : {}),
-                        messages: [...(threads[tid] ?? []), ...messages],
+                        // Build the complete message list from local vars — avoids stale-closure bug
+                        // where 'messages' and 'threads[tid]' both capture pre-question state.
+                        // 'messages' (stale closure) = history before this question (correct base).
+                        // Filter out the initial placeholder so new chats don't save [{content:'New chat...'}].
+                        // Then append the current user question + assistant answer explicitly.
+                        messages: [
+                            ...messages.filter((m: any) => m.content !== 'New chat. What do you want to figure out?'),
+                            { id: uid(), role: 'user' as const, content: q },
+                            { id: answerId, role: 'assistant' as const, content: '', meta, raw } as any,
+                        ],
                     }),
                 }).then(() => setChatSaveCount(c => c + 1)).catch(() => { /* non-fatal */ });
             }
