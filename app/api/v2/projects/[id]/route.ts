@@ -75,6 +75,12 @@ export async function DELETE(_req: NextRequest, ctx: any) {
       .eq("clerk_user_id", userId);
 
     if (error) {
+      if (error.code === "23503") {
+        return noStore(
+          { ok: false, error: "This project has chat history attached to it and can't be deleted. Move or delete the chats inside it first." },
+          409
+        );
+      }
       console.warn("[v2/projects/:id DELETE]", error.message);
       return noStore({ ok: false, error: error.message }, 500);
     }
