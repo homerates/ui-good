@@ -1627,6 +1627,7 @@ export default function Page() {
     // Memory thread id per chat thread (ChatGPT-style: recall works only if we reuse the same memory_thread_id)
     const [memoryThreadByChatId, setMemoryThreadByChatId] = useState<Record<string, string>>({});
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [chatSaveCount, setChatSaveCount] = React.useState(0);
     const [lastRouteByThread, setLastRouteByThread] = useState<Record<string, string>>({});
     // Structured param overrides from chip clicks — avoids parsing question text for numbers
     const [pendingParamOverrides, setPendingParamOverrides] = useState<Record<string, any> | null>(null);
@@ -1693,52 +1694,7 @@ export default function Page() {
         }
     }, []);
 
-    // ── Supabase hydration: restore history + memory thread map on login ──────
-    // Runs once on sign-in. Only fills what localStorage is missing so an active
-    // session is never clobbered. Makes follow-up memory survive across sessions.
-    useEffect(() => {
-        if (!isSignedIn || !user?.id) return;
-        (async () => {
-            try {
-                const res = await fetch('/api/chat-threads');
-                if (!res.ok) return;
-                const data = await res.json();
-                const rows: any[] = data?.threads ?? [];
-                if (!rows.length) return;
-
-                const dbMemMap: Record<string, string> = {};
-                const dbHistory: { id: string; title: string; updatedAt: number }[] = [];
-                const dbThreads: Record<string, any[]> = {};
-
-                for (const row of rows) {
-                    if (!row.chat_id) continue;
-                    if (row.memory_thread_id) dbMemMap[row.chat_id] = row.memory_thread_id;
-                    if (row.title) dbHistory.push({
-                        id: row.chat_id,
-                        title: row.title,
-                        updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,
-                    });
-                    if (Array.isArray(row.messages) && row.messages.length) {
-                        dbThreads[row.chat_id] = row.messages;
-                    }
-                }
-
-                // localStorage wins if it already has data (active session takes priority)
-                setMemoryThreadByChatId(prev =>
-                    Object.keys(prev).length > 0 ? prev : dbMemMap
-                );
-                setHistory(prev =>
-                    Array.isArray(prev) && prev.length > 0 ? prev : dbHistory
-                );
-                setThreads(prev => ({ ...dbThreads, ...prev }));
-
-                console.log('[chat-threads] Hydrated from Supabase:', rows.length, 'threads');
-            } catch (e) {
-                console.warn('[chat-threads] Hydration failed:', e);
-            }
-        })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isSignedIn, user?.id]);
+    // Supabase hydration removed — Sidebar owns chat list via GET /api/v2/chats
 
     // persist
     useEffect(() => {
@@ -1867,10 +1823,10 @@ export default function Page() {
 
         // Always fetch from DB to get the authoritative snapshot
         try {
-            const res = await fetch(`/api/chat-threads?chat_id=${id}`);
+            const res = await fetch(`/api/v2/chats/${encodeURIComponent(id)}`);
             if (res.ok) {
                 const data = await res.json();
-                const row = data?.threads?.[0];
+                const row = data?.chat;
                 if (Array.isArray(row?.messages) && row.messages.length) {
                     setThreads(prev => ({ ...prev, [id]: row.messages }));
                     setMessages(row.messages);
@@ -3259,16 +3215,15 @@ export default function Page() {
             // Decoupled from memory_thread_id so CMA/early-return paths are also persisted.
             if (tid) {
                 const chatTitle = history.find(h => h.id === tid)?.title ?? title;
-                fetch('/api/chat-threads', {
+                fetch(`/api/v2/chats/${encodeURIComponent(tid)}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        chat_id: tid,
                         title: chatTitle,
                         ...(returnedMemoryThreadId ? { memory_thread_id: returnedMemoryThreadId } : {}),
                         messages: [...(threads[tid] ?? []), ...messages],
                     }),
-                }).catch(() => { /* non-fatal */ });
+                }).then(() => setChatSaveCount(c => c + 1)).catch(() => { /* non-fatal */ });
             }
 
             // Attach Grok metadata to the assistant message (under m.meta)
@@ -3856,6 +3811,7 @@ export default function Page() {
                     onPriceCheck={onPriceCheck}
                     onProjectAction={handleProjectAction}
                     onMoveChatToProject={handleMoveChatToProject}
+                    chatSaveCount={chatSaveCount}
                 />
             )}
 
