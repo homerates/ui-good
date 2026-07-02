@@ -95,7 +95,7 @@ export default function ProfilePage() {
   const [propertyAddress, setPropertyAddress] = useState("");
   const [currentLoanBal, setCurrentLoanBal] = useState("");
 
-  const serverRole = data?.role ?? "borrower";
+  const serverRole = (data?.role === "admin" ? "lo" : data?.role) ?? "borrower";
   const showPro = role === "lo" || role === "agent";
 
   useEffect(() => {
@@ -119,7 +119,7 @@ export default function ProfilePage() {
           setReferralLink(`${window.location.origin}/r/${d.referral_code}`);
         }
         setFullName(d.full_name || d.clerkName || "");
-        setRole(d.role || "borrower");
+        setRole(d.role === "admin" ? "lo" : (d.role || "borrower"));
         const pro = d.lo ?? d.agent;
         setLender(d.lo?.lender ?? d.agent?.brokerage ?? "");
         setNmls(d.lo?.nmls ?? d.agent?.license ?? "");
