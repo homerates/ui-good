@@ -110,10 +110,14 @@ export async function PATCH(req: NextRequest) {
   const clerkUser = await clerk.users.getUser(userId);
   const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
 
+  // Resolve current DB role before writing — never overwrite "admin" via profile page
+  const { data: currentUser } = await sb.from("users").select("role").eq("id", userId).maybeSingle();
+  const isAdminUser = currentUser?.role === "admin";
+
   // Update users table
   const userUpdates: Record<string, string> = {};
-  if (full_name   !== undefined) userUpdates.full_name   = full_name.trim();
-  if (role        !== undefined) userUpdates.role        = role;
+  if (full_name !== undefined) userUpdates.full_name = full_name.trim();
+  if (role !== undefined && !isAdminUser) userUpdates.role = role;
   if (borrower_phone !== undefined) userUpdates.phone    = borrower_phone.trim();
   if (property_address !== undefined) userUpdates.property_address = property_address.trim();
   if (current_loan_balance !== undefined) userUpdates.current_loan_balance = current_loan_balance.trim();

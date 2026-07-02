@@ -95,7 +95,10 @@ export default function ProfilePage() {
   const [propertyAddress, setPropertyAddress] = useState("");
   const [currentLoanBal, setCurrentLoanBal] = useState("");
 
-  const serverRole = (data?.role === "admin" ? "lo" : data?.role) ?? "borrower";
+  const isAdmin = data?.role === "admin";
+  const serverRole = isAdmin
+    ? (data?.lo ? "lo" : data?.agent ? "agent" : "borrower")
+    : (data?.role ?? "borrower");
   const showPro = role === "lo" || role === "agent";
 
   useEffect(() => {
@@ -119,7 +122,9 @@ export default function ProfilePage() {
           setReferralLink(`${window.location.origin}/r/${d.referral_code}`);
         }
         setFullName(d.full_name || d.clerkName || "");
-        setRole(d.role === "admin" ? "lo" : (d.role || "borrower"));
+        setRole(d.role === "admin"
+          ? (d.lo ? "lo" : d.agent ? "agent" : "borrower")
+          : (d.role || "borrower"));
         const pro = d.lo ?? d.agent;
         setLender(d.lo?.lender ?? d.agent?.brokerage ?? "");
         setNmls(d.lo?.nmls ?? d.agent?.license ?? "");
@@ -146,7 +151,7 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           full_name: fullName,
-          role,
+          role: isAdmin ? undefined : role,
           lender,
           nmls,
           company_nmls: companyNmls,
@@ -255,9 +260,8 @@ export default function ProfilePage() {
                   <div className="pr-role-chips">
                     {ROLE_OPTIONS.map(({ v, label }) => {
                       const isActive = role === v;
-                      // Role is fixed at registration — all other chips are locked.
-                      // Borrowers can't self-upgrade; LOs/agents can't switch or downgrade.
-                      const isLocked = v !== serverRole;
+                      // Admin users can freely switch role; others are fixed at registration.
+                      const isLocked = !isAdmin && v !== serverRole;
                       return (
                         <button
                           key={v}
