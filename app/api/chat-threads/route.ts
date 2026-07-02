@@ -37,14 +37,15 @@ export async function GET(req: NextRequest) {
         }
 
         let query = supabase
-            .from("chats")
-            .select("id, title, memory_thread_id, messages, updated_at, created_at")
-            .eq("clerk_user_id", userId);
+            .from("chat_threads")
+            .select("chat_id, title, memory_thread_id, messages, updated_at, created_at")
+            .eq("clerk_user_id", userId)
+            .not("chat_id", "is", null);
 
         if (chatIdParam) {
-            query = query.eq("id", chatIdParam).limit(1);
+            query = query.eq("chat_id", chatIdParam).limit(1);
         } else {
-            query = query.order("updated_at", { ascending: false }).limit(50);
+            query = query.order("created_at", { ascending: false }).limit(50);
         }
 
         const { data, error } = await (query as any);
@@ -54,17 +55,7 @@ export async function GET(req: NextRequest) {
             return noStore({ ok: false, error: error.message }, { status: 500 });
         }
 
-        // Map chats.id → chat_id so page.tsx hydration stays compatible
-        const threads = (data ?? []).map((row: any) => ({
-            chat_id: row.id,
-            title: row.title,
-            memory_thread_id: row.memory_thread_id,
-            messages: row.messages,
-            updated_at: row.updated_at,
-            created_at: row.created_at,
-        }));
-
-        return noStore({ ok: true, threads });
+        return noStore({ ok: true, threads: data ?? [] });
     } catch (e: any) {
         console.error("[chat-threads GET] Exception:", e?.message || e);
         return noStore({ ok: false, error: "internal" }, { status: 500 });
@@ -103,24 +94,16 @@ export async function PUT(req: NextRequest) {
         if (memory_thread_id && typeof memory_thread_id === "string") upsertPayload.memory_thread_id = memory_thread_id;
         if (Array.isArray(messages)) upsertPayload.messages = messages;
 
-        const chatsPayload: any = {
-            id: chat_id,
-            clerk_user_id: userId,
-            updated_at: upsertPayload.updated_at,
-        };
-        if (upsertPayload.title) chatsPayload.title = upsertPayload.title;
-        if (upsertPayload.memory_thread_id) chatsPayload.memory_thread_id = upsertPayload.memory_thread_id;
-        if (upsertPayload.messages) chatsPayload.messages = upsertPayload.messages;
+        // Upsert on (clerk_user_id, chat_id) — this unique constraint must exist.
+        // If the table uses a different conflict target adjust onConflict below.
+        const { error } = await supabase
+            .from("chat_threads")
+            .upsert(upsertPayload, { onConflict: "clerk_user_id,chat_id" })
 
-        // Double-write: chat_threads (legacy) + chats (canonical)
-        const [{ error }, { error: chatsError }] = await Promise.all([
-            supabase.from("chat_threads").upsert(upsertPayload, { onConflict: "clerk_user_id,chat_id" }),
-            supabase.from("chats").upsert(chatsPayload, { onConflict: "id,clerk_user_id" }),
-        ]);
-
-        if (error || chatsError) {
-            console.warn("[chat-threads PUT] Supabase error:", error?.message ?? chatsError?.message);
-            return noStore({ ok: false, error: error?.message ?? chatsError?.message }, { status: 500 });
+        if (error) {
+            // Non-fatal: log and return so client doesn't crash
+            console.warn("[chat-threads PUT] Supabase error:", error.message);
+            return noStore({ ok: false, error: error.message }, { status: 500 });
         }
 
         return noStore({ ok: true });
