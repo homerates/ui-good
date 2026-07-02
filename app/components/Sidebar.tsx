@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import {
   SignedIn,
   SignedOut,
@@ -472,9 +473,13 @@ export default function Sidebar(props: SidebarProps) {
         {/* ── Projects ── */}
         <div style={{ padding: '10px 12px 8px', borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: 2 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.4 }}>
+            <Link
+              href="/projects"
+              style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.4, color: 'inherit', textDecoration: 'none' }}
+              onClick={e => e.stopPropagation()}
+            >
               Projects
-            </span>
+            </Link>
             <button
               className="btn"
               type="button"
