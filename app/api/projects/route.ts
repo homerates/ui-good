@@ -255,14 +255,6 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Seam 3: also stamp project_id onto the canonical chats row.
-        // threadId is the uid() chat_id value which equals chats.id.
-        await supabase
-            .from("chats")
-            .update({ project_id: projectId, updated_at: new Date().toISOString() })
-            .eq("clerk_user_id", userId)
-            .eq("id", threadId);
-
         return noStore(
             {
                 ok: true,

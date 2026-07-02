@@ -117,7 +117,6 @@ export async function POST(req: NextRequest) {
         }
 
         if (updatedByThread && updatedByThread.length > 0) {
-            await supabase.from("chats").update({ project_id: projectId, updated_at: new Date().toISOString() }).eq("clerk_user_id", userId).eq("id", threadId);
             return noStore({ ok: true, mapping: updatedByThread[0], mode: "updated_by_thread_id" }, 200);
         }
 
@@ -135,7 +134,6 @@ export async function POST(req: NextRequest) {
         }
 
         if (updatedByChat && updatedByChat.length > 0) {
-            await supabase.from("chats").update({ project_id: projectId, updated_at: new Date().toISOString() }).eq("clerk_user_id", userId).eq("id", threadId);
             return noStore({ ok: true, mapping: updatedByChat[0], mode: "updated_by_chat_id" }, 200);
         }
 
@@ -164,14 +162,12 @@ export async function POST(req: NextRequest) {
                     .eq("clerk_user_id", userId)
                     .eq("chat_id", threadId)
                     .select("id, project_id, thread_id, chat_id, memory_thread_id, created_at");
-                await supabase.from("chats").update({ project_id: projectId, updated_at: new Date().toISOString() }).eq("clerk_user_id", userId).eq("id", threadId);
                 return noStore({ ok: true, mapping: retryData?.[0] ?? null, mode: "retry_after_conflict" }, 200);
             }
             console.error("move-chat: insert error:", insertError);
             return noStore({ ok: false, reason: "supabase_error", stage: "insert_mapping", error: insertError.message }, 500);
         }
 
-        await supabase.from("chats").update({ project_id: projectId, updated_at: new Date().toISOString() }).eq("clerk_user_id", userId).eq("id", threadId);
         return noStore({ ok: true, mapping: inserted, mode: "inserted" }, 200);
     } catch (err) {
         console.error("Unhandled POST /api/projects/move-chat error:", err);
