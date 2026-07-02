@@ -141,13 +141,13 @@ export async function POST(req: NextRequest) {
         const projectName =
             typeof rawProjectName === "string" ? rawProjectName.trim() : "";
 
-        if (!projectName) {
+        if (!threadId || !projectName) {
             return noStore(
                 {
                     ok: false,
                     reason: "missing_fields",
                     stage: "validate_body",
-                    details: "projectName is required",
+                    details: "threadId and projectName are required",
                 },
                 400
             );
@@ -228,45 +228,40 @@ export async function POST(req: NextRequest) {
             projectRow = newProject;
         }
 
-        let mapping: any = null;
+        // 3) Attach the thread to this project
+        const { data: mapping, error: mappingError } = await supabase
+            .from(THREADS_TABLE)
+            .insert({
+                clerk_user_id: userId,
+                project_id: projectId,
+                thread_id: threadId,
+            })
+            .select("id, thread_id, created_at")
+            .single();
 
-        if (threadId) {
-            // 3) Attach the thread to this project (only when threadId provided)
-            const { data: mappingData, error: mappingError } = await supabase
-                .from(THREADS_TABLE)
-                .insert({
-                    clerk_user_id: userId,
-                    project_id: projectId,
-                    thread_id: threadId,
-                })
-                .select("id, thread_id, created_at")
-                .single();
-
-            if (mappingError) {
-                console.error(
-                    "Supabase insert error in POST /api/projects (attach thread):",
-                    mappingError
-                );
-                return noStore(
-                    {
-                        ok: false,
-                        reason: "supabase_error",
-                        stage: "insert_mapping",
-                        error: mappingError.message,
-                    },
-                    500
-                );
-            }
-
-            mapping = mappingData;
-
-            // Seam 3: also stamp project_id onto the canonical chats row
-            await supabase
-                .from("chats")
-                .update({ project_id: projectId, updated_at: new Date().toISOString() })
-                .eq("clerk_user_id", userId)
-                .eq("id", threadId);
+        if (mappingError) {
+            console.error(
+                "Supabase insert error in POST /api/projects (attach thread):",
+                mappingError
+            );
+            return noStore(
+                {
+                    ok: false,
+                    reason: "supabase_error",
+                    stage: "insert_mapping",
+                    error: mappingError.message,
+                },
+                500
+            );
         }
+
+        // Seam 3: also stamp project_id onto the canonical chats row.
+        // threadId is the uid() chat_id value which equals chats.id.
+        await supabase
+            .from("chats")
+            .update({ project_id: projectId, updated_at: new Date().toISOString() })
+            .eq("clerk_user_id", userId)
+            .eq("id", threadId);
 
         return noStore(
             {
