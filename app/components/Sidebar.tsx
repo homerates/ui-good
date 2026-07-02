@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import {
   SignedIn,
   SignedOut,
@@ -33,6 +34,8 @@ type ProjectItem = {
   chat_count: number;
 };
 
+type Anchor = { top: number; right: number };
+
 export type SidebarProps = {
   id?: string;
   history: HistoryItem[];
@@ -56,7 +59,6 @@ export type SidebarProps = {
   onHowItWorks?: () => void;
   onKnowledgeTool?: (tool: KnowledgeToolId) => void;
   onPriceCheck?: () => void;
-  // kept for prop parity — Sidebar now handles project actions internally
   onProjectAction?: (action: 'rename' | 'delete', project: any) => void | Promise<void>;
   onMoveChatToProject?: (threadId: string, projectId: string) => void | Promise<void>;
   chatSaveCount?: number;
@@ -85,7 +87,6 @@ function truncateProjectName(raw: string): string {
 export default function Sidebar(props: SidebarProps) {
   const {
     id,
-    history,
     activeId,
     isOpen,
     onToggle,
@@ -102,6 +103,10 @@ export default function Sidebar(props: SidebarProps) {
     onPriceCheck: rawOnPriceCheck,
     chatSaveCount,
   } = props;
+
+  // Portal requires client-side only
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setMounted(true); }, []);
 
   // ===== Mobile auto-close =====
   const isMobile = () =>
@@ -136,19 +141,9 @@ export default function Sidebar(props: SidebarProps) {
     [rawOnSelectHistory, onToggle]
   );
 
-  const handleAskUnderwritingClick = React.useCallback(() => {
-    if (isMobile()) onToggle();
-    if (rawOnAskUnderwriting) rawOnAskUnderwriting();
-    else if (onKnowledgeTool) onKnowledgeTool('ask-underwriting');
-  }, [rawOnAskUnderwriting, onKnowledgeTool, onToggle]);
-
-  const handleKnowledgeClick = React.useCallback(
-    (tool: KnowledgeToolId) => {
-      if (isMobile()) onToggle();
-      if (onKnowledgeTool) onKnowledgeTool(tool);
-    },
-    [onKnowledgeTool, onToggle]
-  );
+  // Suppress unused-ref warnings (kept for future wiring)
+  void onSearch; void onLibrary; void onSettings; void onLabSeed;
+  void onAboutHomeRates; void onHowItWorks; void onKnowledgeTool;
 
   // ===== v2 API state =====
   const [chats, setChats] = React.useState<ChatItem[]>([]);
@@ -182,12 +177,10 @@ export default function Sidebar(props: SidebarProps) {
     }
   }, []);
 
-  // Load / reload when filter changes or a new chat is saved
   React.useEffect(() => {
     void loadChats(activeProjectId);
   }, [activeProjectId, loadChats, chatSaveCount]);
 
-  // Load projects once on mount
   React.useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
@@ -201,9 +194,48 @@ export default function Sidebar(props: SidebarProps) {
     [onToggle]
   );
 
-  // ===== Project CRUD =====
-  const [projectMenuOpenId, setProjectMenuOpenId] = React.useState<string | null>(null);
+  // ===== Portal menu state =====
+  // .sidebar has transform + overflow:hidden — menus must escape via portal.
+  // Anchors are computed from getBoundingClientRect() at click time.
 
+  const [menuOpenForId, setMenuOpenForId] = React.useState<string | null>(null);
+  const [addToProjectChatId, setAddToProjectChatId] = React.useState<string | null>(null);
+  const [chatMenuAnchor, setChatMenuAnchor] = React.useState<Anchor | null>(null);
+
+  const [projectMenuOpenId, setProjectMenuOpenId] = React.useState<string | null>(null);
+  const [projectMenuAnchor, setProjectMenuAnchor] = React.useState<Anchor | null>(null);
+
+  const [hoverChatId, setHoverChatId] = React.useState<string | null>(null);
+
+  const closeAll = React.useCallback(() => {
+    setMenuOpenForId(null);
+    setAddToProjectChatId(null);
+    setChatMenuAnchor(null);
+    setProjectMenuOpenId(null);
+    setProjectMenuAnchor(null);
+  }, []);
+
+  const openChatMenu = React.useCallback((chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setChatMenuAnchor({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    setMenuOpenForId(chatId);
+    setAddToProjectChatId(null);
+    setProjectMenuOpenId(null);
+    setProjectMenuAnchor(null);
+  }, []);
+
+  const openProjectMenu = React.useCallback((projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setProjectMenuAnchor({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    setProjectMenuOpenId(projectId);
+    setMenuOpenForId(null);
+    setChatMenuAnchor(null);
+    setAddToProjectChatId(null);
+  }, []);
+
+  // ===== Project CRUD =====
   const handleNewProject = React.useCallback(async () => {
     const raw = window.prompt('New project name:');
     const name = raw?.trim();
@@ -230,7 +262,7 @@ export default function Sidebar(props: SidebarProps) {
   }, [loadProjects]);
 
   const handleRenameProject = React.useCallback(async (project: ProjectItem) => {
-    setProjectMenuOpenId(null);
+    closeAll();
     const raw = window.prompt('Rename project:', project.name || '');
     const newName = raw?.trim();
     if (!newName || newName === project.name) return;
@@ -249,10 +281,10 @@ export default function Sidebar(props: SidebarProps) {
     } catch (e) {
       console.warn('[Sidebar] rename project error:', e);
     }
-  }, [loadProjects]);
+  }, [closeAll, loadProjects]);
 
   const handleDeleteProject = React.useCallback(async (project: ProjectItem) => {
-    setProjectMenuOpenId(null);
+    closeAll();
     const confirmed = window.confirm(`Delete project "${project.name}"?`);
     if (!confirmed) return;
     try {
@@ -266,29 +298,18 @@ export default function Sidebar(props: SidebarProps) {
       }
       if (res.ok) {
         setProjects(prev => prev.filter(p => p.id !== project.id));
-        if (activeProjectId === project.id) {
-          setActiveProjectId(null);
-        }
+        if (activeProjectId === project.id) setActiveProjectId(null);
       } else {
         window.alert(json?.error || 'Failed to delete project.');
       }
     } catch (e) {
       console.warn('[Sidebar] delete project error:', e);
     }
-  }, [activeProjectId]);
+  }, [closeAll, activeProjectId]);
 
   // ===== Chat CRUD =====
-  const [hoverChatId, setHoverChatId] = React.useState<string | null>(null);
-  const [menuOpenForId, setMenuOpenForId] = React.useState<string | null>(null);
-  const [addToProjectChatId, setAddToProjectChatId] = React.useState<string | null>(null);
-
-  const closeMenu = React.useCallback(() => {
-    setMenuOpenForId(null);
-    setAddToProjectChatId(null);
-  }, []);
-
   const handleDeleteChat = React.useCallback(async (chatId: string) => {
-    closeMenu();
+    closeAll();
     try {
       const res = await fetch(`/api/v2/chats/${encodeURIComponent(chatId)}`, {
         method: 'DELETE',
@@ -300,23 +321,47 @@ export default function Sidebar(props: SidebarProps) {
     } catch (e) {
       console.warn('[Sidebar] delete chat error:', e);
     }
-  }, [closeMenu, onHistoryAction]);
+  }, [closeAll, onHistoryAction]);
 
   const handleAssignProject = React.useCallback(async (chatId: string, projectId: string | null) => {
+    closeAll();
     try {
       await fetch(`/api/v2/chats/${encodeURIComponent(chatId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ project_id: projectId }),
       });
-      closeMenu();
       void loadChats(activeProjectId);
     } catch (e) {
       console.warn('[Sidebar] assign project error:', e);
     }
-  }, [closeMenu, loadChats, activeProjectId]);
+  }, [closeAll, loadChats, activeProjectId]);
 
-  // ===== Render =====
+  // ===== Shared dropdown styles =====
+  const dropdownBase: React.CSSProperties = {
+    position: 'fixed',
+    padding: 6,
+    background: '#1a2330',
+    borderRadius: 10,
+    boxShadow: '0 12px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08)',
+    zIndex: 9999,
+    minWidth: 150,
+    fontSize: 13,
+  };
+
+  const menuItemBase: React.CSSProperties = {
+    display: 'block',
+    width: '100%',
+    textAlign: 'left',
+    border: 'none',
+    background: 'transparent',
+    padding: '7px 10px',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 500,
+    borderRadius: 6,
+    lineHeight: 1.3,
+  };
 
   const proBadgeStyle: React.CSSProperties = {
     marginLeft: 'auto',
@@ -331,28 +376,17 @@ export default function Sidebar(props: SidebarProps) {
     flexShrink: 0,
   };
 
-  const menuItemStyle: React.CSSProperties = {
-    width: '100%',
-    textAlign: 'left',
-    border: 'none',
-    background: 'transparent',
-    padding: '4px 6px',
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 500,
-  };
+  // Active menu chat (for picker)
+  const activeChatForPicker = addToProjectChatId
+    ? chats.find(c => c.id === addToProjectChatId) ?? null
+    : null;
 
-  const dropdownStyle: React.CSSProperties = {
-    position: 'absolute',
-    right: 0,
-    top: '100%',
-    marginTop: 4,
-    padding: 6,
-    background: '#1e2733',
-    borderRadius: 8,
-    boxShadow: '0 10px 25px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)',
-    zIndex: 50,
-  };
+  // Active project for menu
+  const activeProjectForMenu = projectMenuOpenId
+    ? projects.find(p => p.id === projectMenuOpenId) ?? null
+    : null;
+
+  const anyMenuOpen = !!(menuOpenForId || projectMenuOpenId);
 
   return (
     <aside id={id} className={`sidebar ${isOpen ? 'open' : 'closed'}`} aria-label="Sidebar">
@@ -360,7 +394,7 @@ export default function Sidebar(props: SidebarProps) {
       {/* ── Scrollable content ── */}
       <div className="sidebar-scroll">
 
-        {/* Header: hamburger only */}
+        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '12px 14px 10px 14px' }}>
           <button
             className="hamburger"
@@ -422,9 +456,9 @@ export default function Sidebar(props: SidebarProps) {
         })}
 
         {/* ── Projects ── */}
-        <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.45 }}>
+        <div style={{ padding: '10px 12px 8px', borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.4 }}>
               Projects
             </span>
             <button
@@ -439,54 +473,43 @@ export default function Sidebar(props: SidebarProps) {
           </div>
 
           {projects.length === 0 && (
-            <div style={{ opacity: 0.5, fontSize: 11 }}>No projects yet.</div>
+            <div style={{ opacity: 0.4, fontSize: 11, padding: '2px 0 4px' }}>No projects yet.</div>
           )}
 
           {projects.length > 0 && (
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
               {projects.map(project => {
                 const isActive = project.id === activeProjectId;
-                const pmOpen = projectMenuOpenId === project.id;
                 return (
                   <li key={project.id}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', borderRadius: 7, background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent' }}>
                       <button
                         type="button"
                         onClick={() => handleSelectProject(project)}
                         title={project.name}
                         style={{
-                          flex: 1, textAlign: 'left', borderRadius: 6, border: 'none',
-                          padding: '3px 4px',
-                          background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
-                          cursor: 'pointer', fontSize: 11,
+                          flex: 1, textAlign: 'left', border: 'none',
+                          padding: '6px 6px 6px 8px', background: 'transparent',
+                          cursor: 'pointer', fontSize: 12,
                           fontWeight: isActive ? 600 : 400,
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          borderRadius: 7,
                         }}
                       >
                         {truncateProjectName(project.name)}
                       </button>
                       <button
                         type="button"
-                        onClick={() => setProjectMenuOpenId(prev => prev === project.id ? null : project.id)}
+                        onClick={(e) => openProjectMenu(project.id, e)}
                         aria-label="Project options"
-                        style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px 4px', fontSize: 14, lineHeight: 1, opacity: 0.7, flex: '0 0 auto' }}
+                        style={{
+                          flexShrink: 0, border: 'none', background: 'transparent',
+                          cursor: 'pointer', padding: '6px 8px 6px 4px',
+                          fontSize: 16, lineHeight: 1, opacity: 0.55,
+                        }}
                       >
                         …
                       </button>
-                      {pmOpen && (
-                        <div style={{ ...dropdownStyle, minWidth: 130 }}>
-                          <button type="button"
-                            onClick={() => void handleRenameProject(project)}
-                            style={{ ...menuItemStyle, color: '#e2e8f0' }}>
-                            Rename
-                          </button>
-                          <button type="button"
-                            onClick={() => void handleDeleteProject(project)}
-                            style={{ ...menuItemStyle, color: '#dc2626' }}>
-                            Delete
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </li>
                 );
@@ -498,16 +521,16 @@ export default function Sidebar(props: SidebarProps) {
             <button
               type="button"
               onClick={() => setActiveProjectId(null)}
-              style={{ marginTop: 6, fontSize: 10, opacity: 0.55, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+              style={{ marginTop: 8, fontSize: 10, opacity: 0.5, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
             >
-              Show all chats
+              ← All chats
             </button>
           )}
         </div>
 
         {/* ── Chats ── */}
-        <div style={{ padding: '8px 12px' }}>
-          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.6, opacity: 0.7, marginBottom: 6 }}>
+        <div style={{ padding: '10px 12px 12px' }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em', opacity: 0.4, fontWeight: 700, marginBottom: 8 }}>
             {activeProjectId
               ? (projects.find(p => p.id === activeProjectId)?.name ?? 'Project')
               : 'Recents'}
@@ -519,17 +542,15 @@ export default function Sidebar(props: SidebarProps) {
                 const isActive = chat.id === activeId;
                 const label = truncateChatTitle(chat.title ?? '');
                 const isHovered = hoverChatId === chat.id;
-                const menuOpen = menuOpenForId === chat.id;
-                const showingPicker = addToProjectChatId === chat.id;
 
-                const background = isActive
-                  ? 'rgba(255,255,255,0.12)'
-                  : isHovered ? 'rgba(255,255,255,0.06)' : 'transparent';
+                const rowBg = isActive
+                  ? 'rgba(255,255,255,0.10)'
+                  : isHovered ? 'rgba(255,255,255,0.05)' : 'transparent';
 
                 return (
                   <div
                     key={chat.id}
-                    style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 4, position: 'relative', minWidth: 0 }}
+                    style={{ display: 'flex', alignItems: 'center', marginBottom: 2, borderRadius: 7, background: rowBg, transition: 'background 0.1s ease-out' }}
                     onMouseEnter={() => setHoverChatId(chat.id)}
                     onMouseLeave={() => setHoverChatId(prev => prev === chat.id ? null : prev)}
                   >
@@ -540,11 +561,10 @@ export default function Sidebar(props: SidebarProps) {
                       title={chat.title ?? ''}
                       type="button"
                       style={{
-                        flex: 1, minWidth: 0, border: 'none', background,
-                        padding: '2px 4px', borderRadius: 6, fontSize: 11, fontWeight: 400,
+                        flex: 1, minWidth: 0, border: 'none', background: 'transparent',
+                        padding: '6px 4px 6px 8px', borderRadius: 7, fontSize: 12, fontWeight: 400,
                         textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap',
                         overflow: 'hidden', textOverflow: 'ellipsis',
-                        transition: 'background 0.12s ease-out',
                       }}
                     >
                       {label}
@@ -554,73 +574,27 @@ export default function Sidebar(props: SidebarProps) {
                       type="button"
                       aria-label="Chat options"
                       title="Chat options"
-                      onClick={() => setMenuOpenForId(prev => prev === chat.id ? null : chat.id)}
+                      onClick={(e) => openChatMenu(chat.id, e)}
                       style={{
-                        flex: '0 0 auto', border: 'none', background: 'transparent',
-                        cursor: 'pointer', padding: '4px 6px', fontSize: 18, lineHeight: 1,
-                        color: '#e2e8f0', opacity: 0.8, minWidth: 28, textAlign: 'center',
+                        flexShrink: 0, border: 'none', background: 'transparent',
+                        cursor: 'pointer', padding: '6px 8px 6px 4px',
+                        fontSize: 16, lineHeight: 1, opacity: 0.55,
                       }}
                     >
                       …
                     </button>
-
-                    {/* 3-dot menu */}
-                    {menuOpen && !showingPicker && (
-                      <div style={{ ...dropdownStyle, minWidth: 140, fontSize: 12 }}>
-                        <button type="button"
-                          onClick={() => setAddToProjectChatId(chat.id)}
-                          style={{ ...menuItemStyle, color: '#e2e8f0' }}>
-                          Add to project
-                        </button>
-                        <button type="button"
-                          onClick={() => void handleDeleteChat(chat.id)}
-                          style={{ ...menuItemStyle, color: '#dc2626' }}>
-                          Delete
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Inline project picker */}
-                    {showingPicker && (
-                      <div style={{ ...dropdownStyle, minWidth: 160, zIndex: 51, fontSize: 12 }}>
-                        <div style={{ fontSize: 10, opacity: 0.5, padding: '2px 6px 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          Move to project
-                        </div>
-                        <button type="button"
-                          onClick={() => void handleAssignProject(chat.id, null)}
-                          style={{ ...menuItemStyle, color: '#94a3b8' }}>
-                          None (unassign)
-                        </button>
-                        {projects.map(p => (
-                          <button key={p.id} type="button"
-                            onClick={() => void handleAssignProject(chat.id, p.id)}
-                            style={{
-                              ...menuItemStyle,
-                              color: '#e2e8f0',
-                              background: chat.project_id === p.id ? 'rgba(255,255,255,0.08)' : 'transparent',
-                            }}>
-                            {p.name}
-                          </button>
-                        ))}
-                        <button type="button"
-                          onClick={closeMenu}
-                          style={{ ...menuItemStyle, color: '#64748b', fontSize: 11, marginTop: 2 }}>
-                          Cancel
-                        </button>
-                      </div>
-                    )}
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div style={{ opacity: 0.7, fontSize: 13 }}>No chats yet</div>
+            <div style={{ opacity: 0.5, fontSize: 12, padding: '2px 0' }}>No chats yet</div>
           )}
         </div>
 
       </div>{/* end sidebar-scroll */}
 
-      {/* ── Sticky footer: user ── */}
+      {/* ── Sticky footer ── */}
       <div className="sidebar-sticky-footer">
         <SignedIn>
           <UserButton
@@ -636,6 +610,120 @@ export default function Sidebar(props: SidebarProps) {
           </SignInButton>
         </SignedOut>
       </div>
+
+      {/* ── Portaled menus — rendered into document.body to escape sidebar transform + overflow ── */}
+      {mounted && anyMenuOpen && createPortal(
+        <>
+          {/* Transparent backdrop: click outside closes everything */}
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+            onMouseDown={() => closeAll()}
+          />
+
+          {/* Chat 3-dot menu */}
+          {menuOpenForId && !addToProjectChatId && chatMenuAnchor && (
+            <div
+              style={{ ...dropdownBase, top: chatMenuAnchor.top, right: chatMenuAnchor.right }}
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                style={{ ...menuItemBase, color: '#e2e8f0' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                onClick={() => setAddToProjectChatId(menuOpenForId)}
+              >
+                Add to project
+              </button>
+              <button
+                type="button"
+                style={{ ...menuItemBase, color: '#f87171' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.08)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                onClick={() => void handleDeleteChat(menuOpenForId)}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+
+          {/* Project picker (replaces chat menu) */}
+          {addToProjectChatId && chatMenuAnchor && (
+            <div
+              style={{ ...dropdownBase, top: chatMenuAnchor.top, right: chatMenuAnchor.right, minWidth: 170 }}
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <div style={{ fontSize: 10, opacity: 0.45, padding: '4px 10px 6px', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>
+                Move to project
+              </div>
+              <button
+                type="button"
+                style={{ ...menuItemBase, color: '#94a3b8' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                onClick={() => void handleAssignProject(addToProjectChatId, null)}
+              >
+                None (unassign)
+              </button>
+              {projects.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  style={{
+                    ...menuItemBase,
+                    color: '#e2e8f0',
+                    background: activeChatForPicker?.project_id === p.id ? 'rgba(255,255,255,0.07)' : 'transparent',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'; }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.background =
+                      activeChatForPicker?.project_id === p.id ? 'rgba(255,255,255,0.07)' : 'transparent';
+                  }}
+                  onClick={() => void handleAssignProject(addToProjectChatId, p.id)}
+                >
+                  {p.name}
+                </button>
+              ))}
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+              <button
+                type="button"
+                style={{ ...menuItemBase, color: '#64748b', fontSize: 12 }}
+                onClick={closeAll}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {/* Project 3-dot menu */}
+          {projectMenuOpenId && projectMenuAnchor && activeProjectForMenu && (
+            <div
+              style={{ ...dropdownBase, top: projectMenuAnchor.top, right: projectMenuAnchor.right }}
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                style={{ ...menuItemBase, color: '#e2e8f0' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                onClick={() => void handleRenameProject(activeProjectForMenu)}
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                style={{ ...menuItemBase, color: '#f87171' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.08)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                onClick={() => void handleDeleteProject(activeProjectForMenu)}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </>,
+        document.body
+      )}
 
     </aside>
   );
