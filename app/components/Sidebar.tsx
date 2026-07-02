@@ -1,10 +1,7 @@
-// ==== REPLACE ENTIRE FILE: app/components/Sidebar.tsx ====
-// Sidebar: Clerk-ready, projects-aware, with Ask Underwriting pill
-// Now with global mobile auto-close for sidebar actions
-
 'use client';
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import {
   SignedIn,
   SignedOut,
@@ -12,12 +9,7 @@ import {
   UserButton,
 } from '@clerk/nextjs';
 
-import ProjectsPanel from './ProjectsPanel';
-import MoveToProjectDialog from './MoveToProjectDialog';
-import LegalLinks from "./LegalLinks";
-import SidebarLegal from "./SidebarLegal";
 import { NAV_ITEMS } from '@/nav-config';
-
 
 // ===== Types =====
 
@@ -27,59 +19,53 @@ export type HistoryItem = {
   updatedAt?: number;
 };
 
-// Knowledge tools you'll wire from app/page.tsx later if you want
 export type KnowledgeToolId = 'mortgage-solutions' | 'ask-underwriting';
+
+type ChatItem = {
+  id: string;
+  title: string | null;
+  project_id: string | null;
+  updated_at: string;
+};
+
+type ProjectItem = {
+  id: string;
+  name: string;
+  chat_count: number;
+};
+
+type Anchor = { top: number; right: number };
 
 export type SidebarProps = {
   id?: string;
-
   history: HistoryItem[];
   activeId: string | null;
-
   isOpen: boolean;
   onToggle: () => void;
-
   onSelectHistory: (id: string) => void;
   onHistoryAction: (
     action: 'rename' | 'move' | 'archive' | 'delete',
     id: string
   ) => void | Promise<void>;
-
   onNewChat: () => void;
   onSettings: () => void;
-  onShare: () => void; // kept for prop parity (not rendered as a pill)
+  onShare: () => void;
   onSearch: () => void;
   onLibrary: () => void;
   onNewProject: () => void;
   onLabSeed?: (seed: string) => void;
-
-  // Optional underwriting seed handler from page.tsx
   onAskUnderwriting?: () => void;
-
-  // Optional About HomeRates handler
   onAboutHomeRates?: () => void;
   onHowItWorks?: () => void;
-
-  // Optional intelligence layer hook
   onKnowledgeTool?: (tool: KnowledgeToolId) => void;
-
-  // Price Check — focuses input so user can paste a listing URL
   onPriceCheck?: () => void;
-
-  // Optional hooks for project actions
-  onProjectAction?: (
-    action: 'rename' | 'delete',
-    project: any
-  ) => void | Promise<void>;
-  onMoveChatToProject?: (
-    threadId: string,
-    projectId: string
-  ) => void | Promise<void>;
+  onProjectAction?: (action: 'rename' | 'delete', project: any) => void | Promise<void>;
+  onMoveChatToProject?: (threadId: string, projectId: string) => void | Promise<void>;
+  chatSaveCount?: number;
 };
 
 // ===== Helpers =====
 
-// Small helper: keep chat titles short
 function truncateChatTitle(raw: string): string {
   const title = (raw || '').trim();
   if (!title) return 'New chat';
@@ -88,83 +74,65 @@ function truncateChatTitle(raw: string): string {
   return words.slice(0, 3).join(' ') + '…';
 }
 
-// Shape of /api/projects/threads-map response
-type ThreadsMapResponse = {
-  ok?: boolean;
-  map?: Record<string, string[]>;
-};
+function truncateProjectName(raw: string): string {
+  const name = (raw || '').trim();
+  if (!name) return '(untitled project)';
+  const words = name.split(/\s+/);
+  if (words.length <= 3) return name;
+  return words.slice(0, 3).join(' ') + '…';
+}
 
 // ===== Component =====
 
 export default function Sidebar(props: SidebarProps) {
   const {
     id,
-    history,
     activeId,
     isOpen,
     onToggle,
-
-    // Callbacks from page.tsx (raw versions)
     onSelectHistory: rawOnSelectHistory,
     onHistoryAction,
     onNewChat: rawOnNewChat,
     onSettings: rawOnSettings,
-    onShare, // not used in UI (kept for parity)
     onSearch: rawOnSearch,
     onLibrary: rawOnLibrary,
-    onNewProject: rawOnNewProject,
     onAskUnderwriting: rawOnAskUnderwriting,
     onAboutHomeRates: rawOnAboutHomeRates,
     onHowItWorks: rawOnHowItWorks,
     onKnowledgeTool: rawOnKnowledgeTool,
     onPriceCheck: rawOnPriceCheck,
-    onProjectAction,
-    onMoveChatToProject,
+    chatSaveCount,
   } = props;
 
-  // ===== Global mobile auto-close wrapper =====
-  //
-  // Any sidebar action that uses this wrapper will:
-  // 1) Run its original callback.
-  // 2) If on a small screen, call onToggle() to close the drawer.
-  //
-  // Desktop behavior is unchanged.
+  // Portal requires client-side only
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setMounted(true); }, []);
 
+  // ===== Mobile auto-close =====
   const isMobile = () =>
     typeof window !== 'undefined' && window.innerWidth < 1024;
 
   const autoWrap = React.useCallback(
     (fn?: (...args: any[]) => void) =>
       (...args: any[]) => {
-        // Close sidebar first on mobile so it doesn't race with state updates
         if (isMobile()) onToggle();
         fn?.(...args);
       },
     [onToggle]
   );
 
-  // Wrapped versions of primary actions used in the JSX
   const onNewChat = autoWrap(rawOnNewChat);
   const onSearch = autoWrap(rawOnSearch);
   const onLibrary = autoWrap(rawOnLibrary);
-  const onNewProject = autoWrap(rawOnNewProject);
   const onSettings = autoWrap(rawOnSettings);
   const onLabSeed = props.onLabSeed
-    ? (seed: string) => {
-        if (isMobile()) onToggle();
-        props.onLabSeed!(seed);
-      }
+    ? (seed: string) => { if (isMobile()) onToggle(); props.onLabSeed!(seed); }
     : undefined;
   const onPriceCheck = rawOnPriceCheck ? autoWrap(rawOnPriceCheck) : undefined;
-  const onAboutHomeRates = rawOnAboutHomeRates
-    ? autoWrap(rawOnAboutHomeRates)
-    : undefined;
-  const onHowItWorks = rawOnHowItWorks
-    ? autoWrap(rawOnHowItWorks)
-    : undefined;
+  const onAboutHomeRates = rawOnAboutHomeRates ? autoWrap(rawOnAboutHomeRates) : undefined;
+  const onHowItWorks = rawOnHowItWorks ? autoWrap(rawOnHowItWorks) : undefined;
   const onKnowledgeTool = rawOnKnowledgeTool;
 
-  // Chat selection: also auto-close on mobile so answers are visible
   const onSelectHistory = React.useCallback(
     (chatId: string) => {
       if (isMobile()) onToggle();
@@ -173,471 +141,590 @@ export default function Sidebar(props: SidebarProps) {
     [rawOnSelectHistory, onToggle]
   );
 
-  // Ask Underwriting click handler
-  const handleAskUnderwritingClick = React.useCallback(() => {
-    if (isMobile()) onToggle();
-    if (rawOnAskUnderwriting) {
-      rawOnAskUnderwriting();
-    } else if (onKnowledgeTool) {
-      onKnowledgeTool('ask-underwriting');
-    }
-  }, [rawOnAskUnderwriting, onKnowledgeTool, onToggle]);
+  // Suppress unused-ref warnings (kept for future wiring)
+  void onSearch; void onLibrary; void onSettings; void onLabSeed;
+  void onAboutHomeRates; void onHowItWorks; void onKnowledgeTool;
 
-  // Mortgage Solutions knowledge tool click
-  const handleKnowledgeClick = React.useCallback(
-    (tool: KnowledgeToolId) => {
-      if (isMobile()) onToggle();
-      if (onKnowledgeTool) {
-        onKnowledgeTool(tool);
-      }
+  // ===== v2 API state =====
+  const [chats, setChats] = React.useState<ChatItem[]>([]);
+  const [projects, setProjects] = React.useState<ProjectItem[]>([]);
+  const [activeProjectId, setActiveProjectId] = React.useState<string | null>(null);
 
-    },
-    [onKnowledgeTool, onToggle]
-  );
-
-  // ===== Move-to-project dialog state =====
-  const [moveDialogOpen, setMoveDialogOpen] = React.useState(false);
-  const [moveDialogThreadId, setMoveDialogThreadId] =
-    React.useState<string | null>(null);
-
-  const handleMoveToProject = React.useCallback((threadId: string) => {
-    setMoveDialogThreadId(threadId);
-    setMoveDialogOpen(true);
-  }, []);
-
-  const handleCloseMoveDialog = React.useCallback(() => {
-    setMoveDialogOpen(false);
-    setMoveDialogThreadId(null);
-  }, []);
-
-  // Wrapper: when dialog fires onMoved(projectId), forward both threadId + projectId to parent
-  const handleMoveDialogMoved = React.useCallback(
-    (projectId: string) => {
-      if (moveDialogThreadId && onMoveChatToProject) {
-        onMoveChatToProject(moveDialogThreadId, projectId);
-      }
-    },
-    [moveDialogThreadId, onMoveChatToProject]
-  );
-
-  // ===== Project-aware chat filtering =====
-  const [activeProjectId, setActiveProjectId] =
-    React.useState<string | null>(null);
-
-  const [projectThreadsMap, setProjectThreadsMap] =
-    React.useState<Record<string, string[]>>({});
-
-  const loadProjectThreadsMap = React.useCallback(async () => {
+  const loadChats = React.useCallback(async (projectId?: string | null) => {
     try {
-      const res = await fetch('/api/projects/threads-map', {
-        cache: 'no-store',
-      });
-      if (!res.ok) {
-        console.warn(
-          '[Sidebar] /api/projects/threads-map responded with status',
-          res.status
-        );
-        return;
+      const url = projectId
+        ? `/api/v2/chats?project_id=${encodeURIComponent(projectId)}`
+        : '/api/v2/chats';
+      const res = await fetch(url, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setChats(data.chats ?? []);
       }
+    } catch (e) {
+      console.warn('[Sidebar] loadChats error:', e);
+    }
+  }, []);
 
-      const json = (await res.json()) as ThreadsMapResponse;
-      if (!json.ok || !json.map) return;
-
-      setProjectThreadsMap(json.map);
-    } catch (err) {
-      console.error(
-        '[Sidebar] Failed to load project thread map from /api/projects/threads-map',
-        err
-      );
+  const loadProjects = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/v2/projects', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.projects ?? []);
+      }
+    } catch (e) {
+      console.warn('[Sidebar] loadProjects error:', e);
     }
   }, []);
 
   React.useEffect(() => {
-    void loadProjectThreadsMap();
-  }, [loadProjectThreadsMap]);
+    void loadChats(activeProjectId);
+  }, [activeProjectId, loadChats, chatSaveCount]);
 
   React.useEffect(() => {
-    if (!moveDialogOpen) {
-      void loadProjectThreadsMap();
-    }
-  }, [moveDialogOpen, loadProjectThreadsMap]);
+    void loadProjects();
+  }, [loadProjects]);
 
+  // ===== Project selection =====
   const handleSelectProject = React.useCallback(
-    (project: any) => {
-      if (!project || !project.id) return;
-
+    (project: ProjectItem) => {
       if (isMobile()) onToggle();
-      setActiveProjectId((prev) => (prev === project.id ? null : project.id));
+      setActiveProjectId(prev => prev === project.id ? null : project.id);
     },
     [onToggle]
   );
 
-  // Forward project actions to page.tsx if provided
-  const handleProjectPanelAction = React.useCallback(
-    (action: 'rename' | 'delete', project: any) => {
-      if (onProjectAction) {
-        onProjectAction(action, project);
-      } else {
-        console.log('[Sidebar] project action (no handler wired):', {
-          action,
-          projectId: project?.id,
-          name: project?.name,
-        });
-      }
-    },
-    [onProjectAction]
-  );
+  // ===== Portal menu state =====
+  // .sidebar has transform + overflow:hidden — menus must escape via portal.
+  // Anchors are computed from getBoundingClientRect() at click time.
 
-  const visibleHistory = React.useMemo(() => {
-    if (!activeProjectId) return history;
-
-    const threadIds = projectThreadsMap[activeProjectId];
-    if (!threadIds || threadIds.length === 0) {
-      return history;
-    }
-
-    const allowed = new Set(threadIds);
-    return history.filter((h) => allowed.has(h.id));
-  }, [history, activeProjectId, projectThreadsMap]);
-
-  // ===== Hover + context menu state for chats =====
-  const [hoverChatId, setHoverChatId] = React.useState<string | null>(null);
   const [menuOpenForId, setMenuOpenForId] = React.useState<string | null>(null);
+  const [addToProjectChatId, setAddToProjectChatId] = React.useState<string | null>(null);
+  const [chatMenuAnchor, setChatMenuAnchor] = React.useState<Anchor | null>(null);
 
-  const closeMenu = React.useCallback(() => setMenuOpenForId(null), []);
+  const [projectMenuOpenId, setProjectMenuOpenId] = React.useState<string | null>(null);
+  const [projectMenuAnchor, setProjectMenuAnchor] = React.useState<Anchor | null>(null);
 
-  const handleDeleteChat = React.useCallback(
-    (id: string) => {
-      closeMenu();
-      onHistoryAction('delete', id);
-    },
-    [closeMenu, onHistoryAction]
-  );
+  const [hoverChatId, setHoverChatId] = React.useState<string | null>(null);
 
-  // ===== Render =====
+  const closeAll = React.useCallback(() => {
+    setMenuOpenForId(null);
+    setAddToProjectChatId(null);
+    setChatMenuAnchor(null);
+    setProjectMenuOpenId(null);
+    setProjectMenuAnchor(null);
+  }, []);
+
+  const openChatMenu = React.useCallback((chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setChatMenuAnchor({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    setMenuOpenForId(chatId);
+    setAddToProjectChatId(null);
+    setProjectMenuOpenId(null);
+    setProjectMenuAnchor(null);
+  }, []);
+
+  const openProjectMenu = React.useCallback((projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setProjectMenuAnchor({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    setProjectMenuOpenId(projectId);
+    setMenuOpenForId(null);
+    setChatMenuAnchor(null);
+    setAddToProjectChatId(null);
+  }, []);
+
+  // ===== Project CRUD =====
+  const handleNewProject = React.useCallback(async () => {
+    const raw = window.prompt('New project name:');
+    const name = raw?.trim();
+    if (!name) return;
+    try {
+      const res = await fetch('/api/v2/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        window.alert(json?.error || 'A project with that name already exists.');
+        return;
+      }
+      if (res.ok) {
+        void loadProjects();
+      } else {
+        window.alert(json?.error || 'Failed to create project.');
+      }
+    } catch (e) {
+      console.warn('[Sidebar] new project error:', e);
+    }
+  }, [loadProjects]);
+
+  const handleRenameProject = React.useCallback(async (project: ProjectItem) => {
+    closeAll();
+    const raw = window.prompt('Rename project:', project.name || '');
+    const newName = raw?.trim();
+    if (!newName || newName === project.name) return;
+    try {
+      const res = await fetch(`/api/v2/projects/${encodeURIComponent(project.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName }),
+      });
+      if (res.ok) {
+        void loadProjects();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        window.alert(json?.error || 'Failed to rename project.');
+      }
+    } catch (e) {
+      console.warn('[Sidebar] rename project error:', e);
+    }
+  }, [closeAll, loadProjects]);
+
+  const handleDeleteProject = React.useCallback(async (project: ProjectItem) => {
+    closeAll();
+    const confirmed = window.confirm(`Delete project "${project.name}"?`);
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`/api/v2/projects/${encodeURIComponent(project.id)}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        window.alert(json?.error || 'Cannot delete this project.');
+        return;
+      }
+      if (res.ok) {
+        setProjects(prev => prev.filter(p => p.id !== project.id));
+        if (activeProjectId === project.id) setActiveProjectId(null);
+      } else {
+        window.alert(json?.error || 'Failed to delete project.');
+      }
+    } catch (e) {
+      console.warn('[Sidebar] delete project error:', e);
+    }
+  }, [closeAll, activeProjectId]);
+
+  // ===== Chat CRUD =====
+  const handleDeleteChat = React.useCallback(async (chatId: string) => {
+    closeAll();
+    try {
+      const res = await fetch(`/api/v2/chats/${encodeURIComponent(chatId)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setChats(prev => prev.filter(c => c.id !== chatId));
+        void onHistoryAction('delete', chatId);
+      }
+    } catch (e) {
+      console.warn('[Sidebar] delete chat error:', e);
+    }
+  }, [closeAll, onHistoryAction]);
+
+  const handleAssignProject = React.useCallback(async (chatId: string, projectId: string | null) => {
+    closeAll();
+    try {
+      await fetch(`/api/v2/chats/${encodeURIComponent(chatId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: projectId }),
+      });
+      void loadChats(activeProjectId);
+    } catch (e) {
+      console.warn('[Sidebar] assign project error:', e);
+    }
+  }, [closeAll, loadChats, activeProjectId]);
+
+  // ===== Shared dropdown styles =====
+  const dropdownBase: React.CSSProperties = {
+    position: 'fixed',
+    padding: 6,
+    background: '#1a2330',
+    borderRadius: 10,
+    boxShadow: '0 12px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08)',
+    zIndex: 9999,
+    minWidth: 150,
+    fontSize: 13,
+  };
+
+  const menuItemBase: React.CSSProperties = {
+    display: 'block',
+    width: '100%',
+    textAlign: 'left',
+    border: 'none',
+    background: 'transparent',
+    padding: '7px 10px',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 500,
+    borderRadius: 6,
+    lineHeight: 1.3,
+  };
+
+  const proBadgeStyle: React.CSSProperties = {
+    marginLeft: 'auto',
+    fontSize: 9,
+    fontWeight: 800,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
+    color: '#1a0a00',
+    padding: '2px 6px',
+    borderRadius: 999,
+    flexShrink: 0,
+  };
+
+  // Active menu chat (for picker)
+  const activeChatForPicker = addToProjectChatId
+    ? chats.find(c => c.id === addToProjectChatId) ?? null
+    : null;
+
+  // Active project for menu
+  const activeProjectForMenu = projectMenuOpenId
+    ? projects.find(p => p.id === projectMenuOpenId) ?? null
+    : null;
+
+  const anyMenuOpen = !!(menuOpenForId || projectMenuOpenId);
+
   return (
-    <>
-      <aside
-        id={id}
-        className={`sidebar ${isOpen ? 'open' : 'closed'}`}
-        aria-label="Sidebar"
-      >
-        {/* ── Scrollable content ── */}
-        <div className="sidebar-scroll">
+    <aside id={id} className={`sidebar ${isOpen ? 'open' : 'closed'}`} aria-label="Sidebar">
 
-          {/* Header: hamburger only — logo lives in main header */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              padding: '12px 14px 10px 14px',
-            }}
+      {/* ── Scrollable content ── */}
+      <div className="sidebar-scroll">
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '12px 14px 10px 14px' }}>
+          <button
+            className="hamburger"
+            onClick={onToggle}
+            aria-label={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
+            title={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
+            type="button"
           >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+
+        {/* ── New chat ── */}
+        <div className="sidebar-section">
+          <button className="btn primary" onClick={onNewChat} type="button">
+            + New chat
+          </button>
+        </div>
+
+        {/* ── Nav sections (nav-config driven) ── */}
+        {(['decide', 'tools', 'mine', 'learn'] as const).map((g) => {
+          const groupItems = NAV_ITEMS.filter(i =>
+            i.modes.includes('pro') &&
+            i.surfaces.includes('chatPanel') &&
+            !i.footer &&
+            i.group === g &&
+            i.id !== 'chat'
+          );
+          const showPropertyLookup = g === 'decide' && !!onPriceCheck;
+          if (!groupItems.length && !showPropertyLookup) return null;
+
+          const GROUP_LABEL: Record<string, string> = {
+            decide: 'Decide', tools: 'Tools', mine: 'Mine', learn: 'Learn',
+          };
+
+          return (
+            <div key={g} className="sidebar-section">
+              <div className="sidebar-section-label">{GROUP_LABEL[g]}</div>
+              {groupItems.map(item => {
+                const label = item.labelByMode?.['pro'] ?? item.label;
+                return (
+                  <a key={item.id} href={item.href} className="btn sidebar-tool-btn" style={{ textDecoration: 'none' }}>
+                    <span className="sidebar-tool-icon">{item.icon}</span>
+                    {label}
+                    {item.proBadge && <span style={proBadgeStyle}>⭐ Pro</span>}
+                  </a>
+                );
+              })}
+              {showPropertyLookup && (
+                <button className="btn sidebar-tool-btn" type="button" onClick={onPriceCheck}>
+                  <span className="sidebar-tool-icon">🔎</span>
+                  Property Lookup
+                </button>
+              )}
+            </div>
+          );
+        })}
+
+        {/* ── Projects ── */}
+        <div style={{ padding: '10px 12px 8px', borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.4 }}>
+              Projects
+            </span>
             <button
-              className="hamburger"
-              onClick={onToggle}
-              aria-label={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
-              title={isOpen ? 'Close Sidebar' : 'Open Sidebar'}
+              className="btn"
               type="button"
+              onClick={() => { if (isMobile()) onToggle(); void handleNewProject(); }}
+              title="New project"
+              style={{ fontSize: 11, padding: '2px 8px', minWidth: 0, opacity: 0.7 }}
             >
-              <span></span>
-              <span></span>
-              <span></span>
+              + New
             </button>
           </div>
 
-          {/* ── Section: New chat ── */}
-          <div className="sidebar-section">
-            <button className="btn primary" onClick={onNewChat} type="button">
-              + New chat
-            </button>
-          </div>
+          {projects.length === 0 && (
+            <div style={{ opacity: 0.4, fontSize: 11, padding: '2px 0 4px' }}>No projects yet.</div>
+          )}
 
-          {/* ── Nav sections (nav-config driven: pro mode, chatPanel surface) ── */}
-          {(['decide', 'tools', 'mine', 'learn'] as const).map((g) => {
-            const groupItems = NAV_ITEMS.filter(i =>
-              i.modes.includes('pro') &&
-              i.surfaces.includes('chatPanel') &&
-              !i.footer &&
-              i.group === g &&
-              i.id !== 'chat'
-            );
-            // Inject the Property Lookup in-chat shortcut at the bottom of Decide
-            const showPropertyLookup = g === 'decide' && !!onPriceCheck;
-            if (!groupItems.length && !showPropertyLookup) return null;
-
-            const GROUP_LABEL: Record<string, string> = {
-              decide: 'Decide', tools: 'Tools', mine: 'Mine', learn: 'Learn',
-            };
-            const proBadgeStyle: React.CSSProperties = {
-              marginLeft: 'auto',
-              fontSize: 9,
-              fontWeight: 800,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
-              color: '#1a0a00',
-              padding: '2px 6px',
-              borderRadius: 999,
-              flexShrink: 0,
-            };
-
-            return (
-              <div key={g} className="sidebar-section">
-                <div className="sidebar-section-label">{GROUP_LABEL[g]}</div>
-                {groupItems.map(item => {
-                  const label = item.labelByMode?.['pro'] ?? item.label;
-                  return (
-                    <a
-                      key={item.id}
-                      href={item.href}
-                      className="btn sidebar-tool-btn"
-                      style={{ textDecoration: 'none' }}
-                    >
-                      <span className="sidebar-tool-icon">{item.icon}</span>
-                      {label}
-                      {item.proBadge && <span style={proBadgeStyle}>⭐ Pro</span>}
-                    </a>
-                  );
-                })}
-                {showPropertyLookup && (
-                  <button
-                    className="btn sidebar-tool-btn"
-                    type="button"
-                    onClick={onPriceCheck}
-                  >
-                    <span className="sidebar-tool-icon">🔎</span>
-                    Property Lookup
-                  </button>
-                )}
-              </div>
-            );
-          })}
-
-          {/* ── Projects list ── */}
-          <div
-            style={{
-              padding: '8px 12px',
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
-              marginBottom: 4,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.45 }}>Projects</span>
-              <button
-                className="btn"
-                type="button"
-                onClick={onNewProject}
-                title="New project"
-                style={{ fontSize: 11, padding: '2px 8px', minWidth: 0, opacity: 0.7 }}
-              >
-                + New
-              </button>
-            </div>
-            <ProjectsPanel
-              activeProjectId={activeProjectId}
-              onSelectProject={handleSelectProject}
-              onProjectAction={handleProjectPanelAction}
-            />
-          </div>
-
-          {/* ── Threads / Chats ── */}
-          <div style={{ padding: '8px 12px' }}>
-            <div
-              style={{
-                fontSize: 10,
-                textTransform: 'uppercase',
-                letterSpacing: 0.6,
-                opacity: 0.7,
-                marginBottom: 6,
-              }}
-            >
-              Chats
-            </div>
-
-            {visibleHistory.length > 0 ? (
-              <div className="chat-list" role="list" aria-label="Chats">
-                {visibleHistory.map((h) => {
-                  const isActive = h.id === activeId;
-                  const label = truncateChatTitle(h.title);
-                  const isHovered = hoverChatId === h.id;
-                  const menuOpen = menuOpenForId === h.id;
-
-                  const background = isActive
-                    ? 'rgba(255,255,255,0.12)'
-                    : isHovered
-                      ? 'rgba(255,255,255,0.06)'
-                      : 'transparent';
-
-                  return (
-                    <div
-                      key={h.id}
-                      style={{
-                        display: 'flex',
-                        gap: 4,
-                        alignItems: 'center',
-                        marginBottom: 4,
-                        position: 'relative',
-                        minWidth: 0,
-                      }}
-                      onMouseEnter={() => setHoverChatId(h.id)}
-                      onMouseLeave={() => {
-                        setHoverChatId((prev) => (prev === h.id ? null : prev));
-                      }}
-                    >
+          {projects.length > 0 && (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {projects.map(project => {
+                const isActive = project.id === activeProjectId;
+                return (
+                  <li key={project.id}>
+                    <div style={{ display: 'flex', alignItems: 'center', borderRadius: 7, background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent' }}>
                       <button
-                        role="listitem"
-                        onClick={() => onSelectHistory(h.id)}
-                        aria-current={isActive ? 'true' : 'false'}
-                        title={h.title}
                         type="button"
+                        onClick={() => handleSelectProject(project)}
+                        title={project.name}
                         style={{
-                          flex: 1,
-                          minWidth: 0,
-                          border: 'none',
-                          background,
-                          padding: '2px 4px',
-                          borderRadius: 6,
-                          fontSize: 11,
-                          fontWeight: isActive ? 400 : 400,
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          transition: 'background 0.12s ease-out',
+                          flex: 1, textAlign: 'left', border: 'none',
+                          padding: '6px 6px 6px 8px', background: 'transparent',
+                          cursor: 'pointer', fontSize: 12,
+                          fontWeight: isActive ? 600 : 400,
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          borderRadius: 7,
                         }}
                       >
-                        {label}
+                        {truncateProjectName(project.name)}
                       </button>
-
                       <button
                         type="button"
-                        aria-label="Chat options"
-                        title="Chat options"
-                        onClick={() =>
-                          setMenuOpenForId((prev) =>
-                            prev === h.id ? null : h.id
-                          )
-                        }
+                        onClick={(e) => openProjectMenu(project.id, e)}
+                        aria-label="Project options"
                         style={{
-                          flex: '0 0 auto',
-                          border: 'none',
-                          background: 'transparent',
-                          cursor: 'pointer',
-                          padding: '4px 6px',
-                          fontSize: 18,
-                          lineHeight: 1,
-                          color: '#e2e8f0',
-                          opacity: 0.8,
-                          minWidth: 28,
-                          textAlign: 'center',
+                          flexShrink: 0, border: 'none', background: 'transparent',
+                          cursor: 'pointer', padding: '6px 8px 6px 4px',
+                          fontSize: 16, lineHeight: 1, opacity: 0.55,
                         }}
                       >
                         …
                       </button>
-
-                      {menuOpen && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            right: 0,
-                            top: '100%',
-                            marginTop: 4,
-                            padding: 6,
-                            background: '#1e2733',
-                            borderRadius: 8,
-                            boxShadow:
-                              '0 10px 25px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)',
-                            minWidth: 140,
-                            zIndex: 50,
-                            fontSize: 12,
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => {
-                              closeMenu();
-                              handleMoveToProject(h.id);
-                            }}
-                            style={{
-                              width: '100%',
-                              textAlign: 'left',
-                              border: 'none',
-                              background: 'transparent',
-                              padding: '4px 6px',
-                              cursor: 'pointer',
-                              color: '#e2e8f0',
-                              fontSize: 13,
-                              fontWeight: 500,
-                            }}
-                          >
-                            Move to project
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteChat(h.id)}
-                            style={{
-                              width: '100%',
-                              textAlign: 'left',
-                              border: 'none',
-                              background: 'transparent',
-                              padding: '4px 6px',
-                              cursor: 'pointer',
-                              color: '#dc2626',
-                              fontSize: 13,
-                              fontWeight: 500,
-                            }}
-                          >
-                            Delete chat
-                          </button>
-                        </div>
-                      )}
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div style={{ opacity: 0.7, fontSize: 13 }}>No chats yet</div>
-            )}
-          </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
-        </div>{/* end sidebar-scroll */}
-
-        {/* ── Sticky footer: user ── */}
-        <div className="sidebar-sticky-footer">
-          <SignedIn>
-            <UserButton
-              showName
-              appearance={{
-                elements: {
-                  userButtonOuterIdentifier: {
-                    fontWeight: 600,
-                  },
-                },
-              }}
-            />
-          </SignedIn>
-
-          <SignedOut>
-            <SignInButton mode="modal">
-              <button className="btn primary" type="button" style={{ width: '100%' }}>
-                Sign in
-              </button>
-            </SignInButton>
-          </SignedOut>
+          {activeProjectId && (
+            <button
+              type="button"
+              onClick={() => setActiveProjectId(null)}
+              style={{ marginTop: 8, fontSize: 10, opacity: 0.5, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+            >
+              ← All chats
+            </button>
+          )}
         </div>
 
-      </aside>
+        {/* ── Chats ── */}
+        <div style={{ padding: '10px 12px 12px' }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.07em', opacity: 0.4, fontWeight: 700, marginBottom: 8 }}>
+            {activeProjectId
+              ? (projects.find(p => p.id === activeProjectId)?.name ?? 'Project')
+              : 'Recents'}
+          </div>
 
-      {/* Move-to-project dialog lives outside the sidebar */}
-      <MoveToProjectDialog
-        open={moveDialogOpen}
-        threadId={moveDialogThreadId}
-        onClose={handleCloseMoveDialog}
-        onMoved={handleMoveDialogMoved}
-      />
-    </>
+          {chats.length > 0 ? (
+            <div className="chat-list" role="list" aria-label="Chats">
+              {chats.map((chat) => {
+                const isActive = chat.id === activeId;
+                const label = truncateChatTitle(chat.title ?? '');
+                const isHovered = hoverChatId === chat.id;
+
+                const rowBg = isActive
+                  ? 'rgba(255,255,255,0.10)'
+                  : isHovered ? 'rgba(255,255,255,0.05)' : 'transparent';
+
+                return (
+                  <div
+                    key={chat.id}
+                    style={{ display: 'flex', alignItems: 'center', marginBottom: 2, borderRadius: 7, background: rowBg, transition: 'background 0.1s ease-out' }}
+                    onMouseEnter={() => setHoverChatId(chat.id)}
+                    onMouseLeave={() => setHoverChatId(prev => prev === chat.id ? null : prev)}
+                  >
+                    <button
+                      role="listitem"
+                      onClick={() => onSelectHistory(chat.id)}
+                      aria-current={isActive ? 'true' : 'false'}
+                      title={chat.title ?? ''}
+                      type="button"
+                      style={{
+                        flex: 1, minWidth: 0, border: 'none', background: 'transparent',
+                        padding: '6px 4px 6px 8px', borderRadius: 7, fontSize: 12, fontWeight: 400,
+                        textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap',
+                        overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {label}
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-label="Chat options"
+                      title="Chat options"
+                      onClick={(e) => openChatMenu(chat.id, e)}
+                      style={{
+                        flexShrink: 0, border: 'none', background: 'transparent',
+                        cursor: 'pointer', padding: '6px 8px 6px 4px',
+                        fontSize: 16, lineHeight: 1, opacity: 0.55,
+                      }}
+                    >
+                      …
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ opacity: 0.5, fontSize: 12, padding: '2px 0' }}>No chats yet</div>
+          )}
+        </div>
+
+      </div>{/* end sidebar-scroll */}
+
+      {/* ── Sticky footer ── */}
+      <div className="sidebar-sticky-footer">
+        <SignedIn>
+          <UserButton
+            showName
+            appearance={{ elements: { userButtonOuterIdentifier: { fontWeight: 600 } } }}
+          />
+        </SignedIn>
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button className="btn primary" type="button" style={{ width: '100%' }}>
+              Sign in
+            </button>
+          </SignInButton>
+        </SignedOut>
+      </div>
+
+      {/* ── Portaled menus — rendered into document.body to escape sidebar transform + overflow ── */}
+      {mounted && anyMenuOpen && createPortal(
+        <>
+          {/* Transparent backdrop: click outside closes everything */}
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+            onMouseDown={() => closeAll()}
+          />
+
+          {/* Chat 3-dot menu */}
+          {menuOpenForId && !addToProjectChatId && chatMenuAnchor && (
+            <div
+              style={{ ...dropdownBase, top: chatMenuAnchor.top, right: chatMenuAnchor.right }}
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                style={{ ...menuItemBase, color: '#e2e8f0' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                onClick={() => setAddToProjectChatId(menuOpenForId)}
+              >
+                Add to project
+              </button>
+              <button
+                type="button"
+                style={{ ...menuItemBase, color: '#f87171' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.08)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                onClick={() => void handleDeleteChat(menuOpenForId)}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+
+          {/* Project picker (replaces chat menu) */}
+          {addToProjectChatId && chatMenuAnchor && (
+            <div
+              style={{ ...dropdownBase, top: chatMenuAnchor.top, right: chatMenuAnchor.right, minWidth: 170 }}
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <div style={{ fontSize: 10, opacity: 0.45, padding: '4px 10px 6px', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>
+                Move to project
+              </div>
+              <button
+                type="button"
+                style={{ ...menuItemBase, color: '#94a3b8' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                onClick={() => void handleAssignProject(addToProjectChatId, null)}
+              >
+                None (unassign)
+              </button>
+              {projects.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  style={{
+                    ...menuItemBase,
+                    color: '#e2e8f0',
+                    background: activeChatForPicker?.project_id === p.id ? 'rgba(255,255,255,0.07)' : 'transparent',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'; }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.background =
+                      activeChatForPicker?.project_id === p.id ? 'rgba(255,255,255,0.07)' : 'transparent';
+                  }}
+                  onClick={() => void handleAssignProject(addToProjectChatId, p.id)}
+                >
+                  {p.name}
+                </button>
+              ))}
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+              <button
+                type="button"
+                style={{ ...menuItemBase, color: '#64748b', fontSize: 12 }}
+                onClick={closeAll}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {/* Project 3-dot menu */}
+          {projectMenuOpenId && projectMenuAnchor && activeProjectForMenu && (
+            <div
+              style={{ ...dropdownBase, top: projectMenuAnchor.top, right: projectMenuAnchor.right }}
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                style={{ ...menuItemBase, color: '#e2e8f0' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                onClick={() => void handleRenameProject(activeProjectForMenu)}
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                style={{ ...menuItemBase, color: '#f87171' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.08)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                onClick={() => void handleDeleteProject(activeProjectForMenu)}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </>,
+        document.body
+      )}
+
+    </aside>
   );
 }
