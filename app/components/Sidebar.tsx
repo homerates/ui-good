@@ -34,7 +34,7 @@ type ProjectItem = {
   chat_count: number;
 };
 
-type Anchor = { top: number; right: number };
+type Anchor = { top: number; bottom: number; right: number; flipped: boolean };
 
 export type SidebarProps = {
   id?: string;
@@ -218,7 +218,14 @@ export default function Sidebar(props: SidebarProps) {
   const openChatMenu = React.useCallback((chatId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setChatMenuAnchor({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    // Flip upward if < 90px below trigger (2-item menu estimate)
+    const flipped = (window.innerHeight - rect.bottom - 8) < 90;
+    setChatMenuAnchor({
+      top: rect.bottom + 6,
+      bottom: window.innerHeight - rect.top + 6,
+      right: window.innerWidth - rect.right,
+      flipped,
+    });
     setMenuOpenForId(chatId);
     setAddToProjectChatId(null);
     setProjectMenuOpenId(null);
@@ -228,7 +235,14 @@ export default function Sidebar(props: SidebarProps) {
   const openProjectMenu = React.useCallback((projectId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setProjectMenuAnchor({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    // Flip upward if < 90px below trigger (2-item menu estimate)
+    const flipped = (window.innerHeight - rect.bottom - 8) < 90;
+    setProjectMenuAnchor({
+      top: rect.bottom + 6,
+      bottom: window.innerHeight - rect.top + 6,
+      right: window.innerWidth - rect.right,
+      flipped,
+    });
     setProjectMenuOpenId(projectId);
     setMenuOpenForId(null);
     setChatMenuAnchor(null);
@@ -623,7 +637,13 @@ export default function Sidebar(props: SidebarProps) {
           {/* Chat 3-dot menu */}
           {menuOpenForId && !addToProjectChatId && chatMenuAnchor && (
             <div
-              style={{ ...dropdownBase, top: chatMenuAnchor.top, right: chatMenuAnchor.right }}
+              style={{
+                ...dropdownBase,
+                right: chatMenuAnchor.right,
+                ...(chatMenuAnchor.flipped
+                  ? { bottom: chatMenuAnchor.bottom }
+                  : { top: chatMenuAnchor.top }),
+              }}
               onMouseDown={e => e.stopPropagation()}
             >
               <button
@@ -631,7 +651,16 @@ export default function Sidebar(props: SidebarProps) {
                 style={{ ...menuItemBase, color: '#e2e8f0' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-                onClick={() => setAddToProjectChatId(menuOpenForId)}
+                onClick={() => {
+                  // Re-check flip for picker — taller than the 2-item chat menu
+                  const pickerH = 84 + projects.length * 34;
+                  const triggerBottom = chatMenuAnchor.top - 6;
+                  const pickerFlipped = (window.innerHeight - triggerBottom - 8) < pickerH;
+                  if (pickerFlipped !== chatMenuAnchor.flipped) {
+                    setChatMenuAnchor(prev => prev ? { ...prev, flipped: pickerFlipped } : null);
+                  }
+                  setAddToProjectChatId(menuOpenForId);
+                }}
               >
                 Add to project
               </button>
@@ -650,7 +679,14 @@ export default function Sidebar(props: SidebarProps) {
           {/* Project picker (replaces chat menu) */}
           {addToProjectChatId && chatMenuAnchor && (
             <div
-              style={{ ...dropdownBase, top: chatMenuAnchor.top, right: chatMenuAnchor.right, minWidth: 170 }}
+              style={{
+                ...dropdownBase,
+                right: chatMenuAnchor.right,
+                minWidth: 170,
+                ...(chatMenuAnchor.flipped
+                  ? { bottom: chatMenuAnchor.bottom }
+                  : { top: chatMenuAnchor.top }),
+              }}
               onMouseDown={e => e.stopPropagation()}
             >
               <div style={{ fontSize: 10, opacity: 0.45, padding: '4px 10px 6px', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>
@@ -698,7 +734,13 @@ export default function Sidebar(props: SidebarProps) {
           {/* Project 3-dot menu */}
           {projectMenuOpenId && projectMenuAnchor && activeProjectForMenu && (
             <div
-              style={{ ...dropdownBase, top: projectMenuAnchor.top, right: projectMenuAnchor.right }}
+              style={{
+                ...dropdownBase,
+                right: projectMenuAnchor.right,
+                ...(projectMenuAnchor.flipped
+                  ? { bottom: projectMenuAnchor.bottom }
+                  : { top: projectMenuAnchor.top }),
+              }}
               onMouseDown={e => e.stopPropagation()}
             >
               <button
