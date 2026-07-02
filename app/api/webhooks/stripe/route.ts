@@ -227,31 +227,43 @@ export async function POST(req: NextRequest) {
   }
 
   // -------------------------------------------------------------------------
-  // invoice.payment_succeeded — subscription renewals only
-  // Award monthly/annual credits on each billing cycle.
-  // Add this event in Stripe Dashboard → Webhooks → Edit endpoint.
+  // invoice.payment_succeeded / invoice.paid — subscription renewals
+  // Award credits on each billing cycle. Uses invoice.id as reference_id
+  // so re-deliveries and duplicate events are safely deduped by awardCredits.
+  // Handles both event names (invoice.paid is the current preferred name).
   // -------------------------------------------------------------------------
-  if (event.type === "invoice.payment_succeeded") {
+  if (event.type === "invoice.payment_succeeded" || event.type === "invoice.paid") {
     const invoice = event.data.object as Stripe.Invoice;
     const billingReason = (invoice as any).billing_reason as string | undefined;
-
-    // Only fire on recurring renewals, not the initial checkout payment
     const invoiceAny = invoice as any;
-    if (billingReason === "subscription_cycle" && invoiceAny.subscription) {
+
+    // Accepted billing reasons for credit award:
+    //   subscription_cycle   = standard monthly/annual renewal
+    //   subscription_update  = renewal after a plan upgrade/downgrade
+    //   subscription_create  = skipped — checkout.session.completed already grants credits
+    const CREDIT_REASONS = new Set(["subscription_cycle", "subscription_update"]);
+
+    console.log(`[stripe/webhook] ${event.type} billing_reason=${billingReason} invoice=${invoice.id}`);
+
+    if (CREDIT_REASONS.has(billingReason ?? "") && invoiceAny.subscription) {
       const customerId = invoice.customer as string;
       const userId = await getUserIdFromCustomer(customerId);
+      console.log(`[stripe/webhook] renewal lookup customer=${customerId} → userId=${userId}`);
+
       if (userId) {
         const sub = await getStripe().subscriptions.retrieve(invoiceAny.subscription as string);
         const priceId = sub.items.data[0]?.price?.id ?? "";
         const plan = getPlanFromPriceId(priceId);
         const award = getPlanCreditAward(plan, priceId);
+        console.log(`[stripe/webhook] renewal plan=${plan} priceId=${priceId} award=${JSON.stringify(award)}`);
         if (award) {
-          // Use invoice.id as reference_id to prevent double-awarding
           await awardCredits(userId, award.amount, award.type,
             `${plan} plan renewal credits`, invoice.id);
           console.log(`[stripe/webhook] renewal credits ${award.amount} → user=${userId}`);
         }
       }
+    } else {
+      console.log(`[stripe/webhook] skipping ${event.type} — billing_reason=${billingReason} (not a renewal)`);
     }
   }
 
