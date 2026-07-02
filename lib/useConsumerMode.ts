@@ -29,7 +29,7 @@ export function useConsumerMode(): boolean {
       .then((data: { role?: string } | null) => {
         if (!data?.role) return; // unauthenticated or error — keep hostname signal
         const role = data.role;
-        if (role === 'lo' || role === 'agent') {
+        if (role === 'lo' || role === 'agent' || role === 'admin') {
           setIsConsumer(false); // always pro regardless of domain
         } else if (role === 'borrower') {
           setIsConsumer(true);  // always consumer regardless of domain
