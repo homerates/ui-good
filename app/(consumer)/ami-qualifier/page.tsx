@@ -214,6 +214,9 @@ export default function AmiQualifierPage() {
         .aq-dot{width:7px;height:7px;border-radius:50%;}
         .aq-dot.pass{background:#00e87a;}
         .aq-dot.fail{background:#8fa3b8;opacity:0.4;}
+        .aq-prog-row.neutral{background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.18);}
+        .aq-prog-badge.neutral{color:#f59e0b;}
+        .aq-dot.neutral{background:#f59e0b;opacity:1;}
 
         /* Limits table */
         .aq-limits{padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.06);}
@@ -435,23 +438,33 @@ export default function AmiQualifierPage() {
                         : 'Threshold met',
                       failLabel: 'Over threshold',
                     },
-                  ].map(p => (
-                    <div key={p.key} className={`aq-prog-row${p.pass ? '' : ' fail'}`}>
-                      <div className="aq-prog-left">
-                        <div className="aq-prog-name">{p.name}</div>
-                        <div className="aq-prog-desc">{p.desc}</div>
-                        {p.key === 'dpa' && p.pass && result.dpaMatchCount > 0 && (
-                          <Link href="/chat" style={{ fontSize: 11, color: '#00e87a', marginTop: 6, display: 'inline-block', fontWeight: 600 }}>
-                            Connect to see available programs →
-                          </Link>
-                        )}
+                  ].map(p => {
+                    const dpaNeutral = p.key === 'dpa' && p.pass && result.dpaMatchCount === 0;
+                    const badgeState = dpaNeutral ? 'neutral' : p.pass ? 'pass' : 'fail';
+                    const badgeLabel = dpaNeutral ? 'Income eligible' : p.pass ? p.passLabel : p.failLabel;
+                    return (
+                      <div key={p.key} className={`aq-prog-row${dpaNeutral ? ' neutral' : p.pass ? '' : ' fail'}`}>
+                        <div className="aq-prog-left">
+                          <div className="aq-prog-name">{p.name}</div>
+                          <div className="aq-prog-desc">{p.desc}</div>
+                          {p.key === 'dpa' && p.pass && result.dpaMatchCount > 0 && (
+                            <Link href="/chat" style={{ fontSize: 11, color: '#00e87a', marginTop: 6, display: 'inline-block', fontWeight: 600 }}>
+                              Connect to see available programs →
+                            </Link>
+                          )}
+                          {dpaNeutral && (
+                            <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 5 }}>
+                              Income threshold cleared — no active DPA programs are listed for this area in the HomeRates marketplace. Verify availability directly with your lender.
+                            </div>
+                          )}
+                        </div>
+                        <div className={`aq-prog-badge ${badgeState}`}>
+                          <div className={`aq-dot ${badgeState}`} />
+                          {badgeLabel}
+                        </div>
                       </div>
-                      <div className={`aq-prog-badge ${p.pass ? 'pass' : 'fail'}`}>
-                        <div className={`aq-dot ${p.pass ? 'pass' : 'fail'}`} />
-                        {p.pass ? p.passLabel : p.failLabel}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
