@@ -187,6 +187,7 @@ export async function POST(req: NextRequest) {
     // ── DPA program matching ───────────────────────────────────────────────────
     // Match programs by geography + income limit, then filter to active lenders
     let dpaMatchCount = 0;
+    let dpaGeoMatchedCount = 0;
     const allDpaPrograms = dpaProgramsRes.data ?? [];
     if (allDpaPrograms.length > 0) {
       const geoMatched = allDpaPrograms.filter(p => {
@@ -198,6 +199,8 @@ export async function POST(req: NextRequest) {
         if (p.income_limit && income > Number(p.income_limit)) return false;
         return true;
       });
+
+      dpaGeoMatchedCount = geoMatched.length;
 
       if (geoMatched.length > 0) {
         const lenderIds = [...new Set(geoMatched.map(p => p.lender_id))];
@@ -223,9 +226,34 @@ export async function POST(req: NextRequest) {
       // ffiec enrichment failure must never break the existing qualifier response
     }
 
+    const householdSizeFactor = AMI_SIZE_FACTORS[Math.max(1, Math.min(8, size))] ?? 1.00;
+    const _debug = {
+      geocodeAttempted: ffiecResult?.geocode_attempted ?? false,
+      geocodeFailureReason: ffiecResult?.geocode_failure_reason ?? 'not_attempted',
+      ffiecMethod: ffiecResult?.method ?? null,
+      householdSizeFactor,
+      dpaQueryCriteria: {
+        stateAbbr: stateAbbr ?? null,
+        countyFips: countyFips ?? null,
+        incomeChecked: income,
+        dpaUiThreshold: hudAmi120Final,
+        totalProgramsFromDB: allDpaPrograms.length,
+        geoMatchedAndIncomeQualified: dpaGeoMatchedCount,
+        activeOnPlatform: dpaMatchCount,
+      },
+      dataVintages: {
+        primarySource: dataSource,
+        gseFiscalYear: gse?.fiscal_year ?? null,
+        hudFiscalYear: hud?.fiscal_year ?? null,
+        ffiecTractDataYear: ffiecResult?.ffiec_tract_data_year ?? null,
+        ffiecMfiDataYear: ffiecResult?.ffiec_mfi_data_year ?? null,
+      },
+    };
+
     return NextResponse.json({
       ok: true,
       ffiec: ffiecResult,
+      _debug,
       result: {
         resolvedFrom,
         county: countyName ?? 'Unknown County',
