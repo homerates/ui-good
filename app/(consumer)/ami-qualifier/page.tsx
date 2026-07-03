@@ -405,6 +405,19 @@ export default function AmiQualifierPage() {
           {/* Error */}
           {error && <div className="aq-error">{error}</div>}
 
+          {/* Screening disclaimer — prominent, near results */}
+          {result && (
+            <div style={{
+              background: 'rgba(143,163,184,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 10, padding: '12px 16px', marginBottom: 14,
+              fontSize: 12, color: '#8fa3b8', lineHeight: 1.6,
+            }}>
+              <strong style={{ color: '#f0f4ff' }}>Preliminary educational screening only.</strong>{' '}
+              This tool does not determine loan approval, preapproval, creditworthiness,
+              program eligibility, or the availability of down payment assistance.
+            </div>
+          )}
+
           {/* Result */}
           {result && (
             <div className="aq-result">
@@ -504,7 +517,7 @@ export default function AmiQualifierPage() {
                   ].map(p => {
                     const dpaNeutral = p.key === 'dpa' && p.pass && result.dpaMatchCount === 0;
                     const badgeState = dpaNeutral ? 'neutral' : p.pass ? 'pass' : 'fail';
-                    const badgeLabel = dpaNeutral ? 'Income eligible' : p.pass ? p.passLabel : p.failLabel;
+                    const badgeLabel = dpaNeutral ? 'Worth reviewing' : p.pass ? p.passLabel : p.failLabel;
                     return (
                       <div key={p.key} className={`aq-prog-row${dpaNeutral ? ' neutral' : p.pass ? '' : ' fail'}`}>
                         <div className="aq-prog-left">
@@ -517,7 +530,7 @@ export default function AmiQualifierPage() {
                           )}
                           {dpaNeutral && (
                             <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 5 }}>
-                              Income threshold cleared — no active DPA programs are listed for this area in the HomeRates marketplace. Verify availability directly with your lender.
+                              Potential programs may be available — no active DPA programs are currently listed in the HomeRates marketplace for this area. Verify directly with your lender.
                             </div>
                           )}
                         </div>
@@ -546,8 +559,13 @@ export default function AmiQualifierPage() {
                   </thead>
                   <tbody>
                     <tr>
-                      <td>50% AMI <span className="aq-pill pill-blue">Very Low</span></td>
-                      <td>Section 8, rental assistance</td>
+                      <td>
+                        50% AMI <span className="aq-pill pill-blue">Very Low</span>
+                        <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
+                          Flat 50% of 4-person AMI · reference benchmark · HUD programs use size-adjusted limits
+                        </div>
+                      </td>
+                      <td>Federal housing programs (indicative)</td>
                       <td>{fmt(result.ami50pct)}</td>
                     </tr>
                     <tr>
@@ -559,8 +577,11 @@ export default function AmiQualifierPage() {
                           <span className="aq-pill pill-amber">HUD approx.</span>
                         )}
                         <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
-                          4-person area AMI · no household adjustment
+                          4-person area AMI · no household adjustment · FHFA / Fannie & Freddie source
                           {result.dataSource !== 'FHFA' && ' · GSE figure may differ'}
+                        </div>
+                        <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 1, fontWeight: 400, opacity: 0.75 }}>
+                          HUD and FHFA use different median estimates by program — both the 80% and DPA rows are correct for their respective purposes
                         </div>
                       </td>
                       <td>HomeReady · Home Possible</td>
@@ -686,59 +707,23 @@ export default function AmiQualifierPage() {
                 </div>
               )}
 
-              {/* FFIEC income screen — both paths */}
-              {(ffiec.ffiec_mfi_estimate != null || ffiec.ffiec_adjusted_limit != null) && (
-                <div className="aq-limits">
-                  <div className="aq-section-lbl">
-                    CRA / Census-Tract Context
-                    {ffiec.method === 'county_fallback' && ' · County Estimate'}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#8fa3b8', marginBottom: 12, lineHeight: 1.5 }}>
-                    This is a CRA and census-tract reference point, not a loan-program income limit or DPA approval.
-                  </div>
-
-                  {ffiec.method === 'county_fallback' && (
-                    <div className="aq-ffiec-county-note">
-                      Exact property location wasn't confirmed. Figure uses the dominant
-                      MSA/MD for {result.county} County — not a specific census tract.
-                    </div>
-                  )}
-
-                  <table className="aq-table">
-                    <thead>
-                      <tr>
-                        <th>Benchmark</th>
-                        <th>Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ffiec.ffiec_mfi_estimate != null && (
-                        <tr>
-                          <td>FFIEC Area Median Family Income</td>
-                          <td>{fmt(ffiec.ffiec_mfi_estimate)}</td>
-                        </tr>
-                      )}
-                      {ffiec.ffiec_adjusted_limit != null && (
-                        <tr>
-                          <td>
-                            80% Income Limit · {result.householdSize}-person household
-                            <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
-                              FFIEC MFI × household size factor × 80%
-                            </div>
-                          </td>
-                          <td>{fmt(ffiec.ffiec_adjusted_limit)}</td>
-                        </tr>
-                      )}
-                      <tr className="aq-your-row">
-                        <td>Your income</td>
-                        <td style={{ color: ffiec.income_eligible ? '#00e87a' : '#ff5f5f' }}>
-                          {fmt(result.annualIncome)} · {ffiec.income_eligible ? 'Under limit' : 'Over limit'}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+              {/* CRA / Census-Tract context note — no income-limit math per audit guidance */}
+              <div className="aq-limits">
+                <div className="aq-section-lbl">
+                  CRA / Census-Tract Context
+                  {ffiec.method === 'county_fallback' && ' · County Estimate'}
                 </div>
-              )}
+                <div style={{ fontSize: 11, color: '#8fa3b8', marginBottom: 12, lineHeight: 1.5 }}>
+                  CRA and census-tract reference point only — not a loan-program income limit or DPA approval.
+                  FFIEC does not publish household-adjusted borrower income limits.
+                </div>
+                {ffiec.method === 'county_fallback' && (
+                  <div className="aq-ffiec-county-note">
+                    Exact property location wasn't confirmed — county-level area estimate only,
+                    not a specific census tract.
+                  </div>
+                )}
+              </div>
 
               {/* Disclaimer */}
               <div className="aq-ffiec-disclaimer">

@@ -151,6 +151,38 @@
         }
       },
       "notes": "Verified 2026-07-03 against staging. income_eligible=true from FFIEC path because $95k < $124,344 (80% of $172,700 × 0.90 HH-3 factor). HomeReady pass because $95k < $131,280 (80% of FHFA $164,100). Geocoder path confirmed active via address_geocode_cache."
+    },
+    {
+      "id": "ami50pct-flat-50-ventura",
+      "dataset": "AMI Qualifier — ami50pct field",
+      "description": "ami50pct must always be flat 50% of FHFA 4-person AMI regardless of household size",
+      "endpoint": "POST /api/ami-qualifier",
+      "input": {
+        "location": "93001",
+        "annualIncome": 70000,
+        "householdSize": 2
+      },
+      "expected_result_subset": {
+        "ami50pct": 67800,
+        "ami80pct": 108480,
+        "ami4Person": 135600,
+        "dataSource": "FHFA"
+      },
+      "notes": "Bug fixed 2026-07-03: was returning $54,240 for HH=2 (amiForHH×0.50 = $108,480×0.50). Route now computes ami50=Math.round(ami4×0.50)=$67,800, same flat base as ami80. HUD stores ami_50pct=$78,500 for Ventura (different median baseline) — intentionally not used. Verify: ami50pct must equal ami4Person×0.50 = $135,600×0.50 = $67,800 regardless of householdSize input."
+    },
+    {
+      "id": "ffiec-mfi-wayne-county-pa-nonmetro-state-fips",
+      "dataset": "FFIEC Estimated Median Family Income — nonmetro state_fips filter",
+      "description": "Wayne County PA (msa_md=99999) must return PA's MFI ($83,700), not an arbitrary state's",
+      "table": "ffiec_mfi",
+      "input": { "county_fips": "42127", "msa_md": "99999", "state_fips": "42" },
+      "query": "SELECT mfi_estimate, state_fips, data_year FROM ffiec_mfi WHERE msa_md='99999' AND state_fips='42' ORDER BY data_year DESC LIMIT 1",
+      "expected": {
+        "mfi_estimate": 83700,
+        "state_fips": "42",
+        "data_year": 2025
+      },
+      "notes": "Bug fixed 2026-07-03 (F3): mfiForMsaMd() now filters by state_fips when msa_md='99999'. Before fix: Postgres returned Wyoming (state_fips=56, $99,300) — off by $15,600. Fix: county_fips.slice(0,2) passed as stateFips through both FFIEC paths. Verify: after fix, Wayne County PA queries return state_fips='42' row ($83,700), not whichever state Postgres returns first. Previous nonmetro test (ZIP 18447) landed in Lackawanna Co PA (metro, msa_md=42540) and did NOT trigger this bug — this case was added specifically for nonmetro coverage."
     }
   ]
 }
