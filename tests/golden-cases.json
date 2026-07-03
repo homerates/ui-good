@@ -1,0 +1,156 @@
+{
+  "_comment": "Golden test cases — one verified input/output per dataset. Verify after any ETL refresh or logic change. See DATA_INTEGRITY_STANDARDS.md R4.",
+  "generated": "2026-07-03",
+  "cases": [
+    {
+      "id": "hud-ami-arlington-va",
+      "dataset": "HUD Area Median Income",
+      "description": "Arlington County, VA — most recent HUD income limits row",
+      "table": "hud_features",
+      "input": { "county_fips": "51013" },
+      "query": "SELECT fiscal_year, county_name, state_abbr, ami_4person, ami_80pct, ami_50pct, ami_120pct FROM hud_features WHERE county_fips = '51013' ORDER BY fiscal_year DESC LIMIT 1",
+      "expected": {
+        "fiscal_year": 2025,
+        "county_name": "Arlington",
+        "state_abbr": "VA",
+        "ami_4person": 163900,
+        "ami_80pct": 106800,
+        "ami_50pct": 81950,
+        "ami_120pct": 196680
+      },
+      "notes": "FY2026 HUD ETL ran 2026-06-27 but did not produce a FY2026 row for this county; FY2025 is the latest. The AMI Qualifier uses GSE (FHFA) as primary for this county — FY2025 HUD is the fallback only. Verify: after next ETL, expected fiscal_year should advance to 2026."
+    },
+    {
+      "id": "gse-ami-arlington-va",
+      "dataset": "FHFA GSE AMI",
+      "description": "Arlington County, VA — FY2026 FHFA AMI (Freddie Mac source, authoritative for HomeReady/Home Possible)",
+      "table": "gse_ami",
+      "input": { "county_fips": "51013" },
+      "query": "SELECT county_fips, ami_fhfa, fiscal_year FROM gse_ami WHERE county_fips = '51013'",
+      "expected": {
+        "county_fips": "51013",
+        "ami_fhfa": 164100,
+        "fiscal_year": 2026
+      },
+      "notes": "This is the figure DU/LPA should match for HomeReady/Home Possible in Arlington VA. 80% limit = $131,280. Verify: after 2026 FHFA release (June 2027), ami_fhfa and fiscal_year should update."
+    },
+    {
+      "id": "ffiec-tract-upper-arlington-va",
+      "dataset": "FFIEC Census Tract Income Level",
+      "description": "Census tract 51013100500 — Upper income, not D&U (4524 26th St N, Arlington VA 22207)",
+      "table": "ffiec_census_tracts",
+      "input": { "census_tract_geoid": "51013100500" },
+      "query": "SELECT census_tract_geoid, tract_income_level, tract_mfi_pct, distressed_underserved, msa_md, data_year FROM ffiec_census_tracts WHERE census_tract_geoid = '51013100500'",
+      "expected": {
+        "census_tract_geoid": "51013100500",
+        "tract_income_level": "Upper",
+        "tract_mfi_pct": 184.1,
+        "distressed_underserved": false,
+        "msa_md": "11694",
+        "data_year": 2025
+      },
+      "notes": "Tract at 184.1% of area MFI — well above the 120% threshold for Upper designation. Not D&U (metro tract; D&U is nonmetro only). End-to-end geocode test: address '4524 26th St N, Arlington VA 22207' → this GEOID via Census Geocoder."
+    },
+    {
+      "id": "ffiec-tract-du-wayne-county-pa",
+      "dataset": "FFIEC CRA Distressed & Underserved",
+      "description": "Census tract 42127960100 — Middle income + D&U designated (Wayne County, PA)",
+      "table": "ffiec_census_tracts",
+      "input": { "census_tract_geoid": "42127960100" },
+      "query": "SELECT census_tract_geoid, tract_income_level, distressed_underserved, msa_md, data_year FROM ffiec_census_tracts WHERE census_tract_geoid = '42127960100'",
+      "expected": {
+        "census_tract_geoid": "42127960100",
+        "tract_income_level": "Middle",
+        "distressed_underserved": true,
+        "msa_md": "99999",
+        "data_year": 2025
+      },
+      "notes": "This tract is in a nonmetro county (msa_md=99999). Demonstrates D&U can apply to Middle-income tracts. Also demonstrates the nonmetro MFI state_fips bug: querying ffiec_mfi without state_fips filter for msa_md=99999 may return the wrong state's MFI. county_fips=42127 → state_fips=42 (PA). See DATA_INTEGRITY_STANDARDS.md known issue #2."
+    },
+    {
+      "id": "ffiec-mfi-washington-arlington",
+      "dataset": "FFIEC Estimated Median Family Income",
+      "description": "MSA/MD 11694 — Washington-Arlington-Alexandria area MFI",
+      "table": "ffiec_mfi",
+      "input": { "msa_md": "11694" },
+      "query": "SELECT msa_md, area_name, mfi_estimate, state_fips, data_year FROM ffiec_mfi WHERE msa_md = '11694' ORDER BY data_year DESC LIMIT 1",
+      "expected": {
+        "msa_md": "11694",
+        "area_name": "MSA/MD 11694",
+        "mfi_estimate": 172700,
+        "state_fips": "51",
+        "data_year": 2025
+      },
+      "notes": "80% × 3-person factor (0.90) × $172,700 = $124,344. This matches the verified ffiecEligibility.ts output for the Arlington VA test address. Verify after 2025 FFIEC flat file refresh: mfi_estimate and data_year should both update."
+    },
+    {
+      "id": "fema-nri-arlington-va",
+      "dataset": "FEMA National Risk Index",
+      "description": "Arlington County, VA — 2024 NRI composite risk",
+      "table": "fema_risk",
+      "input": { "county_fips": "51013" },
+      "query": "SELECT county_fips, county_name, state_abbr, composite_score, risk_label, dominant_hazard, insurance_pressure, insurance_est_low, insurance_est_high FROM fema_risk WHERE county_fips = '51013'",
+      "expected": {
+        "county_fips": "51013",
+        "county_name": "Arlington",
+        "state_abbr": "VA",
+        "composite_score": 66.8,
+        "risk_label": "Relatively Low",
+        "dominant_hazard": "heat",
+        "insurance_pressure": "elevated",
+        "insurance_est_low": 150,
+        "insurance_est_high": 350
+      },
+      "notes": "Composite 66.8 with dominant hazard=heat yields insurance_pressure=elevated per the heuristic in etl-fema.mjs:deriveInsurancePressure(). Note: 'Relatively Low' is FEMA's label; 'elevated' is HomeRates' derived insurance pressure category — they are not contradictory (FEMA label is relative to national distribution; HomeRates label reflects the specific hazard type)."
+    },
+    {
+      "id": "loan-limits-national-baseline",
+      "dataset": "Conforming Loan Limits",
+      "description": "National baseline conforming limits CY2026 — all standard counties not listed in HIGH_COST_COUNTIES",
+      "source_file": "lib/loanLimitsNational2026.ts",
+      "input": { "type": "standard_county" },
+      "query": "import { NATIONAL_CONFORMING_BASELINE } from '@/loanLimitsNational2026'",
+      "expected": {
+        "units1": 832750,
+        "units2": 1066250,
+        "units3": 1288800,
+        "units4": 1601750
+      },
+      "notes": "Source: FHFA FullCountyLoanLimitList2026_HERA-BASED_FINAL_FLAT.xlsx, effective Jan 1, 2026. Ceiling for AK/HI/DC/territories: $1,249,125 (1-unit); HI Kalawao/Maui exception: $1,299,500. Update lib/loanLimitsNational2026.ts and lib/loanLimits2026.ts each November when FHFA publishes."
+    },
+    {
+      "id": "ami-qualifier-end-to-end",
+      "dataset": "AMI Qualifier (full pipeline — Seams 1–4)",
+      "description": "End-to-end: 4524 26th St N Arlington VA, $95k income, 3-person household",
+      "endpoint": "POST /api/ami-qualifier",
+      "input": {
+        "location": "4524 26th St N, Arlington VA 22207",
+        "annualIncome": 95000,
+        "householdSize": 3
+      },
+      "expected_ffiec": {
+        "method": "geocoded",
+        "census_tract_geoid": "51013100500",
+        "tract_income_level": "Upper",
+        "distressed_underserved": false,
+        "tract_eligible": false,
+        "ffiec_mfi_estimate": 172700,
+        "ffiec_adjusted_limit": 124344,
+        "income_eligible": true,
+        "any_eligible": true
+      },
+      "expected_result_subset": {
+        "county": "Arlington",
+        "state": "VA",
+        "ami4Person": 164100,
+        "ami80pct": 131280,
+        "dataSource": "FHFA",
+        "programs": {
+          "homeReady": true,
+          "homePossible": true
+        }
+      },
+      "notes": "Verified 2026-07-03 against staging. income_eligible=true from FFIEC path because $95k < $124,344 (80% of $172,700 × 0.90 HH-3 factor). HomeReady pass because $95k < $131,280 (80% of FHFA $164,100). Geocoder path confirmed active via address_geocode_cache."
+    }
+  ]
+}
