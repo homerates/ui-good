@@ -179,8 +179,9 @@ export async function POST(req: NextRequest) {
     // HUD household-size adjusted thresholds (for DPA / Section 8 programs)
     const hudBase   = hudAmi4 ?? ami4;
     const amiForHH  = Math.round(hudBase * (AMI_SIZE_FACTORS[Math.max(1, Math.min(8, size))] ?? 1.00));
-    // Flat 50% of FHFA/GSE 4-person AMI — same base as ami80, no household-size adjustment.
-    // HUD's stored ami_50pct uses a different median baseline and is intentionally NOT used here.
+    // ami50 is computed but NOT displayed in the UI.
+    // Flat ami4×0.50 has no backing program rule (HUD VLI is size-adjusted per il50_p1-p8).
+    // TODO: replace with real HUD Section 8 / VLI ingestion (Priority 3 architectural decision).
     const ami50     = Math.round(ami4 * 0.50);
     const hudAmi120 = hud?.ami_120pct ? Number(hud.ami_120pct) : Math.round(amiForHH * 1.20);
     const hudAmi120Final = size === 4 ? hudAmi120 : Math.round(amiForHH * 1.20);
