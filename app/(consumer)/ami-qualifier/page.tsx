@@ -37,6 +37,7 @@ interface FfiecResult {
   ffiec_adjusted_limit: number | null;
   income_eligible: boolean;
   any_eligible: boolean;
+  geocode_vintage_used: string | null;
 }
 
 function fmt(n: number) {
@@ -716,6 +717,16 @@ export default function AmiQualifierPage() {
                   <div className="aq-ffiec-county-note">
                     Exact property location wasn't confirmed — county-level area estimate only,
                     not a specific census tract.
+                  </div>
+                )}
+                {ffiec.geocode_vintage_used && ffiec.geocode_vintage_used !== 'Current_Current' && (
+                  <div style={{
+                    fontSize: 11, color: '#8fa3b8', marginTop: 8,
+                    padding: '8px 12px', background: 'rgba(143,163,184,0.06)',
+                    border: '1px solid rgba(255,255,255,0.07)', borderRadius: 7, lineHeight: 1.5,
+                  }}>
+                    Census tract matched using {ffiec.geocode_vintage_used.replace('_Current', '')} reference data —
+                    the most recent Census release did not include this address.
                   </div>
                 )}
               </div>

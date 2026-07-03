@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { AMI_SIZE_FACTORS } from '@/amiSizeFactors';
 import { checkFfiecEligibility } from '@/ffiecEligibility';
+import { geocodeAddress } from '@/censusGeocoder';
 
 function db() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -11,8 +12,10 @@ function db() {
 }
 
 function extractZip(input: string): string | null {
-  const m = input.match(/\b(\d{5})\b/);
-  return m ? m[1] : null;
+  // Use the LAST 5-digit sequence — house numbers like "12104" appear first;
+  // the actual ZIP is always at or near the end of a US address string.
+  const all = [...input.matchAll(/\b(\d{5})\b/g)];
+  return all.length > 0 ? all[all.length - 1][1] : null;
 }
 
 function parseCountyInput(input: string): { name: string; state: string | null } | null {
@@ -118,6 +121,35 @@ export async function POST(req: NextRequest) {
           countyName = cityData.county_name as string;
           stateAbbr  = cityData.state_abbr  as string;
         }
+      }
+    }
+
+    // ── Strategy 4: full-address geocoder → derive county from GEOID ─────────
+    // Last-resort for addresses whose ZIP is not in geo_crosswalk and whose
+    // city name doesn't match any county name in hud_features.
+    // Pattern: input starts with a house number (digit then letter) = full street address.
+    if (!countyFips && /^\d+\s+[A-Za-z]/.test(loc)) {
+      try {
+        const geo = await geocodeAddress(loc);
+        if (geo) {
+          // GEOID = SSCCCTTTTTT — first 5 chars are state+county FIPS
+          const derivedFips = geo.censusTractGeoid.slice(0, 5);
+          const { data: hudGeo } = await sb
+            .from('hud_features')
+            .select('county_fips, county_name, state_abbr')
+            .eq('county_fips', derivedFips)
+            .order('fiscal_year', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (hudGeo) {
+            resolvedFrom = 'address';
+            countyFips = hudGeo.county_fips as string;
+            countyName = hudGeo.county_name as string;
+            stateAbbr  = hudGeo.state_abbr  as string;
+          }
+        }
+      } catch {
+        // geocoder errors are non-fatal for county resolution — fall through to 404
       }
     }
 
@@ -254,11 +286,13 @@ export async function POST(req: NextRequest) {
         hudFiscalYear: hud?.fiscal_year ?? null,
         ffiecTractDataYear: ffiecResult?.ffiec_tract_data_year ?? null,
         ffiecMfiDataYear: ffiecResult?.ffiec_mfi_data_year ?? null,
+        geocodeVintageUsed: ffiecResult?.geocode_vintage_used ?? null,
       },
       _notes: {
         ffiecTractDataYear: ffiecResult?.method === 'county_fallback'
           ? 'null by design — county_fallback reads ffiec_mfi only; check ffiecMfiDataYear instead'
           : 'populated when method=geocoded and GEOID found in ffiec_census_tracts',
+        geocodeVintageUsed: 'Current_Current = most recent TIGER data; ACS202X = fallback vintage used when current had no match',
       },
     };
 

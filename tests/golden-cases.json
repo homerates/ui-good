@@ -171,6 +171,25 @@
       "notes": "Repurposed 2026-07-03 from ami50pct test. The ami50pct field is computed in the route but NOT displayed (HUD VLI is size-adjusted; flat 50% has no backing program rule — pending Priority 3 HUD VLI ingestion). This test validates: (1) ami80pct=$108,480 is flat regardless of HH=2, and (2) $70k income is under the $108,480 HomeReady limit. If ami80pct varies with householdSize, the flat-base invariant is broken."
     },
     {
+      "id": "ami-qualifier-12104-topa-vista-rd-santa-paula",
+      "dataset": "AMI Qualifier — extractZip last-match fix + geocoder Strategy 4",
+      "description": "Full address with 5-digit house number (12104) that was previously extracted as ZIP instead of '93060'",
+      "endpoint": "POST /api/ami-qualifier",
+      "input": {
+        "location": "12104 Topa Vista Rd, Santa Paula, CA 93060",
+        "annualIncome": 80000,
+        "householdSize": 2
+      },
+      "expected_result_subset": {
+        "county": "Ventura",
+        "state": "CA",
+        "ami4Person": 135600,
+        "dataSource": "FHFA",
+        "resolvedFrom": "address"
+      },
+      "notes": "Fixed 2026-07-03: extractZip() was matching house number '12104' (first 5-digit sequence) instead of ZIP '93060' (last 5-digit sequence). Fix: use [...input.matchAll(/\\b(\\d{5})\\b/g)] and return the last match. ZIP 93060 is in geo_crosswalk → county_fips='06111' → Ventura, CA. Geocoder also matches this address (tract 06111000903) via Current_Current vintage. FFIEC method should be 'geocoded'."
+    },
+    {
       "id": "ffiec-mfi-wayne-county-pa-nonmetro-state-fips",
       "dataset": "FFIEC Estimated Median Family Income — nonmetro state_fips filter",
       "description": "Wayne County PA (msa_md=99999) must return PA's MFI ($83,700), not an arbitrary state's",
