@@ -627,8 +627,11 @@ export default function AmiQualifierPage() {
               {(ffiec.ffiec_mfi_estimate != null || ffiec.ffiec_adjusted_limit != null) && (
                 <div className="aq-limits">
                   <div className="aq-section-lbl">
-                    FFIEC Income Screen
+                    CRA / Census-Tract Context
                     {ffiec.method === 'county_fallback' && ' · County Estimate'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#8fa3b8', marginBottom: 12, lineHeight: 1.5 }}>
+                    This is a CRA and census-tract reference point, not a loan-program income limit or DPA approval.
                   </div>
 
                   {ffiec.method === 'county_fallback' && (
