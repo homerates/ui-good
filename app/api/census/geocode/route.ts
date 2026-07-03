@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { geocodeAddress, GeocoderError } from '@/lib/censusGeocoder';
+import { geocodeAddress, GeocoderError } from '@/censusGeocoder';
 
 export const runtime = 'nodejs';
 
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ matched: true, ...result });
   } catch (err) {
     if (err instanceof GeocoderError) {
-      return NextResponse.json({ error: err.message }, { status: 502 });
+      return NextResponse.json({ error: (err as GeocoderError).message }, { status: 502 });
     }
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }

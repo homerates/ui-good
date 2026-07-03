@@ -1,4 +1,4 @@
-import { getSupabase } from '@/lib/supabaseServer';
+import { getSupabase } from './supabaseServer';
 
 const GEOCODER_URL = 'https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress';
 
