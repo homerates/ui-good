@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useUser } from '@clerk/nextjs';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { ShareAnswerButton } from '@/components/ShareAnswerButton';
 import { EDUCATIONAL_DISCLAIMER } from '@/disclosures';
+import { useAdminStatus } from '../../hooks/useAdminStatus';
 
 interface AmiResult {
   resolvedFrom: 'zip' | 'address' | 'county';
@@ -51,13 +53,72 @@ function meterWidth(pct: number) {
   return Math.min(Math.round((pct / 150) * 100), 100) + '%';
 }
 
+/* Debug panel — visible only to admin + exact email rayaanarif57@gmail.com */
+function AmiDebugPanel({ raw }: { raw: Record<string, unknown> }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const copy = () => {
+    navigator.clipboard.writeText(JSON.stringify(raw, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div style={{
+      marginTop: 8, borderRadius: 8, border: '1px solid #2a2a3a',
+      background: '#0d0d14', fontFamily: 'monospace', fontSize: 11, color: '#a0a8c0', overflow: 'hidden',
+    }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
+          borderBottom: open ? '1px solid #2a2a3a' : 'none',
+          cursor: 'pointer', userSelect: 'none', background: '#13131f',
+        }}
+      >
+        <span style={{ fontSize: 13 }}>🐛</span>
+        <span style={{ color: '#5060a0', fontWeight: 600, fontSize: 10, letterSpacing: '0.05em' }}>DEBUG</span>
+        <span style={{ color: '#94a3b8', fontSize: 10 }}>/api/ami-qualifier · full response</span>
+        <span style={{ marginLeft: 'auto', fontSize: 10, color: '#94a3b8' }}>{open ? '▲' : '▼'}</span>
+      </div>
+      {open && (
+        <div style={{ padding: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+            <span
+              onClick={copy}
+              style={{
+                padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 10,
+                color: copied ? '#40c080' : '#606080', border: '1px solid transparent',
+              }}
+            >
+              {copied ? '✓ copied' : '⎘ copy'}
+            </span>
+          </div>
+          <pre style={{
+            margin: 0, padding: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+            maxHeight: 500, overflowY: 'auto', color: '#8090b0', fontSize: 10,
+          }}>
+            {JSON.stringify(raw, null, 2)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AmiQualifierPage() {
+  const { isAdmin } = useAdminStatus();
+  const { user } = useUser();
+  const isDebugUser = isAdmin && user?.primaryEmailAddress?.emailAddress === 'rayaanarif57@gmail.com';
+
   const [location,      setLocation]      = useState('');
   const [incomeDraft,   setIncomeDraft]   = useState('');
   const [incomeValue,   setIncomeValue]   = useState<number | null>(null);
   const [householdSize, setHouseholdSize] = useState(4);
   const [result,        setResult]        = useState<AmiResult | null>(null);
   const [ffiec,         setFfiec]         = useState<FfiecResult | null>(null);
+  const [rawResponse,   setRawResponse]   = useState<Record<string, unknown> | null>(null);
   const [error,         setError]         = useState('');
   const [loading,       setLoading]       = useState(false);
 
@@ -75,6 +136,7 @@ export default function AmiQualifierPage() {
     setError('');
     setResult(null);
     setFfiec(null);
+    setRawResponse(null);
 
     try {
       const res = await fetch('/api/ami-qualifier', {
@@ -86,6 +148,7 @@ export default function AmiQualifierPage() {
       if (json.ok) {
         setResult(json.result);
         setFfiec(json.ffiec ?? null);
+        setRawResponse(json);
       } else {
         setError(json.error ?? 'Could not resolve location.');
       }
@@ -214,6 +277,9 @@ export default function AmiQualifierPage() {
         .aq-dot{width:7px;height:7px;border-radius:50%;}
         .aq-dot.pass{background:#00e87a;}
         .aq-dot.fail{background:#8fa3b8;opacity:0.4;}
+        .aq-prog-row.neutral{background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.18);}
+        .aq-prog-badge.neutral{color:#f59e0b;}
+        .aq-dot.neutral{background:#f59e0b;opacity:1;}
 
         /* Limits table */
         .aq-limits{padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.06);}
@@ -435,23 +501,33 @@ export default function AmiQualifierPage() {
                         : 'Threshold met',
                       failLabel: 'Over threshold',
                     },
-                  ].map(p => (
-                    <div key={p.key} className={`aq-prog-row${p.pass ? '' : ' fail'}`}>
-                      <div className="aq-prog-left">
-                        <div className="aq-prog-name">{p.name}</div>
-                        <div className="aq-prog-desc">{p.desc}</div>
-                        {p.key === 'dpa' && p.pass && result.dpaMatchCount > 0 && (
-                          <Link href="/chat" style={{ fontSize: 11, color: '#00e87a', marginTop: 6, display: 'inline-block', fontWeight: 600 }}>
-                            Connect to see available programs →
-                          </Link>
-                        )}
+                  ].map(p => {
+                    const dpaNeutral = p.key === 'dpa' && p.pass && result.dpaMatchCount === 0;
+                    const badgeState = dpaNeutral ? 'neutral' : p.pass ? 'pass' : 'fail';
+                    const badgeLabel = dpaNeutral ? 'Income eligible' : p.pass ? p.passLabel : p.failLabel;
+                    return (
+                      <div key={p.key} className={`aq-prog-row${dpaNeutral ? ' neutral' : p.pass ? '' : ' fail'}`}>
+                        <div className="aq-prog-left">
+                          <div className="aq-prog-name">{p.name}</div>
+                          <div className="aq-prog-desc">{p.desc}</div>
+                          {p.key === 'dpa' && p.pass && result.dpaMatchCount > 0 && (
+                            <Link href="/chat" style={{ fontSize: 11, color: '#00e87a', marginTop: 6, display: 'inline-block', fontWeight: 600 }}>
+                              Connect to see available programs →
+                            </Link>
+                          )}
+                          {dpaNeutral && (
+                            <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 5 }}>
+                              Income threshold cleared — no active DPA programs are listed for this area in the HomeRates marketplace. Verify availability directly with your lender.
+                            </div>
+                          )}
+                        </div>
+                        <div className={`aq-prog-badge ${badgeState}`}>
+                          <div className={`aq-dot ${badgeState}`} />
+                          {badgeLabel}
+                        </div>
                       </div>
-                      <div className={`aq-prog-badge ${p.pass ? 'pass' : 'fail'}`}>
-                        <div className={`aq-dot ${p.pass ? 'pass' : 'fail'}`} />
-                        {p.pass ? p.passLabel : p.failLabel}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -614,8 +690,11 @@ export default function AmiQualifierPage() {
               {(ffiec.ffiec_mfi_estimate != null || ffiec.ffiec_adjusted_limit != null) && (
                 <div className="aq-limits">
                   <div className="aq-section-lbl">
-                    FFIEC Income Screen
+                    CRA / Census-Tract Context
                     {ffiec.method === 'county_fallback' && ' · County Estimate'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#8fa3b8', marginBottom: 12, lineHeight: 1.5 }}>
+                    This is a CRA and census-tract reference point, not a loan-program income limit or DPA approval.
                   </div>
 
                   {ffiec.method === 'county_fallback' && (
@@ -703,6 +782,11 @@ export default function AmiQualifierPage() {
                 </p>
               )}
             </div>
+          )}
+
+          {/* Admin debug panel — admin role AND exact email gate */}
+          {isDebugUser && rawResponse && (
+            <AmiDebugPanel raw={rawResponse} />
           )}
 
           <div className="aq-disclosure">{EDUCATIONAL_DISCLAIMER}</div>
