@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useUser } from '@clerk/nextjs';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { ShareAnswerButton } from '@/components/ShareAnswerButton';
 import { EDUCATIONAL_DISCLAIMER } from '@/disclosures';
+import { useAdminStatus } from '../../hooks/useAdminStatus';
 
 interface AmiResult {
   resolvedFrom: 'zip' | 'address' | 'county';
@@ -51,13 +53,72 @@ function meterWidth(pct: number) {
   return Math.min(Math.round((pct / 150) * 100), 100) + '%';
 }
 
+/* Debug panel — visible only to admin + exact email rayaanarif57@gmail.com */
+function AmiDebugPanel({ raw }: { raw: unknown }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const copy = () => {
+    navigator.clipboard.writeText(JSON.stringify(raw, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div style={{
+      marginTop: 8, borderRadius: 8, border: '1px solid #2a2a3a',
+      background: '#0d0d14', fontFamily: 'monospace', fontSize: 11, color: '#a0a8c0', overflow: 'hidden',
+    }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
+          borderBottom: open ? '1px solid #2a2a3a' : 'none',
+          cursor: 'pointer', userSelect: 'none', background: '#13131f',
+        }}
+      >
+        <span style={{ fontSize: 13 }}>🐛</span>
+        <span style={{ color: '#5060a0', fontWeight: 600, fontSize: 10, letterSpacing: '0.05em' }}>DEBUG</span>
+        <span style={{ color: '#94a3b8', fontSize: 10 }}>/api/ami-qualifier · full response</span>
+        <span style={{ marginLeft: 'auto', fontSize: 10, color: '#94a3b8' }}>{open ? '▲' : '▼'}</span>
+      </div>
+      {open && (
+        <div style={{ padding: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+            <span
+              onClick={copy}
+              style={{
+                padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 10,
+                color: copied ? '#40c080' : '#606080', border: '1px solid transparent',
+              }}
+            >
+              {copied ? '✓ copied' : '⎘ copy'}
+            </span>
+          </div>
+          <pre style={{
+            margin: 0, padding: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+            maxHeight: 500, overflowY: 'auto', color: '#8090b0', fontSize: 10,
+          }}>
+            {JSON.stringify(raw, null, 2)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AmiQualifierPage() {
+  const { isAdmin } = useAdminStatus();
+  const { user } = useUser();
+  const isDebugUser = isAdmin && user?.primaryEmailAddress?.emailAddress === 'rayaanarif57@gmail.com';
+
   const [location,      setLocation]      = useState('');
   const [incomeDraft,   setIncomeDraft]   = useState('');
   const [incomeValue,   setIncomeValue]   = useState<number | null>(null);
   const [householdSize, setHouseholdSize] = useState(4);
   const [result,        setResult]        = useState<AmiResult | null>(null);
   const [ffiec,         setFfiec]         = useState<FfiecResult | null>(null);
+  const [rawResponse,   setRawResponse]   = useState<unknown>(null);
   const [error,         setError]         = useState('');
   const [loading,       setLoading]       = useState(false);
 
@@ -75,6 +136,7 @@ export default function AmiQualifierPage() {
     setError('');
     setResult(null);
     setFfiec(null);
+    setRawResponse(null);
 
     try {
       const res = await fetch('/api/ami-qualifier', {
@@ -86,6 +148,7 @@ export default function AmiQualifierPage() {
       if (json.ok) {
         setResult(json.result);
         setFfiec(json.ffiec ?? null);
+        setRawResponse(json);
       } else {
         setError(json.error ?? 'Could not resolve location.');
       }
@@ -719,6 +782,11 @@ export default function AmiQualifierPage() {
                 </p>
               )}
             </div>
+          )}
+
+          {/* Admin debug panel — admin role AND exact email gate */}
+          {isDebugUser && rawResponse && (
+            <AmiDebugPanel raw={rawResponse} />
           )}
 
           <div className="aq-disclosure">{EDUCATIONAL_DISCLAIMER}</div>
