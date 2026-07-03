@@ -54,7 +54,7 @@ function meterWidth(pct: number) {
 }
 
 /* Debug panel — visible only to admin + exact email rayaanarif57@gmail.com */
-function AmiDebugPanel({ raw }: { raw: unknown }) {
+function AmiDebugPanel({ raw }: { raw: Record<string, unknown> }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -118,7 +118,7 @@ export default function AmiQualifierPage() {
   const [householdSize, setHouseholdSize] = useState(4);
   const [result,        setResult]        = useState<AmiResult | null>(null);
   const [ffiec,         setFfiec]         = useState<FfiecResult | null>(null);
-  const [rawResponse,   setRawResponse]   = useState<unknown>(null);
+  const [rawResponse,   setRawResponse]   = useState<Record<string, unknown> | null>(null);
   const [error,         setError]         = useState('');
   const [loading,       setLoading]       = useState(false);
 
