@@ -19,7 +19,9 @@ function parseCountyInput(input: string): { name: string; state: string | null }
   if (!/county/i.test(input)) return null;
   const stateM = input.match(/,\s*([A-Z]{2})\s*$/i);
   const state = stateM ? stateM[1].toUpperCase() : null;
-  const name = (stateM ? input.slice(0, stateM.index) : input).trim();
+  const raw = (stateM ? input.slice(0, stateM.index) : input).trim();
+  // hud_features stores bare names ("Ventura", not "Ventura County") — strip administrative suffix
+  const name = raw.replace(/\s+(county|parish|borough|census area|municipality)\s*$/i, '').trim();
   return name ? { name, state } : null;
 }
 
@@ -92,10 +94,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Strategy 3: City + state from full address (ZIP missing from crosswalk) ──
-    // e.g. "10951 Lotta Ct, San Diego, CA 92126" → city=San Diego, state=CA
+    // ── Strategy 3: City + state from full address or bare "City, ST" input ──
+    // Two-comma form: "10951 Lotta Ct, San Diego, CA 92126" → city=San Diego, state=CA
+    // One-comma form: "Ventura, CA" → only works when city name = county name in hud_features
     if (!countyFips) {
-      const cityStateM = loc.match(/,\s*([^,\d]+?)\s*,\s*([A-Z]{2})\s*(?:\d{5})?$/i);
+      const cityStateM =
+        loc.match(/,\s*([^,\d]+?)\s*,\s*([A-Z]{2})\s*(?:\d{5})?$/i) ??
+        loc.match(/^([^,\d][^,]*?)\s*,\s*([A-Z]{2})\s*(?:\d{5})?$/i);
       if (cityStateM) {
         const city  = cityStateM[1].trim();
         const state = cityStateM[2].toUpperCase();
@@ -174,8 +179,9 @@ export async function POST(req: NextRequest) {
     // HUD household-size adjusted thresholds (for DPA / Section 8 programs)
     const hudBase   = hudAmi4 ?? ami4;
     const amiForHH  = Math.round(hudBase * (AMI_SIZE_FACTORS[Math.max(1, Math.min(8, size))] ?? 1.00));
-    const hudAmi50  = hud?.ami_50pct  ? Number(hud.ami_50pct)  : Math.round(amiForHH * 0.50);
-    const hudAmi50Final = size === 4 ? hudAmi50 : Math.round(amiForHH * 0.50);
+    // Flat 50% of FHFA/GSE 4-person AMI — same base as ami80, no household-size adjustment.
+    // HUD's stored ami_50pct uses a different median baseline and is intentionally NOT used here.
+    const ami50     = Math.round(ami4 * 0.50);
     const hudAmi120 = hud?.ami_120pct ? Number(hud.ami_120pct) : Math.round(amiForHH * 1.20);
     const hudAmi120Final = size === 4 ? hudAmi120 : Math.round(amiForHH * 1.20);
 
@@ -248,6 +254,11 @@ export async function POST(req: NextRequest) {
         ffiecTractDataYear: ffiecResult?.ffiec_tract_data_year ?? null,
         ffiecMfiDataYear: ffiecResult?.ffiec_mfi_data_year ?? null,
       },
+      _notes: {
+        ffiecTractDataYear: ffiecResult?.method === 'county_fallback'
+          ? 'null by design — county_fallback reads ffiec_mfi only; check ffiecMfiDataYear instead'
+          : 'populated when method=geocoded and GEOID found in ffiec_census_tracts',
+      },
     };
 
     return NextResponse.json({
@@ -267,8 +278,9 @@ export async function POST(req: NextRequest) {
         // HomeReady / Home Possible: 80% of FHFA area AMI (no household adjustment)
         ami80pct: ami80,
 
-        // HUD household-adjusted thresholds (DPA / Section 8)
-        ami50pct:  hudAmi50Final,
+        // Flat 50% of FHFA AMI (reference benchmark, same base as ami80pct)
+        ami50pct:  ami50,
+        // HUD household-adjusted DPA/CRA threshold
         ami120pct: hudAmi120Final,
 
         annualIncome:     income,

@@ -25,15 +25,14 @@ export type FfiecEligibilityResult = {
 async function mfiForMsaMd(
   sb: SupabaseClient,
   msaMd: string | null,
+  stateFips?: string | null,
 ): Promise<{ estimate: number; data_year: number } | null> {
   if (!msaMd) return null;
-  const { data } = await sb
-    .from('ffiec_mfi')
-    .select('mfi_estimate, data_year')
-    .eq('msa_md', msaMd)
-    .order('data_year', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // For nonmetro counties (msa_md=99999), ffiec_mfi has one row per state.
+  // Without state_fips filter, Postgres may return an arbitrary state's MFI.
+  const base = sb.from('ffiec_mfi').select('mfi_estimate, data_year').eq('msa_md', msaMd);
+  const filtered = msaMd === '99999' && stateFips ? base.eq('state_fips', stateFips) : base;
+  const { data } = await filtered.order('data_year', { ascending: false }).limit(1).maybeSingle();
   return data ? { estimate: Number(data.mfi_estimate), data_year: Number(data.data_year) } : null;
 }
 
@@ -104,7 +103,9 @@ export async function checkFfiecEligibility({
             ELIGIBLE_INCOME_LEVELS.has(tract.tract_income_level) ||
             !!tract.distressed_underserved;
 
-          const mfiResult = await mfiForMsaMd(sb, tract.msa_md as string | null);
+          // GEOID format: SSCCCTTTTTT — first 2 chars are state FIPS
+          const tractStateFips = geo.censusTractGeoid.slice(0, 2);
+          const mfiResult = await mfiForMsaMd(sb, tract.msa_md as string | null, tractStateFips);
           const mfiEstimate = mfiResult?.estimate ?? null;
           const adjustedLimit =
             mfiEstimate != null ? Math.round(mfiEstimate * sizeFactor * 0.80) : null;
@@ -141,8 +142,9 @@ export async function checkFfiecEligibility({
 
   // ── Path 2: county_fips → dominant MSA/MD → ffiec_mfi ─────────────────────
   if (county_fips) {
+    const stateFips = county_fips.slice(0, 2);
     const msaMd = await dominantMsaMdForCounty(sb, county_fips);
-    const mfiResult = await mfiForMsaMd(sb, msaMd);
+    const mfiResult = await mfiForMsaMd(sb, msaMd, stateFips);
 
     if (mfiResult != null) {
       const adjustedLimit = Math.round(mfiResult.estimate * sizeFactor * 0.80);
