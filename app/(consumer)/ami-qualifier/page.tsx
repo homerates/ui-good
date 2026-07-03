@@ -25,6 +25,18 @@ interface AmiResult {
   dpaMatchCount: number;
 }
 
+interface FfiecResult {
+  method: 'geocoded' | 'county_fallback' | 'unresolved';
+  census_tract_geoid: string | null;
+  tract_income_level: string | null;
+  distressed_underserved: boolean;
+  tract_eligible: boolean;
+  ffiec_mfi_estimate: number | null;
+  ffiec_adjusted_limit: number | null;
+  income_eligible: boolean;
+  any_eligible: boolean;
+}
+
 function fmt(n: number) {
   return '$' + n.toLocaleString();
 }
@@ -45,6 +57,7 @@ export default function AmiQualifierPage() {
   const [incomeValue,   setIncomeValue]   = useState<number | null>(null);
   const [householdSize, setHouseholdSize] = useState(4);
   const [result,        setResult]        = useState<AmiResult | null>(null);
+  const [ffiec,         setFfiec]         = useState<FfiecResult | null>(null);
   const [error,         setError]         = useState('');
   const [loading,       setLoading]       = useState(false);
 
@@ -61,6 +74,7 @@ export default function AmiQualifierPage() {
     setLoading(true);
     setError('');
     setResult(null);
+    setFfiec(null);
 
     try {
       const res = await fetch('/api/ami-qualifier', {
@@ -71,6 +85,7 @@ export default function AmiQualifierPage() {
       const json = await res.json();
       if (json.ok) {
         setResult(json.result);
+        setFfiec(json.ffiec ?? null);
       } else {
         setError(json.error ?? 'Could not resolve location.');
       }
@@ -241,6 +256,17 @@ export default function AmiQualifierPage() {
         .aq-note p{font-size:12px;color:#8fa3b8;line-height:1.55;opacity:0.8;}
         .aq-disclosure{font-size:11px;color:#8fa3b8;text-align:center;margin-top:20px;
           line-height:1.6;opacity:0.45;padding:0 8px;}
+
+        /* ── FFIEC tract designation card ── */
+        .aq-tier-chip{display:inline-block;font-size:13px;font-weight:700;padding:4px 12px;
+          border-radius:99px;letter-spacing:0.3px;margin-right:6px;vertical-align:middle;}
+        .tier-lo-mod{background:rgba(61,139,255,0.13);color:#3d8bff;}
+        .tier-mid-up{background:rgba(143,163,184,0.1);color:#8fa3b8;}
+        .aq-ffiec-county-note{font-size:12px;color:#f59e0b;background:rgba(245,158,11,0.06);
+          border:1px solid rgba(245,158,11,0.18);border-radius:8px;padding:10px 14px;
+          margin-bottom:14px;line-height:1.55;}
+        .aq-ffiec-disclaimer{padding:14px 24px;border-top:1px solid rgba(255,255,255,0.06);}
+        .aq-ffiec-disclaimer p{font-size:11px;color:#8fa3b8;opacity:0.7;margin:0;line-height:1.55;}
       `}</style>
 
       <div className="aq-root">
@@ -512,6 +538,136 @@ export default function AmiQualifierPage() {
                 >
                   Run My Numbers →
                 </Link>
+              </div>
+            </div>
+          )}
+
+          {/* FFIEC federal tract designation card */}
+          {ffiec && ffiec.method !== 'unresolved' && result && (
+            <div className="aq-result" style={{ marginBottom: 14 }}>
+
+              {/* Header */}
+              <div className="aq-result-header">
+                <div className="aq-result-area">
+                  {ffiec.method === 'geocoded'
+                    ? `Federal Area Designation · Census Tract ${ffiec.census_tract_geoid}`
+                    : `Federal Area Estimate · ${result.county}, ${result.state} · County Level`}
+                </div>
+
+                {ffiec.method === 'geocoded' && ffiec.tract_income_level && (
+                  <div className="aq-ami-row" style={{ marginTop: 10 }}>
+                    <div>
+                      <span className={`aq-tier-chip ${
+                        ffiec.tract_income_level === 'Low' || ffiec.tract_income_level === 'Moderate'
+                          ? 'tier-lo-mod' : 'tier-mid-up'
+                      }`}>
+                        {ffiec.tract_income_level}
+                      </span>
+                      <span className="aq-ami-lbl">income area under federal guidelines</span>
+                    </div>
+                  </div>
+                )}
+
+                {ffiec.method === 'county_fallback' && (
+                  <div className="aq-ami-row" style={{ marginTop: 8 }}>
+                    <span className="aq-ami-lbl">Exact census tract not confirmed — county-level area estimate</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Designation details — geocoded path only */}
+              {ffiec.method === 'geocoded' && (ffiec.distressed_underserved || ffiec.tract_eligible) && (
+                <div className="aq-programs">
+                  <div className="aq-section-lbl">Area Characteristics</div>
+                  <div className="aq-prog-list">
+                    {ffiec.distressed_underserved && (
+                      <div className="aq-prog-row">
+                        <div className="aq-prog-left">
+                          <div className="aq-prog-name">Distressed or Underserved</div>
+                          <div className="aq-prog-desc">
+                            This area carries a federal distressed or underserved designation
+                            under FFIEC Community Reinvestment Act guidelines.
+                          </div>
+                        </div>
+                        <div className="aq-prog-badge pass">
+                          <div className="aq-dot pass" />
+                          Designated
+                        </div>
+                      </div>
+                    )}
+                    {ffiec.tract_eligible && (
+                      <div className="aq-prog-row">
+                        <div className="aq-prog-left">
+                          <div className="aq-prog-name">Program Relevance</div>
+                          <div className="aq-prog-desc">
+                            This tract designation may be relevant for certain lender programs.
+                            Contact your loan officer for details specific to this property.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* FFIEC income screen — both paths */}
+              {(ffiec.ffiec_mfi_estimate != null || ffiec.ffiec_adjusted_limit != null) && (
+                <div className="aq-limits">
+                  <div className="aq-section-lbl">
+                    FFIEC Income Screen
+                    {ffiec.method === 'county_fallback' && ' · County Estimate'}
+                  </div>
+
+                  {ffiec.method === 'county_fallback' && (
+                    <div className="aq-ffiec-county-note">
+                      Exact property location wasn't confirmed. Figure uses the dominant
+                      MSA/MD for {result.county} County — not a specific census tract.
+                    </div>
+                  )}
+
+                  <table className="aq-table">
+                    <thead>
+                      <tr>
+                        <th>Benchmark</th>
+                        <th>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ffiec.ffiec_mfi_estimate != null && (
+                        <tr>
+                          <td>FFIEC Area Median Family Income</td>
+                          <td>{fmt(ffiec.ffiec_mfi_estimate)}</td>
+                        </tr>
+                      )}
+                      {ffiec.ffiec_adjusted_limit != null && (
+                        <tr>
+                          <td>
+                            80% Income Limit · {result.householdSize}-person household
+                            <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
+                              FFIEC MFI × household size factor × 80%
+                            </div>
+                          </td>
+                          <td>{fmt(ffiec.ffiec_adjusted_limit)}</td>
+                        </tr>
+                      )}
+                      <tr className="aq-your-row">
+                        <td>Your income</td>
+                        <td style={{ color: ffiec.income_eligible ? '#00e87a' : '#ff5f5f' }}>
+                          {fmt(result.annualIncome)} · {ffiec.income_eligible ? 'Under limit' : 'Over limit'}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Disclaimer */}
+              <div className="aq-ffiec-disclaimer">
+                <p>
+                  Estimates only, based on published federal data (FFIEC 2025 Census Flat File) — not a loan
+                  determination. Tract classifications reflect CRA community development
+                  designations and are separate from the FHFA / GSE AMI figures shown above.
+                </p>
               </div>
             </div>
           )}

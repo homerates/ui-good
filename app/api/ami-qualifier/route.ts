@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-
-// HUD standard household size adjustment factors (relative to 4-person AMI)
-const AMI_SIZE_FACTORS: Record<number, number> = {
-  1: 0.70, 2: 0.80, 3: 0.90, 4: 1.00,
-  5: 1.08, 6: 1.16, 7: 1.24, 8: 1.32,
-};
+import { AMI_SIZE_FACTORS } from '@/amiSizeFactors';
+import { checkFfiecEligibility } from '@/ffiecEligibility';
 
 function db() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -215,8 +211,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    let ffiecResult = null;
+    try {
+      ffiecResult = await checkFfiecEligibility({
+        address: loc,
+        county_fips: countyFips,
+        income,
+        household_size: size,
+      });
+    } catch {
+      // ffiec enrichment failure must never break the existing qualifier response
+    }
+
     return NextResponse.json({
       ok: true,
+      ffiec: ffiecResult,
       result: {
         resolvedFrom,
         county: countyName ?? 'Unknown County',
