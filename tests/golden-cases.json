@@ -153,9 +153,9 @@
       "notes": "Verified 2026-07-03 against staging. income_eligible=true from FFIEC path because $95k < $124,344 (80% of $172,700 × 0.90 HH-3 factor). HomeReady pass because $95k < $131,280 (80% of FHFA $164,100). Geocoder path confirmed active via address_geocode_cache."
     },
     {
-      "id": "ami50pct-flat-50-ventura",
-      "dataset": "AMI Qualifier — ami50pct field",
-      "description": "ami50pct must always be flat 50% of FHFA 4-person AMI regardless of household size",
+      "id": "ami80pct-flat-no-hh-bleed-ventura-hh2",
+      "dataset": "AMI Qualifier — ami80pct must not vary by household size",
+      "description": "ami80pct must be flat 80% of 4-person AMI regardless of householdSize input (Ventura, HH=2)",
       "endpoint": "POST /api/ami-qualifier",
       "input": {
         "location": "93001",
@@ -163,12 +163,31 @@
         "householdSize": 2
       },
       "expected_result_subset": {
-        "ami50pct": 67800,
         "ami80pct": 108480,
         "ami4Person": 135600,
-        "dataSource": "FHFA"
+        "dataSource": "FHFA",
+        "programs": { "homeReady": true, "homePossible": true }
       },
-      "notes": "Bug fixed 2026-07-03: was returning $54,240 for HH=2 (amiForHH×0.50 = $108,480×0.50). Route now computes ami50=Math.round(ami4×0.50)=$67,800, same flat base as ami80. HUD stores ami_50pct=$78,500 for Ventura (different median baseline) — intentionally not used. Verify: ami50pct must equal ami4Person×0.50 = $135,600×0.50 = $67,800 regardless of householdSize input."
+      "notes": "Repurposed 2026-07-03 from ami50pct test. The ami50pct field is computed in the route but NOT displayed (HUD VLI is size-adjusted; flat 50% has no backing program rule — pending Priority 3 HUD VLI ingestion). This test validates: (1) ami80pct=$108,480 is flat regardless of HH=2, and (2) $70k income is under the $108,480 HomeReady limit. If ami80pct varies with householdSize, the flat-base invariant is broken."
+    },
+    {
+      "id": "ami-qualifier-12104-topa-vista-rd-santa-paula",
+      "dataset": "AMI Qualifier — extractZip last-match fix + geocoder Strategy 4",
+      "description": "Full address with 5-digit house number (12104) that was previously extracted as ZIP instead of '93060'",
+      "endpoint": "POST /api/ami-qualifier",
+      "input": {
+        "location": "12104 Topa Vista Rd, Santa Paula, CA 93060",
+        "annualIncome": 80000,
+        "householdSize": 2
+      },
+      "expected_result_subset": {
+        "county": "Ventura",
+        "state": "CA",
+        "ami4Person": 135600,
+        "dataSource": "FHFA",
+        "resolvedFrom": "address"
+      },
+      "notes": "Fixed 2026-07-03: extractZip() was matching house number '12104' (first 5-digit sequence) instead of ZIP '93060' (last 5-digit sequence). Fix: use [...input.matchAll(/\\b(\\d{5})\\b/g)] and return the last match. ZIP 93060 is in geo_crosswalk → county_fips='06111' → Ventura, CA. Geocoder also matches this address (tract 06111000903) via Current_Current vintage. FFIEC method should be 'geocoded'."
     },
     {
       "id": "ffiec-mfi-wayne-county-pa-nonmetro-state-fips",

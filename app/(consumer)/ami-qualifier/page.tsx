@@ -37,6 +37,7 @@ interface FfiecResult {
   ffiec_adjusted_limit: number | null;
   income_eligible: boolean;
   any_eligible: boolean;
+  geocode_vintage_used: string | null;
 }
 
 function fmt(n: number) {
@@ -558,16 +559,11 @@ export default function AmiQualifierPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>
-                        50% AMI <span className="aq-pill pill-blue">Very Low</span>
-                        <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 2, fontWeight: 400 }}>
-                          Flat 50% of 4-person AMI · reference benchmark · HUD programs use size-adjusted limits
-                        </div>
-                      </td>
-                      <td>Federal housing programs (indicative)</td>
-                      <td>{fmt(result.ami50pct)}</td>
-                    </tr>
+                    {/* 50% AMI / VLI row intentionally omitted:
+                        Real HUD Very Low Income limits are household-size-adjusted (il50_p1–p8).
+                        A flat ami4×0.50 approximation has no backing program rule and would
+                        recreate the same unsourced-benchmark problem as the DPA 120% row.
+                        Restore this row once HUD VLI data is ingested (Priority 3 architectural). */}
                     <tr>
                       <td>
                         80% AMI{' '}
@@ -721,6 +717,16 @@ export default function AmiQualifierPage() {
                   <div className="aq-ffiec-county-note">
                     Exact property location wasn't confirmed — county-level area estimate only,
                     not a specific census tract.
+                  </div>
+                )}
+                {ffiec.geocode_vintage_used && ffiec.geocode_vintage_used !== 'Current_Current' && (
+                  <div style={{
+                    fontSize: 11, color: '#8fa3b8', marginTop: 8,
+                    padding: '8px 12px', background: 'rgba(143,163,184,0.06)',
+                    border: '1px solid rgba(255,255,255,0.07)', borderRadius: 7, lineHeight: 1.5,
+                  }}>
+                    Census tract matched using {ffiec.geocode_vintage_used.replace('_Current', '')} reference data —
+                    the most recent Census release did not include this address.
                   </div>
                 )}
               </div>

@@ -2,10 +2,16 @@ import { getSupabase } from './supabaseServer';
 
 const GEOCODER_URL = 'https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress';
 
+// Newest-first vintage chain. Current_Current uses the most recent TIGER/Line address data;
+// older ACS vintages are tried when Current_Current returns no match.
+// All vintages use the same 2020 census tract boundaries, so GEOIDs are stable across vintages.
+const VINTAGE_CHAIN = ['Current_Current', 'ACS2025_Current', 'ACS2024_Current'] as const;
+
 export type GeocodeResult = {
   censusTractGeoid: string;
   latitude: number;
   longitude: number;
+  vintage_used: string;
 };
 
 // Thrown only on actual API/network failures — callers must distinguish from null (no match).
@@ -20,32 +26,10 @@ function normalizeAddress(address: string): string {
   return address.toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
-export async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
-  const sb = getSupabase();
-  const normalized = normalizeAddress(address);
-
-  // Cache check
-  if (sb) {
-    const { data } = await sb
-      .from('address_geocode_cache')
-      .select('census_tract_geoid, latitude, longitude')
-      .eq('normalized_address', normalized)
-      .maybeSingle();
-    if (data) {
-      return {
-        censusTractGeoid: data.census_tract_geoid,
-        latitude: Number(data.latitude),
-        longitude: Number(data.longitude),
-      };
-    }
-  }
-
-  // Census Geocoder API call
-  // layers=10 returns "Census Block Groups" which embed STATE/COUNTY/TRACT fields —
-  // the 11-digit census tract GEOID is constructed from those three fields.
+async function tryVintage(address: string, vintage: string): Promise<GeocodeResult | null> {
   const url =
     `${GEOCODER_URL}?address=${encodeURIComponent(address)}` +
-    `&benchmark=Public_AR_Current&vintage=Current_Current&layers=10&format=json`;
+    `&benchmark=Public_AR_Current&vintage=${vintage}&layers=10&format=json`;
 
   let res: Response;
   try {
@@ -68,7 +52,7 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult | n
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const matches = (body as any)?.result?.addressMatches;
   if (!Array.isArray(matches) || matches.length === 0) {
-    return null; // valid no-match — address not found, not an error
+    return null; // valid no-match for this vintage — caller tries next
   }
 
   const match = matches[0];
@@ -90,13 +74,53 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult | n
     throw new GeocoderError('Census Geocoder response missing coordinate fields');
   }
 
-  // Write to cache (best-effort — don't fail the geocode if the write fails)
+  return { censusTractGeoid, latitude, longitude, vintage_used: vintage };
+}
+
+export async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
+  const sb = getSupabase();
+  const normalized = normalizeAddress(address);
+
+  // Cache check — returns cached result including the vintage that produced it
+  if (sb) {
+    const { data } = await sb
+      .from('address_geocode_cache')
+      .select('census_tract_geoid, latitude, longitude, vintage_used')
+      .eq('normalized_address', normalized)
+      .maybeSingle();
+    if (data) {
+      return {
+        censusTractGeoid: data.census_tract_geoid,
+        latitude: Number(data.latitude),
+        longitude: Number(data.longitude),
+        vintage_used: (data.vintage_used as string) ?? 'Current_Current',
+      };
+    }
+  }
+
+  // Try each vintage in order; stop at first match.
+  // A no-match from one vintage is not an error — fall through to the next.
+  let result: GeocodeResult | null = null;
+  for (const vintage of VINTAGE_CHAIN) {
+    result = await tryVintage(address, vintage);
+    if (result) break;
+  }
+
+  if (!result) return null;
+
+  // Write to cache — store the vintage that produced the match so future reads know
   if (sb) {
     await sb.from('address_geocode_cache').upsert(
-      { normalized_address: normalized, census_tract_geoid: censusTractGeoid, latitude, longitude },
+      {
+        normalized_address: normalized,
+        census_tract_geoid: result.censusTractGeoid,
+        latitude: result.latitude,
+        longitude: result.longitude,
+        vintage_used: result.vintage_used,
+      },
       { onConflict: 'normalized_address' }
     );
   }
 
-  return { censusTractGeoid, latitude, longitude };
+  return result;
 }

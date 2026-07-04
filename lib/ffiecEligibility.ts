@@ -18,6 +18,7 @@ export type FfiecEligibilityResult = {
   // Diagnostic fields — surfaced in debug panel only
   geocode_attempted: boolean;
   geocode_failure_reason: 'not_attempted' | 'no_match' | 'error' | 'geoid_not_in_db' | null;
+  geocode_vintage_used: string | null;
   ffiec_tract_data_year: number | null;
   ffiec_mfi_data_year: number | null;
 };
@@ -75,6 +76,7 @@ export async function checkFfiecEligibility({
   // Track diagnostic state across paths
   let geocode_attempted = false;
   let geocode_failure_reason: FfiecEligibilityResult['geocode_failure_reason'] = 'not_attempted';
+  let geocode_vintage_used: string | null = null;
 
   if (!sb) {
     return {
@@ -82,7 +84,7 @@ export async function checkFfiecEligibility({
       distressed_underserved: false, tract_eligible: false, ffiec_mfi_estimate: null,
       ffiec_adjusted_limit: null, income_eligible: false, any_eligible: false,
       geocode_attempted: false, geocode_failure_reason: 'not_attempted',
-      ffiec_tract_data_year: null, ffiec_mfi_data_year: null,
+      geocode_vintage_used: null, ffiec_tract_data_year: null, ffiec_mfi_data_year: null,
     };
   }
 
@@ -92,6 +94,7 @@ export async function checkFfiecEligibility({
     try {
       const geo = await geocodeAddress(address.trim());
       if (geo) {
+        geocode_vintage_used = geo.vintage_used;
         const { data: tract } = await sb
           .from('ffiec_census_tracts')
           .select('tract_income_level, distressed_underserved, msa_md, data_year')
@@ -123,6 +126,7 @@ export async function checkFfiecEligibility({
             any_eligible: tractEligible || incomeEligible,
             geocode_attempted: true,
             geocode_failure_reason: null,
+            geocode_vintage_used,
             ffiec_tract_data_year: Number(tract.data_year),
             ffiec_mfi_data_year: mfiResult?.data_year ?? null,
           };
@@ -160,6 +164,7 @@ export async function checkFfiecEligibility({
         any_eligible: income <= adjustedLimit,
         geocode_attempted,
         geocode_failure_reason,
+        geocode_vintage_used,
         ffiec_tract_data_year: null,
         ffiec_mfi_data_year: mfiResult.data_year,
       };
@@ -178,6 +183,7 @@ export async function checkFfiecEligibility({
     any_eligible: false,
     geocode_attempted,
     geocode_failure_reason,
+    geocode_vintage_used,
     ffiec_tract_data_year: null,
     ffiec_mfi_data_year: null,
   };
