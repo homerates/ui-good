@@ -1,41 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc:*)",
-      "Bash(xargs grep:*)",
-      "Bash(grep -r \"app-footer\\\\|mobile.*footer\\\\|bottom.*nav\\\\|MobileFooter\" /c/Users/rayaa/ui-good/app --include=*.tsx --include=*.ts)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "WebSearch",
       "Bash(git push:*)",
       "Bash(git tag:*)",
-      "Bash(sed -e \"s|from ''./components/Sidebar''|from ''../components/Sidebar''|g\" -e \"s|from ''./components/MortgageCalcPanel''|from ''../components/MortgageCalcPanel''|g\" -e \"s|from ''./components/MenuButton''|from ''../components/MenuButton''|g\" -e \"s|from ''./hooks/useMobileComposerPin''|from ''../hooks/useMobileComposerPin''|g\" -e \"s|from ''../lib/logAnswerToLibrary''|from ''../../lib/logAnswerToLibrary''|g\" -e \"s|import ''./chat/styles.css''|import ''./styles.css''|g\" \"C:/Users/rayaa/ui-good/app/page.tsx\")",
-      "Bash(\"C:/Users/rayaa/ui-good/app/chat/page.tsx\")",
-      "Bash(ls c:/Users/rayaa/ui-good/lib/fred*)",
-      "Bash(git -C /c/Users/rayaa/ui-good worktree list)",
-      "Bash(ls /c/Users/rayaa/ui-good/.claude/worktrees/agent-a3375f5b/app/components/Jumbo*)",
-      "Bash(git -C /c/Users/rayaa/ui-good/.claude/worktrees/agent-a3375f5b log --oneline -5)",
-      "Bash(git -C /c/Users/rayaa/ui-good/.claude/worktrees/agent-a3375f5b status)",
-      "Bash(git -C /c/Users/rayaa/ui-good status)",
-      "Bash(git -C /c/Users/rayaa/ui-good log --oneline -5)",
-      "Bash(git -C /c/Users/rayaa/ui-good add app/components/JumboAffordabilitySliderCard.tsx app/jumbo-calculator/ app/api/answers/route.ts app/chat/page.tsx lib/calcDispatcher.ts lib/cardBuilders.ts)",
       "Bash(git -C:*)",
-      "Read(//c/Users/rayaa/AppData/Local/Temp/**)",
-      "Bash(xxd \"C:/Users/rayaa/AppData/Local/Temp/fhfa2026.xlsx\")",
+      "Bash(npx tsc:*)",
+      "Bash(npm install *)",
       "Bash(node -e ':*)",
-      "Bash(curl -sL -o /dev/null -w \"%{http_code}\" \"https://www.huduser.gov/hudapi/public/register\")",
-      "Bash(curl -s \"https://www.fema.gov/api/open\")",
-      "Bash(curl -sL \"https://hazards.fema.gov/nri/Content/StaticDocFiles/NRI_Table_Counties.zip\" -o /dev/null -w \"%{http_code}\")",
-      "Bash(curl -s \"https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Counties/FeatureServer/0/query?where=1%3D1&outFields=STCOFIPS%2CCOUNTY%2CSTATEABBRV%2CRISK_SCORE%2CRISK_RATNG%2CHRCN_RISKS%2CWFIR_RISKS%2CRFLD_RISKS%2CCFLD_RISKS%2CERQK_RISKS%2CTRND_RISKS%2CHAIL_RISKS%2CWNTW_RISKS%2CDRGT_RISKS%2CHWAV_RISKS&returnGeometry=false&f=json&resultRecordCount=2&resultOffset=0\")",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.keys\\(\\)\\)\\); print\\(d.get\\('error','ok'\\)\\)\")",
-      "Bash(curl -s \"https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Counties/FeatureServer/0?f=json\")",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); fields=d.get\\('fields',[]\\); [print\\(f['name']\\) for f in fields if any\\(x in f['name'].upper\\(\\) for x in ['RISK','HRCN','WFIR','RFLD','CFLD','ERQK','TRND','HAIL','WNTW','DRGT','HWAV','FIPS','COUNTY','STATE']\\)]\")",
-      "Bash(grep -n \"down_payment_pct\" /c/Users/rayaa/ui-good/supabase/migrations/*.sql)",
-      "Bash(node tools/etl-hud.mjs --check-only)",
-      "Bash(node tools/etl-hud.mjs)",
+      "Bash(node tools/*)",
       "Bash(echo \"exit:$?\")",
-      "Bash(grep -r \"GOOGLE_MAPS\\\\|google.*maps\\\\|maps.*google\" .env.local .env*)",
-      "Bash(npm install *)"
+      "Read(//c/Users/rayaa/AppData/Local/Temp/**)",
+      "WebSearch"
     ]
   }
 }
