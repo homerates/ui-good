@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
+import PropertyMap from '@/components/PropertyMap';
 import { ShareAnswerButton } from '@/components/ShareAnswerButton';
 import { EDUCATIONAL_DISCLAIMER } from '@/disclosures';
 import { useAdminStatus } from '../../hooks/useAdminStatus';
@@ -422,6 +423,25 @@ export default function AmiQualifierPage() {
           {/* Result */}
           {result && (
             <div className="aq-result">
+              {/* Location map thumbnail */}
+              <PropertyMap
+                variant="thumbnail"
+                address={location}
+                height={180}
+                overlay={
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0,
+                    background: 'linear-gradient(to top, rgba(6,10,16,0.85) 0%, transparent 100%)',
+                    padding: '28px 20px 14px',
+                    pointerEvents: 'none',
+                  }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(240,244,255,0.9)', lineHeight: 1.3 }}>
+                      {locationLabel}
+                    </div>
+                  </div>
+                }
+              />
+
               {/* Area + AMI headline */}
               <div className="aq-result-header">
                 <div className="aq-result-area">{locationLabel}</div>
