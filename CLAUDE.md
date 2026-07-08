@@ -1,4 +1,5 @@
 # CLAUDE.md
+<!-- Last reviewed: 2026-07-08 — also check NAVIGATION_SPEC.md and DEPLOY_WORKFLOW.md for staleness each pass -->
 
 ## Branch & Deploy Rules
 
