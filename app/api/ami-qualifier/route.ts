@@ -3,6 +3,34 @@ import { createClient } from '@supabase/supabase-js';
 import { AMI_SIZE_FACTORS } from '@/amiSizeFactors';
 import { checkFfiecEligibility } from '@/ffiecEligibility';
 import { geocodeAddress } from '@/censusGeocoder';
+import { HIGH_COST_COUNTIES, NATIONAL_CONFORMING_BASELINE } from '@/loanLimitsNational2026';
+import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
+
+export interface ConformingLimits {
+  units1: number; units2: number; units3: number; units4: number;
+  isHighBalance: boolean;
+}
+
+// Two-pass county name matching — HUD stores bare names ("Ventura"),
+// national limits may use " COUNTY" suffix ("KING COUNTY") or bare ("ALAMEDA").
+function resolveConformingLimits(state: string, county: string): ConformingLimits {
+  const raw      = county.toUpperCase().trim();
+  const stripped = raw.replace(/\s+(COUNTY|PARISH|BOROUGH|MUNICIPALITY|CENSUS AREA)$/i, '').trim();
+  const baseline = NATIONAL_CONFORMING_BASELINE;
+
+  if (state === 'CA') {
+    const ca = CA_LOAN_LIMITS_2026.find(c => c.county === stripped || c.county === raw);
+    if (ca) return { ...ca.conforming, isHighBalance: ca.isHighBalance };
+    return { ...baseline, isHighBalance: false };
+  }
+
+  const list = HIGH_COST_COUNTIES[state] ?? [];
+  const exact = list.find(c => c.county === raw);
+  if (exact) return { ...exact.conforming, isHighBalance: exact.isHighBalance };
+  const suffixed = list.find(c => c.county === stripped + ' COUNTY');
+  if (suffixed) return { ...suffixed.conforming, isHighBalance: suffixed.isHighBalance };
+  return { ...baseline, isHighBalance: false };
+}
 
 function db() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -296,6 +324,11 @@ export async function POST(req: NextRequest) {
       },
     };
 
+    const conformingLimits: ConformingLimits | null =
+      stateAbbr && countyName
+        ? resolveConformingLimits(stateAbbr, countyName)
+        : null;
+
     return NextResponse.json({
       ok: true,
       ffiec: ffiecResult,
@@ -305,6 +338,8 @@ export async function POST(req: NextRequest) {
         county: countyName ?? 'Unknown County',
         state:  stateAbbr  ?? '',
         zip:    resolvedZip ?? undefined,
+        countyFips: countyFips ?? undefined,
+        conformingLimits: conformingLimits ?? undefined,
 
         // Primary AMI — FHFA if available, HUD fallback
         ami4Person:          ami4,

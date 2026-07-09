@@ -4,15 +4,22 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
+import PropertyMap from '@/components/PropertyMap';
 import { ShareAnswerButton } from '@/components/ShareAnswerButton';
 import { EDUCATIONAL_DISCLAIMER } from '@/disclosures';
 import { useAdminStatus } from '../../hooks/useAdminStatus';
+
+interface ConformingLimits {
+  units1: number; units2: number; units3: number; units4: number;
+  isHighBalance: boolean;
+}
 
 interface AmiResult {
   resolvedFrom: 'zip' | 'address' | 'county';
   county: string;
   state: string;
   zip?: string;
+  countyFips?: string;
   ami4Person: number;
   amiForHouseholdSize: number;
   ami80pct: number;
@@ -25,6 +32,7 @@ interface AmiResult {
   fiscalYear: number;
   dataSource: 'FHFA' | 'HUD';
   dpaMatchCount: number;
+  conformingLimits?: ConformingLimits;
 }
 
 interface FfiecResult {
@@ -122,12 +130,30 @@ export default function AmiQualifierPage() {
   const [rawResponse,   setRawResponse]   = useState<Record<string, unknown> | null>(null);
   const [error,         setError]         = useState('');
   const [loading,       setLoading]       = useState(false);
+  const [saving,        setSaving]        = useState(false);
+  const [savedId,       setSavedId]       = useState<string | null>(null);
+  const [detailOpen,    setDetailOpen]    = useState(false);
 
   function handleIncomeChange(raw: string) {
     const digits = raw.replace(/[^0-9]/g, '');
     const n = digits ? Number(digits) : null;
     setIncomeValue(n);
     setIncomeDraft(n ? '$' + n.toLocaleString() : '');
+  }
+
+  async function handleSave() {
+    if (!result || !location.trim() || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/ami-qualifier/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ location, result }),
+      });
+      const json = await res.json();
+      if (json.ok) setSavedId(json.item?.id ?? 'saved');
+    } catch { /* non-fatal */ }
+    setSaving(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -138,6 +164,7 @@ export default function AmiQualifierPage() {
     setResult(null);
     setFfiec(null);
     setRawResponse(null);
+    setSavedId(null);
 
     try {
       const res = await fetch('/api/ami-qualifier', {
@@ -422,6 +449,25 @@ export default function AmiQualifierPage() {
           {/* Result */}
           {result && (
             <div className="aq-result">
+              {/* Location map thumbnail */}
+              <PropertyMap
+                variant="thumbnail"
+                address={location}
+                height={180}
+                overlay={
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0,
+                    background: 'linear-gradient(to top, rgba(6,10,16,0.85) 0%, transparent 100%)',
+                    padding: '28px 20px 14px',
+                    pointerEvents: 'none',
+                  }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(240,244,255,0.9)', lineHeight: 1.3 }}>
+                      {locationLabel}
+                    </div>
+                  </div>
+                }
+              />
+
               {/* Area + AMI headline */}
               <div className="aq-result-header">
                 <div className="aq-result-area">{locationLabel}</div>
@@ -429,12 +475,12 @@ export default function AmiQualifierPage() {
                   <div className="aq-ami-val">{fmt(result.ami4Person)}</div>
                   <div className="aq-ami-lbl">
                     {result.dataSource === 'FHFA' ? (
-                      <>FHFA FY{result.fiscalYear} Area Median Income · 4-person · Fannie Mae / Freddie Mac source</>
+                      <>Fannie Mae / Freddie Mac AMI · {result.fiscalYear} · 4-person</>
                     ) : (
                       <>
-                        HUD FY{result.fiscalYear} Area Median Income · 4-person
+                        HUD {result.fiscalYear} Area Median Income · 4-person
                         <span style={{ display: 'block', fontSize: 11, color: '#f59e0b', marginTop: 3 }}>
-                          ⚠ FHFA/GSE AMI data not yet loaded for this county — HUD approximation shown
+                          ⚠ GSE AMI data not yet loaded for this county — HUD approximation shown
                         </span>
                       </>
                     )}
@@ -616,6 +662,20 @@ export default function AmiQualifierPage() {
                   label="Share"
                   className="aq-btn-sec"
                 />
+                {user ? (
+                  <button
+                    onClick={handleSave}
+                    disabled={saving || !!savedId}
+                    className="aq-btn-sec"
+                    style={{ cursor: saving || savedId ? 'default' : 'pointer', color: savedId ? '#00e87a' : undefined, borderColor: savedId ? 'rgba(0,232,122,0.3)' : undefined }}
+                  >
+                    {saving ? 'Saving…' : savedId ? '✓ Saved' : '🔖 Save'}
+                  </button>
+                ) : (
+                  <Link href="/sign-in" className="aq-btn-sec" style={{ fontSize: 12 }}>
+                    Sign in to save
+                  </Link>
+                )}
                 <Link
                   href={(() => {
                     const income = `$${result.annualIncome.toLocaleString()}`;
@@ -631,6 +691,117 @@ export default function AmiQualifierPage() {
                 >
                   Run My Numbers →
                 </Link>
+              </div>
+
+              {/* Fannie Mae cross-check detail view */}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <button
+                  onClick={() => setDetailOpen(o => !o)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '14px 24px', background: 'transparent', border: 'none', cursor: 'pointer',
+                    color: '#8fa3b8', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                  }}
+                >
+                  <span>Detailed View — Fannie Mae Cross-Check Format</span>
+                  <span style={{ fontSize: 10 }}>{detailOpen ? '▲' : '▼'}</span>
+                </button>
+
+                {detailOpen && (
+                  <div style={{ padding: '0 24px 20px' }}>
+                    {/* County + FIPS header */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#f0f4ff', marginBottom: 2 }}>
+                        {result.county} County, {result.state}
+                      </div>
+                      {result.countyFips && (
+                        <div style={{ fontSize: 11, color: '#8fa3b8' }}>
+                          County FIPS: {result.countyFips}
+                          {result.conformingLimits?.isHighBalance && (
+                            <span style={{ marginLeft: 8, background: 'rgba(61,139,255,0.13)', color: '#3d8bff', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 99, letterSpacing: 0.3 }}>
+                              HIGH COST AREA
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* AMI tiers — mirrors Fannie Mae tool format */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#8fa3b8', letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: 10 }}>
+                        Area Median Income · {result.fiscalYear}
+                      </div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ textAlign: 'left', fontSize: 10, color: '#8fa3b8', paddingBottom: 8, opacity: 0.7, fontWeight: 600 }}>Threshold</th>
+                            <th style={{ textAlign: 'left', fontSize: 10, color: '#8fa3b8', paddingBottom: 8, opacity: 0.7, fontWeight: 600 }}>Program</th>
+                            <th style={{ textAlign: 'right', fontSize: 10, color: '#8fa3b8', paddingBottom: 8, opacity: 0.7, fontWeight: 600 }}>Income Limit</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { label: '120% AMI', program: 'DPA / Bank CRA Reference', val: result.ami120pct, note: 'HUD household-adjusted' },
+                            { label: '100% AMI', program: 'Area Median', val: result.ami4Person },
+                            { label: '80% AMI',  program: 'HomeReady · Home Possible', val: result.ami80pct, highlight: true },
+                            { label: '50% AMI',  program: 'VLI Reference (flat)', val: result.ami50pct, note: 'Approximate — see HUD for exact VLI' },
+                          ].map(row => (
+                            <tr key={row.label}>
+                              <td style={{ padding: '9px 0', fontSize: 13, color: '#8fa3b8', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{row.label}</td>
+                              <td style={{ padding: '9px 0', fontSize: 12, color: '#8fa3b8', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                {row.program}
+                                {row.note && <div style={{ fontSize: 10, opacity: 0.6, marginTop: 1 }}>{row.note}</div>}
+                              </td>
+                              <td style={{ padding: '9px 0', fontSize: 13, fontWeight: row.highlight ? 800 : 700, color: row.highlight ? '#00e87a' : '#f0f4ff', textAlign: 'right', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                {fmt(row.val)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Conforming loan limits */}
+                    {result.conformingLimits && (
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#8fa3b8', letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: 10 }}>
+                          Conforming Loan Limits · {result.county} County · 2026
+                        </div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr>
+                              {['1-Unit','2-Unit','3-Unit','4-Unit'].map(u => (
+                                <th key={u} style={{ textAlign: u === '1-Unit' ? 'left' : 'right', fontSize: 10, color: '#8fa3b8', paddingBottom: 8, opacity: 0.7, fontWeight: 600 }}>{u}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              {[result.conformingLimits.units1, result.conformingLimits.units2, result.conformingLimits.units3, result.conformingLimits.units4].map((val, i) => (
+                                <td key={i} style={{ padding: '9px 0', fontSize: 13, fontWeight: 700, color: '#f0f4ff', textAlign: i === 0 ? 'left' : 'right' }}>
+                                  {fmt(val)}
+                                </td>
+                              ))}
+                            </tr>
+                          </tbody>
+                        </table>
+                        <div style={{ fontSize: 10, color: '#8fa3b8', marginTop: 6, opacity: 0.6 }}>
+                          Source: FHFA CY2026 · Fannie Mae / Freddie Mac conforming limits
+                          {result.conformingLimits.isHighBalance ? ' · High-balance county' : ' · Standard conforming'}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Flags not in our data */}
+                    <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(143,163,184,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#8fa3b8', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>Special Designations</div>
+                      <div style={{ fontSize: 11, color: '#8fa3b8', lineHeight: 1.6, opacity: 0.8 }}>
+                        Designated Disaster Area and High Opportunity Area flags (shown in the Fannie Mae tool) are not in HomeRates&apos; current dataset. Verify at{' '}
+                        <a href="https://ami-lookup-tool.fanniemae.com" target="_blank" rel="noopener noreferrer" style={{ color: '#3d8bff' }}>ami-lookup-tool.fanniemae.com</a>.
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -748,9 +919,9 @@ export default function AmiQualifierPage() {
               <div className="aq-note-lbl">Data Source &amp; Limitations</div>
               {result.dataSource === 'FHFA' ? (
                 <p>
-                  <strong style={{ color: '#00e87a', fontWeight: 700 }}>FHFA source active.</strong>{' '}
-                  HomeReady / Home Possible limits use the same AMI published by FHFA and used
-                  by Fannie Mae (effective June 13, 2026) and Freddie Mac. For final determination,
+                  <strong style={{ color: '#00e87a', fontWeight: 700 }}>GSE AMI source active.</strong>{' '}
+                  HomeReady / Home Possible limits use the Fannie Mae / Freddie Mac Area Median Income
+                  (sourced from Freddie Mac&apos;s published MFI file, effective 2026). For final determination,
                   run the subject property address through DU or LPA, or verify at{' '}
                   <a href="https://ami-lookup-tool.fanniemae.com" target="_blank" rel="noopener noreferrer"
                     style={{ color: '#00e87a' }}>Fannie Mae AMI Lookup</a>
