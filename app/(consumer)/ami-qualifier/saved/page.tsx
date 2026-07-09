@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
-import PropertyMap from '@/components/PropertyMap';
+import PropertyPhoto from '@/components/PropertyPhoto';
 
 interface SavedItem {
   id: string;
@@ -166,12 +166,12 @@ export default function AmiSavedPage() {
 
                 return (
                   <div key={item.id} className="aqsv-row">
-                    {/* Part A — small right-side thumbnail */}
+                    {/* Part A — street view / satellite thumbnail */}
                     <div className="aqsv-row-map">
-                      <PropertyMap
-                        variant="thumbnail"
+                      <PropertyPhoto
                         address={item.address ?? undefined}
-                        height={80}
+                        width={176}
+                        height={160}
                         style={{ width: '100%', height: '100%' }}
                       />
                     </div>
