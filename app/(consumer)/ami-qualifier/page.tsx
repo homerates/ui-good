@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import PropertyMap from '@/components/PropertyMap';
+import PropertyPhoto from '@/components/PropertyPhoto';
 import { ShareAnswerButton } from '@/components/ShareAnswerButton';
 import { EDUCATIONAL_DISCLAIMER } from '@/disclosures';
 import { useAdminStatus } from '../../hooks/useAdminStatus';
@@ -60,6 +61,118 @@ function meterColor(pct: number) {
 
 function meterWidth(pct: number) {
   return Math.min(Math.round((pct / 150) * 100), 100) + '%';
+}
+
+interface SavedAmiItem {
+  id: string;
+  title: string | null;
+  address: string | null;
+  updated_at: string;
+  data: {
+    county?: string;
+    state?: string;
+    incomeAsPctOfAmi?: number;
+    programs?: { homeReady: boolean; homePossible: boolean };
+    annualIncome?: number;
+    householdSize?: number;
+    ami4Person?: number;
+  };
+}
+
+/* Saved-lookups rail — rendered in right column of desktop layout */
+function AmiSavedRail({
+  user,
+  userLoaded,
+  items,
+  loaded,
+  onRerun,
+}: {
+  user: { id: string } | null | undefined;
+  userLoaded: boolean;
+  items: SavedAmiItem[];
+  loaded: boolean;
+  onRerun: (addr: string, income?: number, size?: number) => void;
+}) {
+  if (!userLoaded || !loaded) {
+    return (
+      <div style={{ padding: '20px 0', textAlign: 'center', color: '#8fa3b8', fontSize: 12 }}>
+        Loading…
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="aqr-empty">
+        <div className="aqr-empty-icon">🔖</div>
+        <p className="aqr-empty-text">
+          <Link href="/sign-in" style={{ color: '#3d8bff', textDecoration: 'none' }}>Sign in</Link>
+          {' '}to save AMI lookups and see them here.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="aqr-title">
+        <span>Saved Lookups</span>
+        {items.length > 0 && (
+          <Link href="/ami-qualifier/saved">View All →</Link>
+        )}
+      </div>
+
+      {items.length === 0 ? (
+        <div className="aqr-empty">
+          <div className="aqr-empty-icon">📋</div>
+          <p className="aqr-empty-text">
+            No saved lookups yet. Run a check and hit <strong style={{ color: '#f0f4ff' }}>Save</strong> to see it here.
+          </p>
+        </div>
+      ) : (
+        <div className="aqr-list">
+          {items.slice(0, 12).map(item => {
+            const d = item.data;
+            const pct = d.incomeAsPctOfAmi;
+            const eligColor = pct == null ? '#8fa3b8' : pct <= 80 ? '#00e87a' : pct <= 120 ? '#f59e0b' : '#ff5f5f';
+            return (
+              <div
+                key={item.id}
+                className="aqr-card"
+                onClick={() => onRerun(item.address ?? '', d.annualIncome, d.householdSize)}
+                title={`Re-run: ${item.address ?? item.title}`}
+              >
+                <div className="aqr-thumb">
+                  <PropertyPhoto
+                    address={item.address ?? undefined}
+                    width={136}
+                    height={136}
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                </div>
+                <div className="aqr-body">
+                  {d.county && d.state && (
+                    <div className="aqr-county">{d.county}, {d.state}</div>
+                  )}
+                  <div className="aqr-addr">
+                    {item.address?.split(',')[0] ?? item.title ?? '—'}
+                  </div>
+                  <div className="aqr-result">
+                    {pct != null
+                      ? <strong style={{ color: eligColor }}>{pct}% of AMI</strong>
+                      : <span>—</span>}
+                    {d.programs?.homeReady
+                      ? <span style={{ color: '#00e87a' }}> · HomeReady</span>
+                      : d.programs && <span> · Over limit</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
 }
 
 /* Debug panel — visible only to admin + exact email rayaanarif57@gmail.com */
@@ -118,7 +231,7 @@ function AmiDebugPanel({ raw }: { raw: Record<string, unknown> }) {
 
 export default function AmiQualifierPage() {
   const { isAdmin } = useAdminStatus();
-  const { user } = useUser();
+  const { user, isLoaded: userLoaded } = useUser();
   const isDebugUser = isAdmin && user?.primaryEmailAddress?.emailAddress === 'rayaanarif57@gmail.com';
 
   const [location,      setLocation]      = useState('');
@@ -133,6 +246,19 @@ export default function AmiQualifierPage() {
   const [saving,        setSaving]        = useState(false);
   const [savedId,       setSavedId]       = useState<string | null>(null);
   const [detailOpen,    setDetailOpen]    = useState(false);
+  const [railItems,     setRailItems]     = useState<SavedAmiItem[]>([]);
+  const [railLoaded,    setRailLoaded]    = useState(false);
+
+  // Fetch rail items once auth state is known
+  useEffect(() => {
+    if (!userLoaded) return;
+    if (!user) { setRailLoaded(true); return; }
+    fetch('/api/ami-qualifier/save')
+      .then(r => r.json())
+      .then(j => { if (j.ok) setRailItems(j.items ?? []); })
+      .catch(() => {})
+      .finally(() => setRailLoaded(true));
+  }, [userLoaded, user]);
 
   function handleIncomeChange(raw: string) {
     const digits = raw.replace(/[^0-9]/g, '');
@@ -141,36 +267,18 @@ export default function AmiQualifierPage() {
     setIncomeDraft(n ? '$' + n.toLocaleString() : '');
   }
 
-  async function handleSave() {
-    if (!result || !location.trim() || saving) return;
-    setSaving(true);
-    try {
-      const res = await fetch('/api/ami-qualifier/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location, result }),
-      });
-      const json = await res.json();
-      if (json.ok) setSavedId(json.item?.id ?? 'saved');
-    } catch { /* non-fatal */ }
-    setSaving(false);
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!location.trim() || !incomeValue) return;
+  async function runCheck(loc: string, income: number, size: number) {
     setLoading(true);
     setError('');
     setResult(null);
     setFfiec(null);
     setRawResponse(null);
     setSavedId(null);
-
     try {
       const res = await fetch('/api/ami-qualifier', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location, annualIncome: incomeValue, householdSize }),
+        body: JSON.stringify({ location: loc, annualIncome: income, householdSize: size }),
       });
       const json = await res.json();
       if (json.ok) {
@@ -185,6 +293,42 @@ export default function AmiQualifierPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!location.trim() || !incomeValue) return;
+    await runCheck(location, incomeValue, householdSize);
+  }
+
+  function handleRerun(addr: string, income?: number, size?: number) {
+    const inc = income ?? incomeValue ?? 0;
+    const sz  = size ?? householdSize;
+    setLocation(addr);
+    if (income)  { setIncomeValue(income); setIncomeDraft('$' + income.toLocaleString()); }
+    if (size)    setHouseholdSize(sz);
+    if (addr && inc) runCheck(addr, inc, sz);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function handleSave() {
+    if (!result || !location.trim() || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/ami-qualifier/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ location, result }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setSavedId(json.item?.id ?? 'saved');
+        if (json.item) {
+          setRailItems(prev => [json.item, ...prev.filter(i => i.id !== json.item.id)]);
+        }
+      }
+    } catch { /* non-fatal */ }
+    setSaving(false);
   }
 
   const pct   = result?.incomeAsPctOfAmi ?? 0;
@@ -361,10 +505,45 @@ export default function AmiQualifierPage() {
           margin-bottom:14px;line-height:1.55;}
         .aq-ffiec-disclaimer{padding:14px 24px;border-top:1px solid rgba(255,255,255,0.06);}
         .aq-ffiec-disclaimer p{font-size:11px;color:#8fa3b8;opacity:0.7;margin:0;line-height:1.55;}
+
+        /* ── Two-column desktop layout ── */
+        .aq-layout{width:100%;display:flex;align-items:flex-start;}
+        .aq-main-wrap{flex:1;display:flex;justify-content:center;min-width:0;}
+        .aq-saved-rail{flex:0 0 268px;width:268px;padding:20px 14px 60px;
+          border-left:1px solid rgba(255,255,255,0.06);
+          position:sticky;top:0;max-height:100vh;overflow-y:auto;}
+        @media(max-width:1099px){
+          .aq-layout{display:block;}
+          .aq-saved-rail{display:none;}
+        }
+
+        /* ── Saved rail cards ── */
+        .aqr-title{font-size:10px;font-weight:700;color:#8fa3b8;letter-spacing:1px;
+          text-transform:uppercase;margin-bottom:12px;display:flex;
+          justify-content:space-between;align-items:center;}
+        .aqr-title a{font-size:10px;color:#3d8bff;font-weight:600;text-decoration:none;
+          text-transform:none;letter-spacing:0;}
+        .aqr-title a:hover{text-decoration:underline;}
+        .aqr-list{display:flex;flex-direction:column;gap:8px;}
+        .aqr-empty{background:#0e1420;border:1px solid rgba(255,255,255,0.06);
+          border-radius:10px;padding:20px 14px;text-align:center;}
+        .aqr-empty-icon{font-size:24px;margin-bottom:8px;}
+        .aqr-empty-text{font-size:12px;color:#8fa3b8;line-height:1.6;margin:0;}
+        .aqr-card{display:flex;border:1px solid rgba(255,255,255,0.07);border-radius:10px;
+          overflow:hidden;cursor:pointer;transition:border-color 0.15s;background:#0e1420;
+          min-height:68px;}
+        .aqr-card:hover{border-color:rgba(0,232,122,0.2);}
+        .aqr-thumb{width:68px;flex-shrink:0;background:#0a1628;}
+        .aqr-body{flex:1;padding:9px 10px;min-width:0;}
+        .aqr-county{font-size:10px;color:#8fa3b8;margin-bottom:2px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .aqr-addr{font-size:12px;font-weight:700;color:#f0f4ff;margin-bottom:4px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .aqr-result{font-size:11px;color:#8fa3b8;line-height:1.4;}
       `}</style>
 
       <div className="aq-root">
-        {/* Hero */}
+        {/* Hero — full width above columns */}
         <div className="aq-hero">
           <div className="aq-eyebrow">AMI Income Qualifier · Preliminary Screen</div>
           <h1 className="aq-h1">Area Median Income Qualifier</h1>
@@ -374,6 +553,9 @@ export default function AmiQualifierPage() {
           </p>
         </div>
 
+        {/* Two-column layout: main form/result left, saved-lookups rail right */}
+        <div className="aq-layout">
+          <div className="aq-main-wrap">
         <main className="aq-main">
           {/* Input card */}
           <div className="aq-card">
@@ -953,6 +1135,19 @@ export default function AmiQualifierPage() {
 
           <div className="aq-disclosure">{EDUCATIONAL_DISCLAIMER}</div>
         </main>
+          </div>{/* end aq-main-wrap */}
+
+          {/* Right rail — saved lookups */}
+          <aside className="aq-saved-rail">
+            <AmiSavedRail
+              user={user}
+              userLoaded={userLoaded}
+              items={railItems}
+              loaded={railLoaded}
+              onRerun={handleRerun}
+            />
+          </aside>
+        </div>{/* end aq-layout */}
       </div>
     </>
   );
