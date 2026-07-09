@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import MarketIntelCard from '@/components/MarketIntelCard';
+import PropertyPhoto from '@/components/PropertyPhoto';
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
 
 interface HomeownerProperty {
@@ -1469,6 +1470,14 @@ function MyHomeRail({ properties, activePropertyId, analysis, photoCache, onSele
           style={{ cursor: isActive ? 'default' : 'pointer' }}
         >
           <div className="mh-rail-thumb" style={photoUrl ? { backgroundImage: `url(${photoUrl})` } : {}}>
+            {!photoUrl && (
+              <PropertyPhoto
+                address={p.property_address}
+                width={480}
+                height={216}
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0 }}
+              />
+            )}
             <div className="mh-rail-thumb-overlay"/>
             <div className="mh-rail-thumb-heading">
               {heading}
