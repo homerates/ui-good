@@ -136,7 +136,7 @@ export default function WelcomePage() {
                   <>
                     <div className="wl-eyebrow" style={{ marginBottom: 8 }}>Founding 500</div>
                     <h1 className="wl-title" style={{ fontSize: "1.5rem" }}>
-                      You&apos;re Founding Member #{foundingNumber}
+                      You&apos;re a Founding Member.
                     </h1>
                     <p className="wl-sub" style={{ marginTop: 8 }}>
                       Your badge is live on your HomeRates profile. You&apos;re locked in at founding pricing — forever.
