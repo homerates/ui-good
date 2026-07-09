@@ -14,6 +14,54 @@ interface PilotData {
   activations: number;
 }
 
+// Per-pilot custom copy. Falls back to DEFAULT_COPY for any slug not listed here.
+// When multiple pilots need custom copy, migrate these fields to company_pilots columns.
+interface PilotCopy {
+  headline: string;
+  sub: string;
+  benefits: (credits: number) => { icon: string; label: string; sub: string }[];
+}
+
+const PILOT_COPY: Record<string, PilotCopy> = {
+  "sunflower-bank": {
+    headline: "AMI reference check for your lending team.",
+    sub: "Enter an address and get the area median income, HomeReady / Home Possible eligibility, CRA / FFIEC tract designation, and conforming loan limits — cross-verified against Fannie Mae’s published data. Pull it up whenever the AMI question comes up.",
+    benefits: (credits) => [
+      {
+        icon: "🔍",
+        label: "AMI Qualifier — start here",
+        sub: "Address → 4-person AMI · HomeReady / Home Possible eligibility · CRA / FFIEC tract designation · conforming loan limits (1–4 units)",
+      },
+      {
+        icon: "⚡",
+        label: `${credits.toLocaleString()} AI analysis credits`,
+        sub: "Run eligibility checks across your pipeline, and explore the rest of the platform",
+      },
+      {
+        icon: "🏅",
+        label: "Founding Member",
+        sub: "Permanently on your profile — you’re in the first wave",
+      },
+      {
+        icon: "💬",
+        label: "Full platform access included",
+        sub: "Rate intelligence, Decision Score, Market Rates, Deal Rooms — all available as you explore further",
+      },
+    ],
+  },
+};
+
+const DEFAULT_COPY: PilotCopy = {
+  headline: "AI mortgage intelligence for your loan officers.",
+  sub: "Live rate data, scenario modeling, and decision scoring — built for LOs who win clients with data, not just price. No credit card. No commitment.",
+  benefits: (credits) => [
+    { icon: "⚡", label: `${credits.toLocaleString()} AI analysis credits`, sub: "Enough to run full scenarios for multiple clients" },
+    { icon: "🏅", label: "Founding Member", sub: "Permanently on your profile — visible to every borrower" },
+    { icon: "💬", label: "Full platform access", sub: "Chat, Market Rates, Decision Score, Deal Rooms — everything" },
+    { icon: "🎯", label: "Direct line to the founders", sub: "Shape the product from day one" },
+  ],
+};
+
 export default function PilotPage() {
   const params = useParams();
   const slug = params?.slug as string;
@@ -46,6 +94,8 @@ export default function PilotPage() {
       </div>
     );
   }
+
+  const copy = PILOT_COPY[pilot?.slug ?? ""] ?? DEFAULT_COPY;
 
   if (notFound || !pilot) {
     return (
@@ -93,21 +143,16 @@ export default function PilotPage() {
 
           {/* Headline */}
           <h1 style={styles.headline}>
-            AI mortgage intelligence<br />for your loan officers.
+            {copy.headline}
           </h1>
 
           <p style={styles.sub}>
-            Live rate data, scenario modeling, and decision scoring — built for LOs who win clients with data, not just price. No credit card. No commitment.
+            {copy.sub}
           </p>
 
           {/* Benefits */}
           <div style={styles.benefits}>
-            {[
-              { icon: "⚡", label: `${pilot.credits_per_lo.toLocaleString()} AI analysis credits`, sub: "Enough to run full scenarios for multiple clients" },
-              { icon: "🏅", label: "Founding Member", sub: "Permanently on your profile — visible to every borrower" },
-              { icon: "💬", label: "Full platform access", sub: "Chat, Market Rates, Decision Score, Deal Rooms — everything" },
-              { icon: "🎯", label: "Direct line to the founders", sub: "Shape the product from day one" },
-            ].map(b => (
+            {copy.benefits(pilot.credits_per_lo).map(b => (
               <div key={b.label} style={styles.benefit}>
                 <span style={styles.benefitIcon}>{b.icon}</span>
                 <div>
