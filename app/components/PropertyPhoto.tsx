@@ -74,6 +74,7 @@ export default function PropertyPhoto({
           key={tier}
           src={src}
           alt="Property photo"
+          loading="lazy"
           onError={() => setTier(t => Math.min(t + 1, 2))}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
