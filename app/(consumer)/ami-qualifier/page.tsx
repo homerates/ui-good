@@ -361,8 +361,8 @@ export default function AmiQualifierPage() {
         .aq-logo{height:24px;width:auto;}
         .aq-header-badge{font-size:11px;color:#8fa3b8;font-weight:500;letter-spacing:0.5px;text-transform:uppercase;}
 
-        .aq-hero{width:100%;max-width:700px;padding:40px 24px 28px;text-align:center;
-          border-bottom:1px solid rgba(255,255,255,0.06);}
+        .aq-hero{padding:36px 0 28px;text-align:center;
+          border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:20px;}
         .aq-eyebrow{font-size:11px;font-weight:700;color:#00e87a;letter-spacing:1px;
           text-transform:uppercase;margin-bottom:10px;}
         .aq-h1{font-size:clamp(1.6rem,3.5vw,2.1rem);font-weight:800;color:#f0f4ff;
@@ -543,20 +543,19 @@ export default function AmiQualifierPage() {
       `}</style>
 
       <div className="aq-root">
-        {/* Hero — full width above columns */}
-        <div className="aq-hero">
-          <div className="aq-eyebrow">AMI Income Qualifier · Preliminary Screen</div>
-          <h1 className="aq-h1">Area Median Income Qualifier</h1>
-          <p className="aq-sub">
-            Check HomeReady, Home Possible, and DPA eligibility by ZIP code,
-            county, or property address — instantly.
-          </p>
-        </div>
-
-        {/* Two-column layout: main form/result left, saved-lookups rail right */}
+        {/* Two-column layout — hero lives inside the main column so both center on the same axis */}
         <div className="aq-layout">
           <div className="aq-main-wrap">
         <main className="aq-main">
+          {/* Hero */}
+          <div className="aq-hero">
+            <div className="aq-eyebrow">AMI Income Qualifier · Preliminary Screen</div>
+            <h1 className="aq-h1">Area Median Income Qualifier</h1>
+            <p className="aq-sub">
+              Check HomeReady, Home Possible, and DPA eligibility by ZIP code,
+              county, or property address — instantly.
+            </p>
+          </div>
           {/* Input card */}
           <div className="aq-card">
             <div className="aq-card-label">Enter Details</div>
