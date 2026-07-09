@@ -135,8 +135,6 @@ export default function FoundingPage() {
 
         /* Confirmation */
         .f-confirmed{text-align:center;padding:48px 0;}
-        .f-confirmed-number{font-size:5rem;font-weight:800;color:#00e87a;line-height:1;margin-bottom:6px;}
-        .f-confirmed-label{font-size:0.78rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#3a5040;margin-bottom:28px;}
         .f-confirmed-title{font-size:1.5rem;font-weight:700;color:#f0f4ff;margin-bottom:12px;}
         .f-confirmed-body{font-size:0.95rem;color:#6b8f7a;line-height:1.7;max-width:420px;margin:0 auto 32px;}
         .f-confirmed-cta{display:inline-block;background:#00e87a;color:#07100f;font-size:0.92rem;font-weight:700;padding:13px 28px;border-radius:10px;text-decoration:none;}
@@ -191,8 +189,7 @@ export default function FoundingPage() {
           {confirmed ? (
             /* ── Confirmation ── */
             <div className="f-confirmed">
-              <div className="f-confirmed-number">#{confirmed.position}</div>
-              <div className="f-confirmed-label">Your waitlist position</div>
+              <div style={{ fontSize: "3rem", marginBottom: 16 }}>🏅</div>
               <div className="f-confirmed-title">You&apos;re on the list, {confirmed.firstName}.</div>
               <p className="f-confirmed-body">
                 We&apos;ll email you the moment a founding spot opens in your market.
