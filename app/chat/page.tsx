@@ -43,6 +43,7 @@ import LockedIntelligenceCard from '@/components/LockedIntelligenceCard';
 import FhaSliderCard from '@/components/FhaSliderCard';
 import AffordabilitySliderCard from '@/components/AffordabilitySliderCard';
 import AffordabilityIncomeSliderCard from '@/components/AffordabilityIncomeSliderCard';
+import AffordabilityPurchaseCard from '@/components/AffordabilityPurchaseCard';
 import DSCRSliderCard from '@/components/DSCRSliderCard';
 import RefiSliderCard from '@/components/RefiSliderCard';
 import RefiIntelligenceCard from '@/components/RefiIntelligenceCard';
@@ -451,6 +452,12 @@ type ApiResponse = {
         annualIncome: number; monthlyDebts: number; savings: number;
         downPct: number; rate: number; term: number;
         taxRate: number; insRate: number; loanType: 'conventional' | 'fha';
+    } | null;
+    affordabilityPurchaseCard?: {
+        loanType: 'conventional' | 'fha' | 'va' | 'jumbo';
+        price: number; downPct: number; rate: number; term: number;
+        taxRate: number; insRate: number;
+        annualIncome?: number; monthlyDebt?: number;
     } | null;
     conventionalAffordabilitySlider?: {
         loanType: 'conventional'; annualIncome: number; monthlyDebts: number; savings: number;
@@ -3663,7 +3670,7 @@ export default function Page() {
                 })()
                 : friendly;
             const _hasBuydownCard = meta.interactiveSlider?.buydownType && meta.interactiveSlider.buydownType !== 'none';
-            const _hasSliderCard = !!(meta.affordabilitySlider || meta.conventionalAffordabilitySlider || meta.fhaAffordabilitySlider || meta.convHBSlider || meta.incomeQualifySlider || meta.fhaSlider || meta.jumboSlider || meta.dscrSlider || meta.vaSlider || meta.refiIntelligenceCard || meta.refiSlider || meta.loanLimitsSlider || meta.jumboAffordabilitySlider || meta.helocCard || _hasBuydownCard);
+            const _hasSliderCard = !!(meta.affordabilitySlider || meta.affordabilityPurchaseCard || meta.conventionalAffordabilitySlider || meta.fhaAffordabilitySlider || meta.convHBSlider || meta.incomeQualifySlider || meta.fhaSlider || meta.jumboSlider || meta.dscrSlider || meta.vaSlider || meta.refiIntelligenceCard || meta.refiSlider || meta.loanLimitsSlider || meta.jumboAffordabilitySlider || meta.helocCard || _hasBuydownCard);
             if (_hasSliderCard) {
                 // Slider card queries: skip typewriter — card entry animation is the visual feedback.
                 // Setting content directly keeps the summary in message state for future reads.
@@ -3995,7 +4002,7 @@ export default function Page() {
                                                         {/* Suppress GrokCard when any slider card is present — card stack speaks for itself.
                                                             Also ALWAYS suppressed when a propertyCard exists (4CS1234 locked standard) —
                                                             including the no-price path where interactiveSlider is null. */}
-                                                        {!m.meta.propertyCard && !m.meta.interactiveSlider?.cmaAddress && (!m.meta.affordabilitySlider && !m.meta.conventionalAffordabilitySlider && !m.meta.fhaAffordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) && (
+                                                        {!m.meta.propertyCard && !m.meta.interactiveSlider?.cmaAddress && (!m.meta.affordabilitySlider && !m.meta.affordabilityPurchaseCard && !m.meta.conventionalAffordabilitySlider && !m.meta.fhaAffordabilitySlider && !m.meta.convHBSlider && !m.meta.incomeQualifySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.dscrSlider && !m.meta.vaSlider && !m.meta.refiIntelligenceCard && !m.meta.refiSlider && !m.meta.loanLimitsSlider && !m.meta.jumboAffordabilitySlider && !m.meta.helocCard && !(m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) && (
                                                         <GrokCard
                                                             data={{
                                                                 // When chips exist: strip follow_up out of grok entirely
@@ -4005,7 +4012,7 @@ export default function Page() {
                                                                     : m.meta.grok,
                                                                 // For slider cards during typing: only show m.content (the friendly summary),
                                                                 // never m.meta.answerMarkdown (which contains the old full tables).
-                                                                answerMarkdown: (m.meta.affordabilitySlider || m.meta.conventionalAffordabilitySlider || m.meta.fhaAffordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider || m.meta.jumboSlider || m.meta.dscrSlider || m.meta.vaSlider || m.meta.refiIntelligenceCard || m.meta.helocCard || (m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none'))
+                                                                answerMarkdown: (m.meta.affordabilitySlider || m.meta.affordabilityPurchaseCard || m.meta.conventionalAffordabilitySlider || m.meta.fhaAffordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider || m.meta.jumboSlider || m.meta.dscrSlider || m.meta.vaSlider || m.meta.refiIntelligenceCard || m.meta.helocCard || (m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none'))
                                                                     ? sanitizeMarkdown(typeof m.content === 'string' ? m.content : '')
                                                                     : sanitizeMarkdown(
                                                                         (typeof m.content === 'string' && m.content.length > 0)
@@ -4014,7 +4021,7 @@ export default function Page() {
                                                                     ),
                                                                 followUp: m.meta.follow_up_chips?.length
                                                                     ? undefined
-                                                                    : ((m.meta.affordabilitySlider || m.meta.conventionalAffordabilitySlider || m.meta.fhaAffordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider || m.meta.jumboSlider || m.meta.dscrSlider || m.meta.vaSlider || m.meta.refiIntelligenceCard || m.meta.helocCard || (m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) ? undefined : (m.meta.followUp ?? undefined)),
+                                                                    : ((m.meta.affordabilitySlider || m.meta.affordabilityPurchaseCard || m.meta.conventionalAffordabilitySlider || m.meta.fhaAffordabilitySlider || m.meta.convHBSlider || m.meta.incomeQualifySlider || m.meta.fhaSlider || m.meta.jumboSlider || m.meta.dscrSlider || m.meta.vaSlider || m.meta.refiIntelligenceCard || m.meta.helocCard || (m.meta.interactiveSlider?.buydownType && m.meta.interactiveSlider.buydownType !== 'none')) ? undefined : (m.meta.followUp ?? undefined)),
                                                                 data_freshness:
                                                                     m.meta.data_freshness ??
                                                                     m.meta.fred?.asOf ??
@@ -4399,6 +4406,18 @@ export default function Page() {
                                                             <AffordabilityIncomeSliderCard
                                                                 fredStamp={fredStampFromMeta(m.meta)}
                                                                 {...m.meta.fhaAffordabilitySlider}
+                                                                onRunScenario={(seed, overrides) => {
+                                                                    pendingParamOverridesRef.current = overrides;
+                                                                    setPendingParamOverrides(overrides);
+                                                                    setTimeout(() => send(seed), 50);
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {/* AFFD-012: purchase-price-hero card */}
+                                                        {m.meta.affordabilityPurchaseCard && !loading && typingId === null && (
+                                                            <AffordabilityPurchaseCard
+                                                                {...m.meta.affordabilityPurchaseCard}
+                                                                fredStamp={fredStampFromMeta(m.meta)}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
