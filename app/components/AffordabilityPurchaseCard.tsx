@@ -1,9 +1,8 @@
 'use client';
 // app/components/AffordabilityPurchaseCard.tsx
-// v2 affordability card — purchase price as hero, one loan-type variant per render.
-// Handles Conv/HB, FHA, VA, Jumbo via loanType prop.
+// v3 — independent sliders, editable number inputs on every field
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import AdminCardBadge from './AdminCardBadge';
 import LockedIntelligenceCard from './LockedIntelligenceCard';
 import { calcPI } from '../../lib/math';
@@ -33,6 +32,7 @@ export interface AffordabilityPurchaseParams {
   onLiveChange?: (vals: { price: number; downPct: number; rate: number; term: number; loanType: string }) => void;
 }
 
+// ── Formatting helpers ────────────────────────────────────────────────────────
 function fmt$(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 }
@@ -41,8 +41,12 @@ function fmtK(n: number) {
   if (n >= 100_000)   return `$${Math.round(n / 1_000)}k`;
   return fmt$(n);
 }
-
-// Compute slider fill % so the CSS gradient updates live
+function parseCurrency(s: string): number {
+  return parseFloat(s.replace(/[$,\s]/g, '')) || 0;
+}
+function parsePct(s: string): number {
+  return parseFloat(s.replace(/[%\s]/g, '')) || 0;
+}
 function fillPct(value: number, min: number, max: number) {
   if (max <= min) return 0;
   return Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
@@ -58,19 +62,24 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const priceStep  = isJumbo ? 25_000 : 5_000;
   const incomeMax  = isJumbo ? 2_000_000 : 600_000;
   const incomeStep = isJumbo ? 10_000 : 5_000;
+  // Fixed down-payment slider range — completely independent of price
+  const downMaxDollar = priceMax / 2;
+
   const dtiThreshold = isVA ? DTI_VA_MAX : DTI_STANDARD_MAX;
   const dtiScale     = isVA ? 50 : 55;
 
   const ltAccent = isFHA ? '#f59e0b' : isVA ? '#14b8a6' : isJumbo ? '#8b5cf6' : '#00e87a';
   const ltLabel  = isFHA ? 'FHA' : isVA ? 'VA' : isJumbo ? 'Jumbo' : 'Conv/HB';
 
-  // ── State ─────────────────────────────────────────────────────────────────
+  // ── Primary state ─────────────────────────────────────────────────────────
   const [price,        setPrice]        = useState(props.price);
-  // Two independent anchors — only the active one drives derived math.
-  // % mode: downPct is the anchor; dollar amount adjusts with price naturally.
-  // $ mode: downAmtFixed is the anchor; % recalculates, price changes don't move $.
+  // Two independent anchors — price slider NEVER touches these.
+  // % mode: downPct is fixed; downAmt is derived from price (expected math).
+  // $ mode: downAmtFixed is fixed; % is derived from current price (info only).
   const [downPct,      setDownPct]      = useState(Math.max(minDown, props.downPct));
-  const [downAmtFixed, setDownAmtFixed] = useState(Math.max(props.price * minDown / 100, props.price * props.downPct / 100));
+  const [downAmtFixed, setDownAmtFixed] = useState(
+    Math.max(props.price * minDown / 100, props.price * Math.max(minDown, props.downPct) / 100)
+  );
   const [downMode,     setDownMode]     = useState<'pct' | 'dollar'>('pct');
   const [rate,         setRate]         = useState(props.rate);
   const [termYrs,      setTermYrs]      = useState(props.term);
@@ -78,10 +87,23 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const [monthlyDebt,  setMonthlyDebt]  = useState(props.monthlyDebt ?? 0);
   const [drawerOpen,   setDrawerOpen]   = useState(false);
 
+  // ── Editable input draft state (null = not editing = show formatted value) ─
+  const [priceDraft,  setPriceDraft]  = useState<string | null>(null);
+  const [downDraft,   setDownDraft]   = useState<string | null>(null);
+  const [rateDraft,   setRateDraft]   = useState<string | null>(null);
+  const [debtDraft,   setDebtDraft]   = useState<string | null>(null);
+  const [incomeDraft, setIncomeDraft] = useState<string | null>(null);
+
   // ── Derived math ──────────────────────────────────────────────────────────
-  // Active down payment: mode determines which anchor is source of truth.
-  const downAmt        = downMode === 'pct' ? price * downPct / 100 : downAmtFixed;
-  const effectiveDownPct = downMode === 'pct' ? downPct : (price > 0 ? (downAmtFixed / price) * 100 : 0);
+  // In $ mode, clamp downAmtFixed so it never exceeds price (edge case only —
+  // the sliders are independent, so this only triggers if user typed a huge #).
+  const downAmt = downMode === 'pct'
+    ? price * downPct / 100
+    : Math.min(downAmtFixed, price > 0 ? price * 0.99 : downAmtFixed);
+
+  const effectiveDownPct = downMode === 'pct'
+    ? downPct
+    : price > 0 ? (downAmt / price) * 100 : 0;
 
   const baseLoan   = price - downAmt;
   const ltv        = price > 0 ? (baseLoan / price) * 100 : 0;
@@ -117,55 +139,63 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
     : jumboZone === 'High-Balance' ? '#f59e0b'
     : '#8b5cf6';
 
-  useEffect(() => {
-    props.onLiveChange?.({ price, downPct: effectiveDownPct, rate, term: termYrs, loanType: props.loanType });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [price, downAmtFixed, downPct, downMode, rate, termYrs]);
+  // ── Commit handlers (called on blur / Enter) ──────────────────────────────
+  function commitPrice(s: string) {
+    const v = Math.round(parseCurrency(s) / priceStep) * priceStep;
+    setPrice(Math.max(100_000, Math.min(priceMax, v || price)));
+  }
+  function commitDown(s: string) {
+    if (downMode === 'pct') {
+      const v = parsePct(s);
+      if (v > 0) setDownSafe(v);
+    } else {
+      const v = parseCurrency(s);
+      if (v >= 0) setDownAmtFixed(Math.max(0, Math.min(downMaxDollar, v)));
+    }
+  }
+  function commitRate(s: string) {
+    const v = Math.round(parsePct(s) / 0.125) * 0.125;
+    setRate(Math.max(3, Math.min(12, v || rate)));
+  }
+  function commitDebt(s: string) {
+    const v = Math.round(parseCurrency(s) / 50) * 50;
+    setMonthlyDebt(Math.max(0, Math.min(3000, isNaN(v) ? 0 : v)));
+  }
+  function commitIncome(s: string) {
+    const v = Math.round(parseCurrency(s) / incomeStep) * incomeStep;
+    setAnnualIncome(Math.max(0, Math.min(incomeMax, isNaN(v) ? 0 : v)));
+  }
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
+  // ── Other handlers ────────────────────────────────────────────────────────
   function setDownSafe(pct: number) {
     setDownPct(Math.max(minDown, Math.min(50, Math.round(pct * 10) / 10)));
   }
-
   function switchToDollar() {
-    setDownAmtFixed(price * downPct / 100); // snapshot current $ so it's the anchor
+    setDownAmtFixed(price * downPct / 100);
+    setDownDraft(null);
     setDownMode('dollar');
   }
-
   function switchToPct() {
-    // downPct already reflects current %; no recalc needed
+    setDownDraft(null);
     setDownMode('pct');
   }
 
-  function handleDownDollar(dollars: number) {
-    const minAmt = Math.round(price * minDown / 100);
-    const maxAmt = Math.round(price * 0.5);
-    setDownAmtFixed(Math.max(minAmt, Math.min(maxAmt, dollars)));
-  }
-
-  // $ slider bounds (based on current price)
-  const downMinAmt = Math.round(price * minDown / 100);
-  const downMaxAmt = Math.round(price * 0.5);
-
   function handleAddressSubmit(addr: string) {
-    if (props.onRunScenario) {
-      props.onRunScenario(addr, {
-        purchasePrice:   Math.round(price),
-        downPaymentPct:  effectiveDownPct,
-        annualRatePct:   rate,
-        termYears:       termYrs,
-        loanType:        props.loanType,
-        ...(isFHA ? { isFHA: true } : {}),
-        ...(isVA  ? { isVA: true  } : {}),
-      });
-    }
+    props.onRunScenario?.(addr, {
+      purchasePrice:  Math.round(price),
+      downPaymentPct: effectiveDownPct,
+      annualRatePct:  rate,
+      termYears:      termYrs,
+      loanType:       props.loanType,
+      ...(isFHA ? { isFHA: true } : {}),
+      ...(isVA  ? { isVA:  true } : {}),
+    });
   }
 
-  // ── Slider fill % helpers ─────────────────────────────────────────────────
+  // ── Slider fill percents ──────────────────────────────────────────────────
   const priceFill   = fillPct(price, 100_000, priceMax);
   const downPctFill = fillPct(downPct, minDown, 50);
-  const downAmtFill = fillPct(downAmtFixed, downMinAmt, downMaxAmt);
+  const downAmtFill = fillPct(downAmtFixed, 0, downMaxDollar);  // fixed range — independent of price
   const rateFill    = fillPct(rate, 3, 12);
   const debtFill    = fillPct(monthlyDebt, 0, 3000);
   const incomeFill  = fillPct(annualIncome, 0, incomeMax);
@@ -187,12 +217,10 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         <span className="apc-tr">Live · CalcEngine</span>
       </div>
 
-      {/* Hero — purchase price */}
+      {/* Hero */}
       <div className="apc-hero">
         <div className="apc-hero-label">Purchase Price</div>
-        <div className="apc-hero-amount" style={{ color: ltAccent }}>
-          {fmt$(price)}
-        </div>
+        <div className="apc-hero-amount" style={{ color: ltAccent }}>{fmt$(price)}</div>
         <div className="apc-hero-sub">
           {fmt$(Math.round(piti))}/mo PITI{isFHA ? '+MIP' : isVA ? ' (no PMI)' : pmi > 0 ? '+PMI' : ''}
           {monthlyDebt > 0 ? ` · ${fmt$(Math.round(monthlyDebt))}/mo debts` : ''}
@@ -224,7 +252,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         </div>
       </div>
 
-      {/* DTI bar — always visible */}
+      {/* DTI bar */}
       <div className="apc-dti-wrap">
         <div className="apc-dti-row">
           <span className="apc-dti-lbl">
@@ -252,7 +280,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         </div>
       </div>
 
-      {/* FHA program note */}
+      {/* FHA note */}
       {isFHA && (
         <div className="apc-prog-note" style={{ borderColor: 'rgba(245,158,11,0.2)', background: 'rgba(245,158,11,0.05)' }}>
           <span className="apc-prog-note-icon" style={{ color: '#f59e0b' }}>ⓘ</span>
@@ -263,7 +291,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         </div>
       )}
 
-      {/* VA program note */}
+      {/* VA note */}
       {isVA && (
         <div className="apc-prog-note" style={{ borderColor: 'rgba(20,184,166,0.2)', background: 'rgba(20,184,166,0.05)' }}>
           <span className="apc-prog-note-icon" style={{ color: '#14b8a6' }}>ⓘ</span>
@@ -274,7 +302,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         </div>
       )}
 
-      {/* Jumbo zone badge */}
+      {/* Jumbo zone */}
       {isJumbo && jumboZone && (
         <div className="apc-jumbo-zone" style={{ borderColor: `${jumboZoneColor}28`, background: `${jumboZoneColor}06` }}>
           <span className="apc-jumbo-badge" style={{ color: jumboZoneColor, background: `${jumboZoneColor}18`, border: `1px solid ${jumboZoneColor}35` }}>
@@ -301,31 +329,36 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         <span className="apc-trigger-arrow">{drawerOpen ? '▴' : '▾'}</span>
       </button>
 
-      {/* Collapsible adjuster drawer */}
+      {/* Adjuster drawer */}
       <div className={`apc-drawer${drawerOpen ? ' open' : ''}`}>
         <div className="apc-drawer-inner">
 
-          {/* Home price */}
+          {/* ── Home Price ── */}
           <div className="apc-field">
             <div className="apc-field-top">
               <span className="apc-field-lbl">Home Price</span>
-              <span className="apc-field-val">{fmt$(price)}</span>
+              <input
+                className="apc-numval"
+                value={priceDraft !== null ? priceDraft : fmt$(price)}
+                onChange={e => setPriceDraft(e.target.value)}
+                onFocus={e => { setPriceDraft(String(price)); e.currentTarget.select(); }}
+                onBlur={() => { commitPrice(priceDraft ?? ''); setPriceDraft(null); }}
+                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              />
             </div>
             <input type="range" className="apc-slider"
               style={{ '--tc': ltAccent, '--val': `${priceFill}%` } as React.CSSProperties}
               min={100_000} max={priceMax} step={priceStep}
               value={price}
               onChange={e => setPrice(Number(e.target.value))} />
-            <div className="apc-range-lbls">
-              <span>$100k</span><span>{isJumbo ? '$10M' : '$3M'}</span>
-            </div>
+            <div className="apc-range-lbls"><span>$100k</span><span>{isJumbo ? '$10M' : '$3M'}</span></div>
           </div>
 
-          {/* Down payment — independent anchors in % and $ modes */}
+          {/* ── Down Payment — fully independent of price slider ── */}
           <div className="apc-field">
             <div className="apc-field-top">
               <span className="apc-field-lbl">Down Payment</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div className="apc-mode-toggle">
                   <button type="button"
                     className={`apc-mode-btn${downMode === 'pct' ? ' active' : ''}`}
@@ -338,13 +371,25 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
                     onClick={switchToDollar}
                   >$</button>
                 </div>
-                <span className="apc-field-val">
-                  {downMode === 'pct'
-                    ? `${downPct.toFixed(1)}% · ${fmt$(Math.round(downAmt))}`
-                    : `${fmt$(Math.round(downAmt))} · ${effectiveDownPct.toFixed(1)}%`}
-                </span>
+                <input
+                  className="apc-numval"
+                  style={{ width: 100 }}
+                  value={
+                    downDraft !== null ? downDraft
+                    : downMode === 'pct' ? `${downPct.toFixed(1)}%`
+                    : fmt$(Math.round(downAmtFixed))
+                  }
+                  onChange={e => setDownDraft(e.target.value)}
+                  onFocus={e => {
+                    setDownDraft(downMode === 'pct' ? String(downPct) : String(Math.round(downAmtFixed)));
+                    e.currentTarget.select();
+                  }}
+                  onBlur={() => { commitDown(downDraft ?? ''); setDownDraft(null); }}
+                  onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                />
               </div>
             </div>
+
             {downMode === 'pct' ? (
               <>
                 <input type="range" className="apc-slider"
@@ -353,27 +398,34 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
                   value={downPct}
                   onChange={e => setDownSafe(Number(e.target.value))} />
                 <div className="apc-range-lbls"><span>{minDown}%</span><span>50%</span></div>
+                <div className="apc-field-secondary">= {fmt$(Math.round(downAmt))} at current price</div>
               </>
             ) : (
               <>
+                {/* Fixed range [0 → priceMax/2] — no dependency on price whatsoever */}
                 <input type="range" className="apc-slider"
                   style={{ '--tc': ltAccent, '--val': `${downAmtFill}%` } as React.CSSProperties}
-                  min={downMinAmt} max={downMaxAmt} step={1000}
+                  min={0} max={downMaxDollar} step={1000}
                   value={Math.round(downAmtFixed)}
-                  onChange={e => handleDownDollar(Number(e.target.value))} />
-                <div className="apc-range-lbls">
-                  <span>{fmt$(downMinAmt)}</span>
-                  <span>{fmtK(downMaxAmt)}</span>
-                </div>
+                  onChange={e => setDownAmtFixed(Number(e.target.value))} />
+                <div className="apc-range-lbls"><span>$0</span><span>{fmtK(downMaxDollar)}</span></div>
+                <div className="apc-field-secondary">= {effectiveDownPct.toFixed(1)}% of current price</div>
               </>
             )}
           </div>
 
-          {/* Interest rate */}
+          {/* ── Interest Rate ── */}
           <div className="apc-field">
             <div className="apc-field-top">
               <span className="apc-field-lbl">Interest Rate</span>
-              <span className="apc-field-val">{rate.toFixed(3)}%</span>
+              <input
+                className="apc-numval"
+                value={rateDraft !== null ? rateDraft : `${rate.toFixed(3)}%`}
+                onChange={e => setRateDraft(e.target.value)}
+                onFocus={e => { setRateDraft(String(rate)); e.currentTarget.select(); }}
+                onBlur={() => { commitRate(rateDraft ?? ''); setRateDraft(null); }}
+                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              />
             </div>
             <input type="range" className="apc-slider"
               style={{ '--tc': ltAccent, '--val': `${rateFill}%` } as React.CSSProperties}
@@ -383,28 +435,41 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
             <div className="apc-range-lbls"><span>3%</span><span>12%</span></div>
           </div>
 
-          {/* Monthly debts */}
+          {/* ── Monthly Debts ── */}
           <div className="apc-field">
             <div className="apc-field-top">
               <span className="apc-field-lbl">Monthly Debts</span>
-              <span className="apc-field-val" style={{ color: monthlyDebt > 0 ? '#f59e0b' : undefined }}>
-                {monthlyDebt === 0 ? 'None' : fmt$(monthlyDebt) + '/mo'}
-              </span>
+              <input
+                className="apc-numval"
+                style={{ color: monthlyDebt > 0 && debtDraft === null ? '#f59e0b' : undefined }}
+                value={debtDraft !== null ? debtDraft : monthlyDebt === 0 ? '$0' : fmt$(monthlyDebt)}
+                onChange={e => setDebtDraft(e.target.value)}
+                onFocus={e => { setDebtDraft(String(monthlyDebt)); e.currentTarget.select(); }}
+                onBlur={() => { commitDebt(debtDraft ?? ''); setDebtDraft(null); }}
+                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              />
             </div>
             <input type="range" className="apc-slider apc-slider--debt"
               style={{ '--val': `${debtFill}%` } as React.CSSProperties}
               min={0} max={3000} step={50}
               value={monthlyDebt}
               onChange={e => setMonthlyDebt(Number(e.target.value))} />
-            <div className="apc-range-lbls"><span>$0</span><span>$3k/mo</span></div>
+            <div className="apc-range-lbls"><span>$0</span><span>$3,000/mo</span></div>
             <div className="apc-field-hint">Cars, credit cards, student loans</div>
           </div>
 
-          {/* Annual income */}
+          {/* ── Annual Income ── */}
           <div className="apc-field">
             <div className="apc-field-top">
               <span className="apc-field-lbl">Annual Income</span>
-              <span className="apc-field-val">{annualIncome === 0 ? '—' : fmtK(annualIncome) + '/yr'}</span>
+              <input
+                className="apc-numval"
+                value={incomeDraft !== null ? incomeDraft : annualIncome === 0 ? '$0' : fmt$(annualIncome)}
+                onChange={e => setIncomeDraft(e.target.value)}
+                onFocus={e => { setIncomeDraft(String(annualIncome)); e.currentTarget.select(); }}
+                onBlur={() => { commitIncome(incomeDraft ?? ''); setIncomeDraft(null); }}
+                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              />
             </div>
             <input type="range" className="apc-slider"
               style={{ '--tc': ltAccent, '--val': `${incomeFill}%` } as React.CSSProperties}
@@ -415,7 +480,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
             {annualIncome === 0 && <div className="apc-field-hint">Optional — updates DTI bar above</div>}
           </div>
 
-          {/* Loan term */}
+          {/* ── Loan Term ── */}
           <div className="apc-field">
             <div className="apc-field-top">
               <span className="apc-field-lbl">Loan Term</span>
@@ -424,9 +489,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
               {([15, 20, 30] as const).map(yr => (
                 <button type="button" key={yr}
                   className={`apc-term${termYrs === yr ? ' active' : ''}`}
-                  style={termYrs === yr
-                    ? { borderColor: `${ltAccent}55`, color: ltAccent, background: `${ltAccent}12` }
-                    : {}}
+                  style={termYrs === yr ? { borderColor: `${ltAccent}55`, color: ltAccent, background: `${ltAccent}12` } : {}}
                   onClick={() => setTermYrs(yr)}
                 >{yr}yr</button>
               ))}
@@ -436,7 +499,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         </div>
       </div>
 
-      {/* CTA — existing LockedIntelligenceCard (address input → property lookup) */}
+      {/* CTA — address input → property lookup */}
       <div className="apc-lic-wrap">
         <LockedIntelligenceCard onSubmitAddress={handleAddressSubmit} />
       </div>
@@ -460,10 +523,9 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
           border-radius: 16px;
           overflow: clip;
           margin-top: 14px;
-          font-family: system-ui, -apple-system, sans-serif;
+          font-family: system-ui,-apple-system,sans-serif;
           color: #f0f4ff;
         }
-
         .apc-topbar {
           display: flex; align-items: center; justify-content: space-between;
           padding: 10px 16px;
@@ -474,38 +536,17 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         .apc-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
         .apc-tl { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #94a3b8; }
         .apc-tr { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: rgba(234,248,247,0.7); }
-        .apc-lt-badge {
-          font-size: 9px; font-weight: 800; padding: 2px 7px;
-          border-radius: 20px; letter-spacing: .06em; text-transform: uppercase;
-        }
+        .apc-lt-badge { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 20px; letter-spacing: .06em; text-transform: uppercase; }
 
         .apc-hero { padding: 18px 18px 10px; }
-        .apc-hero-label {
-          font-size: 10px; font-weight: 700; text-transform: uppercase;
-          letter-spacing: .1em; color: #94a3b8; margin-bottom: 4px;
-        }
-        .apc-hero-amount {
-          font-size: 38px; font-weight: 800; letter-spacing: -0.03em; line-height: 1;
-          font-variant-numeric: tabular-nums;
-        }
+        .apc-hero-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #94a3b8; margin-bottom: 4px; }
+        .apc-hero-amount { font-size: 38px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
         .apc-hero-sub { font-size: 12px; color: #8fa3b8; margin-top: 6px; line-height: 1.4; }
 
-        .apc-tiles {
-          display: grid; grid-template-columns: 1fr 1fr 1fr;
-          margin: 10px 16px 12px;
-          background: #0e1420;
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 12px; overflow: hidden;
-        }
+        .apc-tiles { display: grid; grid-template-columns: 1fr 1fr 1fr; margin: 10px 16px 12px; background: #0e1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; overflow: hidden; }
         .apc-tile { padding: 12px 14px; }
-        .apc-tile--mid {
-          border-left: 1px solid rgba(255,255,255,0.06);
-          border-right: 1px solid rgba(255,255,255,0.06);
-        }
-        .apc-tile-label {
-          font-size: 9px; font-weight: 700; text-transform: uppercase;
-          letter-spacing: .07em; color: #8fa3b8; margin-bottom: 4px;
-        }
+        .apc-tile--mid { border-left: 1px solid rgba(255,255,255,0.06); border-right: 1px solid rgba(255,255,255,0.06); }
+        .apc-tile-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #8fa3b8; margin-bottom: 4px; }
         .apc-tile-val { font-size: 15px; font-weight: 800; color: #f0f4ff; font-variant-numeric: tabular-nums; }
         .apc-tile-sub { font-size: 10px; color: #8fa3b8; margin-top: 2px; }
 
@@ -518,108 +559,77 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         .apc-dti-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: rgba(255,255,255,0.3); border-radius: 1px; transform: translateX(-50%); }
         .apc-dti-legend { display: flex; justify-content: space-between; font-size: 9px; color: #4b6080; margin-top: 5px; }
 
-        .apc-prog-note {
-          margin: 0 16px 10px; border: 1px solid; border-radius: 10px; padding: 9px 13px;
-          display: flex; align-items: flex-start; gap: 7px;
-          font-size: 11.5px; color: #94a3b8; line-height: 1.5;
-        }
+        .apc-prog-note { margin: 0 16px 10px; border: 1px solid; border-radius: 10px; padding: 9px 13px; display: flex; align-items: flex-start; gap: 7px; font-size: 11.5px; color: #94a3b8; line-height: 1.5; }
         .apc-prog-note-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
 
         .apc-jumbo-zone { margin: 0 16px 10px; border: 1px solid; border-radius: 10px; padding: 10px 13px; display: flex; align-items: flex-start; gap: 10px; }
         .apc-jumbo-badge { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 20px; flex-shrink: 0; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; margin-top: 1px; }
         .apc-jumbo-note { font-size: 11.5px; color: rgba(255,255,255,0.5); line-height: 1.45; }
 
-        .apc-trigger {
-          width: 100%; display: flex; align-items: center; justify-content: space-between;
-          padding: 12px 18px; background: transparent; border: none;
-          border-top: 1px solid rgba(255,255,255,0.07);
-          cursor: pointer; font-family: inherit;
-          color: #8fa3b8; transition: background 0.15s, color 0.15s, border-color 0.15s;
-        }
+        .apc-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; background: transparent; border: none; border-top: 1px solid rgba(255,255,255,0.07); cursor: pointer; font-family: inherit; color: #8fa3b8; transition: background 0.15s, color 0.15s; }
         .apc-trigger:hover { background: rgba(255,255,255,0.02); color: #f0f4ff; }
         .apc-trigger-lbl { font-size: 13px; font-weight: 600; }
-        .apc-trigger-arrow { font-size: 14px; flex-shrink: 0; transition: transform 0.18s; }
+        .apc-trigger-arrow { font-size: 14px; }
 
         .apc-drawer { max-height: 0; overflow: hidden; transition: max-height 0.38s cubic-bezier(0.4,0,0.2,1); }
-        .apc-drawer.open { max-height: 900px; }
-        .apc-drawer-inner {
-          padding: 16px 18px 8px; background: #0a0f18;
-          border-top: 1px solid rgba(255,255,255,0.06);
-          display: flex; flex-direction: column; gap: 16px;
-        }
+        .apc-drawer.open { max-height: 1000px; }
+        .apc-drawer-inner { padding: 16px 18px 12px; background: #0a0f18; border-top: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; gap: 18px; }
 
-        .apc-field { display: flex; flex-direction: column; gap: 6px; }
+        .apc-field { display: flex; flex-direction: column; gap: 8px; }
         .apc-field-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .apc-field-lbl { font-size: 12px; font-weight: 600; color: #8fa3b8; }
-        .apc-field-val { font-size: 12px; font-weight: 700; color: #f0f4ff; }
+        .apc-field-lbl { font-size: 12px; font-weight: 600; color: #8fa3b8; flex-shrink: 0; }
         .apc-field-hint { font-size: 10.5px; color: #4b6080; }
+        .apc-field-secondary { font-size: 10.5px; color: #4b6080; text-align: right; margin-top: -2px; }
 
-        .apc-mode-toggle { display: flex; border-radius: 6px; overflow: hidden; }
-        .apc-mode-btn {
-          padding: 3px 7px; font-size: 10px; font-weight: 700;
-          background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
-          color: #8fa3b8; cursor: pointer; font-family: inherit; transition: all 0.12s;
+        /* Editable number input */
+        .apc-numval {
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 6px;
+          padding: 4px 10px;
+          font-size: 12px;
+          font-weight: 700;
+          color: #f0f4ff;
+          text-align: right;
+          width: 120px;
+          font-family: system-ui,-apple-system,sans-serif;
+          font-variant-numeric: tabular-nums;
+          outline: none;
+          transition: border-color 0.12s, background 0.12s;
+          cursor: text;
+          flex-shrink: 0;
         }
+        .apc-numval:focus {
+          border-color: rgba(255,255,255,0.35);
+          background: rgba(255,255,255,0.09);
+        }
+
+        .apc-mode-toggle { display: flex; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+        .apc-mode-btn { padding: 3px 8px; font-size: 10px; font-weight: 700; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: #8fa3b8; cursor: pointer; font-family: inherit; transition: all 0.12s; }
         .apc-mode-btn:first-child { border-right: none; border-radius: 6px 0 0 6px; }
-        .apc-mode-btn:last-child  { border-left: none; border-radius: 0 6px 6px 0; }
+        .apc-mode-btn:last-child  { border-left:  none; border-radius: 0 6px 6px 0; }
 
-        /* Range slider — --val drives the live fill, --tc drives the color */
-        .apc-slider {
-          -webkit-appearance: none; appearance: none;
-          width: 100%; height: 4px; border-radius: 2px;
-          background: linear-gradient(to right,
-            var(--tc, #00e87a) 0%,
-            var(--tc, #00e87a) var(--val, 0%),
-            rgba(255,255,255,0.12) var(--val, 0%)
-          );
-          outline: none; cursor: pointer;
-        }
-        .apc-slider--debt {
-          background: linear-gradient(to right,
-            #f59e0b 0%,
-            #f59e0b var(--val, 0%),
-            rgba(255,255,255,0.12) var(--val, 0%)
-          );
-        }
-        .apc-slider::-webkit-slider-thumb {
-          -webkit-appearance: none; appearance: none;
-          width: 16px; height: 16px; border-radius: 50%;
-          background: #f0f4ff; cursor: pointer;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.5);
-        }
-        .apc-slider::-moz-range-thumb {
-          width: 16px; height: 16px; border-radius: 50%; border: none;
-          background: #f0f4ff; cursor: pointer;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.5);
-        }
-        .apc-range-lbls { display: flex; justify-content: space-between; font-size: 9.5px; color: #4b6080; }
+        /* Range slider */
+        .apc-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--tc,#00e87a) 0%, var(--tc,#00e87a) var(--val,0%), rgba(255,255,255,0.12) var(--val,0%)); outline: none; cursor: pointer; }
+        .apc-slider--debt { background: linear-gradient(to right, #f59e0b 0%, #f59e0b var(--val,0%), rgba(255,255,255,0.12) var(--val,0%)); }
+        .apc-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #f0f4ff; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+        .apc-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; border: none; background: #f0f4ff; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+        .apc-range-lbls { display: flex; justify-content: space-between; font-size: 9.5px; color: #4b6080; margin-top: -2px; }
 
         .apc-terms { display: flex; gap: 8px; }
-        .apc-term {
-          flex: 1; padding: 9px 0; border-radius: 8px;
-          border: 1.5px solid rgba(255,255,255,0.1);
-          background: rgba(255,255,255,0.03);
-          font-size: 12px; font-weight: 600; color: #94a3b8;
-          cursor: pointer; font-family: inherit; text-align: center; transition: all 0.15s;
-        }
+        .apc-term { flex: 1; padding: 9px 0; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); font-size: 12px; font-weight: 600; color: #94a3b8; cursor: pointer; font-family: inherit; text-align: center; transition: all 0.15s; }
         .apc-term:hover:not(.active) { border-color: rgba(255,255,255,0.18); color: #f0f4ff; }
 
-        /* LIC wrapper — strip the LIC's own margin so it sits flush */
         .apc-lic-wrap { margin-top: 2px; }
         .apc-lic-wrap > * { margin-top: 0 !important; border-radius: 0 0 14px 14px !important; }
 
-        .apc-disc {
-          margin: 0 16px 16px;
-          background: rgba(255,255,255,0.02);
-          border: 1px solid rgba(255,255,255,0.04);
-          border-radius: 10px; padding: 10px 13px;
-          font-size: 10.5px; color: rgba(148,163,184,0.65); line-height: 1.6;
-        }
+        .apc-disc { margin: 0 16px 16px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 10px; padding: 10px 13px; font-size: 10.5px; color: rgba(148,163,184,0.65); line-height: 1.6; }
 
         @media (max-width: 480px) {
           .apc-hero-amount { font-size: 30px; }
           .apc-tile { padding: 10px 10px; }
           .apc-tile-val { font-size: 13px; }
+          .apc-numval { width: 90px; }
         }
       `}</style>
     </div>
