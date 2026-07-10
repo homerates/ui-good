@@ -34,7 +34,7 @@ export default function WelcomePage() {
   const searchParams = useSearchParams();
   const roleFromUrl = searchParams?.get("role") as UserType | null;
   const pilotSlug = searchParams?.get("pilot") ?? null;
-  const { getToken } = useAuth();
+  const { isLoaded, userId, getToken } = useAuth();
   // Pilot LOs default straight to "lo" — skip role picker ambiguity
   const [type, setType] = useState<UserType | "">(pilotSlug ? "lo" : (roleFromUrl ?? ""));
   const [nmls, setNmls] = useState("");
@@ -48,6 +48,16 @@ export default function WelcomePage() {
   const [foundingNumber, setFoundingNumber] = useState<number | null>(null);
   // checking = true while we verify existing session — prevents flash of role selection form
   const [checking, setChecking] = useState(true);
+
+  // If Clerk is loaded but the user isn't authenticated, send them to sign-in preserving
+  // the current URL (including ?pilot=...&role=lo params) as the redirect target.
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!userId) {
+      const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.replace(`/sign-in?redirect_url=${redirect}`);
+    }
+  }, [isLoaded, userId]);
 
   // Auto-submit if role is pre-determined from URL and needs no extra fields (borrower)
   useEffect(() => {
@@ -67,8 +77,10 @@ export default function WelcomePage() {
     };
   }, [getToken]);
 
-  // For existing (already-registered) users: claim any pending waitlist invite then redirect
+  // For existing (already-registered) users: claim any pending waitlist invite then redirect.
+  // Only runs once Clerk has confirmed the user is authenticated (isLoaded && userId).
   useEffect(() => {
+    if (!isLoaded || !userId) return;
     let cancelled = false;
     (async () => {
       try {
@@ -92,7 +104,7 @@ export default function WelcomePage() {
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isLoaded, userId]);
 
   const canSubmit = Boolean(
     type && (
