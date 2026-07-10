@@ -14,6 +14,8 @@ out/
 
 # claude local settings (contains API keys — never commit)
 .claude/settings.local.json
+# claude agent worktrees — never commit, Vercel can't fetch them
+.claude/worktrees/
 
 # logs
 npm-debug.log*
