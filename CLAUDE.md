@@ -27,6 +27,46 @@
 6. **Full process is in `DEPLOY_WORKFLOW.md`.** Reference it for branch
    strategy, migration steps, env var table, and staging reset instructions.
 
+## CRM Hard Rules
+
+**Applies to every migration, API route, TypeScript type, and prompt-construction function
+touching the CRM system (`borrowers` seed context, `crm_touchpoints`, `crm_outreach_consents`).**
+Authoritative source: `COMPLIANCE_DECISIONS.md`. These rules summarise Decisions 1 and 2 for
+in-session enforcement — do not shorten or paraphrase them away.
+
+### Decision 1 — Permanent Denylist (income, credit, debt ratios)
+
+These identifiers must never appear as column names, `key_facts` keys, TypeScript type
+fields, or generation-prompt inputs — in any form, including bucketed / banded variants.
+If you encounter a request that would require adding one, STOP and flag it explicitly.
+
+| Category | Barred identifiers |
+|---|---|
+| Income | `annual_income`, `monthly_income`, `gross_income`, `net_income`, `income`, `household_income`, `stated_income` |
+| Credit | `credit_score`, `fico_score`, `fico`, `credit_range`, `credit_bucket`, `credit_band`, `vantage_score`, `credit_score_range` |
+| Debt ratios | `dti`, `debt_to_income`, `front_end_dti`, `back_end_dti`, `monthly_debt`, `total_debt` |
+
+`credit_score_range` was proposed in the CRM design doc and explicitly rejected — no bucketed
+or banded credit form is permitted either.
+
+### Decision 2 — note fact excluded from generation (ECOA)
+
+`NoteFact` (`key: 'note'`) in `CrmKeyFact` is visible to the LO in the pre-call brief but
+must never reach the generation prompt. The exclusion is structurally enforced via
+`CrmGenerationFact = Exclude<CrmKeyFact, NoteFact>` in `lib/crm/types.ts`. Every API route
+that builds generation context must call `toGenerationTouchpoint()` — never pass raw
+`CrmTouchpoint.key_facts` to a prompt directly.
+
+### Decision 2 — Prohibited key_facts keys (ECOA / fair lending)
+
+These keys must never be added to the `CrmKeyFact` discriminated union. If an LO needs to
+note something that touches a protected characteristic, the only path is the freeform `note`
+fact (which is excluded from AI generation): `family_status`, `familial_status`, `children`,
+`marital_status`, `religion`, `national_origin`, `race`, `ethnicity`, `age`, `disability`,
+`public_assistance`.
+
+---
+
 ## Navigation Hard Rules
 
 Before designing, scoping, or building ANY change that touches navigation menus,
