@@ -144,6 +144,8 @@ function journeySetSid(addr: string, sid: string): void {
 export default function ConvHBSliderCard(props: ConvHBSliderParams) {
     const [price,      setPrice]      = useState(props.price);
     const [downPct,    setDownPct]    = useState(props.downPct);
+    const [downMode,   setDownMode]   = useState<'pct' | 'amt'>('pct');
+    const [downAmt,    setDownAmt]    = useState(Math.round(props.price * props.downPct / 100));
     const [rate,       setRate]       = useState(props.rate);
     const [termYrs,    setTermYrs]    = useState(props.term);
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -206,8 +208,9 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
     // ── Derived ───────────────────────────────────────────────────────────────
 
-    const downAmt   = price * downPct / 100;
-    const loanAmt   = price - downAmt;
+    const effectiveDownAmt = downMode === 'amt' ? downAmt : Math.round(price * downPct / 100);
+    const effectiveDownPct = downMode === 'pct' ? downPct : parseFloat(((downAmt / price) * 100).toFixed(2));
+    const loanAmt          = price - effectiveDownAmt;
     const ltv       = (loanAmt / price) * 100;
     const pi        = calcPI(loanAmt, rate, termYrs);
     const tax       = (price * props.taxRate) / 12;
@@ -257,7 +260,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
         if (zone === 'exceeds') {
             const tgtLimit = isHBCounty ? countyLimit : NATIONAL_BASELINE;
             const tgtDown  = price - tgtLimit;
-            const extra    = Math.max(0, tgtDown - downAmt);
+            const extra    = Math.max(0, tgtDown - effectiveDownAmt);
             if (extra <= 0) return null;
             const label    = isHBCounty
                 ? `Down to High Balance (${fmt$(countyLimit)} limit)`
@@ -268,7 +271,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
         }
         if (zone === 'highbal') {
             const tgtDown = price - NATIONAL_BASELINE;
-            const extra   = Math.max(0, tgtDown - downAmt);
+            const extra   = Math.max(0, tgtDown - effectiveDownAmt);
             if (extra <= 0) return null;
             const newPI   = calcPI(NATIONAL_BASELINE, rate, termYrs);
             const savings = total - (newPI + tax + ins);
@@ -276,7 +279,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
         }
         if (pmi > 0) {
             const tgtDown = price * 0.20;
-            const extra   = Math.max(0, tgtDown - downAmt);
+            const extra   = Math.max(0, tgtDown - effectiveDownAmt);
             if (extra <= 0) return null;
             const newPI   = calcPI(price - tgtDown, rate, termYrs);
             const savings = total - (newPI + tax + ins);
@@ -332,7 +335,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
 
     function handleCheckProperty() {
         const p = new URLSearchParams({
-            price: String(Math.round(price)), dp: String(downPct),
+            price: String(Math.round(price)), dp: String(effectiveDownPct),
             rate: rate.toFixed(3), term: String(termYrs),
             lt: 'conventional',
             taxRate: props.taxRate.toFixed(5), insRate: props.insRate.toFixed(5),
@@ -344,7 +347,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
         if (!props.onRunScenario) return;
         const dStr = debts > 0 ? ` with ${fmt$(debts)}/mo in other debts` : '';
         const seed = `Conventional loan on ${fmtK(price)} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs} year fixed${dStr}`;
-        props.onRunScenario(seed, { isConvHB: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, termYears: termYrs, monthlyDebts: debts, changedKeys: ['purchasePrice', 'downPaymentPct', 'annualRatePct'] });
+        props.onRunScenario(seed, { isConvHB: true, purchasePrice: price, downPaymentPct: effectiveDownPct, annualRatePct: rate, termYears: termYrs, monthlyDebts: debts, changedKeys: ['purchasePrice', 'downPaymentPct', 'annualRatePct'] });
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -402,7 +405,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                     <div className="chb-hero-label">Est. Monthly PITI</div>
                     <div className="chb-hero-amount">{fmt$(animTotal)}<span className="chb-hero-mo">/mo</span></div>
                     <div className="chb-hero-sub">
-                        {pmi > 0 ? `P&I + Tax + Ins + PMI (${fmt$(animPmi)}/mo)` : `No PMI · ${downPct}% down`}
+                        {pmi > 0 ? `P&I + Tax + Ins + PMI (${fmt$(animPmi)}/mo)` : `No PMI · ${effectiveDownPct.toFixed(1)}% down`}
                     </div>
                 </div>
                 <div className="chb-hero-stats">
@@ -461,13 +464,39 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                     onChange={setPrice} format={v => fmt$(v)} minLabel="$100k" maxLabel="$3M"
                     trackColor={zc.color} theme="dark" />
 
-                <SliderField label="Down Payment" value={downPct} min={3} max={50} step={1}
-                    onChange={setDownPct} format={v => `${v}% · ${fmt$(price * v / 100)}`}
-                    minLabel="3%" maxLabel="50%" trackColor={zc.color} theme="dark" />
+                <div className="chb-dp-mode">
+                    {(['pct', 'amt'] as const).map(m => (
+                        <button key={m}
+                            className={`chb-dp-mode-btn${downMode === m ? ' active' : ''}`}
+                            onClick={() => {
+                                if (m === downMode) return;
+                                if (m === 'amt') setDownAmt(Math.round(price * downPct / 100));
+                                else setDownPct(parseFloat(((downAmt / price) * 100).toFixed(2)));
+                                setDownMode(m);
+                            }}
+                        >{m === 'pct' ? '[%]' : '[$]'}</button>
+                    ))}
+                </div>
+                {downMode === 'pct' ? (
+                    <SliderField label="Down Payment" value={downPct} min={3} max={50} step={1}
+                        onChange={setDownPct} format={v => `${v}% · ${fmt$(price * v / 100)}`}
+                        minLabel="3%" maxLabel="50%" trackColor={zc.color} theme="dark" />
+                ) : (
+                    <SliderField label="Down Payment" value={downAmt}
+                        min={Math.round(price * 0.03)} max={Math.round(price * 0.5)} step={1000}
+                        onChange={setDownAmt} format={v => `${fmt$(v)} · ${(v / price * 100).toFixed(1)}%`}
+                        minLabel={`${fmt$(Math.round(price * 0.03))}`} maxLabel={`${fmt$(Math.round(price * 0.5))}`}
+                        trackColor={zc.color} theme="dark" />
+                )}
                 <div className="chb-dp-chips">
                     {[3, 5, 10, 20, 25].map(pct => (
-                        <button key={pct} className={`chb-dp-chip${downPct === pct ? ' active' : ''}`}
-                            onClick={() => setDownPct(pct)}>{pct}%</button>
+                        <button key={pct}
+                            className={`chb-dp-chip${Math.round(effectiveDownPct) === pct ? ' active' : ''}`}
+                            onClick={() => {
+                                if (downMode === 'pct') setDownPct(pct);
+                                else setDownAmt(Math.round(price * pct / 100));
+                            }}
+                        >{pct}%</button>
                     ))}
                 </div>
 
@@ -533,7 +562,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                     onClick={() => props.onRunScenario!('Full Income Analysis', {
                         isIncomeQualify: true,
                         purchasePrice:   price,
-                        downPaymentPct:  downPct,
+                        downPaymentPct:  effectiveDownPct,
                         annualRatePct:   rate,
                         termYears:       termYrs,
                         loanType:        'conventional',
@@ -648,7 +677,7 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                     <div className="chb-dsec">
                         <div className="chb-dsec-label">Full Loan Summary</div>
                         <div className="chb-kv2"><span>Purchase Price</span><span>{fmt$(price)}</span></div>
-                        <div className="chb-kv2"><span>Down Payment</span><span>{fmt$(downAmt)} ({downPct}%)</span></div>
+                        <div className="chb-kv2"><span>Down Payment</span><span>{fmt$(effectiveDownAmt)} ({effectiveDownPct.toFixed(1)}%)</span></div>
                         <div className="chb-kv2"><span>Loan Amount</span><span>{fmt$(loanAmt)}</span></div>
                         <div className="chb-kv2"><span>LTV Ratio</span><span>{ltv.toFixed(1)}%</span></div>
                         <div className="chb-kv2"><span>Interest Rate</span><span>{rate.toFixed(3)}%</span></div>
@@ -730,6 +759,11 @@ export default function ConvHBSliderCard(props: ConvHBSliderParams) {
                 .chb-loc-input:focus { border-color:#00e87a; background:rgba(0,232,122,0.06); }
                 .chb-loc-pin { position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:12px; pointer-events:none; }
                 .chb-loc-hint { font-size:10px; color: #eaf8f7; margin-top:5px; }
+
+                /* DP mode toggle */
+                .chb-dp-mode { display:flex; gap:4px; margin-bottom:6px; }
+                .chb-dp-mode-btn { padding:3px 10px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); font-size:10px; font-weight:700; color:#8fa3b8; cursor:pointer; font-family:inherit; letter-spacing:.04em; transition:all .12s; }
+                .chb-dp-mode-btn.active { border-color:var(--chb-color); color:var(--chb-color); background:var(--chb-bg); }
 
                 /* DP chips */
                 .chb-dp-chips { display:flex; gap:6px; flex-wrap:wrap; margin:-4px 0 14px; }
