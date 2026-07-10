@@ -86,6 +86,18 @@ export interface BuiltCard {
         insRate: number;
         loanLimit?: number;
     } | null;
+    /** AFFD-012: purchase-price-hero card — one loan type per card, fires alongside ISC */
+    affordabilityPurchaseCard?: {
+        loanType: 'conventional' | 'fha' | 'va' | 'jumbo';
+        price: number;
+        downPct: number;
+        rate: number;
+        term: number;
+        taxRate: number;
+        insRate: number;
+        annualIncome?: number;
+        monthlyDebt?: number;
+    } | null;
     /** AFFD-011: new single-program FHA affordability card */
     fhaAffordabilitySlider?: {
         loanType: 'fha';

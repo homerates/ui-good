@@ -97,6 +97,13 @@ export const CARD_REGISTRY: Record<string, { code: string; name: string; family:
   '4CS2341-VA':    { code: '4CS2341-VA',    name: 'Stack: Scenario → VA',          family: 'Stack / Scenario-First',   trigger: 'vaSlider · VA scenario seed',                  outputs: 'ISC + IQC + LIC (no property)' },
   '2CS-CONV-JUMBO':{ code: '2CS-CONV-JUMBO',name: 'Stack: Conv vs Jumbo',          family: 'Stack / Comparison',       trigger: 'loan amount near $832,750 threshold',          outputs: 'Side-by-side Conv + Jumbo scenario columns' },
   '2CS-CONV-FHA':  { code: '2CS-CONV-FHA',  name: 'Stack: Conv vs FHA',            family: 'Stack / Comparison',       trigger: 'low down payment / FHA eligibility intent',    outputs: 'Side-by-side Conv + FHA scenario columns' },
+  'AFFD-012': {
+    code:    'AFFD-012',
+    name:    'Affordability Purchase Card',
+    family:  'Scenario / Buyer',
+    trigger: 'affordability intent — purchase price hero, one loan-type variant per card',
+    outputs: 'Purchase price hero, loan amount / LTV / income-to-qualify tiles, DTI bar, adjuster drawer, Check a Property CTA',
+  },
 };
 
 const STORAGE_KEY = 'hr_admin_card_labels';

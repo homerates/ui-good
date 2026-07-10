@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
             alignItems: "center",
             gap: 7,
           }}>
-            ✦ FIRST AI MORTGAGE INTELLIGENCE PLATFORM
+            • FIRST AI MORTGAGE INTELLIGENCE PLATFORM
           </div>
         </div>
 
