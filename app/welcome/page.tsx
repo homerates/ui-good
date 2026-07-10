@@ -2,8 +2,9 @@
 // app/welcome/page.tsx
 // Post sign-up role selection — protected route, runs once per new user
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 
 const TYPES = [
@@ -33,6 +34,7 @@ export default function WelcomePage() {
   const searchParams = useSearchParams();
   const roleFromUrl = searchParams?.get("role") as UserType | null;
   const pilotSlug = searchParams?.get("pilot") ?? null;
+  const { getToken } = useAuth();
   // Pilot LOs default straight to "lo" — skip role picker ambiguity
   const [type, setType] = useState<UserType | "">(pilotSlug ? "lo" : (roleFromUrl ?? ""));
   const [nmls, setNmls] = useState("");
@@ -55,21 +57,41 @@ export default function WelcomePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checking]);
 
+  // authHeaders — attaches the Clerk JWT as a Bearer token so auth() in route
+  // handlers works regardless of cookie state (mobile in-app browsers, redirect flows).
+  const authHeaders = useCallback(async (extra?: Record<string, string>) => {
+    const token = await getToken();
+    return {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...extra,
+    };
+  }, [getToken]);
+
   // For existing (already-registered) users: claim any pending waitlist invite then redirect
   useEffect(() => {
-    Promise.all([
-      fetch("/api/onboarding/setup").then(r => r.json()).catch(() => ({ role: null })),
-      fetch("/api/waitlist/claim", { method: "POST" }).then(r => r.json()).catch(() => ({ ok: false })),
-    ]).then(([setupData, claimData]) => {
-      if (claimData.ok && claimData.foundingNumber) {
-        setFoundingNumber(claimData.foundingNumber);
-        setChecking(false);
-      } else if (setupData.role) {
-        window.location.replace(setupData.role === 'borrower' ? '/my-home' : '/dashboard');
-      } else {
-        setChecking(false); // new user with no invite — show role selection
+    let cancelled = false;
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const [setupData, claimData] = await Promise.all([
+          fetch("/api/onboarding/setup", { headers }).then(r => r.json()).catch(() => ({ role: null })),
+          fetch("/api/waitlist/claim", { method: "POST", headers }).then(r => r.json()).catch(() => ({ ok: false })),
+        ]);
+        if (cancelled) return;
+        if (claimData.ok && claimData.foundingNumber) {
+          setFoundingNumber(claimData.foundingNumber);
+          setChecking(false);
+        } else if (setupData.role) {
+          window.location.replace(setupData.role === 'borrower' ? '/my-home' : '/dashboard');
+        } else {
+          setChecking(false);
+        }
+      } catch {
+        if (!cancelled) setChecking(false);
       }
-    }).catch(() => setChecking(false));
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const canSubmit = Boolean(
@@ -87,7 +109,7 @@ export default function WelcomePage() {
     try {
       const res = await fetch("/api/onboarding/setup", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ role: type, nmls, lender, license, brokerage, pilotSlug }),
       });
       const data = await res.json();
