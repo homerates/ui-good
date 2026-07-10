@@ -84,6 +84,8 @@ export default function FhaSliderCard(props: FhaSliderParams) {
     const [units,      setUnits]      = useState(1);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [debts,  setDebts] = useState(props.monthlyDebts ?? 0);
+    const [downMode,     setDownMode]     = useState<'pct' | 'amt'>('pct');
+    const [downAmtState, setDownAmtState] = useState(Math.round(props.price * props.downPct / 100));
 
     const router = useRouter();
 
@@ -107,7 +109,9 @@ export default function FhaSliderCard(props: FhaSliderParams) {
 
     // ── Derived values ────────────────────────────────────────────────────────
 
-    const downAmt    = price * downPct / 100;
+    const effectiveDownPct = downMode === 'pct' ? downPct : parseFloat(((downAmtState / price) * 100).toFixed(2));
+    const effectiveDownAmt = downMode === 'amt' ? downAmtState : Math.round(price * downPct / 100);
+    const downAmt    = effectiveDownAmt;
     const baseLoan   = price - downAmt;
     const ufmip      = Math.round(baseLoan * UFMIP_RATE);
     const loanAmt    = baseLoan + ufmip;
@@ -118,7 +122,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
     const tax        = Math.round((price * props.taxRate) / 12);
     const ins        = Math.round((price * props.insRate) / 12);
     const total      = pi + monthlyMIP + tax + ins;
-    const mipDrops   = termYrs <= 15 || downPct >= 10;
+    const mipDrops   = termYrs <= 15 || effectiveDownPct >= 10;
     const totalMIP   = termYrs <= 15
         ? Math.round(monthlyMIP * 11 * 12)   // 15yr: conservative upper bound; actual cancels at 78% LTV
         : mipDrops
@@ -157,14 +161,14 @@ export default function FhaSliderCard(props: FhaSliderParams) {
         const prStr  = price >= 1_000_000 ? `$${(price / 1_000_000).toFixed(2)}M` : `$${Math.round(price / 1000)}k`;
         const uStr   = units > 1 ? ` ${units}-unit` : '';
         const dStr   = debts > 0 ? ` with ${fmt$(debts)}/mo in other debts` : '';
-        return `FHA loan on a${uStr} ${prStr} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs} year fixed${dStr}`;
+        return `FHA loan on a${uStr} ${prStr} home, ${effectiveDownPct.toFixed(1)}% down at ${rate.toFixed(3)}% — ${termYrs} year fixed${dStr}`;
     }
 
     function getMatchedUrl() {
         const p = new URLSearchParams({
             from: 'scenario', lt: 'FHA', purpose: 'Purchase',
             price:   String(Math.round(price)),
-            dp:      String(downPct),
+            dp:      String(effectiveDownPct),
             monthly: String(total),
             rate:    String(rate),
             term:    String(termYrs),
@@ -187,7 +191,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     </div>
                     <div>
                         <div className="fha-title">FHA Purchase Payment</div>
-                        <div className="fha-sub">{fmtK(price)} · {downPct}% down · {rate.toFixed(2)}% · {termYrs}yr FHA{units > 1 ? ` · ${units}-unit` : ''}</div>
+                        <div className="fha-sub">{fmtK(price)} · {effectiveDownPct.toFixed(1)}% down · {rate.toFixed(2)}% · {termYrs}yr FHA{units > 1 ? ` · ${units}-unit` : ''}</div>
                     </div>
                 </div>
                 <span className={`fha-zone-badge fha-zone-badge--${limitStatus}`}>{limitBadge}</span>
@@ -209,7 +213,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 <div>
                     <div className="fha-hero-label">Est. Monthly PITI + MIP</div>
                     <div className="fha-hero-amount">{fmt$(total)}<span className="fha-hero-mo">/mo</span></div>
-                    <div className="fha-hero-sub">P&amp;I + MIP + Tax + Insurance · {downPct}% down</div>
+                    <div className="fha-hero-sub">P&amp;I + MIP + Tax + Insurance · {effectiveDownPct.toFixed(1)}% down</div>
                 </div>
                 <div className="fha-hero-stats">
                     <div><div className="fha-hsl">Base Loan</div><div className="fha-hsv">{fmt$(Math.round(baseLoan))}</div></div>
@@ -246,8 +250,8 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     {termYrs <= 15
                         ? <span>15-year FHA: MIP cancels when LTV reaches <strong>78%</strong> — typically around year 7–9 at this loan size.</span>
                         : mipDrops
-                            ? <span>With {downPct}% down, MIP cancels automatically after <strong>11 years</strong> — you&apos;ll save {fmt$(monthlyMIP)}/mo once it drops.</span>
-                            : <span>With {downPct}% down, MIP runs for the <strong>life of your loan</strong> — it never drops off. Put 10%+ down to cancel MIP after 11 years.</span>
+                            ? <span>With {effectiveDownPct.toFixed(1)}% down, MIP cancels automatically after <strong>11 years</strong> — you&apos;ll save {fmt$(monthlyMIP)}/mo once it drops.</span>
+                            : <span>With {effectiveDownPct.toFixed(1)}% down, MIP runs for the <strong>life of your loan</strong> — it never drops off. Put 10%+ down to cancel MIP after 11 years.</span>
                     }
                 </div>
             </div>
@@ -300,21 +304,49 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     trackColor={COLORS.amber} theme="dark"
                 />
 
-                <SliderField
-                    label="Down Payment"
-                    value={downPct}
-                    min={3.5} max={30} step={0.5}
-                    onChange={setDownPct}
-                    format={v => `${v}% · ${fmtK(price * v / 100)}`}
-                    minLabel="3.5%" maxLabel="30%"
-                    trackColor={COLORS.amber} theme="dark"
-                />
+                <div className="fha-dp-mode">
+                    {(['pct', 'amt'] as const).map(m => (
+                        <button key={m}
+                            className={`fha-dp-mode-btn${downMode === m ? ' active' : ''}`}
+                            onClick={() => {
+                                if (m === downMode) return;
+                                if (m === 'amt') setDownAmtState(Math.round(price * downPct / 100));
+                                else setDownPct(parseFloat(((downAmtState / price) * 100).toFixed(2)));
+                                setDownMode(m);
+                            }}
+                        >{m === 'pct' ? '[%]' : '[$]'}</button>
+                    ))}
+                </div>
+                {downMode === 'pct' ? (
+                    <SliderField
+                        label="Down Payment"
+                        value={downPct}
+                        min={3.5} max={30} step={0.5}
+                        onChange={setDownPct}
+                        format={v => `${v}% · ${fmtK(price * v / 100)}`}
+                        minLabel="3.5%" maxLabel="30%"
+                        trackColor={COLORS.amber} theme="dark"
+                    />
+                ) : (
+                    <SliderField
+                        label="Down Payment"
+                        value={downAmtState}
+                        min={Math.round(price * 0.035)} max={Math.round(price * 0.3)} step={1000}
+                        onChange={setDownAmtState}
+                        format={v => `${fmtK(v)} · ${(v / price * 100).toFixed(1)}%`}
+                        minLabel={fmtK(Math.round(price * 0.035))} maxLabel={fmtK(Math.round(price * 0.3))}
+                        trackColor={COLORS.amber} theme="dark"
+                    />
+                )}
                 <div className="fha-dp-chips">
                     {DP_CHIPS.map(pct => (
                         <button
                             key={pct}
-                            className={`fha-dp-chip${downPct === pct ? ' active' : ''}`}
-                            onClick={() => setDownPct(pct)}
+                            className={`fha-dp-chip${Math.abs(effectiveDownPct - pct) < 0.1 ? ' active' : ''}`}
+                            onClick={() => {
+                                if (downMode === 'pct') setDownPct(pct);
+                                else setDownAmtState(Math.round(price * pct / 100));
+                            }}
                         >
                             {pct}%{pct === 10 ? <span className="fha-dp-chip-note"> MIP↓</span> : null}
                         </button>
@@ -406,7 +438,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     onClick={() => props.onRunScenario!('Full Income Analysis', {
                         isIncomeQualify: true,
                         purchasePrice:   price,
-                        downPaymentPct:  downPct,
+                        downPaymentPct:  effectiveDownPct,
                         annualRatePct:   rate,
                         termYears:       termYrs,
                         loanType:        'fha',
@@ -432,7 +464,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                     <button
                         className="fha-cta-prop"
                         onClick={() => {
-                            const p = new URLSearchParams({ price: String(Math.round(price)), dp: String(downPct), rate: rate.toFixed(3), term: String(termYrs), lt: 'fha', taxRate: props.taxRate.toFixed(5), insRate: props.insRate.toFixed(5) });
+                            const p = new URLSearchParams({ price: String(Math.round(price)), dp: String(effectiveDownPct), rate: rate.toFixed(3), term: String(termYrs), lt: 'fha', taxRate: props.taxRate.toFixed(5), insRate: props.insRate.toFixed(5) });
                             router.push(`/check-property?${p.toString()}`);
                         }}
                     >🏠 Check a Property</button>
@@ -441,7 +473,7 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 {props.onRunScenario && (
                     <button
                         className="fha-cta-run"
-                        onClick={() => props.onRunScenario!(buildSeed(), { isFHA: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, termYears: termYrs, monthlyDebts: debts })}
+                        onClick={() => props.onRunScenario!(buildSeed(), { isFHA: true, purchasePrice: price, downPaymentPct: effectiveDownPct, annualRatePct: rate, termYears: termYrs, monthlyDebts: debts })}
                     >▶ Run My Numbers</button>
                 )}
             </div>
@@ -635,6 +667,9 @@ export default function FhaSliderCard(props: FhaSliderParams) {
                 .fha-fred-tag { display:inline-block; margin-top:4px; font-size:10px; font-weight:700; color:#f59e0b; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.2); border-radius:4px; padding:2px 8px; letter-spacing:.04em; }
 
                 /* DP chips */
+                .fha-dp-mode { display:flex; gap:4px; margin-bottom:6px; }
+                .fha-dp-mode-btn { padding:3px 10px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); font-size:10px; font-weight:700; color:#8fa3b8; cursor:pointer; font-family:inherit; letter-spacing:.04em; transition:all .12s; }
+                .fha-dp-mode-btn.active { border-color:#f59e0b; color:#f59e0b; background:rgba(245,158,11,0.08); }
                 .fha-dp-chips { display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 8px; }
                 .fha-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:11px; font-weight:600; color: #94a3b8; cursor:pointer; font-family:inherit; transition:all .12s; }
                 .fha-dp-chip.active { border-color:#f59e0b; color:#f59e0b; background:rgba(245,158,11,0.1); }

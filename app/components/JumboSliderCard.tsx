@@ -93,6 +93,8 @@ export default function JumboSliderCard(props: JumboSliderParams) {
     const [rate,     setRate]     = useState(props.rate);
     const [termType, setTermType] = useState<TermType>(props.term === 15 ? '15yr' : '30yr');
     const [drawerOpen, setDrawerOpen] = useState(false);
+    const [downMode,     setDownMode]     = useState<'pct' | 'amt'>('pct');
+    const [downAmtState, setDownAmtState] = useState(Math.round(Math.max(20, props.downPct) / 100 * props.price));
     const router = useRouter();
 
     // ── Journey: L1 write-back when launched from my-home property context ────
@@ -121,8 +123,10 @@ export default function JumboSliderCard(props: JumboSliderParams) {
     const armRate  = Math.max(3.0, rate - ARM_SPREAD);
     const effRate  = termType === 'arm7' ? armRate : rate;
 
-    const loanAmt    = price * (1 - downPct / 100);
-    const downAmt    = price - loanAmt;
+    const effectiveDownPct = downMode === 'pct' ? downPct : parseFloat(((downAmtState / price) * 100).toFixed(2));
+    const effectiveDownAmt = downMode === 'amt' ? downAmtState : Math.round(price * downPct / 100);
+    const loanAmt    = price - effectiveDownAmt;
+    const downAmt    = effectiveDownAmt;
     const ltv        = (loanAmt / price) * 100;
 
     const monthlyPI  = calcPI(loanAmt, effRate, termYrs);
@@ -172,15 +176,15 @@ export default function JumboSliderCard(props: JumboSliderParams) {
     function handleRun() {
         if (!props.onRunScenario) return;
         props.onRunScenario(
-            `Jumbo loan on a ${fmtM(price)} home, ${downPct}% down at ${rate.toFixed(3)}% — ${termYrs}yr ${termType === 'arm7' ? '7/1 ARM' : 'fixed'}`,
-            { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, termYears: termYrs, loanType: 'jumbo' },
+            `Jumbo loan on a ${fmtM(price)} home, ${effectiveDownPct.toFixed(1)}% down at ${rate.toFixed(3)}% — ${termYrs}yr ${termType === 'arm7' ? '7/1 ARM' : 'fixed'}`,
+            { purchasePrice: price, downPaymentPct: effectiveDownPct, annualRatePct: rate, termYears: termYrs, loanType: 'jumbo' },
         );
     }
 
     function handleCheckProperty() {
         const p = new URLSearchParams({
             price:   String(Math.round(price)),
-            dp:      String(downPct),
+            dp:      String(effectiveDownPct),
             rate:    effRate.toFixed(3),
             term:    String(termYrs),
             lt:      'jumbo',
@@ -199,7 +203,7 @@ export default function JumboSliderCard(props: JumboSliderParams) {
             <div className="jbs-header">
                 <div className="jbs-header-left">
                     <span className="jbs-title">Jumbo Purchase</span>
-                    <span className="jbs-sub">{fmtM(price)} · {downPct}% down · {effRate.toFixed(3)}% · {termType === 'arm7' ? '7/1 ARM' : `${termYrs}yr Fixed`}</span>
+                    <span className="jbs-sub">{fmtM(price)} · {effectiveDownPct.toFixed(1)}% down · {effRate.toFixed(3)}% · {termType === 'arm7' ? '7/1 ARM' : `${termYrs}yr Fixed`}</span>
                 </div>
                 <span className="jbs-zone-badge">{z.icon} {z.label}</span>
             </div>
@@ -229,7 +233,7 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 <div className="jbs-bd-row"><span className="jbs-bd-lbl">Principal &amp; Interest{termType === 'arm7' ? ` (${effRate.toFixed(3)}% ARM initial)` : ''}</span><span className="jbs-bd-val">{fmt$(Math.round(monthlyPI))}</span></div>
                 <div className="jbs-bd-row"><span className="jbs-bd-lbl">Property Taxes (est. {(props.taxRate * 100).toFixed(1)}%/yr)</span><span className="jbs-bd-val">{fmt$(Math.round(monthlyTax))}</span></div>
                 <div className="jbs-bd-row"><span className="jbs-bd-lbl">Home Insurance (est. {(props.insRate * 100).toFixed(1)}%/yr)</span><span className="jbs-bd-val">{fmt$(Math.round(monthlyIns))}</span></div>
-                <div className="jbs-bd-row"><span className="jbs-bd-lbl">PMI</span><span className="jbs-bd-val-green">None ({downPct}% down)</span></div>
+                <div className="jbs-bd-row"><span className="jbs-bd-lbl">PMI</span><span className="jbs-bd-val-green">None ({effectiveDownPct.toFixed(1)}% down)</span></div>
                 <div className="jbs-bd-total"><span>Total Monthly PITI</span><span className="jbs-bd-total-val">{fmt$(Math.round(total))}</span></div>
             </div>
 
@@ -244,12 +248,39 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                         minLabel="$500k" maxLabel="$25M+" trackColor={z.color} theme="dark" />
                 </div>
                 <div className="jbs-slider-wrap">
-                    <SliderField label="Down Payment" value={downPct} min={20} max={60} step={1}
-                        onChange={setDownPct} format={v => `${v}% · ${fmtM(price * v / 100)}`}
-                        minLabel="20%" maxLabel="60%" trackColor={z.color} theme="dark" />
+                    <div className="jbs-dp-mode">
+                        {(['pct', 'amt'] as const).map(m => (
+                            <button key={m}
+                                className={`jbs-dp-mode-btn${downMode === m ? ' active' : ''}`}
+                                onClick={() => {
+                                    if (m === downMode) return;
+                                    if (m === 'amt') setDownAmtState(Math.round(price * downPct / 100));
+                                    else setDownPct(parseFloat(((downAmtState / price) * 100).toFixed(2)));
+                                    setDownMode(m);
+                                }}
+                            >{m === 'pct' ? '[%]' : '[$]'}</button>
+                        ))}
+                    </div>
+                    {downMode === 'pct' ? (
+                        <SliderField label="Down Payment" value={downPct} min={20} max={60} step={1}
+                            onChange={setDownPct} format={v => `${v}% · ${fmtM(price * v / 100)}`}
+                            minLabel="20%" maxLabel="60%" trackColor={z.color} theme="dark" />
+                    ) : (
+                        <SliderField label="Down Payment" value={downAmtState}
+                            min={Math.round(price * 0.2)} max={Math.round(price * 0.6)} step={1000}
+                            onChange={setDownAmtState}
+                            format={v => `${fmtM(v)} · ${(v / price * 100).toFixed(1)}%`}
+                            minLabel={fmtM(Math.round(price * 0.2))} maxLabel={fmtM(Math.round(price * 0.6))}
+                            trackColor={z.color} theme="dark" />
+                    )}
                     <div className="jbs-dp-chips">
                         {DP_CHIPS.map(pct => (
-                            <button key={pct} className={`jbs-dp-chip${Math.round(downPct) === pct ? ' active' : ''}`} onClick={() => setDownPct(pct)}>{pct}%</button>
+                            <button key={pct} className={`jbs-dp-chip${Math.abs(effectiveDownPct - pct) < 0.5 ? ' active' : ''}`}
+                                onClick={() => {
+                                    if (downMode === 'pct') setDownPct(pct);
+                                    else setDownAmtState(Math.round(price * pct / 100));
+                                }}
+                            >{pct}%</button>
                         ))}
                     </div>
                     <div className="jbs-dp-note">Jumbo minimum: 20% down · 25% preferred by most lenders · No PMI required</div>
@@ -342,7 +373,7 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                         {
                             isIncomeQualify: true,
                             purchasePrice:   price,
-                            downPaymentPct:  downPct,
+                            downPaymentPct:  effectiveDownPct,
                             annualRatePct:   rate,
                             termYears:       termYrs,
                             loanType:        'jumbo',
@@ -376,8 +407,8 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                     <button
                         className="jbs-xchip"
                         onClick={() => props.onRunScenario!(
-                            `Compare this as a High Balance conventional loan — ${fmtM(price)} home, ${downPct}% down at ${rate.toFixed(2)}% — what does a High Balance conventional look like vs. jumbo?`,
-                            { isConvHB: true, purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate }
+                            `Compare this as a High Balance conventional loan — ${fmtM(price)} home, ${effectiveDownPct.toFixed(1)}% down at ${rate.toFixed(2)}% — what does a High Balance conventional look like vs. jumbo?`,
+                            { isConvHB: true, purchasePrice: price, downPaymentPct: effectiveDownPct, annualRatePct: rate }
                         )}
                     >
                         ⇄ Compare High Balance conventional rates
@@ -441,7 +472,7 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                             {([
                                 { k: 'Min Credit Score',       v: '720+ (740+ preferred)',                                                                              cls: 'ok'                        },
                                 { k: 'Max Back-End DTI',       v: '43% (some lenders 45%)',                                                                             cls: 'warn'                      },
-                                { k: 'Down Payment',           v: downPct >= 30 ? `${downPct}% — strong` : downPct >= 25 ? '25% — most lenders preferred' : '20% min · 25% preferred', cls: downPct >= 25 ? 'ok' : 'warn' },
+                                { k: 'Down Payment',           v: effectiveDownPct >= 30 ? `${effectiveDownPct.toFixed(1)}% — strong` : effectiveDownPct >= 25 ? '25% — most lenders preferred' : '20% min · 25% preferred', cls: effectiveDownPct >= 25 ? 'ok' : 'warn' },
                                 { k: 'PMI',                    v: 'None — 20%+ required',                                                                               cls: 'ok'                        },
                                 { k: 'Income Documentation',   v: '2 yrs W-2 or tax returns',                                                                           cls: ''                          },
                                 { k: 'Appraisal',              v: price >= 1_500_000 ? '2 appraisals often required' : 'Single appraisal standard',                    cls: price >= 1_500_000 ? 'warn' : '' },
@@ -460,7 +491,7 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                         <div style={{ marginTop: 8 }}>
                             {([
                                 { lbl: 'Purchase Price',                                     val: fmt$(Math.round(price)) },
-                                { lbl: `Down Payment (${downPct}%)`,                         val: fmt$(Math.round(downAmt)) },
+                                { lbl: `Down Payment (${effectiveDownPct.toFixed(1)}%)`,                         val: fmt$(Math.round(downAmt)) },
                                 { lbl: 'Loan Amount',                                        val: fmt$(Math.round(loanAmt)) },
                                 { lbl: 'LTV',                                                val: `${ltv.toFixed(1)}%` },
                                 { lbl: 'Rate',                                               val: `${effRate.toFixed(3)}%` },
@@ -546,6 +577,9 @@ export default function JumboSliderCard(props: JumboSliderParams) {
                 /* sliders */
                 .jbs-sliders { padding:6px 20px 0; }
                 .jbs-slider-wrap { margin-bottom:16px; }
+                .jbs-dp-mode { display:flex; gap:4px; margin-bottom:6px; }
+                .jbs-dp-mode-btn { padding:3px 10px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); font-size:10px; font-weight:700; color:#8fa3b8; cursor:pointer; font-family:inherit; letter-spacing:.04em; transition:all .12s; }
+                .jbs-dp-mode-btn.active { border-color:var(--jbs-color); color:var(--jbs-color); background:var(--jbs-bg); }
                 .jbs-dp-chips { display:flex; gap:6px; margin-top:8px; }
                 .jbs-dp-chip { flex:1; padding:5px 0; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer; text-align:center; background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1); color:rgba(185,208,192,0.6); font-family:inherit; transition:all 0.15s; }
                 .jbs-dp-chip:hover { border-color:rgba(255,255,255,0.25); color:#f0f4ff; }
