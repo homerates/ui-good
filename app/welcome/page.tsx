@@ -142,6 +142,19 @@ export default function WelcomePage() {
   }
 
   // Founding member confirmation screen
+  // Where to send the user after onboarding — pilot-specific first, then sensible defaults
+  const PILOT_REDIRECTS: Record<string, string> = {
+    "sunflower-bank": "/ami-qualifier",
+    "konectcity":     "/dashboard",
+  };
+  const postOnboardUrl = pilotSlug
+    ? (PILOT_REDIRECTS[pilotSlug] ?? "/dashboard")
+    : "/chat";
+
+  const pilotCtaLabel = pilotSlug === "sunflower-bank"
+    ? "Run your first AMI lookup →"
+    : "Start using HomeRates →";
+
   if (foundingNumber) {
     return (
       <>
@@ -181,9 +194,9 @@ export default function WelcomePage() {
               <button
                 type="button"
                 className="wl-submit"
-                onClick={() => { window.location.href = "/chat"; }}
+                onClick={() => { window.location.href = postOnboardUrl; }}
               >
-                Start using HomeRates →
+                {pilotCtaLabel}
               </button>
             </div>
           </div>
