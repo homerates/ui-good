@@ -91,8 +91,10 @@ const C = { pi: COLORS.blue, tax: COLORS.orange, ins: COLORS.accent, pmi: COLORS
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function InteractiveSliderCard(props: SliderCardParams) {
-    const [price,    setPrice]    = useState(props.price);
-    const [downPct,  setDownPct]  = useState(props.downPct);
+    const [price,        setPrice]        = useState(props.price);
+    const [downPct,      setDownPct]      = useState(props.downPct);
+    const [downMode,     setDownMode]     = useState<'pct' | 'amt'>('pct');
+    const [downAmtState, setDownAmtState] = useState(Math.round(props.price * props.downPct / 100));
     const [rate,     setRate]     = useState(props.rate);
     const [term,     setTerm]     = useState(props.term);
     const [loanType, setLoanType] = useState<'conventional' | 'fha' | 'va' | 'jumbo'>(props.loanType);
@@ -199,6 +201,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
         const maxZeroDn = entRemain * 4;
         const dpNeeded  = price > maxZeroDn ? Math.round(0.25 * (price - maxZeroDn)) : 0;
         setDownPct(price > 0 ? parseFloat(((dpNeeded / price) * 100).toFixed(2)) : 0);
+        setDownMode('pct'); // entitlement math owns the % — lock out $ mode
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSubsequentUse, countyLimit, prevEntUsed, price, loanType]);
 
@@ -217,8 +220,10 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const pmiLabel = loanType === 'fha' ? 'MIP' : 'PMI';
     const accent = loanType === 'va' ? '#14b8a6' : loanType === 'jumbo' ? '#8b5cf6' : loanType === 'fha' ? '#f59e0b' : '#00e87a';
 
+    const effectiveDownPct = downMode === 'pct' ? downPct : parseFloat(((downAmtState / price) * 100).toFixed(2));
+
     const calc = useMemo(() => {
-        const downAmt  = price * downPct / 100;
+        const downAmt  = downMode === 'amt' ? downAmtState : price * downPct / 100;
         const baseLoan = price - downAmt;
         const ltv      = baseLoan > 0 ? (baseLoan / price) * 100 : 0;
         let loanAmt = baseLoan, fundingFee = 0;
@@ -243,7 +248,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
             entDpPct     = price > 0 ? (entDpNeeded / price) * 100 : 0;
         }
         return { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest, buydown, entTotalEntitlement, entUsed, entRemaining, entMaxZeroDn, entDpNeeded, entDpPct };
-    }, [price, downPct, rate, term, loanType, vaFfPct, activeBdType, props.taxRate, props.insRate, isSubsequentUse, countyLimit, prevEntUsed]);
+    }, [price, downPct, downAmtState, downMode, rate, term, loanType, vaFfPct, activeBdType, props.taxRate, props.insRate, isSubsequentUse, countyLimit, prevEntUsed]);
 
     const { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest, buydown, entTotalEntitlement, entUsed, entRemaining, entMaxZeroDn, entDpNeeded, entDpPct } = calc;
 
@@ -295,13 +300,13 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
             annualRatePct: rate, loanType: 'va', vaFundingFeeExempt: vaFfPct === 0,
             ...(vaFfPct > 0 ? { customFundingFeePct: vaFfPct } : {}),
         } : loanType === 'va' ? {
-            purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'va',
+            purchasePrice: price, downPaymentPct: effectiveDownPct, annualRatePct: rate, loanType: 'va',
             vaFundingFeeExempt: vaFfPct === 0, ...(vaFfPct > 0 ? { customFundingFeePct: vaFfPct } : {}),
         } : loanType === 'fha' ? {
-            purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, isFHA: true,
+            purchasePrice: price, downPaymentPct: effectiveDownPct, annualRatePct: rate, isFHA: true,
         } : loanType === 'jumbo' ? {
-            purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate, loanType: 'jumbo',
-        } : { purchasePrice: price, downPaymentPct: downPct, annualRatePct: rate };
+            purchasePrice: price, downPaymentPct: effectiveDownPct, annualRatePct: rate, loanType: 'jumbo',
+        } : { purchasePrice: price, downPaymentPct: effectiveDownPct, annualRatePct: rate };
         if (activeBdType !== 'none') return { ...vaBase, buydownType: activeBdType, sellerCredit: sellerCreditAmt };
         return vaBase;
     }
@@ -608,15 +613,41 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 />
 
                 {/* Down Payment */}
-                <SliderField
-                    label="Down Payment" value={downPct}
-                    min={minDown} max={50} step={loanType === 'va' ? 1 : 0.5}
-                    onChange={setDownPct}
-                    format={v => `${v}% · ${fmtK(price * v / 100)}`}
-                    minLabel={loanType === 'va' ? '0%' : loanType === 'jumbo' ? '20%' : `${minDown}%`}
-                    maxLabel="50%"
-                    trackColor={accent} theme="dark"
-                />
+                {!(isSubsequentUse && loanType === 'va') && (
+                    <div className="isc-dp-mode">
+                        {(['pct', 'amt'] as const).map(m => (
+                            <button key={m}
+                                className={`isc-term${downMode === m ? ' on' : ''}`}
+                                onClick={() => {
+                                    if (m === downMode) return;
+                                    if (m === 'amt') setDownAmtState(Math.round(price * downPct / 100));
+                                    else setDownPct(parseFloat(((downAmtState / price) * 100).toFixed(2)));
+                                    setDownMode(m);
+                                }}
+                            >{m === 'pct' ? '[%]' : '[$]'}</button>
+                        ))}
+                    </div>
+                )}
+                {downMode === 'pct' || (isSubsequentUse && loanType === 'va') ? (
+                    <SliderField
+                        label="Down Payment" value={downPct}
+                        min={minDown} max={50} step={loanType === 'va' ? 1 : 0.5}
+                        onChange={setDownPct}
+                        format={v => `${v}% · ${fmtK(price * v / 100)}`}
+                        minLabel={loanType === 'va' ? '0%' : loanType === 'jumbo' ? '20%' : `${minDown}%`}
+                        maxLabel="50%"
+                        trackColor={accent} theme="dark"
+                    />
+                ) : (
+                    <SliderField
+                        label="Down Payment" value={downAmtState}
+                        min={Math.round(price * minDown / 100)} max={Math.round(price * 0.5)} step={1000}
+                        onChange={setDownAmtState}
+                        format={v => `${fmtK(v)} · ${(v / price * 100).toFixed(1)}%`}
+                        minLabel={fmtK(Math.round(price * minDown / 100))} maxLabel={fmtK(Math.round(price * 0.5))}
+                        trackColor={accent} theme="dark"
+                    />
+                )}
 
                 {/* VA Funding Fee + Subsequent Use — shared JSX, also rendered on card body in hideDrawer mode */}
                 {vaControls}
@@ -738,7 +769,7 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 <div className="isc-property-row" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <button className="isc-btn-property" onClick={() => {
                         const lt = loanType === 'va' ? 'va' : loanType === 'jumbo' ? 'jumbo' : loanType === 'fha' ? 'fha' : 'conventional';
-                        const p = new URLSearchParams({ price: String(Math.round(price)), dp: String(downPct), rate: rate.toFixed(3), term: String(term), lt, taxRate: props.taxRate.toFixed(5), insRate: props.insRate.toFixed(5) });
+                        const p = new URLSearchParams({ price: String(Math.round(price)), dp: String(effectiveDownPct), rate: rate.toFixed(3), term: String(term), lt, taxRate: props.taxRate.toFixed(5), insRate: props.insRate.toFixed(5) });
                         router.push(`/check-property?${p.toString()}`);
                     }}>
                         Check a property →
@@ -746,11 +777,11 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                     {/* Rate Intelligence — pricing-only path (no property address required) */}
                     {(loanType === 'conventional' || loanType === 'fha') && (
                         <button className="isc-btn-report" onClick={() => {
-                            const loanAmt = Math.round(price * (1 - downPct / 100));
+                            const loanAmt = Math.round(price * (1 - effectiveDownPct / 100));
                             const ltvVal  = parseFloat(((loanAmt / price) * 100).toFixed(2));
                             const p = new URLSearchParams({
                                 price:   String(Math.round(price)),
-                                downPct: String(downPct),
+                                downPct: String(effectiveDownPct),
                                 loan:    String(loanAmt),
                                 ltv:     String(ltvVal),
                                 purpose: 'purchase',
@@ -871,6 +902,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc-exp-stat { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:8px; text-align:center; }
                 .isc-exp-stat-label { font-size:10px; color: #94a3b8; margin-bottom:3px; }
                 .isc-exp-stat-val { font-size:12px; font-weight:700; color:#c4cfe0; }
+
+                /* DP mode toggle */
+                .isc-dp-mode { display:flex; gap:6px; }
 
                 /* row / term toggle */
                 .isc-va-stack-controls { display:flex; flex-direction:column; gap:14px; padding:12px 14px; margin-top:10px; border:1px solid rgba(20,184,166,0.18); border-radius:12px; background:rgba(20,184,166,0.04); }

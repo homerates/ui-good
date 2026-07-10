@@ -73,6 +73,8 @@ const DP_CHIPS = [0, 5, 10, 20] as const;
 export default function VaSliderCard(props: VaSliderParams) {
     const [price,      setPrice]      = useState(props.price);
     const [downPct,    setDownPct]    = useState(props.downPct);
+    const [downMode,     setDownMode]     = useState<'pct' | 'amt'>('pct');
+    const [downAmtState, setDownAmtState] = useState(Math.round(props.price * props.downPct / 100));
     const [rate,       setRate]       = useState(props.rate);
     const [termYrs,    setTermYrs]    = useState(props.term);
     const [ffTier,     setFfTier]     = useState<FFTier>(pctToTier(props.vaFundingFeePct));
@@ -102,7 +104,9 @@ export default function VaSliderCard(props: VaSliderParams) {
     // ── Derived values ────────────────────────────────────────────────────────
 
     const ffPct       = FF_OPTS.find(o => o.val === ffTier)!.pct;
-    const downAmt     = price * downPct / 100;
+    const effectiveDownPct = downMode === 'pct' ? downPct : parseFloat(((downAmtState / price) * 100).toFixed(2));
+    const effectiveDownAmt = downMode === 'amt' ? downAmtState : Math.round(price * downPct / 100);
+    const downAmt     = effectiveDownAmt;
     const baseLoan    = price - downAmt;
     const fundingFee  = ffPct > 0 ? Math.round(baseLoan * ffPct / 100) : 0;
     const loanAmt     = baseLoan + fundingFee;
@@ -127,7 +131,7 @@ export default function VaSliderCard(props: VaSliderParams) {
     function handleRun() {
         if (!props.onRunScenario) return;
         props.onRunScenario(buildSeed(), {
-            purchasePrice: price, downPaymentPct: downPct,
+            purchasePrice: price, downPaymentPct: effectiveDownPct,
             annualRatePct: rate, termYears: termYrs,
             vaFundingFeeExempt: ffTier === 'exempt',
             customFundingFeePct: ffTier !== 'exempt' ? ffPct : undefined,
@@ -140,7 +144,7 @@ export default function VaSliderCard(props: VaSliderParams) {
         const prStr = fmtK(price);
         const ffStr = ffTier === 'exempt' ? 'exempt from VA funding fee' : `${ffPct}% VA funding fee`;
         const dStr  = debts > 0 ? ` with ${fmt$(debts)}/mo in other debts` : '';
-        return `VA loan on a ${prStr} home, ${downPct}% down at ${rate.toFixed(3)}%, ${ffStr}, ${termYrs}-year fixed${dStr}`;
+        return `VA loan on a ${prStr} home, ${effectiveDownPct.toFixed(1)}% down at ${rate.toFixed(3)}%, ${ffStr}, ${termYrs}-year fixed${dStr}`;
     }
 
 
@@ -159,7 +163,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                     </div>
                     <div>
                         <div className="va-title">VA Loan — Purchase Payment</div>
-                        <div className="va-sub">{fmtK(price)} · {downPct}% down · {rate.toFixed(2)}% · {termYrs}yr VA · No PMI</div>
+                        <div className="va-sub">{fmtK(price)} · {effectiveDownPct.toFixed(1)}% down · {rate.toFixed(2)}% · {termYrs}yr VA · No PMI</div>
                     </div>
                 </div>
                 <span className="va-nopmi-badge">No PMI</span>
@@ -170,7 +174,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                 <div>
                     <div className="va-hero-label">Est. Monthly PITI</div>
                     <div className="va-hero-amount">{fmt$(piti)}<span className="va-hero-mo">/mo</span></div>
-                    <div className="va-hero-sub">P&amp;I + Tax + Insurance · {downPct}% down · No PMI</div>
+                    <div className="va-hero-sub">P&amp;I + Tax + Insurance · {effectiveDownPct.toFixed(1)}% down · No PMI</div>
                 </div>
                 <div className="va-hero-stats">
                     <div><div className="va-hsl">Base Loan</div><div className="va-hsv">{fmt$(Math.round(baseLoan))}</div></div>
@@ -217,7 +221,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                 <div>
                     <div className="va-nopmi-title">No Private Mortgage Insurance — Ever</div>
                     <div className="va-nopmi-sub">
-                        Conventional at {downPct}% down would add ~{fmt$(pmiMo)}/mo in PMI at this loan size until 20% equity.
+                        Conventional at {effectiveDownPct.toFixed(1)}% down would add ~{fmt$(pmiMo)}/mo in PMI at this loan size until 20% equity.
                         VA borrowers skip PMI entirely — a benefit worth <strong>{fmt$(pmiMo * 60)}</strong> over 5 years.
                     </div>
                 </div>
@@ -247,21 +251,49 @@ export default function VaSliderCard(props: VaSliderParams) {
                     trackColor={COLORS.teal} theme="dark"
                 />
 
-                <SliderField
-                    label="Down Payment"
-                    value={downPct}
-                    min={0} max={50} step={1}
-                    onChange={setDownPct}
-                    format={v => `${v}% · ${fmtK(price * v / 100)}`}
-                    minLabel="0%" maxLabel="50%"
-                    trackColor={COLORS.teal} theme="dark"
-                />
+                <div className="va-dp-mode">
+                    {(['pct', 'amt'] as const).map(m => (
+                        <button key={m}
+                            className={`va-dp-mode-btn${downMode === m ? ' active' : ''}`}
+                            onClick={() => {
+                                if (m === downMode) return;
+                                if (m === 'amt') setDownAmtState(Math.round(price * downPct / 100));
+                                else setDownPct(parseFloat(((downAmtState / price) * 100).toFixed(2)));
+                                setDownMode(m);
+                            }}
+                        >{m === 'pct' ? '[%]' : '[$]'}</button>
+                    ))}
+                </div>
+                {downMode === 'pct' ? (
+                    <SliderField
+                        label="Down Payment"
+                        value={downPct}
+                        min={0} max={50} step={1}
+                        onChange={setDownPct}
+                        format={v => `${v}% · ${fmtK(price * v / 100)}`}
+                        minLabel="0%" maxLabel="50%"
+                        trackColor={COLORS.teal} theme="dark"
+                    />
+                ) : (
+                    <SliderField
+                        label="Down Payment"
+                        value={downAmtState}
+                        min={0} max={Math.round(price * 0.5)} step={1000}
+                        onChange={setDownAmtState}
+                        format={v => `${fmtK(v)} · ${(v / price * 100).toFixed(1)}%`}
+                        minLabel="$0" maxLabel={fmtK(Math.round(price * 0.5))}
+                        trackColor={COLORS.teal} theme="dark"
+                    />
+                )}
                 <div className="va-dp-chips">
                     {DP_CHIPS.map(pct => (
                         <button
                             key={pct}
-                            className={`va-dp-chip${downPct === pct ? ' active' : ''}`}
-                            onClick={() => setDownPct(pct)}
+                            className={`va-dp-chip${Math.abs(effectiveDownPct - pct) < 0.5 ? ' active' : ''}`}
+                            onClick={() => {
+                                if (downMode === 'pct') setDownPct(pct);
+                                else setDownAmtState(Math.round(price * pct / 100));
+                            }}
                         >
                             {pct}%{pct === 5 || pct === 10 ? <span className="va-dp-chip-note"> FF↓</span> : null}
                         </button>
@@ -340,7 +372,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                     onClick={() => props.onRunScenario!('Full Income Analysis', {
                         isIncomeQualify: true,
                         purchasePrice:    price,
-                        downPaymentPct:   downPct,
+                        downPaymentPct:   effectiveDownPct,
                         annualRatePct:    rate,
                         termYears:        termYrs,
                         loanType:         'va',
@@ -400,7 +432,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                         onClick={() => {
                             const p = new URLSearchParams({
                                 price:   String(Math.round(price)),
-                                dp:      String(downPct),
+                                dp:      String(effectiveDownPct),
                                 rate:    rate.toFixed(3),
                                 term:    String(termYrs),
                                 lt:      'va',
@@ -454,7 +486,7 @@ export default function VaSliderCard(props: VaSliderParams) {
                     <div className="va-dsec">
                         <div className="va-dsec-label">Full Loan Summary</div>
                         <div className="va-kv2"><span>Purchase Price</span><span>{fmt$(price)}</span></div>
-                        <div className="va-kv2"><span>Down Payment</span><span>{fmt$(Math.round(downAmt))} ({downPct}%)</span></div>
+                        <div className="va-kv2"><span>Down Payment</span><span>{fmt$(Math.round(downAmt))} ({effectiveDownPct.toFixed(1)}%)</span></div>
                         <div className="va-kv2"><span>Base Loan Amount</span><span>{fmt$(Math.round(baseLoan))}</span></div>
                         <div className="va-kv2 va-kv2--teal"><span>Funding Fee (financed)</span><span>{ffTier === 'exempt' ? 'None (Exempt)' : fmt$(fundingFee)}</span></div>
                         <div className="va-kv2"><span>Total Financed Loan</span><span>{fmt$(Math.round(loanAmt))}</span></div>
@@ -562,6 +594,9 @@ export default function VaSliderCard(props: VaSliderParams) {
                 .va-fred-tag { display:inline-block; margin-top:4px; font-size:10px; font-weight:700; color:#14b8a6; background:rgba(20,184,166,0.1); border:1px solid rgba(20,184,166,0.2); border-radius:4px; padding:2px 8px; letter-spacing:.04em; }
 
                 /* DP chips */
+                .va-dp-mode { display:flex; gap:4px; margin-bottom:6px; }
+                .va-dp-mode-btn { padding:3px 10px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); font-size:10px; font-weight:700; color:#8fa3b8; cursor:pointer; font-family:inherit; letter-spacing:.04em; transition:all .12s; }
+                .va-dp-mode-btn.active { border-color:#14b8a6; color:#14b8a6; background:rgba(20,184,166,0.08); }
                 .va-dp-chips { display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 8px; }
                 .va-dp-chip { padding:5px 12px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); font-size:11px; font-weight:600; color: #94a3b8; cursor:pointer; font-family:inherit; transition:all .12s; }
                 .va-dp-chip.active { border-color:#14b8a6; color:#14b8a6; background:rgba(20,184,166,0.1); }

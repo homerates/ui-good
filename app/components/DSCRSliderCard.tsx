@@ -51,12 +51,16 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
     const [downPct, setDownPct] = useState(props.downPct);
     const [rate,    setRate]    = useState(props.rate);
     const term                  = props.term ?? 30;
+    const [downMode,     setDownMode]     = useState<'pct' | 'amt'>('pct');
+    const [downAmtState, setDownAmtState] = useState(Math.round(props.price * props.downPct / 100));
     const router = useRouter();
 
     // ── Derived ────────────────────────────────────────────────────────────────
 
+    const effectiveDownPct = downMode === 'pct' ? downPct : parseFloat(((downAmtState / price) * 100).toFixed(2));
+
     const calc = useMemo(() => {
-        const downAmt  = price * downPct / 100;
+        const downAmt  = downMode === 'amt' ? downAmtState : price * downPct / 100;
         const loanAmt  = price - downAmt;
         const ltv      = loanAmt / price * 100;
         const pi       = calcPI(loanAmt, rate, term);
@@ -85,7 +89,7 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
         const dpPct125 = Math.round(dp125 / price * 100);
 
         return { downAmt, loanAmt, ltv, pi, tax, ins, pitia, dscr, rentFor075, rentFor100, rentFor125, dp100, dp125, dpPct100, dpPct125 };
-    }, [price, rent, downPct, rate, term, props.taxRate, props.insRate]);
+    }, [price, rent, downPct, downAmtState, downMode, rate, term, props.taxRate, props.insRate]);
 
     const status = dscrStatus(calc.dscr);
 
@@ -98,10 +102,10 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
     // ── Actions ────────────────────────────────────────────────────────────────
 
     function buildSeed() {
-        return `DSCR loan on a ${fmtK(price)} investment property — ${fmt$(rent)}/mo rent, ${downPct}% down at ${rate.toFixed(3)}%`;
+        return `DSCR loan on a ${fmtK(price)} investment property — ${fmt$(rent)}/mo rent, ${effectiveDownPct.toFixed(1)}% down at ${rate.toFixed(3)}%`;
     }
     function getRunOverrides() {
-        return { purchasePrice: price, grossMonthlyRent: rent, downPaymentPct: downPct, annualRatePct: rate, vacancyRate: 0, loanType: 'dscr' };
+        return { purchasePrice: price, grossMonthlyRent: rent, downPaymentPct: effectiveDownPct, annualRatePct: rate, vacancyRate: 0, loanType: 'dscr' };
     }
     function handleRun() {
         if (props.onRunScenario) props.onRunScenario(buildSeed(), getRunOverrides());
@@ -109,7 +113,7 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
     function handleCheckProperty() {
         const p = new URLSearchParams({
             price:   String(Math.round(price)),
-            dp:      String(downPct),
+            dp:      String(effectiveDownPct),
             rate:    rate.toFixed(3),
             term:    String(term),
             lt:      'dscr',
@@ -135,7 +139,7 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                     </div>
                     <div>
                         <div className="dsc-title">DSCR Investment Analysis</div>
-                        <div className="dsc-sub">{fmtK(price)} · {downPct}% down · {fmt$(rent)}/mo rent</div>
+                        <div className="dsc-sub">{fmtK(price)} · {effectiveDownPct.toFixed(1)}% down · {fmt$(rent)}/mo rent</div>
                     </div>
                 </div>
                 <div className="dsc-badge">DSCR</div>
@@ -283,26 +287,38 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                     trackColor={COLORS.accent} theme="dark"
                 />
 
-                <SliderField
-                    label="Down Payment" value={downPct}
-                    min={20} max={50} step={0.01}
-                    onChange={setDownPct}
-                    format={v => `${parseFloat(v.toFixed(2))}% · ${fmtK(price * v / 100)}`}
-                    parse={text => {
-                        const t = text.trim();
-                        const hasDollar = t.includes('$') || /[km]\b/i.test(t);
-                        const hasPercent = t.includes('%');
-                        const raw = parseFloat(t.replace(/[$,%\s]/gi, '').replace(/[km]\b/gi, ''));
-                        if (isNaN(raw)) return NaN;
-                        if (hasDollar || (!hasPercent && raw > 100)) {
-                            const mult = /k\b/i.test(t) ? 1_000 : /m\b/i.test(t) ? 1_000_000 : 1;
-                            return parseFloat(((raw * mult) / price * 100).toFixed(4));
-                        }
-                        return raw;
-                    }}
-                    minLabel="20%" maxLabel="50%"
-                    trackColor={COLORS.accent} theme="dark"
-                />
+                <div className="dsc-dp-mode">
+                    {(['pct', 'amt'] as const).map(m => (
+                        <button key={m}
+                            className={`dsc-dp-mode-btn${downMode === m ? ' active' : ''}`}
+                            onClick={() => {
+                                if (m === downMode) return;
+                                if (m === 'amt') setDownAmtState(Math.round(price * downPct / 100));
+                                else setDownPct(parseFloat(((downAmtState / price) * 100).toFixed(2)));
+                                setDownMode(m);
+                            }}
+                        >{m === 'pct' ? '[%]' : '[$]'}</button>
+                    ))}
+                </div>
+                {downMode === 'pct' ? (
+                    <SliderField
+                        label="Down Payment" value={downPct}
+                        min={20} max={50} step={0.01}
+                        onChange={setDownPct}
+                        format={v => `${parseFloat(v.toFixed(2))}% · ${fmtK(price * v / 100)}`}
+                        minLabel="20%" maxLabel="50%"
+                        trackColor={COLORS.accent} theme="dark"
+                    />
+                ) : (
+                    <SliderField
+                        label="Down Payment" value={downAmtState}
+                        min={Math.round(price * 0.2)} max={Math.round(price * 0.5)} step={1000}
+                        onChange={setDownAmtState}
+                        format={v => `${fmtK(v)} · ${(v / price * 100).toFixed(1)}%`}
+                        minLabel={fmtK(Math.round(price * 0.2))} maxLabel={fmtK(Math.round(price * 0.5))}
+                        trackColor={COLORS.accent} theme="dark"
+                    />
+                )}
 
                 <SliderField
                     label="Interest Rate" value={rate}
@@ -398,6 +414,9 @@ export default function DSCRSliderCard(props: DSCRSliderParams) {
                 .dsc-dp-sub     { font-size:10px; color:#8fa3b8; margin-top:2px; }
 
                 /* Adjusters */
+                .dsc-dp-mode { display:flex; gap:4px; margin-bottom:2px; }
+                .dsc-dp-mode-btn { padding:3px 10px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); font-size:10px; font-weight:700; color:#8fa3b8; cursor:pointer; font-family:inherit; letter-spacing:.04em; transition:all .12s; }
+                .dsc-dp-mode-btn.active { border-color:#00e87a; color:#00e87a; background:rgba(0,232,122,0.08); }
                 .dsc-adj       { margin:0 18px 16px; display:flex; flex-direction:column; gap:14px; }
                 .dsc-adj-title { font-size:10px; font-weight:800; color:#8fa3b8; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:2px; }
 
