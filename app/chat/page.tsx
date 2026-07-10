@@ -4085,7 +4085,7 @@ export default function Page() {
                                                             </>
                                                         )}
                                                         {/* ── 4CS2341-CONV: Scenario-first conventional stack (ISC → IQC → LIC) ── */}
-                                                        {m.meta.convHBSlider && !loading && typingId === null && (() => {
+                                                        {m.meta.convHBSlider && !m.meta.affordabilityPurchaseCard && !loading && typingId === null && (() => {
                                                             const livePreview = liveScenarioPreview?.msgId === m.id ? liveScenarioPreview : null;
                                                             return (
                                                             <div style={{ position: 'relative' }}>
@@ -4116,7 +4116,7 @@ export default function Page() {
                                                         })()}
                                                         {/* IQC — 4CS2341-CONV path: income qualify for scenario seed (no cmaAddress needed) */}
                                                         {/* Suppressed when incomeQualifySlider is explicitly set (e.g. affordability path seeds it with annualIncome) */}
-                                                        {m.meta.convHBSlider && !m.meta.incomeQualifySlider && !loading && typingId === null && (
+                                                        {m.meta.convHBSlider && !m.meta.affordabilityPurchaseCard && !m.meta.incomeQualifySlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
                                                                 fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-convhb-${m.id}`}
@@ -4156,14 +4156,14 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* LIC — 4CS2341-CONV path: locked intelligence tiles when no property address */}
-                                                        {m.meta.convHBSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
+                                                        {m.meta.convHBSlider && !m.meta.affordabilityPurchaseCard && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
                                                             <LockedIntelligenceCard
                                                                 onSubmitAddress={(addr) => { if (composerRef.current) { composerRef.current.value = addr; } setTimeout(() => send(addr), 50); }}
                                                             />
                                                         )}
                                                         {/* FHA slider card */}
                                                         {/* ── 4CS2341-FHA: Scenario-first FHA stack (ISC → IQC → LIC) ── */}
-                                                        {m.meta.fhaSlider && !loading && typingId === null && (() => {
+                                                        {m.meta.fhaSlider && !m.meta.affordabilityPurchaseCard && !loading && typingId === null && (() => {
                                                             const livePreview = liveScenarioPreview?.msgId === m.id ? liveScenarioPreview : null;
                                                             return (
                                                             <div style={{ position: 'relative' }}>
@@ -4193,7 +4193,7 @@ export default function Page() {
                                                             );
                                                         })()}
                                                         {/* IQC — 4CS2341-FHA path */}
-                                                        {m.meta.fhaSlider && !loading && typingId === null && (
+                                                        {m.meta.fhaSlider && !m.meta.affordabilityPurchaseCard && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
                                                                 fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-fha-${m.id}`}
@@ -4217,7 +4217,7 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* LIC — 4CS2341-FHA path: seed 3.5% down + FHA context into property lookup */}
-                                                        {m.meta.fhaSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
+                                                        {m.meta.fhaSlider && !m.meta.affordabilityPurchaseCard && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
                                                             <LockedIntelligenceCard
                                                                 onSubmitAddress={(addr) => {
                                                                     const fhaCtx = { loanType: 'fha', downPaymentPct: 3.5, isFHA: true };
@@ -4229,7 +4229,7 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* ── 4CS2341-JUMBO: Scenario-first jumbo stack (ISC → IQC → LIC) ── */}
-                                                        {m.meta.jumboSlider && !loading && typingId === null && (() => {
+                                                        {m.meta.jumboSlider && !m.meta.affordabilityPurchaseCard && !loading && typingId === null && (() => {
                                                             const livePreview = liveScenarioPreview?.msgId === m.id ? liveScenarioPreview : null;
                                                             return (
                                                             <div style={{ position: 'relative' }}>
@@ -4259,7 +4259,7 @@ export default function Page() {
                                                             );
                                                         })()}
                                                         {/* IQC — 4CS2341-JUMBO path */}
-                                                        {m.meta.jumboSlider && !loading && typingId === null && (
+                                                        {m.meta.jumboSlider && !m.meta.affordabilityPurchaseCard && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
                                                                 fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-jumbo-${m.id}`}
@@ -4283,14 +4283,14 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* LIC — 4CS2341-JUMBO path */}
-                                                        {m.meta.jumboSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
+                                                        {m.meta.jumboSlider && !m.meta.affordabilityPurchaseCard && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
                                                             <LockedIntelligenceCard
                                                                 onSubmitAddress={(addr) => { if (composerRef.current) { composerRef.current.value = addr; } setTimeout(() => send(addr), 50); }}
                                                             />
                                                         )}
                                                         {/* VA purchase slider card */}
                                                         {/* ── 4CS2341-VA: Scenario-first VA stack (ISC → IQC → LIC) ── */}
-                                                        {m.meta.vaSlider && !loading && typingId === null && (() => {
+                                                        {m.meta.vaSlider && !m.meta.affordabilityPurchaseCard && !loading && typingId === null && (() => {
                                                             const livePreview = liveScenarioPreview?.msgId === m.id ? liveScenarioPreview : null;
                                                             return (
                                                             <div style={{ position: 'relative' }}>
@@ -4321,7 +4321,7 @@ export default function Page() {
                                                             );
                                                         })()}
                                                         {/* IQC — 4CS2341-VA path */}
-                                                        {m.meta.vaSlider && !loading && typingId === null && (
+                                                        {m.meta.vaSlider && !m.meta.affordabilityPurchaseCard && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
                                                                 fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-va-${m.id}`}
@@ -4345,7 +4345,7 @@ export default function Page() {
                                                             />
                                                         )}
                                                         {/* LIC — 4CS2341-VA path: seed 0% down + VA context into property lookup */}
-                                                        {m.meta.vaSlider && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
+                                                        {m.meta.vaSlider && !m.meta.affordabilityPurchaseCard && !m.meta.decisionScoreCard && !cmaContextRef.current?.cmaAddress && !searchParams?.get('cmaAddress') && !loading && typingId === null && (
                                                             <LockedIntelligenceCard
                                                                 onSubmitAddress={(addr) => {
                                                                     const vaCtx = { loanType: 'va', downPaymentPct: 0, isVA: true };
