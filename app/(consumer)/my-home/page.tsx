@@ -8,6 +8,7 @@ import AddressAutocomplete from '@/components/AddressAutocomplete';
 import MarketIntelCard from '@/components/MarketIntelCard';
 import PropertyPhoto from '@/components/PropertyPhoto';
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
+import { EDUCATIONAL_DISCLAIMER } from '@/disclosures';
 
 interface HomeownerProperty {
   id: string;
@@ -2912,6 +2913,7 @@ function MyHomePageInner() {
               </>
             )}
           </SignedIn>
+          <div className="mh-disclosure">{EDUCATIONAL_DISCLAIMER}</div>
           </div>{/* end mh-content */}
           </div>{/* end mh-content-wrap */}
 
@@ -3164,6 +3166,7 @@ const CSS = `
   .mh-section-sub-label{font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,0.35)}
   .mh-empty-note{font-size:.875rem;color:rgba(255,255,255,0.4);line-height:1.6;padding:.5rem 0}
   .mh-footnote{font-size:.72rem;color:rgba(255,255,255,0.3);margin-top:10px;line-height:1.5}
+  .mh-disclosure{font-size:.72rem;color:rgba(255,255,255,0.28);line-height:1.55;margin-top:2.5rem;padding-top:1.25rem;border-top:1px solid rgba(255,255,255,0.06)}
   .mh-inline-link{color:#00e87a;text-decoration:none}
   .mh-cta-link{color:#00e87a;font-size:.875rem;font-weight:600;text-decoration:none}
   .mh-cta-link:hover{opacity:.8}
