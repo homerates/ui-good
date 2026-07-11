@@ -182,6 +182,98 @@ Note: `credit_score_range` was considered for the seed context schema and explic
 
 ---
 
+## Decision 7 — AI Content Safety on Freeform CRM Fields
+
+**Regulatory basis:** Equal Credit Opportunity Act / Regulation B (fair lending); FTC Act Section 5 (deceptive/unfair practices applied to AI-assisted outputs). Decision 2 structurally excludes `NoteFact` from AI generation, but does not address what an LO may write inside the freeform string fields of the *other* fact types that do reach generation: `life_event.event`, `preference_expressed.preference`, `concern_raised.concern`, `concern_resolved.concern`.
+
+**The rule:** Freeform string values inside CRM key facts that are included in `CrmGenerationFact` (i.e., everything except `note`) must not contain protected characteristics or fair-lending-adjacent language. The platform cannot computationally prevent all possible inputs, but it must: (1) provide clear guidance to the LO at the point of data entry about what is and is not appropriate to record, and (2) ensure the generation prompt explicitly instructs the model to discard any input that appears to reference a protected characteristic rather than incorporating it.
+
+**What this means in code / schema:**
+
+1. **LO intake UI guidance:** Each freeform fact-entry field must display help text stating what is appropriate to record. Example for `life_event`: *"Record home-search milestone events (starting house hunting, received inheritance, sold existing home). Do not record information about family composition, health status, age, or other personal circumstances."* This guidance is UX design, not enforced at the database level.
+
+2. **Generation prompt instruction:** Every call to the follow-up generation model must include a system-level instruction: *"If any CRM fact value appears to reference a protected characteristic (marital status, family composition, age, disability, health, religion, national origin, or race/ethnicity), ignore that fact entirely — do not reference it, paraphrase it, or use it to infer anything. Treat it as absent."* This is defense-in-depth, not a replacement for (1).
+
+3. **This is not a denylist:** Unlike Decision 1's denylist (which applies to key names and is enforced at the type level), Decision 7 cannot enumerate all possible fair-lending-adjacent strings. The mitigation is UI guidance at entry time + model instruction at generation time. Neither is foolproof — that is a known residual risk documented here.
+
+**What is explicitly permitted:** Recording fact values that describe buyer timeline events, market concern topics, specific property addresses of interest, or competitor lender names — these do not implicate protected characteristics and are appropriate for generation context.
+
+**Status:** Documented decision — pending implementation. Neither the LO intake UI (with guidance text) nor the generation prompt has been built yet. This decision must be implemented when the touchpoint entry form and generation API are built.
+
+---
+
+## Decision 8 — RESPA / GLBA / TRID Application-Trigger Guardrails
+
+**Regulatory basis:** TILA-RESPA Integrated Disclosure Rule (TRID), 12 CFR Part 1026 (Reg Z); Real Estate Settlement Procedures Act (RESPA), 12 U.S.C. § 2607; Gramm-Leach-Bliley Act (GLBA), 15 U.S.C. §§ 6801–6827. HomeRates.ai is not NMLS-licensed and does not originate loans. This decision establishes the operational guardrails that maintain that status as the platform expands into features that collect income, property address, rate scenario, and LTV-adjacent data.
+
+**Counsel review status:** This is a working internal framework, not a final legal determination. Legal counsel review is recommended before the rate marketplace opt-in flow, the AMI Qualifier, or the CRM follow-up generation go to production at scale. The decision-maker records these rules now so they constrain product decisions before legal review — not as a substitute for it.
+
+---
+
+### Rule 8-A — No Social Security Number, anywhere, ever
+
+**The rule:** No SSN field, column, variable, form input, or API payload may exist anywhere in the HomeRates.ai codebase, database, or integrations, in any form (formatted: `XXX-XX-XXXX`, unformatted: 9-digit string, hashed, or masked last-4). If a feature requires an SSN to function, that feature cannot be built on this platform — it requires a licensed origination channel.
+
+**Why this is the highest-leverage rule:** The TRID "application" definition (Reg Z, 12 CFR § 1026.2(a)(3)(ii)) requires six specific pieces of information to trigger Loan Estimate obligations: borrower name, income, SSN (to pull credit), property address, property value estimate, and loan amount. The absence of SSN means HomeRates cannot satisfy the six-piece test, regardless of what else is collected. This is the single clearest bright line separating an educational/comparison tool from an application portal.
+
+**What this means in code / schema:** Covered in the code cross-check below. The messaging route (`app/api/messages/[threadId]/route.ts`) already actively detects and blocks SSN patterns in chat input — this blocking behavior must be preserved and must never be relaxed.
+
+**What is explicitly permitted:** Collecting a user-entered ZIP code, state, or property address for AMI qualification, property lookup, or rate scenario context. These are not SSN substitutes and do not trigger TRID.
+
+---
+
+### Rule 8-B — No credit bureau integration
+
+**The rule:** HomeRates.ai may never query Equifax, Experian, or TransUnion (or any CRA-equivalent data reseller) on a user's behalf. Self-reported credit score estimates entered by users in the Rate Intelligence Engine or rate marketplace flows are materially different from a bureau-sourced report. This distinction must be preserved in both code and user-facing language.
+
+**What this means in code / schema:** The `creditScoreBand` stored in `marketplace_opt_ins.scenario_snapshot` is derived from a user-entered estimate via the `creditBand()` bucketing function in `app/api/rate-marketplace/opt-in/route.ts`. The raw score is bucketed before storage (range string, e.g., "720–739"). No raw numeric FICO or bureau report is stored. This design is correct and must be maintained. Any future feature that requires a bureau pull must route through a licensed partner with explicit user authorization under FCRA.
+
+**What is explicitly permitted:** Displaying user-entered credit score estimates as inputs to rate scenarios. Displaying lender minimum credit score thresholds as configuration data (used in `marketplace_lenders.min_credit_score` to determine lender eligibility — this is a lender attribute, not user data). Referencing credit score in educational content.
+
+---
+
+### Rule 8-C — No person-committed rate
+
+**The rule:** HomeRates.ai must not present a rate as "locked," "your committed rate," or otherwise person-specific and binding when that rate is simultaneously tied to a real name, a specific property address, a specific loan amount, and income in the same view. Rate figures shown must be market-level or scenario-level estimates. The line between an educational rate tool and a loan origination act runs through commitment language, not through scenario specificity.
+
+**What this means in code / schema:** Rate outputs must carry educational disclaimer language (see Rule 8-E). The Rate Intelligence Engine's "Your Rate Options" label (RateEngineClient.tsx) is educational scenario language — it is not a committed offer and is correctly accompanied by "Educational estimate only" at the bottom of the card. This language must not be edited to imply commitment.
+
+**The rate marketplace opt-in surface requires ongoing monitoring:** When a borrower shares their scenario with a lender via `RateDiscoverPanel` / `marketplace_opt_ins`, the stored snapshot includes `contactName + creditScoreBand + loanAmount + LTV + loanType + state`. This is the closest the platform comes to the TRID six-piece test. Currently it is clean: no SSN, no property address, no income. If any future expansion adds property address or income to the opt-in snapshot, this must be reviewed against the TRID six-piece test before shipping.
+
+**What is explicitly permitted:** Displaying scenario-level rate ranges and cost curves with "estimate" or "market rate" language. Showing a homeowner their existing actual loan rate (which they entered) as a reference point for refi analysis.
+
+---
+
+### Rule 8-D — No RESPA Section 8-violating referral fee structure
+
+**The rule:** If and when any lender partnership, rate marketplace arrangement, or referral relationship involves a fee, that fee must not be structured as a percentage of the loan amount or contingent on loan closing. RESPA Section 8(a) prohibits the giving or accepting of any fee, kickback, or thing of value pursuant to an agreement to refer settlement service business. Flat per-introduction fees or SaaS subscription fees are the permitted structures; loan-amount-percentage or closing-contingent fees are not.
+
+**What this means in practice:** This is a business-arrangement rule, not a code-enforcement rule. It must be reviewed by whoever negotiates lender partnership agreements. The current `marketplace_opt_ins` billing model records `fee_charged: boolean` without specifying fee structure — fee structure lives in the business agreement, not the database schema. Document this decision so it is not decided ad hoc when a partnership term sheet arrives.
+
+**What is explicitly permitted:** Flat per-opt-in fees charged to marketplace lenders (the current model). SaaS subscription fees for platform access. Marketing sponsorship fees not tied to specific loan outcomes.
+
+---
+
+### Rule 8-E — Disclaimer preservation as features expand
+
+**The rule:** Every platform surface that shows income/eligibility/rate figures tied to a specific real person must carry the `EDUCATIONAL_DISCLAIMER` from `lib/disclosures.ts`, or functionally equivalent language, in the rendered UI. This is non-negotiable as new features are built. "Simplification" is not a valid reason to remove disclosure text.
+
+**What this means in code / schema:** `lib/disclosures.ts` is the canonical source. Surfaces that must carry it:
+
+| Surface | Current status |
+|---|---|
+| AMI Qualifier (`/ami-qualifier`) | ✅ Uses `EDUCATIONAL_DISCLAIMER` — confirmed |
+| AFFD-012 (`AffordabilityPurchaseCard`) | ✅ Inline equivalent — confirmed |
+| Rate Intelligence Engine (`RateEngineClient`) | ✅ Inline "Educational estimate only" — confirmed |
+| Property reports (`/property-report`, `/wl-report`) | ✅ Uses `EDUCATIONAL_DISCLAIMER` — confirmed |
+| My Home (`/my-home`) | ⚠️ **No disclaimer found.** This page shows homeowner's actual rate, AVM estimates, refi savings, and wealth projections tied to a known property address and person. Requires disclosure before going to production scale. |
+| CRM pre-call brief (not yet built) | 🔴 Must include disclaimer when built |
+| Rate marketplace opt-in / lender view (not yet built) | 🔴 Must include disclaimer when built |
+
+**What is explicitly permitted:** Using `SHORT_DISCLOSURE` from `lib/disclosures.ts` in space-constrained contexts (card footers, small print) as a substitute for `EDUCATIONAL_DISCLAIMER` where the full text doesn't fit. Using inline equivalent language rather than the canonical constant, as long as the substance is preserved: "educational," "not a commitment to lend," "not a lender."
+
+---
+
 ## Summary Table
 
 | # | Decision | Status |
@@ -192,6 +284,12 @@ Note: `credit_score_range` was considered for the seed context schema and explic
 | 4 | GLBA row-level data surface restriction | ✅ Proceed |
 | 5 | State privacy retention/deletion mechanism | ✅ Proceed (deletion path must be documented before first row) |
 | 6 | AI-generated outreach disclosure | ✅ Proceed (welcome email update required before first enrollment) |
+| 7 | AI content safety on freeform CRM fields | 🟡 Pending build — must implement when touchpoint UI + generation API are built |
+| 8-A | No SSN anywhere | ✅ Clean — active blocking in messaging route; no storage anywhere |
+| 8-B | No credit bureau integration | ✅ Clean — self-reported only; band stored, not raw score |
+| 8-C | No person-committed rate | ✅ Clean — all rates are scenario estimates with educational language; marketplace opt-in snapshot has no SSN/income/address |
+| 8-D | RESPA referral fee structure | ✅ Documented — business-arrangement rule, not code-enforced |
+| 8-E | Disclaimer preservation | ⚠️ Gap — `/my-home` lacks `EDUCATIONAL_DISCLAIMER`; CRM pre-call brief and marketplace lender view need it when built |
 
 ---
 
@@ -200,3 +298,4 @@ Note: `credit_score_range` was considered for the seed context schema and explic
 | Date | Change | Author |
 |---|---|---|
 | 2026-07-09 | Initial six decisions recorded following Phase 4 CRM compliance review | Rayaan Arif |
+| 2026-07-11 | Added Decision 7 (AI freeform content safety) and Decision 8 (RESPA/GLBA/TRID guardrails) following platform-wide compliance audit | Rayaan Arif |
