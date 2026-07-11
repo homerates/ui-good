@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminCardBadge from './AdminCardBadge';
+import FredRateBadge from './FredRateBadge';
 import { calcPI } from '../../lib/math';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
@@ -632,10 +633,12 @@ export default function IncomeQualifySliderCard(props: IncomeQualifySliderParams
                 >🏡 Check a specific property →</button>
             )}
 
-            {/* Rate note */}
+            {/* Rate badge + note */}
+            <div style={{ marginBottom: 6 }}>
+                <FredRateBadge rate={props.rate} fredStamp={props.fredStamp} decimals={2} />
+            </div>
             <div className="iq2-rate-note">
-                <strong>Assumption:</strong> Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live{props.fredStamp ? ` — ${props.fredStamp}` : ''}).
-                {isJumbo ? ' Jumbo lenders typically require 38–43% DTI, 720+ credit, 20%+ down.' : isFHA ? ' FHA MIP per HUD 2024 Mortgagee Letter. UFMIP 1.75% financed.' : isVA ? ' VA uses 41% back-end DTI + residual income test. No PMI.' : ' DTI thresholds per Fannie Mae/Freddie Mac guidelines.'} Estimates only — not a loan offer.
+                {isJumbo ? 'Jumbo lenders typically require 38–43% DTI, 720+ credit, 20%+ down.' : isFHA ? 'FHA MIP per HUD 2024 Mortgagee Letter. UFMIP 1.75% financed.' : isVA ? 'VA uses 41% back-end DTI + residual income test. No PMI.' : 'DTI thresholds per Fannie Mae/Freddie Mac guidelines.'} Estimates only — not a loan offer.
             </div>
 
             {/* ── Styles ── */}

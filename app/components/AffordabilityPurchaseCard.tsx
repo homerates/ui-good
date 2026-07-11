@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react';
 import AdminCardBadge from './AdminCardBadge';
+import FredRateBadge from './FredRateBadge';
 import LockedIntelligenceCard from './LockedIntelligenceCard';
 import { calcPI } from '../../lib/math';
 import {
@@ -27,6 +28,7 @@ export interface AffordabilityPurchaseParams {
   insRate: number;
   annualIncome?: number;
   monthlyDebt?: number;
+  vaFundingFeePct?: number;
   fredStamp?: string;
   onRunScenario?: (seed: string, overrides: Record<string, unknown>) => void;
   onLiveChange?: (vals: { price: number; downPct: number; rate: number; term: number; loanType: string }) => void;
@@ -85,6 +87,8 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const [termYrs,      setTermYrs]      = useState(props.term);
   const [annualIncome, setAnnualIncome] = useState(props.annualIncome ?? 0);
   const [monthlyDebt,  setMonthlyDebt]  = useState(props.monthlyDebt ?? 0);
+  // VA Funding Fee — adjustable, defaults to 2.5% (first-use 0% down standard rate)
+  const [vaFF,         setVaFF]         = useState(isVA ? (props.vaFundingFeePct ?? 2.5) : 0);
   const [drawerOpen,   setDrawerOpen]   = useState(false);
 
   // ── Editable input draft state (null = not editing = show formatted value) ─
@@ -93,6 +97,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const [rateDraft,   setRateDraft]   = useState<string | null>(null);
   const [debtDraft,   setDebtDraft]   = useState<string | null>(null);
   const [incomeDraft, setIncomeDraft] = useState<string | null>(null);
+  const [vaFFDraft,   setVaFFDraft]   = useState<string | null>(null);
 
   // ── Derived math ──────────────────────────────────────────────────────────
   // In $ mode, clamp downAmtFixed so it never exceeds price (edge case only —
@@ -109,7 +114,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const ltv        = price > 0 ? (baseLoan / price) * 100 : 0;
 
   const ufmip      = isFHA ? baseLoan * FHA_UFMIP_RATE : 0;
-  const vaFundFee  = isVA  ? baseLoan * 0.0215 : 0;
+  const vaFundFee  = isVA  ? baseLoan * (vaFF / 100) : 0;
   const loanAmt    = baseLoan + ufmip + vaFundFee;
 
   const pi         = calcPI(loanAmt, rate, termYrs);
@@ -165,6 +170,10 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
     const v = Math.round(parseCurrency(s) / incomeStep) * incomeStep;
     setAnnualIncome(Math.max(0, Math.min(incomeMax, isNaN(v) ? 0 : v)));
   }
+  function commitVaFF(s: string) {
+    const v = Math.round(parsePct(s) / 0.05) * 0.05;
+    setVaFF(Math.max(0, Math.min(3.6, isNaN(v) ? vaFF : v)));
+  }
 
   // ── Other handlers ────────────────────────────────────────────────────────
   function setDownSafe(pct: number) {
@@ -199,6 +208,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const rateFill    = fillPct(rate, 3, 12);
   const debtFill    = fillPct(monthlyDebt, 0, 3000);
   const incomeFill  = fillPct(annualIncome, 0, incomeMax);
+  const vaFFFill    = fillPct(vaFF, 0, 3.6);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -223,6 +233,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         <div className="apc-hero-amount" style={{ color: ltAccent }}>{fmt$(price)}</div>
         <div className="apc-hero-sub">
           {fmt$(Math.round(piti))}/mo PITI{isFHA ? '+MIP' : isVA ? ' (no PMI)' : pmi > 0 ? '+PMI' : ''}
+          {isVA && vaFF > 0 ? ` · FF ${vaFF.toFixed(2)}%` : ''}
           {monthlyDebt > 0 ? ` · ${fmt$(Math.round(monthlyDebt))}/mo debts` : ''}
           {' · '}{rate.toFixed(3)}% · {termYrs}yr
         </div>
@@ -296,7 +307,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         <div className="apc-prog-note" style={{ borderColor: 'rgba(20,184,166,0.2)', background: 'rgba(20,184,166,0.05)' }}>
           <span className="apc-prog-note-icon" style={{ color: '#14b8a6' }}>ⓘ</span>
           <span>
-            No PMI required. VA funding fee of {fmt$(Math.round(vaFundFee))} (2.15% first use) is financed into the loan.
+            No PMI required. VA funding fee of {fmt$(Math.round(vaFundFee))} ({vaFF.toFixed(2)}%) is financed into the loan — adjust below if exempt or using a different use tier.
             DTI guideline is 41% — enter your income below to see your qualification status.
           </span>
         </div>
@@ -435,6 +446,32 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
             <div className="apc-range-lbls"><span>3%</span><span>12%</span></div>
           </div>
 
+          {/* ── VA Funding Fee (VA only) ── */}
+          {isVA && (
+            <div className="apc-field">
+              <div className="apc-field-top">
+                <span className="apc-field-lbl">VA Funding Fee</span>
+                <input
+                  className="apc-numval"
+                  value={vaFFDraft !== null ? vaFFDraft : `${vaFF.toFixed(2)}%`}
+                  onChange={e => setVaFFDraft(e.target.value)}
+                  onFocus={e => { setVaFFDraft(String(vaFF)); e.currentTarget.select(); }}
+                  onBlur={() => { commitVaFF(vaFFDraft ?? ''); setVaFFDraft(null); }}
+                  onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                />
+              </div>
+              <input type="range" className="apc-slider"
+                style={{ '--tc': '#14b8a6', '--val': `${vaFFFill}%` } as React.CSSProperties}
+                min={0} max={3.6} step={0.05}
+                value={vaFF}
+                onChange={e => setVaFF(Number(e.target.value))} />
+              <div className="apc-range-lbls"><span>0% (exempt)</span><span>3.6%</span></div>
+              <div className="apc-field-hint">
+                Typical: 2.15% first use · 1.5% with 5%+ down · 3.3% subsequent use · 0% if service-connected disabled
+              </div>
+            </div>
+          )}
+
           {/* ── Monthly Debts ── */}
           <div className="apc-field">
             <div className="apc-field-top">
@@ -504,16 +541,22 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         <LockedIntelligenceCard onSubmitAddress={handleAddressSubmit} />
       </div>
 
+      {/* FRED rate badge */}
+      <div className="apc-fred-wrap">
+        <FredRateBadge rate={rate} fredStamp={props.fredStamp} />
+      </div>
+
       {/* Disclosure */}
       <div className="apc-disc">
         Educational estimates only — not a Loan Estimate, pre-approval, or commitment to lend.
-        Estimates include principal &amp; interest, property taxes ({(props.taxRate * 100).toFixed(1)}%/yr),
-        homeowner&apos;s insurance ({(props.insRate * 100).toFixed(1)}%/yr)
-        {isFHA ? ', and FHA MIP' : isVA ? '. No PMI on VA loans' : pmi > 0 ? ', and PMI (auto-cancels at 80% LTV)' : ''}.
-        {isFHA && ' UFMIP at 1.75% financed into loan.'}
-        {isVA  && ' VA funding fee at 2.15% (first use) financed into loan.'}
-        {props.fredStamp && ` Rate ${rate.toFixed(3)}% — ${props.fredStamp}.`}
-        {' '}Actual terms depend on creditworthiness, property type, and lender.
+        Estimates include principal &amp; interest, property taxes ({(props.taxRate * 100).toFixed(1)}%/yr estimated),
+        homeowner&apos;s insurance ({(props.insRate * 100).toFixed(1)}%/yr estimated)
+        {isFHA ? ', and FHA MIP' : isVA ? '. VA loans carry no PMI' : pmi > 0 ? ', and PMI (auto-cancels at 80% LTV)' : ''}.
+        {isFHA && ' FHA UFMIP 1.75% financed into loan; annual MIP based on LTV.'}
+        {isVA  && ` VA funding fee ${vaFF.toFixed(2)}% financed into loan — may be waived for veterans with service-connected disability.`}
+        {!props.fredStamp && ` Rate ${rate.toFixed(3)}% is a market estimate.`}
+        {' '}Actual rate, payment, and loan costs depend on creditworthiness, property type, occupancy, and lender.
+        Consult a licensed loan officer for a Loan Estimate.
       </div>
 
       <style>{`
@@ -623,6 +666,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         .apc-lic-wrap { margin-top: 2px; }
         .apc-lic-wrap > * { margin-top: 0 !important; border-radius: 0 0 14px 14px !important; }
 
+        .apc-fred-wrap { padding: 0 16px 10px; }
         .apc-disc { margin: 0 16px 16px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 10px; padding: 10px 13px; font-size: 10.5px; color: rgba(148,163,184,0.65); line-height: 1.6; }
 
         @media (max-width: 480px) {

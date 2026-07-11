@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import SliderField from './SliderField';
 import { COLORS } from '../../lib/tokens';
 import AdminCardBadge from './AdminCardBadge';
+import FredRateBadge from './FredRateBadge';
 import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
 import { HIGH_COST_COUNTIES, type NationalCountyLimits } from '@/loanLimitsNational2026';
 import { calcPI } from '../../lib/math';
@@ -796,9 +797,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 </div>
             )}
 
-            {/* Rate note */}
-            <div className="isc-note">
-                <p>Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live{props.fredStamp ? ` — ${props.fredStamp}` : ''}). Estimates only — not a loan offer.</p>
+            {/* Rate badge */}
+            <div style={{ padding: '0 0 10px' }}>
+                <FredRateBadge rate={props.rate} fredStamp={props.fredStamp} decimals={2} />
             </div>
 
             {/* ── Styles ── */}

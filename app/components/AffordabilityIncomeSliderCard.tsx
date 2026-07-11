@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import AdminCardBadge from './AdminCardBadge';
+import FredRateBadge from './FredRateBadge';
 import { COLORS } from '../../lib/tokens';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
@@ -405,10 +406,12 @@ export default function AffordabilityIncomeSliderCard(props: AffordabilityIncome
                 )}
             </div>
 
-            {/* Rate note */}
+            {/* Rate badge + note */}
+            <div style={{ marginBottom: 6 }}>
+                <FredRateBadge rate={props.rate} fredStamp={props.fredStamp} decimals={2} />
+            </div>
             <div className="affi-rate-note">
-                <strong>Assumption:</strong> Rate seeded at <strong>{props.rate.toFixed(2)}%</strong> (FRED 30-yr fixed, live{props.fredStamp ? ` — ${props.fredStamp}` : ''}).
-                {isFHA ? ' FHA MIP per HUD 2024 guidelines. UFMIP 1.75% financed.' : ' DTI thresholds per Fannie Mae/Freddie Mac guidelines.'}
+                {isFHA ? 'FHA MIP per HUD 2024 guidelines. UFMIP 1.75% financed.' : 'DTI thresholds per Fannie Mae/Freddie Mac guidelines.'}
                 {' '}Estimates only — not a loan offer.
             </div>
 
