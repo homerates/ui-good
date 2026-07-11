@@ -2481,29 +2481,16 @@ export default function Page() {
                     const isJumboLoan  = !isFHACtx && !isVACtx && loanAmt > 832_750;
                     const sliderLoanType: 'conventional' | 'fha' | 'va' | 'jumbo' = isFHACtx ? 'fha' : isVACtx ? 'va' : isJumboLoan ? 'jumbo' : 'conventional';
 
-                    // Pre-filled slider using live rate + scraped tax rate
+                    // Pre-filled AFFD-012 card using live rate + scraped tax rate
                     const taxRate = d.taxRateEffective ?? 0.012;
-                    const interactiveSlider = d.price ? {
+                    const affordabilityPurchaseCard = d.price ? {
+                        loanType: sliderLoanType,
                         price: d.price,
                         downPct: defaultDown,
                         rate: liveRate,
                         term: 30,
                         taxRate,
                         insRate: 0.0050,
-                        loanType: sliderLoanType,
-                        cmaAddress:  d.address    ?? undefined,
-                        cmaCity:     d.city       ?? undefined,
-                        cmaState:    d.state      ?? undefined,
-                        cmaZip:      d.zip        ?? undefined,
-                        cmaCounty:   (d.county as string | undefined) ?? undefined,
-                        cmaPrice:    d.price,
-                        cmaBeds:     d.beds       ?? undefined,
-                        cmaBaths:    d.baths      ?? undefined,
-                        cmaSqft:     d.sqft       ?? undefined,
-                        cmaTaxAnnual: d.annualTaxes ?? undefined,
-                        cmaTaxRate:  d.taxRateEffective ?? undefined,
-                        cmaLiveRate: liveRate,
-                        cmaPhotoUrl: d.photoUrl   ?? undefined,
                     } : null;
 
                     // No chips for property_lookup — income analysis is shown inline via IncomeQualifySliderCard
@@ -2535,7 +2522,7 @@ export default function Page() {
                         message: friendly,
                         answerMarkdown: friendly,
                         propertyCard: d,
-                        interactiveSlider,
+                        affordabilityPurchaseCard,
                         follow_up_chips: chips,
                         decisionScoreCard: {
                             state: 'computing',
@@ -4369,8 +4356,8 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
-                                                        {/* Interactive slider card — non-buydown answers (VA handled by VaSliderCard) */}
-                                                        {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
+                                                        {/* Interactive slider card — non-buydown answers (VA handled by VaSliderCard). Suppressed when AFFD-012 is present. */}
+                                                        {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && !m.meta.affordabilityPurchaseCard && m.meta.lenderChecklist?.loanType !== 'va' && m.meta.lenderChecklist?.loanType !== 'dscr' && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <InteractiveSliderCard
                                                                 fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`isc-${m.id}`}
@@ -4418,6 +4405,7 @@ export default function Page() {
                                                             <AffordabilityPurchaseCard
                                                                 {...m.meta.affordabilityPurchaseCard}
                                                                 fredStamp={fredStampFromMeta(m.meta)}
+                                                                hideAddressSearch={!!m.meta.propertyCard}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);
@@ -4452,9 +4440,8 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
-                                                        {/* Income Qualify card — auto-shown inline for property_lookup path
-                                                             (replaces the "What income do I need to qualify?" chip) */}
-                                                        {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.interactiveSlider.cmaAddress && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
+                                                        {/* Income Qualify card — legacy property_lookup path only. AFFD-012 has income qualify built in, so suppress when present. */}
+                                                        {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.interactiveSlider.cmaAddress && !m.meta.affordabilityPurchaseCard && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
                                                             <IncomeQualifySliderCard
                                                                 fredStamp={fredStampFromMeta(m.meta)}
                                                                 key={`iqsc-${m.id}`}

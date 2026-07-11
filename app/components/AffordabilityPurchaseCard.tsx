@@ -30,6 +30,8 @@ export interface AffordabilityPurchaseParams {
   monthlyDebt?: number;
   vaFundingFeePct?: number;
   fredStamp?: string;
+  /** When true, hides the LockedIntelligenceCard address CTA (e.g. property is already loaded) */
+  hideAddressSearch?: boolean;
   onRunScenario?: (seed: string, overrides: Record<string, unknown>) => void;
   onLiveChange?: (vals: { price: number; downPct: number; rate: number; term: number; loanType: string }) => void;
 }
@@ -536,10 +538,12 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         </div>
       </div>
 
-      {/* CTA — address input → property lookup */}
-      <div className="apc-lic-wrap">
-        <LockedIntelligenceCard onSubmitAddress={handleAddressSubmit} />
-      </div>
+      {/* CTA — address input → property lookup (hidden when property is already loaded) */}
+      {!props.hideAddressSearch && (
+        <div className="apc-lic-wrap">
+          <LockedIntelligenceCard onSubmitAddress={handleAddressSubmit} />
+        </div>
+      )}
 
       {/* FRED rate badge */}
       <div className="apc-fred-wrap">
