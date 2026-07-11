@@ -7,6 +7,7 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getFredSnapshot } from '@/lib/fred';
+import { isEmailSuppressed } from '../../../../lib/unsubscribe';
 
 const sb = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -98,6 +99,10 @@ export async function GET(req: NextRequest) {
 
     for (const alert of (consumerAlerts ?? [])) {
         try {
+            if (await isEmailSuppressed(alert.email)) {
+                consumerResults.push({ email: alert.email, status: 'suppressed' });
+                continue;
+            }
             await resend.emails.send({
                 from: 'HomeRates.ai <digest@homerates.ai>',
                 to: alert.email,

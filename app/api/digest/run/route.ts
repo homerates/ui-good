@@ -13,6 +13,7 @@ import { Resend } from 'resend';
 import { clerkClient } from '@clerk/nextjs/server';
 import { digestEmailHtml, type NearbySale } from '@/digest/emailTemplate';
 import { getFredSnapshot } from '@/lib/fred';
+import { isEmailSuppressed, unsubscribeUrl } from '../../../../lib/unsubscribe';
 
 const sb = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -201,8 +202,9 @@ export async function POST(req: Request) {
         const valueHistory = (historyRes.data ?? []).map(r => ({ date: r.snapshot_date as string, value: r.estimated_value as number }));
 
         const emailData = {
-            borrowerName: consumer.name ?? 'Homeowner',
-            address:      consumer.property_address,
+            borrowerName:   consumer.name ?? 'Homeowner',
+            address:        consumer.property_address,
+            recipientEmail: consumer.email,
             liveRate,
             ...propData,
             valueDelta:  (propData.estimatedValue && prevSnapshot?.estimated_value)
@@ -220,11 +222,20 @@ export async function POST(req: Request) {
         if (!resendKey) return NextResponse.json({ ok: false, error: 'RESEND_API_KEY not configured' }, { status: 503 });
         if (!consumer.email) return NextResponse.json({ ok: false, error: 'Consumer has no email address' }, { status: 400 });
 
+        if (await isEmailSuppressed(consumer.email)) {
+            return NextResponse.json({ ok: false, error: 'Email suppressed' });
+        }
+
         const resend = new Resend(resendKey);
+        const unsubConsumer = unsubscribeUrl(consumer.email);
         const { data: sent, error: sendErr } = await resend.emails.send({
             from:    `HomeRates.ai <${process.env.RESEND_FROM_EMAIL ?? 'digest@homerates.ai'}>`,
             to:      consumer.email,
             subject: `Your Home Update — ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
+            headers: {
+                'List-Unsubscribe':      `<${unsubConsumer}>`,
+                'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+            },
             html:    digestEmailHtml(emailData),
         });
 
@@ -406,6 +417,7 @@ export async function POST(req: Request) {
     const emailData = {
         borrowerName:    borrower.name,
         address:         borrower.property_address,
+        recipientEmail:  borrower.email ?? '',
         liveRate,
         ...propData,
         // Override-aware fields (actual wins over estimate)
@@ -464,14 +476,23 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: 'Borrower has no email address' }, { status: 400 });
     }
 
+    if (await isEmailSuppressed(borrower.email)) {
+        return NextResponse.json({ ok: false, error: 'Email suppressed' });
+    }
+
     const resend   = new Resend(resendKey);
     const fromName = loName.includes('HomeRates') ? loName : `${loName} via HomeRates.ai`;
     const fromAddr = process.env.RESEND_FROM_EMAIL ?? 'digest@homerates.ai';
+    const unsubBorrower = unsubscribeUrl(borrower.email);
 
     const { data: sent, error: sendErr } = await resend.emails.send({
         from:    `${fromName} <${fromAddr}>`,
         to:      borrower.email,
         subject: `Your Home Update — ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
+        headers: {
+            'List-Unsubscribe':      `<${unsubBorrower}>`,
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
         html:    digestEmailHtml(emailData),
     });
 

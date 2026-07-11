@@ -266,11 +266,78 @@ Note: `credit_score_range` was considered for the seed context schema and explic
 | AFFD-012 (`AffordabilityPurchaseCard`) | ✅ Inline equivalent — confirmed |
 | Rate Intelligence Engine (`RateEngineClient`) | ✅ Inline "Educational estimate only" — confirmed |
 | Property reports (`/property-report`, `/wl-report`) | ✅ Uses `EDUCATIONAL_DISCLAIMER` — confirmed |
-| My Home (`/my-home`) | ⚠️ **No disclaimer found.** This page shows homeowner's actual rate, AVM estimates, refi savings, and wealth projections tied to a known property address and person. Requires disclosure before going to production scale. |
+| My Home (`/my-home`) | ✅ Fixed 2026-07-11 — `EDUCATIONAL_DISCLAIMER` added (commit `0a838cfd`) |
 | CRM pre-call brief (not yet built) | 🔴 Must include disclaimer when built |
 | Rate marketplace opt-in / lender view (not yet built) | 🔴 Must include disclaimer when built |
 
 **What is explicitly permitted:** Using `SHORT_DISCLOSURE` from `lib/disclosures.ts` in space-constrained contexts (card footers, small print) as a substitute for `EDUCATIONAL_DISCLAIMER` where the full text doesn't fit. Using inline equivalent language rather than the canonical constant, as long as the substance is preserved: "educational," "not a commitment to lend," "not a lender."
+
+---
+
+## Decision 9 — CAN-SPAM vs. TCPA: My Home Digest System vs. CRM Automated Outreach
+
+**Regulatory basis:** CAN-SPAM Act, 15 U.S.C. §§ 7701–7713 (commercial email); Telephone Consumer Protection Act, 47 U.S.C. § 227 (automated calls and SMS). These are two distinct statutes with materially different consent requirements. This decision documents which regime applies to which HomeRates feature, and why they must not be conflated.
+
+**Counsel review status:** Internal decision. Legal counsel review recommended before the CRM automated outreach feature (Decision 3) ships and before any SMS or outbound call feature is added.
+
+---
+
+### Rule 9-A — My Home Digest Emails Are Governed by CAN-SPAM, Not TCPA
+
+**The rule:** The My Home borrower digest system (`digest/cron`, `digest/rate-alert`, and the borrower welcome email) sends commercial email governed by CAN-SPAM. CAN-SPAM is an **opt-out** regime — sending unsolicited commercial email to someone who has not explicitly consented is legally permissible provided all of the following are true:
+
+1. The message is not deceptive (sender is clearly identified, subject is accurate)
+2. A valid physical postal address appears in the message
+3. A working, correctly-targeted opt-out mechanism is present in every message
+4. Opt-out requests are honored within 10 business days and permanently
+5. The email is not sent to an address that has already opted out
+
+**CAN-SPAM does not require prior express consent.** A homeowner added to the `borrowers` table by their LO does not need to have affirmatively opted in before receiving a home value digest email, provided rules 1–5 above are met.
+
+**What makes the digest system CAN-SPAM compliant as of 2026-07-11:**
+
+| Requirement | Implementation |
+|---|---|
+| Clear sender identity | `from:` set to `[LO Name] via HomeRates.ai <digest@homerates.ai>`; never deceptive |
+| Accurate subject | "Your Home Update" / "Rate Alert" — descriptive, no false urgency |
+| Physical address | `PHYSICAL_ADDRESS` constant (or `BUSINESS_MAILING_ADDRESS` env var) rendered in every digest footer — present in both borrower and consumer paths |
+| Working opt-out | `unsubscribeUrl(recipientEmail)` — HMAC token keyed to **recipient's** email — in every digest HTML body; `List-Unsubscribe` / `List-Unsubscribe-Post` RFC 8058 headers in every Resend call (fixed 2026-07-11) |
+| Opt-out honored | `isEmailSuppressed()` called in `digest/run` before borrower send, before consumer send; called in `digest/rate-alert` before consumer direct-send; `emailBorrowerWelcome` already checked (pre-existing). `email_suppression` table permanently blocks re-send. (Suppression check added to all digest paths 2026-07-11) |
+
+**Previous gaps fixed 2026-07-11:**
+- Unsubscribe token used `loEmail` (wrong address) — now correctly uses `recipientEmail` (the actual recipient) in `digestEmailHtml()`
+- `digest/run` borrower and consumer paths did not check `email_suppression` — suppression check added before each send
+- `digest/rate-alert` consumer direct-send path did not check `email_suppression` — suppression check added
+- `List-Unsubscribe` RFC 8058 headers were absent from digest/rate-alert Resend calls — added
+
+---
+
+### Rule 9-B — CRM Automated Outreach Is Governed by TCPA If It Ever Extends to SMS or Calls; Email Requires Consent Gate Per Decision 3
+
+**The rule:** The CRM follow-up system (Decision 3) is designed for proactive, relationship-continuation outreach — re-engagement messages, market-event follow-ups, pre-call briefs — initiated by the platform on behalf of the LO. This is **not** the same as the borrower-requested digest. The consent requirement is higher:
+
+- **If the channel is email only:** Decision 3's `crm_outreach_consents` gate (opt-in, documented consent record per borrower) is required because the CRM outreach is proactive solicitation rather than informational updates tied to data the homeowner entered or agreed to receive. This is a platform policy decision layered on top of CAN-SPAM minimum requirements — we are holding CRM email to a higher standard than CAN-SPAM's opt-out floor, intentionally, because the nature of the outreach is different.
+- **If the channel is SMS or outbound call:** TCPA applies and requires prior express written consent (PEWC) before any automated or pre-recorded message may be sent. PEWC is a distinct legal requirement from CAN-SPAM and cannot be assumed from the same consent record used for email. A separate TCPA-specific consent capture is required. Do not add SMS or outbound call features to the CRM system without legal review and a channel-specific consent record.
+
+**Status:** CRM automated outreach remains blocked (Decision 3 status unchanged). The consent gate (`crm_outreach_consents` table + send gate logic) has not been built. No automated CRM outreach may go live until it is.
+
+---
+
+### Rule 9-C — Do Not Cross the Regimes
+
+**The rule:** Do not apply CAN-SPAM's opt-out logic to the CRM automated outreach feature (it is held to a higher standard per Rule 9-B). Do not apply TCPA consent requirements to the My Home digest emails (they are CAN-SPAM-governed, and the suppression + unsubscribe mechanics are the actual requirement). These are two different products in two different legal contexts.
+
+**Concrete checklist:**
+- My Home digest → CAN-SPAM → `email_suppression` + working unsubscribe link + physical address = sufficient
+- CRM automated email → platform policy (above CAN-SPAM floor) → `crm_outreach_consents` consent gate required in addition to `email_suppression`
+- CRM SMS/call → TCPA → PEWC + channel-specific consent record required; do not build without counsel review
+- Any new outreach feature: identify the channel and intent first, then determine the applicable regime before writing code
+
+**Content approach (applies to both digest and future CRM email):** Keep all outreach language educational and informational — home value changes, rate movement, equity milestones, market data. Avoid solicitation-style language ("call now," manufactured urgency, countdown timers). This is the model Homebot and MBS Highway operate under and is a deliberate content choice that reinforces the educational positioning of the platform, layered on top of, not instead of, the legal mechanics above.
+
+**What is explicitly permitted:** Sending monthly home value digests and rate-alert emails to borrowers in the `borrowers` table without requiring a `crm_outreach_consents` record, provided the CAN-SPAM mechanics in Rule 9-A are met. The `crm_outreach_consents` gate is a requirement of the CRM system (Decision 3), not of the digest system.
+
+**Status:** Documented decision — the digest system is in compliance as of 2026-07-11. The CRM consent gate remains blocked (Decision 3 unchanged).
 
 ---
 
@@ -289,7 +356,10 @@ Note: `credit_score_range` was considered for the seed context schema and explic
 | 8-B | No credit bureau integration | ✅ Clean — self-reported only; band stored, not raw score |
 | 8-C | No person-committed rate | ✅ Clean — all rates are scenario estimates with educational language; marketplace opt-in snapshot has no SSN/income/address |
 | 8-D | RESPA referral fee structure | ✅ Documented — business-arrangement rule, not code-enforced |
-| 8-E | Disclaimer preservation | ⚠️ Gap — `/my-home` lacks `EDUCATIONAL_DISCLAIMER`; CRM pre-call brief and marketplace lender view need it when built |
+| 8-E | Disclaimer preservation | ✅ `/my-home` fixed 2026-07-11; CRM pre-call brief and marketplace lender view need it when built |
+| 9-A | CAN-SPAM: My Home digest compliance mechanics | ✅ Compliant as of 2026-07-11 — unsubscribe token, suppression check, physical address, RFC 8058 headers all verified |
+| 9-B | TCPA: CRM automated outreach consent gate | 🔴 Blocked (same as Decision 3) — SMS/call requires PEWC + counsel review |
+| 9-C | Regime separation rule | ✅ Documented — do not conflate CAN-SPAM (digest) and TCPA/consent-gate (CRM) |
 
 ---
 
@@ -299,3 +369,4 @@ Note: `credit_score_range` was considered for the seed context schema and explic
 |---|---|---|
 | 2026-07-09 | Initial six decisions recorded following Phase 4 CRM compliance review | Rayaan Arif |
 | 2026-07-11 | Added Decision 7 (AI freeform content safety) and Decision 8 (RESPA/GLBA/TRID guardrails) following platform-wide compliance audit | Rayaan Arif |
+| 2026-07-11 | Fixed digest email CAN-SPAM gaps: unsubscribe token now uses recipient email; suppression check added to all digest send paths; RFC 8058 headers added. Added Decision 9 (CAN-SPAM vs. TCPA regime separation). Updated 8-E (/my-home disclaimer fixed). | Rayaan Arif |
