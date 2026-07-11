@@ -5114,19 +5114,6 @@ ${uwDatabase}`;
                     if (_income || _debt) {
                         (calcCard as any).fhaSlider = { ...(calcCard as any).fhaSlider, annualIncome: _income, monthlyDebt: _debt };
                     }
-                    // AFFD-012: purchase-price-hero card (FHA variant)
-                    const _fhaP = calcDispatch.params as any;
-                    (calcCard as any).affordabilityPurchaseCard = {
-                        loanType: 'fha',
-                        price:   _fhaP.purchasePrice ?? 0,
-                        downPct: _fhaP.downPaymentPct ?? 3.5,
-                        rate:    _fhaP.annualRatePct ?? (fred?.mort30Avg ?? 6.75),
-                        term:    _fhaP.termYears ?? 30,
-                        taxRate: _fhaP.propertyTaxRate ?? 0.011,
-                        insRate: 0.003,
-                        annualIncome: _income ?? undefined,
-                        monthlyDebt:  _debt   ?? undefined,
-                    };
                 }
 
             } else if (calcDispatch.type === 'mip_duration_knowledge') {
@@ -5278,19 +5265,6 @@ ${uwDatabase}`;
                     if (_income || _debt) {
                         (calcCard as any).vaSlider = { ...(calcCard as any).vaSlider, annualIncome: _income, monthlyDebt: _debt };
                     }
-                    // AFFD-012: purchase-price-hero card (VA variant)
-                    const _vaP = calcDispatch.params as any;
-                    (calcCard as any).affordabilityPurchaseCard = {
-                        loanType: 'va',
-                        price:   _vaP.purchasePrice ?? 0,
-                        downPct: _vaP.downPaymentPct ?? 0,
-                        rate:    _vaP.annualRatePct ?? (fred?.mort30Avg ?? 6.75),
-                        term:    _vaP.termYears ?? 30,
-                        taxRate: _vaP.propertyTaxRate ?? 0.011,
-                        insRate: 0.003,
-                        annualIncome: _income ?? undefined,
-                        monthlyDebt:  _debt   ?? undefined,
-                    };
                 }
 
             } else if (calcDispatch.type === 'va_needs_input') {
@@ -5333,19 +5307,6 @@ ${uwDatabase}`;
                     if (_income || _debt) {
                         (calcCard as any).jumboSlider = { ...(calcCard as any).jumboSlider, annualIncome: _income, monthlyDebt: _debt };
                     }
-                    // AFFD-012: purchase-price-hero card (Jumbo variant)
-                    const _jmbP = calcDispatch.params as any;
-                    (calcCard as any).affordabilityPurchaseCard = {
-                        loanType: 'jumbo',
-                        price:   _jmbP.purchasePrice ?? 0,
-                        downPct: _jmbP.downPaymentPct ?? 20,
-                        rate:    _jmbP.annualRatePct ?? (fred?.mort30Avg ?? 6.75),
-                        term:    _jmbP.termYears ?? 30,
-                        taxRate: _jmbP.propertyTaxRate ?? 0.011,
-                        insRate: 0.003,
-                        annualIncome: _income ?? undefined,
-                        monthlyDebt:  _debt   ?? undefined,
-                    };
                 }
 
             } else if (calcDispatch.type === 'jumbo_needs_input') {
@@ -5524,22 +5485,6 @@ ${uwDatabase}`;
                     if (_income || _debt) {
                         (calcCard as any).convHBSlider = { ...(calcCard as any).convHBSlider, annualIncome: _income, monthlyDebt: _debt };
                     }
-                    // AFFD-012: purchase-price-hero card
-                    const _apcP = calcDispatch.params as any;
-                    const _apcPrice = _apcP.purchasePrice ?? 0;
-                    const _apcDown  = _apcP.downPaymentPct ?? 20;
-                    const _apcLoan  = _apcPrice * (1 - _apcDown / 100);
-                    (calcCard as any).affordabilityPurchaseCard = {
-                        loanType: _apcLoan > CONF_STANDARD ? 'jumbo' : 'conventional',
-                        price:   _apcPrice,
-                        downPct: _apcDown,
-                        rate:    _apcP.annualRatePct ?? (fred?.mort30Avg ?? 6.75),
-                        term:    _apcP.termYears ?? 30,
-                        taxRate: _apcP.propertyTaxRate ?? 0.011,
-                        insRate: 0.003,
-                        annualIncome: _income ?? undefined,
-                        monthlyDebt:  _debt   ?? undefined,
-                    };
                 }
 
             } else if (calcDispatch.type === 'affordability' && calcDispatch.params) {
@@ -5554,17 +5499,25 @@ ${uwDatabase}`;
                     ?? result.scenarios[0];
                 if (_primarySc) {
                     const _CONF = 832_750;
-                    const _isJumboAf = _primarySc.baseLoanAmount > _CONF;
+                    // Math.round fixes floating point (e.g. 925278*0.9 = 832750.2 incorrectly classifying as jumbo)
+                    const _isJumboAf = Math.round(_primarySc.baseLoanAmount) > _CONF;
                     const _afTaxRate = _primarySc.homePrice > 0 ? (_primarySc.monthlyTax * 12) / _primarySc.homePrice : 0.011;
                     const _afInsRate = _primarySc.homePrice > 0 ? (_primarySc.monthlyInsurance * 12) / _primarySc.homePrice : 0.003;
-                    const _afSlider = { price: _primarySc.homePrice, downPct: _primarySc.downPaymentPct, rate: result.rate, term: 30, taxRate: _afTaxRate, insRate: _afInsRate };
-                    // Fire 4CS2341-JUMBO or 4CS2341-CONV — same stack as scenario-first, seeded from derived max price
-                    if (_isJumboAf) {
-                        (calcCard as any).jumboSlider = _afSlider;
-                    } else {
-                        (calcCard as any).convHBSlider = _afSlider;
-                    }
-                    (calcCard as any).incomeQualifySlider = { ..._afSlider, loanType: _isJumboAf ? 'jumbo' : 'conventional', annualIncome: result.annualIncome, monthlyDebt: result.monthlyDebts };
+                    // AFFD-012 is the canonical card for affordability intent — suppress old ISC/IQC
+                    (calcCard as any).convHBSlider = null;
+                    (calcCard as any).jumboSlider = null;
+                    (calcCard as any).incomeQualifySlider = null;
+                    (calcCard as any).affordabilityPurchaseCard = {
+                        loanType: _isJumboAf ? 'jumbo' : 'conventional',
+                        price:    _primarySc.homePrice,
+                        downPct:  _primarySc.downPaymentPct,
+                        rate:     result.rate,
+                        term:     30,
+                        taxRate:  _afTaxRate,
+                        insRate:  _afInsRate,
+                        annualIncome: result.annualIncome,
+                        monthlyDebt:  result.monthlyDebts,
+                    };
                 }
                 // AFFD-010/011 retired for new sessions — backward compat only on stored sessions
                 (calcCard as any).conventionalAffordabilitySlider = null;
