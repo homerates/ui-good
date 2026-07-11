@@ -4505,11 +4505,11 @@ export default function Page() {
                                                         {m.meta.decisionScoreCard && (
                                                             <DecisionScoreCard
                                                                 data={m.meta.decisionScoreCard}
-                                                                scenarioPrice={m.meta.interactiveSlider?.price}
-                                                                scenarioDown={m.meta.interactiveSlider?.downPct}
-                                                                scenarioRate={m.meta.interactiveSlider?.rate}
-                                                                scenarioIncome={m.meta.interactiveSlider?.annualIncome}
-                                                                scenarioDebt={m.meta.interactiveSlider?.monthlyDebt}
+                                                                scenarioPrice={m.meta.interactiveSlider?.price ?? m.meta.affordabilityPurchaseCard?.price}
+                                                                scenarioDown={m.meta.interactiveSlider?.downPct ?? m.meta.affordabilityPurchaseCard?.downPct}
+                                                                scenarioRate={m.meta.interactiveSlider?.rate ?? m.meta.affordabilityPurchaseCard?.rate}
+                                                                scenarioIncome={m.meta.interactiveSlider?.annualIncome ?? m.meta.affordabilityPurchaseCard?.annualIncome}
+                                                                scenarioDebt={m.meta.interactiveSlider?.monthlyDebt ?? m.meta.affordabilityPurchaseCard?.monthlyDebt}
                                                             />
                                                         )}
                                                         {/* DPA Eligibility card — fires from AMI qualifier handoff (?dpaCheck=1) */}
