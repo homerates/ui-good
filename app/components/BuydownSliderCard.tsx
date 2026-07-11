@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import FredRateBadge from './FredRateBadge';
 import SliderField from './SliderField';
 import { COLORS } from '../../lib/tokens';
 
@@ -263,7 +264,7 @@ export default function BuydownSliderCard(props: BuydownSliderParams) {
                         onChange={setRate} format={v => fmtRate(v)}
                         minLabel="3%" maxLabel="12%" midLabel={`FRED: ${fmtRate(props.rate)}`}
                         trackColor={COLORS.amber} theme="dark" />
-                    <div className="bds-fred-tag">📡 Seeded from FRED live rate: {fmtRate(props.rate)}{props.fredStamp ? ` — ${props.fredStamp}` : ''}</div>
+                    <FredRateBadge rate={props.rate} fredStamp={props.fredStamp} decimals={2} />
                 </div>
 
                 <div className="bds-slider-wrap">
@@ -460,7 +461,6 @@ export default function BuydownSliderCard(props: BuydownSliderParams) {
                 .bds-type-chip.active .bds-type-name { color:#f59e0b; }
                 .bds-type-sub { font-size:0.62rem; color:rgba(185,208,192,0.45); text-align:center; line-height:1.4; }
                 .bds-type-chip.active .bds-type-sub { color:rgba(245,158,11,0.7); }
-                .bds-fred-tag { display:inline-flex; align-items:center; gap:4px; background:rgba(61,139,255,0.1); border:1px solid rgba(61,139,255,0.25); border-radius:6px; padding:3px 8px; font-size:0.7rem; color:#3d8bff; font-weight:600; margin-top:6px; }
                 .bds-credit-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1); border-radius:10px; }
                 .bds-credit-icon { font-size:0.9rem; flex-shrink:0; }
                 .bds-credit-lbl { font-size:0.78rem; color:rgba(185,208,192,0.65); flex:1; }
