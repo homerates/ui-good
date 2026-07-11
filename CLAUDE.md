@@ -65,6 +65,17 @@ fact (which is excluded from AI generation): `family_status`, `familial_status`,
 `marital_status`, `religion`, `national_origin`, `race`, `ethnicity`, `age`, `disability`,
 `public_assistance`.
 
+### Decision 8 — Platform-level hard stops (RESPA / GLBA / TRID)
+
+These apply **everywhere in the codebase**, not just the CRM. If you encounter a feature request that would require any of the following, STOP and flag it explicitly — do not implement without explicit compliance review.
+
+1. **No SSN field, ever.** Not in any table, form, API payload, or variable. The messaging route already blocks SSN patterns in chat input — that guard must never be removed.
+2. **No credit bureau API.** No Equifax / Experian / TransUnion integration. Self-reported user-entered credit score estimates are permitted; bureau-pulled credit reports are not.
+3. **No person-committed locked rate.** Rate outputs must remain scenario/market estimates with educational disclaimer language. Never present HomeRates as committing a rate to a named individual.
+4. **Disclaimer preservation.** Every surface showing income/eligibility/rate figures tied to a real person must carry `EDUCATIONAL_DISCLAIMER` from `lib/disclosures.ts` or functionally equivalent language. Gap confirmed 2026-07-11: `/my-home` currently lacks this.
+
+Full Decision 8 text is in `COMPLIANCE_DECISIONS.md`.
+
 ---
 
 ## Navigation Hard Rules
