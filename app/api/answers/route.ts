@@ -5114,6 +5114,18 @@ ${uwDatabase}`;
                     if (_income || _debt) {
                         (calcCard as any).fhaSlider = { ...(calcCard as any).fhaSlider, annualIncome: _income, monthlyDebt: _debt };
                     }
+                    const _fhaSl = (calcCard as any).fhaSlider;
+                    (calcCard as any).affordabilityPurchaseCard = {
+                        loanType: 'fha',
+                        price:   _fhaSl.price,
+                        downPct: _fhaSl.downPct,
+                        rate:    _fhaSl.rate,
+                        term:    _fhaSl.term ?? 30,
+                        taxRate: _fhaSl.taxRate,
+                        insRate: _fhaSl.insRate,
+                        annualIncome: _income ?? undefined,
+                        monthlyDebt:  _debt   ?? undefined,
+                    };
                 }
 
             } else if (calcDispatch.type === 'mip_duration_knowledge') {
@@ -5265,6 +5277,18 @@ ${uwDatabase}`;
                     if (_income || _debt) {
                         (calcCard as any).vaSlider = { ...(calcCard as any).vaSlider, annualIncome: _income, monthlyDebt: _debt };
                     }
+                    const _vaSl = (calcCard as any).vaSlider;
+                    (calcCard as any).affordabilityPurchaseCard = {
+                        loanType: 'va',
+                        price:   _vaSl.price,
+                        downPct: _vaSl.downPct,
+                        rate:    _vaSl.rate,
+                        term:    _vaSl.term ?? 30,
+                        taxRate: _vaSl.taxRate,
+                        insRate: _vaSl.insRate,
+                        annualIncome: _income ?? undefined,
+                        monthlyDebt:  _debt   ?? undefined,
+                    };
                 }
 
             } else if (calcDispatch.type === 'va_needs_input') {
@@ -5307,6 +5331,18 @@ ${uwDatabase}`;
                     if (_income || _debt) {
                         (calcCard as any).jumboSlider = { ...(calcCard as any).jumboSlider, annualIncome: _income, monthlyDebt: _debt };
                     }
+                    const _jmbSl = (calcCard as any).jumboSlider;
+                    (calcCard as any).affordabilityPurchaseCard = {
+                        loanType: 'jumbo',
+                        price:   _jmbSl.price,
+                        downPct: _jmbSl.downPct,
+                        rate:    _jmbSl.rate,
+                        term:    _jmbSl.term ?? 30,
+                        taxRate: _jmbSl.taxRate,
+                        insRate: _jmbSl.insRate,
+                        annualIncome: _income ?? undefined,
+                        monthlyDebt:  _debt   ?? undefined,
+                    };
                 }
 
             } else if (calcDispatch.type === 'jumbo_needs_input') {
@@ -5485,6 +5521,18 @@ ${uwDatabase}`;
                     if (_income || _debt) {
                         (calcCard as any).convHBSlider = { ...(calcCard as any).convHBSlider, annualIncome: _income, monthlyDebt: _debt };
                     }
+                    const _cvSl = (calcCard as any).convHBSlider;
+                    (calcCard as any).affordabilityPurchaseCard = {
+                        loanType: 'conventional',
+                        price:   _cvSl.price,
+                        downPct: _cvSl.downPct,
+                        rate:    _cvSl.rate,
+                        term:    _cvSl.term ?? 30,
+                        taxRate: _cvSl.taxRate,
+                        insRate: _cvSl.insRate,
+                        annualIncome: _income ?? undefined,
+                        monthlyDebt:  _debt   ?? undefined,
+                    };
                 }
 
             } else if (calcDispatch.type === 'affordability' && calcDispatch.params) {
