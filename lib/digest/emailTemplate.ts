@@ -2,6 +2,8 @@
 // Premium dark homeowner intelligence digest email — no shared shell, fully self-contained.
 // 6 sections: Alerts · Value & Equity · Mortgage Intelligence · HELOC Power · Economy Snapshot · Equity Milestones
 
+import { createHmac } from 'crypto';
+
 export interface NearbySale {
   address: string;
   price: number;
@@ -15,6 +17,7 @@ export interface DigestEmailData {
   // Identity
   borrowerName:    string;
   address:         string;
+  recipientEmail:  string;        // actual recipient — used for unsubscribe link
   loName:          string;
   loEmail:         string | null;
 
@@ -633,9 +636,9 @@ function sectionNearbySales(data: DigestEmailData): string {
 export function digestEmailHtml(data: DigestEmailData): string {
   const firstName = data.borrowerName.split(' ')[0];
   const isLoBranded = !!(data.loPhoto || (data.loName && data.loName !== 'HomeRates.ai'));
-  const unsubscribeLink = data.loEmail
-    ? `<a href="${BASE}/api/unsubscribe?email=${encodeURIComponent(data.loEmail)}" style="color:${TXT2};text-decoration:underline;">Unsubscribe</a>`
-    : '';
+  const unsubToken = createHmac('sha256', process.env.UNSUBSCRIBE_SECRET ?? process.env.RESEND_API_KEY ?? 'fallback-secret')
+    .update(data.recipientEmail.toLowerCase()).digest('hex');
+  const unsubscribeLink = `<a href="${BASE}/api/unsubscribe?email=${encodeURIComponent(data.recipientEmail.toLowerCase())}&token=${unsubToken}" style="color:${TXT2};text-decoration:underline;">Unsubscribe</a>`;
 
   const sections = [
     sectionAlerts(data),
