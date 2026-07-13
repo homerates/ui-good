@@ -182,23 +182,54 @@ Note: `credit_score_range` was considered for the seed context schema and explic
 
 ---
 
-## Decision 7 — AI Content Safety on Freeform CRM Fields
+## Decision 7 — Freeform CRM Field Safeguards (Fair Lending)
 
-**Regulatory basis:** Equal Credit Opportunity Act / Regulation B (fair lending); FTC Act Section 5 (deceptive/unfair practices applied to AI-assisted outputs). Decision 2 structurally excludes `NoteFact` from AI generation, but does not address what an LO may write inside the freeform string fields of the *other* fact types that do reach generation: `life_event.event`, `preference_expressed.preference`, `concern_raised.concern`, `concern_resolved.concern`.
+**Regulatory basis:** Equal Credit Opportunity Act / Regulation B (fair lending); FTC Act Section 5 (deceptive/unfair practices applied to AI-assisted outputs). Decision 2 structurally excludes `NoteFact` from AI generation, but does not address what an LO may write inside the freeform string fields of the *other* fact types that do reach generation: `life_event.event`, `preference_expressed.preference`, `concern_raised.concern`, `concern_resolved.concern`. The `subject` field on every touchpoint also reaches generation context and is covered here.
 
-**The rule:** Freeform string values inside CRM key facts that are included in `CrmGenerationFact` (i.e., everything except `note`) must not contain protected characteristics or fair-lending-adjacent language. The platform cannot computationally prevent all possible inputs, but it must: (1) provide clear guidance to the LO at the point of data entry about what is and is not appropriate to record, and (2) ensure the generation prompt explicitly instructs the model to discard any input that appears to reference a protected characteristic rather than incorporating it.
+**The rule:** Freeform string values in CRM touchpoints — including `subject` and all string-typed key_fact fields — must not contain explicit references to protected characteristics. The platform implements three layered controls: (1) LO guidance at entry time, (2) server-side blocklist before any write, and (3) generation-prompt instruction to discard any fact that appears to reference a protected characteristic. None of the three layers is individually sufficient; together they constitute a defensible, good-faith posture that exceeds what any comparable CRM in this industry currently provides.
 
 **What this means in code / schema:**
 
-1. **LO intake UI guidance:** Each freeform fact-entry field must display help text stating what is appropriate to record. Example for `life_event`: *"Record home-search milestone events (starting house hunting, received inheritance, sold existing home). Do not record information about family composition, health status, age, or other personal circumstances."* This guidance is UX design, not enforced at the database level.
+**Layer 1 — LO intake UI guidance** *(implemented: `app/pro/clients/[id]/brief/page.tsx`)*
 
-2. **Generation prompt instruction:** Every call to the follow-up generation model must include a system-level instruction: *"If any CRM fact value appears to reference a protected characteristic (marital status, family composition, age, disability, health, religion, national origin, or race/ethnicity), ignore that fact entirely — do not reference it, paraphrase it, or use it to infer anything. Treat it as absent."* This is defense-in-depth, not a replacement for (1).
+The `D7_GUIDANCE` constant in the brief page provides field-specific help text rendered beneath each freeform input at entry time:
 
-3. **This is not a denylist:** Unlike Decision 1's denylist (which applies to key names and is enforced at the type level), Decision 7 cannot enumerate all possible fair-lending-adjacent strings. The mitigation is UI guidance at entry time + model instruction at generation time. Neither is foolproof — that is a known residual risk documented here.
+| Field | Guidance displayed |
+|---|---|
+| `life_event.event` | Record home-search milestones. Do not record family composition, health status, age, or other personal circumstances. |
+| `preference_expressed.preference` | Record buyer preferences about property or loan features. Do not record personal characteristics, family, or protected-class status. |
+| `concern_raised.concern` | Record financing or transaction concerns. Do not record personal circumstances unrelated to the mortgage. |
+| `concern_resolved.concern` | Record how a financing or transaction concern was addressed. |
 
-**What is explicitly permitted:** Recording fact values that describe buyer timeline events, market concern topics, specific property addresses of interest, or competitor lender names — these do not implicate protected characteristics and are appropriate for generation context.
+UI guidance is not enforced at the database level — it is the first-touch reminder, not the backstop.
 
-**Status:** Documented decision — pending implementation. Neither the LO intake UI (with guidance text) nor the generation prompt has been built yet. This decision must be implemented when the touchpoint entry form and generation API are built.
+**Layer 2 — Server-side blocklist** *(implemented: `app/api/crm/touchpoints/route.ts`, commit 2026-07-13)*
+
+Before any `POST /api/crm/touchpoints` write, the route scans all freeform fields against `CRM_FAIR_LENDING_BLOCKLIST` — an array of regex patterns covering the protected characteristics defined under ECOA: race/ethnicity, religion, national origin, marital status, familial status (including pregnancy), disability, sex/gender, and age-as-qualification-basis.
+
+Fields checked: `subject`, `life_event.event`, `preference_expressed.preference`, `concern_raised.concern`, `concern_resolved.concern`, `note.text`.
+
+Fields explicitly **not** checked: `property_of_interest.address` (property addresses carry no protected-characteristic risk), `competitor_mentioned.competitor` (business names only), numeric fields (`budget_updated`, `timeline_updated`).
+
+If a match is found, the route returns HTTP 422 with a specific error message naming the field and category, asking the LO to rephrase. The value is **never written** to the database. This follows the same pattern as the SSN detection in `app/api/messages/[threadId]/route.ts` — clear rejection, not silent modification.
+
+The blocklist is explicitly a **good-faith backstop, not a comprehensive filter.** It catches obvious/egregious references to protected characteristics. It cannot detect every possible fair-lending-adjacent phrasing — that is a known residual risk documented here. LOs who encounter a false positive (e.g., "near the mosque they visit" as a `property_of_interest` note) should rephrase using the appropriate field.
+
+**Layer 2 — Blocked attempt logging** *(implemented: `crm_compliance_events` table, migration 068)*
+
+Every blocked save is logged to `crm_compliance_events` with: `lo_user_id`, `borrower_id`, `blocked_field`, `matched_term` (the pattern label, not the LO's text), `matched_category`, and the first 120 characters of the blocked value. A `console.warn` is also emitted so Vercel logs capture it independently of database availability.
+
+The table is RLS-restricted (deny-all policy; service role only). Admin review via Supabase dashboard. This logging enables blocklist improvement over time and provides a paper trail that the safeguard is functioning rather than being theoretical.
+
+**Layer 3 — Generation prompt instruction** *(not yet implemented — generation API not yet built)*
+
+When the follow-up generation model is built, every call must include a system-level instruction: *"If any CRM fact value appears to reference a protected characteristic (marital status, family composition, age, disability, health, religion, national origin, or race/ethnicity), ignore that fact entirely — do not reference it, paraphrase it, or use it to infer anything. Treat it as absent."* This layer must be added when the generation API is built. It is defense-in-depth beyond the server-side blocklist, not a replacement for it.
+
+**PATCH endpoint:** The current `PATCH /api/crm/touchpoints` handler only sets `is_superseded = true` and `superseded_by`. It does not accept or modify `key_facts` or `subject` content. No blocklist check is required on PATCH. If PATCH is ever expanded to allow content editing, the blocklist must be applied then.
+
+**What is explicitly permitted:** Recording fact values that describe buyer timeline events, market concern topics (rate concerns, affordability concerns), specific property addresses of interest, or competitor lender names — these do not implicate protected characteristics and are appropriate for generation context.
+
+**Status:** Layers 1 and 2 implemented (2026-07-13). Layer 3 (generation prompt instruction) pending — must be added when the follow-up generation API is built. Generation API remains blocked pending Decision 3 (TCPA consent gate).
 
 ---
 
@@ -351,7 +382,7 @@ Note: `credit_score_range` was considered for the seed context schema and explic
 | 4 | GLBA row-level data surface restriction | ✅ Proceed |
 | 5 | State privacy retention/deletion mechanism | ✅ Proceed (deletion path must be documented before first row) |
 | 6 | AI-generated outreach disclosure | ✅ Proceed (welcome email update required before first enrollment) |
-| 7 | AI content safety on freeform CRM fields | 🟡 Pending build — must implement when touchpoint UI + generation API are built |
+| 7 | Freeform CRM field safeguards (fair lending) | 🟡 Layers 1 + 2 implemented 2026-07-13 (UI guidance + server-side blocklist + logging). Layer 3 (generation prompt) pending — required when generation API is built. |
 | 8-A | No SSN anywhere | ✅ Clean — active blocking in messaging route; no storage anywhere |
 | 8-B | No credit bureau integration | ✅ Clean — self-reported only; band stored, not raw score |
 | 8-C | No person-committed rate | ✅ Clean — all rates are scenario estimates with educational language; marketplace opt-in snapshot has no SSN/income/address |
@@ -369,4 +400,5 @@ Note: `credit_score_range` was considered for the seed context schema and explic
 |---|---|---|
 | 2026-07-09 | Initial six decisions recorded following Phase 4 CRM compliance review | Rayaan Arif |
 | 2026-07-11 | Added Decision 7 (AI freeform content safety) and Decision 8 (RESPA/GLBA/TRID guardrails) following platform-wide compliance audit | Rayaan Arif |
+| 2026-07-13 | Decision 7 upgraded from documented-pending to partially implemented: server-side fair-lending blocklist added to POST /api/crm/touchpoints; crm_compliance_events log table (migration 068); UI guidance already present in brief/page.tsx. Decision 7 title updated to reflect three-layer posture. Layer 3 (generation prompt) remains pending. | Rayaan Arif |
 | 2026-07-11 | Fixed digest email CAN-SPAM gaps: unsubscribe token now uses recipient email; suppression check added to all digest send paths; RFC 8058 headers added. Added Decision 9 (CAN-SPAM vs. TCPA regime separation). Updated 8-E (/my-home disclaimer fixed). | Rayaan Arif |
