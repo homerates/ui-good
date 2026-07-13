@@ -826,6 +826,21 @@ export default function LoBorrowersPage() {
                                         {b.email && <div style={{ fontSize: "0.75rem", color: "rgba(185,208,192,0.5)", marginTop: 2 }}>{b.email}</div>}
                                     </div>
                                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                        {/* Pre-call brief */}
+                                        <Link
+                                            href={`/pro/clients/${b.id}/brief`}
+                                            style={{
+                                                padding: "6px 14px", borderRadius: 999,
+                                                border: "1px solid rgba(148,163,184,0.2)",
+                                                background: "transparent",
+                                                color: "rgba(185,208,192,0.65)",
+                                                fontSize: "0.78rem", fontWeight: 600,
+                                                textDecoration: "none", whiteSpace: "nowrap",
+                                                display: "inline-block",
+                                            }}
+                                        >
+                                            Pre-call brief
+                                        </Link>
                                         {/* View home intelligence */}
                                         <Link
                                             href={`/my-home?borrower_id=${b.id}`}
