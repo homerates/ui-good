@@ -720,6 +720,11 @@ export async function emailBorrowerWelcome({
           </p>
         </div>
 
+        <!-- Decision 6 disclosure: one-time AI-assistance notice (COMPLIANCE_DECISIONS.md) -->
+        <p style="margin:0 0 20px;font-size:12px;color:#64748b;line-height:1.6;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;">
+          Your loan officer uses HomeRates.ai, which includes AI tools that may assist in drafting messages and preparing information. Your loan officer reviews all communications before they are sent.
+        </p>
+
         <a href="${inviteUrl}"
            style="display:block;text-align:center;background:#00e87a;color:#07100f;font-size:15px;font-weight:700;padding:14px 20px;border-radius:999px;text-decoration:none;">
           Activate your free account →
