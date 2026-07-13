@@ -4404,6 +4404,7 @@ export default function Page() {
                                                         {m.meta.affordabilityPurchaseCard && !loading && typingId === null && (
                                                             <AffordabilityPurchaseCard
                                                                 {...m.meta.affordabilityPurchaseCard}
+                                                                messageId={m.id}
                                                                 fredStamp={fredStampFromMeta(m.meta)}
                                                                 hideAddressSearch={!!m.meta.propertyCard}
                                                                 onRunScenario={(seed, overrides) => {

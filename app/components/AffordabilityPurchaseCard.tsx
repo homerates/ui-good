@@ -1,8 +1,26 @@
 'use client';
 // app/components/AffordabilityPurchaseCard.tsx
-// v3 — independent sliders, editable number inputs on every field
+// v4 — independent sliders, editable inputs, remount-safe state via module-level cache
 
 import React, { useState } from 'react';
+
+// ── Remount-safe state cache ───────────────────────────────────────────────────
+// Keyed by message id (from chat/page.tsx). Because the card unmounts during
+// typingId animation and loading, local useState alone can't survive remounts.
+// This module-level Map persists state across unmount/remount within a session.
+interface APCCachedState {
+  price: number;
+  downPct: number;
+  downAmtFixed: number;
+  downMode: 'pct' | 'dollar';
+  rate: number;
+  termYrs: number;
+  annualIncome: number;
+  monthlyDebt: number;
+  vaFF: number;
+  drawerOpen: boolean;
+}
+const _apcCache = new Map<string, APCCachedState>();
 import AdminCardBadge from './AdminCardBadge';
 import FredRateBadge from './FredRateBadge';
 import LockedIntelligenceCard from './LockedIntelligenceCard';
@@ -30,6 +48,8 @@ export interface AffordabilityPurchaseParams {
   monthlyDebt?: number;
   vaFundingFeePct?: number;
   fredStamp?: string;
+  /** Stable id from the parent chat message — used to key the remount-safe state cache */
+  messageId?: string;
   /** When true, hides the LockedIntelligenceCard address CTA (e.g. property is already loaded) */
   hideAddressSearch?: boolean;
   onRunScenario?: (seed: string, overrides: Record<string, unknown>) => void;
@@ -75,23 +95,53 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const ltAccent = isFHA ? '#f59e0b' : isVA ? '#14b8a6' : isJumbo ? '#8b5cf6' : '#00e87a';
   const ltLabel  = isFHA ? 'FHA' : isVA ? 'VA' : isJumbo ? 'Jumbo' : 'Conv/HB';
 
+  // ── Remount-safe cache plumbing ────────────────────────────────────────────
+  // On remount (typingId animation or loading), useState re-initializes from props.
+  // The cache prevents that: state written here persists across unmounts within
+  // the same session. Cache is keyed by props.messageId (provided by chat/page.tsx).
+  const cacheKey = props.messageId ?? null;
+  const cached   = cacheKey ? (_apcCache.get(cacheKey) ?? null) : null;
+
+  function saveToCache(patch: Partial<APCCachedState>) {
+    if (!cacheKey) return;
+    const cur = _apcCache.get(cacheKey) ?? {
+      price: props.price,
+      downPct: Math.max(minDown, props.downPct),
+      downAmtFixed: Math.max(props.price * minDown / 100, props.price * Math.max(minDown, props.downPct) / 100),
+      downMode: 'pct' as const,
+      rate: props.rate,
+      termYrs: props.term,
+      annualIncome: props.annualIncome ?? 0,
+      monthlyDebt: props.monthlyDebt ?? 0,
+      vaFF: isVA ? (props.vaFundingFeePct ?? 2.5) : 0,
+      drawerOpen: false,
+    };
+    _apcCache.set(cacheKey, { ...cur, ...patch });
+  }
+
   // ── Primary state ─────────────────────────────────────────────────────────
-  const [price,        setPrice]        = useState(props.price);
+  // Initial values fall back to cache first, then props.
+  const [price,        setPrice]        = useState(cached?.price ?? props.price);
   // Two independent anchors — price slider NEVER touches these.
   // % mode: downPct is fixed; downAmt is derived from price (expected math).
   // $ mode: downAmtFixed is fixed; % is derived from current price (info only).
-  const [downPct,      setDownPct]      = useState(Math.max(minDown, props.downPct));
+  const [downPct,      setDownPct]      = useState(cached?.downPct ?? Math.max(minDown, props.downPct));
   const [downAmtFixed, setDownAmtFixed] = useState(
-    Math.max(props.price * minDown / 100, props.price * Math.max(minDown, props.downPct) / 100)
+    cached?.downAmtFixed ?? Math.max(props.price * minDown / 100, props.price * Math.max(minDown, props.downPct) / 100)
   );
-  const [downMode,     setDownMode]     = useState<'pct' | 'dollar'>('pct');
-  const [rate,         setRate]         = useState(props.rate);
-  const [termYrs,      setTermYrs]      = useState(props.term);
-  const [annualIncome, setAnnualIncome] = useState(props.annualIncome ?? 0);
-  const [monthlyDebt,  setMonthlyDebt]  = useState(props.monthlyDebt ?? 0);
+  const [downMode,     setDownMode]     = useState<'pct' | 'dollar'>(cached?.downMode ?? 'pct');
+  const [rate,         setRate]         = useState(cached?.rate ?? props.rate);
+  const [termYrs,      setTermYrs]      = useState(cached?.termYrs ?? props.term);
+  const [annualIncome, setAnnualIncome] = useState(cached?.annualIncome ?? props.annualIncome ?? 0);
+  const [monthlyDebt,  setMonthlyDebt]  = useState(cached?.monthlyDebt ?? props.monthlyDebt ?? 0);
   // VA Funding Fee — adjustable, defaults to 2.5% (first-use 0% down standard rate)
-  const [vaFF,         setVaFF]         = useState(isVA ? (props.vaFundingFeePct ?? 2.5) : 0);
-  const [drawerOpen,   setDrawerOpen]   = useState(false);
+  const [vaFF,         setVaFF]         = useState(cached?.vaFF ?? (isVA ? (props.vaFundingFeePct ?? 2.5) : 0));
+  const [drawerOpen,   setDrawerOpen]   = useState(cached?.drawerOpen ?? false);
+
+  // ── Income interaction state (for transient helper line) ──────────────────
+  const [incomeSliderActive, setIncomeSliderActive] = useState(false);
+  const [incomeInputFocused, setIncomeInputFocused] = useState(false);
+  const incomeInteracting = incomeSliderActive || incomeInputFocused;
 
   // ── Editable input draft state (null = not editing = show formatted value) ─
   const [priceDraft,  setPriceDraft]  = useState<string | null>(null);
@@ -148,47 +198,58 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
 
   // ── Commit handlers (called on blur / Enter) ──────────────────────────────
   function commitPrice(s: string) {
-    const v = Math.round(parseCurrency(s) / priceStep) * priceStep;
-    setPrice(Math.max(100_000, Math.min(priceMax, v || price)));
+    const v = Math.max(100_000, Math.min(priceMax, Math.round(parseCurrency(s) / priceStep) * priceStep || price));
+    setPrice(v);
+    saveToCache({ price: v });
   }
   function commitDown(s: string) {
     if (downMode === 'pct') {
       const v = parsePct(s);
       if (v > 0) setDownSafe(v);
     } else {
-      const v = parseCurrency(s);
-      if (v >= 0) setDownAmtFixed(Math.max(0, Math.min(downMaxDollar, v)));
+      const v = Math.max(0, Math.min(downMaxDollar, parseCurrency(s)));
+      setDownAmtFixed(v);
+      saveToCache({ downAmtFixed: v });
     }
   }
   function commitRate(s: string) {
-    const v = Math.round(parsePct(s) / 0.125) * 0.125;
-    setRate(Math.max(3, Math.min(12, v || rate)));
+    const v = Math.max(3, Math.min(12, Math.round(parsePct(s) / 0.125) * 0.125 || rate));
+    setRate(v);
+    saveToCache({ rate: v });
   }
   function commitDebt(s: string) {
-    const v = Math.round(parseCurrency(s) / 50) * 50;
-    setMonthlyDebt(Math.max(0, Math.min(3000, isNaN(v) ? 0 : v)));
+    const v = Math.max(0, Math.min(3000, Math.round(parseCurrency(s) / 50) * 50 || 0));
+    setMonthlyDebt(v);
+    saveToCache({ monthlyDebt: v });
   }
   function commitIncome(s: string) {
-    const v = Math.round(parseCurrency(s) / incomeStep) * incomeStep;
-    setAnnualIncome(Math.max(0, Math.min(incomeMax, isNaN(v) ? 0 : v)));
+    const v = Math.max(0, Math.min(incomeMax, Math.round(parseCurrency(s) / incomeStep) * incomeStep || 0));
+    setAnnualIncome(v);
+    saveToCache({ annualIncome: v });
   }
   function commitVaFF(s: string) {
-    const v = Math.round(parsePct(s) / 0.05) * 0.05;
-    setVaFF(Math.max(0, Math.min(3.6, isNaN(v) ? vaFF : v)));
+    const v = Math.max(0, Math.min(3.6, Math.round(parsePct(s) / 0.05) * 0.05 || vaFF));
+    setVaFF(v);
+    saveToCache({ vaFF: v });
   }
 
   // ── Other handlers ────────────────────────────────────────────────────────
   function setDownSafe(pct: number) {
-    setDownPct(Math.max(minDown, Math.min(50, Math.round(pct * 10) / 10)));
+    const v = Math.max(minDown, Math.min(50, Math.round(pct * 10) / 10));
+    setDownPct(v);
+    saveToCache({ downPct: v });
   }
   function switchToDollar() {
-    setDownAmtFixed(price * downPct / 100);
+    const amt = price * downPct / 100;
+    setDownAmtFixed(amt);
     setDownDraft(null);
     setDownMode('dollar');
+    saveToCache({ downAmtFixed: amt, downMode: 'dollar' });
   }
   function switchToPct() {
     setDownDraft(null);
     setDownMode('pct');
+    saveToCache({ downMode: 'pct' });
   }
 
   function handleAddressSubmit(addr: string) {
@@ -260,7 +321,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         </div>
         <div className="apc-tile">
           <div className="apc-tile-label">Income to Qualify</div>
-          <div className="apc-tile-val" style={{ color: ltAccent }}>{fmtK(incomeToQualify)}</div>
+          <div className="apc-tile-val" style={{ color: annualIncome === 0 ? ltAccent : dtiColor }}>{fmtK(incomeToQualify)}</div>
           <div className="apc-tile-sub">{isVA ? '41% DTI' : '43% DTI'}</div>
         </div>
       </div>
@@ -336,7 +397,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         type="button"
         className={`apc-trigger${drawerOpen ? ' open' : ''}`}
         style={drawerOpen ? { borderColor: `${ltAccent}40`, background: `${ltAccent}06`, color: ltAccent } : {}}
-        onClick={() => setDrawerOpen(o => !o)}
+        onClick={() => { setDrawerOpen(o => { saveToCache({ drawerOpen: !o }); return !o; }); }}
       >
         <span className="apc-trigger-lbl">Adjust your numbers</span>
         <span className="apc-trigger-arrow">{drawerOpen ? '▴' : '▾'}</span>
@@ -363,7 +424,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
               style={{ '--tc': ltAccent, '--val': `${priceFill}%` } as React.CSSProperties}
               min={100_000} max={priceMax} step={priceStep}
               value={price}
-              onChange={e => setPrice(Number(e.target.value))} />
+              onChange={e => { const v = Number(e.target.value); setPrice(v); saveToCache({ price: v }); }} />
             <div className="apc-range-lbls"><span>$100k</span><span>{isJumbo ? '$10M' : '$3M'}</span></div>
           </div>
 
@@ -409,7 +470,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
                   style={{ '--tc': ltAccent, '--val': `${downPctFill}%` } as React.CSSProperties}
                   min={minDown} max={50} step={0.5}
                   value={downPct}
-                  onChange={e => setDownSafe(Number(e.target.value))} />
+                  onChange={e => setDownSafe(Number(e.target.value))} /* setDownSafe writes cache */ />
                 <div className="apc-range-lbls"><span>{minDown}%</span><span>50%</span></div>
                 <div className="apc-field-secondary">= {fmt$(Math.round(downAmt))} at current price</div>
               </>
@@ -420,7 +481,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
                   style={{ '--tc': ltAccent, '--val': `${downAmtFill}%` } as React.CSSProperties}
                   min={0} max={downMaxDollar} step={1000}
                   value={Math.round(downAmtFixed)}
-                  onChange={e => setDownAmtFixed(Number(e.target.value))} />
+                  onChange={e => { const v = Number(e.target.value); setDownAmtFixed(v); saveToCache({ downAmtFixed: v }); }} />
                 <div className="apc-range-lbls"><span>$0</span><span>{fmtK(downMaxDollar)}</span></div>
                 <div className="apc-field-secondary">= {effectiveDownPct.toFixed(1)}% of current price</div>
               </>
@@ -444,7 +505,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
               style={{ '--tc': ltAccent, '--val': `${rateFill}%` } as React.CSSProperties}
               min={3} max={12} step={0.125}
               value={rate}
-              onChange={e => setRate(Number(e.target.value))} />
+              onChange={e => { const v = Number(e.target.value); setRate(v); saveToCache({ rate: v }); }} />
             <div className="apc-range-lbls"><span>3%</span><span>12%</span></div>
           </div>
 
@@ -466,7 +527,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
                 style={{ '--tc': '#14b8a6', '--val': `${vaFFFill}%` } as React.CSSProperties}
                 min={0} max={3.6} step={0.05}
                 value={vaFF}
-                onChange={e => setVaFF(Number(e.target.value))} />
+                onChange={e => { const v = Number(e.target.value); setVaFF(v); saveToCache({ vaFF: v }); }} />
               <div className="apc-range-lbls"><span>0% (exempt)</span><span>3.6%</span></div>
               <div className="apc-field-hint">
                 Typical: 2.15% first use · 1.5% with 5%+ down · 3.3% subsequent use · 0% if service-connected disabled
@@ -492,7 +553,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
               style={{ '--val': `${debtFill}%` } as React.CSSProperties}
               min={0} max={3000} step={50}
               value={monthlyDebt}
-              onChange={e => setMonthlyDebt(Number(e.target.value))} />
+              onChange={e => { const v = Number(e.target.value); setMonthlyDebt(v); saveToCache({ monthlyDebt: v }); }} />
             <div className="apc-range-lbls"><span>$0</span><span>$3,000/mo</span></div>
             <div className="apc-field-hint">Cars, credit cards, student loans</div>
           </div>
@@ -505,8 +566,8 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
                 className="apc-numval"
                 value={incomeDraft !== null ? incomeDraft : annualIncome === 0 ? '$0' : fmt$(annualIncome)}
                 onChange={e => setIncomeDraft(e.target.value)}
-                onFocus={e => { setIncomeDraft(String(annualIncome)); e.currentTarget.select(); }}
-                onBlur={() => { commitIncome(incomeDraft ?? ''); setIncomeDraft(null); }}
+                onFocus={e => { setIncomeInputFocused(true); setIncomeDraft(String(annualIncome)); e.currentTarget.select(); }}
+                onBlur={() => { setIncomeInputFocused(false); commitIncome(incomeDraft ?? ''); setIncomeDraft(null); }}
                 onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
               />
             </div>
@@ -514,9 +575,23 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
               style={{ '--tc': ltAccent, '--val': `${incomeFill}%` } as React.CSSProperties}
               min={0} max={incomeMax} step={incomeStep}
               value={annualIncome}
-              onChange={e => setAnnualIncome(Number(e.target.value))} />
+              onMouseDown={() => setIncomeSliderActive(true)}
+              onTouchStart={() => setIncomeSliderActive(true)}
+              onMouseUp={() => setIncomeSliderActive(false)}
+              onTouchEnd={() => setIncomeSliderActive(false)}
+              onBlur={() => setIncomeSliderActive(false)}
+              onChange={e => { const v = Number(e.target.value); setAnnualIncome(v); saveToCache({ annualIncome: v }); }} />
             <div className="apc-range-lbls"><span>$0</span><span>{isJumbo ? '$2M' : '$600k'}</span></div>
-            {annualIncome === 0 && <div className="apc-field-hint">Optional — updates DTI bar above</div>}
+            {annualIncome === 0 && !incomeInteracting && <div className="apc-field-hint">Optional — updates DTI bar above</div>}
+            {incomeInteracting && incomeToQualify > 0 && (
+              <div className="apc-income-gap" style={{
+                color: annualIncome >= incomeToQualify ? '#00e87a' : '#f59e0b',
+              }}>
+                {annualIncome >= incomeToQualify
+                  ? `✓ ${fmt$(annualIncome - incomeToQualify)}/yr above qualifying income`
+                  : `${fmt$(incomeToQualify - annualIncome)}/yr short of qualifying income (${fmt$(incomeToQualify)}/yr needed)`}
+              </div>
+            )}
           </div>
 
           {/* ── Loan Term ── */}
@@ -529,7 +604,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
                 <button type="button" key={yr}
                   className={`apc-term${termYrs === yr ? ' active' : ''}`}
                   style={termYrs === yr ? { borderColor: `${ltAccent}55`, color: ltAccent, background: `${ltAccent}12` } : {}}
-                  onClick={() => setTermYrs(yr)}
+                  onClick={() => { setTermYrs(yr); saveToCache({ termYrs: yr }); }}
                 >{yr}yr</button>
               ))}
             </div>
@@ -662,6 +737,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         .apc-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #f0f4ff; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
         .apc-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; border: none; background: #f0f4ff; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
         .apc-range-lbls { display: flex; justify-content: space-between; font-size: 9.5px; color: #4b6080; margin-top: -2px; }
+        .apc-income-gap { font-size: 10.5px; font-weight: 600; margin-top: 5px; line-height: 1.4; }
 
         .apc-terms { display: flex; gap: 8px; }
         .apc-term { flex: 1; padding: 9px 0; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); font-size: 12px; font-weight: 600; color: #94a3b8; cursor: pointer; font-family: inherit; text-align: center; transition: all 0.15s; }
