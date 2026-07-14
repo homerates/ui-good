@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
 
     // Decision 4: lo_user_id filter is not optional — every query must include it.
     let query = supabase
-        .from('crm_touchpoints')
+        .from('person_activity')
         .select('id, borrower_id, lo_user_id, touchpoint_type, touchpoint_date, subject, key_facts, is_superseded, superseded_by, created_at')
         .eq('borrower_id', borrowerId)
         .eq('lo_user_id', userId)
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     if (blocklistResult.blocked) {
         // Log to crm_compliance_events for audit and blocklist review.
         // Fire-and-forget — don't await, don't let logging failure block the response.
-        supabase.from('crm_compliance_events').insert({
+        supabase.from('compliance_events').insert({
             event_type:       'blocklist_triggered',
             lo_user_id:       userId,
             borrower_id:      borrower_id,
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     if (incomingAutoKeys.length > 0) {
         // Fetch all active touchpoints for this borrower under this LO
         const { data: priorActive } = await supabase
-            .from('crm_touchpoints')
+            .from('person_activity')
             .select('id, key_facts')
             .eq('borrower_id', borrower_id)
             .eq('lo_user_id', userId)
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
 
     // Insert the new touchpoint first so we have its id for superseded_by
     const { data: inserted, error: insertErr } = await supabase
-        .from('crm_touchpoints')
+        .from('person_activity')
         .insert({
             borrower_id,
             lo_user_id:      userId,
@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
     // Now mark prior matching touchpoints as superseded, pointing to the new one
     if (supersededIds.length > 0) {
         await supabase
-            .from('crm_touchpoints')
+            .from('person_activity')
             .update({ is_superseded: true, superseded_by: inserted.id })
             .in('id', supersededIds);
     }
@@ -226,7 +226,7 @@ export async function PATCH(req: NextRequest) {
 
     // Decision 4: lo_user_id filter ensures the LO can only supersede their own rows
     const { data, error } = await supabase
-        .from('crm_touchpoints')
+        .from('person_activity')
         .update({
             is_superseded: true,
             superseded_by: body.superseded_by ?? null,
