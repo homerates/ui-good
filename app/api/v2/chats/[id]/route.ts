@@ -59,7 +59,7 @@ export async function PUT(req: NextRequest, ctx: any) {
     if (!supabase) return noStore({ ok: false, error: "supabase_not_configured" }, 503);
 
     const body = await req.json().catch(() => ({}));
-    const { title, messages, project_id, memory_thread_id } = body ?? {};
+    const { title, messages, project_id, memory_thread_id, borrower_id } = body ?? {};
 
     const payload: Record<string, unknown> = {
       id,
@@ -70,6 +70,7 @@ export async function PUT(req: NextRequest, ctx: any) {
     if (messages !== undefined) payload.messages = Array.isArray(messages) ? messages : [];
     if (project_id !== undefined) payload.project_id = project_id ?? null;
     if (memory_thread_id !== undefined) payload.memory_thread_id = memory_thread_id ?? null;
+    if (borrower_id !== undefined) payload.borrower_id = borrower_id ?? null;
 
     const { error } = await supabase
       .from("chats")
