@@ -26,7 +26,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth } from '@clerk/nextjs/server';
 import type { CrmKeyFact, TouchpointType } from '../../../../lib/crm/types';
-import { checkFairLendingBlocklist, extractFreeformFields } from '../../../../lib/crm/blocklist';
+import { checkFairLendingBlocklist, extractFreeformFields, ClassifierUnavailableError } from '../../../../lib/crm/blocklist';
 
 // Keys that auto-supersede prior facts of the same key when a new touchpoint is posted.
 // When any of these keys appear in the new touchpoint's key_facts, prior non-superseded
@@ -127,7 +127,19 @@ export async function POST(req: NextRequest) {
 
     // Decision 7: fair-lending blocklist — run before any write.
     // Checks subject + all freeform key_fact string values against protected-characteristic patterns.
-    const blocklistResult = await checkFairLendingBlocklist(extractFreeformFields(subject, facts));
+    // ClassifierUnavailableError → 503 (fail closed — never pass through unclassified content).
+    let blocklistResult: Awaited<ReturnType<typeof checkFairLendingBlocklist>>;
+    try {
+        blocklistResult = await checkFairLendingBlocklist(extractFreeformFields(subject, facts));
+    } catch (err) {
+        if (err instanceof ClassifierUnavailableError) {
+            return NextResponse.json({
+                error:     'Compliance check temporarily unavailable. Please try again in a moment.',
+                retryable: true,
+            }, { status: 503 });
+        }
+        throw err;
+    }
     if (blocklistResult.blocked) {
         // Log to crm_compliance_events for audit and blocklist review.
         // Fire-and-forget — don't await, don't let logging failure block the response.

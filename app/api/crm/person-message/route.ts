@@ -20,7 +20,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth } from '@clerk/nextjs/server';
 import type { CrmKeyFact } from '../../../../lib/crm/types';
-import { checkFairLendingBlocklist, extractFreeformFields } from '../../../../lib/crm/blocklist';
+import { checkFairLendingBlocklist, extractFreeformFields, ClassifierUnavailableError } from '../../../../lib/crm/blocklist';
 
 export const runtime    = 'nodejs';
 export const maxDuration = 45;
@@ -159,8 +159,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Decision 7: blocklist check on raw message
-    const rawHit = await checkFairLendingBlocklist([{ field: 'message', value: message }]);
+    // Decision 7: blocklist check on raw message.
+    // ClassifierUnavailableError → 503 (fail closed — never pass unclassified content through).
+    let rawHit: Awaited<ReturnType<typeof checkFairLendingBlocklist>>;
+    try {
+        rawHit = await checkFairLendingBlocklist([{ field: 'message', value: message }]);
+    } catch (err) {
+        if (err instanceof ClassifierUnavailableError) {
+            return NextResponse.json({
+                error:     'Compliance check temporarily unavailable. Please try again in a moment.',
+                retryable: true,
+            }, { status: 503 });
+        }
+        throw err;
+    }
     if (rawHit.blocked) {
         supabase.from('compliance_events').insert({
             event_type:       'blocklist_triggered',

@@ -60,44 +60,57 @@ interface ClassificationResult {
     reason:   string | null;
 }
 
+/** Thrown when the classifier API is unreachable after retries.
+ *  Callers must catch this and return a 503 — never treat it as a pass. */
+export class ClassifierUnavailableError extends Error {
+    constructor() { super('compliance classifier unavailable'); this.name = 'ClassifierUnavailableError'; }
+}
+
 async function classifyText(text: string): Promise<ClassificationResult> {
-    try {
-        const response = await fetch('https://api.x.ai/v1/chat/completions', {
-            method:  'POST',
-            headers: {
-                'Content-Type':  'application/json',
-                'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
-            },
-            body: JSON.stringify({
-                model:           'grok-4-1-fast-non-reasoning',
-                temperature:     0,
-                max_tokens:      80,
-                response_format: { type: 'json_object' },
-                messages: [
-                    { role: 'system', content: CLASSIFICATION_PROMPT },
-                    { role: 'user',   content: text.slice(0, 4000) },
-                ],
-            }),
-            signal: AbortSignal.timeout(10_000),
-        });
+    // Two attempts — one immediate retry on any failure before failing closed.
+    let lastErr: unknown;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const response = await fetch('https://api.x.ai/v1/chat/completions', {
+                method:  'POST',
+                headers: {
+                    'Content-Type':  'application/json',
+                    'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
+                },
+                body: JSON.stringify({
+                    model:           'grok-4-1-fast-non-reasoning',
+                    temperature:     0,
+                    max_tokens:      80,
+                    response_format: { type: 'json_object' },
+                    messages: [
+                        { role: 'system', content: CLASSIFICATION_PROMPT },
+                        { role: 'user',   content: text.slice(0, 4000) },
+                    ],
+                }),
+                signal: AbortSignal.timeout(8_000),
+            });
 
-        if (!response.ok) throw new Error(`xAI ${response.status}`);
+            if (!response.ok) throw new Error(`xAI ${response.status}`);
 
-        const json   = await response.json();
-        const raw    = (json.choices?.[0]?.message?.content ?? '{}') as string;
-        const parsed = JSON.parse(raw) as Partial<ClassificationResult>;
+            const json   = await response.json();
+            const raw    = (json.choices?.[0]?.message?.content ?? '{}') as string;
+            const parsed = JSON.parse(raw) as Partial<ClassificationResult>;
 
-        return {
-            blocked:  parsed.blocked === true,
-            category: typeof parsed.category === 'string' ? parsed.category : null,
-            reason:   typeof parsed.reason   === 'string' ? parsed.reason   : null,
-        };
-    } catch (err: any) {
-        // Fail open — a transient API failure should not permanently block LO communication.
-        // The failure is logged; compliance_events still has the raw text on any subsequent writes.
-        console.error('[D7 classifier] AI call failed — failing open:', err?.message ?? err);
-        return { blocked: false, category: null, reason: null };
+            return {
+                blocked:  parsed.blocked === true,
+                category: typeof parsed.category === 'string' ? parsed.category : null,
+                reason:   typeof parsed.reason   === 'string' ? parsed.reason   : null,
+            };
+        } catch (err) {
+            lastErr = err;
+            console.warn(`[D7 classifier] attempt ${attempt} failed:`, (err as any)?.message ?? err);
+        }
     }
+
+    // Both attempts failed — fail CLOSED. Do not pass the message through.
+    // Callers receive ClassifierUnavailableError and must return 503.
+    console.error('[D7 classifier] unavailable after 2 attempts:', (lastErr as any)?.message ?? lastErr);
+    throw new ClassifierUnavailableError();
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
