@@ -300,6 +300,13 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
           {monthlyDebt > 0 ? ` · ${fmt$(Math.round(monthlyDebt))}/mo debts` : ''}
           {' · '}{rate.toFixed(3)}% · {termYrs}yr
         </div>
+        <div className="apc-hero-breakdown">
+          {'P+I '}{fmt$(Math.round(pi))}
+          {' · Tax '}{fmt$(Math.round(tax))}
+          {' · Ins '}{fmt$(Math.round(ins))}
+          {isFHA && ` · MIP ${fmt$(Math.round(monthlyMIP))}`}
+          {!isFHA && !isVA && pmi > 0 && ` · PMI ${fmt$(Math.round(pmi))}`}
+        </div>
       </div>
 
       {/* 3-tile row */}
@@ -396,11 +403,26 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
       <button
         type="button"
         className={`apc-trigger${drawerOpen ? ' open' : ''}`}
-        style={drawerOpen ? { borderColor: `${ltAccent}40`, background: `${ltAccent}06`, color: ltAccent } : {}}
+        style={{
+          color:            ltAccent,
+          borderTopColor:   `${ltAccent}30`,
+          background:       drawerOpen ? `${ltAccent}0d` : `${ltAccent}06`,
+        }}
         onClick={() => { setDrawerOpen(o => { saveToCache({ drawerOpen: !o }); return !o; }); }}
       >
-        <span className="apc-trigger-lbl">Adjust your numbers</span>
-        <span className="apc-trigger-arrow">{drawerOpen ? '▴' : '▾'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          {/* Tapering-lines "sliders" icon — visually signals adjustable parameters */}
+          <svg className="apc-trigger-icon" width="15" height="11" viewBox="0 0 15 11" fill="none" aria-hidden="true">
+            <rect x="0"   y="0"   width="15" height="1.8" rx="0.9" fill="currentColor" opacity="0.5"/>
+            <rect x="2"   y="4.6" width="11" height="1.8" rx="0.9" fill="currentColor" opacity="0.8"/>
+            <rect x="4.5" y="9.2" width="6"  height="1.8" rx="0.9" fill="currentColor" opacity="0.5"/>
+          </svg>
+          <span className="apc-trigger-lbl">Adjust your numbers</span>
+        </div>
+        {/* Chevron rotates 180° on open via CSS */}
+        <svg className="apc-trigger-chevron" width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+          <path d="M2.5 4.5l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       </button>
 
       {/* Adjuster drawer */}
@@ -664,6 +686,7 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         .apc-hero-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #94a3b8; margin-bottom: 4px; }
         .apc-hero-amount { font-size: 38px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
         .apc-hero-sub { font-size: 12px; color: #8fa3b8; margin-top: 6px; line-height: 1.4; }
+        .apc-hero-breakdown { font-size: 10.5px; color: rgba(255,255,255,0.35); margin-top: 4px; letter-spacing: 0.01em; }
 
         .apc-tiles { display: grid; grid-template-columns: 1fr 1fr 1fr; margin: 10px 16px 12px; background: #0e1420; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; overflow: hidden; }
         .apc-tile { padding: 12px 14px; }
@@ -688,10 +711,12 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         .apc-jumbo-badge { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 20px; flex-shrink: 0; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; margin-top: 1px; }
         .apc-jumbo-note { font-size: 11.5px; color: rgba(255,255,255,0.5); line-height: 1.45; }
 
-        .apc-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; background: transparent; border: none; border-top: 1px solid rgba(255,255,255,0.07); cursor: pointer; font-family: inherit; color: #8fa3b8; transition: background 0.15s, color 0.15s; }
-        .apc-trigger:hover { background: rgba(255,255,255,0.02); color: #f0f4ff; }
-        .apc-trigger-lbl { font-size: 13px; font-weight: 600; }
-        .apc-trigger-arrow { font-size: 14px; }
+        .apc-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; background: transparent; border: none; border-top: 1px solid rgba(255,255,255,0.07); cursor: pointer; font-family: inherit; transition: background 0.15s; }
+        .apc-trigger:hover { background: rgba(255,255,255,0.03); }
+        .apc-trigger-lbl { font-size: 13px; font-weight: 700; }
+        .apc-trigger-icon { flex-shrink: 0; }
+        .apc-trigger-chevron { flex-shrink: 0; transition: transform 0.28s cubic-bezier(0.4,0,0.2,1); }
+        .apc-trigger.open .apc-trigger-chevron { transform: rotate(180deg); }
 
         .apc-drawer { max-height: 0; overflow: hidden; transition: max-height 0.38s cubic-bezier(0.4,0,0.2,1); }
         .apc-drawer.open { max-height: 1000px; }
