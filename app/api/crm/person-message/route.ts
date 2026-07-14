@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Decision 7: blocklist check on raw message
-    const rawHit = checkFairLendingBlocklist([{ field: 'message', value: message }]);
+    const rawHit = await checkFairLendingBlocklist([{ field: 'message', value: message }]);
     if (rawHit.blocked) {
         supabase.from('compliance_events').insert({
             event_type:       'blocklist_triggered',
@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
 
         // Second blocklist pass on extracted freeform strings
         const extractedFields = extractFreeformFields('', facts as CrmKeyFact[]);
-        const extractedHit    = checkFairLendingBlocklist(extractedFields);
+        const extractedHit    = await checkFairLendingBlocklist(extractedFields);
         if (extractedHit.blocked) {
             supabase.from('compliance_events').insert({
                 event_type:       'blocklist_triggered',

@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
 
     // Decision 7: fair-lending blocklist — run before any write.
     // Checks subject + all freeform key_fact string values against protected-characteristic patterns.
-    const blocklistResult = checkFairLendingBlocklist(extractFreeformFields(subject, facts));
+    const blocklistResult = await checkFairLendingBlocklist(extractFreeformFields(subject, facts));
     if (blocklistResult.blocked) {
         // Log to crm_compliance_events for audit and blocklist review.
         // Fire-and-forget — don't await, don't let logging failure block the response.
