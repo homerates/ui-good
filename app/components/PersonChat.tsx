@@ -35,6 +35,7 @@ export default function PersonChat({ borrowerId, borrowerName }: Props) {
     const [sending,   setSending]   = React.useState(false);
     const [aiThinking, setAiThinking] = React.useState(false);
     const [blockErr,  setBlockErr]  = React.useState<string | null>(null);
+    const [blockRetryable, setBlockRetryable] = React.useState(false);
     const [initDone,  setInitDone]  = React.useState(false);
 
     const bottomRef = React.useRef<HTMLDivElement>(null);
@@ -80,6 +81,7 @@ export default function PersonChat({ borrowerId, borrowerName }: Props) {
         setInput("");
         setBlockErr(null);
         setSending(true);
+        setBlockRetryable(false);
 
         // Optimistically append user message
         const userMsg: ChatMessage = { role: "user", content: text };
@@ -96,10 +98,12 @@ export default function PersonChat({ borrowerId, borrowerName }: Props) {
 
             if (!gateRes.ok) {
                 const gateData = await gateRes.json();
-                // Revert optimistic message on block
                 setMessages(messages);
                 setInput(text);
-                setBlockErr(gateData.error ?? "Message blocked by compliance filter.");
+                setBlockRetryable(gateRes.status === 503);
+                setBlockErr(gateData.error ?? (gateRes.status === 503
+                    ? "Compliance check temporarily unavailable. Please try again in a moment."
+                    : "Message blocked by compliance filter."));
                 return;
             }
 
@@ -152,6 +156,7 @@ export default function PersonChat({ borrowerId, borrowerName }: Props) {
             setAiThinking(false);
             setMessages(messages);
             setInput(text);
+            setBlockRetryable(true);
             setBlockErr("Something went wrong. Please try again.");
         } finally {
             setSending(false);
@@ -232,9 +237,16 @@ export default function PersonChat({ borrowerId, borrowerName }: Props) {
                 <div ref={bottomRef} />
             </div>
 
-            {/* Blocklist error */}
+            {/* Compliance error — red for genuine block, amber for temporary unavailability */}
             {blockErr && (
-                <div style={{ padding: "8px 16px", background: "rgba(248,113,113,0.06)", borderTop: "1px solid rgba(248,113,113,0.15)", fontSize: "0.79rem", color: "#f87171", lineHeight: 1.5 }}>
+                <div style={{
+                    padding:     "8px 16px",
+                    borderTop:   `1px solid ${blockRetryable ? "rgba(251,191,36,0.2)" : "rgba(248,113,113,0.15)"}`,
+                    background:  blockRetryable ? "rgba(251,191,36,0.06)" : "rgba(248,113,113,0.06)",
+                    fontSize:    "0.79rem",
+                    color:       blockRetryable ? "#fbbf24" : "#f87171",
+                    lineHeight:  1.5,
+                }}>
                     {blockErr}
                 </div>
             )}

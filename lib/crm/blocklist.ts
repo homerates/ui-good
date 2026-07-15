@@ -1,66 +1,16 @@
 // lib/crm/blocklist.ts
-// Decision 7: shared fair-lending blocklist — used by POST /api/crm/touchpoints
-// and POST /api/crm/notes. See COMPLIANCE_DECISIONS.md Decision 7.
+// Decision 7: Fair-lending compliance classifier.
 //
-// Pattern maintenance: add entries here when blocked saves reveal gaps. Each entry
-// carries a human-readable label (logged to crm_compliance_events) and a category
-// (for aggregated review). Err toward word-boundary precision (\b) to reduce false positives.
+// Uses Grok AI classification rather than a hardcoded pattern list.
+// The prompt encodes ECOA/FHA/FCRA protected-category logic; the model handles
+// misspellings, slang, indirect language, and any terminology variant.
+//
+// Pattern maintenance is now prompt maintenance — if coverage needs to expand,
+// update CLASSIFICATION_PROMPT, not a pattern array.
 
 import type { CrmKeyFact } from './types';
 
-export const CRM_FAIR_LENDING_BLOCKLIST: Array<{ pattern: RegExp; label: string; category: string }> = [
-    // Race / ethnicity
-    { pattern: /\bracial\b/i,               label: 'racial',            category: 'race' },
-    { pattern: /\bethnicit(y|ies)\b/i,      label: 'ethnicity',         category: 'race' },
-    { pattern: /\bHispanic\b/i,             label: 'Hispanic',          category: 'race_national_origin' },
-    { pattern: /\bLatino\b/i,               label: 'Latino',            category: 'race_national_origin' },
-    { pattern: /\bLatina\b/i,               label: 'Latina',            category: 'race_national_origin' },
-    { pattern: /\bAfrican[\s-]American\b/i, label: 'African American',  category: 'race' },
-    { pattern: /\bNative[\s-]American\b/i,  label: 'Native American',   category: 'race_national_origin' },
-    { pattern: /\bindigenous\b/i,           label: 'indigenous',        category: 'race' },
-    // Religion
-    { pattern: /\breligion\b/i,             label: 'religion',          category: 'religion' },
-    { pattern: /\breligious\b/i,            label: 'religious',         category: 'religion' },
-    { pattern: /\bMuslim\b/i,               label: 'Muslim',            category: 'religion' },
-    { pattern: /\bIslam(ic)?\b/i,           label: 'Islam/Islamic',     category: 'religion' },
-    { pattern: /\bJewish\b/i,               label: 'Jewish',            category: 'religion' },
-    { pattern: /\bJudaism\b/i,              label: 'Judaism',           category: 'religion' },
-    { pattern: /\bCatholic\b/i,             label: 'Catholic',          category: 'religion' },
-    { pattern: /\bHindu(ism)?\b/i,          label: 'Hindu/Hinduism',    category: 'religion' },
-    { pattern: /\bBuddhis[mt]\b/i,          label: 'Buddhist/Buddhism', category: 'religion' },
-    { pattern: /\bMormon\b/i,               label: 'Mormon',            category: 'religion' },
-    { pattern: /\bSikh\b/i,                 label: 'Sikh',              category: 'religion' },
-    { pattern: /\bsynagogue\b/i,            label: 'synagogue',         category: 'religion' },
-    { pattern: /\bmosque\b/i,               label: 'mosque',            category: 'religion' },
-    // National origin / immigration
-    { pattern: /\bimmigrant\b/i,            label: 'immigrant',         category: 'national_origin' },
-    { pattern: /\bundocumented\b/i,         label: 'undocumented',      category: 'national_origin' },
-    { pattern: /\bcitizenship\b/i,          label: 'citizenship',       category: 'national_origin' },
-    { pattern: /\bgreen[\s-]card\b/i,       label: 'green card',        category: 'national_origin' },
-    { pattern: /\bnational[\s-]origin\b/i,  label: 'national origin',   category: 'national_origin' },
-    // Marital status
-    { pattern: /\bmarital\b/i,              label: 'marital',           category: 'marital_status' },
-    { pattern: /\bdivorced?\b/i,            label: 'divorce/divorced',  category: 'marital_status' },
-    { pattern: /\bwidow(er|ed)?\b/i,        label: 'widow/widowed',     category: 'marital_status' },
-    // Familial status (ECOA / FHA)
-    { pattern: /\bpregnant\b/i,             label: 'pregnant',          category: 'familial_status' },
-    { pattern: /\bpregnancy\b/i,            label: 'pregnancy',         category: 'familial_status' },
-    { pattern: /\bexpecting[\s\w]{0,10}baby\b/i, label: 'expecting baby', category: 'familial_status' },
-    { pattern: /\bfamilial\b/i,             label: 'familial',          category: 'familial_status' },
-    { pattern: /\bfamily[\s-]size\b/i,      label: 'family size',       category: 'familial_status' },
-    // Disability
-    { pattern: /\bdisabilit(y|ies)\b/i,     label: 'disability',        category: 'disability' },
-    { pattern: /\bdisabled\b/i,             label: 'disabled',          category: 'disability' },
-    { pattern: /\bhandicap(ped)?\b/i,       label: 'handicap',          category: 'disability' },
-    { pattern: /\bwheelchair\b/i,           label: 'wheelchair',        category: 'disability' },
-    // Sex / gender
-    { pattern: /\bgender\b/i,               label: 'gender',            category: 'sex' },
-    { pattern: /\bLGBTQ\+?\b/i,             label: 'LGBTQ',             category: 'sex' },
-    { pattern: /\btransgender\b/i,          label: 'transgender',       category: 'sex' },
-    // Age as qualification basis
-    { pattern: /\bage[\s-](discrimination|discriminatory|based|qualify|limit|issue)\b/i, label: 'age-as-qualifier',     category: 'age' },
-    { pattern: /\btoo\s+(old|young)\s+to\s+(qualify|buy|borrow|afford)\b/i,             label: 'too old/young to qualify', category: 'age' },
-];
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface BlocklistHit {
     blocked:        true;
@@ -72,9 +22,101 @@ export interface BlocklistHit {
 
 export type BlocklistResult = BlocklistHit | { blocked: false };
 
-/** Scan freeform fields for protected-characteristic terms.
- *  property_of_interest.address and competitor_mentioned.competitor intentionally excluded:
- *  addresses and business names carry no protected-characteristic risk. */
+// ── Prompt ────────────────────────────────────────────────────────────────────
+
+const CLASSIFICATION_PROMPT = `You are a fair-lending compliance classifier for a mortgage origination platform. Your only job is to detect whether the provided text references a protected characteristic under ECOA (Equal Credit Opportunity Act), FHA (Fair Housing Act), or FCRA.
+
+Protected categories under these laws:
+- race or color: any specific race, racial descriptor, or racial slur
+- national_origin: country of origin, immigration/citizenship status, language spoken at home, visa status
+- religion: any specific religion, religious practice, place of worship, or religious affiliation
+- sex: sex, gender identity, sexual orientation (including LGBTQ+ references)
+- familial_status: pregnancy (any spelling or slang), having children, family composition, planning a family, parental leave
+- disability: physical or mental health condition, mobility limitation, chronic illness, medical diagnosis
+- age: when referenced as a lending qualifier (e.g. "too old to qualify", "too young to buy")
+- marital_status: married, divorced, separated, widowed, single — when used as a personal descriptor about the borrower
+- public_assistance: receiving government benefits or assistance programs as income
+
+Classify as BLOCKED if the text names or describes any of the above categories about a specific borrower — including misspellings, slang, abbreviations, or indirect language that clearly references a protected category.
+
+Classify as NOT BLOCKED if the text:
+- Discusses mortgage scenarios, purchase price, down payment, rates, or loan types
+- References property details, neighborhoods, market conditions, or transaction timelines
+- Mentions neutral life events (job change, relocation, promotion, retirement, new job)
+- Uses mortgage industry terms (PITI, LTV, DTI, pre-approval, escrow, closing costs, etc.)
+- Asks about products, programs, or eligibility criteria in general terms
+
+Return ONLY valid JSON with no explanation:
+{ "blocked": boolean, "category": string | null, "reason": string | null }
+
+category must be one of: "race", "national_origin", "religion", "sex", "familial_status", "disability", "age", "marital_status", "public_assistance" — or null if not blocked.
+reason is a short phrase describing the trigger (e.g. "references pregnancy") — or null if not blocked.`;
+
+// ── AI classification ─────────────────────────────────────────────────────────
+
+interface ClassificationResult {
+    blocked:  boolean;
+    category: string | null;
+    reason:   string | null;
+}
+
+/** Thrown when the classifier API is unreachable after retries.
+ *  Callers must catch this and return a 503 — never treat it as a pass. */
+export class ClassifierUnavailableError extends Error {
+    constructor() { super('compliance classifier unavailable'); this.name = 'ClassifierUnavailableError'; }
+}
+
+async function classifyText(text: string): Promise<ClassificationResult> {
+    // Two attempts — one immediate retry on any failure before failing closed.
+    let lastErr: unknown;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const response = await fetch('https://api.x.ai/v1/chat/completions', {
+                method:  'POST',
+                headers: {
+                    'Content-Type':  'application/json',
+                    'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
+                },
+                body: JSON.stringify({
+                    model:           'grok-4-1-fast-non-reasoning',
+                    temperature:     0,
+                    max_tokens:      80,
+                    response_format: { type: 'json_object' },
+                    messages: [
+                        { role: 'system', content: CLASSIFICATION_PROMPT },
+                        { role: 'user',   content: text.slice(0, 4000) },
+                    ],
+                }),
+                signal: AbortSignal.timeout(8_000),
+            });
+
+            if (!response.ok) throw new Error(`xAI ${response.status}`);
+
+            const json   = await response.json();
+            const raw    = (json.choices?.[0]?.message?.content ?? '{}') as string;
+            const parsed = JSON.parse(raw) as Partial<ClassificationResult>;
+
+            return {
+                blocked:  parsed.blocked === true,
+                category: typeof parsed.category === 'string' ? parsed.category : null,
+                reason:   typeof parsed.reason   === 'string' ? parsed.reason   : null,
+            };
+        } catch (err) {
+            lastErr = err;
+            console.warn(`[D7 classifier] attempt ${attempt} failed:`, (err as any)?.message ?? err);
+        }
+    }
+
+    // Both attempts failed — fail CLOSED. Do not pass the message through.
+    // Callers receive ClassifierUnavailableError and must return 503.
+    console.error('[D7 classifier] unavailable after 2 attempts:', (lastErr as any)?.message ?? lastErr);
+    throw new ClassifierUnavailableError();
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+/** Extracts freeform text fields from a CrmKeyFact array for classification.
+ *  Excludes property addresses and competitor names — not protected-characteristic risk. */
 export function extractFreeformFields(subject: string, facts: CrmKeyFact[]): Array<{ field: string; value: string }> {
     const out: Array<{ field: string; value: string }> = [];
     if (subject.trim()) out.push({ field: 'subject', value: subject });
@@ -90,19 +132,27 @@ export function extractFreeformFields(subject: string, facts: CrmKeyFact[]): Arr
     return out;
 }
 
-export function checkFairLendingBlocklist(fields: Array<{ field: string; value: string }>): BlocklistResult {
-    for (const { field, value } of fields) {
-        for (const entry of CRM_FAIR_LENDING_BLOCKLIST) {
-            if (entry.pattern.test(value)) {
-                return {
-                    blocked:        true,
-                    field,
-                    label:          entry.label,
-                    category:       entry.category,
-                    truncatedValue: value.slice(0, 120),
-                };
-            }
-        }
-    }
-    return { blocked: false };
+/** AI-based fair-lending classifier. Async — await at all call sites.
+ *  Concatenates all field values and classifies as a single context block. */
+export async function checkFairLendingBlocklist(
+    fields: Array<{ field: string; value: string }>,
+): Promise<BlocklistResult> {
+    if (fields.length === 0) return { blocked: false };
+
+    const combinedText = fields.map(f => f.value).join('\n').trim();
+    if (!combinedText) return { blocked: false };
+
+    const result = await classifyText(combinedText);
+    if (!result.blocked) return { blocked: false };
+
+    // Attribute to the first field if only one; otherwise "content"
+    const field = fields.length === 1 ? fields[0].field : 'content';
+
+    return {
+        blocked:        true,
+        field,
+        label:          result.reason ?? result.category ?? 'protected characteristic',
+        category:       result.category ?? 'unknown',
+        truncatedValue: combinedText.slice(0, 120),
+    };
 }

@@ -81,3 +81,31 @@ record. All `person_activity` rows carry `borrower_id`; consumer context lookup 
 - `CrmKeyFact`, `CrmGenerationFact`, `toGenerationTouchpoint()` — unchanged (these are compliance enforcement types; renaming creates churn with no benefit)
 - `/api/crm/touchpoints` route path — unchanged (internal API, path rename is churn)
 - `lib/crm/blocklist.ts` — unchanged except updated comment references
+
+---
+
+## Personal memory vs. shared knowledge
+
+Not everything the platform knows belongs in a person's individual record. Two distinct categories:
+
+**Personal memory** — facts specific to one individual: their budget, timeline, concerns, activity history. This is what `person_activity` holds. Compliance-sensitive, needs the audit trail (Decision 1 exclusions, the blocklist), generated per person as they use the platform.
+
+**Shared knowledge** — facts that apply identically to every person in a given context: MSA/county-level market conditions, AMI bands and program eligibility rules, loan program parameters (FHA limits, VA funding fees, conforming loan limits), general rate environment. None of this is personal data, so it doesn't carry the same compliance risk, and it's naturally reusable — the Austin market snapshot for one consumer is the same for every consumer looking at Austin. This layer is keyed by dimension (MSA, county, loan program) rather than by person, generated once, cached, and safe to keep in a more human-editable form (an analyst should be able to update "Austin conditions changed" once and have it apply everywhere) rather than something each person's memory independently re-derives.
+
+**Existing precedents — this pattern is already in the codebase, not a new concept:**
+
+Migrations 058 and 065 together establish a shared-knowledge layer keyed by geography:
+
+| Table | Key | Content | Updated |
+|-------|-----|---------|---------|
+| `gse_ami` | `county_fips` | FHFA AMI threshold (Fannie/Freddie HomeReady eligibility) | Annually via `tools/etl-gse-ami.mjs` |
+| `ffiec_census_tracts` | `census_tract_geoid` | Tract income level, MFI %, distressed/underserved flag | Per FFIEC data release |
+| `ffiec_mfi` | `msa_md + state_fips + data_year` | Area median family income estimate per MSA | Per FFIEC data release |
+
+Correction from the spec: the table is named `gse_ami`, not `gse_ami_table` — that is the migration filename, not the table name.
+
+All three share the same properties: keyed by geographic dimension (not by person), same value for every consumer in a given area, updated in batch by an ETL process, no PII, no compliance audit trail required. `geo_crosswalk` and `hud_features` (migration 009) serve the same layer in the address-resolution role.
+
+**How they combine:** context assembly (chat, brief, any future personalization surface) pulls both — the person's own derived summary from `person_activity`, plus whichever shared-knowledge documents match their actual situation (their location, their loan type) — and merges them before the AI sees anything. Personalization comes from the combination, not from either layer alone. This is a direct keyed lookup (a person's known MSA/county/program maps to the matching shared doc), not a search or retrieval problem.
+
+This addendum describes the target shape for Phase 2 context-assembly work; it does not require any implementation now.
