@@ -198,7 +198,8 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
 
   // ── Commit handlers (called on blur / Enter) ──────────────────────────────
   function commitPrice(s: string) {
-    const v = Math.max(100_000, Math.min(priceMax, Math.round(parseCurrency(s) / priceStep) * priceStep || price));
+    const parsed = parseCurrency(s);
+    const v = parsed > 0 ? Math.max(100_000, Math.min(priceMax, parsed)) : price;
     setPrice(v);
     saveToCache({ price: v });
   }
