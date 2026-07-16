@@ -130,6 +130,21 @@ function CheckPropertyInner() {
     const incomingSid           = sp?.get('sid') ?? null;
     const [checkPropSessionId, setCheckPropSessionId] = useState<string | null>(null);
     const sessionSavedRef  = useRef('');
+    const capturedRef      = useRef('');
+
+    // ── Auto-capture property_viewed → consumer_activity ─────────────────────
+    // Effect (not inline in handleLookup) so it fires once Clerk finishes
+    // loading — isSignedIn is undefined during the 80ms auto-run window.
+    useEffect(() => {
+        if (!isSignedIn || !resolved || propData === null || degraded) return;
+        if (capturedRef.current === resolved) return;
+        capturedRef.current = resolved;
+        void fetch('/api/crm/auto-capture', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ event: 'property_viewed', data: { address: resolved } }),
+        }).catch(() => {});
+    }, [isSignedIn, resolved, propData, degraded]);
 
     useEffect(() => {
         if (!urlAddress || autoRunRef.current) return;
@@ -258,14 +273,6 @@ function CheckPropertyInner() {
                 const d = json.data;
                 setPropData(d);
                 setResolved(d.address ?? raw);
-                // Auto-capture property interest for borrowers linked to this consumer
-                if (isSignedIn && (d.address ?? raw)) {
-                    void fetch('/api/crm/auto-capture', {
-                        method:  'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body:    JSON.stringify({ event: 'property_viewed', data: { address: d.address ?? raw } }),
-                    }).catch(() => {});
-                }
                 prefetchGrokProperty(d.address ?? raw, {
                     current_status:     normalizeListingStatus(d.listingStatus),
                     current_list_price: d.price ?? null,
