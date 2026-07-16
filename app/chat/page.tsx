@@ -457,7 +457,7 @@ type ApiResponse = {
         loanType: 'conventional' | 'fha' | 'va' | 'jumbo';
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number;
-        annualIncome?: number; monthlyDebt?: number;
+        annualIncome?: number; monthlyDebt?: number; vaFundingFeePct?: number;
     } | null;
     conventionalAffordabilitySlider?: {
         loanType: 'conventional'; annualIncome: number; monthlyDebts: number; savings: number;
@@ -1407,6 +1407,9 @@ export default function Page() {
     // Always-current ref — read inside async callbacks without stale-closure issues
     const messagesRef = useRef<ChatMsg[]>([]);
     messagesRef.current = messages;
+    // Debounce timer for persisting inline scenario-card adjustments (AFFD-012
+    // onLiveChange) — coalesces rapid slider drags into one PUT after settling.
+    const scenarioLiveSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [input, setInput] = useState('');
     const [priceCheckMode, setPriceCheckMode] = useState(false);
@@ -4407,6 +4410,36 @@ export default function Page() {
                                                                 messageId={m.id}
                                                                 fredStamp={fredStampFromMeta(m.meta)}
                                                                 hideAddressSearch={!!m.meta.propertyCard}
+                                                                onLiveChange={(vals) => {
+                                                                    const msgId = m.id;
+                                                                    // Keep the message's stored scenario in sync with inline
+                                                                    // adjustments — Share/PDF/API must reflect the numbers the
+                                                                    // user is looking at, not just what the AI first generated.
+                                                                    const updated = messagesRef.current.map(mm =>
+                                                                        mm.id === msgId && mm.role === 'assistant' && mm.meta?.affordabilityPurchaseCard
+                                                                            ? { ...mm, meta: { ...mm.meta, affordabilityPurchaseCard: {
+                                                                                ...mm.meta.affordabilityPurchaseCard,
+                                                                                price:         vals.price,
+                                                                                downPct:       vals.downPct,
+                                                                                rate:          vals.rate,
+                                                                                term:          vals.term,
+                                                                                annualIncome:  vals.annualIncome,
+                                                                                monthlyDebt:   vals.monthlyDebt,
+                                                                                ...(vals.loanType === 'va' ? { vaFundingFeePct: vals.vaFundingFeePct } : {}),
+                                                                            } } }
+                                                                            : mm
+                                                                    );
+                                                                    setMessages(updated);
+                                                                    if (scenarioLiveSaveTimerRef.current) clearTimeout(scenarioLiveSaveTimerRef.current);
+                                                                    scenarioLiveSaveTimerRef.current = setTimeout(() => {
+                                                                        if (!activeId) return;
+                                                                        fetch(`/api/v2/chats/${encodeURIComponent(activeId)}`, {
+                                                                            method:  'PUT',
+                                                                            headers: { 'Content-Type': 'application/json' },
+                                                                            body:    JSON.stringify({ messages: updated }),
+                                                                        }).catch(() => { /* non-fatal */ });
+                                                                    }, 800);
+                                                                }}
                                                                 onRunScenario={(seed, overrides) => {
                                                                     pendingParamOverridesRef.current = overrides;
                                                                     setPendingParamOverrides(overrides);

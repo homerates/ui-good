@@ -54,7 +54,13 @@ export interface AffordabilityPurchaseParams {
   /** When true, hides the LockedIntelligenceCard address CTA (e.g. property is already loaded) */
   hideAddressSearch?: boolean;
   onRunScenario?: (seed: string, overrides: Record<string, unknown>) => void;
-  onLiveChange?: (vals: { price: number; downPct: number; rate: number; term: number; loanType: string }) => void;
+  /** Fires on every adjuster change (debounced upstream by the caller if needed).
+   *  Carries the full scenario so the parent can keep the message's stored
+   *  meta — and therefore Share/PDF/API — in sync with inline edits. */
+  onLiveChange?: (vals: {
+    price: number; downPct: number; rate: number; term: number; loanType: string;
+    annualIncome: number; monthlyDebt: number; vaFundingFeePct: number;
+  }) => void;
 }
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
@@ -117,7 +123,26 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
       vaFF: isVA ? (props.vaFundingFeePct ?? 2.5) : 0,
       drawerOpen: false,
     };
-    _apcCache.set(cacheKey, { ...cur, ...patch });
+    const merged = { ...cur, ...patch };
+    _apcCache.set(cacheKey, merged);
+
+    // Propagate every adjuster change up to the parent so the message's stored
+    // scenario (what Share/PDF/API read) tracks the inline-adjusted values —
+    // not just the values the AI originally generated. See Decision: inline
+    // adjusters must update the underlying scenario, not merely the display.
+    const downPctFinal = merged.downMode === 'pct'
+      ? merged.downPct
+      : (merged.price > 0 ? (merged.downAmtFixed / merged.price) * 100 : merged.downPct);
+    props.onLiveChange?.({
+      price:           merged.price,
+      downPct:         downPctFinal,
+      rate:            merged.rate,
+      term:            merged.termYrs,
+      loanType:        props.loanType,
+      annualIncome:    merged.annualIncome,
+      monthlyDebt:     merged.monthlyDebt,
+      vaFundingFeePct: merged.vaFF,
+    });
   }
 
   // ── Primary state ─────────────────────────────────────────────────────────
