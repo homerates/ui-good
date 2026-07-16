@@ -7,6 +7,8 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getSupabase } from '../../../../lib/supabaseServer';
+import { emitPlatformEvent } from '../../../../lib/crm/platform-capture';
+import type { CrmKeyFact } from '../../../../lib/crm/types';
 
 export async function GET() {
   const { userId } = await auth();
@@ -57,6 +59,17 @@ export async function POST(req: NextRequest) {
     .ilike('address', address)
     .maybeSingle();
 
+  const programs = result.programs as { homeReady?: boolean; homePossible?: boolean; dpa?: boolean } | undefined;
+  const amiResult: CrmKeyFact = {
+    key:               'ami_result',
+    county:            String(result.county ?? title),
+    state:             String(result.state ?? ''),
+    home_ready:        programs?.homeReady  === true,
+    home_possible:     programs?.homePossible === true,
+    dpa:               programs?.dpa === true,
+    dpa_program_count: Number(result.dpaMatchCount ?? 0),
+  };
+
   if (existing) {
     const { data: updated, error } = await sb
       .from('portfolio_items')
@@ -65,6 +78,10 @@ export async function POST(req: NextRequest) {
       .select('id, title, address, data, created_at, updated_at')
       .single();
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    void emitPlatformEvent(sb, userId,
+      `AMI qualifier: ${amiResult.county}, ${amiResult.state}`,
+      [amiResult],
+    );
     return NextResponse.json({ ok: true, item: updated, saved: true });
   }
 
@@ -84,6 +101,10 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  void emitPlatformEvent(sb, userId,
+    `AMI qualifier: ${amiResult.county}, ${amiResult.state}`,
+    [amiResult],
+  );
   return NextResponse.json({ ok: true, item: inserted, saved: true });
 }
 

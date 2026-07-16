@@ -3,6 +3,7 @@
 // v4 — independent sliders, editable inputs, remount-safe state via module-level cache
 
 import React, { useState } from 'react';
+import { useAuth } from '@clerk/nextjs';
 
 // ── Remount-safe state cache ───────────────────────────────────────────────────
 // Keyed by message id (from chat/page.tsx). Because the card unmounts during
@@ -138,6 +139,8 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const [vaFF,         setVaFF]         = useState(cached?.vaFF ?? (isVA ? (props.vaFundingFeePct ?? 2.5) : 0));
   const [drawerOpen,   setDrawerOpen]   = useState(cached?.drawerOpen ?? false);
 
+  const { userId } = useAuth();
+
   // ── Income interaction state (for transient helper line) ──────────────────
   const [incomeSliderActive, setIncomeSliderActive] = useState(false);
   const [incomeInputFocused, setIncomeInputFocused] = useState(false);
@@ -263,6 +266,21 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
       ...(isFHA ? { isFHA: true } : {}),
       ...(isVA  ? { isVA:  true } : {}),
     });
+    if (userId) {
+      void fetch('/api/crm/auto-capture', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'affordability_run',
+          data:  {
+            loan_type:      props.loanType,
+            purchase_price: Math.round(price),
+            down_pct:       effectiveDownPct,
+            monthly_piti:   Math.round(piti),
+          },
+        }),
+      }).catch(() => {});
+    }
   }
 
   // ── Slider fill percents ──────────────────────────────────────────────────

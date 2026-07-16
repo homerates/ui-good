@@ -258,6 +258,14 @@ function CheckPropertyInner() {
                 const d = json.data;
                 setPropData(d);
                 setResolved(d.address ?? raw);
+                // Auto-capture property interest for borrowers linked to this consumer
+                if (isSignedIn && (d.address ?? raw)) {
+                    void fetch('/api/crm/auto-capture', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify({ event: 'property_viewed', data: { address: d.address ?? raw } }),
+                    }).catch(() => {});
+                }
                 prefetchGrokProperty(d.address ?? raw, {
                     current_status:     normalizeListingStatus(d.listingStatus),
                     current_list_price: d.price ?? null,
