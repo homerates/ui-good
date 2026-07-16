@@ -6,11 +6,14 @@
 // when a meaningful platform event occurs. Always returns 200 — the caller does
 // not need to wait for or inspect the response.
 //
+// Writes to consumer_activity keyed on the signed-in user's Clerk id. No
+// borrower or LO dependency — any signed-in user's events are captured.
+//
 // Server-side events (AMI qualifier save) call lib/crm/platform-capture.ts
 // directly without going through this route.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, clerkClient } from '@clerk/nextjs/server';
+import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 import { emitPlatformEvent } from '../../../../lib/crm/platform-capture';
 import type { CrmKeyFact, LoanTypePref } from '../../../../lib/crm/types';
@@ -25,16 +28,6 @@ function db() {
     );
 }
 
-async function getConsumerEmail(userId: string): Promise<string | null> {
-    try {
-        const client = await clerkClient();
-        const user   = await client.users.getUser(userId);
-        return user.emailAddresses[0]?.emailAddress ?? null;
-    } catch {
-        return null;
-    }
-}
-
 export async function POST(req: NextRequest) {
     const { userId } = await auth();
     if (!userId) return NextResponse.json({ ok: true }); // not signed in — skip silently
@@ -42,15 +35,17 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     if (!body?.event) return NextResponse.json({ ok: true });
 
-    const sb    = db();
-    const email = await getConsumerEmail(userId);
+    const sb = db();
 
     try {
         if (body.event === 'property_viewed') {
             const { address } = body.data as { address?: string };
             if (!address?.trim()) return NextResponse.json({ ok: true });
             const fact: CrmKeyFact = { key: 'property_of_interest', address: address.trim() };
-            await emitPlatformEvent(sb, userId, email, `Viewed property: ${address.trim().slice(0, 80)}`, [fact]);
+            await emitPlatformEvent(sb, userId, 'property_viewed',
+                `Viewed property: ${address.trim().slice(0, 80)}`,
+                [fact],
+            );
         }
 
         else if (body.event === 'affordability_run') {
@@ -63,7 +58,7 @@ export async function POST(req: NextRequest) {
             if (!loan_type || !purchase_price) return NextResponse.json({ ok: true });
             const fact: CrmKeyFact = { key: 'affordability_run', loan_type, purchase_price, down_pct, monthly_piti };
             const label = loan_type.toUpperCase();
-            await emitPlatformEvent(sb, userId, email,
+            await emitPlatformEvent(sb, userId, 'affordability_run',
                 `Ran ${label} scenario: $${Math.round(purchase_price / 1000)}k · $${monthly_piti}/mo PITI`,
                 [fact],
             );
