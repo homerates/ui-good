@@ -222,12 +222,12 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
     saveToCache({ rate: v });
   }
   function commitDebt(s: string) {
-    const v = Math.max(0, Math.min(3000, Math.round(parseCurrency(s) / 50) * 50 || 0));
+    const v = Math.max(0, Math.min(3000, parseCurrency(s)));
     setMonthlyDebt(v);
     saveToCache({ monthlyDebt: v });
   }
   function commitIncome(s: string) {
-    const v = Math.max(0, Math.min(incomeMax, Math.round(parseCurrency(s) / incomeStep) * incomeStep || 0));
+    const v = Math.max(0, Math.min(incomeMax, parseCurrency(s)));
     setAnnualIncome(v);
     saveToCache({ annualIncome: v });
   }
