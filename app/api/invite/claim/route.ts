@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 import { awardCredits } from "../../../../lib/credits";
+import { linkBorrowerAccount } from "../../../../lib/crm/link-borrower-account";
 
 export async function POST(req: NextRequest) {
   const { userId } = getAuth(req);
@@ -35,6 +36,13 @@ export async function POST(req: NextRequest) {
   await sb.from("consumer_invites")
     .update({ status: "claimed", claimed_at: new Date().toISOString(), claimed_by_user_id: userId })
     .eq("id", invite.id);
+
+  // Link any borrower rows for this email to the claiming account.
+  // Token possession proves control of the invite email. Identity link only —
+  // see lib/crm/link-borrower-account.ts and Decision 10.
+  if (invite.email) {
+    await linkBorrowerAccount(sb, userId, invite.email);
+  }
 
   // Grant credits (idempotent via referenceId)
   const ok = await awardCredits(userId, invite.credits, "admin_grant", "Consumer invite credit grant", `consumer_invite_${invite.id}`);

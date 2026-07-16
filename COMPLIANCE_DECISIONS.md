@@ -372,6 +372,34 @@ When the follow-up generation model is built, every call must include a system-l
 
 ---
 
+## Decision 10 — Consumer Platform Activity: Consumer-Initiated Share Only
+
+**Regulatory basis:** GLBA (nonpublic personal information surface control); platform hard rule `feedback_consumer_privacy_hard_rule` ("Never surface consumer behavioral data to professionals. Trust is the product."); Track 5 privacy model (consumer-private portal, no behavioral tracking exposed to professionals). This decision is primarily a platform trust commitment; the GLBA framing reinforces it but the binding constraint is the platform's own locked privacy posture.
+
+**Context:** The `consumer_activity` table (migration 070) captures a consumer's own platform events — AMI qualifier runs, affordability scenarios, property lookups — keyed on their Clerk user id, independent of any professional relationship. The `person_activity` table records facts within one specific professional relationship (one LO or agent ↔ one borrower row) and is already isolated per relationship by construction (Decision 4 row-level filtering; `borrowers` is one row per professional-consumer pair).
+
+**The rule:** No standing grant, no consent toggle, no implicit access on relationship claim. Nothing crosses from `consumer_activity` into any professional's view automatically or via an ongoing consent switch. The only way a piece of platform activity reaches a professional is a specific, in-the-moment action where the consumer chooses to share **one artifact** with **one relationship**. The share action itself is the consent.
+
+**Options considered and rejected:**
+
+- **Option A — implicit access on an active relationship** (LO sees platform activity automatically once a borrower row is linked to the consumer's account). Rejected: directly inconsistent with `feedback_consumer_privacy_hard_rule`. A consumer who accepted one LO's invite would silently share ongoing house-hunting behavior with them — and with every linked professional if several exist.
+- **Option B — standing revocable grant** (consumer flips a per-relationship toggle; LO sees the platform lane while the grant is active). Rejected: still requires reinterpreting "never surface" as "never surface without standing consent," and creates an ambient-visibility state most consumers will forget they enabled.
+
+**Why Option C requires no reinterpretation of the hard rule:** Nothing is *surfaced* — the consumer *sends* a specific artifact, one at a time, to one named relationship, as a deliberate act. The hard rule governs the platform's behavior; it simply does not apply to a consumer's own decision to share their own data in the moment.
+
+**What this means in code / schema:**
+
+1. **`consumer_activity` is never queried in any professional-facing read path.** No API route serving an LO, agent, brokerage, or admin professional view may select from `consumer_activity`. The RLS deny-all policy (migration 070) is the backstop; the operative control is that no such query exists.
+2. **`borrowers.user_id` linking is identity only.** Setting `user_id` on a borrower row (Clerk webhook, invite claim, onboarding — via `lib/crm/link-borrower-account.ts`) records which Clerk account a borrower row corresponds to. It grants no visibility. Its purpose is to let the future share flow resolve which relationships a consumer can share into.
+3. **A share writes a `person_activity` row** for the one chosen `borrower_id`, carrying the shared artifact's content, with a provenance marker distinguishing it from LO-entered facts (e.g. `touchpoint_type: 'consumer_shared'` or equivalent). It then lives inside that single relationship's existing privacy wall (Decision 4) and is visible only to that relationship's professional.
+4. **No aggregate or derived signals either.** "Active this week" style indicators derived from `consumer_activity` are also barred from professional views — they are behavioral data in summarized form.
+
+**What is explicitly permitted:** The consumer viewing their own `consumer_activity` timeline in full. The consumer sharing any single artifact with any of their linked relationships, any number of times. The platform using `consumer_activity` for the consumer's own experience (their portfolio, their resume-session features).
+
+**Status:** Documented decision — proceed. Identity linking (`borrowers.user_id`) implemented 2026-07-16. The share mechanism UI is not yet built; when built, it must follow this decision literally.
+
+---
+
 ## Summary Table
 
 | # | Decision | Status |
@@ -391,6 +419,7 @@ When the follow-up generation model is built, every call must include a system-l
 | 9-A | CAN-SPAM: My Home digest compliance mechanics | ✅ Compliant as of 2026-07-11 — unsubscribe token, suppression check, physical address, RFC 8058 headers all verified |
 | 9-B | TCPA: CRM automated outreach consent gate | 🔴 Blocked (same as Decision 3) — SMS/call requires PEWC + counsel review |
 | 9-C | Regime separation rule | ✅ Documented — do not conflate CAN-SPAM (digest) and TCPA/consent-gate (CRM) |
+| 10 | Consumer platform activity: consumer-initiated share only | ✅ Documented 2026-07-16 — identity linking implemented; share UI pending, must follow this decision |
 
 ---
 
@@ -402,3 +431,4 @@ When the follow-up generation model is built, every call must include a system-l
 | 2026-07-11 | Added Decision 7 (AI freeform content safety) and Decision 8 (RESPA/GLBA/TRID guardrails) following platform-wide compliance audit | Rayaan Arif |
 | 2026-07-13 | Decision 7 upgraded from documented-pending to partially implemented: server-side fair-lending blocklist added to POST /api/crm/touchpoints; crm_compliance_events log table (migration 068); UI guidance already present in brief/page.tsx. Decision 7 title updated to reflect three-layer posture. Layer 3 (generation prompt) remains pending. | Rayaan Arif |
 | 2026-07-11 | Fixed digest email CAN-SPAM gaps: unsubscribe token now uses recipient email; suppression check added to all digest send paths; RFC 8058 headers added. Added Decision 9 (CAN-SPAM vs. TCPA regime separation). Updated 8-E (/my-home disclaimer fixed). | Rayaan Arif |
+| 2026-07-16 | Added Decision 10 (consumer platform activity: consumer-initiated share only). Options A (implicit access) and B (standing grant) considered and rejected as inconsistent with the consumer privacy hard rule. borrowers.user_id identity linking implemented (Clerk webhook, invite claim, borrower onboard). | Rayaan Arif |

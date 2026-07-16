@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 import { emailWelcome } from "../../../../lib/sendEmail";
+import { linkBorrowerAccount } from "../../../../lib/crm/link-borrower-account";
 
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET ?? "";
 
@@ -84,6 +85,13 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[clerk/webhook] ${type} — synced user ${userId}`);
+
+    // Link borrower rows created by LOs/agents to this account (verified
+    // primary email → borrowers.user_id where null). Identity link only —
+    // see lib/crm/link-borrower-account.ts and Decision 10.
+    if (primaryEmail) {
+      await linkBorrowerAccount(sb, userId, primaryEmail);
+    }
 
     // Send welcome email on first sign-up only
     if (type === "user.created" && primaryEmail) {

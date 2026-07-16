@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getAuth } from "@clerk/nextjs/server";
 
 // Helper to initialize Supabase server client
 function getSupabaseServerClient() {
@@ -22,6 +23,11 @@ function getSupabaseServerClient() {
 export async function POST(req: NextRequest) {
     try {
         const supabase = getSupabaseServerClient();
+
+        // Onboarding may run pre-signup (invite code flow) — auth is optional.
+        // When a signed-in session exists, link the upserted borrower row to it
+        // (identity link only — see Decision 10 in COMPLIANCE_DECISIONS.md).
+        const { userId: clerkUserId } = getAuth(req);
 
         const body = await req.json().catch(() => ({}));
         const inviteCode = body.inviteCode as string | undefined;
@@ -145,6 +151,7 @@ export async function POST(req: NextRequest) {
                     status: "invited",
                     source: "invite_code",
                     updated_at: nowIso,
+                    ...(clerkUserId && !existingBorrower.user_id ? { user_id: clerkUserId } : {}),
                 })
                 .eq("id", existingBorrower.id)
                 .select("id")
@@ -172,6 +179,7 @@ export async function POST(req: NextRequest) {
                     created_at: nowIso,
                     updated_at: nowIso,
                     tags: ["sponsored"],
+                    ...(clerkUserId ? { user_id: clerkUserId } : {}),
                 })
                 .select("id")
                 .single();
