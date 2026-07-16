@@ -5,10 +5,20 @@
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { getSupabase } from '../../../../lib/supabaseServer';
 import { emitPlatformEvent } from '../../../../lib/crm/platform-capture';
 import type { CrmKeyFact } from '../../../../lib/crm/types';
+
+async function getConsumerEmail(userId: string): Promise<string | null> {
+    try {
+        const client = await clerkClient();
+        const user   = await client.users.getUser(userId);
+        return user.emailAddresses[0]?.emailAddress ?? null;
+    } catch {
+        return null;
+    }
+}
 
 export async function GET() {
   const { userId } = await auth();
@@ -36,6 +46,7 @@ export async function POST(req: NextRequest) {
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ ok: false, error: 'DB unavailable' }, { status: 503 });
 
+  const consumerEmail = await getConsumerEmail(userId);
   const body = await req.json();
   const { location, result } = body as { location: string; result: Record<string, unknown> };
 
@@ -78,7 +89,7 @@ export async function POST(req: NextRequest) {
       .select('id, title, address, data, created_at, updated_at')
       .single();
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-    void emitPlatformEvent(sb, userId,
+    void emitPlatformEvent(sb, userId, consumerEmail,
       `AMI qualifier: ${amiResult.county}, ${amiResult.state}`,
       [amiResult],
     );
@@ -101,7 +112,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  void emitPlatformEvent(sb, userId,
+  void emitPlatformEvent(sb, userId, consumerEmail,
     `AMI qualifier: ${amiResult.county}, ${amiResult.state}`,
     [amiResult],
   );
