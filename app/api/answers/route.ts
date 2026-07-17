@@ -50,6 +50,7 @@ import {
     buildSystemPromptWithMemory,
     isFollowUpQuestion,
 } from "../../../lib/memory";
+import { buildConsumerMemorySummary } from "../../../lib/crm/consumer-memory";
 import { resolveGeoFeatures, extractZip, extractIncome } from "../../../lib/geoFeatures";
 import { tavily as createTavilyClient } from '@tavily/core';
 import { spendCredits, checkCreditGate } from "../../../lib/credits";
@@ -2702,6 +2703,25 @@ async function handle(req: NextRequest, intentParam?: string) {
     const fredContext = fredLines.length > 0
         ? `FRED LIVE DATA:\n${fredLines.join('\n')}`
         : "FRED data unavailable — use ~6.0% as rate estimate";
+
+    // ── PERSONAL MEMORY: this consumer's own recent platform activity ────────
+    // Combines with the shared-knowledge FRED context above per
+    // PLATFORM_INTELLIGENCE_VISION.md "Personal memory vs. shared knowledge" —
+    // personalization comes from the combination, not either layer alone.
+    // Last 30 days, capped at 5 events, natural-language only (no raw event
+    // dump reaches the model). Non-blocking — never delays or breaks the
+    // response if the lookup fails.
+    let personalMemoryContext = "";
+    if (userId && supabase) {
+        try {
+            const memory = await buildConsumerMemorySummary(supabase, userId);
+            if (memory.hasActivity) {
+                personalMemoryContext = `THIS USER'S RECENT ACTIVITY (reference naturally if relevant — do not list it verbatim, do not mention it if the question is unrelated):\n${memory.summaryText}`;
+            }
+        } catch (err: any) {
+            console.warn("ANSWERS: consumer memory fetch failed", err?.message || err);
+        }
+    }
 
     // ── GEO INTELLIGENCE: HUD + FEMA context ─────────────────────────────────
     // Resolve if question contains a ZIP code. Non-blocking — silently skips if
@@ -7177,6 +7197,7 @@ If lender guideline context is provided, treat it as primary for that lender.
 Date: ${today}
 ${fredContext}
 ${geoContext ? `\n${geoContext}` : ""}
+${personalMemoryContext ? `\n${personalMemoryContext}` : ""}
 
 ${mortgageCalcContext}
 

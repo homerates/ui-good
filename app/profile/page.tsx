@@ -95,6 +95,13 @@ export default function ProfilePage() {
   const [propertyAddress, setPropertyAddress] = useState("");
   const [currentLoanBal, setCurrentLoanBal] = useState("");
 
+  // Consumer memory (personalization) control
+  const [memorySummary, setMemorySummary] = useState("");
+  const [memoryLoaded, setMemoryLoaded] = useState(false);
+  const [memoryClearing, setMemoryClearing] = useState(false);
+  const [memoryCleared, setMemoryCleared] = useState(false);
+  const [memoryConfirming, setMemoryConfirming] = useState(false);
+
   const isAdmin = data?.role === "admin";
   const serverRole = isAdmin
     ? (data?.lo ? "lo" : data?.agent ? "agent" : "borrower")
@@ -139,6 +146,34 @@ export default function ProfilePage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  // Consumer memory control — fetch once role resolves to borrower.
+  useEffect(() => {
+    if (role !== "borrower" || memoryLoaded) return;
+    fetch("/api/consumer-memory")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { hasActivity?: boolean; summaryText?: string } | null) => {
+        if (d?.hasActivity && d.summaryText) setMemorySummary(d.summaryText);
+      })
+      .catch(() => {})
+      .finally(() => setMemoryLoaded(true));
+  }, [role, memoryLoaded]);
+
+  function clearMemory() {
+    setMemoryClearing(true);
+    fetch("/api/consumer-memory", { method: "DELETE" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.ok) {
+          setMemorySummary("");
+          setMemoryCleared(true);
+          setMemoryConfirming(false);
+          setTimeout(() => setMemoryCleared(false), 3000);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setMemoryClearing(false));
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -328,6 +363,66 @@ export default function ProfilePage() {
                     />
                     <span className="pr-hint">Helps lenders provide accurate refi quotes.</span>
                   </div>
+                </div>
+              )}
+
+              {/* Your activity & personalization — consumer only */}
+              {role === "borrower" && (
+                <div className="pr-section">
+                  <div className="pr-section-title">Your activity &amp; personalization</div>
+                  <p className="pr-hint" style={{ marginBottom: 12 }}>
+                    HomeRates uses your own recent activity — scenarios you've run, properties you've looked at —
+                    to make My Home and chat feel like they remember you. This is never shared with a loan officer
+                    or agent unless you specifically choose to share something.
+                  </p>
+
+                  {memorySummary ? (
+                    <div style={{
+                      padding: "12px 14px", borderRadius: 8, marginBottom: 12,
+                      background: "rgba(0,232,122,0.05)", border: "1px solid rgba(0,232,122,0.14)",
+                      fontSize: "0.85rem", lineHeight: 1.5, color: "rgba(240,244,255,0.8)",
+                    }}>
+                      {memorySummary}
+                    </div>
+                  ) : (
+                    memoryLoaded && (
+                      <p className="pr-hint" style={{ marginBottom: 12 }}>Nothing yet — this fills in as you use the platform.</p>
+                    )
+                  )}
+
+                  {memoryCleared ? (
+                    <span style={{ fontSize: "0.85rem", color: "#00e87a" }}>✓ Cleared</span>
+                  ) : memoryConfirming ? (
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <span style={{ fontSize: "0.85rem", color: "rgba(240,244,255,0.7)" }}>Permanently delete this history?</span>
+                      <button
+                        type="button"
+                        className="pr-save-btn"
+                        style={{ padding: "8px 16px", background: "#ef4444" }}
+                        disabled={memoryClearing}
+                        onClick={clearMemory}
+                      >
+                        {memoryClearing ? "Clearing…" : "Yes, clear it"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMemoryConfirming(false)}
+                        style={{ fontSize: "0.85rem", color: "rgba(240,244,255,0.5)", background: "none", border: "none", cursor: "pointer" }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    memorySummary && (
+                      <button
+                        type="button"
+                        onClick={() => setMemoryConfirming(true)}
+                        style={{ fontSize: "0.85rem", color: "rgba(240,244,255,0.5)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                      >
+                        Clear my activity history
+                      </button>
+                    )
+                  )}
                 </div>
               )}
 
