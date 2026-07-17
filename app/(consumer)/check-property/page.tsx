@@ -136,14 +136,20 @@ function CheckPropertyInner() {
     // Effect (not inline in handleLookup) so it fires once Clerk finishes
     // loading — isSignedIn is undefined during the 80ms auto-run window.
     useEffect(() => {
+        // TEMP DIAGNOSTIC — remove once property_viewed capture is confirmed working
+        console.log('[capture-debug] effect ran', { isSignedIn, resolved, propDataIsNull: propData === null, degraded, alreadyCaptured: capturedRef.current === resolved });
         if (!isSignedIn || !resolved || propData === null || degraded) return;
         if (capturedRef.current === resolved) return;
         capturedRef.current = resolved;
+        console.log('[capture-debug] firing fetch for', resolved);
         void fetch('/api/crm/auto-capture', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ event: 'property_viewed', data: { address: resolved } }),
-        }).catch(() => {});
+        })
+            .then(r => r.json())
+            .then(j => console.log('[capture-debug] response', j))
+            .catch(e => console.log('[capture-debug] fetch error', e));
     }, [isSignedIn, resolved, propData, degraded]);
 
     useEffect(() => {
