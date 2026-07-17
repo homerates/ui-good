@@ -131,6 +131,15 @@ export type AffordabilityRunFact = {
   monthly_piti: number;
 };
 
+export type RateEngineRunFact = {
+  key: 'rate_engine_run';
+  state: string;
+  loan_type: LoanTypePref;
+  loan_amount: number;
+  ltv: number;
+  rate_equivalent: number;
+};
+
 // ── Union types ──────────────────────────────────────────────────────────────
 
 /** Full set of allowed fact types. Use in the pre-call brief UI (read-only). */
@@ -145,7 +154,8 @@ export type CrmKeyFact =
   | CompetitorMentionedFact
   | NoteFact
   | AmiResultFact
-  | AffordabilityRunFact;
+  | AffordabilityRunFact
+  | RateEngineRunFact;
 
 /**
  * Fact types permitted in AI generation context.
