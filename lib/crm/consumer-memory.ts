@@ -13,6 +13,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getFredSnapshot } from '@/lib/fred';
+import { callClaudeJson } from '@/ai-providers/claude';
 
 const WINDOW_DAYS = 30;
 const MAX_EVENTS = 5;
@@ -90,6 +91,73 @@ function describeEvent(e: ConsumerActivityEvent): string {
     }
 }
 
+// ── Claude synthesis ──────────────────────────────────────────────────────
+// The deterministic template above (describeEvent + join) is the guaranteed
+// fallback. When available, we hand the same underlying facts to Claude to
+// write ONE natural, warm welcome-back line instead of a mechanical
+// concatenation — the way Claude or ChatGPT greets a returning user: notices
+// the pattern, doesn't repeat itself, and offers a grounded next step.
+//
+// Never blocks or breaks personalization: any failure (no API key, timeout,
+// bad response) falls straight back to the deterministic summary.
+
+const SYNTH_TIMEOUT_MS = 4500;
+
+// In-memory cache — same lifetime/shape as the FRED snapshot cache. Keyed by
+// user + the newest event id, so it naturally invalidates the moment a new
+// event lands, without needing a DB column or explicit invalidation call.
+const _synthCache = new Map<string, { text: string; at: number }>();
+const SYNTH_CACHE_TTL_MS = 10 * 60 * 1000;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+    return Promise.race([
+        p,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error('synthesis timeout')), ms)),
+    ]);
+}
+
+async function synthesizeWelcomeBack(
+    consumerUserId: string,
+    events: ConsumerActivityEvent[],
+    marketLine: string,
+): Promise<string | null> {
+    const cacheKey = `${consumerUserId}:${events[0]?.id ?? ''}`;
+    const cached = _synthCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < SYNTH_CACHE_TTL_MS) return cached.text;
+
+    if (!process.env.ANTHROPIC_API_KEY) return null;
+
+    const factLines = events.map(describeEvent).join('\n');
+
+    const systemPrompt = `You are HomeRates.ai, warmly welcoming back a returning user based on their own recent activity on the platform.
+
+Write ONE short welcome-back message (2-3 sentences, under 45 words) that:
+- Synthesizes the activity below into a natural narrative — if they explored several similar scenarios, notice the pattern instead of listing each one
+- Mentions today's rate only if it's genuinely relevant (e.g. it moved, or they were rate-sensitive)
+- Ends with one grounded, low-pressure suggestion for what to do next — based only on what they actually did, never generic
+- Tone: warm, calm, precise — a competent assistant who remembers you, not a marketer
+- Never invent facts, numbers, or activity beyond what's listed below
+
+Return ONLY valid JSON: {"message": "..."}`;
+
+    const userMessage = `RECENT ACTIVITY (most recent first):\n${factLines}${marketLine ? `\n\n${marketLine}` : ''}`;
+
+    try {
+        const { parsed } = await withTimeout(
+            callClaudeJson(systemPrompt, userMessage, 200, 0),
+            SYNTH_TIMEOUT_MS,
+        );
+        const message = typeof parsed?.message === 'string' ? parsed.message.trim() : null;
+        if (!message) return null;
+
+        _synthCache.set(cacheKey, { text: message, at: Date.now() });
+        return message;
+    } catch (err) {
+        console.warn('[consumer-memory] Claude synthesis failed, using template fallback', (err as Error)?.message ?? err);
+        return null;
+    }
+}
+
 export async function buildConsumerMemorySummary(
     sb: SupabaseClient,
     consumerUserId: string,
@@ -98,8 +166,6 @@ export async function buildConsumerMemorySummary(
     if (!events.length) {
         return { hasActivity: false, events: [], summaryText: '' };
     }
-
-    const lines = events.map(describeEvent);
 
     let marketLine = '';
     try {
@@ -111,7 +177,9 @@ export async function buildConsumerMemorySummary(
         // Market line is a nice-to-have — never block personalization on it.
     }
 
-    const summaryText = [`${lines.join('. ')}.`, marketLine].filter(Boolean).join(' ');
+    const synthesized = await synthesizeWelcomeBack(consumerUserId, events, marketLine);
+    const summaryText = synthesized
+        ?? [`${events.map(describeEvent).join('. ')}.`, marketLine].filter(Boolean).join(' ');
 
     return { hasActivity: true, events, summaryText };
 }
