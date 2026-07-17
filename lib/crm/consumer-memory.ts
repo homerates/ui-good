@@ -123,9 +123,15 @@ async function synthesizeWelcomeBack(
 ): Promise<string | null> {
     const cacheKey = `${consumerUserId}:${events[0]?.id ?? ''}`;
     const cached = _synthCache.get(cacheKey);
-    if (cached && Date.now() - cached.at < SYNTH_CACHE_TTL_MS) return cached.text;
+    if (cached && Date.now() - cached.at < SYNTH_CACHE_TTL_MS) {
+        console.log('[consumer-memory] serving cached synthesis', cacheKey);
+        return cached.text;
+    }
 
-    if (!process.env.ANTHROPIC_API_KEY) return null;
+    if (!process.env.ANTHROPIC_API_KEY) {
+        console.warn('[consumer-memory] ANTHROPIC_API_KEY not set — using template fallback');
+        return null;
+    }
 
     const factLines = events.map(describeEvent).join('\n');
 
@@ -148,8 +154,12 @@ Return ONLY valid JSON: {"message": "..."}`;
             SYNTH_TIMEOUT_MS,
         );
         const message = typeof parsed?.message === 'string' ? parsed.message.trim() : null;
-        if (!message) return null;
+        if (!message) {
+            console.warn('[consumer-memory] Claude returned no usable message field', parsed);
+            return null;
+        }
 
+        console.log('[consumer-memory] synthesis succeeded', cacheKey);
         _synthCache.set(cacheKey, { text: message, at: Date.now() });
         return message;
     } catch (err) {

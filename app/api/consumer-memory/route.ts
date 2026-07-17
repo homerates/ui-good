@@ -20,6 +20,7 @@
 // profile settings memory control.
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
@@ -33,23 +34,31 @@ function db() {
     );
 }
 
+// Auth-scoped, per-user, changes on every new event — must never be cached
+// at the edge/CDN or by the browser. Same pattern as app/api/v2/chats/[id].
+function noStore(json: unknown, status = 200) {
+    const res = NextResponse.json(json, { status });
+    res.headers.set('Cache-Control', 'no-store');
+    return res;
+}
+
 export async function GET() {
     const { userId } = await auth();
-    if (!userId) return NextResponse.json({ ok: true, hasActivity: false, summaryText: '', events: [] });
+    if (!userId) return noStore({ ok: true, hasActivity: false, summaryText: '', events: [] });
 
     const sb = db();
     const summary = await buildConsumerMemorySummary(sb, userId);
 
-    return NextResponse.json({ ok: true, ...summary });
+    return noStore({ ok: true, ...summary });
 }
 
 export async function DELETE() {
     const { userId } = await auth();
-    if (!userId) return NextResponse.json({ ok: false, error: 'Not authenticated' }, { status: 401 });
+    if (!userId) return noStore({ ok: false, error: 'Not authenticated' }, 401);
 
     const sb = db();
     const { error } = await sb.from('consumer_activity').delete().eq('consumer_user_id', userId);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return noStore({ ok: false, error: error.message }, 500);
 
-    return NextResponse.json({ ok: true });
+    return noStore({ ok: true });
 }
