@@ -2417,6 +2417,16 @@ export default function Page() {
                         );
                         typeOutAssistant(answerId, friendly);
 
+                        // Auto-capture property_viewed → consumer_activity (consumer's own
+                        // relationship with the platform, independent of any LO/agent link)
+                        if (user?.id && d.address) {
+                            void fetch('/api/crm/auto-capture', {
+                                method:  'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body:    JSON.stringify({ event: 'property_viewed', data: { address: d.address } }),
+                            }).catch(() => {});
+                        }
+
                         // Auto-add to portfolio (SOLD/refi path has no DSC, so this is the only save)
                         if (user?.id && d.address) {
                             void fetch('/api/portfolio', {
@@ -2548,6 +2558,16 @@ export default function Page() {
                         )
                     );
                     typeOutAssistant(answerId, friendly);
+
+                    // Auto-capture property_viewed → consumer_activity (consumer's own
+                    // relationship with the platform, independent of any LO/agent link)
+                    if (user?.id && d.address) {
+                        void fetch('/api/crm/auto-capture', {
+                            method:  'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body:    JSON.stringify({ event: 'property_viewed', data: { address: d.address } }),
+                        }).catch(() => {});
+                    }
 
                     // Persist property to user's account so My Properties shows the rich Redfin card
                     if (user?.id && d.address) {
