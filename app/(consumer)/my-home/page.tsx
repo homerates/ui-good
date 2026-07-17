@@ -7,8 +7,10 @@ import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import MarketIntelCard from '@/components/MarketIntelCard';
 import PropertyPhoto from '@/components/PropertyPhoto';
+import WelcomeHome from '@/components/WelcomeHome';
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
 import { EDUCATIONAL_DISCLAIMER } from '@/disclosures';
+import type { ConsumerLastAction, ConsumerNextStep } from '../../../lib/crm/consumer-memory';
 
 interface HomeownerProperty {
   id: string;
@@ -1628,15 +1630,29 @@ function MyHomePageInner() {
     fetch('/api/user/plan').then(r => r.json()).then(d => { if (d?.plan) setUserPlan(d.plan); }).catch(() => {});
   }, [isLoaded, user]);
 
-  // "Welcome back" personalization — the consumer's OWN recent activity only.
+  // "Welcome Home" personalization — the consumer's OWN recent activity only.
   // Never fetched on the LO-view path (borrowerId set) — that would surface
   // one person's platform activity to another (Decision 10 boundary).
-  const [memorySummary, setMemorySummary] = useState<string>('');
+  // The endpoint degrades internally (Claude synthesis → deterministic
+  // template + heuristic steps), so whatever arrives here is renderable.
+  const [memory, setMemory] = useState<{
+    summaryText: string;
+    nextSteps:   ConsumerNextStep[];
+    lastAction:  ConsumerLastAction | null;
+  } | null>(null);
   useEffect(() => {
     if (!isLoaded || !user || borrowerId) return;
     fetch('/api/consumer-memory')
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.hasActivity) setMemorySummary(d.summaryText); })
+      .then(d => {
+        if (d?.hasActivity) {
+          setMemory({
+            summaryText: d.summaryText ?? '',
+            nextSteps:   Array.isArray(d.nextSteps) ? d.nextSteps : [],
+            lastAction:  d.lastAction ?? null,
+          });
+        }
+      })
       .catch(() => {});
   }, [isLoaded, user, borrowerId]);
 
@@ -2312,12 +2328,19 @@ function MyHomePageInner() {
               )}
             </div>
 
-            {/* "Welcome back" — the consumer's own recent activity, in continuity language */}
-            {!borrowerId && memorySummary && (
-              <div className="mh-welcome-back">
-                <span className="mh-welcome-back-icon">👋</span>
-                <span className="mh-welcome-back-text">{memorySummary}</span>
-              </div>
+            {/* "Welcome Home" — hero last-action, quick ask, thumb index, next steps.
+                Consumer-only (Decision 10): never mounted on the LO-view path. */}
+            {!borrowerId && memory && (
+              <WelcomeHome
+                firstName={user?.firstName ?? null}
+                summaryText={memory.summaryText}
+                lastAction={memory.lastAction}
+                nextSteps={memory.nextSteps}
+                properties={properties}
+                activePropertyId={activeProperty?.id ?? null}
+                photoCache={photoCache}
+                onSelectProperty={switchProperty}
+              />
             )}
 
             {loading ? (
@@ -2999,9 +3022,6 @@ const CSS = `
   .mh-hero-signed-out .mh-hero-kicker,.mh-hero-signed-out .mh-hero-sub{margin-left:auto;margin-right:auto}
 
   /* WELCOME BACK — quiet continuity line, not a competing CTA */
-  .mh-welcome-back{display:flex;align-items:flex-start;gap:9px;padding:11px 16px;margin-bottom:1.5rem;border-radius:10px;background:rgba(0,232,122,0.05);border:1px solid rgba(0,232,122,0.14)}
-  .mh-welcome-back-icon{font-size:.95rem;line-height:1.5;flex-shrink:0}
-  .mh-welcome-back-text{font-size:.85rem;line-height:1.5;color:rgba(240,244,255,0.75)}
 
   /* COMMAND BAR */
   .mh-command-bar{display:flex;gap:10px;background:rgba(255,255,255,0.04);border:1.5px solid rgba(0,232,122,0.35);border-radius:14px;padding:6px 6px 6px 16px;margin-top:1.25rem;box-shadow:0 0 0 0 rgba(0,232,122,0);transition:box-shadow .2s,border-color .2s}

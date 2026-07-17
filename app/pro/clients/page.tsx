@@ -2,11 +2,14 @@
 // app/pro/clients/page.tsx
 
 import * as React from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PageShell from "../../components/PageShell";
 import AddressAutocomplete from "../../components/AddressAutocomplete";
+import WelcomePro from "../../components/WelcomePro";
+import type { ProRelationship } from "../../../lib/crm/pro-memory";
+import type { ConsumerNextStep } from "../../../lib/crm/consumer-memory";
 
 type Borrower = {
     id: string;
@@ -25,8 +28,19 @@ type Borrower = {
 
 export default function LoBorrowersPage() {
     const { isLoaded, isSignedIn } = useAuth();
+    const { user } = useUser();
     const router = useRouter();
     const [isAgent, setIsAgent] = React.useState(false);
+    // "Welcome Home" for pros — built ONLY from the pro's own person_activity
+    // recency, their pipeline records, and public market data. Never from
+    // client platform behavior (see /api/crm/pro-welcome).
+    const [proWelcome, setProWelcome] = React.useState<{
+        summaryText: string;
+        lastTouch: ProRelationship | null;
+        relationships: ProRelationship[];
+        nextSteps: ConsumerNextStep[];
+        marketRate: number | null;
+    } | null>(null);
     const [borrowers, setBorrowers] = React.useState<Borrower[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [creating, setCreating] = React.useState(false);
@@ -217,6 +231,20 @@ export default function LoBorrowersPage() {
         fetch("/api/profile")
             .then(r => r.ok ? r.json() : null)
             .then(d => { if (d?.role === "agent" || d?.agent) setIsAgent(true); })
+            .catch(() => {});
+        fetch("/api/crm/pro-welcome")
+            .then(r => r.ok ? r.json() : null)
+            .then(d => {
+                if (d?.hasRelationships) {
+                    setProWelcome({
+                        summaryText:   d.summaryText ?? "",
+                        lastTouch:     d.lastTouch ?? null,
+                        relationships: Array.isArray(d.relationships) ? d.relationships : [],
+                        nextSteps:     Array.isArray(d.nextSteps) ? d.nextSteps : [],
+                        marketRate:    d.marketRate ?? null,
+                    });
+                }
+            })
             .catch(() => {});
     }, []);
 
@@ -426,6 +454,19 @@ export default function LoBorrowersPage() {
 
     return (
         <PageShell backHref="/lo/dashboard" backLabel="LO Portal" maxWidth={900}>
+            {/* Welcome Home for pros — own-activity + pipeline + market only */}
+            {proWelcome && (
+                <WelcomePro
+                    firstName={user?.firstName ?? null}
+                    roleLabel={isAgent ? "client" : "borrower"}
+                    summaryText={proWelcome.summaryText}
+                    lastTouch={proWelcome.lastTouch}
+                    relationships={proWelcome.relationships}
+                    nextSteps={proWelcome.nextSteps}
+                    marketRate={proWelcome.marketRate}
+                />
+            )}
+
             {/* Header */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 28 }}>
                 <div>
