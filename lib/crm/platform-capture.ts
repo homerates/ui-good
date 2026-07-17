@@ -19,7 +19,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CrmKeyFact } from './types';
 
-export type ConsumerEventType = 'ami_run' | 'affordability_run' | 'property_viewed';
+export type ConsumerEventType = 'ami_run' | 'affordability_run' | 'property_viewed' | 'rate_engine_run';
 
 export async function emitPlatformEvent(
     sb: SupabaseClient,
@@ -29,12 +29,16 @@ export async function emitPlatformEvent(
     facts: CrmKeyFact[],
 ): Promise<void> {
     try {
-        await sb.from('consumer_activity').insert({
+        const { error } = await sb.from('consumer_activity').insert({
             consumer_user_id: consumerUserId,
             event_type:       eventType,
             subject,
             key_facts:        facts,
         });
+        // Supabase-js does not throw on a DB-level error — it returns { error }.
+        // Without this check, a failed insert (RLS, constraint, etc.) is silently
+        // invisible to the fire-and-forget caller.
+        if (error) console.error('[auto-capture] insert failed', error.message);
     } catch (err) {
         // Fire-and-forget — never let capture failures surface to the user
         console.error('[auto-capture]', (err as Error)?.message ?? err);

@@ -1,6 +1,6 @@
 // app/api/crm/auto-capture/route.ts
 // POST /api/crm/auto-capture
-// Body: { event: 'property_viewed' | 'affordability_run', data: {...} }
+// Body: { event: 'property_viewed' | 'affordability_run' | 'rate_engine_run', data: {...} }
 //
 // Client-side auto-capture endpoint. Called fire-and-forget from consumer pages
 // when a meaningful platform event occurs. Always returns 200 — the caller does
@@ -60,6 +60,22 @@ export async function POST(req: NextRequest) {
             const label = loan_type.toUpperCase();
             await emitPlatformEvent(sb, userId, 'affordability_run',
                 `Ran ${label} scenario: $${Math.round(purchase_price / 1000)}k · $${monthly_piti}/mo PITI`,
+                [fact],
+            );
+        }
+
+        else if (body.event === 'rate_engine_run') {
+            const { state, loan_type, loan_amount, ltv, rate_equivalent } = body.data as {
+                state:          string;
+                loan_type:      LoanTypePref;
+                loan_amount:    number;
+                ltv:            number;
+                rate_equivalent: number;
+            };
+            if (!state || !loan_type || !loan_amount) return NextResponse.json({ ok: true });
+            const fact: CrmKeyFact = { key: 'rate_engine_run', state, loan_type, loan_amount, ltv, rate_equivalent };
+            await emitPlatformEvent(sb, userId, 'rate_engine_run',
+                `Ran rate engine: ${loan_type.toUpperCase()} $${Math.round(loan_amount / 1000)}k · ${rate_equivalent.toFixed(3)}%`,
                 [fact],
             );
         }

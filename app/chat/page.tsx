@@ -3266,6 +3266,34 @@ export default function Page() {
                 )
             );
 
+            // Auto-capture affordability_run → consumer_activity whenever a scenario
+            // card is generated, independent of whether the user later checks a
+            // property against it (that's a separate capture in handleAddressSubmit).
+            // PITI here is a simplified P&I+tax+ins estimate (excludes PMI/MIP/UFMIP)
+            // — sufficient for an activity-log subject, not a financial disclosure.
+            if (user?.id && meta.affordabilityPurchaseCard) {
+                const afc = meta.affordabilityPurchaseCard;
+                const loanAmt = afc.price * (1 - afc.downPct / 100);
+                const rM = afc.rate / 100 / 12;
+                const nP = afc.term * 12;
+                const pi = loanAmt <= 0 ? 0 : rM <= 0 ? loanAmt / nP
+                    : (loanAmt * rM * Math.pow(1 + rM, nP)) / (Math.pow(1 + rM, nP) - 1);
+                const estPiti = Math.round(pi + (afc.price * afc.taxRate) / 12 + (afc.price * afc.insRate) / 12);
+                void fetch('/api/crm/auto-capture', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({
+                        event: 'affordability_run',
+                        data: {
+                            loan_type:      afc.loanType,
+                            purchase_price: Math.round(afc.price),
+                            down_pct:       afc.downPct,
+                            monthly_piti:   estPiti,
+                        },
+                    }),
+                }).catch(() => {});
+            }
+
             // ── Auto-Score: CMA-seeded chat (My Home buyer cards → ?cmaAddress + ?cmaPrice) ──────
             // Fires when chat is seeded from buildCMAUrl() — address + price known at mount time.
             // Only fires once per session. Homeowner refi seeds don't set cmaPrice so they're safe.

@@ -5,6 +5,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import type { LLPAInput, RateCurvePoint } from "../../lib/pricing/llpa-engine";
 import type { LoanType } from "../../lib/pricing/marketplace-engine";
 import RateMarketplaceTable from "../components/RateMarketplaceTable";
@@ -80,6 +81,7 @@ function fmt$(n: number): string {
 
 export default function RateEngineClient() {
   const params = useSearchParams();
+  const { isSignedIn } = useUser();
 
   // Parse scenario URL params (set by DSC "🔬 Run Rate Intelligence" or ISC CTA)
   const paramPrice   = params?.get('price')     ? Number(params.get('price'))    : null;
@@ -222,12 +224,31 @@ export default function RateEngineClient() {
           body: JSON.stringify({ card_fair_par_rate: data.lenderParRate }),
         }).catch(() => { /* best-effort */ });
       }
+      // Auto-capture rate_engine_run → consumer_activity. No auto-run-on-mount
+      // path exists for runCalc (button click only), so isSignedIn is already
+      // resolved here — no Clerk-timing concern like the check-property page.
+      if (isSignedIn) {
+        fetch('/api/crm/auto-capture', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            event: 'rate_engine_run',
+            data: {
+              state,
+              loan_type:       loanType,
+              loan_amount:     inputs.loanAmount,
+              ltv:             inputs.ltv,
+              rate_equivalent: data.rateEquivalent,
+            },
+          }),
+        }).catch(() => { /* non-fatal */ });
+      }
     } catch {
       setError("Network error — please try again");
     } finally {
       setLoading(false);
     }
-  }, [inputs, state, countyLimit]);
+  }, [inputs, state, countyLimit, loanType, isSignedIn]);
 
   const inp: React.CSSProperties = {
     width: "100%", boxSizing: "border-box" as const,
