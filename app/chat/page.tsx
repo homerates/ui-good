@@ -2143,6 +2143,36 @@ export default function Page() {
         const q = (typeof overrideValue === 'string' ? overrideValue : input).trim();
         if (!q || loading) return;
 
+        // ── Quote-evaluation intent → Rate Intelligence Engine (deterministic) ──
+        // "Is my rate fair / evaluate my quote" has one correct answer source:
+        // the LLPA engine, not an LLM. Approach chosen: deep-link redirect
+        // (same pattern as the market-rates redirect below) rather than
+        // in-chat parameter collection — the RIE page already IS the
+        // collection UI (credit score, LTV, purpose, occupancy inputs) and
+        // already carries the Decision 8-C educational disclaimer. Building
+        // slot-filling into the stateless answers route would duplicate that
+        // entire surface. Whatever the message already contains (price, down
+        // %) is passed along so the engine starts pre-filled.
+        const isQuoteEvalIntent =
+            /\b(quote|quoted|offer(?:ed)?)\b[^.?!]{0,80}\b(rate|apr|points?)\b/i.test(q) ||
+            /\b(rate|apr)\b[^.?!]{0,80}\b(quote|quoted|offer(?:ed)?)\b/i.test(q) ||
+            /\bis (?:my|this) (?:rate|quote|offer|pricing) (?:fair|good|competitive|reasonable)\b/i.test(q) ||
+            /\b(evaluate|sanity.?check|check)\b[^.?!]{0,40}\b(quote|rate quote|lender('s)? (?:offer|quote|pricing))\b/i.test(q);
+
+        if (isQuoteEvalIntent) {
+            const rp = new URLSearchParams();
+            const downM = q.match(/(\d+(?:\.\d+)?)\s*%\s*down/);
+            if (downM) rp.set('downPct', downM[1]);
+            const priceM = q.replace(/,/g, '').match(/\$\s?(\d{6,})/) ?? q.match(/\$\s?(\d+(?:\.\d+)?)\s*[mM]\b/);
+            if (priceM) {
+                const rawP = parseFloat(priceM[1]);
+                const price = /[mM]\b/.test(priceM[0]) ? rawP * 1_000_000 : rawP;
+                if (price >= 100_000) rp.set('price', String(Math.round(price)));
+            }
+            router.push(`/rate-intelligence-engine${rp.toString() ? `?${rp.toString()}` : ''}`);
+            return;
+        }
+
         // Market Rates intent — redirect to dedicated Market Rate Intelligence page
         // Catches: "mortgage rates today", "what are rates", "rate forecast", "when will rates drop",
         // "market rates", "mbs spread", "30 year rate", "fed funds", "rate outlook" etc.

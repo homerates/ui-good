@@ -309,6 +309,16 @@ export default function WelcomeHome({
 .wh-privacy{font-size:.68rem;color:rgba(185,208,192,0.42);text-decoration:none}
 .wh-privacy:hover{color:rgba(0,232,122,0.7);text-decoration:underline}
 
+/* Link-color guards — defensive twin of the WelcomePro fix: global/page-level
+   anchor rules (e.g. shell content links) can override plain .wh-* classes
+   and render the green CTA's dark text as green-on-green. 0-2-1 specificity
+   wins regardless of stylesheet order. */
+.wh a.wh-hero-cta,.wh a.wh-hero-cta:visited,.wh a.wh-hero-cta:hover{color:#04120a;opacity:1}
+.wh a.wh-chip,.wh a.wh-chip:visited{color:rgba(240,244,255,0.72);opacity:1}
+.wh a.wh-chip:hover{color:#00e87a;opacity:1}
+.wh a.wh-privacy,.wh a.wh-privacy:visited{color:rgba(185,208,192,0.42);opacity:1}
+.wh a.wh-privacy:hover{color:rgba(0,232,122,0.7);opacity:1}
+
 @media(prefers-reduced-motion:reduce){
   .wh-in{animation:none;opacity:1}
   .wh-aura,.wh-wave,.wh-hero-pulse{animation:none}
