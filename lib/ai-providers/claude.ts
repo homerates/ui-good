@@ -59,7 +59,9 @@ export async function callClaudeJson(
               content: userMessage
             }
           ],
-          temperature: 0.3, // Lower temperature for more consistent JSON
+          // No temperature/top_p/top_k — Sonnet 5 rejects non-default sampling
+          // parameters entirely (400 invalid_request_error). Steer output via
+          // the system prompt instead.
         }),
 
       });
