@@ -287,6 +287,15 @@ export default function WelcomePro({
 .wp-go:not(:disabled):hover{transform:translateY(-1px)}
 .wp-privacy{font-size:.68rem;color:rgba(185,208,192,0.42)}
 
+/* Link-color guards — /pro/clients renders inside PageShell, whose
+   .page-shell-content a / .ps-content a rules (specificity 0-1-1) override
+   plain .wp-* classes (0-1-0) and turn the CTA green-on-green (invisible).
+   These 0-2-1 selectors win regardless of stylesheet order. */
+.wp a.wp-hero-cta,.wp a.wp-hero-cta:visited,.wp a.wp-hero-cta:hover{color:#04120a;opacity:1}
+.wp a.wp-chip,.wp a.wp-chip:visited{color:rgba(240,244,255,0.72);opacity:1}
+.wp a.wp-chip:hover{color:#00e87a;opacity:1}
+.wp a.wp-card,.wp a.wp-card:visited,.wp a.wp-card:hover{text-decoration:none;opacity:1}
+
 @media(prefers-reduced-motion:reduce){
   .wp-in{animation:none;opacity:1}
   .wp-aura,.wp-wave,.wp-hero-pulse{animation:none}

@@ -51,6 +51,7 @@ import {
     isFollowUpQuestion,
 } from "../../../lib/memory";
 import { buildConsumerMemorySummary } from "../../../lib/crm/consumer-memory";
+import { callClaudeJson } from "../../../lib/ai-providers/claude";
 import { resolveGeoFeatures, extractZip, extractIncome } from "../../../lib/geoFeatures";
 import { tavily as createTavilyClient } from '@tavily/core';
 import { spendCredits, checkCreditGate } from "../../../lib/credits";
@@ -2240,16 +2241,33 @@ async function handle(req: NextRequest, intentParam?: string) {
         module = "homeowner_payoff";
     }
 
+    // ── Compose intent — open-ended writing tasks route to Claude, not Grok ──
+    // Checked ahead of the module personas: drafting an email, a script, or
+    // call-prep talking points is composition, and the general path's forced
+    // Summary/Key Numbers/Comparison Table JSON schema mangles it (a
+    // table-shaped letter is broken regardless of model). Deterministic
+    // CalcEngine branches still take precedence in the dispatch chain — a
+    // question that computes should compute.
+    const isComposeIntent =
+        /\b(draft|write|compose)\b.{0,40}\b(email|e-mail|message|note|letter|text|follow[- ]?up|script|outreach)\b/i.test(question) ||
+        /\bhelp me (write|draft|word|phrase)\b/i.test(question) ||
+        /\btalking points?\b/i.test(question) ||
+        /\b(call prep|prep(are)? for (my|a|the) (next )?\w*\s?call|checklist of what to cover)\b/i.test(question);
 
     // --- Module prompts ---
     const modulePrompts: Record<ModuleKey, string> = {
         general: "",
 
         rate:
-            "You are Rate Oracle — Grok 4.1 Fast Non-Reasoning mode.\n" +
-            "Use only today’s daily retail rate trackers (Bankrate, Mortgage News Daily, Forbes or similar).\n" +
-            "Never present weekly FRED averages as today’s live quote. Always describe a realistic range (e.g., 6.25–6.45%) and show the spread vs the 10-year Treasury yield.\n" +
-            "Parse any user-provided location or credit profile for rate adjustments (e.g., CA jumbo +0.25%).\n" +
+            "You are Rate Oracle — calm, numeric, data-first.\n" +
+            // Grounding rule (feedback_grok_data_grounding): every rate figure must come
+            // from the FRED LIVE DATA block injected below — it is the ONLY authoritative
+            // source. Never cite retail trackers (Bankrate, MND, etc.) — you cannot browse
+            // them, and inventing 'live' quotes from training knowledge is prohibited.
+            "Every rate figure you state must come from the FRED LIVE DATA block in this prompt — no other source, no numbers from memory.\n" +
+            "Label figures with their series and as-of date (e.g., '30Y fixed 6.55% — Freddie Mac PMMS weekly average'). Never present a weekly average as a personal live quote.\n" +
+            "Show the spread vs the 10-year Treasury yield from the same block. If a figure is not in the block, say it isn't available rather than estimating.\n" +
+            "Individual pricing varies with credit, points, and LTV — direct users to the Rate Intelligence Engine for a scenario-level decode instead of guessing adjustments.\n" +
             "Respond in 150-250 words max. Concise, numeric focus. End with disclaimer.",
 
         refi:
@@ -7166,6 +7184,54 @@ What's your scenario?`,
     let grokFinal: any = null;
     let debug: any = null;
 
+    // ── Compose path: Claude with a PROSE contract ────────────────────────────
+    // No Summary/Key Numbers/Comparison Table schema — the answer field is
+    // plain flowing markdown (a draft, a script, talking points). Grounded by
+    // the same fredContext + personalMemoryContext the Grok path gets. Any
+    // failure leaves composeAnswer null and the question falls through to the
+    // normal Grok path — same degrade discipline as everywhere else.
+    let composeAnswer: any = null;
+    if (isComposeIntent && process.env.ANTHROPIC_API_KEY && !affordabilityAnswer && !fhaAnswer && !mortgageAnswer && !dscrAnswer) {
+        try {
+            const composeSystem = `You are HomeRates.ai's writing assistant — a mortgage-savvy professional writer. Calm, precise, warm. Never sell, never hype.
+
+The user wants something WRITTEN or PREPARED (a draft, a message, a script, talking points, call prep). Produce exactly what they asked for, ready to use.
+
+Rules:
+- Plain flowing markdown in the "answer" field — write the actual deliverable, not a report about it. Use short headers or bullets ONLY if the deliverable itself calls for them (e.g. talking points). NEVER output comparison tables or "Key Numbers" sections.
+- Any rate or market figure must come from the FRED LIVE DATA below — never from memory. If none is relevant, write without numbers.
+- If recent-activity context is provided, let it inform the content naturally; never state or imply that anyone's platform activity is being observed.
+- No greetings to the user, no meta-commentary — start directly with the deliverable.
+
+Return ONLY valid JSON:
+{"answer": "<the deliverable, markdown>", "next_step": "<one concrete action, one sentence>", "follow_up": "<one sharp follow-up question>"}`;
+
+            const composeUser = `Date: ${today}
+${fredContext}
+${personalMemoryContext ? `\n${personalMemoryContext}` : ""}
+
+Conversation so far:
+${conversationTrim || "None"}
+
+Request:
+"${question}"`;
+
+            const t0 = Date.now();
+            const { parsed } = await callClaudeJson(composeSystem, composeUser, 1200, 1);
+            if (typeof parsed?.answer === 'string' && parsed.answer.trim()) {
+                composeAnswer = {
+                    answer:     parsed.answer.trim(),
+                    next_step:  typeof parsed.next_step === 'string' ? parsed.next_step : '',
+                    follow_up:  typeof parsed.follow_up === 'string' ? parsed.follow_up : '',
+                    confidence: '0.90 — drafted from your request and live market data',
+                };
+                console.log('[Compose] Claude prose answer in', Date.now() - t0, 'ms');
+            }
+        } catch (err) {
+            console.warn('[Compose] Claude failed — falling through to Grok path', (err as Error)?.message ?? err);
+        }
+    }
+
     let sourcesInjected = false;
     if (affordabilityAnswer) {
         grokFinal = affordabilityAnswer;
@@ -7183,6 +7249,13 @@ What's your scenario?`,
         grokFinal = dscrAnswer;
         debug = { requestedModel: "dscr-calculator", servedModel: "dscr-calculator", promptChars: question.length, elapsedMs: 0, requestId: "dscr-" + Date.now(), parseMode: "direct", repaired: false };
         console.log('[DSCR Calc] Returning direct answer, skipping Grok');
+    } else if (composeAnswer) {
+        // Compose intent — Claude prose deliverable (see block above). Sits after
+        // the deterministic calc branches (math wins) and ahead of the Grok
+        // persona path (composition never gets the table-forced schema).
+        grokFinal = composeAnswer;
+        debug = { requestedModel: "claude-compose", servedModel: "claude-sonnet-5", promptChars: question.length, elapsedMs: 0, requestId: "compose-" + Date.now(), parseMode: "direct", repaired: false };
+        console.log('[Compose] Returning Claude prose answer, skipping Grok');
     } else if (XAI_API_KEY) {
         // Normal Grok path...
 
