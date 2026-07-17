@@ -295,14 +295,14 @@ interface SynthResult {
 const _synthCache = new Map<string, { result: SynthResult; at: number }>();
 const SYNTH_CACHE_TTL_MS = 10 * 60 * 1000;
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
     return Promise.race([
         p,
         new Promise<T>((_, reject) => setTimeout(() => reject(new Error('synthesis timeout')), ms)),
     ]);
 }
 
-function validNextSteps(raw: unknown): ConsumerNextStep[] {
+export function validNextSteps(raw: unknown): ConsumerNextStep[] {
     if (!Array.isArray(raw)) return [];
     return raw
         .filter((s): s is { label: string; detail?: string; seed: string } =>
