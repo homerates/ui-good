@@ -157,6 +157,12 @@ function lsRead(addr: string): { result: PropResult; mapUrls: MapUrls | null } |
       result: PropResult; mapUrls: MapUrls | null; cachedAt: number;
     };
     if (!result || !cachedAt) return null;
+    // Completeness gate: a result without the intelligence summary is a
+    // partial (thin Grok JSON from a degraded run). Restoring it renders
+    // permanent skeleton shimmer AND skips the API — pinning the user to
+    // the bad snapshot for the whole TTL even after the DB cache heals.
+    // Evict and treat as a miss so runQuery refetches. (ISSUE-025)
+    if (!result.grok_intelligence_summary) { localStorage.removeItem(`pi_v1_${normKey(addr)}`); return null; }
     const age = Date.now() - cachedAt;
     const ttl = /sold|off market|withdrawn/i.test(result.current_status ?? '')
       ? 7 * 86_400_000 : 86_400_000; // 7d sold, 24h active
@@ -424,7 +430,10 @@ function PropertyIntelInner() {
         const cd = await fetch(`/api/beta/grok-property?address=${encodeURIComponent(address)}`, { signal: sig })
           .then(r => r.json()).catch(() => null);
 
-        if (cd?.cached) {
+        // Same completeness gate as lsRead: a cached row without the summary
+        // is a partial from a degraded run — fall through and regenerate
+        // (the fresh result re-caches over it) instead of rendering shimmer.
+        if (cd?.cached && (cd.result as PropResult | undefined)?.grok_intelligence_summary) {
           setCacheHit(true);
           if (cd.map_urls) setMapUrls(cd.map_urls);
           const cachedPhoto: string | null = (cd.result as any)?.photo_url ?? null;
@@ -583,7 +592,9 @@ function PropertyIntelInner() {
 
   // ── Persist result to localStorage once settled ───────────────────────────
   useEffect(() => {
-    if (!address || !finalResult) return;
+    // Never persist a partial (no summary) — that's how the stuck-skeleton
+    // localStorage pin happened in the first place. (ISSUE-025)
+    if (!address || !finalResult?.grok_intelligence_summary) return;
     lsWrite(address, finalResult, mapUrls);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [finalResult, mapUrls]);
