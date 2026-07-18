@@ -70,21 +70,22 @@ export default function WelcomeHome({
 
     const greeting = useMemo(timeGreeting, []);
 
-    // Example prompts — the first one deliberately exercises the chat memory
-    // pipeline (personalMemoryContext in /api/answers), so the answer is
-    // itself personalized. The rest adapt lightly to the last action.
-    const chips = useMemo(() => {
-        const list: { label: string; seed: string }[] = [
-            { label: "What's changed since I was here?", seed: "What's changed since I was last here? Recap my recent scenarios against today's rates." },
-        ];
-        if (lastAction?.event_type === 'affordability_run') {
-            list.push({ label: 'Cash needed to close', seed: 'How much total cash do I need to close on my last scenario?' });
-        } else {
-            list.push({ label: 'What can I afford?', seed: 'How much house can I afford?' });
-        }
-        list.push({ label: 'Assistance programs near me', seed: 'What first-time buyer and down payment assistance programs should I look at?' });
-        return list;
-    }, [lastAction?.event_type]);
+    // Example prompts — every chip must route to a VERIFIED target. Traced
+    // through send()'s intent checks + the answers route (2026-07-18):
+    //  1. Memory recap → /api/answers general path (personalMemoryContext
+    //     answers it). Deliberately worded WITHOUT the word "rates" — the
+    //     phrase "against today's rates" tripped isMarketRatesIntent and
+    //     redirected to /market-intelligence, killing the recap.
+    //  2. Afford → the canonical dti-scenarios affordability card.
+    //  3. Assistance → direct link to /ami-qualifier (the purpose-built
+    //     DPA/AMI tool). As a chat seed this got hijacked by the
+    //     affordability regex and fired a calc card with fabricated
+    //     income/savings defaults. No prompt is better than a wrong target.
+    const chips: { label: string; href: string }[] = [
+        { label: "What's changed since I was here?", href: chatHref("What's changed since I was last here? Recap my recent scenarios and what's different now.") },
+        { label: 'What can I afford?', href: chatHref('How much house can I afford?') },
+        { label: 'Check assistance eligibility', href: '/ami-qualifier' },
+    ];
 
     function submitAsk(e: React.FormEvent) {
         e.preventDefault();
@@ -148,7 +149,7 @@ export default function WelcomeHome({
                     </form>
                     <div className="wh-chips">
                         {chips.map((c, i) => (
-                            <Link key={i} href={chatHref(c.seed)} className="wh-chip">{c.label}</Link>
+                            <Link key={i} href={c.href} className="wh-chip">{c.label}</Link>
                         ))}
                     </div>
                 </div>

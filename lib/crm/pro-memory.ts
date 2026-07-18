@@ -121,9 +121,12 @@ function buildHeuristicSteps(rels: ProRelationship[], marketRate: number | null)
 
     if (steps.length < 3) {
         steps.push({
-            label:  "Today's rate talking points",
+            label:  "Today's market talking points",
             detail: 'A client-ready read on the current market',
-            seed:   'What should I tell my clients about the current mortgage rate environment? Give me 3 client-ready talking points.',
+            // Worded to hit the Claude compose path — "talking points" triggers
+            // it; saying "rate environment" tripped the market-rates redirect
+            // in chat send() and the request never reached compose.
+            seed:   'Draft 3 client-ready talking points on where the mortgage market stands today.',
         });
     }
     return steps.slice(0, 3);
@@ -180,6 +183,7 @@ The next steps (2-3), each:
 - "detail": one line, max 12 words, why it follows from their own records
 - "seed": the full self-contained message to send to their AI assistant to do it (include the concrete names/numbers from below)
 Steps must come only from the sources above — a follow-up flag means THEY haven't logged a conversation recently, never that the client did or didn't do something.
+Never write a seed that is a bare market-rates question ("what are rates today") — phrase it as a concrete task ("draft…", "compare…") tied to the names/numbers below.
 
 Return ONLY valid JSON:
 {"message": "...", "next_steps": [{"label": "...", "detail": "...", "seed": "..."}]}`;

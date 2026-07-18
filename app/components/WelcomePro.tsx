@@ -73,8 +73,14 @@ export default function WelcomePro({
 
     // Example prompts — public market data + generic craft help only. None
     // may resolve to "what has {client} been doing on the platform".
+    // Routing verified 2026-07-18: all three must hit the Claude COMPOSE path
+    // in /api/answers. The old first chip said "current mortgage rate
+    // environment", which tripped send()'s isMarketRatesIntent regex and
+    // redirected to /market-intelligence before compose ever saw it — so the
+    // wording deliberately avoids the word "rates"; "talking points" is what
+    // triggers compose, and FRED data reaches Claude via fredContext anyway.
     const chips = useMemo(() => ([
-        { label: "Today's rate talking points", seed: 'What should I tell my clients about the current mortgage rate environment? Give me 3 client-ready talking points.' },
+        { label: "Today's market talking points", seed: 'Draft 3 client-ready talking points on where the mortgage market stands today.' },
         { label: 'Draft a warm follow-up', seed: `Draft a short, warm follow-up message I can send a ${roleLabel} I haven't spoken with in a couple of weeks. Low-pressure, genuinely useful.` },
         { label: 'Prep my next call', seed: `Help me prepare for my next ${roleLabel} call — give me a quick checklist of what to cover in today's market.` },
     ]), [roleLabel]);

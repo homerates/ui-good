@@ -391,6 +391,7 @@ The next steps (2-3 of them), each:
 - "detail": one supporting line, max 12 words, why this follows naturally
 - "seed": the full message to send to the mortgage chat assistant to perform that step — self-contained, includes the concrete numbers/addresses from their activity
 - Steps must be genuinely distinct from each other and from simply repeating what they already did
+- Never write a seed that is a bare market-rates question ("what are rates today", "where are rates") — always tie the seed to their specific numbers, address, or task
 
 Return ONLY valid JSON:
 {"message": "...", "next_steps": [{"label": "...", "detail": "...", "seed": "..."}]}`;
