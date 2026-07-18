@@ -50,6 +50,7 @@ import RefiIntelligenceCard from '@/components/RefiIntelligenceCard';
 import HelocSliderCard from '@/components/HelocSliderCard';
 import PropertyPreviewCard from '@/components/PropertyPreviewCard';
 import type { PropertyCardData } from '@/components/PropertyPreviewCard';
+import PropertyCompareCard from '@/components/PropertyCompareCard';
 import PropertyIntelligenceCard from '@/components/PropertyIntelligenceCard';
 import type { CMACardData } from '@/components/PropertyIntelligenceCard';
 import ProUpgradeCard from '@/components/ProUpgradeCard';
@@ -526,6 +527,15 @@ type ApiResponse = {
         purchaseRate?: number | null; remainingMonths?: number | null;
         hoaMonthly?: number | null; pricePerSqft?: number | null;
     } | null;
+    propertyCompareCard?: {
+        properties: Array<{
+            address: string; price: number | null; beds: number | null; baths: number | null;
+            sqft: number | null; yearBuilt: number | null; listingStatus: string | null;
+            annualTaxes: number | null; taxRate: number | null; hoaMonthly: number | null;
+            estimatedValue: number | null; photoUrl: string | null;
+        }>;
+        rate: number; rateIsLive: boolean; downPct: number;
+    } | null;
     cmaCard?: {
         address: string; price: number; photoUrl: string | null;
         piti: number; downAmt: number; loanAmt: number;
@@ -736,6 +746,26 @@ function extractPlainAddress(text: string): string | null {
     if (m) return cleanAddressMatch(m[1]);
 
     return null;
+}
+
+// Multiple plain addresses (compare flow) — reuses extractPlainAddress's full
+// tier logic per pass, advancing past each match so mixed formats work
+// ("30326 Eaglebrook Dr, …" T1 + "27383 Oak Smt, …" T2 in one message).
+function extractPlainAddresses(text: string, max = 3): string[] {
+    const found: string[] = [];
+    let rest = text;
+    for (let i = 0; i < max; i++) {
+        const a = extractPlainAddress(rest);
+        if (!a) break;
+        if (!found.some(f => f.toLowerCase() === a.toLowerCase())) found.push(a);
+        // The cleaned match's leading chars (street number + name start) appear
+        // verbatim in the source — advance past them for the next pass.
+        const key = a.slice(0, Math.min(10, a.length));
+        const idx = rest.indexOf(key);
+        if (idx === -1) break;
+        rest = rest.slice(idx + key.length);
+    }
+    return found;
 }
 
 /* =========================
@@ -2274,6 +2304,94 @@ export default function Page() {
         setInput('');
         setPriceCheckMode(false);
         setLoading(true);
+
+        // ── Multi-property comparison branch (PCMP-001) ──────────────────────
+        // Compare intent + 2-3 plain addresses → side-by-side comparison card.
+        // Must run BEFORE the single-address branch below, which would
+        // otherwise grab only the FIRST address and fire a lone property card
+        // for a "compare A and B" question.
+        const compareIntent = /\b(compare|comparison|vs\.?|versus|side.by.side)\b/i.test(q);
+        const compareAddrs  = compareIntent && !extractListingUrl(q) ? extractPlainAddresses(q, 3) : [];
+        if (compareAddrs.length >= 2) {
+            try {
+                const [cmpTickerRes, ...cmpLookups] = await Promise.all([
+                    fetch('/api/ticker', { cache: 'no-store' }).catch(() => null),
+                    ...compareAddrs.map(a =>
+                        fetch('/api/property/lookup', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ address: a }),
+                        }).then(r => r.json()).catch(() => null)
+                    ),
+                ]);
+                const cmpTicker = cmpTickerRes ? await cmpTickerRes.json().catch(() => null) : null;
+                let cmpRate = 6.65; // matches FRED_FALLBACK in answers engine
+                let cmpRateIsLive = false;
+                const cmp30Y = cmpTicker?.items?.find((i: any) => i.label === '30Y FIXED');
+                if (cmp30Y?.value) {
+                    const p = parseFloat(String(cmp30Y.value).replace('%', ''));
+                    if (Number.isFinite(p) && p > 3 && p < 12) { cmpRate = p; cmpRateIsLive = true; }
+                }
+
+                const cmpProps = compareAddrs.map((addr, i) => {
+                    const d = cmpLookups[i]?.ok && cmpLookups[i]?.data ? cmpLookups[i].data : null;
+                    return {
+                        address:        (d?.address as string | null) ?? addr,
+                        price:          (d?.price as number | null) ?? null,
+                        beds:           (d?.beds as number | null) ?? null,
+                        baths:          (d?.baths as number | null) ?? null,
+                        sqft:           (d?.sqft as number | null) ?? null,
+                        yearBuilt:      (d?.yearBuilt as number | null) ?? null,
+                        listingStatus:  (d?.listingStatus as string | null) ?? null,
+                        annualTaxes:    (d?.annualTaxes as number | null) ?? null,
+                        taxRate:        (d?.taxRateEffective as number | null) ?? null,
+                        hoaMonthly:     (d?.hoaMonthly as number | null) ?? null,
+                        estimatedValue: (d?.estimatedValue as number | null) ?? null,
+                        photoUrl:       (d?.photoUrl as string | null) ?? null,
+                    };
+                });
+
+                const cmpPriced = cmpProps.filter(p => p.price != null);
+                const cmpFriendly = cmpPriced.length >= 1
+                    ? `Side-by-side on ${cmpProps.length} properties below — payment math at ${cmpRate.toFixed(2)}% with 20% down, from live listing data.${cmpPriced.length < cmpProps.length ? ' A listing price was unavailable for one of them, so that column shows the facts we could verify without payment math.' : ''}`
+                    : `I pulled what I could on these ${cmpProps.length} properties — listing prices weren't available, so the comparison shows verified facts without payment math. Try pasting each property's Redfin link for fuller data.`;
+
+                const compareMeta: ApiResponse = {
+                    path: 'property_lookup',
+                    usedFRED: false,
+                    usedTicker: cmpRateIsLive,
+                    answer: cmpFriendly,
+                    message: cmpFriendly,
+                    answerMarkdown: cmpFriendly,
+                    propertyCompareCard: { properties: cmpProps, rate: cmpRate, rateIsLive: cmpRateIsLive, downPct: 20 },
+                    follow_up_chips: [],
+                };
+                setMessages((prev) =>
+                    prev.map((m) =>
+                        m.id === answerId && m.role === 'assistant'
+                            ? { ...m, meta: compareMeta, content: '' }
+                            : m
+                    )
+                );
+                typeOutAssistant(answerId, cmpFriendly);
+
+                // consumer_activity capture — one property_viewed per compared address
+                if (user?.id) {
+                    for (const p of cmpProps) {
+                        if (!p.address) continue;
+                        void fetch('/api/crm/auto-capture', {
+                            method:  'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body:    JSON.stringify({ event: 'property_viewed', data: { address: p.address } }),
+                        }).catch(() => {});
+                    }
+                }
+            } catch {
+                typeOutAssistant(answerId, 'I hit a snag pulling those properties — try comparing them one at a time, or paste each Redfin link.');
+            }
+            setLoading(false);
+            return;
+        }
 
         // ── Property listing URL or plain address branch ─────────────────────
         const listingUrl   = extractListingUrl(q);
@@ -4107,6 +4225,15 @@ export default function Page() {
                                                         {/* Admin debug panel — shows raw JSON + math fields */}
                                                         {isAdmin && (
                                                             <DebugPanel meta={m.meta} raw={(m as any).raw} />
+                                                        )}
+                                                        {/* Property comparison card — PCMP-001, 2-3 properties side by side */}
+                                                        {m.meta.propertyCompareCard && !loading && typingId === null && (
+                                                            <PropertyCompareCard
+                                                                properties={m.meta.propertyCompareCard.properties}
+                                                                rate={m.meta.propertyCompareCard.rate}
+                                                                rateIsLive={m.meta.propertyCompareCard.rateIsLive}
+                                                                downPct={m.meta.propertyCompareCard.downPct}
+                                                            />
                                                         )}
                                                         {/* Property preview card — 4CS1234 stack opener. Badge identifies loan type. */}
                                                         {m.meta.propertyCard && !m.meta.refiIntelligenceCard && (
