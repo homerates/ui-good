@@ -131,7 +131,10 @@ function buildHeuristicSteps(rels: ProRelationship[], marketRate: number | null)
 
 // ── Claude synthesis (same pattern as consumer-memory) ────────────────────
 
-const SYNTH_TIMEOUT_MS = 4500;
+// 12s to match consumer-memory: measured Claude latency for this call shape
+// is 4.4–5.3s, so the old 4500ms timeout silently forced the deterministic
+// fallback in production (see consumer-memory.ts for the measurement note).
+const SYNTH_TIMEOUT_MS = 12_000;
 const _synthCache = new Map<string, { result: { message: string; nextSteps: ConsumerNextStep[] }; at: number }>();
 const SYNTH_CACHE_TTL_MS = 10 * 60 * 1000;
 

@@ -17,6 +17,11 @@ import { callClaudeJson } from '@/ai-providers/claude';
 
 const WINDOW_DAYS = 30;
 const MAX_EVENTS = 5;
+// Fetch more than we show: repeated identical actions (same property looked
+// up three times while debugging, same scenario re-run) are separate rows in
+// consumer_activity, and without deduping they fill the whole window with
+// "today, you looked at X. today, you looked at X. today, you looked at X."
+const FETCH_LIMIT = 25;
 
 export interface ConsumerActivityEvent {
     id:         string;
@@ -57,6 +62,24 @@ export interface ConsumerMemorySummary {
     lastAction: ConsumerLastAction | null;
 }
 
+/** Canonical identity of an event — used to collapse repeats of the same action. */
+function eventSignature(e: ConsumerActivityEvent): string {
+    const f = (Array.isArray(e.key_facts) ? e.key_facts[0] : null) as Record<string, unknown> | null;
+    switch (e.event_type) {
+        case 'property_viewed':
+            return `pv:${String(f?.address ?? e.subject).toLowerCase().trim()}`;
+        case 'affordability_run':
+            return `ar:${f?.loan_type}:${f?.purchase_price}:${f?.down_pct}`;
+        case 'rate_engine_run':
+            return `re:${f?.loan_type}:${f?.loan_amount}:${f?.ltv}`;
+        case 'ami_run':
+        case 'ami_result':
+            return `ami:${String(f?.county ?? '').toLowerCase()}:${f?.state}`;
+        default:
+            return `${e.event_type}:${e.subject.toLowerCase()}`;
+    }
+}
+
 export async function getRecentConsumerActivity(
     sb: SupabaseClient,
     consumerUserId: string,
@@ -68,8 +91,19 @@ export async function getRecentConsumerActivity(
         .eq('consumer_user_id', consumerUserId)
         .gte('created_at', since)
         .order('created_at', { ascending: false })
-        .limit(MAX_EVENTS);
-    return (data as ConsumerActivityEvent[] | null) ?? [];
+        .limit(FETCH_LIMIT);
+
+    // Keep the most recent occurrence of each distinct action, cap at MAX_EVENTS.
+    const seen = new Set<string>();
+    const distinct: ConsumerActivityEvent[] = [];
+    for (const e of (data as ConsumerActivityEvent[] | null) ?? []) {
+        const sig = eventSignature(e);
+        if (seen.has(sig)) continue;
+        seen.add(sig);
+        distinct.push(e);
+        if (distinct.length >= MAX_EVENTS) break;
+    }
+    return distinct;
 }
 
 function relativeDay(iso: string): string {
@@ -282,7 +316,13 @@ function buildHeuristicNextSteps(events: ConsumerActivityEvent[]): ConsumerNextS
 // Never blocks or breaks personalization: any failure (no API key, timeout,
 // bad response) falls straight back to the deterministic summary + heuristics.
 
-const SYNTH_TIMEOUT_MS = 4500;
+// Measured (2026-07-18, 3 runs against api.anthropic.com with the real prompt):
+// 4.4s / 5.1s / 5.3s. The previous 4500ms timeout lost that race almost every
+// time — synthesis silently fell back to the robotic template in production
+// and the Claude-written copy was essentially never shown. 12s gives honest
+// headroom; the 10-min cache means the wait is paid at most once per user
+// per new-activity window, and the page renders without blocking on it.
+const SYNTH_TIMEOUT_MS = 12_000;
 
 interface SynthResult {
     message:   string;
@@ -403,7 +443,10 @@ export async function buildConsumerMemorySummary(
 
     const synthesized = await synthesizeWelcomeBack(consumerUserId, events, marketLine);
     const summaryText = synthesized?.message
-        ?? [`${events.map(describeEvent).join('. ')}.`, marketLine].filter(Boolean).join(' ');
+        ?? [
+            `${events.map(describeEvent).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('. ')}.`,
+            marketLine,
+        ].filter(Boolean).join(' ');
     const nextSteps = synthesized?.nextSteps.length
         ? synthesized.nextSteps
         : buildHeuristicNextSteps(events);
