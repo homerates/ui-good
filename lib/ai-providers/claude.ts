@@ -52,6 +52,14 @@ export async function callClaudeJson(
         body: JSON.stringify({
           model: 'claude-sonnet-5',
           max_tokens: maxTokens,
+          // Thinking OFF: every caller of this helper wants small, fast,
+          // structured JSON (scenario answers, welcome synthesis, compose).
+          // Sonnet 5 runs ADAPTIVE thinking when the field is omitted, and
+          // thinking tokens count against max_tokens — measured 2026-07-18:
+          // the welcome-synthesis call emitted 549-843 output tokens with
+          // thinking on (blowing a 600 budget → truncated JSON → parse fail)
+          // at 6.2-9.4s, vs 445-520 tokens at ~5.4s with thinking disabled.
+          thinking: { type: 'disabled' },
           system: systemPrompt,
           messages: [
             {
