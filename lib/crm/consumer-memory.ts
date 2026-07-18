@@ -399,7 +399,9 @@ Return ONLY valid JSON:
 
     try {
         const { parsed } = await withTimeout(
-            callClaudeJson(systemPrompt, userMessage, 600, 0),
+            // 1000 tokens: measured output is 445-520 with thinking disabled —
+            // the old 600 cap truncated mid-JSON whenever thinking was active.
+            callClaudeJson(systemPrompt, userMessage, 1000, 0),
             SYNTH_TIMEOUT_MS,
         );
         const message = typeof parsed?.message === 'string' ? parsed.message.trim() : null;

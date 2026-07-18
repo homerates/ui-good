@@ -187,7 +187,8 @@ Return ONLY valid JSON:
     const userMessage = `THEIR RELATIONSHIPS (their own records only):\n${lines}${marketRate ? `\n\nToday's average 30-year rate: ${marketRate.toFixed(2)}%.` : ''}`;
 
     try {
-        const { parsed } = await withTimeout(callClaudeJson(systemPrompt, userMessage, 600, 0), SYNTH_TIMEOUT_MS);
+        // 1000 tokens — same headroom fix as consumer-memory (600 truncated when thinking was active).
+        const { parsed } = await withTimeout(callClaudeJson(systemPrompt, userMessage, 1000, 0), SYNTH_TIMEOUT_MS);
         const message = typeof parsed?.message === 'string' ? parsed.message.trim() : null;
         if (!message) return null;
         const result = { message, nextSteps: validNextSteps(parsed?.next_steps) };
