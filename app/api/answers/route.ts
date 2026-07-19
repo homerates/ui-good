@@ -2203,8 +2203,17 @@ async function handle(req: NextRequest, intentParam?: string) {
     ) {
         module = "homeowner_economy";
     } else if (
-        /^heloc\s+on\b/i.test(q) ||
-        /(refinance|refi|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left)/i.test(q)
+        // Refi guard: "break-even" alone is NOT refi intent. A down-payment
+        // comparison ("5% down vs 20% down … walk me through the break-even")
+        // was hijacked by this branch, and refi_advisor_v2 then parsed the
+        // user's INVESTMENT-GROWTH figure ($205k) as a loan balance and their
+        // 7% investment return as a refi target rate — pure nonsense output.
+        // [deep-analysis] seeds are owned by the deep-analysis intercept below
+        // and must never be classified here.
+        !/^\[deep-analysis\]/i.test(question) &&
+        !/\d+\s*%\s*down\b[\s\S]{0,80}?\b(?:vs\.?|versus|or)\b[\s\S]{0,80}?\d+\s*%\s*down\b/i.test(q) &&
+        (/^heloc\s+on\b/i.test(q) ||
+        /(refinance|refi|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left)/i.test(q))
     ) {
         module = "refi";
     } else if (
