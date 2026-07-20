@@ -27,5 +27,10 @@ export async function GET(
 
   if (!pilot) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  return NextResponse.json({ ...pilot, activations: 0 });
+  const { count } = await sb
+    .from("agents")
+    .select("user_id", { count: "exact", head: true })
+    .eq("company_pilot_id", pilot.id);
+
+  return NextResponse.json({ ...pilot, activations: count ?? 0 });
 }

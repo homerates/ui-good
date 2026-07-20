@@ -30,12 +30,12 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Activation counts
+  // Activation counts — agents, not loan_officers (this list is pilot_type='agent')
   const ids = (data ?? []).map((p: any) => p.id);
   let counts: Record<string, number> = {};
   if (ids.length) {
     const { data: activations } = await sb
-      .from("loan_officers")
+      .from("agents")
       .select("company_pilot_id")
       .in("company_pilot_id", ids);
     for (const a of activations ?? []) {

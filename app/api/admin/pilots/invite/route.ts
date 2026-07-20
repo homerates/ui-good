@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     .from("company_pilots")
     .select("id, company_name, slug, contact_name, contact_email, credits_per_lo, is_active")
     .eq("id", pilotId)
+    .eq("pilot_type", "lo")
     .maybeSingle();
 
   if (!pilot) return NextResponse.json({ error: "Pilot not found" }, { status: 404 });
@@ -46,7 +47,8 @@ export async function POST(req: NextRequest) {
   await sb
     .from("company_pilots")
     .update({ invite_sent_at: new Date().toISOString() })
-    .eq("id", pilotId);
+    .eq("id", pilotId)
+    .eq("pilot_type", "lo");
 
   return NextResponse.json({ ok: true });
 }
