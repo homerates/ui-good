@@ -6,21 +6,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
-
-async function requireAdmin() {
-  const { userId } = await auth();
-  if (!userId) return null;
-  const sb = getSupabase();
-  if (!sb) return null;
-  const { data } = await sb.from("users").select("role").eq("id", userId).maybeSingle();
-  return data?.role === "admin" ? userId : null;
-}
+import { requireAdmin } from "../../../../lib/adminAuth";
 
 export async function GET() {
-  const adminId = await requireAdmin();
-  if (!adminId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { error: adminError } = await requireAdmin();
+  if (adminError) return adminError;
 
   const sb = getSupabase()!;
 
@@ -53,8 +44,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const adminId = await requireAdmin();
-  if (!adminId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { error: adminError } = await requireAdmin();
+  if (adminError) return adminError;
 
   const body = await req.json();
   const { company_name, slug, contact_name, contact_email, credits_per_lo, notes } = body;
@@ -90,8 +81,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const adminId = await requireAdmin();
-  if (!adminId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { error: adminError } = await requireAdmin();
+  if (adminError) return adminError;
 
   const body = await req.json();
   const { id, is_active } = body;

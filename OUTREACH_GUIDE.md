@@ -32,15 +32,17 @@ Not an invite mechanism, despite adjacency: **White-label partner branding** (`/
 
 ## 1. Admin-Authorization Systems — read this first
 
-**Three different, non-interchangeable "is this user an admin?" checks exist in the codebase.** A person granted admin one way is not automatically recognized by the other two. Know which one gates the mechanism you're using before assuming access.
+**RESOLVED 2026-07-20 (commit pending push):** this repo used to have three different, non-interchangeable "is this user an admin?" checks. All admin-gated outreach routes now use one canonical check.
 
 | Check | Source of truth | Used by |
 |---|---|---|
-| **Canonical** — `lib/adminAuth.ts` (`requireAdmin()` / `isAdminId()`) | `admin_users` table + hardcoded `BOOTSTRAP_ADMIN_IDS` fallback (always includes Rayaan's Production Clerk ID), 5-min in-memory cache | Marketplace Lenders, `/admin/directory`, `/api/admin/white-label`, client-side `useAdminStatus()` hook (→ `/api/admin/check`) |
-| **Re-implemented, same table** — local `isAdmin()` in `app/api/admin/corporate-invite/route.ts` | `admin_users` table directly, **no** `BOOTSTRAP_ADMIN_IDS` fallback | Corporate Invite only |
-| **Different table entirely** — local `requireAdmin()` duplicated in `app/api/admin/pilots/*` and `app/api/admin/agent-pilots/*` | `users.role === 'admin'` column | Pilots, Agent Pilots (list/CRUD/bulk/invite, all 6 routes) |
+| **Canonical** — `lib/adminAuth.ts` (`requireAdmin()` / `isAdminId()`) | `admin_users` table + hardcoded `BOOTSTRAP_ADMIN_IDS` fallback (always includes Rayaan's Production Clerk ID), 5-min in-memory cache | **Everything in this doc**: Marketplace Lenders, `/admin/directory`, `/api/admin/white-label`, Pilots (`/api/admin/pilots`, `/bulk`, `/invite`), Agent Pilots (`/api/admin/agent-pilots`, `/bulk`, `/invite`), Corporate Invite (`/api/admin/corporate-invite`), client-side `useAdminStatus()` hook (→ `/api/admin/check`) |
 
-**Operational risk:** admins are managed via `/admin → Manage Admins`, which (per `lib/adminAuth.ts`'s own comment) writes to `admin_users`. Someone added that way can manage the Directory and Marketplace Lenders but **cannot** manage Pilots/Agent Pilots unless they also happen to have `users.role='admin'` set (not verified anywhere how/whether that column is currently kept in sync). This should be reconciled to one check — flagged in §8.
+**Previously (fixed):**
+- `app/api/admin/corporate-invite/route.ts` had its own inline `isAdmin()` re-querying `admin_users` directly, **without** the `BOOTSTRAP_ADMIN_IDS` fallback — replaced with `requireAdmin()`.
+- `app/api/admin/pilots/*` and `app/api/admin/agent-pilots/*` (6 routes total) each had a locally duplicated `requireAdmin()` checking **`users.role === 'admin'`** — a completely different table from `admin_users`. Replaced with the canonical `requireAdmin()` in all 6.
+
+**⚠️ Access-migration note:** anyone who could previously manage Pilots/Agent Pilots via `users.role='admin'` but is **not** listed in the `admin_users` table (and isn't the bootstrap ID) will lose access to those two pages after this ships, until added via `/admin → Manage Admins`. Verify `admin_users` contains everyone who needs Pilots/Agent-Pilots/Corporate-Invite access before relying on this in production. HTTP status on rejection also changed from `401 Unauthorized` to `403 Forbidden` on all 7 routes (matches every other admin route in the app) — no client page branches on the specific status code, so this is not expected to break any UI.
 
 ---
 
@@ -126,7 +128,7 @@ Not an invite mechanism, despite adjacency: **White-label partner branding** (`/
 
 ### 3.2 Pilots & Agent Pilots
 - **What they are:** admin-driven direct-outreach programs for named companies/teams — "Pilots" targets loan officers, "Agent Pilots" targets real estate agents. **They share one table** (`company_pilots`, `pilot_type` column added in `054_agent_pilots.sql`, default `'lo'`), not two separate systems, despite two separate admin UIs and two separate route trees.
-- **Who can trigger:** admin only — but via the **`users.role='admin'`** check (§1's third variant), not the canonical `admin_users` check.
+- **Who can trigger:** admin only, canonical check (§1 — was `users.role='admin'` prior to 2026-07-20, now fixed).
 - **UI:** `app/admin/pilots/page.tsx`, `app/admin/agent-pilots/page.tsx` (no client-side admin gate on either — relies entirely on the API 401).
 - **API:** `GET/POST/PATCH(/DELETE for agent-pilots only) /api/admin/pilots` and `/api/admin/agent-pilots`, plus `/bulk` and `/invite` variants for each.
 - **Delivery:** Resend (`emailPilotInvite` — personal, founder-voiced tone; `emailAgentPilotInvite`).
@@ -160,7 +162,7 @@ Four routes over one table (`brokerages` + `brokerage_members`, migration `016_b
 
 ### 4.2 Corporate Invite + Org Nomination
 - **What it is:** the admin-driven, top-down counterpart to §4.1 — same `brokerages` table, different door in. Also includes a nomination path where an existing pro flags their own employer for the admin to follow up with.
-- **Corporate invite trigger:** admin only, via the corporate-invite-specific `isAdmin()` check (§1 — no bootstrap fallback). **Nominate trigger:** any signed-in user.
+- **Corporate invite trigger:** admin only, canonical check (§1 — had its own inline check without the bootstrap fallback prior to 2026-07-20, now fixed). **Nominate trigger:** any signed-in user.
 - **UI:** `app/admin/corporate/page.tsx` (uses `useAdminStatus` correctly). No dedicated nomination-submission page located — presumably embedded in a professional dashboard/settings surface.
 - **API:** `GET/POST/PATCH /api/admin/corporate-invite` (lists/creates/updates both `corporate_invitations` and `org_nominations`), `POST /api/org/nominate`, `GET/POST /api/org/claim`.
 - **Delivery:** Resend (`emailCorporateInvite`).
@@ -231,7 +233,7 @@ These don't bring new people onto the platform — they connect two people who a
 
 ## 8. Known Issues / Redundancies (tracked for future cleanup)
 
-1. **Three incompatible admin-check implementations** (§1) — reconcile Pilots/Agent-Pilots (`users.role`) and Corporate Invite (local `admin_users` check without bootstrap fallback) onto the canonical `lib/adminAuth.ts`.
+1. ~~**Three incompatible admin-check implementations**~~ **FIXED 2026-07-20** (§1) — Pilots, Agent Pilots (6 routes) and Corporate Invite now all use the canonical `lib/adminAuth.ts` `requireAdmin()`. See §1's access-migration note.
 2. **Agent-pilot linkage silently fails** (§3.2) — `onboarding/setup` writes pilot linkage unconditionally to `loan_officers.company_pilot_id`, which doesn't exist for agents. Credits still award correctly; activation counts/founding badges for agent pilots do not.
 3. **`/admin/pilots` shows both pilot types unfiltered** (§3.2) — risk of an admin editing/deactivating an agent-pilot row while believing they're only looking at LO pilots.
 4. **Two independent "consumer invite" systems** — `invite_codes` (self-serve per-LO, §2.3, no reminders/no email) and `consumer_invites` (admin-bulk, §2.2, Resend + cron reminders) don't share a table or a reporting surface.
