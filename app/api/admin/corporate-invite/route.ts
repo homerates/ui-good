@@ -7,9 +7,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 import { emailCorporateInvite } from "../../../../lib/sendEmail";
+import { requireAdmin } from "../../../../lib/adminAuth";
 
 const ORG_LABELS: Record<string, string> = {
   brokerage:   "Mortgage Brokerage",
@@ -18,22 +19,9 @@ const ORG_LABELS: Record<string, string> = {
   re_brokerage: "Real Estate Brokerage",
 };
 
-async function isAdmin(userId: string): Promise<boolean> {
-  const sb = getSupabase();
-  if (!sb) return false;
-  const { data } = await sb
-    .from("admin_users")
-    .select("clerk_user_id")
-    .eq("clerk_user_id", userId)
-    .maybeSingle();
-  return !!data;
-}
-
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId || !(await isAdmin(userId))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error: adminError } = await requireAdmin();
+  if (adminError) return adminError;
 
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
@@ -54,10 +42,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId || !(await isAdmin(userId))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { userId, error: adminError } = await requireAdmin();
+  if (adminError) return adminError;
 
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
@@ -112,10 +98,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId || !(await isAdmin(userId))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { error: adminError } = await requireAdmin();
+  if (adminError) return adminError;
 
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });

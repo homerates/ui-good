@@ -6,9 +6,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../../lib/supabaseServer";
 import { emailAgentPilotInvite } from "../../../../../lib/sendEmail";
+import { requireAdmin } from "../../../../../lib/adminAuth";
 
 const BASE = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
 
@@ -17,14 +17,11 @@ function toSlug(name: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { error: adminError } = await requireAdmin();
+  if (adminError) return adminError;
 
   const sb = getSupabase();
   if (!sb) return NextResponse.json({ error: "DB unavailable" }, { status: 503 });
-
-  const { data: user } = await sb.from("users").select("role").eq("id", userId).maybeSingle();
-  if (user?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
   const contacts: { company_name: string; contact_name?: string; contact_email?: string; credits_per_lo?: number; notes?: string }[] = body.contacts ?? [];

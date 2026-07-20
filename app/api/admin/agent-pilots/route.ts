@@ -8,27 +8,18 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
+import { requireAdmin } from "../../../../lib/adminAuth";
 
 const PILOT_TYPE = "agent";
-
-async function requireAdmin() {
-  const { userId } = await auth();
-  if (!userId) return null;
-  const sb = getSupabase();
-  if (!sb) return null;
-  const { data } = await sb.from("users").select("role").eq("id", userId).maybeSingle();
-  return data?.role === "admin" ? userId : null;
-}
 
 function toSlug(name: string): string {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 export async function GET() {
-  const uid = await requireAdmin();
-  if (!uid) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { error: adminError } = await requireAdmin();
+  if (adminError) return adminError;
 
   const sb = getSupabase()!;
   const { data, error } = await sb
@@ -56,8 +47,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const uid = await requireAdmin();
-  if (!uid) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { error: adminError } = await requireAdmin();
+  if (adminError) return adminError;
 
   const body = await req.json();
   const { company_name, slug: rawSlug, contact_name, contact_email, credits_per_lo, notes } = body;
@@ -85,8 +76,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const uid = await requireAdmin();
-  if (!uid) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { error: adminError } = await requireAdmin();
+  if (adminError) return adminError;
 
   const { id, is_active } = await req.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -103,8 +94,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const uid = await requireAdmin();
-  if (!uid) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { error: adminError } = await requireAdmin();
+  if (adminError) return adminError;
 
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
