@@ -531,6 +531,23 @@ export function dispatch(
         return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
     }
 
+    // ── -0.5. CROSS-LOAN-TYPE COMPARISON — no dedicated single-loan-type card may claim this ──
+    // isScenarioComparisonQuestion() already vetoes VA/USDA-vs-conventional upstream in
+    // route.ts (returns null → falls through to here), specifically so it reaches Grok/Claude
+    // prose instead of the down-payment widget. But without this guard, isVAQuestion() below
+    // still matches the bare word "VA" and fires a single VA card at one price, silently
+    // dropping the "vs conventional" comparison intent entirely (caught live: "Compare a $850k
+    // VA loan against a $1025k conventional loan" rendered a plain $850k VA card).
+    // conv_vs_fha and conv_vs_jumbo keep their dedicated widgets — they're caught by
+    // isScenarioComparisonQuestion before dispatch() ever runs, so they never reach here.
+    if ((/\b(va|usda)\b[^.?!]{0,80}\bconventional\b/i.test(q) ||
+         /\bconventional\b[^.?!]{0,80}\b(va|usda)\b/i.test(q) ||
+         /\b(va|usda)\b[^.?!]{0,80}\bfha\b/i.test(q) ||
+         /\bfha\b[^.?!]{0,80}\b(va|usda)\b/i.test(q)) &&
+        /\b(vs\.?|versus|compare|against|side\s*by\s*side)\b/i.test(q)) {
+        return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
+    }
+
     // ── 0. HOMEOWNER ANALYSIS — broad multi-factor query, always route to web/Grok ──
     if (/homeowner analysis|run a complete.*analysis.*for|complete homeowner/i.test(q)) {
         return { type: 'no_calc_match' as CalcType, params: null, confidence: 0, assumptions: [] };
