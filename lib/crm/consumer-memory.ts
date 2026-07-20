@@ -263,12 +263,49 @@ function buildHeuristicNextSteps(events: ConsumerActivityEvent[]): ConsumerNextS
         if (e.event_type === 'affordability_run') {
             const f = fact as { loan_type?: string; purchase_price?: number; down_pct?: number } | null;
             if (!f?.purchase_price) continue;
-            const other = String(f.loan_type).toLowerCase() === 'fha' ? 'conventional' : 'FHA';
-            steps.push({
-                label:  `Compare ${other} at the same price`,
-                detail: `Same ${fmtMoney(f.purchase_price)} home, different loan structure`,
-                seed:   `Compare FHA 3.5% down vs conventional ${f.down_pct ?? 20}% down on a $${Math.round(f.purchase_price).toLocaleString()} home`,
-            });
+            const lt = String(f.loan_type ?? '').toLowerCase();
+            const price = Math.round(f.purchase_price);
+            const downPct = f.down_pct ?? 20;
+            // Loan-type comparisons are only a real decision when both options are
+            // available to any qualifying buyer at this price: FHA vs conventional
+            // (down-payment/MI tradeoff) and conventional vs jumbo (at the conforming
+            // limit boundary). VA and USDA are eligibility-gated, not a preference —
+            // a buyer who qualifies for either almost always wins on cost vs
+            // conventional, so "VA vs conventional" isn't a real comparison to
+            // suggest. DSCR is investment-only with no owner-occupied counterpart.
+            if (lt === 'fha') {
+                steps.push({
+                    label:  'Compare FHA vs conventional',
+                    detail: `Same ${fmtMoney(price)} home, different loan structure`,
+                    seed:   `Compare FHA 3.5% down vs conventional ${downPct}% down on a $${price.toLocaleString()} home`,
+                });
+            } else if (lt === 'jumbo' || (lt !== 'va' && lt !== 'usda' && lt !== 'dscr' && price >= 750_000)) {
+                steps.push({
+                    label:  'Compare conventional vs jumbo',
+                    detail: `See if staying conforming saves you money at ${fmtMoney(price)}`,
+                    seed:   `Compare staying conforming vs going jumbo on a $${price.toLocaleString()} home`,
+                });
+            } else if (lt === 'conventional' || lt === '') {
+                steps.push({
+                    label:  'Compare FHA vs conventional',
+                    detail: `Same ${fmtMoney(price)} home, different loan structure`,
+                    seed:   `Compare FHA 3.5% down vs conventional ${downPct}% down on a $${price.toLocaleString()} home`,
+                });
+            } else if (lt === 'va') {
+                steps.push({
+                    label:  'See your VA funding fee breakdown',
+                    detail: 'Full payment breakdown including the funding fee',
+                    seed:   `Break down my VA funding fee and monthly payment for a $${price.toLocaleString()} home with ${downPct}% down`,
+                });
+            } else if (lt === 'usda') {
+                steps.push({
+                    label:  'See your USDA loan breakdown',
+                    detail: 'Full payment breakdown including the guarantee fee',
+                    seed:   `Break down my USDA loan payment for a $${price.toLocaleString()} home with ${downPct}% down`,
+                });
+            }
+            // dscr and anything else: no loan-type comparison — falls through to
+            // the market-read filler below if nothing else fires for this event.
         } else if (e.event_type === 'property_viewed') {
             const f = fact as { address?: string } | null;
             if (!f?.address) continue;
@@ -392,6 +429,13 @@ The next steps (2-3 of them), each:
 - "seed": the full message to send to the mortgage chat assistant to perform that step — self-contained, includes the concrete numbers/addresses from their activity
 - Steps must be genuinely distinct from each other and from simply repeating what they already did
 - Never write a seed that is a bare market-rates question ("what are rates today", "where are rates") — always tie the seed to their specific numbers, address, or task
+
+LOAN-TYPE COMPARISON RULE — if you notice the user tried more than one loan type, resist the urge to always suggest comparing them. Only propose a loan-type comparison when it is a real decision for a qualifying buyer:
+- FHA vs conventional is legitimate (real down-payment/mortgage-insurance tradeoff).
+- Conventional vs jumbo is legitimate near or above the conforming loan limit.
+- NEVER suggest comparing VA or USDA against anything (conventional, FHA, jumbo, each other). VA and USDA are eligibility-gated (military service / rural-income), not a preference — a buyer who qualifies almost always wins on cost over conventional, so framing it as "which is better" is misleading, not a value-add.
+- DSCR is investment-only — never compare it to an owner-occupied loan type.
+- If their most recent or most prominent activity used VA, USDA, or DSCR, do not propose any loan-type comparison next step — suggest something else genuinely grounded in their activity instead (a funding-fee/payment breakdown, a different property, assistance programs, a lender-quote sanity check).
 
 Return ONLY valid JSON:
 {"message": "...", "next_steps": [{"label": "...", "detail": "...", "seed": "..."}]}`;
