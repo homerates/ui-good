@@ -19,7 +19,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PropertyPhoto from '@/components/PropertyPhoto';
-import type { ConsumerLastAction, ConsumerNextStep } from '../../lib/crm/consumer-memory';
+import type { ConsumerActivityEvent, ConsumerLastAction, ConsumerNextStep } from '../../lib/crm/consumer-memory';
 
 export interface WelcomeHomeProperty {
     id: string;
@@ -32,10 +32,29 @@ interface WelcomeHomeProps {
     summaryText: string;
     lastAction: ConsumerLastAction | null;
     nextSteps: ConsumerNextStep[];
+    events?: ConsumerActivityEvent[];
     properties: WelcomeHomeProperty[];
     activePropertyId: string | null;
     photoCache: Record<string, string | null>;
     onSelectProperty: (id: string) => void;
+}
+
+/** Best-effort known price from recent activity, so the "what can I afford"
+ *  chip doesn't ask a bare question when we already have real numbers on
+ *  file — /chat?sq= starts a brand-new chat with no history, so grounding
+ *  has to happen in the seed text itself for the deterministic affordability
+ *  parser (extractPrice) to pick it up. */
+function findKnownPrice(events: ConsumerActivityEvent[] | undefined): number | null {
+    for (const e of events ?? []) {
+        const f = Array.isArray(e.key_facts) ? e.key_facts[0] as Record<string, unknown> : null;
+        if (!f) continue;
+        if (e.event_type === 'affordability_run' && typeof f.purchase_price === 'number') return f.purchase_price;
+        if (e.event_type === 'rate_engine_run' && typeof f.loan_amount === 'number') {
+            const ltv = typeof f.ltv === 'number' && f.ltv > 0 && f.ltv <= 100 ? f.ltv : 80;
+            return Math.round(f.loan_amount / (ltv / 100));
+        }
+    }
+    return null;
 }
 
 const MAX_STRIP = 10;
@@ -61,7 +80,7 @@ const EVENT_ICON: Record<string, string> = {
 };
 
 export default function WelcomeHome({
-    firstName, summaryText, lastAction, nextSteps,
+    firstName, summaryText, lastAction, nextSteps, events,
     properties, activePropertyId, photoCache, onSelectProperty,
 }: WelcomeHomeProps) {
     const router = useRouter();
@@ -76,14 +95,23 @@ export default function WelcomeHome({
     //     answers it). Deliberately worded WITHOUT the word "rates" — the
     //     phrase "against today's rates" tripped isMarketRatesIntent and
     //     redirected to /market-intelligence, killing the recap.
-    //  2. Afford → the canonical dti-scenarios affordability card.
+    //  2. Afford → the canonical dti-scenarios affordability card. A bare
+    //     "how much can I afford" seed hits the generic income-bracket table
+    //     (/chat?sq= starts a brand-new chat, no history to draw on) — same
+    //     "no bare question" problem as the market-rates one above. When we
+    //     already know a price from recent activity, ground the seed with it
+    //     so the deterministic parser (extractPrice) uses it directly.
     //  3. Assistance → direct link to /ami-qualifier (the purpose-built
     //     DPA/AMI tool). As a chat seed this got hijacked by the
     //     affordability regex and fired a calc card with fabricated
     //     income/savings defaults. No prompt is better than a wrong target.
+    const knownPrice = useMemo(() => findKnownPrice(events), [events]);
+    const affordSeed = knownPrice
+        ? `I've been evaluating homes around $${knownPrice.toLocaleString()}. What's my full affordable range at today's rates, and what would it take to go higher?`
+        : 'How much house can I afford?';
     const chips: { label: string; href: string }[] = [
         { label: "What's changed since I was here?", href: chatHref("What's changed since I was last here? Recap my recent scenarios and what's different now.") },
-        { label: 'What can I afford?', href: chatHref('How much house can I afford?') },
+        { label: 'What can I afford?', href: chatHref(affordSeed) },
         { label: 'Check assistance eligibility', href: '/ami-qualifier' },
     ];
 

@@ -10,7 +10,7 @@ import PropertyPhoto from '@/components/PropertyPhoto';
 import WelcomeHome from '@/components/WelcomeHome';
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
 import { EDUCATIONAL_DISCLAIMER } from '@/disclosures';
-import type { ConsumerLastAction, ConsumerNextStep } from '../../../lib/crm/consumer-memory';
+import type { ConsumerActivityEvent, ConsumerLastAction, ConsumerNextStep } from '../../../lib/crm/consumer-memory';
 
 interface HomeownerProperty {
   id: string;
@@ -1639,6 +1639,7 @@ function MyHomePageInner() {
     summaryText: string;
     nextSteps:   ConsumerNextStep[];
     lastAction:  ConsumerLastAction | null;
+    events:      ConsumerActivityEvent[];
   } | null>(null);
   useEffect(() => {
     if (!isLoaded || !user || borrowerId) return;
@@ -1650,6 +1651,7 @@ function MyHomePageInner() {
             summaryText: d.summaryText ?? '',
             nextSteps:   Array.isArray(d.nextSteps) ? d.nextSteps : [],
             lastAction:  d.lastAction ?? null,
+            events:      Array.isArray(d.events) ? d.events : [],
           });
         }
       })
@@ -2336,6 +2338,7 @@ function MyHomePageInner() {
                 summaryText={memory.summaryText}
                 lastAction={memory.lastAction}
                 nextSteps={memory.nextSteps}
+                events={memory.events}
                 properties={properties}
                 activePropertyId={activeProperty?.id ?? null}
                 photoCache={photoCache}
