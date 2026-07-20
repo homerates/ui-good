@@ -9,6 +9,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "../../../../lib/supabaseServer";
 import { requireAdmin } from "../../../../lib/adminAuth";
 
+// This route manages LO pilots specifically — company_pilots also holds
+// agent pilots (pilot_type: 'agent', see app/api/admin/agent-pilots/route.ts).
+// Every query here must filter on pilot_type so this page can't leak or
+// mutate agent-pilot rows.
+const PILOT_TYPE = "lo";
+
 export async function GET() {
   const { error: adminError } = await requireAdmin();
   if (adminError) return adminError;
@@ -18,6 +24,7 @@ export async function GET() {
   const { data: pilots, error } = await sb
     .from("company_pilots")
     .select("*")
+    .eq("pilot_type", PILOT_TYPE)
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -62,6 +69,7 @@ export async function POST(req: NextRequest) {
     .insert({
       company_name: company_name.trim(),
       slug: cleanSlug,
+      pilot_type: PILOT_TYPE,
       contact_name: contact_name?.trim() || null,
       contact_email: contact_email?.trim() || null,
       credits_per_lo: credits_per_lo ?? 1000,
@@ -92,7 +100,8 @@ export async function PATCH(req: NextRequest) {
   const { error } = await sb
     .from("company_pilots")
     .update({ is_active })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("pilot_type", PILOT_TYPE);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });

@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
       .insert({
         company_name:   c.company_name.trim(),
         slug,
+        pilot_type:     "lo",
         contact_name:   c.contact_name?.trim()  || null,
         contact_email:  c.contact_email?.trim()  || null,
         credits_per_lo: c.credits_per_lo         ?? 1000,

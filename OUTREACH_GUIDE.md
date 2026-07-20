@@ -32,7 +32,7 @@ Not an invite mechanism, despite adjacency: **White-label partner branding** (`/
 
 ## 1. Admin-Authorization Systems — read this first
 
-**RESOLVED 2026-07-20 (commit pending push):** this repo used to have three different, non-interchangeable "is this user an admin?" checks. All admin-gated outreach routes now use one canonical check.
+**RESOLVED 2026-07-20 (commit `44a3d98d`):** this repo used to have three different, non-interchangeable "is this user an admin?" checks. All admin-gated outreach routes now use one canonical check.
 
 | Check | Source of truth | Used by |
 |---|---|---|
@@ -42,7 +42,7 @@ Not an invite mechanism, despite adjacency: **White-label partner branding** (`/
 - `app/api/admin/corporate-invite/route.ts` had its own inline `isAdmin()` re-querying `admin_users` directly, **without** the `BOOTSTRAP_ADMIN_IDS` fallback — replaced with `requireAdmin()`.
 - `app/api/admin/pilots/*` and `app/api/admin/agent-pilots/*` (6 routes total) each had a locally duplicated `requireAdmin()` checking **`users.role === 'admin'`** — a completely different table from `admin_users`. Replaced with the canonical `requireAdmin()` in all 6.
 
-**⚠️ Access-migration note:** anyone who could previously manage Pilots/Agent Pilots via `users.role='admin'` but is **not** listed in the `admin_users` table (and isn't the bootstrap ID) will lose access to those two pages after this ships, until added via `/admin → Manage Admins`. Verify `admin_users` contains everyone who needs Pilots/Agent-Pilots/Corporate-Invite access before relying on this in production. HTTP status on rejection also changed from `401 Unauthorized` to `403 Forbidden` on all 7 routes (matches every other admin route in the app) — no client page branches on the specific status code, so this is not expected to break any UI.
+**✅ Access-migration verified 2026-07-20:** checked via direct SQL against `admin_users` vs `users.role='admin'`. One identity (`user_3DQNpQhwxa58KFMGgkkc6PGj2gQ`, a live persona Rayaan also uses, email `legatum2005@gmail.com`) had `users.role='admin'` but wasn't in `admin_users` — added via `/admin → Manage Admins` to restore full parity. No other gaps found. HTTP status on rejection also changed from `401 Unauthorized` to `403 Forbidden` on all 7 routes (matches every other admin route in the app) — no client page branches on the specific status code, so this did not break any UI.
 
 ---
 

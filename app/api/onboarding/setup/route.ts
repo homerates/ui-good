@@ -174,8 +174,13 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Company pilot attribution ─────────────────────────────────────────────
-  // If the LO came via /pilot/[slug], link them to the company pilot and
-  // grant founding member status + custom credit amount.
+  // If the LO/agent came via /pilot/[slug] or /agent-pilot/[slug], link them
+  // to the company pilot and grant founding member status + custom credit
+  // amount. company_pilots holds both programs distinguished by pilot_type
+  // (same slug can exist as both 'lo' and 'agent' — must filter by role or
+  // the lookup can match the wrong program's row, or fail outright if both
+  // exist for this slug). Linkage table also differs by role: loan_officers
+  // vs agents each carry their own company_pilot_id column.
   let pilotCredits = 0;
   let pilotCompanyName: string | null = null;
   if (pilotSlug && (role === "lo" || role === "agent")) {
@@ -183,14 +188,16 @@ export async function POST(req: NextRequest) {
       .from("company_pilots")
       .select("id, company_name, credits_per_lo, is_active")
       .eq("slug", pilotSlug.toLowerCase())
+      .eq("pilot_type", role)
       .eq("is_active", true)
       .maybeSingle();
 
     if (pilot) {
       pilotCredits = pilot.credits_per_lo;
       pilotCompanyName = pilot.company_name;
-      // Link LO to pilot and set founding member
-      await sb.from("loan_officers")
+      // Link to pilot and set founding member on the role-appropriate table
+      const linkTable = role === "lo" ? "loan_officers" : "agents";
+      await sb.from(linkTable)
         .update({ company_pilot_id: pilot.id, is_founding_member: true })
         .eq("user_id", userId);
     }
