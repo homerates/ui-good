@@ -276,6 +276,14 @@ export type ScenarioComparisonTool = 'down_payment' | 'seller_credit' | 'term' |
 export function isScenarioComparisonQuestion(q: string): ScenarioComparisonTool | null {
     // Bypass: seeds fired from the "deeper analysis" button are prefixed with [deep-analysis]
     if (/^\[deep-analysis\]/i.test(q)) return null;
+    // Cross-loan-type comparisons with no dedicated tool (VA/USDA vs conventional)
+    // must NOT be captured by any widget here — fall through to the AI path.
+    // Caught live: "Compare a $850k VA loan against a $1025k conventional loan —
+    // tradeoffs in down payment, funding fee…" was served the 5%-vs-20% down
+    // widget because of the greedy compare.*down\s*payment pattern below.
+    // (FHA vs conventional keeps its dedicated conv_vs_fha tool further down.)
+    if (/\b(va|usda)\b[^.?!]{0,80}\bconventional\b/i.test(q) ||
+        /\bconventional\b[^.?!]{0,80}\b(va|usda)\b/i.test(q)) return null;
     // 5% vs 20% down / down payment comparison
     // NOTE: avoid \b(5.*20) patterns — match "5" in "$1,500,000" as a false positive
     if (/(?:5\s*%|five\s*percent)\s*(?:vs|versus|or|compared\s*to)\s*(?:20\s*%|twenty\s*percent)/i.test(q) ||
@@ -283,7 +291,10 @@ export function isScenarioComparisonQuestion(q: string): ScenarioComparisonTool 
         /compare\s+5\s*%?\s*(?:vs?|versus|or)\s*20\s*%/i.test(q) ||
         /compare\s+20\s*%?\s*(?:vs?|versus|or)\s*5\s*%/i.test(q) ||
         /\bdown\s*payment\s*(comparison|vs|versus)\b/i.test(q) ||
-        /compare.*down\s*payment/i.test(q)) return 'down_payment';
+        // Proximity-bounded: "compare … down payment" only when the compare verb
+        // is ABOUT the down payment, not any compare question that mentions it
+        // 100 chars later in a list of tradeoffs.
+        /compare[^.?!]{0,25}\bdown\s*payment/i.test(q)) return 'down_payment';
     // Rate buydown vs price reduction / seller credit
     if (/\b(rate\s*buydown|buy\s*down\s*(the\s*)?rate|points?\s*vs|seller\s*credit)\b/i.test(q) &&
         /\b(vs|versus|or|price\s*reduction|compared)\b/i.test(q)) return 'seller_credit';
