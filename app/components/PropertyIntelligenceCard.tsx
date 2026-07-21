@@ -4,6 +4,7 @@
 // CMA / Property Intelligence Card — dark theme, matches card design system
 
 import React, { useState } from 'react';
+import { extractCACityOrCounty, getCALoanLimits } from '../../lib/loanLimits2026';
 
 export interface RateScenario {
     rate:         number;
@@ -237,7 +238,15 @@ export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data
     const [expandedSection, setExpandedSection] = useState<string | null>(null);
     const [vaultState, setVaultState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const sections = parseSections(data.answerMarkdown);
-    const isJumbo = data.loanAmt > 832750;
+    // County-aware zone check — a flat national-baseline comparison mislabels every
+    // high-cost-area property (LA, SF, Santa Clara, etc.) as Jumbo when it's really
+    // within that county's real, higher conforming limit (same root defect as the LA
+    // jumbo bug, commit 832b9950 — this card wasn't touched by that fix).
+    const _plCounty = extractCACityOrCounty(data.address);
+    const _plLimits = _plCounty ? getCALoanLimits(_plCounty) : null;
+    const _plConformingLimit = _plLimits?.conformingLimit ?? 832750;
+    const isJumbo = data.loanAmt > _plConformingLimit;
+    const isHighBalance = !isJumbo && data.loanAmt > 832750;
 
     const cardStyle: React.CSSProperties = {
         borderRadius: 16,
@@ -307,7 +316,7 @@ export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data
                     <div style={{ width: 1, background: 'rgba(255,255,255,0.06)', margin: '8px 0' }} />
                     <Stat label="Down Payment"   value={fmt$(data.downAmt, true)}    sub="20%" />
                     <div style={{ width: 1, background: 'rgba(255,255,255,0.06)', margin: '8px 0' }} />
-                    <Stat label="Loan Amount"    value={fmt$(data.loanAmt, true)}    sub={isJumbo ? 'Jumbo' : 'Conforming'} />
+                    <Stat label="Loan Amount"    value={fmt$(data.loanAmt, true)}    sub={isJumbo ? 'Jumbo' : isHighBalance ? 'High-Balance' : 'Conforming'} />
                     <div style={{ width: 1, background: 'rgba(255,255,255,0.06)', margin: '8px 0' }} />
                     <Stat label="Income to Qualify" value={fmtYr(data.incomeNeeded)} sub="@ 43% DTI" accent />
                 </div>
@@ -395,7 +404,7 @@ export default function PropertyIntelligenceCard({ data, onSaveToVault }: { data
             <div style={{ padding: '0 16px 8px' }}>
                 <button
                     onClick={() => data.onRunScenario?.(
-                        `${data.loanAmt > 832_750 ? 'Jumbo loan' : 'Conventional loan'} on ${data.address} at ${fmt$(data.price, false)}, 20% down, 30yr fixed — show me monthly payment, PITI breakdown, and full loan analysis.`
+                        `${isJumbo ? 'Jumbo loan' : isHighBalance ? 'High-Balance conventional loan' : 'Conventional loan'} on ${data.address} at ${fmt$(data.price, false)}, 20% down, 30yr fixed — show me monthly payment, PITI breakdown, and full loan analysis.`
                     )}
                     style={{
                         width: '100%',

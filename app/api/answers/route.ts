@@ -4483,12 +4483,24 @@ ${uwDatabase}`;
             };
             (calcDispatch as any).assumptions = _changedKeysVA.filter(k => _vaLabelMap[k]).map(k => _vaLabelMap[k]);
         } else if ((paramOverrides as any).loanType === 'jumbo' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
-            (calcDispatch as any).type = 'jumbo';
+            // County-aware rerun (e.g. JumboAffordabilitySliderCard, which resolves county
+            // client-side via ZIP/name lookup): route to jumbo_affordability so the
+            // conforming/high-balance/jumbo zone is computed against the REAL county limit,
+            // not silently downgraded to the county-blind plain jumbo card. Without this, a
+            // card that correctly resolved e.g. Santa Clara's $1,249,125 ceiling reverted to
+            // the national baseline on every single rerun.
+            const _jumboOverrideCounty = (paramOverrides as any).county ?? null;
+            (calcDispatch as any).type = _jumboOverrideCounty ? 'jumbo_affordability' : 'jumbo';
             (calcDispatch as any).params = {
                 purchasePrice:  paramOverrides.purchasePrice,
                 downPaymentPct: Math.max(20, paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20),
                 annualRatePct:  paramOverrides.annualRatePct,
                 termYears:      (paramOverrides as any).termYears ?? 30,
+                ...(_jumboOverrideCounty ? {
+                    county:  _jumboOverrideCounty,
+                    taxRate: (paramOverrides as any).taxRate ?? undefined,
+                    insRate: (paramOverrides as any).insRate ?? undefined,
+                } : {}),
             };
             const _changedKeysJumbo: string[] = (paramOverrides as any).changedKeys ?? [];
             const _jumboLabelMap: Record<string, string> = {
@@ -4521,10 +4533,18 @@ ${uwDatabase}`;
             (calcDispatch as any).type = 'dscr_needs_input';
             (calcDispatch as any).params = null;
         } else if (paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
-            // Auto-detect jumbo: if loan amount exceeds 2026 conforming limit, force jumbo not conventional
+            // Auto-detect jumbo: if loan amount exceeds the conforming limit, force jumbo not
+            // conventional. Uses the county-specific limit when the caller resolved one (e.g.
+            // LoanLimitsSliderCard, which already computed its own zone client-side) — falls
+            // back to the flat national baseline otherwise, unchanged from prior behavior.
+            // Without the county check, a card that correctly determined "High-Balance" got
+            // silently reclassified Jumbo here, contradicting the user's click and the card's
+            // own math (same root defect as the LA jumbo bug, commit 832b9950).
             const _poDownFB = paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20;
             const _poLoanFB = paramOverrides.purchasePrice * (1 - _poDownFB / 100);
-            const _isImplicitJumboFB = _poLoanFB > CONF_STANDARD;
+            const _poCountyFB = (paramOverrides as any).county ?? null;
+            const _poConformingLimitFB = (_poCountyFB ? getCALoanLimits(_poCountyFB)?.conformingLimit : null) ?? CONF_STANDARD;
+            const _isImplicitJumboFB = _poLoanFB > _poConformingLimitFB;
             (calcDispatch as any).type = _isImplicitJumboFB ? 'jumbo' : 'conventional';
             (calcDispatch as any).params = {
                 purchasePrice: paramOverrides.purchasePrice,
@@ -4879,12 +4899,24 @@ ${uwDatabase}`;
             };
             (calcDispatch as any).assumptions = _changedKeysVA.filter(k => _vaLabelMap[k]).map(k => _vaLabelMap[k]);
         } else if ((paramOverrides as any).loanType === 'jumbo' && paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
-            (calcDispatch as any).type = 'jumbo';
+            // County-aware rerun (e.g. JumboAffordabilitySliderCard, which resolves county
+            // client-side via ZIP/name lookup): route to jumbo_affordability so the
+            // conforming/high-balance/jumbo zone is computed against the REAL county limit,
+            // not silently downgraded to the county-blind plain jumbo card. Without this, a
+            // card that correctly resolved e.g. Santa Clara's $1,249,125 ceiling reverted to
+            // the national baseline on every single rerun.
+            const _jumboOverrideCounty = (paramOverrides as any).county ?? null;
+            (calcDispatch as any).type = _jumboOverrideCounty ? 'jumbo_affordability' : 'jumbo';
             (calcDispatch as any).params = {
                 purchasePrice:  paramOverrides.purchasePrice,
                 downPaymentPct: Math.max(20, paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20),
                 annualRatePct:  paramOverrides.annualRatePct,
                 termYears:      (paramOverrides as any).termYears ?? 30,
+                ...(_jumboOverrideCounty ? {
+                    county:  _jumboOverrideCounty,
+                    taxRate: (paramOverrides as any).taxRate ?? undefined,
+                    insRate: (paramOverrides as any).insRate ?? undefined,
+                } : {}),
             };
             const _changedKeysJumbo: string[] = (paramOverrides as any).changedKeys ?? [];
             const _jumboLabelMap: Record<string, string> = {
@@ -4917,10 +4949,18 @@ ${uwDatabase}`;
             (calcDispatch as any).type = 'dscr_needs_input';
             (calcDispatch as any).params = null;
         } else if (paramOverrides.purchasePrice != null && paramOverrides.annualRatePct != null) {
-            // Auto-detect jumbo: if loan amount exceeds 2026 conforming limit, force jumbo not conventional
+            // Auto-detect jumbo: if loan amount exceeds the conforming limit, force jumbo not
+            // conventional. Uses the county-specific limit when the caller resolved one (e.g.
+            // LoanLimitsSliderCard, which already computed its own zone client-side) — falls
+            // back to the flat national baseline otherwise, unchanged from prior behavior.
+            // Without the county check, a card that correctly determined "High-Balance" got
+            // silently reclassified Jumbo here, contradicting the user's click and the card's
+            // own math (same root defect as the LA jumbo bug, commit 832b9950).
             const _poDownFB = paramOverrides.downPaymentPct ?? (calcDispatch.params as any)?.downPaymentPct ?? 20;
             const _poLoanFB = paramOverrides.purchasePrice * (1 - _poDownFB / 100);
-            const _isImplicitJumboFB = _poLoanFB > CONF_STANDARD;
+            const _poCountyFB = (paramOverrides as any).county ?? null;
+            const _poConformingLimitFB = (_poCountyFB ? getCALoanLimits(_poCountyFB)?.conformingLimit : null) ?? CONF_STANDARD;
+            const _isImplicitJumboFB = _poLoanFB > _poConformingLimitFB;
             (calcDispatch as any).type = _isImplicitJumboFB ? 'jumbo' : 'conventional';
             (calcDispatch as any).params = {
                 purchasePrice: paramOverrides.purchasePrice,

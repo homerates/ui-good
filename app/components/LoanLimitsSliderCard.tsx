@@ -219,11 +219,16 @@ export default function LoanLimitsSliderCard(props: LoanLimitsSliderParams) {
     const zone = ZONE_CONFIG[calc.zone];
 
     const handleRunScenario = (seed: string, loanType: string) => {
+        // county is required so the backend's zone check uses THIS county's real conforming
+        // limit instead of the flat national baseline — without it, any loan above the
+        // national limit gets reclassified Jumbo even when this card already correctly
+        // determined High-Balance (same root defect as the LA jumbo bug, commit 832b9950).
         onRunScenario?.(seed, {
             purchasePrice: price,
             downPaymentPct: downPct,
             annualRatePct: calc.effectiveRate,
             loanType,
+            county,
         });
     };
 
