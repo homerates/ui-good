@@ -175,9 +175,16 @@ export default function JumboSliderCard(props: JumboSliderParams) {
 
     function handleRun() {
         if (!props.onRunScenario) return;
+        // effRate, not rate: on a 7/1 ARM, `rate` is the base 30yr-fixed slider
+        // value -- the card's own displayed PITI/hero numbers all use the
+        // ARM-adjusted effRate (rate - ARM_SPREAD). Sending the raw base rate
+        // here silently reran the scenario ~1.1 points higher than what was
+        // on screen. (ARM structure itself still isn't preserved downstream --
+        // the backend jumbo override has no ARM concept -- so this still
+        // renders as a plain fixed-rate card; only the rate value is fixed.)
         props.onRunScenario(
-            `Jumbo loan on a ${fmtM(price)} home, ${effectiveDownPct.toFixed(1)}% down at ${rate.toFixed(3)}% — ${termYrs}yr ${termType === 'arm7' ? '7/1 ARM' : 'fixed'}`,
-            { purchasePrice: price, downPaymentPct: effectiveDownPct, annualRatePct: rate, termYears: termYrs, loanType: 'jumbo' },
+            `Jumbo loan on a ${fmtM(price)} home, ${effectiveDownPct.toFixed(1)}% down at ${effRate.toFixed(3)}% — ${termYrs}yr ${termType === 'arm7' ? '7/1 ARM' : 'fixed'}`,
+            { purchasePrice: price, downPaymentPct: effectiveDownPct, annualRatePct: effRate, termYears: termYrs, loanType: 'jumbo' },
         );
     }
 
