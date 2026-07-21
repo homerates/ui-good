@@ -41,6 +41,7 @@ import { lookupByAddress as lookupPropertyByAddress } from "../../../lib/propert
 import {
     buildLoanLimitsContext, getCALoanLimits, getCACountyByZip,
     getCACountyTaxRate, getCACountyInsRate, NATIONAL_CONFORMING_BASELINE,
+    extractCACityOrCounty,
 } from "../../../lib/loanLimits2026";
 import {
     getLimits as getNationalLimits, HIGH_COST_COUNTIES, STATE_NAMES,
@@ -4984,10 +4985,18 @@ ${uwDatabase}`;
                              ?? question.match(/(\d{1,2})\s*percent\s+down/i);
             const _jDownPct = _jDownMatch ? parseInt(_jDownMatch[1], 10) : undefined;
 
+            // County drives which conforming/high-balance ceiling applies (§ getCALoanLimits).
+            // Without this, every question silently falls back to the national baseline
+            // ($832,750) regardless of what city/county was actually named — e.g. "$935k
+            // loan in Los Angeles" was being misclassified Jumbo when LA's real 2026
+            // high-balance ceiling ($1,249,125) puts it comfortably in High-Balance territory.
+            const _jCounty = extractCACityOrCounty(question);
+
             (calcDispatch as any).type = 'jumbo_affordability';
             (calcDispatch as any).params = {
                 purchasePrice: _jHighPriceMatch ?? 1_500_000,
                 ...(_jDownPct != null && _jDownPct >= 5 && _jDownPct <= 50 ? { downPaymentPct: _jDownPct } : {}),
+                ...(_jCounty ? { county: _jCounty } : {}),
             };
         }
     }

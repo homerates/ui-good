@@ -520,6 +520,35 @@ const CITY_TO_COUNTY: Record<string, string> = {
     "SCOTTS VALLEY": "SANTA CRUZ",
 };
 
+// Every known location name (city or county) mapped to its resolved county,
+// sorted longest-first so a multi-word match ("LOS ANGELES") is tried before
+// a short alias that could be a substring of it ("LA"). Built once at module
+// load — extractCACityOrCounty() below just scans this per call.
+const LOCATION_TO_COUNTY: Record<string, string> = { ...CITY_TO_COUNTY };
+for (const c of CA_LOAN_LIMITS_2026) {
+    if (!(c.county in LOCATION_TO_COUNTY)) LOCATION_TO_COUNTY[c.county] = c.county;
+}
+const ALL_LOCATION_NAMES = Object.keys(LOCATION_TO_COUNTY).sort((a, b) => b.length - a.length);
+
+/**
+ * Scan free text (e.g. a chat question) for a known California city or
+ * county name and return the resolved county, or null if none found.
+ *
+ * This is a lightweight text scan, not a geocoder — it exists for cases
+ * where a question names a city/county in passing ("buying in Los Angeles")
+ * and the caller needs a county for a loan-limit lookup without the cost of
+ * a full address geocode. For a real street address, prefer the geocoder
+ * chain (lib/censusGeocoder.ts) instead.
+ */
+export function extractCACityOrCounty(text: string): string | null {
+    const upper = text.toUpperCase();
+    for (const name of ALL_LOCATION_NAMES) {
+        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (new RegExp(`\\b${escaped}\\b`).test(upper)) return LOCATION_TO_COUNTY[name];
+    }
+    return null;
+}
+
 /**
  * Look up 2026 loan limits for a California county or city.
  * Returns null if not found.
