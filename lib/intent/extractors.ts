@@ -177,7 +177,15 @@ export function extractTaxRate(text: string): number | undefined {
 // ── Refi-specific ─────────────────────────────────────────────────────────────
 
 export function extractBalance(text: string): number | null {
+    // "$X balance" / "balance $X" are tried first because they're unambiguous
+    // by keyword proximity. Without them, a comma-formatted figure appearing
+    // anywhere ELSE in the same sentence (e.g. closing costs, "$4,500") wins
+    // over the actual k-suffix balance figure ("$450k") purely because the
+    // comma-group pattern below matches leftmost-anywhere-in-string, not
+    // leftmost-relative-to-"balance".
     const m =
+        text.match(/\$\s*([\d,]+(?:\.\d+)?)\s*([kKmM]?)\s*balance\b/i) ||
+        text.match(/\bbalance\s*(?:of|is)?\s*\$\s*([\d,]+(?:\.\d+)?)\s*([kKmM]?)\b/i) ||
         text.match(/\$\s*([\d,]+(?:,\d{3})+)/i) ||
         text.match(/\$\s*(\d+(?:\.\d+)?)\s*[Mm]\b/) ||
         text.match(/\bon\s+(?:my\s+)?\$\s*(\d+(?:\.\d+)?)\s*k?\b/i) ||

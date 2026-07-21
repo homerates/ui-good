@@ -113,8 +113,15 @@ export default function HelocSliderCard(props: HelocSliderParams) {
         };
     }, [safeDraw, helocRate, repayYrs, balance, cashOutRate, homeValue, maxLine80, maxLine85]);
 
+    // Must start with "HELOC on ..." to match the dispatcher's guard
+    // (lib/calcDispatcher.ts, /^heloc\s+on\b/i) that routes HELOC questions
+    // to a plain AI narrative instead of a calc card. Without it, both chips'
+    // mention of "cash-out refi" trips isRefiQuestion() -- the highest-
+    // priority classifier -- misreading the home value as a loan balance to
+    // refinance away from and the HELOC rate as the current mortgage rate.
     function buildSeed(type = 'heloc'): string {
-        const base = `Home value ${fmt$(homeValue, true)}, mortgage balance ${fmt$(balance, true)}, HELOC draw ${fmt$(safeDraw, true)} at ${fmtR(helocRate)}.`;
+        const addr = props.address ?? 'this property';
+        const base = `HELOC on ${addr} — home value ${fmt$(homeValue, true)}, mortgage balance ${fmt$(balance, true)}, HELOC draw ${fmt$(safeDraw, true)} at ${fmtR(helocRate)}.`;
         if (type === 'cashout') return `${base} Compare this HELOC to a cash-out refi at ${fmtR(cashOutRate)}. Which saves more over 10 years?`;
         return `${base} Walk me through the draw period payments, repayment schedule, and whether this makes sense vs a cash-out refi.`;
     }

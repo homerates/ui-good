@@ -4048,7 +4048,83 @@ ${_wealthRows3}
                 : `**Rent vs Buy — ${_fD(_p3)} home**\n\n- Buying: ${_fD(_totBuy)}/mo total PITI · ${_fD(_buy3.downPayment)} down\n- Renting: ${_fD(_rent3)}/mo\n- Monthly diff: ${_fD(Math.abs(_totBuy-_rent3))}/mo ${_totBuy>_rent3?'more to own':'more to rent'}`;
             return noStore({ ok: true, path: 'rent_buy_analysis', route: 'answers', answer: _nar3, message: _nar3, answerMarkdown: _nar3, scenarioComparisonCard: null, grok: { answer: _nar3, next_step: null, follow_up: null, follow_up_chips: [], confidence: 'high', scenarioComparisonCard: null }, fred: { tenYearYield: fred.tenYearYield, mort30Avg: fred.mort30Avg, spread: fred.spread, asOf: fred.asOf }, usedFRED: true, debug: { requestedModel: 'deep-analysis-rb', servedModel: _daR3.debug.servedModel ?? 'grok', promptChars: _daMsg.length, elapsedMs: _daR3.debug.elapsedMs, requestId: 'da-rb-'+Date.now(), parseMode: 'direct', repaired: false } });
         }
-        // Seller credit / rate buydown — fall through to normal Grok with the stripped message
+        // ── Seller credit: price reduction vs rate buydown ───────────────────
+        // These two seeds already contain every number pre-computed by
+        // ScenarioComparisonCard's own JS (loan amounts, rates, payments,
+        // savings) — unlike the three branches above, no server-side
+        // extraction/recalculation is needed, Grok just narrates what's
+        // already stated. Critically these must return EARLY like the three
+        // branches above: without an early return here, both seeds fall
+        // through to dispatch(), where the literal word "break-even" (present
+        // in every ScenarioComparisonCard seed) trips isRefiQuestion() —
+        // the highest-priority classifier — producing a nonsensical refi
+        // card from unrelated numbers (caught live: a "$650,000 home" got
+        // misread as a loan balance to refinance away from).
+        const _daIsSellerCredit = /Seller credit options on a/i.test(_daMsg);
+        if (!_daIsDP && !_daIsTerm && !_daIsRB && _daIsSellerCredit) {
+            const _scPr = `You are a helpful, plain-spoken mortgage advisor. Return valid JSON: {"narrative":"...markdown..."}
+
+The user's message below already contains every number you need (loan amounts, rates, payments, savings) — a seller-credit price-reduction-vs-rate-buydown comparison. Do NOT recalculate, invent, or modify any figure; use ONLY the numbers stated in the message. Do NOT mention DSCR, vacancy, cap rate, or investment metrics — this is a primary residence.
+
+User's message: "${_daMsg}"
+
+Write a clear, visually rich comparison using markdown with emoji icons on stat lines. Required sections:
+## 💵 Seller Credit: Price Reduction vs. Rate Buydown
+[1-sentence opener framing the trade-off]
+
+**🏷️ Option A — Price Reduction**
+[restate its stated numbers as bullets]
+
+**📉 Option B — Rate Buydown**
+[restate its stated numbers as bullets]
+
+**🎯 Break-Even & Recommendation**
+[2-3 sentences: when does one option pay off vs the other? State the winner using the message's own numbers.]
+
+**❓ Questions to Consider**
+- [question about how long they plan to stay in the home]
+- [question about their cash-flow priorities]`;
+            const _scR = await callGrokOnce(_scPr, { maxTokens: 1000 });
+            const _scNar = (typeof _scR.grokFinal?.narrative === 'string' && _scR.grokFinal.narrative.length > 50)
+                ? _scR.grokFinal.narrative
+                : _daMsg;
+            return noStore({ ok: true, path: 'seller_credit_analysis', route: 'answers', answer: _scNar, message: _scNar, answerMarkdown: _scNar, scenarioComparisonCard: null, grok: { answer: _scNar, next_step: null, follow_up: null, follow_up_chips: [], confidence: 'high', scenarioComparisonCard: null }, fred: { tenYearYield: fred.tenYearYield, mort30Avg: fred.mort30Avg, spread: fred.spread, asOf: fred.asOf }, usedFRED: true, debug: { requestedModel: 'deep-analysis-seller-credit', servedModel: _scR.debug.servedModel ?? 'grok', promptChars: _daMsg.length, elapsedMs: _scR.debug.elapsedMs, requestId: 'da-sc-'+Date.now(), parseMode: 'direct', repaired: false } });
+        }
+
+        // ── Conventional vs Jumbo ─────────────────────────────────────────────
+        const _daIsConvVsJumbo = /Conventional vs Jumbo on a/i.test(_daMsg);
+        if (!_daIsDP && !_daIsTerm && !_daIsRB && !_daIsSellerCredit && _daIsConvVsJumbo) {
+            const _cvjPr = `You are a helpful, plain-spoken mortgage advisor. Return valid JSON: {"narrative":"...markdown..."}
+
+The user's message below already contains every number you need (both loan structures, rates, payments, break-even) — a conventional-vs-jumbo financing comparison. Do NOT recalculate, invent, or modify any figure; use ONLY the numbers stated in the message.
+
+User's message: "${_daMsg}"
+
+Write a clear, visually rich comparison using markdown with emoji icons on stat lines. Required sections:
+## 🏦 Conventional vs. Jumbo Financing
+[1-sentence opener framing the trade-off]
+
+**📗 Conventional (bigger down payment)**
+[restate its stated numbers as bullets]
+
+**📘 Jumbo (smaller down payment)**
+[restate its stated numbers as bullets]
+
+**🎯 Break-Even & Recommendation**
+[2-3 sentences: using the stated extra-down-payment and monthly-savings figures, state which strategy wins for the hold period mentioned and why.]
+
+**❓ Questions to Consider**
+- [question about how long they plan to hold the property]
+- [question about whether the extra down payment could earn more invested elsewhere]`;
+            const _cvjR = await callGrokOnce(_cvjPr, { maxTokens: 1000 });
+            const _cvjNar = (typeof _cvjR.grokFinal?.narrative === 'string' && _cvjR.grokFinal.narrative.length > 50)
+                ? _cvjR.grokFinal.narrative
+                : _daMsg;
+            return noStore({ ok: true, path: 'conv_vs_jumbo_analysis', route: 'answers', answer: _cvjNar, message: _cvjNar, answerMarkdown: _cvjNar, scenarioComparisonCard: null, grok: { answer: _cvjNar, next_step: null, follow_up: null, follow_up_chips: [], confidence: 'high', scenarioComparisonCard: null }, fred: { tenYearYield: fred.tenYearYield, mort30Avg: fred.mort30Avg, spread: fred.spread, asOf: fred.asOf }, usedFRED: true, debug: { requestedModel: 'deep-analysis-conv-vs-jumbo', servedModel: _cvjR.debug.servedModel ?? 'grok', promptChars: _daMsg.length, elapsedMs: _cvjR.debug.elapsedMs, requestId: 'da-cvj-'+Date.now(), parseMode: 'direct', repaired: false } });
+        }
+        // conv_vs_fha correctly reaches a real deterministic card (isFHAvsConvQuestion) —
+        // its bug is a wrong-rate-extraction issue inside that branch, not a routing miss.
+        // See lib/calcDispatcher.ts's isFHAvsConvQuestion/fha_vs_conv handling.
     }
 
     const _earlyLoanLimitsOverride = (body as any)?.paramOverrides?.loanLimitsCounty;
