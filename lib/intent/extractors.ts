@@ -177,7 +177,15 @@ export function extractTaxRate(text: string): number | undefined {
 // ── Refi-specific ─────────────────────────────────────────────────────────────
 
 export function extractBalance(text: string): number | null {
+    // "$X balance" / "balance $X" are tried first because they're unambiguous
+    // by keyword proximity. Without them, a comma-formatted figure appearing
+    // anywhere ELSE in the same sentence (e.g. closing costs, "$4,500") wins
+    // over the actual k-suffix balance figure ("$450k") purely because the
+    // comma-group pattern below matches leftmost-anywhere-in-string, not
+    // leftmost-relative-to-"balance".
     const m =
+        text.match(/\$\s*([\d,]+(?:\.\d+)?)\s*([kKmM]?)\s*balance\b/i) ||
+        text.match(/\bbalance\s*(?:of|is)?\s*\$\s*([\d,]+(?:\.\d+)?)\s*([kKmM]?)\b/i) ||
         text.match(/\$\s*([\d,]+(?:,\d{3})+)/i) ||
         text.match(/\$\s*(\d+(?:\.\d+)?)\s*[Mm]\b/) ||
         text.match(/\bon\s+(?:my\s+)?\$\s*(\d+(?:\.\d+)?)\s*k?\b/i) ||
@@ -232,6 +240,10 @@ export function extractRemainingMonths(text: string): number {
 
 export function extractRentAmount(text: string): number | undefined {
     let m = text.match(/(?:rent(?:s?\s+for)?|rental)\s*\$?\s*(\d[\d,]*\d|\d+)k?/i);
+    // Reverse order: "$4,200 rent" (amount before the bare word "rent", no
+    // "/mo" suffix) — without this, e.g. a DSCR seed stating "$X rent"
+    // returns no rent figure at all and falls back to a needs-input card.
+    if (!m) m = text.match(/\$\s*([\d,]+)\s*rent\b/i);
     if (!m) m = text.match(/\$([\d,]+)\s*\/mo\s+rent/i);
     if (!m) m = text.match(/\$([\d,]+)\s*(?:\/mo|per\s+month|monthly\s+rent)/i);
     if (!m) m = text.match(/([\d,]+)\s*\/mo\b/i);

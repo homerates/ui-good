@@ -105,9 +105,14 @@ export default function WelcomeHome({
     //     DPA/AMI tool). As a chat seed this got hijacked by the
     //     affordability regex and fired a calc card with fabricated
     //     income/savings defaults. No prompt is better than a wrong target.
+    // The grounded seed must still literally trip isAffordabilityQuestion()'s
+    // trigger list (lib/calcDispatcher.ts) — a seed that only implies
+    // affordability without the trigger phrase falls through to a plain
+    // fixed-price payment card instead of the affordability-range analysis
+    // this chip promises. Verified against the actual regex before shipping.
     const knownPrice = useMemo(() => findKnownPrice(events), [events]);
     const affordSeed = knownPrice
-        ? `I've been evaluating homes around $${knownPrice.toLocaleString()}. What's my full affordable range at today's rates, and what would it take to go higher?`
+        ? `What can I afford? I've been evaluating homes around $${knownPrice.toLocaleString()} — what's my full affordable range at today's rates, and what would it take to go higher?`
         : 'How much house can I afford?';
     const chips: { label: string; href: string }[] = [
         { label: "What's changed since I was here?", href: chatHref("What's changed since I was last here? Recap my recent scenarios and what's different now.") },

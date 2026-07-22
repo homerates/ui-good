@@ -641,8 +641,15 @@ export function dispatch(
         const fhaDown = extractDownPct(q) ?? 3.5;
         const convDown = q.match(/conventional\s+(\d+)\s*%\s*down/i)
             ? parseFloat(q.match(/conventional\s+(\d+)\s*%\s*down/i)![1]) : 5;
-        const allRates = Array.from(q.matchAll(/(\d+\.\d+)\s*%/g)).map(m => parseFloat(m[1])).filter(r => r > 2 && r < 15);
-        const convRate = allRates.length > 1 ? allRates[1] : rate;
+        // A distinct conventional rate must be explicitly stated near the word
+        // "conventional" — the previous "2nd decimal-percent number in the whole
+        // question" heuristic falsely matched unrelated percentages (e.g. the FHA
+        // down payment "3.5%") as if they were a second rate. Most FHA-vs-conventional
+        // comparisons (including every ScenarioComparisonCard seed) use ONE shared
+        // base rate for both structures — default to that when no distinct
+        // conventional rate is actually stated, rather than guessing.
+        const convRateMatch = q.match(/conventional[^.]{0,40}?(\d+\.\d+)\s*%/i);
+        const convRate = convRateMatch ? parseFloat(convRateMatch[1]) : rate;
         const { fhaLimit, confLimit } = detectLoanLimits(q + ' ' + hist);
         if (rate === fallbackRate) assumptions.push(rateAssumption);
         // Use the smaller down % to back-calculate so purchase price is as generous as possible

@@ -16,7 +16,7 @@ const CARDS = [
     icon: '🏡',
     label: 'Conventional Purchase',
     line1: '~$4,950/mo · PITI · no PMI',
-    line2: '$832,750 · 20% down · up to $806,500 CA',
+    line2: '$832,750 loan · 20% down · no PMI',
     accent: '#00e87a',
     seed: 'Conventional loan with a $832,750 loan amount and 20% down at current rates — show me the full monthly payment breakdown including principal, interest, taxes, insurance, and no PMI.',
   },
