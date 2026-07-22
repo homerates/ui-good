@@ -39,9 +39,11 @@ export function buildScenarioComparisonCard(inp: ScenarioComparisonCardInput): B
         answer: `Here's a live **${label}** comparison. Adjust the sliders — all numbers update instantly.`,
         next_step: 'Move any slider to see how the math changes for your scenario.',
         follow_up: `Want me to run a deeper AI analysis on your specific numbers?`,
-        follow_up_chips: [
-            { label: `Run deeper AI analysis on this scenario`, seed: `[deep-analysis] Walk me through the full analysis of ${label.toLowerCase()} on a ${f$(inp.price ?? d.price)} home at ${fPct(inp.rate ?? d.rate)}` },
-        ],
+        // No follow_up_chips here — ScenarioComparisonCard.tsx already renders its own
+        // "Run deeper AI analysis" button per tool, seeded live from the card's current
+        // slider state (richer than this static price/rate-only seed would be). Populating
+        // this array duplicated that exact action as a second, separate chat-level chip.
+        follow_up_chips: [],
         confidence: 'high',
         scenarioComparisonCard: {
             tool,
