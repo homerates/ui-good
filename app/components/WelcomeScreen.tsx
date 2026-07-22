@@ -8,7 +8,12 @@ import React, { useEffect, useState } from 'react';
 const QUICK_CHIPS = [
     { label: '$832,750 · 20% down · conforming', seed: 'Conventional loan with a $832,750 loan amount and 20% down at current rates — show me the full monthly payment breakdown' },
     { label: '$832,750 · 10% down · PMI?', seed: 'Conventional loan with a $832,750 loan amount and 10% down at current rates — show me the full payment including PMI' },
-    { label: 'High Balance · $1.1M LA · 15% down', seed: 'I am buying a $1,100,000 home in Los Angeles with 15% down — does my loan qualify as High Balance conventional or do I need Jumbo financing?' },
+    // Routes through the dedicated conv_vs_jumbo comparison tool (isScenarioComparisonQuestion),
+    // not the free-text jumbo_affordability auto-detector — a purpose-built deterministic path
+    // instead of a keyword-combination heuristic. Replaces a prior "High Balance · $1.1M LA ·
+    // 15% down" chip that relied on that heuristic; verified via isScenarioComparisonQuestion()
+    // before shipping.
+    { label: 'Conventional vs Jumbo · $1.1M LA', seed: "Compare conventional vs jumbo financing on a $1,100,000 home in Los Angeles with 15% down — which qualifies and what's the cost difference?" },
     { label: 'DSCR · $650k rental · $4,200 rent', seed: 'DSCR loan on a $650,000 rental property in California, $4,200/mo rent, 25% down — does it cash flow?' },
     { label: 'VA loan · $850k · no down payment', seed: 'VA loan on an $850,000 home with no down payment at current rates — show me the full breakdown including funding fee' },
     { label: 'Jumbo · $1.5M · 20% down', seed: 'Jumbo loan on a $1,500,000 home with 20% down at current rates' },
