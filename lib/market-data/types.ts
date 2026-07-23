@@ -25,8 +25,11 @@ export interface SeriesDefinition {
     fetchUnits?: FredUnitsParam;
     source: 'fred' | 'fred_release';
     fredReleaseId?: number;
-    // Loan-segmentation metadata — unused in Seam 1 (all standalone series), present for Seam 3 parity.
+    // Loan-segmentation metadata — unused in Seam 1 (all standalone series), populated in Seam 3 (OBMMI).
     loanType?: 'conforming' | 'jumbo' | 'fha' | 'va' | 'usda';
+    /** Inclusive lower bound, e.g. 80 for the OBMMI ">80 LTV" segment. Omitted = no floor. */
+    ltvMin?: number;
+    /** Inclusive upper bound, e.g. 80 for the OBMMI "<=80 LTV" segment. Omitted = no ceiling. */
     ltvMax?: number;
     ficoMin?: number;
     ficoMax?: number;
