@@ -3,6 +3,7 @@
 // POST — Grok Oracle streaming for chip interactions
 
 import { NextRequest } from 'next/server';
+import { getRange } from '../../../lib/market-data';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,35 +42,22 @@ export interface RateIntelData {
 }
 
 // ── FRED helpers ──────────────────────────────────────────────────────────────
+// AD-11 Seam 2: was 7 direct FRED fetches via a local fredUrl()/fetchSeries();
+// now reads Market Data Service's persisted history — same 7 windows, same
+// output shape (RatePoint[] = {date, value}), no live FRED call at request time.
 
-const FRED_BASE = 'https://api.stlouisfed.org/fred/series/observations?file_type=json';
 const FALLBACKS = { rate30y: 6.82, rate15y: 6.21, rate10y: 4.26, fedFunds: 4.50, cpi: 3.1 };
 
-function fredUrl(seriesId: string, key: string, params: Record<string, string> = {}): string {
-  const p = new URLSearchParams({ series_id: seriesId, api_key: key, ...params });
-  return `${FRED_BASE}&${p.toString()}`;
-}
-
-function parseObs(obs: any[]): RatePoint[] {
-  return (obs ?? [])
-    .filter((o: any) => o.value && o.value !== '.' && !isNaN(parseFloat(o.value)))
-    .map((o: any) => ({ date: o.date as string, value: parseFloat(o.value) }));
-}
-
-async function fetchSeries(url: string): Promise<RatePoint[]> {
-  try {
-    const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
-    if (!r.ok) return [];
-    const j = await r.json();
-    return parseObs(j.observations ?? []);
-  } catch { return []; }
+async function toRatePoints(seriesId: string, start: string): Promise<RatePoint[]> {
+  const obs = await getRange(seriesId, { start });
+  return obs
+    .filter(o => o.value !== null)
+    .map(o => ({ date: o.observationDate, value: o.value as number }));
 }
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET() {
-  const key = process.env.FRED_API_KEY ?? '';
-
   const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const fiveYearsAgo = '2021-01-01';
   const ytdStart = `${new Date().getFullYear()}-01-01`;
@@ -81,16 +69,20 @@ export async function GET() {
     series10y,
     seriesFed,
     seriesCpi,
-    ytd30y,
+    ytd30yFull,
   ] = await Promise.all([
-    fetchSeries(fredUrl('MORTGAGE30US', key, { observation_start: oneYearAgo, sort_order: 'asc' })),
-    fetchSeries(fredUrl('MORTGAGE30US', key, { observation_start: fiveYearsAgo, sort_order: 'asc' })),
-    fetchSeries(fredUrl('MORTGAGE15US', key, { observation_start: oneYearAgo, sort_order: 'asc' })),
-    fetchSeries(fredUrl('DGS10', key, { observation_start: oneYearAgo, sort_order: 'asc' })),
-    fetchSeries(fredUrl('FEDFUNDS', key, { observation_start: oneYearAgo, sort_order: 'asc' })),
-    fetchSeries(fredUrl('CPIAUCSL', key, { observation_start: oneYearAgo, sort_order: 'asc' })),
-    fetchSeries(fredUrl('MORTGAGE30US', key, { observation_start: ytdStart, sort_order: 'asc', limit: '2' })),
+    toRatePoints('MORTGAGE30US', oneYearAgo),
+    toRatePoints('MORTGAGE30US', fiveYearsAgo),
+    toRatePoints('MORTGAGE15US', oneYearAgo),
+    toRatePoints('DGS10', oneYearAgo),
+    toRatePoints('FEDFUNDS', oneYearAgo),
+    toRatePoints('CPIAUCSL', oneYearAgo),
+    toRatePoints('MORTGAGE30US', ytdStart),
   ]);
+  // Original fetch used limit=2 (first 2 observations from YTD start) purely
+  // to grab the YTD-start value cheaply from a live API; a DB read has no
+  // such cost, so this just takes the same first element from the full range.
+  const ytd30y = ytd30yFull.slice(0, 2);
 
   // Current values — latest non-null observation
   const cur30y  = series30y.at(-1)?.value  ?? FALLBACKS.rate30y;

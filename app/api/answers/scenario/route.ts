@@ -8,6 +8,7 @@ import { runScenarioMath } from "../../../../lib/scenarioMath";
 import { isScenarioComparisonQuestion } from "../../../../lib/calcDispatcher";
 import { buildScenarioComparisonCard } from "../../../../lib/cardBuilders";
 import { createClient } from "@supabase/supabase-js";
+import { getSnapshot } from "../../../../lib/market-data";
 import { routeAIRequest } from "../../../../lib/ai-providers/router";
 import {
     getRecentScenarioHistory,
@@ -1935,53 +1936,28 @@ function normalizeForGrokCard(result: any, message: string, marketData: any) {
 
 /* =========================
    FRED market data (parallel, fast)
+   AD-11 Seam 2: was its own direct FRED fetch; now reads the synced values
+   from Market Data Service. Fallback notes only appear now if a series has
+   genuinely never synced (cold start), not on every request as before.
 ========================= */
 async function getCurrentMortgageData() {
-    const fredApiKey = process.env.FRED_API_KEY;
     const today = new Date().toISOString().slice(0, 10);
 
-    if (!fredApiKey) {
-        return {
-            date: today,
-            thirtyYearFixed: 6.27,
-            tenYearTreasury: 4.16,
-            usedFallbacks: true,
-            fallbackNotes: ["FRED_API_KEY missing; used hardcoded defaults."],
-        };
-    }
-
-    const base =
-        "https://api.stlouisfed.org/fred/series/observations?file_type=json&sort_order=desc&limit=1";
-    const u30 = `${base}&series_id=MORTGAGE30US&api_key=${encodeURIComponent(fredApiKey)}`;
-    const dgs10 = `${base}&series_id=DGS10&api_key=${encodeURIComponent(fredApiKey)}`;
-
     try {
-        const [u30Res, dgs10Res] = await Promise.all([
-            fetch(u30, { cache: "no-store" }),
-            fetch(dgs10, { cache: "no-store" }),
-        ]);
-
-        const [u30Json, dgs10Json] = await Promise.all([u30Res.json(), dgs10Res.json()]);
-
-        const parseLatest = (j: any) => {
-            const v = j?.observations?.[0]?.value;
-            const n = Number(v);
-            return Number.isFinite(n) ? n : null;
-        };
-
-        const thirty = parseLatest(u30Json);
-        const ten = parseLatest(dgs10Json);
+        const snap = await getSnapshot(['MORTGAGE30US', 'DGS10']);
+        const thirty = snap['MORTGAGE30US']?.value ?? null;
+        const ten = snap['DGS10']?.value ?? null;
 
         let usedFallbacks = false;
         const notes: string[] = [];
 
         if (thirty == null) {
             usedFallbacks = true;
-            notes.push("FRED MORTGAGE30US missing/invalid; defaulted to 6.27.");
+            notes.push("MORTGAGE30US not yet synced; defaulted to 6.27.");
         }
         if (ten == null) {
             usedFallbacks = true;
-            notes.push("FRED DGS10 missing/invalid; defaulted to 4.16.");
+            notes.push("DGS10 not yet synced; defaulted to 4.16.");
         }
 
         return {
@@ -1997,7 +1973,7 @@ async function getCurrentMortgageData() {
             thirtyYearFixed: 6.27,
             tenYearTreasury: 4.16,
             usedFallbacks: true,
-            fallbackNotes: [`FRED fetch error: ${err?.message || String(err)}`],
+            fallbackNotes: [`Market Data Service error: ${err?.message || String(err)}`],
         };
     }
 }

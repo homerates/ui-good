@@ -6,6 +6,10 @@
       "schedule": "0 14 * * *"
     },
     {
+      "path": "/api/cron/market-data-sync",
+      "schedule": "0 7 * * *"
+    },
+    {
       "path": "/api/digest/rate-alert",
       "schedule": "0 8 * * *"
     },

@@ -1,9 +1,18 @@
-﻿// src/lib/fred.ts
-const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
+// src/lib/fred.ts
+// AD-11 Seam 2: compatibility shim over lib/market-data. Preserves the exact
+// public API this file has always exported -- getFredSnapshot(),
+// getFredCacheInfo(), warmFredCache(), the FredSnapshot type -- because it's
+// directly imported by 14 files (lib/crm/consumer-memory.ts, lib/crm/pro-memory.ts,
+// api/digest/rate-alert, api/digest/run, api/newsletter/send, api/alerts/check,
+// api/homeowner/analysis, api/ticker, api/health, api/fred, api/deal-rooms/[id]/score,
+// api/deal-rooms/[id]/ai, api/borrowers, src/lib/composeMarket.ts) -- none of
+// which are in scope for this migration. They get the new Supabase-backed
+// data source transparently; internals below are the only thing that changed.
+
+import { getRange } from "../../lib/market-data/query";
+
 const TEN_YEAR = "DGS10";
 const MORTG_30US = "MORTGAGE30US";
-
-type Obs = { date: string; value: string };
 
 export type FredSnapshot = {
   tenYearYield: number | null;
@@ -12,61 +21,14 @@ export type FredSnapshot = {
   asOf: string | null;
   stale: boolean;
   source: "fred" | "stub";
-  // NEW (optional; safe when null)
   prevTenYearYield?: number | null;
   prevMort30Avg?: number | null;
 };
 
-/** Safe numeric coercion from string | number | null | undefined */
-function toNum(v: unknown): number | null {
-  if (v === null || v === undefined) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-/** Fetch latest and previous non-missing values for a series (within ~120d window) */
-async function fetchLatestAndPrev(
-  series_id: string,
-  apiKey: string,
-  signal: AbortSignal
-): Promise<{
-  curr: { value: number | null; date: string | null };
-  prev: { value: number | null; date: string | null };
-}> {
-  const url = new URL(FRED_BASE);
-  url.searchParams.set("series_id", series_id);
-  url.searchParams.set("api_key", apiKey);
-  url.searchParams.set("file_type", "json");
-  // pull last ~120 days so we always have a recent point
-  url.searchParams.set(
-    "observation_start",
-    new Date(Date.now() - 120 * 86400_000).toISOString().slice(0, 10)
-  );
-
-  const res = await fetch(url.toString(), { signal });
-  if (!res.ok) throw new Error(`FRED ${series_id} HTTP ${res.status}`);
-
-  const json = (await res.json()) as { observations?: Obs[] };
-  const valid = (json.observations ?? []).filter(
-    (o) => o.value && o.value !== "."
-  );
-
-  const last = valid.at(-1);
-  const secondLast = valid.at(-2);
-
-  return {
-    curr: {
-      value: last ? toNum(last.value) : null,
-      date: last?.date ?? null,
-    },
-    prev: {
-      value: secondLast ? toNum(secondLast.value) : null,
-      date: secondLast?.date ?? null,
-    },
-  };
-}
-
-/* ------- 5-minute in-memory cache (per process) ------- */
+/* ------- 5-minute in-memory cache (per process) -------
+   Kept local to this shim (rather than relying solely on lib/market-data/
+   query.ts's own 60s cache) so getFredCacheInfo()'s existing contract --
+   consumed by app/api/health/route.ts -- keeps meaning the same thing. */
 let _cache: { key: string; at: number; data: FredSnapshot | null } | null = null;
 const TTL_MS = 5 * 60 * 1000;
 
@@ -97,70 +59,60 @@ export async function warmFredCache(msTimeout = 1500) {
 
 export async function getFredSnapshot(opts?: {
   maxAgeDays?: number;
+  /** Retained for call-site compatibility; unused. A Supabase read doesn't
+   *  need the timeout budget a live FRED call did. */
   timeoutMs?: number;
 }): Promise<FredSnapshot | null> {
-  const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) {
-    // no key = stubbed snapshot
-    return {
-      tenYearYield: null,
-      mort30Avg: null,
-      spread: null,
-      asOf: null,
-      stale: true,
-      source: "stub",
-    };
-  }
-
-  const timeoutMs = opts?.timeoutMs ?? 6000;
   const maxAgeDays = opts?.maxAgeDays ?? 7;
   const now = Date.now();
-  const cacheKey = `${apiKey}:${maxAgeDays}`;
+  const cacheKey = `v2:${maxAgeDays}`;
 
   if (_cache && _cache.key === cacheKey && now - _cache.at < TTL_MS) {
     return _cache.data;
   }
 
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-
   try {
-    const [ten, mort] = await Promise.all([
-      fetchLatestAndPrev(TEN_YEAR, apiKey, ctrl.signal),
-      fetchLatestAndPrev(MORTG_30US, apiKey, ctrl.signal),
+    // Same "latest + previous, within a 120-day window" contract as before,
+    // now read from persisted history instead of a live FRED call.
+    const since = new Date(now - 120 * 86400_000).toISOString().slice(0, 10);
+    const [tenSeries, mortSeries] = await Promise.all([
+      getRange(TEN_YEAR, { start: since }),
+      getRange(MORTG_30US, { start: since }),
     ]);
-    clearTimeout(t);
 
-    const tenYearYield = ten.curr.value;
-    const mort30Avg = mort.curr.value;
+    const tenLast = tenSeries.at(-1) ?? null;
+    const tenPrev = tenSeries.at(-2) ?? null;
+    const mortLast = mortSeries.at(-1) ?? null;
+    const mortPrev = mortSeries.at(-2) ?? null;
 
-    const spread =
-      tenYearYield != null && mort30Avg != null
-        ? +(mort30Avg - tenYearYield).toFixed(2)
-        : null;
+    if (!tenLast && !mortLast) {
+      // Neither core series has synced data yet -- same "stub" contract callers
+      // already handle (e.g. app/api/fred/route.ts checks source === "stub").
+      const stub: FredSnapshot = {
+        tenYearYield: null, mort30Avg: null, spread: null, asOf: null,
+        stale: true, source: "stub",
+      };
+      _cache = { key: cacheKey, at: now, data: stub };
+      return stub;
+    }
 
-    const asOf = [ten.curr.date, mort.curr.date].filter(Boolean).sort().slice(-1)[0] ?? null;
-
-    const stale = asOf
-      ? now - new Date(asOf).getTime() > maxAgeDays * 86400_000
-      : true;
+    const tenYearYield = tenLast?.value ?? null;
+    const mort30Avg = mortLast?.value ?? null;
+    const spread = tenYearYield != null && mort30Avg != null
+      ? +(mort30Avg - tenYearYield).toFixed(2) : null;
+    const asOf = [tenLast?.observationDate, mortLast?.observationDate]
+      .filter(Boolean).sort().slice(-1)[0] ?? null;
+    const stale = asOf ? now - new Date(asOf).getTime() > maxAgeDays * 86400_000 : true;
 
     const out: FredSnapshot = {
-      tenYearYield,
-      mort30Avg,
-      spread,
-      asOf,
-      stale,
-      source: "fred",
-      // NEW: previous values (may be null if not present in window)
-      prevTenYearYield: ten.prev.value ?? null,
-      prevMort30Avg: mort.prev.value ?? null,
+      tenYearYield, mort30Avg, spread, asOf, stale, source: "fred",
+      prevTenYearYield: tenPrev?.value ?? null,
+      prevMort30Avg: mortPrev?.value ?? null,
     };
 
     _cache = { key: cacheKey, at: now, data: out };
     return out;
   } catch {
-    clearTimeout(t);
     _cache = { key: cacheKey, at: now, data: null };
     return null;
   }
