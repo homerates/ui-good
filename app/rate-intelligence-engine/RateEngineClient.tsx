@@ -35,11 +35,16 @@ interface EngineResult {
   stateName: string;
   dataSource: string;
   disclaimer: string;
+  rateAnchorSource: 'obmmi' | 'synthetic';
+  obmmiSegmentLabel?: string;
 }
 
 // ─── Default inputs ────────────────────────────────────────────────────────────
 
-const DEFAULTS: LLPAInput = {
+// loanType is tracked as its own piece of component state (see `loanType`
+// below), not part of this form-fields group -- merged in separately when
+// building the request body.
+const DEFAULTS: Omit<LLPAInput, 'loanType'> = {
   creditScore: 740,
   ltv: 80,
   occupancy: "primary",
@@ -99,7 +104,7 @@ export default function RateEngineClient() {
   const initLoan     = initPrice - initDown;
   const initLTV      = parseFloat(((initLoan / initPrice) * 100).toFixed(2));
 
-  const [inputs, setInputs] = useState<LLPAInput>(() => ({
+  const [inputs, setInputs] = useState<Omit<LLPAInput, 'loanType'>>(() => ({
     ...DEFAULTS,
     loanAmount: Math.round(initLoan),
     ltv:        initLTV,
@@ -205,7 +210,7 @@ export default function RateEngineClient() {
     setLoading(true);
     setError(null);
     try {
-      const body: Record<string, unknown> = { ...inputs, state };
+      const body: Record<string, unknown> = { ...inputs, state, loanType };
       if (countyLimit != null) body.highBalanceCeiling = countyLimit;
       const r = await fetch("/api/rate-intelligence-engine", {
         method: "POST",
@@ -679,7 +684,14 @@ export default function RateEngineClient() {
             <div style={{ fontWeight: 700, fontSize: "1.05rem", marginBottom: 14 }}>Your LLPA Breakdown</div>
             {result.breakdown.length === 0 ? (
               <div style={{ padding: "14px", background: "rgba(0,232,122,0.06)", borderRadius: 10, border: "1px solid rgba(0,232,122,0.15)", color: "#00e87a", fontSize: "0.9rem", fontWeight: 600 }}>
-                ✓ Zero price adjustments — you're in the best LLPA tier.
+                {result.rateAnchorSource === 'obmmi'
+                  // AD-11 Seam 3b: an empty breakdown here means no surcharges
+                  // beyond the OBMMI-anchored rate -- NOT "best pricing tier"
+                  // (credit/LTV pricing is baked into the anchor itself, not
+                  // disclosed as a separate adjustment, so this can be true
+                  // for any segment, not just the best one).
+                  ? `✓ No additional adjustments — your rate already reflects real market pricing for your ${result.obmmiSegmentLabel} segment.`
+                  : "✓ Zero price adjustments — you're in the best LLPA tier."}
               </div>
             ) : (
               <div style={{ overflowX: "auto" as const }}>
