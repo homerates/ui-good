@@ -27,6 +27,14 @@
 6. **Full process is in `DEPLOY_WORKFLOW.md`.** Reference it for branch
    strategy, migration steps, env var table, and staging reset instructions.
 
+7. **No "done" report without proof.** Never tell Rayaan something is committed,
+   pushed, merged, or migrated without pasting the actual command output that
+   shows it (`git log -1`, `git status`, `git push` result, the migration
+   confirmation) in the same turn. A claim of "done" from an earlier turn or a
+   prior session's summary is not verification — re-run the check fresh before
+   repeating it. This was written after AD-11 Seam 1 was reported as "committed
+   and pushed" when it was actually still untracked in the working tree.
+
 ## CRM Hard Rules
 
 **Applies to every migration, API route, TypeScript type, and prompt-construction function
