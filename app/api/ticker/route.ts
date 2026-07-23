@@ -7,40 +7,27 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { getFredSnapshot } from "@/lib/fred";
+import { getSnapshot } from "../../../lib/market-data";
 
 const CACHE_S = 600; // 10 minutes
-
-async function fetchEffr(apiKey: string): Promise<number | null> {
-  try {
-    const url = new URL("https://api.stlouisfed.org/fred/series/observations");
-    url.searchParams.set("series_id", "EFFR");
-    url.searchParams.set("api_key", apiKey);
-    url.searchParams.set("file_type", "json");
-    url.searchParams.set("sort_order", "desc");
-    url.searchParams.set("limit", "5"); // grab a few so we can skip "." values
-    const res = await fetch(url.toString(), {
-      signal: AbortSignal.timeout(5000),
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { observations?: { value: string }[] };
-    const obs = (json.observations ?? []).find((o) => o.value && o.value !== ".");
-    return obs ? parseFloat(obs.value) : null;
-  } catch {
-    return null;
-  }
-}
 
 function fmt(n: number | null, decimals = 2): string {
   return n != null ? `${n.toFixed(decimals)}%` : "—";
 }
 
 export async function GET() {
-  const apiKey = process.env.FRED_API_KEY;
+  // AD-11 Seam 2: was getFredSnapshot() (live FRED call) + its own direct
+  // EFFR fetch; now a single Market Data Service read. FRED_API_KEY is no
+  // longer relevant to this request path -- availability now depends on
+  // whether the sync cron has populated data, not a live external call.
+  const snap = await getSnapshot(['MORTGAGE30US', 'DGS10', 'EFFR']);
+  const mort30 = snap['MORTGAGE30US'];
+  const dgs10 = snap['DGS10'];
+  const effrObs = snap['EFFR'];
 
-  if (!apiKey) {
-    // No key: return placeholder so UI still renders gracefully
+  if (!mort30 && !dgs10) {
+    // No synced data yet (e.g. before the sync cron's first run) — same
+    // placeholder contract the old "no FRED_API_KEY" branch returned.
     return NextResponse.json({
       ok: true,
       live: false,
@@ -53,18 +40,18 @@ export async function GET() {
     });
   }
 
-  const [snap, effr] = await Promise.all([
-    getFredSnapshot({ timeoutMs: 6000 }),
-    fetchEffr(apiKey),
-  ]);
-
-  const asOf = snap?.asOf ?? null;
+  const mort30Avg = mort30?.value ?? null;
+  const tenYearYield = dgs10?.value ?? null;
+  const spread = mort30Avg != null && tenYearYield != null
+    ? +(mort30Avg - tenYearYield).toFixed(2) : null;
+  const effr = effrObs?.value ?? null;
+  const asOf = mort30?.observationDate ?? dgs10?.observationDate ?? null;
   const subDate = asOf ? `wk of ${asOf.slice(0, 7)}` : "FRED avg";
 
   const items = [
-    { label: "30Y FIXED", value: fmt(snap?.mort30Avg ?? null), sub: subDate },
-    { label: "10Y TREASURY", value: fmt(snap?.tenYearYield ?? null), sub: "yield" },
-    { label: "SPREAD", value: fmt(snap?.spread ?? null), sub: "mtg vs T10" },
+    { label: "30Y FIXED", value: fmt(mort30Avg), sub: subDate },
+    { label: "10Y TREASURY", value: fmt(tenYearYield), sub: "yield" },
+    { label: "SPREAD", value: fmt(spread), sub: "mtg vs T10" },
     { label: "FED FUNDS", value: fmt(effr), sub: "effective rate" },
   ];
 

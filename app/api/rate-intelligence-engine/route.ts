@@ -13,24 +13,16 @@ import {
   type LLPAInput,
 } from '../../../lib/pricing/llpa-engine';
 import { getStateLimitInfo } from '../../../lib/pricing/conforming-limits';
+import { getLatestValue } from '../../../lib/market-data';
 
-const FALLBACK_PAR_RATE = 6.82; // used if FRED fetch fails
+// AD-11 Seam 2: was its own direct FRED fetch (byte-identical duplicate also
+// existed in app/api/rate-marketplace/route.ts) -- now reads the synced
+// value from Market Data Service. Fallback only fires if MORTGAGE30US has
+// genuinely never synced (cold start), not on every request as before.
+const FALLBACK_PAR_RATE = 6.82;
 
 async function fetchParRate(): Promise<number> {
-  const key = process.env.FRED_API_KEY ?? '';
-  if (!key) return FALLBACK_PAR_RATE;
-  try {
-    const url =
-      `https://api.stlouisfed.org/fred/series/observations` +
-      `?series_id=MORTGAGE30US&api_key=${key}&file_type=json&sort_order=desc&limit=1`;
-    const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
-    if (!r.ok) return FALLBACK_PAR_RATE;
-    const json = await r.json();
-    const val = parseFloat(json.observations?.[0]?.value ?? '');
-    return isNaN(val) ? FALLBACK_PAR_RATE : val;
-  } catch {
-    return FALLBACK_PAR_RATE;
-  }
+  return getLatestValue('MORTGAGE30US', FALLBACK_PAR_RATE);
 }
 
 export async function POST(req: NextRequest) {

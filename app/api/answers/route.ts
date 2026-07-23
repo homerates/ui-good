@@ -59,6 +59,7 @@ import { spendCredits, checkCreditGate } from "../../../lib/credits";
 import { checkAnonGate } from "../../../lib/anonGate";
 import { getUserPlan } from "../../../lib/subscription";
 import { isAdminId } from "../../../lib/adminAuth";
+import { getSnapshot } from "../../../lib/market-data";
 // Verify calc engine on cold start — logs failures, never throws
 try {
     const testResult = runCalcTests();
@@ -109,8 +110,9 @@ function noStore(json: unknown, status = 200) {
 
 // ---------- Env ----------
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY || "";
-const FRED_API_KEY = process.env.FRED_API_KEY || "";
-if (!FRED_API_KEY) console.warn('[FRED] FRED_API_KEY not set — all rate/macro data will be null');
+// AD-11 Seam 2: FRED_API_KEY used to gate getFredSnapshot() below (a direct
+// FRED caller). That function now reads from Market Data Service (Supabase),
+// which needs no API key at request time, so the key is dead in this file.
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
 const XAI_API_KEY = process.env.XAI_API_KEY || "";
@@ -1420,8 +1422,9 @@ type FredSnap = {
     hourlyEarnings: number | null;  // CES0500000003
 };
 
-// Hardcoded fallback — used when FRED_API_KEY is absent or all calls fail.
-// Update these quarterly or whenever FRED_API_KEY is confirmed missing.
+// Hardcoded fallback — used when Market Data Service has no synced data yet
+// (e.g. before the sync cron's first run) or a snapshot read fails outright.
+// Update these quarterly or whenever synced data is confirmed stale/missing.
 // Last updated: 2026-03-26
 const FRED_FALLBACK: FredSnap = {
     tenYearYield:      4.29,
@@ -1448,98 +1451,50 @@ const FRED_FALLBACK: FredSnap = {
     hourlyEarnings:    35.1,
 };
 
-// Module-level FRED cache — warm Vercel instances reuse this across requests.
-// FRED data updates weekly so 10-min TTL is safe; cold starts get a fresh fetch.
-let _fredCache: { snap: FredSnap; topics: string; ts: number } | null = null;
-const FRED_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+// AD-11 Seam 2: was per-request live FRED calls, topic-gated into tiers
+// (core/rates/housing/macro-pc1) specifically to limit outbound FRED API
+// calls, plus its own 10-min module cache. Now backed by Market Data
+// Service (lib/market-data), which is a single Supabase read covering every
+// series at once and already has its own 60s in-memory cache
+// (lib/market-data/query.ts) — so the topic tiering and this function's own
+// cache no longer do useful work and have been removed. `topics` is kept in
+// the signature since the call site still uses its own copy (`fredTopics`)
+// to decide whether to call this function at all (`wantFred`); it's just no
+// longer used inside this function to gate which series get fetched.
+//
+// Side effects of this migration, flagged explicitly (not silent cleanup):
+// 1. Fields that used to only get a real value when their topic was in the
+//    request (e.g. mort15Avg only under 'rates', housingStarts only under
+//    'housing') now always get a real value whenever synced data exists,
+//    regardless of `topics`.
+// 2. Fixes a pre-existing bug: hourlyEarnings (CES0500000003) was declared
+//    and read here but never actually included in any FRED fetch list, so
+//    it was always null in production. The shared registry (lib/market-data
+//    /registry.ts) does include it, so it's now correctly synced/populated.
+async function getFredSnapshot(_topics: string[] = []): Promise<FredSnap> {
+    const seriesIds = [
+        'DGS10', 'MORTGAGE30US', 'FEDFUNDS', 'UNRATE', 'CPIAUCSL', 'MSPUS',
+        'MORTGAGE15US', 'MORTGAGE5US', 'DGS2', 'DGS30', 'T10Y2Y', 'SOFR',
+        'HOUST', 'EXHOSLUSM495S', 'MSACSR', 'CSUSHPINSA', 'RRVRUSQ156N',
+        'PCEPILFE', 'CUSR0000SAH1', 'CES0500000003',
+    ];
 
-async function getFredSnapshot(topics: string[] = []): Promise<FredSnap> {
-    if (!FRED_API_KEY) {
-        console.warn('[FRED] API key missing — using fallback estimates (update FRED_API_KEY in Vercel env vars)');
+    let snap: Awaited<ReturnType<typeof getSnapshot>>;
+    try {
+        snap = await getSnapshot(seriesIds);
+    } catch (e) {
+        console.error('[FRED] getSnapshot failed — using fallback estimates:', e instanceof Error ? e.message : String(e));
         return FRED_FALLBACK;
     }
-    // Return cached snapshot if recent enough and same topic set
-    const topicsKey = [...topics].sort().join(',');
-    if (_fredCache && topicsKey === _fredCache.topics && Date.now() - _fredCache.ts < FRED_CACHE_TTL_MS) {
-        console.log('[FRED] Cache hit — skipping API calls');
-        return _fredCache.snap;
-    }
 
-    const wantRates = topics.includes('rates') || topics.includes('refi') || topics.includes('arm');
-    const wantHousing = topics.includes('housing') || topics.includes('affordability') || topics.includes('dscr') || topics.includes('qualify');
-    const wantMacro = topics.includes('macro') || topics.includes('rates') || topics.includes('inflation');
-
-    // Helper: fetch one FRED series, return parsed value + date or null
-    // Pass units='pc1' for YoY % change on index-level series (e.g. PCEPILFE, CUSR0000SAH1)
-    let fredErrorLogged = false; // log only first failure to avoid log spam
-    const fredFetch = async (seriesId: string, units?: string): Promise<{ value: number | null; date: string | null }> => {
-        try {
-            const unitsParam = units ? `&units=${units}` : '';
-            const r = await fetch(
-                `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=1${unitsParam}`,
-                { cache: "no-store" }
-            );
-            if (!r.ok) {
-                if (!fredErrorLogged) {
-                    const errText = await r.text().catch(() => '(unreadable)');
-                    console.error(`[FRED] HTTP ${r.status} on ${seriesId}: ${errText.slice(0, 300)}`);
-                    fredErrorLogged = true;
-                }
-                return { value: null, date: null };
-            }
-            const j = await r.json();
-            if (j?.error_message && !fredErrorLogged) {
-                console.error(`[FRED] API error on ${seriesId}: ${j.error_message}`);
-                fredErrorLogged = true;
-            }
-            const raw = j?.observations?.[0]?.value ?? null;
-            const date = j?.observations?.[0]?.date ?? null;
-            const value = raw && raw !== '.' ? Number(raw) : null;
-            return { value, date };
-        } catch (e) {
-            if (!fredErrorLogged) {
-                console.error(`[FRED] fetch exception on ${seriesId}:`, e instanceof Error ? e.message : String(e));
-                fredErrorLogged = true;
-            }
-            return { value: null, date: null };
-        }
-    };
-
-    // Tier 1 — always fetch (6 series, parallel)
-    const coreIds = ['DGS10', 'MORTGAGE30US', 'FEDFUNDS', 'UNRATE', 'CPIAUCSL', 'MSPUS'];
-
-    // Tier 2 — topic-gated
-    const enrichIds: string[] = [];
-    if (wantRates) enrichIds.push('MORTGAGE15US', 'MORTGAGE5US', 'DGS2', 'DGS30', 'T10Y2Y', 'SOFR');
-    if (wantHousing) enrichIds.push('HOUST', 'EXHOSLUSM495S', 'MSACSR', 'CSUSHPINSA', 'RRVRUSQ156N');
-    // PCEPILFE and CUSR0000SAH1 are price index levels — must fetch with units=pc1 for YoY %
-    // They are NOT added to enrichIds; fetched separately below.
-
-    const allIds = [...new Set([...coreIds, ...enrichIds])];
-    const results = await Promise.allSettled(allIds.map(id => fredFetch(id)));
-
-    const byId: Record<string, { value: number | null; date: string | null }> = {};
-    allIds.forEach((id, i) => {
-        const r = results[i];
-        byId[id] = r.status === 'fulfilled' ? r.value : { value: null, date: null };
-    });
-
-    // Fetch PCE core and CPI shelter as YoY % (units=pc1) when macro context is needed
-    if (wantMacro) {
-        const [pcePct, shelterPct] = await Promise.allSettled([
-            fredFetch('PCEPILFE', 'pc1'),
-            fredFetch('CUSR0000SAH1', 'pc1'),
-        ]);
-        byId['PCEPILFE'] = pcePct.status === 'fulfilled' ? pcePct.value : { value: null, date: null };
-        byId['CUSR0000SAH1'] = shelterPct.status === 'fulfilled' ? shelterPct.value : { value: null, date: null };
-    }
-
-    const g = (id: string) => byId[id]?.value ?? null;
+    // PCEPILFE and CUSR0000SAH1 are synced with fetchUnits: 'pc1' in the
+    // registry, so the stored values are already YoY % change, not raw levels.
+    const g = (id: string) => snap[id]?.value ?? null;
     const tenYearYield = g('DGS10');
     const mort30Avg = g('MORTGAGE30US');
     const spread = tenYearYield != null && mort30Avg != null
         ? Number((mort30Avg - tenYearYield).toFixed(2)) : null;
-    const asOf = byId['MORTGAGE30US']?.date ?? byId['DGS10']?.date ?? null;
+    const asOf = snap['MORTGAGE30US']?.observationDate ?? snap['DGS10']?.observationDate ?? null;
 
     const live: FredSnap = {
         tenYearYield, mort30Avg, spread, asOf,
@@ -1576,19 +1531,18 @@ async function getFredSnapshot(topics: string[] = []): Promise<FredSnap> {
     // HOUST: housing starts in thousands — keep as thousands (1,487k = 1.487M starts/yr)
     // MSPUS: median home price in dollars — keep as-is
 
-    // If core rates came back null (API outage / bad key), fall back to estimates
+    // If core rates came back null (not yet synced), fall back to estimates
     if (live.mort30Avg === null && live.tenYearYield === null) {
         console.warn('[FRED] All core series returned null — using fallback estimates');
         return FRED_FALLBACK;
     }
 
     // Fill any remaining nulls from fallback so downstream code never sees null on core fields
-    const snap = {
+    const result = {
         ...FRED_FALLBACK,
         ...Object.fromEntries(Object.entries(live).filter(([, v]) => v !== null)),
     } as FredSnap;
-    _fredCache = { snap, topics: topicsKey, ts: Date.now() };
-    return snap;
+    return result;
 }
 
 /* ===== OpenAI summarizer for Tavily text (fallback) ===== */

@@ -13,7 +13,11 @@ import {
   type MarketplaceInput,
   type MarketplaceLender,
 } from '../../../lib/pricing/marketplace-engine';
+import { getLatestValue } from '../../../lib/market-data';
 
+// AD-11 Seam 2: this was a byte-for-byte duplicate of the same inline fetch
+// in app/api/rate-intelligence-engine/route.ts -- both now read the synced
+// value from Market Data Service instead of each independently calling FRED.
 const FALLBACK_PAR_RATE = 6.82;
 
 function db() {
@@ -25,20 +29,7 @@ function db() {
 }
 
 async function fetchParRate(): Promise<number> {
-  const key = process.env.FRED_API_KEY ?? '';
-  if (!key) return FALLBACK_PAR_RATE;
-  try {
-    const url =
-      `https://api.stlouisfed.org/fred/series/observations` +
-      `?series_id=MORTGAGE30US&api_key=${key}&file_type=json&sort_order=desc&limit=1`;
-    const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
-    if (!r.ok) return FALLBACK_PAR_RATE;
-    const json = await r.json();
-    const val = parseFloat(json.observations?.[0]?.value ?? '');
-    return isNaN(val) ? FALLBACK_PAR_RATE : val;
-  } catch {
-    return FALLBACK_PAR_RATE;
-  }
+  return getLatestValue('MORTGAGE30US', FALLBACK_PAR_RATE);
 }
 
 export async function POST(req: NextRequest) {
