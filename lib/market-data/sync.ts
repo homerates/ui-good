@@ -44,6 +44,7 @@ async function upsertSeriesDefinition(sb: ReturnType<typeof getSupabase>, def: S
         seasonally_adjusted: def.seasonallyAdjusted,
         fetch_units: def.fetchUnits ?? 'lin',
         loan_type: def.loanType ?? null,
+        ltv_min: def.ltvMin ?? null,
         ltv_max: def.ltvMax ?? null,
         fico_min: def.ficoMin ?? null,
         fico_max: def.ficoMax ?? null,
