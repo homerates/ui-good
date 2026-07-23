@@ -7,14 +7,16 @@
 // DB uuid — only used server-side when a borrower initiates an opt-in.
 
 import { computeLLPA, type LLPAInput, type LLPAOutput } from './llpa-engine';
+// AD-11 Seam 3b: LoanType now lives on LLPAInput itself (loanType drives the
+// OBMMI rate anchor for every caller, not just the marketplace table) --
+// re-exported here so existing `from '../../lib/pricing/marketplace-engine'`
+// import sites don't need to change.
+export type { LoanType } from './llpa-engine';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-export type LoanType = 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
-
 export type MarketplaceInput = LLPAInput & {
   state: string;      // 2-letter state code, e.g. 'CA'
-  loanType: LoanType;
 };
 
 // Shape that matches marketplace_lenders DB row (only pricing + overlay fields)
@@ -115,8 +117,9 @@ export function buildRateTable(
   input: MarketplaceInput,
   lenders: MarketplaceLender[],
   parRate: number,
+  marketRate?: number | null,
 ): MarketplaceOutput {
-  const llpa = computeLLPA(input, parRate);
+  const llpa = computeLLPA(input, parRate, marketRate);
 
   // If borrower profile is ineligible for conventional (e.g. credit < 620 at high LTV),
   // return early with the ineligible explanation.

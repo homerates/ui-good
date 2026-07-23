@@ -12,6 +12,11 @@ export const LLPA_DATA_SOURCE =
 export const LLPA_DISCLAIMER =
   "LLPA estimates are educational and based on the publicly posted Fannie Mae matrix. Actual lender pricing varies by loan program, lender margin, and market conditions. Not a commitment to lend. Consult a licensed mortgage professional.";
 
+// AD-11 Seam 3b: short form for LLPAOutput.dataSource when OBMMI anchors the
+// rate. Full citation text lives in lib/market-data/registry.ts (OBMMI_CITATION).
+const OBMMI_CITATION_SHORT =
+  "Optimal Blue Mortgage Market Indices (OBMMI), via FRED release 473 — real observed daily rate-lock averages, not a synthetic estimate";
+
 // Market convention: 1 price point ≈ 0.25% rate change.
 // This ratio shifts with market conditions — update when the market moves significantly.
 export const POINTS_PER_QUARTER_PERCENT = 1.0;
@@ -22,6 +27,11 @@ export const CONFORMING_BASELINE = 832_750;
 
 // ─── Input / Output types ──────────────────────────────────────────────────────
 
+// Moved here from marketplace-engine.ts (AD-11 Seam 3b) now that loanType
+// drives the rate anchor for every caller, not just the marketplace table.
+// marketplace-engine.ts re-exports this for import-path compatibility.
+export type LoanType = 'conventional' | 'fha' | 'va' | 'jumbo' | 'dscr';
+
 export type LLPAInput = {
   creditScore: number;
   ltv: number;                  // 0–100
@@ -30,6 +40,7 @@ export type LLPAInput = {
   propertyType: 'sfr' | '2unit' | '3_4unit' | 'condo' | 'manufactured';
   loanAmount: number;
   lockDays: 15 | 30 | 45 | 60;
+  loanType: LoanType;
   /**
    * Highest conforming 1-unit limit for the borrower's area.
    * Provided by the API route after a state lookup.
@@ -38,6 +49,39 @@ export type LLPAInput = {
    */
   highBalanceCeiling?: number;
 };
+
+/**
+ * Maps (loanType, creditScore, ltv) to the OBMMI series ID that anchors this
+ * scenario's rate in real observed market data. Returns null for 'dscr' --
+ * OBMMI doesn't cover DSCR (a rental-coverage underwriting model, not a
+ * credit/LTV-priced product) -- those scenarios keep the fully synthetic
+ * parRate + LLPA-matrix path unchanged.
+ *
+ * FICO/LTV bucket boundaries are read directly from each OBMMI series' own
+ * FRED title (e.g. "FICO Score Between 700 and 719"), not inferred.
+ */
+export function resolveObmmiSeriesId(
+  loanType: LoanType,
+  creditScore: number,
+  ltv: number,
+): string | null {
+  switch (loanType) {
+    case 'fha':   return 'OBMMIFHA30YF';
+    case 'va':    return 'OBMMIVA30YF';
+    case 'jumbo': return 'OBMMIJUMBO30YF';
+    case 'dscr':  return null;
+    case 'conventional': {
+      const ltvSeg = ltv <= 80 ? 'LE80' : 'GT80';
+      const ficoSeg =
+        creditScore < 680 ? 'FLT680' :
+        creditScore <= 699 ? 'FB680A699' :
+        creditScore <= 719 ? 'FB700A719' :
+        creditScore <= 739 ? 'FB720A739' :
+        'FGE740';
+      return `OBMMIC30YFLV${ltvSeg}${ficoSeg}`;
+    }
+  }
+}
 
 export type RateCurvePoint = {
   rate: number;              // e.g. 6.875
@@ -57,6 +101,16 @@ export type LLPAOutput = {
   conformingStatus: 'standard' | 'high_balance' | 'above_limit';
   dataSource: string;
   disclaimer: string;
+  /**
+   * 'obmmi' when the headline rate is anchored to a real observed OBMMI
+   * segment rate (credit/LTV pricing already baked in, so `breakdown` omits
+   * the synthetic "Credit score / LTV (base)" row). 'synthetic' when using
+   * the fully synthetic parRate + Fannie LLPA matrix path (dscr, or OBMMI
+   * data unavailable).
+   */
+  rateAnchorSource: 'obmmi' | 'synthetic';
+  /** e.g. "Conforming, LTV<=80%, FICO 700-719" -- only set when rateAnchorSource is 'obmmi'. */
+  obmmiSegmentLabel?: string;
 };
 
 // ─── Bucket helpers ────────────────────────────────────────────────────────────
@@ -274,14 +328,50 @@ export function recommendCurvePoint(curve: RateCurvePoint[]): { index: number; r
   };
 }
 
-// ─── Main computation function ────────────────────────────────────────────────
-// parRate: the FRED 30-year national average (e.g., 6.82).
+// ─── OBMMI segment label helper (for breakdown/negotiation-brief copy) ───────
 
-export function computeLLPA(input: LLPAInput, parRate: number): LLPAOutput & { ineligible?: string } {
+function obmmiSegmentLabel(input: LLPAInput): string {
+  switch (input.loanType) {
+    case 'fha':   return 'FHA';
+    case 'va':    return 'VA';
+    case 'jumbo': return 'Jumbo';
+    case 'dscr':  return 'DSCR';
+    case 'conventional': {
+      const ltvLabel = input.ltv <= 80 ? 'LTV<=80%' : 'LTV>80%';
+      const ficoLabel =
+        input.creditScore < 680 ? 'FICO<680' :
+        input.creditScore <= 699 ? 'FICO 680-699' :
+        input.creditScore <= 719 ? 'FICO 700-719' :
+        input.creditScore <= 739 ? 'FICO 720-739' :
+        'FICO>=740';
+      return `Conforming, ${ltvLabel}, ${ficoLabel}`;
+    }
+  }
+}
+
+// ─── Main computation function ────────────────────────────────────────────────
+// parRate: the FRED 30-year national average (e.g., 6.82) -- always required,
+//   used as the anchor for dscr scenarios and as the fallback when marketRate
+//   is unavailable (OBMMI not yet synced for this segment).
+// marketRate: the real OBMMI segment rate for this scenario's loanType/credit/
+//   LTV, resolved via resolveObmmiSeriesId() and fetched by the caller. When
+//   present, it replaces parRate as the anchor and baseLLPA (the synthetic
+//   credit/LTV matrix lookup) is excluded from totalLLPA -- that pricing is
+//   already embedded in the real observed rate, so re-adding it would
+//   double-count it.
+
+export function computeLLPA(
+  input: LLPAInput,
+  parRate: number,
+  marketRate?: number | null,
+): LLPAOutput & { ineligible?: string } {
   const cb = creditBucket(input.creditScore);
   const lb = ltvBucket(input.ltv);
 
-  // Base LLPA lookup
+  // Base LLPA lookup -- still computed even when OBMMI anchors the rate,
+  // because a null cell here reflects a real Fannie Mae eligibility rule
+  // (credit < 620 not eligible for conventional at this LTV), not just a
+  // pricing artifact of the synthetic path.
   const baseLLPA = BASE_LLPA[lb]?.[cb];
   if (baseLLPA === null || baseLLPA === undefined) {
     return {
@@ -293,6 +383,7 @@ export function computeLLPA(input: LLPAInput, parRate: number): LLPAOutput & { i
       conformingStatus: 'standard' as const,
       dataSource: LLPA_DATA_SOURCE,
       disclaimer: LLPA_DISCLAIMER,
+      rateAnchorSource: 'synthetic',
       ineligible: `Credit score < 620 is not eligible for conventional financing at ${input.ltv}% LTV. Consider FHA financing.`,
     };
   }
@@ -305,22 +396,29 @@ export function computeLLPA(input: LLPAInput, parRate: number): LLPAOutput & { i
     input.loanAmount <= CONFORMING_BASELINE ? 'standard' :
     input.loanAmount <= ceiling             ? 'high_balance' : 'above_limit';
 
-  // Surcharges
+  // Surcharges — stay synthetic regardless of anchor source; OBMMI has no
+  // equivalent for occupancy/purpose/property-type/lock-day pricing.
   const occupancy = occupancySurcharge(input.ltv, input.occupancy);
   const purpose   = loanPurposeSurcharge(input.ltv, input.creditScore, input.loanPurpose);
   const propType  = propertyTypeSurcharge(input.ltv, input.propertyType);
   const highBal   = highBalanceSurcharge(input.loanAmount, input.ltv, ceiling);
   const lock      = lockAdjustment(input.lockDays);
 
+  const usingObmmi = marketRate != null;
+
+  // When OBMMI anchors the rate, baseLLPA is excluded -- it's already priced
+  // into marketRate. Surcharges still apply on top either way.
   const totalLLPA = parseFloat(
-    (baseLLPA + occupancy + purpose + propType + highBal + lock).toFixed(3),
+    ((usingObmmi ? 0 : baseLLPA) + occupancy + purpose + propType + highBal + lock).toFixed(3),
   );
   const totalLLPADollars = Math.round((totalLLPA * input.loanAmount) / 100);
   const rateEquivalent   = parseFloat((totalLLPA / 4).toFixed(3));
 
-  // Breakdown — omit zero-value rows for clarity
+  // Breakdown — omit zero-value rows for clarity. The credit/LTV base row
+  // only appears on the synthetic path; OBMMI already reflects that pricing
+  // in the anchor rate itself, not as a separate disclosed adjustment.
   const breakdown: { label: string; points: number }[] = [
-    { label: 'Credit score / LTV (base)',   points: baseLLPA },
+    ...(usingObmmi ? [] : [{ label: 'Credit score / LTV (base)', points: baseLLPA }]),
     { label: 'Occupancy',                   points: occupancy },
     { label: 'Loan purpose',                points: purpose },
     { label: 'Property type',               points: propType },
@@ -328,8 +426,10 @@ export function computeLLPA(input: LLPAInput, parRate: number): LLPAOutput & { i
     { label: `${input.lockDays}-day lock`,  points: lock },
   ].filter(r => r.points !== 0);
 
-  // Rate curve: lender par = FRED par + LLPA rate equivalent
-  const lenderPar = parseFloat((parRate + rateEquivalent).toFixed(3));
+  // Rate curve anchor: real OBMMI segment rate when available, else the
+  // fully synthetic FRED-par + LLPA-matrix path.
+  const anchor = usingObmmi ? (marketRate as number) : parRate;
+  const lenderPar = parseFloat((anchor + rateEquivalent).toFixed(3));
   const rateCurve = buildRateCurve(lenderPar, input.loanAmount);
 
   return {
@@ -339,31 +439,60 @@ export function computeLLPA(input: LLPAInput, parRate: number): LLPAOutput & { i
     breakdown,
     rateCurve,
     conformingStatus,
-    dataSource: LLPA_DATA_SOURCE,
+    dataSource: usingObmmi
+      ? `${OBMMI_CITATION_SHORT}. Surcharges (occupancy, purpose, property type, lock) from ${LLPA_DATA_SOURCE}`
+      : LLPA_DATA_SOURCE,
     disclaimer: LLPA_DISCLAIMER,
+    rateAnchorSource: usingObmmi ? 'obmmi' : 'synthetic',
+    ...(usingObmmi ? { obmmiSegmentLabel: obmmiSegmentLabel(input) } : {}),
   };
 }
 
+// All 10 conforming OBMMI segment series IDs (2 LTV bands x 5 FICO bands).
+// Exported so route handlers know what to batch-fetch for the negotiation
+// brief's credit/LTV tips when loanType is 'conventional'.
+export const CONFORMING_OBMMI_SERIES_IDS: string[] = [
+  'OBMMIC30YFLVLE80FLT680', 'OBMMIC30YFLVLE80FB680A699', 'OBMMIC30YFLVLE80FB700A719',
+  'OBMMIC30YFLVLE80FB720A739', 'OBMMIC30YFLVLE80FGE740',
+  'OBMMIC30YFLVGT80FLT680', 'OBMMIC30YFLVGT80FB680A699', 'OBMMIC30YFLVGT80FB700A719',
+  'OBMMIC30YFLVGT80FB720A739', 'OBMMIC30YFLVGT80FGE740',
+];
+
 // ─── Negotiation brief generator ─────────────────────────────────────────────
-// Returns 4 consumer-facing talking points based on the input + output.
+// Returns up to 4 consumer-facing talking points based on the input + output.
+//
+// obmmiSegments: latest value for each of CONFORMING_OBMMI_SERIES_IDS, keyed
+// by series ID. Only used (and only needed) when output.rateAnchorSource is
+// 'obmmi' and input.loanType is 'conventional' -- lets the credit/LTV tips
+// quote a real neighboring-segment rate instead of a synthetic matrix delta.
+// Omit it (or pass undefined) for fha/va/jumbo/dscr scenarios, where no
+// credit/LTV-segmented comparison exists to make.
 
 export function buildNegotiationBrief(
   input: LLPAInput,
   output: LLPAOutput,
   parRate: number,
+  obmmiSegments?: Record<string, number | null>,
 ): string[] {
   const lenderPar = parRate + output.rateEquivalent;
   const rangeLow  = Math.max(0, lenderPar - 0.375).toFixed(3);
   const rangeHigh = (lenderPar + 0.25).toFixed(3);
   const llpaDollars = output.totalLLPADollars.toLocaleString();
+  const usingObmmi = output.rateAnchorSource === 'obmmi';
 
   const points: string[] = [];
 
   points.push(
-    `Your LLPA-adjusted rate range is ${rangeLow}% – ${rangeHigh}%. The spread reflects lender margin variation — the bottom is competitive, the top is what you get if you don't shop.`,
+    `Your rate range is ${rangeLow}% – ${rangeHigh}%. The spread reflects lender margin variation — the bottom is competitive, the top is what you get if you don't shop.`,
   );
 
-  if (output.totalLLPA > 0) {
+  if (usingObmmi) {
+    points.push(
+      output.totalLLPA > 0
+        ? `Your base rate already reflects real market pricing for your ${output.obmmiSegmentLabel} segment (OBMMI) — not an estimate. On top of that, your scenario carries ${output.totalLLPA} points ($${llpaDollars}) in additional adjustments (occupancy, loan purpose, property type, lock period). Lender margin (0.50–1.50 points) is what's left to negotiate.`
+        : `Your base rate already reflects real market pricing for your ${output.obmmiSegmentLabel} segment (OBMMI) — not an estimate, and no additional adjustments apply to your scenario. Lender margin (0.50–1.50 points) is the only variable left. Get at least 3 Loan Estimates and compare Line A on the fee sheet.`,
+    );
+  } else if (output.totalLLPA > 0) {
     points.push(
       `Your price adjustments total ${output.totalLLPA} points ($${llpaDollars}). These are set by Fannie Mae's public matrix — every conforming lender pays the same base. What lenders control is their own margin on top, typically 0.50–1.50 points. That's where negotiation lives.`,
     );
@@ -373,46 +502,87 @@ export function buildNegotiationBrief(
     );
   }
 
-  // Credit score bucket upgrade tip
-  const nextBucket = input.creditScore < 760
-    ? input.creditScore < 620 ? null : Math.ceil(input.creditScore / 20) * 20
-    : null;
-  if (nextBucket && nextBucket > input.creditScore && nextBucket <= 760) {
-    const upperBucket = [639, 659, 679, 699, 719, 739, 759, 760].find(b => b >= input.creditScore);
-    if (upperBucket) {
+  if (usingObmmi && input.loanType === 'conventional' && obmmiSegments) {
+    // Credit tier tip -- compare current OBMMI segment to the next real band up.
+    const nextBandFico =
+      input.creditScore < 680 ? 680 :
+      input.creditScore < 700 ? 700 :
+      input.creditScore < 720 ? 720 :
+      input.creditScore < 740 ? 740 :
+      null; // already in the top band (>=740)
+    if (nextBandFico) {
+      const currentId = resolveObmmiSeriesId('conventional', input.creditScore, input.ltv);
+      const nextId    = resolveObmmiSeriesId('conventional', nextBandFico, input.ltv);
+      const currentRate = currentId ? obmmiSegments[currentId] : null;
+      const nextRate    = nextId ? obmmiSegments[nextId] : null;
+      if (currentRate != null && nextRate != null && nextRate < currentRate) {
+        const rateDrop = parseFloat((currentRate - nextRate).toFixed(3));
+        const monthlySaving = Math.round(monthlyPayment(input.loanAmount, currentRate) - monthlyPayment(input.loanAmount, nextRate));
+        points.push(
+          `Getting your score to ${nextBandFico}+ would move you into a lower OBMMI pricing segment — real lenders are averaging ${nextRate}% there today vs ${currentRate}% for your current segment, a ${rateDrop}-point rate difference worth roughly $${monthlySaving.toLocaleString()}/month on this loan amount. Pay down revolving balances first — that moves scores fastest.`,
+        );
+      }
+    }
+
+    // LTV tip -- the only real OBMMI threshold is 80%.
+    if (input.ltv > 80) {
+      const currentId = resolveObmmiSeriesId('conventional', input.creditScore, input.ltv);
+      const le80Id     = resolveObmmiSeriesId('conventional', input.creditScore, 80);
+      const currentRate = currentId ? obmmiSegments[currentId] : null;
+      const le80Rate    = le80Id ? obmmiSegments[le80Id] : null;
+      if (currentRate != null && le80Rate != null && le80Rate < currentRate) {
+        const rateDrop = parseFloat((currentRate - le80Rate).toFixed(3));
+        const extraDown = Math.round((input.ltv - 80) / 100 * (input.loanAmount / (1 - input.ltv / 100)));
+        const monthlySaving = Math.round(monthlyPayment(input.loanAmount, currentRate) - monthlyPayment(input.loanAmount, le80Rate));
+        points.push(
+          `Adding $${extraDown.toLocaleString()} to your down payment would drop your LTV to 80% or below, moving you into a lower OBMMI pricing segment: ${le80Rate}% vs ${currentRate}% today (${rateDrop} points), worth roughly $${monthlySaving.toLocaleString()}/month.`,
+        );
+      }
+    }
+  } else if (!usingObmmi) {
+    // Synthetic-path tips (dscr, or OBMMI unavailable) -- unchanged from the
+    // pre-Seam-3b Fannie-matrix-delta approach.
+    const nextBucket = input.creditScore < 760
+      ? input.creditScore < 620 ? null : Math.ceil(input.creditScore / 20) * 20
+      : null;
+    if (nextBucket && nextBucket > input.creditScore && nextBucket <= 760) {
+      const upperBucket = [639, 659, 679, 699, 719, 739, 759, 760].find(b => b >= input.creditScore);
+      if (upperBucket) {
+        const currentBase = BASE_LLPA[ltvBucket(input.ltv)]?.[creditBucket(input.creditScore)] ?? 0;
+        const nextBase    = BASE_LLPA[ltvBucket(input.ltv)]?.[creditBucket(upperBucket + 1)] ?? 0;
+        if (typeof currentBase === 'number' && typeof nextBase === 'number') {
+          const diff = parseFloat((currentBase - nextBase).toFixed(3));
+          if (diff > 0) {
+            const saving = Math.round((diff * input.loanAmount) / 100);
+            points.push(
+              `Getting your score from ${input.creditScore} to the next tier (${upperBucket + 1}+) would drop your LLPA by ${diff} points, saving $${saving.toLocaleString()} on this loan. Pay down revolving balances first — that moves scores fastest.`,
+            );
+          }
+        }
+      }
+    }
+
+    if (input.ltv > 75 && input.ltv <= 95) {
+      const ltvLower = Math.floor(input.ltv / 5) * 5;
       const currentBase = BASE_LLPA[ltvBucket(input.ltv)]?.[creditBucket(input.creditScore)] ?? 0;
-      const nextBase    = BASE_LLPA[ltvBucket(input.ltv)]?.[creditBucket(upperBucket + 1)] ?? 0;
-      if (typeof currentBase === 'number' && typeof nextBase === 'number') {
-        const diff = parseFloat((currentBase - nextBase).toFixed(3));
+      const lowerBase   = BASE_LLPA[ltvBucket(ltvLower - 0.01)]?.[creditBucket(input.creditScore)] ?? 0;
+      if (typeof currentBase === 'number' && typeof lowerBase === 'number') {
+        const diff = parseFloat((currentBase - lowerBase).toFixed(3));
         if (diff > 0) {
-          const saving = Math.round((diff * input.loanAmount) / 100);
+          const extraDown = Math.round((input.ltv - ltvLower) / 100 * (input.loanAmount / (1 - input.ltv / 100)));
           points.push(
-            `Getting your score from ${input.creditScore} to the next tier (${upperBucket + 1}+) would drop your LLPA by ${diff} points, saving $${saving.toLocaleString()} on this loan. Pay down revolving balances first — that moves scores fastest.`,
+            `Adding $${extraDown.toLocaleString()} to your down payment would drop your LTV from ${input.ltv}% to ${ltvLower}%, saving ${diff} points ($${Math.round((diff * input.loanAmount) / 100).toLocaleString()}) in LLPAs. Ask your lender for the exact breakeven.`,
           );
         }
       }
     }
   }
 
-  // LTV tip
-  if (input.ltv > 75 && input.ltv <= 95) {
-    const ltvLower = Math.floor(input.ltv / 5) * 5;
-    const currentBase = BASE_LLPA[ltvBucket(input.ltv)]?.[creditBucket(input.creditScore)] ?? 0;
-    const lowerBase   = BASE_LLPA[ltvBucket(ltvLower - 0.01)]?.[creditBucket(input.creditScore)] ?? 0;
-    if (typeof currentBase === 'number' && typeof lowerBase === 'number') {
-      const diff = parseFloat((currentBase - lowerBase).toFixed(3));
-      if (diff > 0) {
-        const extraDown = Math.round((input.ltv - ltvLower) / 100 * (input.loanAmount / (1 - input.ltv / 100)));
-        points.push(
-          `Adding $${extraDown.toLocaleString()} to your down payment would drop your LTV from ${input.ltv}% to ${ltvLower}%, saving ${diff} points ($${Math.round((diff * input.loanAmount) / 100).toLocaleString()}) in LLPAs. Ask your lender for the exact breakeven.`,
-        );
-      }
-    }
-  }
-
   // Always include: what to ask the lender
   points.push(
-    `Ask your lender for the "lock confirmation" or "pricing sheet" — it shows your LLPA total and origination fee separately. If the numbers don't match today's matrix for your scenario, ask them to explain the difference.`,
+    usingObmmi
+      ? `Ask your lender for the "lock confirmation" or "pricing sheet" — it shows their rate and margin separately. If their quoted rate is well above today's OBMMI average for your segment, ask them to explain the difference.`
+      : `Ask your lender for the "lock confirmation" or "pricing sheet" — it shows your LLPA total and origination fee separately. If the numbers don't match today's matrix for your scenario, ask them to explain the difference.`,
   );
 
   return points.slice(0, 4);

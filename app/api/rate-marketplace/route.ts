@@ -13,7 +13,8 @@ import {
   type MarketplaceInput,
   type MarketplaceLender,
 } from '../../../lib/pricing/marketplace-engine';
-import { getLatestValue } from '../../../lib/market-data';
+import { resolveObmmiSeriesId } from '../../../lib/pricing/llpa-engine';
+import { getLatestValue, getLatest } from '../../../lib/market-data';
 
 // AD-11 Seam 2: this was a byte-for-byte duplicate of the same inline fetch
 // in app/api/rate-intelligence-engine/route.ts -- both now read the synced
@@ -70,9 +71,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'loanAmount out of range' }, { status: 400 });
   }
 
-  // Fetch FRED par rate and active lenders in parallel
-  const [parRate, lendersResult] = await Promise.all([
+  // AD-11 Seam 3b: resolve the real OBMMI segment for this scenario. Null
+  // for dscr (not covered by OBMMI) -- buildRateTable/computeLLPA fall back
+  // to the fully synthetic parRate + LLPA-matrix path in that case.
+  const obmmiSeriesId = resolveObmmiSeriesId(loanType!, creditScore!, ltv!);
+
+  // Fetch FRED par rate, OBMMI market rate, and active lenders in parallel
+  const [parRate, marketObs, lendersResult] = await Promise.all([
     fetchParRate(),
+    obmmiSeriesId ? getLatest(obmmiSeriesId) : Promise.resolve(null),
     db()
       .from('marketplace_lenders')
       .select(
@@ -89,6 +96,7 @@ export async function POST(req: NextRequest) {
     body as MarketplaceInput,
     lenders,
     parRate,
+    marketObs?.value ?? null,
   );
 
   // Increment view counters for matched lenders (fire-and-forget)
