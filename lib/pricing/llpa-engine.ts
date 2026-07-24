@@ -111,6 +111,15 @@ export type LLPAOutput = {
   rateAnchorSource: 'obmmi' | 'synthetic';
   /** e.g. "Conforming, LTV<=80%, FICO 700-719" -- only set when rateAnchorSource is 'obmmi'. */
   obmmiSegmentLabel?: string;
+  /**
+   * The resolved anchor (marketRate ?? parRate) plus rateEquivalent -- the
+   * single source of truth for "the borrower's par rate," matching
+   * rateCurve's own 'par' point exactly. Callers must read this rather than
+   * recomputing parRate + rateEquivalent themselves: that formula silently
+   * drops the OBMMI anchor and was the root cause of a production bug where
+   * the headline rate disagreed with rateCurve on the same page.
+   */
+  lenderParRate: number;
 };
 
 // ─── Bucket helpers ────────────────────────────────────────────────────────────
@@ -384,6 +393,7 @@ export function computeLLPA(
       dataSource: LLPA_DATA_SOURCE,
       disclaimer: LLPA_DISCLAIMER,
       rateAnchorSource: 'synthetic',
+      lenderParRate: parRate,
       ineligible: `Credit score < 620 is not eligible for conventional financing at ${input.ltv}% LTV. Consider FHA financing.`,
     };
   }
@@ -445,6 +455,7 @@ export function computeLLPA(
     disclaimer: LLPA_DISCLAIMER,
     rateAnchorSource: usingObmmi ? 'obmmi' : 'synthetic',
     ...(usingObmmi ? { obmmiSegmentLabel: obmmiSegmentLabel(input) } : {}),
+    lenderParRate: lenderPar,
   };
 }
 
@@ -471,10 +482,16 @@ export const CONFORMING_OBMMI_SERIES_IDS: string[] = [
 export function buildNegotiationBrief(
   input: LLPAInput,
   output: LLPAOutput,
+  // AD-11 Seam 3 hotfix: no longer used to derive the rate range below --
+  // output.lenderParRate already resolves the correct anchor (marketRate ??
+  // parRate) + rateEquivalent. Recomputing parRate + output.rateEquivalent
+  // here was a third instance of the same bug fixed in rate-intelligence-
+  // engine/route.ts and marketplace-engine.ts. Kept in the signature for
+  // call-site compatibility.
   parRate: number,
   obmmiSegments?: Record<string, number | null>,
 ): string[] {
-  const lenderPar = parRate + output.rateEquivalent;
+  const lenderPar = output.lenderParRate;
   const rangeLow  = Math.max(0, lenderPar - 0.375).toFixed(3);
   const rangeHigh = (lenderPar + 0.25).toFixed(3);
   const llpaDollars = output.totalLLPADollars.toLocaleString();

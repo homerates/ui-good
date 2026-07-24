@@ -361,7 +361,10 @@ export default function RateMarketplaceTable({ scenario }: Props) {
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
         }}>
           <div style={{ fontSize: '0.63rem', color: 'rgba(185,208,192,0.22)', lineHeight: 1.55, maxWidth: 480 }}>
-            Rates computed from live FRED par rate + Fannie Mae LLPA matrix + each lender's submitted margin.
+            {/* AD-11 Seam 3 hotfix: was a hardcoded "FRED par + Fannie Mae LLPA
+                matrix" string, factually wrong once OBMMI anchors the rate.
+                output.llpa.dataSource is already correctly dynamic. */}
+            Rates computed from {output.llpa.dataSource} + each lender's submitted margin.
             Lenders appear because your scenario meets their published eligibility criteria — not because HomeRates.ai selects or endorses them.{' '}
             <strong style={{ color: 'rgba(185,208,192,0.38)' }}>Lender identity is revealed only when you choose to connect.</strong>{' '}
             Est. closing costs are third-party averages and vary by location.
