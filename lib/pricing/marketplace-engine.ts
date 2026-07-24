@@ -136,10 +136,13 @@ export function buildRateTable(
   const eligible = lenders.filter(l => isEligible(l, input));
 
   const unsorted: (RateTableRow & { _sortKey: number })[] = eligible.map(lender => {
-    // Borrower-specific rate:
-    //   FRED par + LLPA rate equivalent + lender margin + lender lock adjustment
+    // Borrower-specific rate: llpa.lenderParRate already resolves to
+    // (marketRate ?? parRate) + rateEquivalent internally (computed once,
+    // inside computeLLPA) -- lender margin + lock adjustment stack on top.
+    // AD-11 Seam 3 hotfix: this used to add bare `parRate` directly, which
+    // silently ignored the OBMMI anchor whenever marketRate was available.
     const rate = parseFloat(
-      (parRate + llpa.rateEquivalent + lender.margin_over_par + lenderLockAdj(lender, input.lockDays))
+      (llpa.lenderParRate + lender.margin_over_par + lenderLockAdj(lender, input.lockDays))
         .toFixed(3),
     );
     const pmt = monthlyPmt(input.loanAmount, rate);

@@ -109,7 +109,12 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ...result,
     parRate,
-    lenderParRate: parseFloat((parRate + result.rateEquivalent).toFixed(3)),
+    // AD-11 Seam 3 hotfix: lenderParRate now comes from computeLLPA's own
+    // `result` (spread above) -- it already resolves to marketRate ??
+    // parRate + rateEquivalent internally and matches rateCurve's par point
+    // exactly. The line that used to recompute `parRate + rateEquivalent`
+    // here directly ignored the OBMMI anchor and was the root cause of a
+    // production bug where this field disagreed with the rate curve.
     recommendedCurvePoint: {
       point: result.rateCurve[recommendedIdx],
       reasoning,
