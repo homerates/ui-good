@@ -279,6 +279,18 @@ export default function RateEngineClient() {
     <span style={{ fontSize: '0.62rem', color: 'rgba(0,232,122,0.55)', marginLeft: 5 }}>✓ from scenario</span>
   ) : null;
 
+  // AD-11 Seam 3 follow-up: Card A-1 predates the OBMMI flagship-series
+  // anchor (Jumbo/FHA/VA each get their own real, unsegmented OBMMI series
+  // -- see resolveObmmiSeriesId in lib/pricing/llpa-engine.ts) and still
+  // showed a generic "Rate Range to Expect" header with the citation only
+  // reachable by scrolling to Card A-2. Conventional (segmented -- distinct
+  // per-request obmmiSegmentLabel) and dscr (fully synthetic fallback) are
+  // intentionally left alone; this only labels the 3 flagship series that
+  // share one fixed OBMMI series per loan type.
+  const FLAGSHIP_OBMMI_LABELS: Partial<Record<LoanType, string>> = { fha: 'FHA', va: 'VA', jumbo: 'Jumbo' };
+  const flagshipLabel = result?.rateAnchorSource === 'obmmi' ? FLAGSHIP_OBMMI_LABELS[loanType] : undefined;
+  const cardA1Title = flagshipLabel ? `${flagshipLabel} Rate Range to Expect` : "Rate Range to Expect";
+
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: "#f0f4ff" }}>
 
@@ -659,7 +671,7 @@ export default function RateEngineClient() {
           {/* ── CARD A-1: Rate Range to Expect ── */}
           <div style={card}>
             <div style={{ fontSize: "0.68rem", color: "#8fa3b8", textTransform: "uppercase" as const, letterSpacing: "0.08em", fontWeight: 700, marginBottom: 4 }}>Card A-1</div>
-            <div style={{ fontWeight: 700, fontSize: "1.05rem", marginBottom: 12 }}>Rate Range to Expect</div>
+            <div style={{ fontWeight: 700, fontSize: "1.05rem", marginBottom: 12 }}>{cardA1Title}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               {[
                 { label: "Competitive lender", rate: (result.lenderParRate - 0.125).toFixed(3), note: "Best-in-market offer" },
@@ -676,6 +688,11 @@ export default function RateEngineClient() {
             <p style={{ margin: "12px 0 0", fontSize: "0.78rem", color: "#8fa3b8", lineHeight: 1.55 }}>
               The spread reflects lender margin, not Fannie Mae adjustments. Get 3 Loan Estimates and compare Line A (origination fee) to find the competitive end of this range.
             </p>
+            {flagshipLabel && (
+              <p style={{ margin: "8px 0 0", fontSize: "0.72rem", color: "#8fa3b8", lineHeight: 1.5 }}>
+                {result.dataSource}
+              </p>
+            )}
           </div>
 
           {/* ── CARD A-2: LLPA Breakdown ── */}
