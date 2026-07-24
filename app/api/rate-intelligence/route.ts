@@ -3,7 +3,8 @@
 // POST — Grok Oracle streaming for chip interactions
 
 import { NextRequest } from 'next/server';
-import { getRange } from '../../../lib/market-data';
+import { getRange, getLatest, getSnapshot } from '../../../lib/market-data';
+import { CONFORMING_OBMMI_SERIES_IDS, OBMMI_CITATION } from '../../../lib/market-data/registry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,6 +39,22 @@ export interface RateIntelData {
     fromPeak:    number;
     allTimePeak: number;
     spread:      number;  // 30y minus 10y in bps * 100
+  };
+  // AD-11 Seam 4b: real OBMMI/segment data, current-value only (no historical
+  // windows -- nothing on this page charts these individually today; see
+  // Seam 4 design phase for the reasoning). arm5y1 (MORTGAGE5US) is grouped
+  // here for display purposes (also "rate by loan program") but is NOT
+  // OBMMI-sourced -- `citation` covers jumbo/fha/va/usda/conventional* only.
+  byProgram: {
+    jumbo: number | null;
+    fha: number | null;
+    va: number | null;
+    usda: number | null;
+    arm5y1: number | null;
+    conventionalBestTier: number | null;
+    conventionalRange: { min: number; max: number } | null;
+    asOf: string | null;
+    citation: string;
   };
 }
 
@@ -84,6 +101,37 @@ export async function GET() {
   // such cost, so this just takes the same first element from the full range.
   const ytd30y = ytd30yFull.slice(0, 2);
 
+  // AD-11 Seam 4b: byProgram -- current value only for each flagship OBMMI
+  // series, plus arm5y1 (MORTGAGE5US, NOT OBMMI). One getSnapshot covers all
+  // 10 conforming segments at once for the best-tier value and min/max range.
+  const [jumboObs, fhaObs, vaObs, usdaObs, arm5y1Obs, conventionalSnapshot] = await Promise.all([
+    getLatest('OBMMIJUMBO30YF'),
+    getLatest('OBMMIFHA30YF'),
+    getLatest('OBMMIVA30YF'),
+    getLatest('OBMMIUSDA30YF'),
+    getLatest('MORTGAGE5US'),
+    getSnapshot(CONFORMING_OBMMI_SERIES_IDS),
+  ]);
+
+  const conventionalValues = Object.values(conventionalSnapshot)
+    .map(o => o?.value)
+    .filter((v): v is number => v != null);
+  const conventionalRange = conventionalValues.length
+    ? { min: Math.min(...conventionalValues), max: Math.max(...conventionalValues) }
+    : null;
+
+  const byProgram: RateIntelData['byProgram'] = {
+    jumbo: jumboObs?.value ?? null,
+    fha: fhaObs?.value ?? null,
+    va: vaObs?.value ?? null,
+    usda: usdaObs?.value ?? null,
+    arm5y1: arm5y1Obs?.value ?? null,
+    conventionalBestTier: conventionalSnapshot['OBMMIC30YFLVLE80FGE740']?.value ?? null,
+    conventionalRange,
+    asOf: jumboObs?.observationDate ?? null,
+    citation: OBMMI_CITATION,
+  };
+
   // Current values — latest non-null observation
   const cur30y  = series30y.at(-1)?.value  ?? FALLBACKS.rate30y;
   const cur15y  = series15y.at(-1)?.value  ?? FALLBACKS.rate15y;
@@ -121,6 +169,7 @@ export async function GET() {
       monthlyCpi:   seriesCpi,
     },
     meta: { week52High, week52Low, ytdStart: ytdStart30y, ytdChange, fromPeak, allTimePeak, spread },
+    byProgram,
   };
 
   return new Response(JSON.stringify(data), {

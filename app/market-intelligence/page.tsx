@@ -322,10 +322,19 @@ export default function MarketIntelligencePage() {
       </div>
 
       {/* Sticky chips */}
+      {/* AD-11 Seam 4a: zIndex raised from 10 to 900 -- the global app-footer
+          (app/layout.tsx, .footer-meta in globals.css) is position:fixed;
+          bottom:0; z-index:800 and stays permanently visible on viewports
+          >640px (its scroll-based auto-hide only applies on mobile), so at
+          10 this chip bar sat underneath it and the footer's "FRED® Data"
+          link intercepted clicks meant for the chips on desktop. 900 matches
+          the precedent already used for the chat page's .composer (also
+          fixed-bottom, also needs to clear this same footer) in
+          app/layout.tsx's inline override -- not a new pattern. */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         background: 'linear-gradient(to top, #0a0f1a 80%, transparent)',
-        padding: '20px 0 16px', zIndex: 10,
+        padding: '20px 0 16px', zIndex: 900,
       }}>
         <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 20px' }}>
           <div className="chip-scroll-row">

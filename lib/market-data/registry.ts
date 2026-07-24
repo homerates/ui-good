@@ -106,6 +106,17 @@ export const REGISTRY: SeriesDefinition[] = [
     { seriesId: 'OBMMIVA30YF',     label: '30-Year Fixed Rate Veterans Affairs Mortgage Index (OBMMI)', category: 'obmmi', unit: 'percent', frequency: 'daily', seasonallyAdjusted: false, source: 'fred_release', fredReleaseId: 473, loanType: 'va',    termYears: 30, requiresCitation: true, citationText: OBMMI_CITATION },
 ];
 
+// All 10 conforming OBMMI segment series IDs (2 LTV bands x 5 FICO bands).
+// AD-11 Seam 4b: moved here from lib/pricing/llpa-engine.ts, which
+// re-exports it for backward-compat import paths -- this is a market-data
+// catalog concern (which series exist), not pricing-computation logic.
+export const CONFORMING_OBMMI_SERIES_IDS: string[] = [
+    'OBMMIC30YFLVLE80FLT680', 'OBMMIC30YFLVLE80FB680A699', 'OBMMIC30YFLVLE80FB700A719',
+    'OBMMIC30YFLVLE80FB720A739', 'OBMMIC30YFLVLE80FGE740',
+    'OBMMIC30YFLVGT80FLT680', 'OBMMIC30YFLVGT80FB680A699', 'OBMMIC30YFLVGT80FB700A719',
+    'OBMMIC30YFLVGT80FB720A739', 'OBMMIC30YFLVGT80FGE740',
+];
+
 export function getSeriesDefinition(seriesId: string): SeriesDefinition | undefined {
     return REGISTRY.find(s => s.seriesId === seriesId);
 }
