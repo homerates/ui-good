@@ -308,7 +308,10 @@ export default function MarketIntelligencePage() {
             ))}
           </div>
         ) : data && (
-          <RateStrip data={data} />
+          <>
+            <RateStrip data={data} />
+            <ByProgramStrip data={data} />
+          </>
         )}
 
         {/* Thread */}
@@ -573,6 +576,62 @@ function RateStrip({ data }: { data: RateIntelData }) {
           {r.primary && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(0,232,122,0.4))' }} />}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── By Loan Program (AD-11 Seam 4c) ─────────────────────────────────────────
+// Separate section, not folded into RateStrip -- 10 cards in one row (4
+// flagship + conventional best-tier + range) would be unreadable, especially
+// wrapped on mobile. Cards with a null value are skipped (defensive -- a
+// series not yet synced shouldn't render a broken "null%" card); the whole
+// section is skipped if nothing is available.
+
+function ByProgramStrip({ data }: { data: RateIntelData }) {
+  const { jumbo, fha, va, usda, conventionalBestTier, conventionalRange, citation } = data.byProgram;
+  const rate30y = data.current.rate30y;
+
+  const premiumLabel = (v: number) =>
+    `${v - rate30y >= 0 ? '+' : ''}${(v - rate30y).toFixed(2)}% vs 30Y`;
+
+  const cards: { label: string; value: number; sub: string }[] = [
+    ...(jumbo != null ? [{ label: 'Jumbo', value: jumbo, sub: premiumLabel(jumbo) }] : []),
+    ...(fha != null   ? [{ label: 'FHA',   value: fha,   sub: premiumLabel(fha) }]   : []),
+    ...(va != null    ? [{ label: 'VA',    value: va,    sub: premiumLabel(va) }]    : []),
+    ...(usda != null  ? [{ label: 'USDA',  value: usda,  sub: premiumLabel(usda) }]  : []),
+    ...(conventionalBestTier != null ? [{
+      label: 'Conventional (best-tier)',
+      value: conventionalBestTier,
+      sub: conventionalRange
+        ? `range: ${conventionalRange.min.toFixed(2)}% – ${conventionalRange.max.toFixed(2)}%`
+        : '740+ FICO, ≤80% LTV',
+    }] : []),
+  ];
+
+  if (cards.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 8 }}>
+        By Loan Program
+      </div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        {cards.map(c => (
+          <div key={c.label} style={{
+            flex: '1 1 140px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 12, padding: '14px 16px',
+          }}>
+            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{c.label}</div>
+            <div style={{ fontSize: '1.55rem', fontWeight: 700, color: '#fff', lineHeight: 1 }}>{c.value.toFixed(2)}%</div>
+            <div style={{ fontSize: '0.7rem', marginTop: 4, color: 'rgba(255,255,255,0.4)' }}>{c.sub}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.28)', marginTop: 8, lineHeight: 1.5 }}>
+        Source: Optimal Blue, via FRED. {citation}
+      </div>
     </div>
   );
 }
