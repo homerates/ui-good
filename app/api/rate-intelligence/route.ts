@@ -239,34 +239,47 @@ Analyze when and how much rates could fall from current levels. Base ALL project
 
 End with: <<<TAGS:TagOne,TagTwo,TagThree,TagFour>>>`,
 
+  // AD-11 Seam 4d: was "estimate 5/1 ARM based on typical spread to Fed
+  // Funds" -- MORTGAGE5US ("5/1 ARM Rate" in the data above) has been real,
+  // synced data the whole time; this route just never fetched it before.
   'arm-vs-fixed': (ctx) => `Live FRED data as of today:
 ${ctx}
 
 Compare ARM vs 30Y Fixed using today's actual rate environment:
-1. Current 30Y Fixed rate from the data; estimate 5/1 ARM based on typical spread to Fed Funds
-2. Break-even analysis: how many years before the 30Y fixed holder comes out ahead?
+1. Current 30Y Fixed rate and the current 5/1 ARM Rate, both from the data above — do not estimate the ARM rate, cite the real figure provided
+2. Break-even analysis: how many years before the 30Y fixed holder comes out ahead, using the actual rate gap between the two figures above?
 3. Who should consider an ARM right now given current levels and the 52-week range?
 4. Rate cap risk if an ARM is held past 5 years given current Fed Funds trajectory
 
 End with: <<<TAGS:TagOne,TagTwo,TagThree,TagFour>>>`,
 
+  // AD-11 Seam 4d: was "estimate from the 30Y rate and typical bank
+  // portfolio dynamics" -- the real Jumbo 30Y Rate (OBMMI) is now in the
+  // data above; the premium is a direct subtraction, not an estimate.
   jumbo: (ctx) => `Live FRED data as of today:
 ${ctx}
 
 Analyze the Jumbo mortgage rate environment using the live data:
-1. Jumbo vs conforming rate premium — estimate from the 30Y rate and typical bank portfolio dynamics
+1. Jumbo vs conforming rate premium — compute directly as (Jumbo 30Y Rate) minus (30Y Fixed Rate) from the data above. Do not estimate this; both figures are provided.
 2. How Jumbo pricing is affected differently by Fed policy vs MBS market given current spread levels
 3. Which loan size tiers benefit most from Jumbo at today's rate levels?
 4. Bank portfolio lending dynamics in the current Fed Funds environment
 
 End with: <<<TAGS:TagOne,TagTwo,TagThree>>>`,
 
+  // AD-11 Seam 4d: was asking Grok to state "typical EU/UK/Canada rates" --
+  // no international rate series exists anywhere in this codebase's data
+  // (unlike jumbo/arm, there's no real number to swap in), so this now asks
+  // for directional/qualitative commentary only, with an explicit
+  // instruction not to state specific foreign figures as if they were live
+  // data -- consistent with the same grounding rule the other prompts
+  // follow, rather than carrying the one exception forward.
   global: (ctx) => `Live FRED data as of today:
 ${ctx}
 
-Put US mortgage rates in global context using the actual numbers provided:
-1. US 30Y rate vs typical EU/UK/Canada rates — contrast with the live US figure
-2. How the 10Y Treasury yield (from the data) connects to global bond market movements
+Put the US mortgage rate environment in global context:
+1. Discuss directionally how the US 30Y rate compares to typical developed-market mortgage rates (e.g. EU, UK, Canada) — describe the relationship qualitatively (higher/lower, and why) without stating specific foreign rate figures, since only US data is provided here
+2. How the 10Y Treasury yield (from the data above) connects to global bond market movements
 3. What divergence between US Fed Funds and other central bank policies signals for US rates from today forward
 
 End with: <<<TAGS:TagOne,TagTwo,TagThree,TagFour>>>`,
@@ -325,6 +338,18 @@ export async function POST(req: NextRequest) {
     '52-Week High (30Y)': `${rateCtx.week52High ?? 'N/A'}%`,
     '52-Week Low (30Y)': `${rateCtx.week52Low ?? 'N/A'}%`,
     'YTD Change (30Y)': `${rateCtx.ytdChange ?? 'N/A'}%`,
+    // AD-11 Seam 4d: real OBMMI/segment data, always included (same pattern
+    // as every other field here -- unconditional regardless of chipType) so
+    // any chip's grounding context has real numbers to cite instead of
+    // asking Grok to estimate them, as the jumbo/arm-vs-fixed prompts
+    // previously did.
+    'Jumbo 30Y Rate (OBMMI)':        `${rateCtx.jumboRate ?? 'N/A'}%`,
+    'FHA 30Y Rate (OBMMI)':          `${rateCtx.fhaRate ?? 'N/A'}%`,
+    'VA 30Y Rate (OBMMI)':           `${rateCtx.vaRate ?? 'N/A'}%`,
+    'USDA 30Y Rate (OBMMI)':         `${rateCtx.usdaRate ?? 'N/A'}%`,
+    '5/1 ARM Rate':                  `${rateCtx.arm5y1Rate ?? 'N/A'}%`,
+    'Conventional Best-Tier Rate (740+ FICO, <=80% LTV, OBMMI)': `${rateCtx.conventionalBestTier ?? 'N/A'}%`,
+    'Conventional Rate Range Across All Credit/LTV Tiers (OBMMI)': `${rateCtx.conventionalRangeLow ?? 'N/A'}% - ${rateCtx.conventionalRangeHigh ?? 'N/A'}%`,
     ...(tavilyContext ? { 'Live News Headlines': tavilyContext } : {}),
   }, null, 2);
 

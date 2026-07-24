@@ -130,6 +130,16 @@ export default function MarketIntelligencePage() {
             week52Low:   d.meta.week52Low,
             spread:      d.meta.spread,
             ytdChange:   d.meta.ytdChange,
+            // AD-11 Seam 4d: real numbers so jumbo/arm-vs-fixed/global can
+            // cite them instead of asking Grok to estimate.
+            jumboRate:             d.byProgram.jumbo,
+            fhaRate:               d.byProgram.fha,
+            vaRate:                d.byProgram.va,
+            usdaRate:              d.byProgram.usda,
+            arm5y1Rate:            d.byProgram.arm5y1,
+            conventionalBestTier:  d.byProgram.conventionalBestTier,
+            conventionalRangeLow:  d.byProgram.conventionalRange?.min ?? null,
+            conventionalRangeHigh: d.byProgram.conventionalRange?.max ?? null,
           },
         }),
       });
