@@ -459,15 +459,10 @@ export function computeLLPA(
   };
 }
 
-// All 10 conforming OBMMI segment series IDs (2 LTV bands x 5 FICO bands).
-// Exported so route handlers know what to batch-fetch for the negotiation
-// brief's credit/LTV tips when loanType is 'conventional'.
-export const CONFORMING_OBMMI_SERIES_IDS: string[] = [
-  'OBMMIC30YFLVLE80FLT680', 'OBMMIC30YFLVLE80FB680A699', 'OBMMIC30YFLVLE80FB700A719',
-  'OBMMIC30YFLVLE80FB720A739', 'OBMMIC30YFLVLE80FGE740',
-  'OBMMIC30YFLVGT80FLT680', 'OBMMIC30YFLVGT80FB680A699', 'OBMMIC30YFLVGT80FB700A719',
-  'OBMMIC30YFLVGT80FB720A739', 'OBMMIC30YFLVGT80FGE740',
-];
+// AD-11 Seam 4b: moved to lib/market-data/registry.ts (a market-data catalog
+// concern, not pricing logic) -- re-exported here so existing
+// `from '../../../lib/pricing/llpa-engine'` import sites don't need to change.
+export { CONFORMING_OBMMI_SERIES_IDS } from '../market-data/registry';
 
 // ─── Negotiation brief generator ─────────────────────────────────────────────
 // Returns up to 4 consumer-facing talking points based on the input + output.
