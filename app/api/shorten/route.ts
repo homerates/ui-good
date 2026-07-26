@@ -14,7 +14,6 @@ const ALLOWED_HOSTS = new Set([
     'homerates.ai',
     'www.homerates.ai',
     'dev.homerates.ai',
-    'dev.chat.homerates.ai',
 ]);
 
 function isSafeTarget(raw: string): boolean {
