@@ -1,19 +1,27 @@
 # CLAUDE.md
-<!-- Last reviewed: 2026-07-08 — also check NAVIGATION_SPEC.md and DEPLOY_WORKFLOW.md for staleness each pass -->
+<!-- Last reviewed: 2026-07-24 — also check NAVIGATION_SPEC.md and DEPLOY_WORKFLOW.md for staleness each pass -->
 
 ## Branch & Deploy Rules
 
 1. **All work on `dev`.** Never push or commit directly to `main` — `main` is
    production and is only updated via PR merge from `dev`.
 
-2. **Validate on staging before merging.** Test every change at the Vercel
-   preview URL (or `dev.chat.homerates.ai` once DNS propagates) before any
-   merge to `main`.
+2. **Validate on the Vercel preview build before merging.** Test every change
+   at `dev.homerates.ai` (Vercel login required) before any merge to `main`.
+   Corrected 2026-07-24: the staging domain is `dev.homerates.ai`, not
+   `dev.chat.homerates.ai` (that hostname doesn't resolve — a naming error
+   in this doc, not a domain that was never set up). See DEPLOY_WORKFLOW.md
+   for the full corrected picture.
 
-3. **Supabase schema changes go to staging first.** Write a numbered migration
-   SQL file in `supabase/migrations/`. Apply it to the staging Supabase project,
-   validate, then apply to production. Never edit the production schema directly.
-   All `CREATE TABLE` and `ADD COLUMN` statements must use `IF NOT EXISTS`.
+3. **Supabase schema changes: additive only, `IF NOT EXISTS` always.** There is
+   one Supabase project — no separate staging database exists (confirmed
+   directly 2026-07-23; do not describe this as "staging first, then production"
+   in any future doc or plan). All `CREATE TABLE` and `ADD COLUMN` statements
+   must use `IF NOT EXISTS` — this is the actual safety net, since there's no
+   isolated environment to catch a bad migration before it's live. A migration
+   that would need to be destructive (a drop, a non-additive change) has no
+   staging environment to test in first — flag that case explicitly rather
+   than running it.
 
 4. **Secrets stay in Vercel, scoped to environment.** Env vars live in Vercel
    scoped to Preview or Production. Never write secrets into code, `.env` files,
