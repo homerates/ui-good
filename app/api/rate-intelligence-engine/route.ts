@@ -16,7 +16,7 @@ import {
   type LoanType,
 } from '../../../lib/pricing/llpa-engine';
 import { getStateLimitInfo } from '../../../lib/pricing/conforming-limits';
-import { getLatestValue, getLatest, getSnapshot } from '../../../lib/market-data';
+import { getLatestValue, getLatest, getSnapshot, getSeriesDefinition } from '../../../lib/market-data';
 
 // AD-11 Seam 2: was its own direct FRED fetch (byte-identical duplicate also
 // existed in app/api/rate-marketplace/route.ts) -- now reads the synced
@@ -106,6 +106,31 @@ export async function POST(req: NextRequest) {
     : undefined;
   const negotiationBrief = buildNegotiationBrief(engineInput, result, parRate, conformingSegmentRates);
 
+  // "Where does your rate fall?" Seam 1: data plumbing only, no UI consumes
+  // this yet. Only populated when a real OBMMI anchor was actually used
+  // (rateAnchorSource === 'obmmi') -- dscr falls back to the fully synthetic
+  // parRate path, and marketRate there would just be a re-labeled parRate,
+  // not real market data, so it's omitted rather than shown as if it were.
+  const marketComparison = result.rateAnchorSource === 'obmmi'
+    ? {
+        // Raw anchor before this borrower's own occupancy/purpose/property-
+        // type/lock surcharges -- lenderParRate already equals anchor +
+        // rateEquivalent by construction (see llpa-engine.ts), so this needs
+        // no new value from computeLLPA, just the inverse of that addition.
+        marketRate: parseFloat((result.lenderParRate - result.rateEquivalent).toFixed(3)),
+        segmentLabel: result.obmmiSegmentLabel,
+        conformingSegments: conformingSnapshot
+          ? CONFORMING_OBMMI_SERIES_IDS
+              .map(id => ({
+                label: getSeriesDefinition(id)?.label ?? id,
+                seriesId: id,
+                rate: conformingSnapshot[id]?.value ?? null,
+              }))
+              .filter((s): s is { label: string; seriesId: string; rate: number } => s.rate !== null)
+          : undefined,
+      }
+    : undefined;
+
   return NextResponse.json({
     ...result,
     parRate,
@@ -120,6 +145,7 @@ export async function POST(req: NextRequest) {
       reasoning,
     },
     negotiationBrief,
+    marketComparison,
     // Expose limit context to the UI
     conformingBaseline:  stateLimitInfo.baseline,
     highBalanceCeiling:  stateLimitInfo.ceiling,
