@@ -105,3 +105,37 @@ including "just this one page" exceptions or hardcoded link lists — STOP and
 flag it explicitly before proceeding. Name the invariant at risk. Do NOT quietly
 implement a noncompliant surface. This tripwire fires regardless of whether the
 request comes from Rayaan or from your own proposed plan.
+
+---
+
+## AI Synthesis / Data Grounding Hard Rules
+
+**Applies to every prompt sent to Grok, Claude, or any other model whose output is
+shown to a user as market/rate/financial commentary** (currently: every
+`CHIP_PROMPTS` entry and the `GROUNDING_SYSTEM` message in
+`app/api/rate-intelligence/route.ts`; check for others before assuming that's the
+full list).
+
+1. **Never instruct a model to "estimate" or use "typical" framing for a number
+   presented as live/current data.** If a real number exists anywhere in this
+   codebase's data layer, the prompt must cite it directly — never ask the model
+   to approximate something that could instead be looked up. Two chip prompts
+   (`jumbo`, `arm-vs-fixed`) violated this for months despite `GROUNDING_SYSTEM`
+   already claiming "never invent a figure" — the rule existed only as an inline
+   prompt string and a memory note, not as something an audit-before-edit pass
+   would actually catch. Before adding or editing any AI-synthesis prompt, grep
+   the codebase's data layer (`lib/market-data`, relevant API routes) for whether
+   the number the prompt wants already exists as real, synced data. If it does,
+   cite it. If it genuinely doesn't (e.g. no international rate series exists
+   anywhere in this codebase), the prompt must ask for qualitative/directional
+   commentary only, with an explicit instruction not to state a specific invented
+   figure — never leave the "estimate a plausible number" instruction in place as
+   a shortcut.
+2. **Any UI surface displaying an OBMMI-sourced number must show a visible
+   citation** ("Source: Optimal Blue, via FRED..." or equivalent) adjacent to
+   that number — not buried in a different card/section, not just present in a
+   prop with nothing rendered. `lib/market-data/registry.ts`'s `OBMMI_CITATION`
+   constant is the canonical text; read it, don't hand-write a duplicate string.
+   This mirrors `feedback_disclosure_standard.md`'s existing rule for
+   `lib/disclosures.ts` — same category of requirement, now with a second
+   real-money data source needing it.
