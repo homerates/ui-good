@@ -20,7 +20,7 @@ const PLANS = [
     cta: "Get started free",
     ctaVariant: "ghost" as const,
     features: [
-      "20 AI mortgage questions / month",
+      "~6-7 free AI mortgage questions to start",
       "Live rate ticker",
       "Basic calculators",
       "Shareable answer links",
