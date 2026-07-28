@@ -176,7 +176,14 @@ export function detectLoanLimits(text: string): {
 // ─────────────────────────────────────────────
 
 export function isRefiQuestion(q: string): boolean {
-    return /refinance|refi\b|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left/i.test(q) ||
+    // "closing costs?" was a bare alternative here with no refi-specific context
+    // required -- any question mentioning closing costs (seller-credit questions,
+    // general guideline questions like "can a realtor cover closing costs") got
+    // hijacked into the refi_needs_input bypass before isSellerCreditQuestion or
+    // Grok ever ran, since this check has highest priority in dispatch(). Genuine
+    // refi questions about closing costs still match via refinance/refi/break-even/
+    // loan balance/remaining term below.
+    return /refinance|refi\b|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left/i.test(q) ||
         // Rate-switch intent without the word "refi": "lower my rate", "drop to 5%", "switch to 5.5%", "afford to go from X% to Y%"
         /(?:lower|reduce|drop|switch|change|go from).{0,30}(?:my\s+)?(?:rate|mortgage|payment).{0,30}\d+\.?\d*\s*%/i.test(q) ||
         /\bfrom\s+\d+\.?\d*\s*%\s+to\s+\d+\.?\d*\s*%/i.test(q);
