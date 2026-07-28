@@ -90,6 +90,21 @@ export default function PricingPage() {
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const [isLO, setIsLO] = useState<boolean | null>(null); // null = not yet loaded
 
+  // Displayed Pro price defaults to the current intro numbers while this loads,
+  // then is overwritten by the server-authoritative value (lib/stripe.ts's
+  // getCurrentProPricing) so this page can never show a price checkout doesn't
+  // actually charge. See app/api/pricing/pro-price/route.ts.
+  const [proPricing, setProPricing] = useState({
+    priceMonthly: 19,
+    priceAnnual: 159,
+    annualMonthly: 13.25,
+    isIntro: true,
+  });
+
+  useEffect(() => {
+    fetch("/api/pricing/pro-price").then(r => r.json()).then(setProPricing).catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (canceled) setError("Payment was canceled — no charge was made.");
   }, [canceled]);
@@ -102,8 +117,22 @@ export default function PricingPage() {
     }).catch(() => {});
   }, [isSignedIn]);
 
-  // Pro is now for investors + LOs — show all 3 plans to everyone
-  const visiblePlans = PLANS;
+  // Pro is now for investors + LOs — show all 3 plans to everyone.
+  // Pro's price/description/badge are overridden with the fetched,
+  // server-authoritative values so this can never disagree with checkout.
+  const visiblePlans = PLANS.map((plan) => {
+    if (plan.key !== "pro") return plan;
+    return {
+      ...plan,
+      priceMonthly: proPricing.priceMonthly,
+      priceAnnual: proPricing.priceAnnual,
+      annualMonthly: proPricing.annualMonthly,
+      description: proPricing.isIntro
+        ? plan.description
+        : "Investor and loan officer tooling.",
+      introUrgency: proPricing.isIntro ? plan.introUrgency : undefined,
+    };
+  });
 
   async function handlePortal() {
     setLoading("portal");
