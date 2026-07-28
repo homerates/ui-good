@@ -20,7 +20,7 @@ const PLANS = [
     cta: "Get started free",
     ctaVariant: "ghost" as const,
     features: [
-      "20 AI mortgage questions / month",
+      "~6-7 free AI mortgage questions to start",
       "Live rate ticker",
       "Basic calculators",
       "Shareable answer links",
@@ -69,7 +69,7 @@ const PLANS = [
     features: [
       "⭐ Investment Property Reports (DSCR)",
       "⭐ Portfolio tracker + deal pipeline",
-      "⭐ Live rent comps + cap rate analysis",
+      "⭐ Live rent estimate + cap rate analysis",
       "⭐ Watchlist + cash flow monitoring",
       "Everything in Plus",
       "Up to 10 borrowers",

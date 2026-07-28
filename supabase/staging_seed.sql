@@ -960,7 +960,7 @@ ALTER TABLE public.consumer_homeowners
 -- Migration 025: borrower loan detail overrides (LO-side)
 -- Mirrors the same 4 fields on consumer_homeowners (migration 024).
 -- Lets the LO store the borrower's actual loan numbers so digests show
--- real data instead of Rentcast/historical estimates.
+-- real data instead of AVM/historical estimates.
 
 ALTER TABLE public.borrowers
   ADD COLUMN IF NOT EXISTS actual_balance        numeric,        -- remaining loan balance ($)
@@ -1122,7 +1122,7 @@ CREATE TABLE IF NOT EXISTS public.properties (
 
   -- Freshness and confidence
   enriched_at            timestamptz,             -- when last successfully enriched
-  enrichment_source      text,                    -- 'rentcast','tavily','manual'
+  enrichment_source      text,                    -- 'redfin_via_tavily','tavily','manual'
   confidence             numeric(3,2),            -- 0.00â€“1.00
 
   created_at             timestamptz  NOT NULL DEFAULT now(),
@@ -1135,23 +1135,23 @@ CREATE INDEX IF NOT EXISTS properties_zip_idx   ON public.properties (zip);
 CREATE INDEX IF NOT EXISTS properties_state_idx ON public.properties (state);
 -- Migration 032: property snapshots â€” cached intelligence by type
 -- Each row is a point-in-time enrichment result for a property.
--- Avoids re-querying Rentcast for the same property within the TTL window.
+-- Avoids re-querying the AVM source for the same property within the TTL window.
 --
 -- snapshot_type values:
---   'full'       â€” complete Rentcast property + AVM + listing response
+--   'full'       â€” complete property + AVM + listing response
 --   'valuation'  â€” AVM value/range only
 --   'rent'       â€” rent estimate only
 --   'market'     â€” market context (zip/county level)
 --
 -- TTL strategy:
---   Rentcast 'full' snapshots: expires_at = fetched_at + 7 days
---   Manual overrides:          expires_at = NULL (never expires)
+--   'full' snapshots:  expires_at = fetched_at + 7 days
+--   Manual overrides:  expires_at = NULL (never expires)
 
 CREATE TABLE IF NOT EXISTS public.property_snapshots (
   id            uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
   property_id   uuid         NOT NULL REFERENCES public.properties(id) ON DELETE CASCADE,
   snapshot_type text         NOT NULL,
-  source        text         NOT NULL,   -- 'rentcast','tavily','internal','manual'
+  source        text         NOT NULL,   -- 'redfin_via_tavily','tavily','internal','manual'
   data          jsonb        NOT NULL,   -- full raw payload from the source
   fetched_at    timestamptz  NOT NULL DEFAULT now(),
   expires_at    timestamptz,             -- NULL = never expires
@@ -1173,16 +1173,16 @@ CREATE INDEX IF NOT EXISTS chp_property_id_idx
   ON public.consumer_homeowner_properties (property_id);
 -- Migration 034: actual_value override for consumer_homeowner_properties
 -- Allows LOs and borrowers to enter a verified appraised value or last known
--- good valuation, replacing the Rentcast AVM estimate in all calculations.
+-- good valuation, replacing the AVM estimate in all calculations.
 
 ALTER TABLE public.consumer_homeowner_properties
   ADD COLUMN IF NOT EXISTS actual_value numeric;
 
 -- Same pattern as actual_balance, actual_rate, actual_purchase_price.
--- NULL = use Rentcast estimate. Set = use this value as authoritative.
+-- NULL = use AVM estimate. Set = use this value as authoritative.
 -- Migration 035: actual_value override for borrowers table
 -- Mirrors the same field on consumer_homeowner_properties.
--- NULL = use Rentcast AVM. Set = authoritative verified/appraised value.
+-- NULL = use AVM estimate. Set = authoritative verified/appraised value.
 
 ALTER TABLE public.borrowers
   ADD COLUMN IF NOT EXISTS actual_value numeric;

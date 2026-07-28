@@ -1,6 +1,6 @@
 # HomeRates.ai — UI Architecture Diagram
 
-> Generated: 2026-04-01 | Stack: Next.js 15 · React 18 · TypeScript 5 · Tailwind CSS 4 · Clerk · Supabase · Stripe · Rentcast · Resend
+> Generated: 2026-04-01 | Stack: Next.js 15 · React 18 · TypeScript 5 · Tailwind CSS 4 · Clerk · Supabase · Stripe · Redfin/Tavily AVM · Resend
 
 ---
 
@@ -128,12 +128,12 @@ graph LR
     end
 
     subgraph PROPERTY["Property"]
-        PROP["/api/property/lookup\nZillow/Redfin/Realtor/Trulia + Rentcast address"]
+        PROP["/api/property/lookup\nZillow/Redfin/Realtor/Trulia + AVM address lookup"]
         LIST["/api/listings/search"]
     end
 
     subgraph DIGEST["Digest & Borrowers"]
-        DRN["/api/digest/run\nRentcast AVM + Resend email + snapshot"]
+        DRN["/api/digest/run\nAVM lookup + Resend email + snapshot"]
         DCR["/api/digest/cron\nVercel cron — monthly send"]
         BOR["/api/borrowers\nGET list + PATCH address/digest/email"]
     end
@@ -233,7 +233,7 @@ graph TB
         FRED2["FRED API\n30Y rates, treasury, econ"]
         TAV2["Tavily Search\nComparables + blocked-site fallback"]
         ZR["Zillow/Redfin/Realtor/Trulia\nProperty data (Tavily fallback for 403s)"]
-        RCT["Rentcast API\nAVM, listings, property details"]
+        RCT["AVM pipeline\nRedfin estimate → FHFA model → AI estimate"]
         RSN["Resend\nDigest + LO notification emails"]
         CLAUD2["Claude API (Anthropic)"]
         GROK2["Grok API (XAI)"]
@@ -347,7 +347,7 @@ graph LR
 | Markdown | react-markdown | 8.0.7 |
 | Query Parsing | Chevrotain | 11.0.3 |
 | Web Search / Extraction | Tavily | 0.7.2 |
-| Property Data | Rentcast API | — |
+| Property Data | Redfin (scrape/estimate) + Tavily fallback | — |
 | Email | Resend | — |
 | Primary LLM | Claude (Anthropic) | latest |
 | Secondary LLM | Grok (XAI) | latest |

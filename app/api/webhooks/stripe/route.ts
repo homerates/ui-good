@@ -92,7 +92,8 @@ async function upsertSubscription(
 function getPlanCreditAward(plan: PlanKey, priceId: string): { type: CreditType; amount: number } | null {
   const isAnnual =
     priceId === process.env.STRIPE_PLUS_ANNUAL_PRICE_ID ||
-    priceId === process.env.STRIPE_PRO_ANNUAL_PRICE_ID;
+    priceId === process.env.STRIPE_PRO_ANNUAL_PRICE_ID ||
+    priceId === process.env.STRIPE_PRO_ANNUAL_PRICE_ID_V2;
 
   const map: Record<string, { type: CreditType; amount: number }> = {
     "plus:monthly": { type: "plan_plus_monthly", amount: 500 },

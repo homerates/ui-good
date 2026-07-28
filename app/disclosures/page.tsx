@@ -85,8 +85,8 @@ export default function DisclosuresPage() {
 
       <section>
         <h2>11. Refund Policy</h2>
-        <p>HomeRates.ai offers a <strong>7-day money-back guarantee</strong> on all new paid subscriptions. Contact <a href="mailto:support@homerates.ai">support@homerates.ai</a> within 7 days of your initial subscription for a full refund, no questions asked.</p>
-        <p>After the 7-day period: monthly plans are non-refundable for the current billing period; annual plan refund requests are evaluated on a case-by-case basis. Refunds may take 5–10 business days to appear.</p>
+        <p>New paid subscriptions include a <strong>7-day free trial</strong> — your card is not charged until the trial ends. Cancel anytime during the trial through the billing portal in your account settings and you will not be charged.</p>
+        <p>Once the trial ends and your card is charged: monthly plans are non-refundable for the current billing period; annual plan refund requests are evaluated on a case-by-case basis. Contact <a href="mailto:support@homerates.ai">support@homerates.ai</a> for refund requests. Approved refunds may take 5–10 business days to appear.</p>
       </section>
 
       <section>

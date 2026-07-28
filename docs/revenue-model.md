@@ -57,7 +57,7 @@ HomeRates.ai operates across five distinct revenue streams, each targeting a dif
 4. LO is notified by email whenever a borrower shares a conversation
 
 **Value prop for LO:** Clients come better prepared, fewer basic questions, higher conversion rate. The LO also gets:
-- **Monthly homeowner digest** — automated email to each borrower with their property value, equity, and refi window indicator (powered by Rentcast AVM)
+- **Monthly homeowner digest** — automated email to each borrower with their property value, equity, and refi window indicator (powered by the AVM pipeline — Redfin, FHFA model, or AI estimate)
 - **Borrowers dashboard** — full list view, inline address editing, one-click digest send
 - **Share notifications** — instant email when a borrower shares a chat thread
 

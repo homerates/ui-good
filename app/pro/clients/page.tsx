@@ -1055,7 +1055,7 @@ export default function LoBorrowersPage() {
                                             Loan Details — {b.name.split(" ")[0]}
                                         </div>
                                         <p style={{ margin: 0, fontSize: "0.78rem", color: "rgba(185,208,192,0.5)", lineHeight: 1.5 }}>
-                                            Override Rentcast estimates with actual loan data. Leave blank to keep using estimates.
+                                            Override AVM estimates with actual loan data. Leave blank to keep using estimates.
                                         </p>
                                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                                             <label style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.5)", fontWeight: 600 }}>Email {!b.email && <span style={{ color: "#fbbf24" }}>— missing</span>}</label>

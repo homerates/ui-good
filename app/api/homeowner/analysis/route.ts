@@ -497,7 +497,7 @@ function parseAddressFromRedfinUrl(url: string): string | null {
   return `${m2[3].replace(/-/g, ' ')}, ${m2[2].replace(/-/g, ' ')}, ${m2[1].toUpperCase()}`;
 }
 
-// ── Main local property intelligence — replaces rentcastLookup ───────────────
+// ── Main local property intelligence (AVM tiers: Redfin / FHFA / AI estimate) ──
 async function propertyLookup(address: string, record: Record<string, any>): Promise<PropertyData | null> {
   // Normalize URL-format addresses (LO/consumer pasted a Redfin URL as property address).
   // Resolve to a clean street address immediately so all DB keys are human-readable,
@@ -826,7 +826,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
 
 // ── Shared computation — same logic for consumer and LO/borrower paths ────────
 function buildAnalysis(
-  rentcast: NonNullable<PropertyData>,
+  avm: NonNullable<PropertyData>,
   fred: Awaited<ReturnType<typeof getFredSnapshot>>,
   record: Record<string, any>,
   historyRows: Record<string, any>[],
@@ -835,15 +835,15 @@ function buildAnalysis(
   const prime     = 4.25 + 3;
   const helocRate = prime + 0.5;
 
-  const { lastSalePrice, lastSaleDate } = rentcast;
+  const { lastSalePrice, lastSaleDate } = avm;
 
   // actual_value: LO/borrower-entered appraisal or verified valuation — always wins over AVM estimate
-  const estimatedValue   = record.actual_value ? Number(record.actual_value) : rentcast.estimatedValue;
+  const estimatedValue   = record.actual_value ? Number(record.actual_value) : avm.estimatedValue;
   const valueIsVerified  = !!record.actual_value;
 
-  const balance        = record.actual_balance ? Number(record.actual_balance) : rentcast.estimatedBalance;
-  const purchaseRate   = record.actual_rate    ? Number(record.actual_rate)    : rentcast.purchaseRate;
-  const estimatedEquity  = (estimatedValue && balance) ? Math.round(estimatedValue - balance) : rentcast.estimatedEquity;
+  const balance        = record.actual_balance ? Number(record.actual_balance) : avm.estimatedBalance;
+  const purchaseRate   = record.actual_rate    ? Number(record.actual_rate)    : avm.purchaseRate;
+  const estimatedEquity  = (estimatedValue && balance) ? Math.round(estimatedValue - balance) : avm.estimatedEquity;
   const estimatedBalance = balance;
 
   const balanceIsEstimated    = !record.actual_balance;
@@ -899,23 +899,23 @@ function buildAnalysis(
   const nextValueTargetYear = (yearsToTarget && yearsToTarget > 0 && yearsToTarget <= 15) ? new Date().getFullYear() + yearsToTarget : null;
 
   const piti        = (estimatedBalance && purchaseRate) ? monthlyPayment(estimatedBalance, purchaseRate) + Math.round((estimatedValue ?? 0) * 0.015 / 12) : null;
-  const rentMonthly = rentcast.rentEstimate ?? (estimatedValue ? Math.round(estimatedValue * 0.0055) : null);
+  const rentMonthly = avm.rentEstimate ?? (estimatedValue ? Math.round(estimatedValue * 0.0055) : null);
   const rentVsOwn   = (piti && rentMonthly) ? rentMonthly - piti : null;
 
-  // Use actual purchase price override when available — avoids comparing vs a 2018 Rentcast sale
+  // Use actual purchase price override when available — avoids comparing vs a stale historical sale
   const appreciationBaseline = purchasePriceOverride ?? lastSalePrice;
   const appreciationPct = (appreciationBaseline && estimatedValue) ? +((estimatedValue - appreciationBaseline) / appreciationBaseline * 100).toFixed(1) : null;
 
   const valueHistory = historyRows.map(r => ({ date: r.snapshot_date as string, value: r.estimated_value as number }));
 
-  // Overlay actual purchase data so the UI always shows what the LO entered, not Rentcast history
+  // Overlay actual purchase data so the UI always shows what the LO entered, not the AVM's history
   const displaySalePrice = purchasePriceOverride ?? lastSalePrice;
   const displaySaleDate  = record.actual_purchase_date
     ? new Date(record.actual_purchase_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     : lastSaleDate;
 
   return {
-    ...rentcast,
+    ...avm,
     estimatedValue,
     lastSalePrice: displaySalePrice,
     lastSaleDate:  displaySaleDate,
