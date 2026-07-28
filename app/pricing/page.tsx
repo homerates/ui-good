@@ -69,7 +69,7 @@ const PLANS = [
     features: [
       "⭐ Investment Property Reports (DSCR)",
       "⭐ Portfolio tracker + deal pipeline",
-      "⭐ Live rent comps + cap rate analysis",
+      "⭐ Live rent estimate + cap rate analysis",
       "⭐ Watchlist + cash flow monitoring",
       "Everything in Plus",
       "Up to 10 borrowers",

@@ -36,7 +36,7 @@ app/api/answers/route.ts
 | Database | Supabase (PostgreSQL, custom domain db.homerates.ai) |
 | AI / LLM | Grok (xAI) for open-ended; calc engine for everything else |
 | Data | FRED API (live mortgage rates, economic indicators) |
-| Property data | Rentcast API (AVM, listings, property details) |
+| Property data | Redfin scrape/estimate + Tavily fallback; AVM tiers: Redfin → FHFA model → AI estimate |
 | Web extraction | Tavily API (Realtor.com/Trulia fallback + CMA market data) |
 | Email | Resend (digest@homerates.ai — digest + LO notifications) |
 | Payments | Stripe (Free/Plus/Pro subscriptions) |
@@ -158,10 +158,10 @@ app/api/property/lookup/route.ts
        │     │
        │     └── PropertyData { price, beds, baths, sqft, listingStatus, ... }
        │
-       ├── Address path (Rentcast API):
-       │     ├── /v1/properties?address= — beds, baths, sqft, last sale
-       │     ├── /v1/avm/value?address= — estimated value + range
-       │     └── /v1/listings/sale?status=Active — FOR_SALE vs OFF_MARKET
+       ├── Address path (AVM pipeline):
+       │     ├── Redfin scrape/estimate — beds, baths, sqft, last sale, value + range
+       │     ├── FHFA appreciation model — fallback value estimate (no Redfin match)
+       │     └── AI (Tavily/GPT-4o) estimate — lowest-confidence fallback
        │
        └── isOffMarket (SOLD / OFF_MARKET) → Always routes to RefiSliderCard
              balance = estimatedBalance ?? lastSalePrice×0.8
@@ -177,7 +177,7 @@ app/api/property/lookup/route.ts
 | Zillow | Direct HTML scrape + Tavily | JSON-LD parser |
 | Realtor.com | Tavily fallback (403 bypass) | Partial data if Tavily succeeds |
 | Trulia | Tavily fallback (403 bypass) | Partial data if Tavily succeeds |
-| Plain address | Rentcast API | Full AVM + listing status |
+| Plain address | AVM pipeline (Redfin → FHFA → AI) | Full AVM + listing status |
 
 ---
 
@@ -196,7 +196,7 @@ GET /api/digest/cron
     ▼
 POST /api/digest/run  (per borrower)
     │
-    ├── Rentcast AVM /v1/avm/value?address=
+    ├── AVM lookup (Redfin → FHFA → AI estimate)
     ├── Upsert homeowner_snapshots (month-over-month delta)
     ├── Compute: value, equity (value - estimated_balance), rate, refi_window
     ├── Send email via Resend (digest@homerates.ai)
@@ -306,11 +306,11 @@ app/
   api/
     answers/route.ts          — Main API: routing, guards, Grok fallback
     answers/scenario/         — Scenario re-run endpoint
-    property/lookup/route.ts  — Property lookup (URL scrape + Rentcast address + Tavily fallback)
+    property/lookup/route.ts  — Property lookup (URL scrape + Redfin AVM address lookup + Tavily fallback)
     borrowers/route.ts        — GET list + PATCH update (property_address, digest_enabled, email)
     share/route.ts            — Create share link + LO notification email on share
     digest/
-      run/route.ts            — POST: Rentcast AVM, snapshot upsert, Resend email, digest_sends log
+      run/route.ts            — POST: AVM lookup, snapshot upsert, Resend email, digest_sends log
       cron/route.ts           — GET: Vercel cron handler, loops all eligible borrowers
   components/
     InteractiveSliderCard.tsx

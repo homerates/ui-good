@@ -1613,7 +1613,7 @@ function MyHomePageInner() {
   const [alertSaving, setAlertSaving] = useState(false);
   const [showAlertBox, setShowAlertBox] = useState(false);
 
-  // Nearby sales (legacy Rentcast endpoint)
+  // Nearby sales (ATTOM + Tavily/Redfin backed)
   const [nearbySales, setNearbySales] = useState<NearbySale[]>([]);
   // Grok cache comps — for buyer mode (FOR_SALE / PENDING)
   const [grokComps, setGrokComps] = useState<NearbySale[]>([]);

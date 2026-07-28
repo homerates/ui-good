@@ -428,7 +428,7 @@ export default function HomeownerPage() {
             <div className="ho-prop-card">
               <div className="ho-prop-icon" style={{ background: 'rgba(0,232,122,0.1)' }}>🏠</div>
               <h3>Live Home Value</h3>
-              <p>See your home's current estimated value from Rentcast's AVM — updated with every analysis. Know where you stand before you make any move.</p>
+              <p>See your home's current estimated value from Redfin's AVM — updated with every analysis. Know where you stand before you make any move.</p>
             </div>
             <div className="ho-prop-card">
               <div className="ho-prop-icon" style={{ background: 'rgba(61,139,255,0.1)' }}>📈</div>
@@ -473,7 +473,7 @@ export default function HomeownerPage() {
               <div className="ho-step-num">2</div>
               <div className="ho-step-body">
                 <h4>Get your instant homeowner report</h4>
-                <p>Estimated value, equity, live rates, and refi readiness — calculated in real time using Rentcast AVM and FRED mortgage rate data.</p>
+                <p>Estimated value, equity, live rates, and refi readiness — calculated in real time using Redfin AVM and FRED mortgage rate data.</p>
               </div>
             </div>
             <div className="ho-step">

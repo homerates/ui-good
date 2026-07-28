@@ -553,7 +553,7 @@ export default function ReportPage() {
                     Monthly payment estimates may not include HOA fees, mortgage insurance, or other costs.
                     {lo.nmls && <> {lo.name}{lo.lender ? `, ${lo.lender}` : ''}, NMLS# {lo.nmls}.</>}
                     {lo.company_nmls && <> Company NMLS# {lo.company_nmls}.</>}{' '}
-                    Sources: Rentcast AVM, FRED, US Census, NAR. Powered by HomeRates technology platform.
+                    Sources: Redfin AVM, FRED, US Census, NAR. Powered by HomeRates technology platform.
                 </div>
             </div>
         </div>

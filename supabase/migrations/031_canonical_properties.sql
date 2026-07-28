@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS public.properties (
 
   -- Freshness and confidence
   enriched_at            timestamptz,             -- when last successfully enriched
-  enrichment_source      text,                    -- 'rentcast','tavily','manual'
+  enrichment_source      text,                    -- 'redfin_via_tavily','tavily','manual'
   confidence             numeric(3,2),            -- 0.00–1.00
 
   created_at             timestamptz  NOT NULL DEFAULT now(),

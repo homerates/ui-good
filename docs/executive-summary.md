@@ -43,7 +43,7 @@ The only mortgage AI with a fully deterministic, interactive 2026 loan limits ex
 Paste a Redfin, Zillow, Realtor.com, or Trulia URL — or type a plain street address — and instantly get a full property intelligence report: PITI breakdown, income required, estimated equity and balance, CMA highlights, market snapshot, and decision trade-offs. For sold/off-market properties, includes a refi readiness analysis with an interactive LTV + closing cost slider. Realtor.com and Trulia are handled via Tavily extraction when those sites block direct access.
 
 ### Monthly Homeowner Digest
-LOs can enroll borrowers in an automated monthly email — sent on the 1st of each month — with their property's current AVM value, estimated equity, prevailing rate, and a refi window indicator. Data comes from Rentcast's AVM. LOs manage addresses and digest settings from the Borrowers page; manual sends are also available at any time.
+LOs can enroll borrowers in an automated monthly email — sent on the 1st of each month — with their property's current AVM value, estimated equity, prevailing rate, and a refi window indicator. Data comes from the property's AVM value (Redfin-sourced where available, FHFA model or AI estimate otherwise). LOs manage addresses and digest settings from the Borrowers page; manual sends are also available at any time.
 
 ### Borrowers Dashboard (`/lo/borrowers`)
 LOs see their full borrower list, set or update each borrower's property address, toggle digest enrollment, and trigger one-click manual digests. When a borrower shares a chat thread, the LO automatically receives a notification email with the borrower's name, a preview of their question, and a link to the shared conversation.
@@ -91,7 +91,7 @@ HomeRates.ai is not a lender, broker, or lead-generation tool. It earns trust by
 - **Five** interactive calculator modules operational end-to-end
 - CA 2026 Loan Limits Explorer — all 58 counties, ZIP lookup, county adjuster
 - Property Intelligence — Redfin, Zillow, Realtor.com, Trulia, plain address input; sold/off-market refi analysis
-- Monthly Homeowner Digest — Rentcast AVM snapshots, equity tracking, refi window detection, automated Resend email, Vercel cron
+- Monthly Homeowner Digest — AVM snapshots, equity tracking, refi window detection, automated Resend email, Vercel cron
 - Borrowers Dashboard — inline address editor, Send Digest button, LO notification on borrower share
 - Unified Refi Slider — LTV + closing cost sliders on all refi scenarios
 - PDF export live and auth-gated across all modules
@@ -145,7 +145,7 @@ The calc-first architecture is a structural cost advantage: 80%+ of queries neve
 - LO Portal — borrower slots, invite links, billing dashboard
 - Rate and property watch alerts — email notifications for refi and rate targets
 - In-app Settings panel — account, plan, billing, and navigation in one place
-- Monthly digest engine — Rentcast AVM, Resend email, Vercel cron (1st of month)
+- Monthly digest engine — AVM, Resend email, Vercel cron (1st of month)
 - Borrowers dashboard — address management, digest enrollment, manual send
 - LO notification on share — automatic email when a borrower shares a chat thread
 

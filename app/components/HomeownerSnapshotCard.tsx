@@ -265,7 +265,7 @@ export default function HomeownerSnapshotCard(props: HomeownerSnapshotParams) {
                 </div>
             )}
 
-            <div style={cs.sourceTag}>Values: Rentcast AVM · Rate: FRED {liveRate}% 30Y fixed · Balance estimated (20% down assumed)</div>
+            <div style={cs.sourceTag}>Values: Redfin AVM · Rate: FRED {liveRate}% 30Y fixed · Balance estimated (20% down assumed)</div>
         </div>
     );
 }

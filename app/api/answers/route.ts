@@ -7557,7 +7557,7 @@ Return valid JSON only:
     const hoPropertyCard = homeownerSnapshot ? {
         source:           'web_lookup',
         url:              '',
-        parsedBy:         'rentcast-api-v1',
+        parsedBy:         'partial', // AVM snapshot, not a scraped listing page — no ParseMethod value fits exactly
         parseWarnings:    [],
         price:            homeownerSnapshot.estimatedValue ?? null,
         address:          homeownerSnapshot.address,
