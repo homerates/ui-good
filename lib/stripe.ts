@@ -88,6 +88,14 @@ function isPastProPriceSwitch(): boolean {
   return new Date() >= new Date(`${PRO_PRICE_SWITCH_DATE}T00:00:00Z`);
 }
 
+/** True only once both V2 price IDs exist AND the switch date has passed — the single
+ *  condition both checkout resolution and displayed pricing must agree on. */
+function isProPriceSwitched(): boolean {
+  return isPastProPriceSwitch() &&
+    !!process.env.STRIPE_PRO_MONTHLY_PRICE_ID_V2 &&
+    !!process.env.STRIPE_PRO_ANNUAL_PRICE_ID_V2;
+}
+
 /**
  * New checkouts only: resolves a requested Pro price ID to whichever Pro
  * price should actually be charged today. Existing subscribers are never
@@ -95,13 +103,42 @@ function isPastProPriceSwitch(): boolean {
  * references, never an existing subscription's price.
  */
 export function resolveCheckoutPriceId(requestedPriceId: string): string {
-  const v2Monthly = process.env.STRIPE_PRO_MONTHLY_PRICE_ID_V2;
-  const v2Annual  = process.env.STRIPE_PRO_ANNUAL_PRICE_ID_V2;
-  if (!isPastProPriceSwitch()) return requestedPriceId;
+  if (!isProPriceSwitched()) return requestedPriceId;
 
-  if (requestedPriceId === process.env.STRIPE_PRO_MONTHLY_PRICE_ID && v2Monthly) return v2Monthly;
-  if (requestedPriceId === process.env.STRIPE_PRO_ANNUAL_PRICE_ID  && v2Annual)  return v2Annual;
+  if (requestedPriceId === process.env.STRIPE_PRO_MONTHLY_PRICE_ID) return process.env.STRIPE_PRO_MONTHLY_PRICE_ID_V2!;
+  if (requestedPriceId === process.env.STRIPE_PRO_ANNUAL_PRICE_ID)  return process.env.STRIPE_PRO_ANNUAL_PRICE_ID_V2!;
   return requestedPriceId;
+}
+
+const PRO_V2_MONTHLY_PRICE = 49;
+const PRO_V2_ANNUAL_PRICE  = 411;
+
+/**
+ * Single source of truth for what the Pro price actually is today — used by
+ * GET /api/pricing/pro-price so the *displayed* price on the pricing page
+ * can never drift from what checkout actually charges. Mirrors the same
+ * isProPriceSwitched() gate resolveCheckoutPriceId uses.
+ */
+export function getCurrentProPricing(): {
+  priceMonthly: number;
+  priceAnnual: number;
+  annualMonthly: number;
+  isIntro: boolean;
+} {
+  if (isProPriceSwitched()) {
+    return {
+      priceMonthly: PRO_V2_MONTHLY_PRICE,
+      priceAnnual: PRO_V2_ANNUAL_PRICE,
+      annualMonthly: Math.round((PRO_V2_ANNUAL_PRICE / 12) * 100) / 100,
+      isIntro: false,
+    };
+  }
+  return {
+    priceMonthly: PLANS.pro.priceMonthly,
+    priceAnnual: PLANS.pro.priceAnnual,
+    annualMonthly: Math.round((PLANS.pro.priceAnnual / 12) * 100) / 100,
+    isIntro: true,
+  };
 }
 
 /** True for every price ID this app has ever sold as Plus/Pro (including the dated Pro V2 prices). */
