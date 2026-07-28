@@ -7,6 +7,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import type { LLPAInput, RateCurvePoint } from "../../lib/pricing/llpa-engine";
+import { resolveObmmiSeriesId } from "../../lib/pricing/llpa-engine";
 import type { LoanType } from "../../lib/pricing/marketplace-engine";
 import RateMarketplaceTable from "../components/RateMarketplaceTable";
 import {
@@ -37,6 +38,13 @@ interface EngineResult {
   disclaimer: string;
   rateAnchorSource: 'obmmi' | 'synthetic';
   obmmiSegmentLabel?: string;
+  // "Where does your rate fall?" Seam 1 (data plumbing) -- absent for dscr
+  // (synthetic path, no real OBMMI data to compare against).
+  marketComparison?: {
+    marketRate: number;
+    segmentLabel: string;
+    conformingSegments?: { label: string; seriesId: string; rate: number }[];
+  };
 }
 
 // ─── Default inputs ────────────────────────────────────────────────────────────
@@ -82,6 +90,27 @@ function fmt$(n: number): string {
   return "$" + Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 
+// "Where does your rate fall?" -- plain sanity check, not a compliance
+// requirement. 2-15% comfortably covers every realistic current mortgage
+// product (including higher-risk DSCR/non-QM) while catching fat-finger
+// entry (0.5%, 25%, or "690" meant as "6.90"). Empty input is valid (no
+// comparison shown, not an error) since this field is optional.
+function validateQuotedRate(raw: string): { value: number | null; error: string | null } {
+  const trimmed = raw.trim();
+  if (trimmed === '') return { value: null, error: null };
+  const n = parseNum(trimmed);
+  if (!n || Number.isNaN(n)) return { value: null, error: "Enter a rate, e.g. 6.875" };
+  if (n > 20) return { value: null, error: `${n} isn't a realistic mortgage rate — did you mean ${(n / 100).toFixed(3)}%?` };
+  if (n < 2 || n > 15) return { value: null, error: "Enter a realistic mortgage rate between 2% and 15%" };
+  return { value: n, error: null };
+}
+
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function RateEngineClient() {
@@ -118,6 +147,12 @@ export default function RateEngineClient() {
   const [result, setResult] = useState<EngineResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
+
+  // "Where does your rate fall?" -- pure client-side comparison against data
+  // already in `result`, no recalculation needed. Draft string state matches
+  // the priceDraft/downDraft/scoreDraft pattern used elsewhere in this file.
+  const [quotedRateDraft, setQuotedRateDraft] = useState('');
+  const [quotedRateError, setQuotedRateError] = useState<string | null>(null);
 
   const [downMode, setDownMode] = useState<'%' | '$'>('%');
 
@@ -290,6 +325,27 @@ export default function RateEngineClient() {
   const FLAGSHIP_OBMMI_LABELS: Partial<Record<LoanType, string>> = { fha: 'FHA', va: 'VA', jumbo: 'Jumbo' };
   const flagshipLabel = result?.rateAnchorSource === 'obmmi' ? FLAGSHIP_OBMMI_LABELS[loanType] : undefined;
   const cardA1Title = flagshipLabel ? `${flagshipLabel} Rate Range to Expect` : "Rate Range to Expect";
+
+  // "Where does your rate fall?" -- derived once per render, reused by
+  // Card A-3 below. Ranking is computed client-side from the already-
+  // fetched conformingSegments array (10 real values); "which segment is
+  // mine" is resolved by calling the same pure resolveObmmiSeriesId used
+  // server-side, with the same inputs already in component state, and
+  // matching by seriesId (exact string match) rather than by rate value --
+  // matching on the rounded marketRate float would be fragile since
+  // lenderParRate/rateEquivalent each round independently before marketRate
+  // is derived from their difference.
+  const { value: quotedRate, error: quotedRateValidationError } = validateQuotedRate(quotedRateDraft);
+  const marketComparison = result?.marketComparison;
+  const mySegmentId = marketComparison && loanType === 'conventional'
+    ? resolveObmmiSeriesId('conventional', inputs.creditScore, inputs.ltv)
+    : null;
+  const sortedSegments = marketComparison?.conformingSegments
+    ? [...marketComparison.conformingSegments].sort((a, b) => a.rate - b.rate)
+    : null;
+  const myRank = sortedSegments && mySegmentId
+    ? sortedSegments.findIndex(s => s.seriesId === mySegmentId) + 1 // 0 -> not found
+    : 0;
 
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: "#f0f4ff" }}>
@@ -694,6 +750,85 @@ export default function RateEngineClient() {
               </p>
             )}
           </div>
+
+          {/* ── CARD A-3: Where Does Your Rate Fall? ──
+              "Card A-3" is my own naming choice, not a confirmed spec --
+              nothing in this codebase documents what the A-1/A-2 vs B-1/B-2
+              lettering actually encodes, so this groups with A-1/A-2 as the
+              closer thematic match ("your rate story") rather than B-1/B-2
+              ("your options"), flagged as an inference during design.
+              Absent entirely for dscr (marketComparison is undefined there --
+              no real OBMMI data exists to compare against). */}
+          {marketComparison && (
+            <div style={card}>
+              <div style={{ fontSize: "0.68rem", color: "#8fa3b8", textTransform: "uppercase" as const, letterSpacing: "0.08em", fontWeight: 700, marginBottom: 4 }}>Card A-3</div>
+              <div style={{ fontWeight: 700, fontSize: "1.05rem", marginBottom: 12 }}>Where Does Your Rate Fall?</div>
+
+              {/* Unconditional market fact -- real data, no personal input needed */}
+              <p style={{ margin: "0 0 4px", fontSize: "0.88rem", color: "#e6edf3", lineHeight: 1.6 }}>
+                {loanType === 'conventional'
+                  ? <>The average rate observed for your segment (<strong>{marketComparison.segmentLabel}</strong>) is{' '}
+                      <strong style={{ color: "#f0f4ff" }}>{marketComparison.marketRate.toFixed(3)}%</strong> today.
+                      {sortedSegments && myRank > 0 && (
+                        <> That's the <strong>{ordinal(myRank)}-best</strong> of the {sortedSegments.length} credit/LTV tiers OBMMI tracks.</>
+                      )}
+                    </>
+                  : <>The average {flagshipLabel ?? marketComparison.segmentLabel} rate observed today is{' '}
+                      <strong style={{ color: "#f0f4ff" }}>{marketComparison.marketRate.toFixed(3)}%</strong>. Jumbo/FHA/VA/USDA are each a
+                      single national average — there's no credit/LTV segmentation to rank against.
+                    </>
+                }
+              </p>
+              <p style={{ margin: "0 0 14px", fontSize: "0.72rem", color: "#8fa3b8", lineHeight: 1.5 }}>
+                This compares against the base segment average — your own adjustments (occupancy, purpose,
+                property type, lock period) are shown separately in your LLPA Breakdown below.
+              </p>
+
+              {/* Optional numeric input */}
+              <label style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "#8fa3b8", marginBottom: 5 }}>
+                The rate you were quoted (optional)
+              </label>
+              <input
+                type="text" inputMode="decimal"
+                placeholder="e.g. 6.875"
+                style={{
+                  width: "100%", maxWidth: 200, boxSizing: "border-box" as const,
+                  padding: "9px 12px", background: "#141b28",
+                  border: `1px solid ${quotedRateValidationError ? "rgba(248,113,113,0.5)" : "rgba(255,255,255,0.09)"}`,
+                  borderRadius: 9, color: "#f0f4ff", fontSize: "0.875rem", fontFamily: "inherit", outline: "none",
+                }}
+                value={quotedRateDraft}
+                onChange={e => setQuotedRateDraft(e.target.value)}
+              />
+              {quotedRateValidationError && (
+                <p style={{ margin: "6px 0 0", fontSize: "0.75rem", color: "#f87171" }}>{quotedRateValidationError}</p>
+              )}
+
+              {/* Comparison -- only once a valid rate is entered */}
+              {quotedRate != null && (() => {
+                const delta = parseFloat((quotedRate - marketComparison.marketRate).toFixed(3));
+                const verdict = delta > 0.01 ? 'above' : delta < -0.01 ? 'below' : 'at';
+                const color = verdict === 'below' ? '#4ade80' : verdict === 'above' ? '#f87171' : '#8fa3b8';
+                return (
+                  <div style={{ marginTop: 14, padding: "12px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 10, border: `1px solid ${color}33` }}>
+                    <span style={{ fontSize: "0.9rem", color: "#e6edf3" }}>
+                      You entered <strong>{quotedRate.toFixed(3)}%</strong>. That's{' '}
+                      <strong style={{ color }}>
+                        {verdict === 'at' ? 'right at the segment average' : `${Math.abs(delta).toFixed(3)} points ${verdict} the segment average`}
+                      </strong>
+                      {verdict !== 'at' && ` (${marketComparison.marketRate.toFixed(3)}%)`}.
+                    </span>
+                  </div>
+                );
+              })()}
+
+              <p style={{ margin: "14px 0 0", fontSize: "0.72rem", color: "#8fa3b8", lineHeight: 1.5 }}>
+                This compares your quote to a market average for your general credit/LTV tier, not a
+                personalized underwriting match — actual rates vary by lender, exact credit profile, and
+                factors not captured here. {result.dataSource}
+              </p>
+            </div>
+          )}
 
           {/* ── CARD A-2: LLPA Breakdown ── */}
           <div style={card}>
