@@ -77,6 +77,12 @@ export async function POST(req: NextRequest) {
     billing_address_collection: "auto",
     subscription_data: {
       metadata: { userId },
+      // Pricing-integrity fix: pricing/support pages have always described a
+      // 7-day free trial (delay-then-charge), but this parameter was never
+      // set -- checkout charged immediately on session completion. Only
+      // Plus/Pro reach this route (isKnownPriceId excludes Enterprise, which
+      // has no self-serve checkout at all).
+      trial_period_days: 7,
     },
   });
 
