@@ -489,18 +489,26 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   }
   // ZIP+street fallback: Google Places aliases city names (e.g. Newbury Park→Thousand Oaks,
   // Coto De Caza→Trabuco Canyon) — same ZIP, different city string breaks the city-aware match above.
-  // Match on house# + street name + ZIP only, ignoring city entirely.
+  // Match on the full street line (house# + street name + type + unit, ignoring only city) + ZIP.
+  // The 2-token prefix narrows the DB query only — final match requires exact street-line equality.
+  // A prefix-only match previously let a different street type ("...Dr" vs "...Ave") or a
+  // different unit at the same building ("...Dr" vs "...Dr Unit 12") silently donate its sale
+  // data (balance/value/sale price) to the wrong property's My Home report (ISSUE-031 follow-up).
   if (!prop) {
     const addrNoComma = addr.replace(/,\s*/g, ' ').replace(/\s+/g, ' ').trim();
     const zipMatch = addrNoComma.match(/\b(\d{5})\b/);
-    const streetPrefix = addrNoComma.split(' ').slice(0, 2).join(' '); // "1024 knollwood"
+    const streetLine = addr.split(',')[0].replace(/\s+/g, ' ').trim().toLowerCase();
+    const streetPrefix = streetLine.split(' ').slice(0, 2).join(' '); // "1024 knollwood" — query narrowing only
     if (zipMatch && streetPrefix.length > 3) {
       const { data: zipRows } = await db().from('properties').select(PROP_SEL)
         .ilike('address_full', `${streetPrefix}%`)
         .ilike('address_full', `%${zipMatch[1]}%`)
-        .limit(3);
-      // Prefer rows that already have sale data over empty/stub rows
-      prop = zipRows?.find((r: any) => r.latest_last_sale_price) ?? zipRows?.[0] ?? null;
+        .limit(5);
+      const exactStreetMatches = (zipRows ?? []).filter((r: any) =>
+        (r.address_full ?? '').split(',')[0].replace(/\s+/g, ' ').trim().toLowerCase() === streetLine
+      );
+      // Among genuine matches for THIS property, prefer rows that already have sale data over empty/stub rows
+      prop = exactStreetMatches.find((r: any) => r.latest_last_sale_price) ?? exactStreetMatches[0] ?? null;
     }
   }
 
