@@ -292,9 +292,13 @@ async function liveRedfinLookup(address: string): Promise<LivePropertyFields | n
 
     // Sold price + date — multiple formats including "Sold May 2013 for $450,000"
     // Mirrors parseExtended patterns in /api/property/lookup
+    // Month alternation — rejects prepositions like "in"/"on" that Redfin uses in "Sold in 2026 for $X"
+    // (ISSUE-020: unconstrained [A-Za-z]+ captured "in 2026" as a date; fixed in property/lookup/route.ts
+    // but this mirrored copy was missed — the garbage string gets persisted to latest_last_sale_date below)
+    const MONTH_RE = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
     const soldM =
-      t.match(/sold\s+([A-Za-z]+\s+\d{4})\s+for\s+\$?([\d,]+)/i)          // "Sold May 2013 for $450,000"
-      ?? t.match(/last\s+sold[:\s]+([A-Za-z]+\s+\d{4})[^$\d]*\$?([\d,]+)/i) // "Last sold: May 2013 · $450,000"
+      t.match(new RegExp(`sold\\s+(${MONTH_RE}\\s+\\d{4})\\s+for\\s+\\$?([\\d,]+)`, 'i'))          // "Sold May 2013 for $450,000"
+      ?? t.match(new RegExp(`last\\s+sold[:\\s]+(${MONTH_RE}\\s+\\d{4})[^$\\d]*\\$?([\\d,]+)`, 'i')) // "Last sold: May 2013 · $450,000"
       ?? (() => {
         const dateM  = t.match(/sold\s+on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
         const priceM = t.match(/\$([\d,]+)\s+sold\s+price/i) ?? t.match(/sold\s+price[:\s]+\$?([\d,]+)/i);
