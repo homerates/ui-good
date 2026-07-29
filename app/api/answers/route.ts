@@ -34,6 +34,7 @@ import {
     getGuidelineContextForQuestion,
     maybeBuildDscrOverrideAnswer,
 } from "@/lib/guidelinesServer";
+import { retrieveGuidelineChunks, formatGuidelineContext } from "../../../lib/guidelineRetrieval";
 import { generateSourcesBundle } from "../../lib/sources-generator";
 import { extractMonthlyDebts as extractMonthlyDebtsShared } from "../../../lib/intent/extractors";
 import { FHA_FLOOR, FHA_CEILING, CONF_STANDARD, CONF_HIGH_BALANCE } from "../../../lib/constants";
@@ -4187,13 +4188,24 @@ Title Insurance: Protects lender (lender's policy) and/or owner (owner's policy)
 UPB: Unpaid Principal Balance — remaining loan balance at any point.
 === END GUIDELINES ===`;
 
+        // Pricing/Grounding audit follow-up: real RAG retrieval over official
+        // Fannie Mae text (migration 074, lib/guidelineRetrieval.ts), additive
+        // to uwDatabase above -- never replaces it, and any failure here
+        // (no match, embedding error, DB error) silently yields "" so this
+        // bypass behaves exactly as before for every question it doesn't help.
+        const ragMatches = await retrieveGuidelineChunks(question).catch(() => []);
+        const ragContext = formatGuidelineContext(ragMatches);
+        const ragSection = ragContext
+            ? `\n\n=== LIVE-RETRIEVED OFFICIAL SOURCE TEXT (verbatim excerpts, cite these directly) ===\n${ragContext}\n=== END LIVE-RETRIEVED SOURCE TEXT ===`
+            : '';
+
         const uwSystemPrompt = `You are HomeRates.AI Underwriting Guidelines Expert.
 
 STRICT RULES — violations are not acceptable:
 - NEVER introduce yourself or mention HomeRates.AI in your response
 - NEVER say "Welcome" or any greeting
 - Jump straight into the content with the headline
-- For program guidelines (DTI, credit scores, LTV, MIP, reserves, loan limits, gift funds, employment): use ONLY the guidelines database below
+- For program guidelines (DTI, credit scores, LTV, MIP, reserves, loan limits, gift funds, employment): use ONLY the guidelines database below, plus the live-retrieved source text section when present (it takes precedence for the topics it covers — it's verbatim official text, not a summary)
 - For standard mortgage industry terminology, forms, and concepts (1003, URLA, GFE, CD, AUS, DU, LP, appraisal, title, escrow, note, deed of trust, RESPA, TILA, QM, ATR, rate lock, commitment letter, clear to close, HUD-1, closing disclosure, etc.): answer from your expert knowledge — these are industry-standard and do not require the database
 - Do NOT recommend Credit Karma, credit counseling services, apps, or any third-party tools
 - Do NOT invent lender names, programs, or requirements not in the database
@@ -4214,7 +4226,7 @@ CONTENT RULES (hard):
 - Show comparison tables when multiple programs or tiers exist
 - Include a "💡 Pro Tip" with one concrete, actionable next step based only on the guidelines
 
-${uwDatabase}`;
+${uwDatabase}${ragSection}`;
 
         const tAI = Date.now();
         let uwAnswerText = '';
