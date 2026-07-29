@@ -76,15 +76,22 @@ export type PlanKey = keyof typeof PLANS;
 // falls back to the existing $19/$159 prices unchanged (no behavior
 // change if this ships before the new prices exist).
 //
-// PRO_PRICE_SWITCH_DATE is a plain ISO date, config-driven rather than
-// hardcoded so it can be corrected without a code change if the real
-// production deploy date differs from this default. Default below is
-// 2026-10-26 (90 days from 2026-07-28, the day this fix was built) --
-// confirm or override via the env var once the actual prod deploy date
-// for this change is known.
-const PRO_PRICE_SWITCH_DATE = process.env.PRO_PRICE_SWITCH_DATE ?? "2026-10-26";
+// PRO_PRICE_SWITCH_DATE: deliberately NO default date. An earlier version
+// of this defaulted to a hardcoded date, which meant the switch would fire
+// automatically on a calendar timer with no human decision point -- and
+// separately, a temporary test-mode override of this same env var leaked
+// into Production and Preview (unscoped), causing two rounds of real
+// pricing bugs (Pro showing $49 with no warning). Both failure modes share
+// one root cause: a silently-behaving date threshold nobody had to
+// consciously act on. Fixed by requiring an explicit, deliberate value --
+// unset means the intro price stays live indefinitely, which is the
+// intended behavior until a real decision is made based on subscriber
+// growth/business strategy, not a fixed default. Set this env var only when
+// that decision has actually been made.
+const PRO_PRICE_SWITCH_DATE = process.env.PRO_PRICE_SWITCH_DATE ?? null;
 
 function isPastProPriceSwitch(): boolean {
+  if (!PRO_PRICE_SWITCH_DATE) return false;
   return new Date() >= new Date(`${PRO_PRICE_SWITCH_DATE}T00:00:00Z`);
 }
 

@@ -126,6 +126,20 @@ export const NAV_ITEMS: NavItem[] = [
   },
 
   // ── MINE ─────────────────────────────────────────────────────────────────────
+  // Consumer-only (Decision 10: this is the person's own activity, never
+  // rendered on the LO-view path). Extracted from /my-home 2026-07-29 —
+  // shared personalization infra (also powers consumer-mode chat context),
+  // not a my-home-specific section, so it gets its own top-level surface.
+  {
+    id: 'activity',
+    href: '/activity',
+    label: 'My Activity',
+    icon: '✨',
+    group: 'mine',
+    modes: ['consumer'],
+    surfaces: ['drawer', 'chatPanel'],
+    subLabel: 'Pick up where you left off',
+  },
   // Label drift resolved: labelByMode carries the per-role label.
   // Default label is 'My Library'; pro override 'My Vault' applied at render time.
   // Icon resolved: 🗂 used for both (existing D1/D3 convention for pro).
