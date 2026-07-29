@@ -367,6 +367,33 @@ function parseFlexDate(s: string | null | undefined): Date | null {
 
 function normalizeAddr(a: string) { return a.toLowerCase().replace(/\s+/g, ' ').trim(); }
 
+// Canonicalize street-type words so "Dr"/"Drive", "St"/"Street", "Ct"/"Court" etc. compare equal.
+// A prior bug (grok-property cache, 2026-05-22) showed raw-string address equality is too strict —
+// it treats the same property as a miss when the type word is abbreviated differently by different
+// sources (Google Places vs Redfin vs GPT-4o extraction). Genuinely different street names/types
+// (Dr vs Ave) and different units (Dr vs Dr Unit 12) still compare unequal since only the type word
+// is mapped, not the street name or unit token.
+const STREET_TYPE_MAP: Record<string, string> = {
+  street: 'st', st: 'st',
+  drive: 'dr', dr: 'dr',
+  avenue: 'ave', ave: 'ave', av: 'ave',
+  court: 'ct', ct: 'ct',
+  lane: 'ln', ln: 'ln',
+  road: 'rd', rd: 'rd',
+  boulevard: 'blvd', blvd: 'blvd',
+  place: 'pl', pl: 'pl',
+  circle: 'cir', cir: 'cir',
+  terrace: 'ter', ter: 'ter',
+  parkway: 'pkwy', pkwy: 'pkwy',
+  trail: 'trl', trl: 'trl',
+  highway: 'hwy', hwy: 'hwy',
+  way: 'way',
+};
+function canonicalStreetKey(line: string): string {
+  const tokens = line.toLowerCase().replace(/[.,#]/g, ' ').replace(/\s+/g, ' ').trim().split(' ');
+  return tokens.map(t => STREET_TYPE_MAP[t] ?? t).join(' ');
+}
+
 async function getSnapshot(address: string) {
   try {
     const { data: prop } = await db().from('properties').select('id, latest_listing_status').ilike('address_full', normalizeAddr(address)).maybeSingle();
@@ -489,26 +516,29 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   }
   // ZIP+street fallback: Google Places aliases city names (e.g. Newbury Park→Thousand Oaks,
   // Coto De Caza→Trabuco Canyon) — same ZIP, different city string breaks the city-aware match above.
-  // Match on the full street line (house# + street name + type + unit, ignoring only city) + ZIP.
-  // The 2-token prefix narrows the DB query only — final match requires exact street-line equality.
-  // A prefix-only match previously let a different street type ("...Dr" vs "...Ave") or a
-  // different unit at the same building ("...Dr" vs "...Dr Unit 12") silently donate its sale
-  // data (balance/value/sale price) to the wrong property's My Home report (ISSUE-031 follow-up).
+  // Match on the canonicalized street line (house# + street name + type + unit, ignoring only city) + ZIP.
+  // The 2-token prefix narrows the DB query only — final match requires canonical street-key equality
+  // (type-word abbreviations normalized, see canonicalStreetKey — a raw-string requirement here would
+  // reintroduce the "Dr" vs "Drive" false-negative bug already fixed once in grok-property, 2026-05-22).
+  // A prefix-only match with no verification previously let a different street type ("...Dr" vs
+  // "...Ave") or a different unit at the same building ("...Dr" vs "...Dr Unit 12") silently donate
+  // its sale data (balance/value/sale price) to the wrong property's My Home report (ISSUE-031 follow-up).
   if (!prop) {
     const addrNoComma = addr.replace(/,\s*/g, ' ').replace(/\s+/g, ' ').trim();
     const zipMatch = addrNoComma.match(/\b(\d{5})\b/);
     const streetLine = addr.split(',')[0].replace(/\s+/g, ' ').trim().toLowerCase();
+    const streetKey = canonicalStreetKey(streetLine);
     const streetPrefix = streetLine.split(' ').slice(0, 2).join(' '); // "1024 knollwood" — query narrowing only
     if (zipMatch && streetPrefix.length > 3) {
       const { data: zipRows } = await db().from('properties').select(PROP_SEL)
         .ilike('address_full', `${streetPrefix}%`)
         .ilike('address_full', `%${zipMatch[1]}%`)
         .limit(5);
-      const exactStreetMatches = (zipRows ?? []).filter((r: any) =>
-        (r.address_full ?? '').split(',')[0].replace(/\s+/g, ' ').trim().toLowerCase() === streetLine
+      const streetMatches = (zipRows ?? []).filter((r: any) =>
+        canonicalStreetKey((r.address_full ?? '').split(',')[0]) === streetKey
       );
       // Among genuine matches for THIS property, prefer rows that already have sale data over empty/stub rows
-      prop = exactStreetMatches.find((r: any) => r.latest_last_sale_price) ?? exactStreetMatches[0] ?? null;
+      prop = streetMatches.find((r: any) => r.latest_last_sale_price) ?? streetMatches[0] ?? null;
     }
   }
 
