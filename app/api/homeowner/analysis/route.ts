@@ -614,10 +614,23 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     : dbEstIsOldSalePrice ? null
     : rawDbEst;
 
+  // Tier 4 (new): live scrape returned a real Redfin price (listing price or last-known
+  // price text) but not the specific "Redfin Estimate" widget — e.g. an active/pending
+  // listing where Redfin shows list price instead of an AVM. This is still real Redfin
+  // data (data_sources.md tier 2: "Redfin direct scrape"), just not the narrowest expected
+  // field — was previously discarded entirely, leaving the card blank even when
+  // liveData.listPrice was populated. Same sanity check as the other tiers; wider
+  // confidence band since list price ≠ an AVM.
+  const rawListPriceEst = (!hasLoFinancials && !liveAvm && !dbEst && liveData?.listPrice && liveData.listPrice > 50_000 && liveData.listPrice <= AVM_MAX)
+    ? liveData.listPrice : null;
+  const listPriceEst = (rawListPriceEst && salePrice && rawListPriceEst < salePrice * 0.75) ? null : rawListPriceEst;
+
   // avmSource tracks which data tier produced the estimate for UI color-coding:
   // redfin_estimate = scraped directly from Redfin's "Redfin Estimate" section (highest confidence)
   // fhfa            = derived from FHFA appreciation model on lastSalePrice (model estimate)
-  // ai_estimate     = Tavily/GPT-4o gap-fill or 75% LTV fallback (lowest confidence, show amber)
+  // ai_estimate     = live Redfin list/last-known price (tier 4 above) when neither the
+  //                   Redfin Estimate widget nor the FHFA model produced a value
+  //                   (lowest confidence, show amber)
   const avmSource: 'redfin_estimate' | 'fhfa' | 'ai_estimate' =
     record.actual_value ? 'redfin_estimate' : (liveAvm || dbEst) ? 'redfin_estimate' : (estimatedValue ? 'fhfa' : 'ai_estimate');
 
@@ -634,6 +647,10 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     estimatedValue     = dbEst;
     estimatedValueLow  = Math.round(dbEst * 0.93);
     estimatedValueHigh = Math.round(dbEst * 1.07);
+  } else if (!estimatedValue && listPriceEst) {
+    estimatedValue     = listPriceEst;
+    estimatedValueLow  = Math.round(listPriceEst * 0.90);
+    estimatedValueHigh = Math.round(listPriceEst * 1.10);
   }
 
   // Homeowner analysis never treats the property as FOR_SALE:
