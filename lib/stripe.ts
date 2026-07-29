@@ -124,6 +124,12 @@ export function getCurrentProPricing(): {
   priceAnnual: number;
   annualMonthly: number;
   isIntro: boolean;
+  // The post-switch price, always populated (even when isIntro is already
+  // false, in which case it equals priceMonthly/priceAnnual) -- lets the
+  // pricing page render a "was $49" strikethrough next to the active intro
+  // price without hardcoding a second copy of PRO_V2_MONTHLY_PRICE.
+  introTargetMonthly: number;
+  introTargetAnnual: number;
 } {
   if (isProPriceSwitched()) {
     return {
@@ -131,6 +137,8 @@ export function getCurrentProPricing(): {
       priceAnnual: PRO_V2_ANNUAL_PRICE,
       annualMonthly: Math.round((PRO_V2_ANNUAL_PRICE / 12) * 100) / 100,
       isIntro: false,
+      introTargetMonthly: PRO_V2_MONTHLY_PRICE,
+      introTargetAnnual: PRO_V2_ANNUAL_PRICE,
     };
   }
   return {
@@ -138,6 +146,8 @@ export function getCurrentProPricing(): {
     priceAnnual: PLANS.pro.priceAnnual,
     annualMonthly: Math.round((PLANS.pro.priceAnnual / 12) * 100) / 100,
     isIntro: true,
+    introTargetMonthly: PRO_V2_MONTHLY_PRICE,
+    introTargetAnnual: PRO_V2_ANNUAL_PRICE,
   };
 }
 

@@ -16,20 +16,19 @@ const PLANS = [
     priceMonthly: 0,
     priceAnnual: 0,
     annualMonthly: 0,  // per month when billed annually
-    description: "Try HomeRates.ai, no credit card needed.",
+    description: "Every core tool, no credit card. ~6-7 AI questions to start.",
     cta: "Get started free",
     ctaVariant: "ghost" as const,
     features: [
-      "~6-7 free AI mortgage questions to start",
-      "Live rate ticker",
-      "Basic calculators",
-      "Shareable answer links",
-    ],
-    missing: [
-      "Unlimited questions",
-      "PDF exports",
-      "Rate & refi alerts",
-      "Borrower tools",
+      "My Home — live value, equity & refi window",
+      "Level 5 Decision Score + Property Gap Analysis",
+      "Property Lookup — full intelligence report on any address",
+      "Rate Intelligence — live rates by loan program",
+      "Rate Engine — where does your rate fall?",
+      "AMI Qualifier + census-tract eligibility",
+      "Anonymous Rate Marketplace — no calls, no names",
+      "HomeRates Discover — 4-step eligibility check",
+      "Basic calculators + shareable answer links",
     ],
   },
   {
@@ -38,21 +37,17 @@ const PLANS = [
     priceMonthly: 7,
     priceAnnual: 59,
     annualMonthly: 4.92,
-    description: "For homebuyers who want unlimited AI tools and alerts.",
+    description: "For homebuyers who want every tool unlimited.",
     cta: "Start Plus",
     ctaVariant: "primary" as const,
     highlight: true,
     badge: "Most popular",
     features: [
-      "Unlimited AI mortgage questions",
-      "PDF export of any answer card",
+      "Unlimited AI questions — no credit cap",
+      "Everything in Free, unlimited use",
+      "PDF export of any answer or report",
       "Rate, refi & property alerts",
-      "All calculators",
       "Priority support",
-    ],
-    missing: [
-      "Borrower management",
-      "LO dashboard",
     ],
   },
   {
@@ -61,23 +56,24 @@ const PLANS = [
     priceMonthly: 19,
     priceAnnual: 159,
     annualMonthly: 13.25,
-    description: "Introductory pricing for investors and loan officers. Price goes to $49/mo at launch.",
+    description: "Everything in Plus, plus the full investor analysis layer.",
     cta: "Start Pro",
-    ctaVariant: "ghost" as const,
+    ctaVariant: "pro" as const,
     badge2: "Investor + LO",
-    introUrgency: "⚡ Intro pricing · $19/mo now → $49 at launch",
+    introUrgency: "⚡ Intro pricing — limited time",
     features: [
-      "⭐ Investment Property Reports (DSCR)",
+      "⭐ Full DSCR / Investment Property Reports",
       "⭐ Portfolio tracker + deal pipeline",
-      "⭐ Live rent estimate + cap rate analysis",
       "⭐ Watchlist + cash flow monitoring",
-      "Everything in Plus",
-      "Up to 10 borrowers",
-      "LO dashboard",
+      "⭐ Live rent estimate + full cap rate analysis",
+      { label: "Everything in Plus", variant: "dim" as const },
+      { label: "For loan officers & agents", variant: "group-label" as const },
+      "Up to 10 borrowers + LO dashboard",
     ],
-    missing: [],
   },
 ];
+
+type PlanFeature = string | { label: string; variant: "dim" | "group-label" };
 
 export default function PricingPage() {
   const { isSignedIn, isLoaded } = useUser();
@@ -99,6 +95,8 @@ export default function PricingPage() {
     priceAnnual: 159,
     annualMonthly: 13.25,
     isIntro: true,
+    introTargetMonthly: 49,
+    introTargetAnnual: 411,
   });
 
   useEffect(() => {
@@ -131,6 +129,10 @@ export default function PricingPage() {
         ? plan.description
         : "Investor and loan officer tooling.",
       introUrgency: proPricing.isIntro ? plan.introUrgency : undefined,
+      // Strikethrough target — only meaningful while isIntro is true (once
+      // switched, target === active price, so the page renders no strikethrough).
+      priceWasMonthly: proPricing.isIntro ? proPricing.introTargetMonthly : null,
+      priceWasAnnual: proPricing.isIntro ? proPricing.introTargetAnnual : null,
     };
   });
 
@@ -227,7 +229,7 @@ export default function PricingPage() {
           return (
             <div
               key={plan.key}
-              className={`pricing-card ${plan.highlight ? "pricing-card--highlight" : ""}`}
+              className={`pricing-card ${plan.highlight ? "pricing-card--highlight" : ""} ${plan.key === "pro" ? "pricing-card--pro" : ""}`}
             >
               {plan.highlight && (
                 <div className="pricing-badge">{plan.badge}</div>
@@ -235,26 +237,34 @@ export default function PricingPage() {
               {(plan as any).badge2 && (
                 <div className="pricing-badge pricing-badge--amber">{(plan as any).badge2}</div>
               )}
-              {(plan as any).introUrgency && (
-                <div className="pricing-intro-urgency">{(plan as any).introUrgency}</div>
-              )}
-
               <div className="pricing-card-header">
                 <div className="pricing-plan-name">{plan.name}</div>
-                <div className="pricing-plan-price">
-                  {plan.priceMonthly === 0 ? (
-                    <span className="pricing-price-amount">Free</span>
-                  ) : (
-                    <>
-                      <span className="pricing-price-currency">$</span>
-                      <span className="pricing-price-amount">
-                        {billing === "annual"
-                          ? plan.annualMonthly.toFixed(2)
-                          : plan.priceMonthly}
-                      </span>
-                      <span className="pricing-price-period">/mo</span>
-                    </>
-                  )}
+                {(plan as any).introUrgency && (
+                  <div className="pricing-intro-label">{(plan as any).introUrgency}</div>
+                )}
+                <div className="pricing-plan-price-row">
+                  {(() => {
+                    const wasPrice = billing === "annual" ? (plan as any).priceWasAnnual : (plan as any).priceWasMonthly;
+                    const activePrice = billing === "annual" ? plan.priceAnnual : plan.priceMonthly;
+                    return wasPrice != null && wasPrice !== activePrice ? (
+                      <span className="pricing-price-was">${wasPrice}</span>
+                    ) : null;
+                  })()}
+                  <div className="pricing-plan-price">
+                    {plan.priceMonthly === 0 ? (
+                      <span className="pricing-price-amount">Free</span>
+                    ) : (
+                      <>
+                        <span className="pricing-price-currency">$</span>
+                        <span className="pricing-price-amount">
+                          {billing === "annual"
+                            ? plan.annualMonthly.toFixed(2)
+                            : plan.priceMonthly}
+                        </span>
+                        <span className="pricing-price-period">/mo</span>
+                      </>
+                    )}
+                  </div>
                 </div>
                 {billing === "annual" && plan.priceAnnual > 0 && (
                   <div className="pricing-billed-annual">
@@ -265,16 +275,19 @@ export default function PricingPage() {
               </div>
 
               <ul className="pricing-features">
-                {plan.features.map((f) => (
-                  <li key={f} className="pricing-feature pricing-feature--yes">
-                    <span className="pricing-feature-icon">✓</span> {f}
-                  </li>
-                ))}
-                {plan.missing.map((f) => (
-                  <li key={f} className="pricing-feature pricing-feature--no">
-                    <span className="pricing-feature-icon">✗</span> {f}
-                  </li>
-                ))}
+                {plan.features.map((f: PlanFeature) => {
+                  const label = typeof f === "string" ? f : f.label;
+                  const variant = typeof f === "string" ? "yes" : f.variant;
+                  if (variant === "group-label") {
+                    return <li key={label} className="pricing-feature-group-label">{label}</li>;
+                  }
+                  return (
+                    <li key={label} className={`pricing-feature pricing-feature--${variant === "dim" ? "dim" : "yes"}`}>
+                      <span className="pricing-feature-icon">{label.startsWith("⭐") ? "⭐" : "✓"}</span>
+                      {" "}{label.replace(/^⭐\s*/, "")}
+                    </li>
+                  );
+                })}
               </ul>
 
               <div className="pricing-cta-wrap">
@@ -452,6 +465,11 @@ export default function PricingPage() {
           background: rgba(0,232,122,0.04);
           box-shadow: 0 0 40px rgba(0,232,122,0.06);
         }
+        .pricing-card--pro {
+          border-color: rgba(245,158,11,0.4);
+          background: rgba(245,158,11,0.045);
+          box-shadow: 0 0 40px rgba(245,158,11,0.07);
+        }
         .pricing-badge {
           position: absolute;
           top: -12px;
@@ -471,17 +489,21 @@ export default function PricingPage() {
           background: linear-gradient(135deg, #f59e0b, #fbbf24);
           color: #1a0a00;
         }
-        .pricing-intro-urgency {
-          margin: 8px 0 -8px;
-          padding: 7px 14px;
-          background: rgba(245,158,11,0.08);
-          border: 1px solid rgba(245,158,11,0.2);
-          border-radius: 8px;
-          font-size: 0.72rem;
+        .pricing-intro-label {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          margin-bottom: 6px;
+          padding: 4px 10px;
+          background: rgba(245,158,11,0.12);
+          border: 1px solid rgba(245,158,11,0.3);
+          border-radius: 999px;
+          font-size: 0.68rem;
           font-weight: 700;
-          color: #f59e0b;
-          text-align: center;
-          letter-spacing: 0.02em;
+          color: #fbbf24;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          width: fit-content;
         }
         .pricing-plan-name {
           font-family: var(--font-dm-sans, sans-serif);
@@ -490,7 +512,16 @@ export default function PricingPage() {
           color: #fff;
           margin-bottom: 8px;
         }
-        .pricing-plan-price { display: flex; align-items: baseline; gap: 2px; margin-bottom: 4px; }
+        .pricing-plan-price-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+        .pricing-price-was {
+          font-size: 1.15rem;
+          font-weight: 600;
+          color: rgba(185,208,192,0.4);
+          text-decoration: line-through;
+          text-decoration-color: rgba(248,113,113,0.6);
+          text-decoration-thickness: 2px;
+        }
+        .pricing-plan-price { display: flex; align-items: baseline; gap: 2px; }
         .pricing-price-currency { font-size: 1.2rem; color: rgba(224,240,232,0.7); margin-top: 6px; }
         .pricing-price-amount { font-size: 2.4rem; font-weight: 700; color: #fff; line-height: 1; }
         .pricing-price-period { font-size: 0.9rem; color: rgba(185,208,192,0.7); margin-left: 2px; }
@@ -500,10 +531,18 @@ export default function PricingPage() {
         .pricing-features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; flex: 1; }
         .pricing-feature { display: flex; align-items: flex-start; gap: 8px; font-size: 0.875rem; line-height: 1.4; }
         .pricing-feature--yes { color: rgba(224,240,232,0.9); }
-        .pricing-feature--no  { color: rgba(185,208,192,0.3); }
+        .pricing-feature--dim { color: rgba(224,240,232,0.55); }
         .pricing-feature-icon { flex-shrink: 0; width: 16px; font-size: 0.75rem; margin-top: 1px; }
         .pricing-feature--yes .pricing-feature-icon { color: #00e87a; }
-        .pricing-feature--no  .pricing-feature-icon { color: rgba(185,208,192,0.25); }
+        .pricing-feature--dim .pricing-feature-icon { color: rgba(0,232,122,0.4); }
+        .pricing-feature-group-label {
+          font-size: 0.68rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: rgba(245,158,11,0.7);
+          margin: 6px 0 -2px;
+        }
 
         .pricing-cta-wrap { margin-top: auto; }
         .pricing-btn {
@@ -523,6 +562,7 @@ export default function PricingPage() {
         .pricing-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .pricing-btn:not(:disabled):hover { opacity: 0.88; transform: translateY(-1px); }
         .pricing-btn--primary { background: #00e87a; color: #080c12; }
+        .pricing-btn--pro { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #1a0a00; }
         .pricing-btn--ghost { background: transparent; color: rgba(224,240,232,0.8); border: 1px solid rgba(255,255,255,0.15); }
 
         .pricing-footer-note {
