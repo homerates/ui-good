@@ -7,10 +7,13 @@ import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import MarketIntelCard from '@/components/MarketIntelCard';
 import PropertyPhoto from '@/components/PropertyPhoto';
-import WelcomeHome from '@/components/WelcomeHome';
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
 import { EDUCATIONAL_DISCLAIMER } from '@/disclosures';
 import type { ConsumerActivityEvent, ConsumerLastAction, ConsumerNextStep } from '../../../lib/crm/consumer-memory';
+import {
+  historicalRate, fhfaRate, stateFromAddress, remainingBalance, monthsAgo,
+  computeHomeownerFinancials, PRIME_RATE,
+} from '../../../lib/homeownerCalc';
 
 interface HomeownerProperty {
   id: string;
@@ -1205,57 +1208,62 @@ function CardOfferSignal({ d, nearbySales }: { d: AnalysisData; nearbySales?: Ne
   );
 }
 
+// Parses free-text Redfin dates ("January 2020") into a year/month pair.
+// Used both for the purchase-rate-by-year fallback and for yearsElapsed.
+const MONTH_NAMES: Record<string, number> = {
+  january:0,february:1,march:2,april:3,may:4,june:5,july:6,august:7,september:8,october:9,november:10,december:11,
+  jan:0,feb:1,mar:2,apr:3,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11,
+};
+function parseFlexDateClient(raw: string | null): Date | null {
+  if (!raw) return null;
+  const parts = raw.toLowerCase().split(/[\s,]+/);
+  const yr = parseInt(parts.find(p => /^\d{4}$/.test(p)) ?? '0');
+  if (yr <= 1900) return null;
+  const mn = MONTH_NAMES[parts[0]] ?? MONTH_NAMES[parts[1]] ?? 0;
+  return new Date(yr, mn, 1);
+}
+
 // ── Map /api/property/lookup response → AnalysisData ─────────────────────────
+// Uses the SAME shared math as the server's buildAnalysis() (lib/homeownerCalc.ts)
+// — this used to be an independently-written formula set (flat 4.2% appreciation
+// everywhere, hardcoded 7.5% prime, 1% refi closing cost, $500k value-target
+// rounding) that silently diverged from the server's real numbers (state-level
+// FHFA appreciation, 7.25% prime, 2% refi closing cost, $250k rounding). That
+// divergence was the root cause of a reported "unusual numbers" bug: the exact
+// same property could show different figures purely because its listing status
+// happened to route it through this function instead of the server pipeline.
 function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
-  const prime = 7.5;
-  const helocRate = prime + 0.5;
+  const address = (d.address as string | null) || '';
 
   // Parse sale data first — needed for value + balance estimation below
   const lastSalePrice   = (d.lastSalePrice  as number | null) ?? (d.price as number | null) ?? null;
   const lastSaleDate    = (d.lastSaleDate   as string | null) ?? null;
-  const remainingMonths = (d.remainingMonths as number | null) ?? null;
+  const saleDateObj     = parseFlexDateClient(lastSaleDate);
+
   // purchaseRate may be null when API computed it in FOR_SALE mode; derive from year as fallback
-  const HIST_RATES_CLIENT: Record<number, number> = {
-    2025:6.76,2024:6.87,2023:6.81,2022:5.34,2021:2.96,2020:3.11,2019:3.94,2018:4.54,
-    2017:3.99,2016:3.65,2015:3.85,2014:4.17,2013:3.98,2012:3.66,2011:4.45,2010:4.69,
-    2009:5.04,2008:6.03,2007:6.34,2006:6.41,2005:5.87,2004:5.84,
-  };
   let purchaseRate = (d.purchaseRate as number | null) ?? null;
-  if (!purchaseRate && lastSaleDate) {
-    const yr = parseInt(lastSaleDate.match(/\d{4}/)?.[0] ?? '0');
-    if (yr >= 2004) purchaseRate = HIST_RATES_CLIENT[yr] ?? 5.5;
+  if (!purchaseRate && saleDateObj) {
+    purchaseRate = historicalRate(saleDateObj.getFullYear());
   }
 
-  // Fall back: estimatedValue → listing price → lastSalePrice + FHFA 4.2%/yr appreciation
+  const state = stateFromAddress(address);
+  const annualAppreciation = fhfaRate(state) / 100;
+
+  // Fall back: estimatedValue → listing price → lastSalePrice + real state-level FHFA appreciation
   // No date = no appreciation model = leave null (raw sale price is misleading as current value)
   let estimatedValue = (d.estimatedValue as number | null) ?? (d.price as number | null) ?? null;
-  if (!estimatedValue && lastSalePrice && lastSaleDate) {
-    const saleYr = parseInt(lastSaleDate.match(/\d{4}/)?.[0] ?? '0');
-    if (saleYr >= 1950) {
-      const yearsHeld = Math.max(0, new Date().getFullYear() - saleYr);
-      estimatedValue = Math.round(lastSalePrice * Math.pow(1.042, yearsHeld));
-    }
-    // saleYr < 1950: implausible year — leave null rather than show raw sale price
+  if (!estimatedValue && lastSalePrice && saleDateObj) {
+    const yearsHeld = Math.min(50, Math.max(0, (Date.now() - saleDateObj.getTime()) / (365.25 * 24 * 3600 * 1000)));
+    estimatedValue = Math.round(lastSalePrice * Math.pow(1 + annualAppreciation, yearsHeld));
   }
 
   let estimatedBalance = (d.estimatedBalance as number | null) ?? null;
   let estimatedEquity  = (d.estimatedEquity  as number | null) ?? null;
 
   // Estimate mortgage balance via amortization when Redfin doesn't provide it
-  if (!estimatedBalance && lastSalePrice && lastSaleDate && purchaseRate) {
-    const saleYr = parseInt(lastSaleDate.match(/\d{4}/)?.[0] ?? '0');
-    if (saleYr >= 1970) {
-      const monthsElapsed = Math.min(360, Math.max(0,
-        Math.round((Date.now() - new Date(saleYr, 0, 1).getTime()) / (30.44 * 24 * 60 * 60 * 1000))
-      ));
-      if (monthsElapsed < 360) {
-        const p = lastSalePrice * 0.80, r = purchaseRate / 100 / 12, n = 360;
-        const remainingBal = r > 0
-          ? p * (Math.pow(1+r, n) - Math.pow(1+r, monthsElapsed)) / (Math.pow(1+r, n) - 1)
-          : Math.max(0, p - (p / n) * monthsElapsed);
-        estimatedBalance = Math.max(0, Math.round(remainingBal));
-      }
-    }
+  if (!estimatedBalance && lastSalePrice && saleDateObj && purchaseRate) {
+    const monthsElapsed = Math.min(360, monthsAgo(saleDateObj));
+    estimatedBalance = Math.round(remainingBalance(lastSalePrice, 0.20, purchaseRate, monthsElapsed));
   }
 
   // Derive equity when Redfin doesn't provide it
@@ -1268,85 +1276,27 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
   const appreciationPct = (lastSalePrice && estimatedValue && lastSalePrice > 0)
     ? Math.round((estimatedValue - lastSalePrice) / lastSalePrice * 100) : null;
 
-  // HELOC / cash-out
-  const helocMax   = (estimatedValue && estimatedBalance) ? Math.max(0, Math.round(estimatedValue * 0.85 - estimatedBalance)) : null;
-  const cashOutMax = (estimatedValue && estimatedBalance) ? Math.max(0, Math.round(estimatedValue * 0.80 - estimatedBalance)) : null;
+  const yearsElapsed = saleDateObj ? new Date().getFullYear() - saleDateObj.getFullYear() : null;
 
-  const helocDraws: AnalysisData['helocDraws'] = [];
-  if (helocMax && helocMax >= 25_000) {
-    const r = helocRate / 100 / 12;
-    for (const [label, amt] of [
-      ['25% draw', Math.round(helocMax * 0.25)],
-      ['50% draw', Math.round(helocMax * 0.50)],
-      ['Max draw', helocMax],
-    ] as [string, number][]) {
-      helocDraws.push({
-        label, amount: amt,
-        interestOnly: Math.round(amt * r),
-        amortizing: Math.round((amt * r * Math.pow(1 + r, 240)) / (Math.pow(1 + r, 240) - 1)),
-      });
-    }
-  }
+  const {
+    helocRate, helocMax, cashOutMax, helocDraws,
+    refiMonthlySaving, refiClosingCost, refiBreakEven,
+    paidOffPct, interestPaid, payoffYear,
+    nextValueTarget, nextValueTargetYear,
+    piti, rentMonthly, rentVsOwn,
+  } = computeHomeownerFinancials({
+    estimatedValue, estimatedBalance, purchaseRate, liveRate,
+    lastSalePrice, rentEstimate: null,
+    purchasePriceOverride: null, actualBalanceOverride: null,
+    yearsElapsed,
+  });
 
-  // PITI (based on original purchase, not current market rate)
-  let piti: number | null = null;
-  if (lastSalePrice && purchaseRate) {
-    const r = purchaseRate / 100 / 12, n = 360, p = lastSalePrice * 0.80;
-    const pi = r > 0 ? (p * r * Math.pow(1+r,n)) / (Math.pow(1+r,n) - 1) : p / n;
-    const tax = (estimatedValue ?? lastSalePrice) * 0.011 / 12;
-    const ins = (estimatedValue ?? lastSalePrice) * 0.005 / 12;
-    piti = Math.round(pi + tax + ins);
-  }
-
-  // Refi savings
-  const refiClosingCost = estimatedBalance ? Math.round(estimatedBalance * 0.01) : 10_000;
-  let refiMonthlySaving = 0;
-  let refiBreakEven: number | null = null;
-  if (estimatedBalance && purchaseRate && liveRate < purchaseRate) {
-    const n = remainingMonths ?? 360;
-    const r1 = purchaseRate / 100 / 12, r2 = liveRate / 100 / 12;
-    const pmt1 = r1 > 0 ? (estimatedBalance * r1 * Math.pow(1+r1,n)) / (Math.pow(1+r1,n) - 1) : estimatedBalance / n;
-    const pmt2 = r2 > 0 ? (estimatedBalance * r2 * Math.pow(1+r2,n)) / (Math.pow(1+r2,n) - 1) : estimatedBalance / n;
-    refiMonthlySaving = Math.max(0, Math.round(pmt1 - pmt2));
-    if (refiMonthlySaving > 0) refiBreakEven = Math.ceil(refiClosingCost / refiMonthlySaving);
-  }
-
-  // Payoff progress
-  let paidOffPct = 0, yearsElapsed: number | null = null, payoffYear: number | null = null;
-  let interestPaid: number | null = null;
-  if (lastSaleDate && purchaseRate && lastSalePrice) {
-    const mo: Record<string,number> = { january:0,february:1,march:2,april:3,may:4,june:5,july:6,august:7,september:8,october:9,november:10,december:11,jan:0,feb:1,mar:2,apr:3,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
-    const parts = lastSaleDate.toLowerCase().split(/[\s,]+/);
-    const yr = parseInt(parts.find(p => /^\d{4}$/.test(p)) ?? '0');
-    const mn = mo[parts[0]] ?? mo[parts[1]] ?? 0;
-    if (yr > 1990) {
-      const sd = new Date(yr, mn, 1);
-      const elapsed = Math.max(0, Math.round((Date.now() - sd.getTime()) / (30.44 * 24 * 60 * 60 * 1000)));
-      yearsElapsed = Math.round(elapsed / 12);
-      paidOffPct   = Math.min(100, Math.round(elapsed / 360 * 100));
-      payoffYear   = new Date().getFullYear() + Math.round(Math.max(0, 360 - elapsed) / 12);
-      const p = lastSalePrice * 0.80, r = purchaseRate / 100 / 12, n = 360;
-      const pmt = r > 0 ? (p * r * Math.pow(1+r,n)) / (Math.pow(1+r,n) - 1) : p / n;
-      interestPaid = Math.round(pmt * elapsed - (p - (estimatedBalance ?? 0)));
-    }
-  }
-
-  // 12-month value trend (backwards from today at 4.2% annual)
+  // No real historical snapshots exist for a buyer/preview lookup (that data
+  // lives in property_snapshots, keyed by a saved property_id this path
+  // doesn't have) — showing an empty trend is accurate; the old behavior
+  // (backward-projecting a synthetic 12-month line from today's value at a
+  // flat rate) fabricated a trend that looked real but wasn't.
   const valueHistory: { date: string; value: number }[] = [];
-  if (estimatedValue) {
-    const mr = 0.042 / 12;
-    for (let i = 11; i >= 0; i--) {
-      const dt = new Date(); dt.setMonth(dt.getMonth() - i);
-      valueHistory.push({ date: dt.toISOString().slice(0, 7), value: Math.round(estimatedValue / Math.pow(1 + mr, i)) });
-    }
-  }
-
-  // Next value milestone
-  let nextValueTarget: number | null = null, nextValueTargetYear: number | null = null;
-  if (estimatedValue) {
-    nextValueTarget = Math.ceil((estimatedValue + 1) / 500_000) * 500_000;
-    nextValueTargetYear = new Date().getFullYear() + Math.max(1, Math.ceil(Math.log(nextValueTarget / estimatedValue) / Math.log(1.042)));
-  }
 
   // Listing context
   // If cached data says FOR_SALE but there's a recent sale date (< 18 months),
@@ -1371,16 +1321,16 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
   const sqft  = (d.sqft  as number | null) ?? null;
 
   return {
-    address: (d.address as string | null) || '',
+    address,
     estimatedValue, estimatedValueLow: d.estimatedValueLow ?? null, estimatedValueHigh: d.estimatedValueHigh ?? null,
     estimatedBalance, estimatedEquity, purchaseRate, lastSaleDate, lastSalePrice,
     liveRate, rentEstimate: null, valueHistory,
     ltv, equityPct, appreciationPct,
-    helocMax, helocRate, helocRateLabel: 'Prime + 0.50%', cashOutMax, helocDraws,
+    helocMax, helocRate, helocRateLabel: `${PRIME_RATE.toFixed(2)}% + 0.50%`, cashOutMax, helocDraws,
     refiMonthlySaving, refiBreakEven, refiClosingCost,
     paidOffPct, interestPaid, yearsElapsed, payoffYear,
     nextValueTarget, nextValueTargetYear,
-    piti, rentMonthly: null, rentVsOwn: null, prime,
+    piti, rentMonthly, rentVsOwn, prime: PRIME_RATE,
     savedOverrides: { actual_balance: null, actual_rate: null, actual_purchase_price: null, actual_purchase_date: null, actual_value: null },
     balanceIsEstimated: true, rateIsEstimated: true,
     listingStatus, daysOnMarket, listPrice, beds, baths, sqft,
