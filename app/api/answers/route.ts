@@ -2165,10 +2165,18 @@ async function handle(req: NextRequest, intentParam?: string) {
         // 7% investment return as a refi target rate — pure nonsense output.
         // [deep-analysis] seeds are owned by the deep-analysis intercept below
         // and must never be classified here.
+        // "closing costs?" was a bare alternative here with no refi-specific
+        // context required -- same bug, independently duplicated from
+        // isRefiQuestion() in lib/calcDispatcher.ts (fixed separately), and
+        // it fires BEFORE dispatch() ever runs: it picks the Grok persona/
+        // prompt and gates whether guidelineContext (RAG retrieval) fires at
+        // all. Left unfixed here, "Can a realtor cover closing costs" would
+        // still get module="refi" and never reach the underwriting path even
+        // after the dispatch()-level fix.
         !/^\[deep-analysis\]/i.test(question) &&
         !/\d+\s*%\s*down\b[\s\S]{0,80}?\b(?:vs\.?|versus|or)\b[\s\S]{0,80}?\d+\s*%\s*down\b/i.test(q) &&
         (/^heloc\s+on\b/i.test(q) ||
-        /(refinance|refi|closing costs?|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left)/i.test(q))
+        /(refinance|refi|break[- ]?even|loan balance|remaining.*(year|term|month)|years? left)/i.test(q))
     ) {
         module = "refi";
     } else if (
