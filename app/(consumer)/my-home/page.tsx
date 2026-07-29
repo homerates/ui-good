@@ -1523,6 +1523,7 @@ function MyHomePageInner() {
   const borrowerId    = searchParams?.get('borrower_id') ?? null;
   const previewAddress = searchParams?.get('address') ?? null; // from /homeowner page
   const chipParam     = searchParams?.get('chip') as ChipId | null;
+  const propertyParam = searchParams?.get('property') ?? null; // deep-link from /activity
 
   // Multi-home state
   const [properties, setProperties]           = useState<HomeownerProperty[]>([]);
@@ -1645,7 +1646,9 @@ function MyHomePageInner() {
       .then(({ properties: props }: { properties: HomeownerProperty[] }) => {
         const list = props ?? [];
         setProperties(list);
-        const primary = list.find(p => p.is_primary) ?? list[0];
+        // Deep-link from /activity ("go look at this one") wins over the default primary.
+        const requested = propertyParam ? list.find(p => p.id === propertyParam) : null;
+        const primary = requested ?? list.find(p => p.is_primary) ?? list[0];
         if (primary) setActivePropertyId(primary.id);
       })
       .finally(() => setLoading(false));
@@ -2280,20 +2283,19 @@ function MyHomePageInner() {
               )}
             </div>
 
-            {/* "Welcome Home" — hero last-action, quick ask, thumb index, next steps.
+            {/* "Welcome Home" moved to its own page (/activity) 2026-07-29 — it's
+                shared personalization infra (also powers chat context), not a
+                my-home-specific section. This is a compact teaser only.
                 Consumer-only (Decision 10): never mounted on the LO-view path. */}
-            {!borrowerId && memory && (
-              <WelcomeHome
-                firstName={user?.firstName ?? null}
-                summaryText={memory.summaryText}
-                lastAction={memory.lastAction}
-                nextSteps={memory.nextSteps}
-                events={memory.events}
-                properties={properties}
-                activePropertyId={activeProperty?.id ?? null}
-                photoCache={photoCache}
-                onSelectProperty={switchProperty}
-              />
+            {!borrowerId && memory?.lastAction && (
+              <Link href="/activity" className="mh-activity-teaser">
+                <span className="mh-activity-teaser-icon" aria-hidden="true">✨</span>
+                <span className="mh-activity-teaser-body">
+                  <span className="mh-activity-teaser-label">Welcome back{user?.firstName ? `, ${user.firstName}` : ''}</span>
+                  <span className="mh-activity-teaser-detail">Pick up where you left off — {memory.lastAction.title}</span>
+                </span>
+                <span className="mh-activity-teaser-arrow" aria-hidden="true">→</span>
+              </Link>
             )}
 
             {loading ? (
@@ -3087,6 +3089,15 @@ const CSS = `
   .mh-signin-box p{color:rgba(255,255,255,0.5);margin-bottom:2rem;font-size:.9rem;line-height:1.5}
   .mh-signin-cta{display:inline-block;padding:.8rem 2.2rem;background:#00e87a;color:#080c12;font-weight:800;border-radius:10px;font-size:.95rem;cursor:pointer;border:none;font-family:inherit}
   .mh-loading{text-align:center;padding:6rem 0;color:rgba(255,255,255,0.35);font-size:.9rem}
+
+  /* ACTIVITY TEASER — links out to /activity, the standalone Welcome Home page */
+  .mh-activity-teaser{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,rgba(0,232,122,0.07),rgba(0,232,122,0.02));border:1px solid rgba(0,232,122,0.18);border-radius:14px;padding:14px 18px;margin-bottom:1.25rem;text-decoration:none;transition:border-color .15s,background .15s}
+  .mh-activity-teaser:hover{border-color:rgba(0,232,122,0.35);background:linear-gradient(135deg,rgba(0,232,122,0.1),rgba(0,232,122,0.03))}
+  .mh-activity-teaser-icon{font-size:1.3rem;flex-shrink:0}
+  .mh-activity-teaser-body{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+  .mh-activity-teaser-label{font-size:.8rem;font-weight:700;color:#00e87a}
+  .mh-activity-teaser-detail{font-size:.82rem;color:rgba(224,240,232,0.75);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mh-activity-teaser-arrow{color:#00e87a;font-size:1.1rem;flex-shrink:0}
 
   /* CARD */
   .mh-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:16px;padding:1.75rem 2rem;margin-bottom:1.25rem}
