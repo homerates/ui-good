@@ -9,6 +9,7 @@ import MarketIntelCard from '@/components/MarketIntelCard';
 import PropertyPhoto from '@/components/PropertyPhoto';
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
 import { EDUCATIONAL_DISCLAIMER } from '@/disclosures';
+import { isPlausibleSaleYear } from '../../../lib/dateSanity';
 import type { ConsumerActivityEvent, ConsumerLastAction, ConsumerNextStep } from '../../../lib/crm/consumer-memory';
 import {
   historicalRate, fhfaRate, stateFromAddress, remainingBalance, monthsAgo,
@@ -1221,14 +1222,14 @@ const MONTH_NAMES: Record<string, number> = {
   january:0,february:1,march:2,april:3,may:4,june:5,july:6,august:7,september:8,october:9,november:10,december:11,
   jan:0,feb:1,mar:2,apr:3,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11,
 };
-// Bounded to (1900, current year] — a sale can never be in the future. Mirrors the server-side
-// guard in app/api/homeowner/analysis/route.ts (see ISSUE-031 follow-up: an unbounded upper end
-// let a house-number digit-run get misread as a year, e.g. "January 2420").
+// Bounded via isPlausibleSaleYear (lib/dateSanity.ts) — a sale can never be in the future.
+// See ISSUE-031 follow-up: an unbounded upper end let a house-number digit-run get misread
+// as a year, e.g. "January 2420".
 function parseFlexDateClient(raw: string | null): Date | null {
   if (!raw) return null;
   const parts = raw.toLowerCase().split(/[\s,]+/);
   const yr = parseInt(parts.find(p => /^\d{4}$/.test(p)) ?? '0');
-  if (yr <= 1900 || yr > new Date().getFullYear()) return null;
+  if (!isPlausibleSaleYear(yr)) return null;
   const mn = MONTH_NAMES[parts[0]] ?? MONTH_NAMES[parts[1]] ?? 0;
   return new Date(yr, mn, 1);
 }
