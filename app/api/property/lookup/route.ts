@@ -13,6 +13,7 @@ import { fetchPropertyData } from '@/property/fetch';
 import { lookupTaxRate }     from '@/property/taxTable';
 import { getSupabase }       from '../../../../lib/supabaseServer';
 import { log }               from '../../../../lib/logger';
+import { isPlausibleSaleYear } from '../../../../lib/dateSanity';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 
@@ -156,11 +157,12 @@ function remainingBalance(
     return Math.max(0, bal);
 }
 
-// Bounded to [1900, current year] — a sale can never be in the future. Without this, a real
-// month name (passing MONTH_RE upstream) immediately followed in source text by an unrelated
-// 4-digit number — e.g. this property's own house number, "2420 County Down Dr" — parses as a
-// valid Date centuries out; see the parseFlexDate fix in app/api/homeowner/analysis/route.ts
-// and parseFlexDateClient in my-home/page.tsx for the same defect on the same failure mode.
+// Bounded via isPlausibleSaleYear (lib/dateSanity.ts) — a sale can never be in the future.
+// Without this, a real month name (passing MONTH_RE upstream) immediately followed in source
+// text by an unrelated 4-digit number — e.g. this property's own house number, "2420 County
+// Down Dr" — parses as a valid Date centuries out; see the parseFlexDate fix in
+// app/api/homeowner/analysis/route.ts and parseFlexDateClient in my-home/page.tsx for the
+// same defect on the same failure mode.
 function parseMonthYear(str: string): Date | null {
     const m = str.match(/([A-Za-z]+)\s+(\d{4})/);
     if (!m) return null;
@@ -171,7 +173,7 @@ function parseMonthYear(str: string): Date | null {
     const mo = months[m[1].toLowerCase().slice(0, 3)];
     if (mo === undefined) return null;
     const yr = parseInt(m[2]);
-    if (yr < 1900 || yr > new Date().getFullYear()) return null;
+    if (!isPlausibleSaleYear(yr)) return null;
     return new Date(yr, mo, 1);
 }
 
@@ -892,7 +894,7 @@ async function handleUrl(rawUrl: string) {
     // one here. Reject anything outside a plausible sale-date range regardless of source.
     if (typeof merged.lastSaleDate === 'string') {
         const d = new Date(merged.lastSaleDate);
-        const plausible = !isNaN(d.getTime()) && d.getFullYear() >= 1900 && d.getFullYear() <= new Date().getFullYear();
+        const plausible = !isNaN(d.getTime()) && isPlausibleSaleYear(d.getFullYear());
         if (!plausible && !parseMonthYear(merged.lastSaleDate)) merged.lastSaleDate = null;
     }
 
