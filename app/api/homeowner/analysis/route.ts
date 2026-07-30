@@ -413,6 +413,18 @@ async function getSnapshot(address: string) {
     const snapAvm       = (snap.data as any)?.estimatedValue as number | null;
     const snapSalePrice = (snap.data as any)?.lastSalePrice  as number | null;
     const snapAvmSource = (snap.data as any)?.avmSource as string | null;
+    // Cross-pipeline cache incompatibility guard: /api/property/lookup (the pipeline behind
+    // /chat's "Run My Numbers") writes to this SAME property_snapshots table under a
+    // DIFFERENT field shape — its current-value field is `price`, not `estimatedValue`. If the
+    // latest snapshot for this property happened to be written by that other pipeline, every
+    // eviction guard below is a no-op (all gated on `snapAvm` being truthy) and the missing
+    // value silently passed through as null — showing a blank My Home card even though the
+    // real Redfin value exists right there under a different key in the same row. Reported by
+    // Rayaan: My Home showed blank/stale while "Run My Numbers" (same address) correctly
+    // showed the Redfin value — the two pipelines must agree, always. Treat a missing AVM as a
+    // cache miss so My Home always resolves through its OWN tier logic (redfin_estimate → fhfa
+    // → ai_estimate) below, rather than trusting an incompatible cache write.
+    if (!snapAvm) return null;
     // FHFA-model AVMs are lower confidence — expire them in 7 days so a fresher Redfin
     // scrape can replace them. Redfin-verified estimates keep the full 30-day TTL.
     const effectiveTtl = (snapAvmSource === 'redfin_estimate') ? SNAPSHOT_TTL_MS : 7 * 24 * 60 * 60 * 1000;

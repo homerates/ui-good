@@ -120,7 +120,16 @@ async function getCachedSnapshot(address: string): Promise<Record<string, unknow
       .limit(1)
       .maybeSingle();
 
-    return (snap?.data as Record<string, unknown>) ?? null;
+    const data = (snap?.data as Record<string, unknown>) ?? null;
+    // Cross-pipeline cache incompatibility guard (symmetric to the one in
+    // app/api/homeowner/analysis/route.ts's getSnapshot): /api/homeowner/analysis writes to
+    // this SAME property_snapshots table under a DIFFERENT field shape — its current-value
+    // field is `estimatedValue`, not `price`. If the latest snapshot for this property was
+    // written by that other pipeline, `price` comes back undefined and this whole response
+    // (consumed directly by /chat's "Run My Numbers" card and /property-intel's Grok facts)
+    // would silently show a blank price. Treat a missing price as a cache miss instead.
+    if (data && data.price == null) return null;
+    return data;
   } catch (e: unknown) {
     log.warn('[PropertyLookup] Cache read failed', { address: normalizeAddress(address), error: (e as Error)?.message });
     return null;
