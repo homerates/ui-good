@@ -356,12 +356,20 @@ const SNAPSHOT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — AVM data is sta
 const TWO_YEARS_MS    = 2 * 365.25 * 24 * 60 * 60 * 1000;
 
 // Handles "Month YYYY" output from GPT-4o (e.g. "August 1996") which Date() rejects.
+// Bounded to [1900, current year] — a sale can never be in the future. Without an upper
+// bound, garbage text like "January 2420" (a house number "2420" misread as a year by a
+// web-search date regex) parses as a *valid* Date 394 years out; downstream, yearsElapsed
+// clamps to 0 for a future date, so the FHFA tier applies zero appreciation and silently
+// reports the raw (wrong) sale price as if it were today's value — see ISSUE-031 follow-up.
+function isPlausibleSaleYear(y: number): boolean {
+  return y >= 1900 && y <= new Date().getFullYear();
+}
 function parseFlexDate(s: string | null | undefined): Date | null {
   if (!s) return null;
   let d = new Date(s);
-  if (!isNaN(d.getTime()) && d.getFullYear() >= 1900) return d;
+  if (!isNaN(d.getTime()) && isPlausibleSaleYear(d.getFullYear())) return d;
   const m = s.match(/^([A-Za-z]+)\s+(\d{4})$/);
-  if (m) { d = new Date(`${m[1]} 1, ${m[2]}`); if (!isNaN(d.getTime()) && d.getFullYear() >= 1900) return d; }
+  if (m) { d = new Date(`${m[1]} 1, ${m[2]}`); if (!isNaN(d.getTime()) && isPlausibleSaleYear(d.getFullYear())) return d; }
   return null;
 }
 

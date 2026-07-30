@@ -1208,17 +1208,27 @@ function CardOfferSignal({ d, nearbySales }: { d: AnalysisData; nearbySales?: Ne
   );
 }
 
+// Loose address comparison for deep-link matching (?address= from a card's "Analyse
+// Property" link) — strips punctuation/casing/whitespace so minor formatting differences
+// between the card's reconstructed address and the saved property_address don't miss.
+function normalizeAddrForMatch(a: string | null | undefined): string {
+  return (a ?? '').toLowerCase().replace(/[.,#]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 // Parses free-text Redfin dates ("January 2020") into a year/month pair.
 // Used both for the purchase-rate-by-year fallback and for yearsElapsed.
 const MONTH_NAMES: Record<string, number> = {
   january:0,february:1,march:2,april:3,may:4,june:5,july:6,august:7,september:8,october:9,november:10,december:11,
   jan:0,feb:1,mar:2,apr:3,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11,
 };
+// Bounded to (1900, current year] — a sale can never be in the future. Mirrors the server-side
+// guard in app/api/homeowner/analysis/route.ts (see ISSUE-031 follow-up: an unbounded upper end
+// let a house-number digit-run get misread as a year, e.g. "January 2420").
 function parseFlexDateClient(raw: string | null): Date | null {
   if (!raw) return null;
   const parts = raw.toLowerCase().split(/[\s,]+/);
   const yr = parseInt(parts.find(p => /^\d{4}$/.test(p)) ?? '0');
-  if (yr <= 1900) return null;
+  if (yr <= 1900 || yr > new Date().getFullYear()) return null;
   const mn = MONTH_NAMES[parts[0]] ?? MONTH_NAMES[parts[1]] ?? 0;
   return new Date(yr, mn, 1);
 }
@@ -1647,8 +1657,16 @@ function MyHomePageInner() {
         const list = props ?? [];
         setProperties(list);
         // Deep-link from /activity ("go look at this one") wins over the default primary.
-        const requested = propertyParam ? list.find(p => p.id === propertyParam) : null;
-        const primary = requested ?? list.find(p => p.is_primary) ?? list[0];
+        const requestedById = propertyParam ? list.find(p => p.id === propertyParam) : null;
+        // Deep-link by address (e.g. "Analyse Property" from a card rendered in /chat, which
+        // only ever has an address string, never this record's id) — same priority as the id
+        // deep-link. Without this, ?address= was only consulted later as a guest-preview
+        // fallback that a saved property always overrides, so the link silently landed on
+        // whichever property happened to be primary/first instead of the one the card was for.
+        const requestedByAddress = !requestedById && previewAddress
+          ? list.find(p => normalizeAddrForMatch(p.property_address) === normalizeAddrForMatch(previewAddress))
+          : null;
+        const primary = requestedById ?? requestedByAddress ?? list.find(p => p.is_primary) ?? list[0];
         if (primary) setActivePropertyId(primary.id);
       })
       .finally(() => setLoading(false));
