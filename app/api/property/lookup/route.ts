@@ -156,6 +156,11 @@ function remainingBalance(
     return Math.max(0, bal);
 }
 
+// Bounded to [1900, current year] — a sale can never be in the future. Without this, a real
+// month name (passing MONTH_RE upstream) immediately followed in source text by an unrelated
+// 4-digit number — e.g. this property's own house number, "2420 County Down Dr" — parses as a
+// valid Date centuries out; see the parseFlexDate fix in app/api/homeowner/analysis/route.ts
+// and parseFlexDateClient in my-home/page.tsx for the same defect on the same failure mode.
 function parseMonthYear(str: string): Date | null {
     const m = str.match(/([A-Za-z]+)\s+(\d{4})/);
     if (!m) return null;
@@ -165,7 +170,9 @@ function parseMonthYear(str: string): Date | null {
     };
     const mo = months[m[1].toLowerCase().slice(0, 3)];
     if (mo === undefined) return null;
-    return new Date(parseInt(m[2]), mo, 1);
+    const yr = parseInt(m[2]);
+    if (yr < 1900 || yr > new Date().getFullYear()) return null;
+    return new Date(yr, mo, 1);
 }
 
 function monthsAgo(d: Date): number {
@@ -335,6 +342,12 @@ function parseExtended(text: string, price: number | null, sqft: number | null):
             estimatedEquity  = Math.round(curVal - estimatedBalance);
         }
     }
+
+    // Sanitize the raw captured string, not just the parsed Date used for balance math above —
+    // without this, an implausible date (e.g. "January 2420", the FHFA branch above already
+    // rejects) still flows out to the API response and gets displayed as-is / injected into the
+    // Grok property-intel prompt as a "verified fact".
+    if (lastSaleDate && !parseMonthYear(lastSaleDate)) lastSaleDate = null;
 
     return {
         listingStatus, daysOnMarket, lastSaleDate, lastSalePrice,
@@ -872,6 +885,16 @@ async function handleUrl(rawUrl: string) {
     };
 
     const merged = mergeGpt4o(baseData, gpt);
+
+    // GPT-4o's lastSaleDate is freeform output merged in by mergeGpt4o's generic
+    // "fill any null field" loop — completely unvalidated, and not necessarily "Month YYYY"
+    // shaped (could be ISO "2021-05-18"), so parseMonthYear's regex alone won't catch a bad
+    // one here. Reject anything outside a plausible sale-date range regardless of source.
+    if (typeof merged.lastSaleDate === 'string') {
+        const d = new Date(merged.lastSaleDate);
+        const plausible = !isNaN(d.getTime()) && d.getFullYear() >= 1900 && d.getFullYear() <= new Date().getFullYear();
+        if (!plausible && !parseMonthYear(merged.lastSaleDate)) merged.lastSaleDate = null;
+    }
 
     // For SOLD/OFF_MARKET: JSON-LD offers.price is the stale original listing price.
     // Override with Redfin Estimate (from Tavily JS-rendered text) as source of truth.
