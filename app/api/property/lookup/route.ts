@@ -14,6 +14,8 @@ import { lookupTaxRate }     from '@/property/taxTable';
 import { getSupabase }       from '../../../../lib/supabaseServer';
 import { log }               from '../../../../lib/logger';
 import { isPlausibleSaleYear } from '../../../../lib/dateSanity';
+import { historicalRate, remainingBalance, monthsAgo, fhfaRate } from '../../../../lib/homeownerCalc';
+import { computeAvmTier } from '../../../../lib/propertyAvm';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 
@@ -136,35 +138,10 @@ async function getCachedSnapshot(address: string): Promise<Record<string, unknow
   }
 }
 
-// ── Historical 30yr fixed annual averages (FRED MORTGAGE30US) ──────────────
-const HIST_RATES: Record<number, number> = {
-    2025: 6.76, 2024: 6.87, 2023: 6.81, 2022: 5.34,
-    2021: 2.96, 2020: 3.11, 2019: 3.94, 2018: 4.54,
-    2017: 3.99, 2016: 3.65, 2015: 3.85, 2014: 4.17,
-    2013: 3.98, 2012: 3.66, 2011: 4.45, 2010: 4.69,
-    2009: 5.04, 2008: 6.03, 2007: 6.34, 2006: 6.41,
-    2005: 5.87, 2004: 5.84, 2003: 5.83, 2002: 6.54,
-    2001: 6.97, 2000: 8.05,
-};
-
-function historicalRate(year: number): number {
-    return HIST_RATES[year] ?? 5.5;
-}
-
-function remainingBalance(
-    purchasePrice: number,
-    downPct = 0.20,
-    ratePct: number,
-    monthsElapsed: number,
-    termMonths = 360,
-): number {
-    const principal = purchasePrice * (1 - downPct);
-    const r = ratePct / 100 / 12;
-    if (r === 0) return Math.max(0, principal - (principal / termMonths) * monthsElapsed);
-    const pmt = (principal * r * Math.pow(1 + r, termMonths)) / (Math.pow(1 + r, termMonths) - 1);
-    const bal = principal * Math.pow(1 + r, monthsElapsed) - pmt * ((Math.pow(1 + r, monthsElapsed) - 1) / r);
-    return Math.max(0, bal);
-}
+// historicalRate, remainingBalance, and monthsAgo now live in lib/homeownerCalc.ts —
+// this file used to carry its own independent copies (same formulas, but a rate table that
+// stopped at 2000 instead of homeownerCalc's 1990). Consolidated as part of the shared-core
+// audit between this pipeline and app/api/homeowner/analysis/route.ts.
 
 // Bounded via isPlausibleSaleYear (lib/dateSanity.ts) — a sale can never be in the future.
 // Without this, a real month name (passing MONTH_RE upstream) immediately followed in source
@@ -184,11 +161,6 @@ function parseMonthYear(str: string): Date | null {
     const yr = parseInt(m[2]);
     if (!isPlausibleSaleYear(yr)) return null;
     return new Date(yr, mo, 1);
-}
-
-function monthsAgo(d: Date): number {
-    const now = new Date();
-    return Math.max(0, (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth()));
 }
 
 // ── Extended field parser (works on Tavily-extracted text or raw HTML text) ─
@@ -907,18 +879,10 @@ async function handleUrl(rawUrl: string) {
         if (!plausible && !parseMonthYear(merged.lastSaleDate)) merged.lastSaleDate = null;
     }
 
-    // For SOLD/OFF_MARKET: JSON-LD offers.price is the stale original listing price.
-    // Override with Redfin Estimate (from Tavily JS-rendered text) as source of truth.
-    // Falls back to lastSalePrice if no estimate was extracted.
+    // For SOLD/OFF_MARKET, the current-value computation (replacing JSON-LD's stale original
+    // listing price) runs once, AFTER the sale-data rescue below has had its chance to fill in
+    // any missing lastSaleDate/lastSalePrice — see the computeAvmTier() call further down.
     const finalStatus = merged.listingStatus as string | null;
-    if (finalStatus === 'SOLD' || finalStatus === 'OFF_MARKET') {
-        const ev  = (merged.estimatedValue as number | null) ?? null;
-        const sp  = (merged.lastSalePrice  as number | null) ?? null;
-        const avm = (ev && ev > 50_000 && ev < 50_000_000) ? ev
-                  : (sp && sp > 50_000 && sp < 50_000_000) ? sp
-                  : null;
-        if (avm) merged.price = avm;
-    }
 
     // SOLD/OFF_MARKET rescue: when Tavily extract returned no text (Redfin JS-blocked),
     // sale date + sold price + AVM come back null from parseExtended. Web-search snippets
@@ -942,6 +906,43 @@ async function handleUrl(rawUrl: string) {
             }
         } catch (e: unknown) {
             log.warn('[PropertyLookup] Sold data rescue failed (non-blocking)', { error: (e as Error)?.message });
+        }
+    }
+
+    // For SOLD/OFF_MARKET: compute the current value with the SAME tiered, sanity-checked
+    // logic app/api/homeowner/analysis/route.ts uses (lib/propertyAvm.ts) — replaces the old
+    // "estimatedValue ?? lastSalePrice" shortcut, which could disagree with what My Home shows
+    // for the exact same property. Also recomputes balance/equity/rate from that same value
+    // via the shared homeownerCalc primitives, superseding parseExtended()'s opportunistic
+    // estimate (from before the rescue above may have filled in better sale data).
+    if (finalStatus === 'SOLD' || finalStatus === 'OFF_MARKET') {
+        const lastSalePrice = (merged.lastSalePrice as number | null) ?? null;
+        const saleDate = typeof merged.lastSaleDate === 'string' ? parseMonthYear(merged.lastSaleDate) : null;
+        const avmTier = computeAvmTier({
+            salePrice: lastSalePrice,
+            saleDate,
+            stateCode: (merged.state as string | null) ?? null,
+            liveAvmCandidate: (merged.estimatedValue as number | null) ?? null,
+            dbEstCandidate: null, // no prior cached value in this pipeline's own request scope
+            listPriceCandidate: (merged.listPrice as number | null) ?? null,
+            actualValueOverride: null, // no LO-entered override concept in the buying-journey pipeline
+            trustScrapedEstimates: true,
+        }, fhfaRate);
+        if (avmTier.estimatedValue) {
+            merged.price             = avmTier.estimatedValue;
+            merged.estimatedValue    = avmTier.estimatedValue;
+            merged.estimatedValueLow = avmTier.estimatedValueLow;
+            merged.estimatedValueHigh = avmTier.estimatedValueHigh;
+            merged.avmSource         = avmTier.avmSource;
+        }
+        if (lastSalePrice && saleDate) {
+            const elapsed = monthsAgo(saleDate);
+            const purchaseRate = historicalRate(saleDate.getFullYear());
+            const estimatedBalance = Math.round(remainingBalance(lastSalePrice, 0.20, purchaseRate, elapsed));
+            merged.purchaseRate      = purchaseRate;
+            merged.estimatedBalance  = estimatedBalance;
+            merged.remainingMonths   = Math.max(60, 360 - elapsed);
+            merged.estimatedEquity   = Math.round((avmTier.estimatedValue ?? Math.round(lastSalePrice * 1.05)) - estimatedBalance);
         }
     }
 
