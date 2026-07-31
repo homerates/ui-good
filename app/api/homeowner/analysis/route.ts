@@ -11,6 +11,7 @@ import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 import { getFredSnapshot } from '@/lib/fred';
 import { isPlausibleSaleYear } from '../../../../lib/dateSanity';
+import { computeAvmTier, AVM_MAX } from '../../../../lib/propertyAvm';
 import { requireAdmin } from '../../../../lib/adminAuth';
 import { getUserPlan } from '../../../../lib/subscription';
 import { fetchPropertyData } from '@/property/fetch';
@@ -483,9 +484,13 @@ type PropertyData = {
   photoUrl: string | null; parsedAddress: string | null;
   listingStatus: string | null;
   listPrice: number | null;
+  // Shared-core alias for estimatedValue — app/api/property/lookup/route.ts's headline field
+  // is `price`, not `estimatedValue`. Written here so a snapshot from THIS pipeline satisfies
+  // that pipeline's cache-read guard too, instead of only working one direction.
+  price: number | null;
 };
 
-const AVM_MAX = 50_000_000; // $50M residential cap
+// AVM_MAX now lives in lib/propertyAvm.ts (imported above) — shared with app/api/property/lookup/route.ts.
 
 // Parse a clean street address from a Redfin URL slug so DB keys are always
 // human-readable, never URLs.  e.g.:
@@ -634,84 +639,32 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     }
   }
 
-  // 4. FHFA AVM: lastSalePrice × (1 + annualRate)^yearsElapsed
+  // 4. Current value — shared tier logic (lib/propertyAvm.ts), same computation
+  // app/api/property/lookup/route.ts now uses for a SOLD/OFF_MARKET property, so the two
+  // pipelines agree on this number regardless of which one a user happens to hit first.
   const stateCode = prop?.state ?? stateFromAddress(resolvedAddress.toUpperCase());
-  const annualRate = fhfaRate(stateCode) / 100;
   const salePrice = rawSalePrice ?? null;
   const saleDate  = parseFlexDate(rawSaleDateStr); // handles "Month YYYY" from GPT-4o
-  // Cap at 50 years — FHFA compounding beyond that produces nonsensical residential AVMs
-  const yearsElapsed = saleDate ? Math.min(50, Math.max(0, (Date.now() - saleDate.getTime()) / (365.25 * 24 * 3600 * 1000))) : null;
 
-  let estimatedValue: number | null = null;
-  if (salePrice && yearsElapsed !== null) {
-    estimatedValue = Math.round(salePrice * Math.pow(1 + annualRate, yearsElapsed));
-  }
-  let estimatedValueLow  = estimatedValue ? Math.round(estimatedValue * 0.92) : null;
-  let estimatedValueHigh = estimatedValue ? Math.round(estimatedValue * 1.08) : null;
+  const avmTier = computeAvmTier({
+    salePrice, saleDate, stateCode,
+    liveAvmCandidate: liveData?.estimatedValue ?? null,
+    // DB estimate: latest_value written by property/lookup when the Redfin URL was pasted in
+    // chat — the correct Redfin AVM even when a direct Redfin scrape is blocked here.
+    dbEstCandidate: prop?.latest_value ?? null,
+    // Live scrape returned a real Redfin price (listing price or last-known price text) but
+    // not the specific "Redfin Estimate" widget — e.g. an active/pending listing where Redfin
+    // shows list price instead of an AVM. Still real Redfin data, just not the narrowest
+    // expected field — lowest-confidence tier, used only when nothing else produced a value.
+    listPriceCandidate: liveData?.listPrice ?? null,
+    actualValueOverride: record.actual_value ? Number(record.actual_value) : null,
+    trustScrapedEstimates: !hasLoFinancials,
+  }, fhfaRate);
 
-  // AVM priority (highest → lowest):
-  //   0. user-entered actual_value override — always wins, no sanity check
-  //   1. live Redfin scrape (current session)
-  //   2. prop.latest_value from DB — written by /api/property/lookup when user pastes Redfin URL in chat
-  //   3. FHFA appreciation model (already computed above)
-  // Sanity check: any automated AVM must exceed 75% of known sale price (below that = wrong page).
-  const rawLiveAvm = (!hasLoFinancials && liveData?.estimatedValue && liveData.estimatedValue > 50_000 && liveData.estimatedValue <= AVM_MAX)
-    ? liveData.estimatedValue : null;
-  const liveAvm = (rawLiveAvm && salePrice && rawLiveAvm < salePrice * 0.75)
-    ? (() => { console.log(`[analysis] liveAvm ${rawLiveAvm} < salePrice ${salePrice} × 0.75 — discarding (wrong page)`); return null; })()
-    : rawLiveAvm;
-
-  // DB estimate: latest_value written by property/lookup when the Redfin URL was pasted in chat.
-  // This is the correct Redfin AVM even when a direct Redfin scrape is blocked.
-  const rawDbEst = (!hasLoFinancials && !liveAvm && prop?.latest_value && prop.latest_value > 50_000 && prop.latest_value <= AVM_MAX)
-    ? prop.latest_value : null;
-  // Sanity #1: below 75% of sale price → wrong page
-  // Sanity #2: equals sale price → purchase price leaked in as AVM.
-  // No date check needed: a real current AVM never matches a historical sale price within 2%.
-  const dbEstIsOldSalePrice = !!(rawDbEst && salePrice &&
-      Math.abs(rawDbEst - salePrice) / salePrice < 0.02);
-  const dbEst = (rawDbEst && salePrice && rawDbEst < salePrice * 0.75) ? null
-    : dbEstIsOldSalePrice ? null
-    : rawDbEst;
-
-  // Tier 4 (new): live scrape returned a real Redfin price (listing price or last-known
-  // price text) but not the specific "Redfin Estimate" widget — e.g. an active/pending
-  // listing where Redfin shows list price instead of an AVM. This is still real Redfin
-  // data (data_sources.md tier 2: "Redfin direct scrape"), just not the narrowest expected
-  // field — was previously discarded entirely, leaving the card blank even when
-  // liveData.listPrice was populated. Same sanity check as the other tiers; wider
-  // confidence band since list price ≠ an AVM.
-  const rawListPriceEst = (!hasLoFinancials && !liveAvm && !dbEst && liveData?.listPrice && liveData.listPrice > 50_000 && liveData.listPrice <= AVM_MAX)
-    ? liveData.listPrice : null;
-  const listPriceEst = (rawListPriceEst && salePrice && rawListPriceEst < salePrice * 0.75) ? null : rawListPriceEst;
-
-  // avmSource tracks which data tier produced the estimate for UI color-coding:
-  // redfin_estimate = scraped directly from Redfin's "Redfin Estimate" section (highest confidence)
-  // fhfa            = derived from FHFA appreciation model on lastSalePrice (model estimate)
-  // ai_estimate     = live Redfin list/last-known price (tier 4 above) when neither the
-  //                   Redfin Estimate widget nor the FHFA model produced a value
-  //                   (lowest confidence, show amber)
-  const avmSource: 'redfin_estimate' | 'fhfa' | 'ai_estimate' =
-    record.actual_value ? 'redfin_estimate' : (liveAvm || dbEst) ? 'redfin_estimate' : (estimatedValue ? 'fhfa' : 'ai_estimate');
-
-  // Priority 0: user-entered value override always wins
-  if (record.actual_value && Number(record.actual_value) > 50_000) {
-    estimatedValue     = Number(record.actual_value);
-    estimatedValueLow  = Math.round(estimatedValue * 0.95);
-    estimatedValueHigh = Math.round(estimatedValue * 1.05);
-  } else if (liveAvm) {
-    estimatedValue     = liveAvm;
-    estimatedValueLow  = Math.round(liveAvm * 0.93);
-    estimatedValueHigh = Math.round(liveAvm * 1.07);
-  } else if (dbEst) {
-    estimatedValue     = dbEst;
-    estimatedValueLow  = Math.round(dbEst * 0.93);
-    estimatedValueHigh = Math.round(dbEst * 1.07);
-  } else if (!estimatedValue && listPriceEst) {
-    estimatedValue     = listPriceEst;
-    estimatedValueLow  = Math.round(listPriceEst * 0.90);
-    estimatedValueHigh = Math.round(listPriceEst * 1.10);
-  }
+  let estimatedValue     = avmTier.estimatedValue;
+  let estimatedValueLow  = avmTier.estimatedValueLow;
+  let estimatedValueHigh = avmTier.estimatedValueHigh;
+  const avmSource = avmTier.avmSource;
 
   // Homeowner analysis never treats the property as FOR_SALE:
   // - checkListingStatus() is a buyer-flow tool; calling it here writes FOR_SALE to the DB
@@ -846,6 +799,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     parsedAddress: liveData?.address ?? null,
     listingStatus,
     listPrice: isForSale ? estimatedValue : null,
+    price: estimatedValue,
   };
 
   // 7. Cache result (non-blocking) — always keyed by resolved street address, never by URL
