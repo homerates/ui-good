@@ -16,6 +16,7 @@ import { log }               from '../../../../lib/logger';
 import { isPlausibleSaleYear } from '../../../../lib/dateSanity';
 import { historicalRate, remainingBalance, monthsAgo, fhfaRate } from '../../../../lib/homeownerCalc';
 import { computeAvmTier } from '../../../../lib/propertyAvm';
+import { addressesMatchLoosely, addressPrefixTokens } from '../../../../lib/addressNormalize';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 
@@ -33,7 +34,18 @@ async function cachePropertyResult(address: string, data: Record<string, unknown
   try {
     const sb = getSupabase();
     if (!sb) return;
-    const addressFull = normalizeAddress(address);
+    const freshKey = normalizeAddress(address);
+    // Reconcile against any existing row for this address before upserting — this pipeline
+    // previously had no such step at all, unlike app/api/homeowner/analysis/route.ts's fuzzy
+    // fallback. Supabase's upsert onConflict requires an EXACT match on address_full, so a key
+    // that merely represents the same address but isn't byte-identical to what's already
+    // stored (an extra/missing comma before the ZIP, different comma placement — punctuation
+    // naturally varies by source: Google Places, a pasted Redfin URL, GPT-4o's own phrasing)
+    // still creates a duplicate row instead of updating the existing one.
+    const prefix = addressPrefixTokens(freshKey, 3);
+    const { data: candidates } = await sb.from('properties').select('address_full').ilike('address_full', `${prefix}%`).limit(5);
+    const existingKey = (candidates ?? []).find(r => addressesMatchLoosely(r.address_full ?? '', freshKey))?.address_full;
+    const addressFull = existingKey ?? freshKey;
     const now = new Date();
     const status    = (data.listingStatus as string | null) ?? null;
     const ttl       = (status === 'SOLD' || status === 'OFF_MARKET') ? SOLD_SNAPSHOT_TTL_MS : SNAPSHOT_TTL_MS;

@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getFredSnapshot } from '@/lib/fred';
 import { isPlausibleSaleYear } from '../../../../lib/dateSanity';
 import { computeAvmTier, AVM_MAX } from '../../../../lib/propertyAvm';
+import { addressesMatchLoosely, addressPrefixTokens, stripCommasAndSpaces } from '../../../../lib/addressNormalize';
 import { requireAdmin } from '../../../../lib/adminAuth';
 import { getUserPlan } from '../../../../lib/subscription';
 import { fetchPropertyData } from '@/property/fetch';
@@ -525,17 +526,13 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
 
   // 2. Check properties table for stored sale data
   const addr = normalizeAddr(resolvedAddress);
-  const PROP_SEL = 'id, latest_last_sale_price, latest_last_sale_date, latest_value, latest_listing_status, state, zip, beds, baths, sqft, year_built, property_type, apn, updated_at';
+  const PROP_SEL = 'id, address_full, latest_last_sale_price, latest_last_sale_date, latest_value, latest_listing_status, state, zip, beds, baths, sqft, year_built, property_type, apn, updated_at';
   let prop: any = (await db().from('properties').select(PROP_SEL).ilike('address_full', addr).maybeSingle()).data ?? null;
   // Fuzzy fallback: addresses from URL params lack commas (Google Places adds them)
   if (!prop) {
-    const addrNoComma = addr.replace(/,\s*/g, ' ').replace(/\s+/g, ' ').trim();
-    const firstTokens = addrNoComma.split(' ').slice(0, 3).join(' ');
+    const firstTokens = addressPrefixTokens(addr, 3);
     const { data: fuzzyRows } = await db().from('properties').select(PROP_SEL).ilike('address_full', `${firstTokens}%`).limit(5);
-    prop = (fuzzyRows ?? []).find((r: any) => {
-      const stored = (r.address_full ?? '').replace(/,\s*/g, ' ').replace(/\s+/g, ' ').toLowerCase().trim();
-      return stored === addrNoComma;
-    }) ?? null;
+    prop = (fuzzyRows ?? []).find((r: any) => addressesMatchLoosely(r.address_full ?? '', addr)) ?? null;
   }
   // ZIP+street fallback: Google Places aliases city names (e.g. Newbury Park→Thousand Oaks,
   // Coto De Caza→Trabuco Canyon) — same ZIP, different city string breaks the city-aware match above.
@@ -547,8 +544,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
   // "...Ave") or a different unit at the same building ("...Dr" vs "...Dr Unit 12") silently donate
   // its sale data (balance/value/sale price) to the wrong property's My Home report (ISSUE-031 follow-up).
   if (!prop) {
-    const addrNoComma = addr.replace(/,\s*/g, ' ').replace(/\s+/g, ' ').trim();
-    const zipMatch = addrNoComma.match(/\b(\d{5})\b/);
+    const zipMatch = stripCommasAndSpaces(addr).match(/\b(\d{5})\b/);
     const streetLine = addr.split(',')[0].replace(/\s+/g, ' ').trim().toLowerCase();
     const streetKey = canonicalStreetKey(streetLine);
     const streetPrefix = streetLine.split(' ').slice(0, 2).join(' '); // "1024 knollwood" — query narrowing only
@@ -564,6 +560,15 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
       prop = streetMatches.find((r: any) => r.latest_last_sale_price) ?? streetMatches[0] ?? null;
     }
   }
+
+  // Every subsequent upsert MUST target the row actually found above (if any) — writing
+  // with a freshly-reconstructed `addr` instead of the matched row's own stored address_full
+  // creates a duplicate the instant the two differ by so much as a comma, since Supabase's
+  // upsert onConflict requires an exact match on the conflict target column. This was the
+  // real cause behind three separate "duplicate properties row" incidents today: the fuzzy
+  // matches above were finding the existing row correctly, but every write-back downstream
+  // still ignored it.
+  const writeKey = prop?.address_full ?? addr;
 
   // 3. Resolve last sale data (DB → LO override → Redfin+GPT-4o → Tavily text search)
   let rawSalePrice: number | null = prop?.latest_last_sale_price ?? null;
@@ -605,7 +610,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     // Exception: listingStatus, listPrice, and Redfin Estimate are market state — they always update.
     if (prop?.id || rawSalePrice) {
       void db().from('properties').upsert({
-        address_full: addr,
+        address_full: writeKey,
         ...(rawSalePrice    && !prop?.latest_last_sale_price && { latest_last_sale_price: rawSalePrice }),
         ...(rawSaleDateStr  && !prop?.latest_last_sale_date  && { latest_last_sale_date:  rawSaleDateStr }),
         ...(liveData.beds   && !prop?.beds        && { beds:          liveData.beds }),
@@ -630,7 +635,7 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     if (tv.lastSaleDate) rawSaleDateStr = tv.lastSaleDate;
     if (rawSalePrice) {
       void db().from('properties').upsert({
-        address_full: addr,
+        address_full: writeKey,
         latest_last_sale_price: rawSalePrice,
         latest_last_sale_date: rawSaleDateStr,
         enrichment_source: 'tavily',
@@ -802,8 +807,9 @@ async function propertyLookup(address: string, record: Record<string, any>): Pro
     price: estimatedValue,
   };
 
-  // 7. Cache result (non-blocking) — always keyed by resolved street address, never by URL
-  void saveSnapshot(resolvedAddress, result);
+  // 7. Cache result (non-blocking) — keyed by writeKey (the row already found above, if any)
+  // rather than resolvedAddress, so this write can never itself create a duplicate row.
+  void saveSnapshot(writeKey, result);
 
   return result;
 }

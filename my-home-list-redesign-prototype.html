@@ -1,0 +1,224 @@
+<title>My Home — Property Switcher Redesign</title>
+<style>
+  :root{
+    --bg:#080c12; --text:#f0f4ff; --dim:rgba(255,255,255,0.55); --faint:rgba(255,255,255,0.28);
+    --accent:#00e87a; --accent-dim:rgba(0,232,122,0.1); --danger:#f97066; --danger-dim:rgba(249,112,102,0.12);
+    --chip-bg:rgba(255,255,255,0.05); --chip-border:rgba(255,255,255,0.1);
+    --card-bg:rgba(255,255,255,0.03); --card-border:rgba(255,255,255,0.08);
+    --note-bg:#141c28; --note-border:rgba(255,255,255,0.12);
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--text); font-family:'DM Sans',system-ui,-apple-system,sans-serif;
+    max-width:720px; margin:0 auto; padding:48px 24px 96px;
+  }
+  .kicker{font-size:.65rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(0,232,122,0.7);margin-bottom:.5rem}
+  h1{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1.15;margin:0 0 .5rem;text-wrap:balance}
+  .sub{font-size:.92rem;color:var(--dim);line-height:1.6;max-width:520px;margin-bottom:2rem}
+
+  .command-bar{display:flex;gap:10px;background:rgba(255,255,255,0.04);border:1.5px solid rgba(0,232,122,0.35);border-radius:14px;padding:6px 6px 6px 16px;transition:box-shadow .2s,border-color .2s}
+  .command-bar:focus-within{border-color:rgba(0,232,122,0.7);box-shadow:0 0 24px rgba(0,232,122,0.12)}
+  .command-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:.95rem;font-family:inherit;padding:8px 0}
+  .command-input::placeholder{color:var(--faint)}
+  .command-btn{flex-shrink:0;padding:9px 22px;background:var(--accent);color:#080c12;border:none;border-radius:10px;font-weight:800;font-size:.88rem;cursor:pointer;font-family:inherit;transition:opacity .15s}
+  .command-btn:disabled{opacity:.4;cursor:not-allowed}
+  .command-btn:not(:disabled):hover{opacity:.88}
+
+  .notice{margin-top:10px; font-size:.8rem; padding:9px 14px; border-radius:9px; display:none; align-items:center; gap:8px; animation:slidein .18s ease-out}
+  .notice.show{display:flex}
+  .notice-saved{background:rgba(0,232,122,0.08); color:var(--accent); border:1px solid rgba(0,232,122,0.25)}
+  .notice-already{background:rgba(255,255,255,0.05); color:var(--dim); border:1px solid var(--chip-border)}
+  @keyframes slidein{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+  .activity-teaser{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,rgba(0,232,122,0.07),rgba(0,232,122,0.02));border:1px solid rgba(0,232,122,0.18);border-radius:14px;padding:14px 18px;margin-top:16px;text-decoration:none;transition:border-color .15s,background .15s;cursor:pointer}
+  .activity-teaser:hover{border-color:rgba(0,232,122,0.35);background:linear-gradient(135deg,rgba(0,232,122,0.1),rgba(0,232,122,0.03))}
+  .activity-teaser .icon{font-size:1.3rem;flex-shrink:0}
+  .activity-teaser .body{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+  .activity-teaser .label{font-size:.8rem;font-weight:700;color:var(--accent)}
+  .activity-teaser .detail{font-size:.82rem;color:rgba(224,240,232,0.75);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .activity-teaser .arrow{color:var(--accent);font-size:1.1rem;flex-shrink:0}
+
+  .chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .chip{
+    position:relative; display:flex; align-items:center; gap:8px;
+    padding:5px 10px 5px 13px; background:var(--chip-bg); border:1px solid var(--chip-border);
+    border-radius:999px; color:var(--dim); font-size:.78rem; font-weight:600; cursor:pointer;
+    font-family:inherit; transition:all .15s; white-space:nowrap; animation:popin .22s ease-out;
+  }
+  @keyframes popin{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+  .chip:hover{background:rgba(255,255,255,0.09);color:#fff;border-color:rgba(255,255,255,0.22)}
+  .chip.active{background:var(--accent-dim);color:var(--accent);border-color:rgba(0,232,122,0.4)}
+  .chip.leaving{animation:popout .16s ease-in forwards}
+  @keyframes popout{to{opacity:0;transform:scale(.85)}}
+  .chip .stamp{font-weight:400;color:rgba(255,255,255,0.35);font-size:.72rem}
+  .chip.active .stamp{color:rgba(0,232,122,0.55)}
+  .chip .del{
+    flex-shrink:0; width:16px; height:16px; border-radius:50%; border:none; cursor:pointer;
+    background:transparent; color:rgba(255,255,255,0.25); font-size:.85rem; line-height:1;
+    display:flex; align-items:center; justify-content:center; opacity:0; transition:all .15s;
+    font-family:inherit;
+  }
+  .chip:hover .del{opacity:1}
+  .del:hover{background:var(--danger-dim); color:var(--danger) !important}
+  .chip-more{border-style:dashed; opacity:0; pointer-events:none; transition:opacity .15s}
+  .chip-more.show{opacity:1; pointer-events:auto}
+
+  .callouts{margin-top:40px; display:flex; flex-direction:column; gap:14px}
+  .callout{display:flex; gap:12px; padding:14px 16px; background:var(--card-bg); border:1px solid var(--card-border); border-radius:12px}
+  .callout .num{flex-shrink:0; width:22px; height:22px; border-radius:50%; background:var(--accent-dim); color:var(--accent); font-size:.72rem; font-weight:800; display:flex; align-items:center; justify-content:center}
+  .callout .body{font-size:.85rem; line-height:1.55; color:var(--dim)}
+  .callout .body b{color:var(--text); font-weight:700}
+  .callout .body .was{color:rgba(249,112,102,0.75); font-size:.8rem; display:block; margin-top:3px}
+
+  .section-label{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin:36px 0 10px}
+  .hint{font-size:.78rem;color:var(--faint);margin-top:14px;line-height:1.6}
+</style>
+
+<div class="kicker">Home Intelligence — Prototype</div>
+<h1>Property switcher redesign</h1>
+<p class="sub">Same visual language as the live page (colors, chip shapes, command bar) — this mocks the interaction changes only. Try it: add an address, re-add an existing one, hover a chip to delete it.</p>
+
+<div class="command-bar">
+  <input class="command-input" id="addr-input" placeholder="Address, URL, or question — e.g. 'equity on my Irvine home'" />
+  <button class="command-btn" id="analyze-btn">Analyze →</button>
+</div>
+<div class="notice notice-already" id="notice-already">Already in My Home — showing your saved property</div>
+<div class="notice notice-saved" id="notice-saved">Saved — analyzing your new property…</div>
+
+<a class="activity-teaser" href="https://homerates.ai/activity" target="_blank" rel="noopener">
+  <span class="icon" aria-hidden="true">✨</span>
+  <span class="body">
+    <span class="label">Welcome back</span>
+    <span class="detail">Pick up where you left off — reviewed 2420 E County Down Dr</span>
+  </span>
+  <span class="arrow" aria-hidden="true">→</span>
+</a>
+
+<div class="chip-row" id="chip-row"></div>
+
+<p class="hint">↑ This list is capped at 5 visible chips for the mock (matches the "+N More ▾" pattern already in the real page) — try adding a 6th to see it queue in.</p>
+
+<div class="section-label">What's changing</div>
+<div class="callouts">
+  <div class="callout">
+    <div class="num">1</div>
+    <div class="body"><b>Ordering: most recently active first</b>, not creation order.
+      <span class="was">Was: sorted by is_primary, then oldest-created-first — a property added 10 minutes ago could land behind ones from weeks ago, off in "+N More ▾".</span>
+    </div>
+  </div>
+  <div class="callout">
+    <div class="num">2</div>
+    <div class="body"><b>Delete (×) is now on every visible chip</b>, revealed on hover — not just inside the overflow drawer.
+      <span class="was">Was: the × delete button only existed on chips already hidden behind "More ▾" — the first 3 visible chips had no way to remove them at all.</span>
+    </div>
+  </div>
+  <div class="callout">
+    <div class="num">3</div>
+    <div class="body"><b>A newly analyzed property jumps to the front and becomes active immediately</b> — same command bar, same "Analyze →" button, no new step.
+      <span class="was">Was: new properties were appended to the end of the list, so a 4th+ property was invisible without opening "More ▾" first.</span>
+    </div>
+  </div>
+  <div class="callout">
+    <div class="num">4</div>
+    <div class="body"><b>Re-entering an address you already have switches to it and says so</b> (notice banner above) — this part already shipped today, included here to show the full flow together.</div>
+  </div>
+  <div class="callout">
+    <div class="num">5</div>
+    <div class="body"><b>Search bar stays the fixed first line</b> — unchanged from the current page, confirmed correct as-is.</div>
+  </div>
+  <div class="callout">
+    <div class="num">6</div>
+    <div class="body"><b>The "Welcome back" quicklink to /activity stays up top</b>, directly under the command bar — confirmed to keep, not remove, in the reorg.</div>
+  </div>
+</div>
+
+<script>
+  const chipRow = document.getElementById('chip-row');
+  const input = document.getElementById('addr-input');
+  const analyzeBtn = document.getElementById('analyze-btn');
+  const noticeAlready = document.getElementById('notice-already');
+  const noticeSaved = document.getElementById('notice-saved');
+  const VISIBLE_MAX = 5;
+
+  let properties = [
+    { id: 'p1', label: 'My Home', addr: '2420 County Down', stamp: 'just now', primary: true, active: true },
+    { id: 'p2', label: '2420 E County Down Dr', addr: '2420 e county down dr', stamp: '2 min ago', primary: false, active: false },
+    { id: 'p3', label: '1024 Knollwood Dr', addr: '1024 knollwood dr', stamp: '1 hour ago', primary: false, active: false },
+    { id: 'p4', label: '842 Sycamore Ln', addr: '842 sycamore ln', stamp: '3 days ago', primary: false, active: false },
+  ];
+  // p1/p2 intentionally share a street prefix so the "re-add existing" demo works with a
+  // realistic near-duplicate, same as the actual dedup check (street-only comparison).
+
+  function flashNotice(el) {
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3200);
+  }
+
+  function render() {
+    chipRow.innerHTML = '';
+    const visible = properties.slice(0, VISIBLE_MAX);
+    visible.forEach(p => {
+      const chip = document.createElement('button');
+      chip.className = 'chip' + (p.active ? ' active' : '');
+      chip.innerHTML = `<span>${p.primary ? '⭐ ' : ''}${p.label}</span><span class="stamp">${p.stamp}</span><button class="del" title="Remove property" aria-label="Remove ${p.label}">×</button>`;
+      chip.addEventListener('click', (e) => {
+        if (e.target.closest('.del')) return;
+        properties.forEach(pp => pp.active = pp.id === p.id);
+        render();
+      });
+      chip.querySelector('.del').addEventListener('click', (e) => {
+        e.stopPropagation();
+        chip.classList.add('leaving');
+        setTimeout(() => {
+          const wasActive = p.active;
+          properties = properties.filter(pp => pp.id !== p.id);
+          if (wasActive && properties.length) properties[0].active = true;
+          render();
+        }, 150);
+      });
+      chipRow.appendChild(chip);
+    });
+    if (properties.length > VISIBLE_MAX) {
+      const more = document.createElement('div');
+      more.className = 'chip chip-more show';
+      more.textContent = `+${properties.length - VISIBLE_MAX} More ▾`;
+      chipRow.appendChild(more);
+    }
+  }
+
+  function streetOf(s) { return s.split(',')[0].trim().toLowerCase(); }
+
+  function addProperty() {
+    const val = input.value.trim();
+    if (!val) return;
+    const existing = properties.find(p => streetOf(p.addr) === streetOf(val) || p.addr.toLowerCase() === val.toLowerCase());
+    if (existing) {
+      properties.forEach(pp => pp.active = pp.id === existing.id);
+      // Bump the re-selected property to the front too — it's the most recently *touched*
+      // property now, same recency rule as a fresh add.
+      properties = [existing, ...properties.filter(p => p.id !== existing.id)];
+      input.value = '';
+      render();
+      flashNotice(noticeAlready);
+      return;
+    }
+    const fresh = {
+      id: 'p' + Date.now(),
+      label: val.split(',')[0],
+      addr: val,
+      stamp: 'just now',
+      primary: false,
+      active: true,
+    };
+    properties.forEach(pp => pp.active = false);
+    properties = [fresh, ...properties];
+    input.value = '';
+    render();
+    flashNotice(noticeSaved);
+  }
+
+  analyzeBtn.addEventListener('click', addProperty);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') addProperty(); });
+
+  render();
+</script>
