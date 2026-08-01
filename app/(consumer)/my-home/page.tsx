@@ -1216,6 +1216,25 @@ function normalizeAddrForMatch(a: string | null | undefined): string {
   return (a ?? '').toLowerCase().replace(/[.,#]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+// Relative-time label for a property chip's timestamp — supports the property-switcher
+// redesign's "latest on top" ordering by making the recency visible, not just implied by
+// position (approved prototype: every chip carries its own stamp).
+function relativeStamp(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 0 || Number.isNaN(ms)) return '';
+  const min = Math.floor(ms / 60_000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}d ago`;
+  const wk = Math.floor(day / 7);
+  if (wk < 5) return `${wk}w ago`;
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
 // Parses free-text Redfin dates ("January 2020") into a year/month pair.
 // Used both for the purchase-rate-by-year fallback and for yearsElapsed.
 const MONTH_NAMES: Record<string, number> = {
@@ -1974,6 +1993,16 @@ function MyHomePageInner() {
     );
     if (existingMatch) {
       setActivePropertyId(existingMatch.id);
+      // Bump to the front of the list immediately (matches the approved redesign: re-selecting
+      // a property via the command bar is "recent activity" the same as adding a new one).
+      // Server-side, touch updated_at too so a fresh page load keeps it in the same position —
+      // POST with just property_id updates updated_at without changing anything else.
+      setProperties(prev => [existingMatch, ...prev.filter(p => p.id !== existingMatch.id)]);
+      void fetch('/api/homeowner/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ property_id: existingMatch.id }),
+      });
       setNewAddress('');
       setAddingNew(false);
       setAlreadySavedNotice(true);
@@ -1996,11 +2025,14 @@ function MyHomePageInner() {
       const body = await res.json().catch(() => null);
       const property = body?.property;
       if (res.ok && property) {
+        // Prepend, not append — a newly analyzed property is by definition the most recent
+        // activity, so it belongs at the front of the list (matches the approved redesign),
+        // not appended past the visible chips where it'd be invisible without opening "More ▾".
         setProperties(prev => {
           const updated = property.is_primary
             ? prev.map(p => ({ ...p, is_primary: false }))
             : prev;
-          return [...updated, property];
+          return [property, ...updated];
         });
         setActivePropertyId(property.id);
         setNewAddress('');
@@ -2209,18 +2241,26 @@ function MyHomePageInner() {
                     const short = p.property_address.split(',')[0];
                     const chipLabel = isBuyer ? 'Researching' : p.is_primary ? 'My Home' : short;
                     return (
-                      <button
-                        key={p.id}
-                        className={`mh-qchip${isActive ? ' mh-qchip-active' : ''}`}
-                        onClick={() => !isActive && switchProperty(p.id)}
-                      >
-                        {chipLabel} — {short}
-                      </button>
+                      <div key={p.id} className={`mh-qchip-wrap${isActive ? ' mh-qchip-active' : ''}`}>
+                        <button
+                          className={`mh-qchip${isActive ? ' mh-qchip-active' : ''}`}
+                          onClick={() => !isActive && switchProperty(p.id)}
+                        >
+                          {chipLabel} — {short}
+                          <span className="mh-qchip-stamp">{relativeStamp(p.updated_at)}</span>
+                        </button>
+                        <button
+                          className="mh-qchip-del"
+                          onClick={(e) => { e.stopPropagation(); removeProperty(p.id); }}
+                          title={`Remove ${short}`}
+                          aria-label={`Remove ${short}`}
+                        >×</button>
+                      </div>
                     );
                   })}
 
                   <button
-                    className="mh-qchip mh-qchip-more"
+                    className="mh-qchip-more"
                     onClick={() => setLensDrawerOpen(o => !o)}
                   >
                     {properties.length > 3 ? `+${properties.length - 3} More ▾` : 'More ▾'}
@@ -3024,13 +3064,23 @@ const CSS = `
   .mh-command-btn{flex-shrink:0;padding:9px 22px;background:#00e87a;color:#080c12;border:none;border-radius:10px;font-weight:800;font-size:.88rem;cursor:pointer;font-family:inherit;transition:opacity .15s}
   .mh-command-btn:disabled{opacity:.4;cursor:not-allowed}
 
-  /* QUICK CHIPS (property lens tabs) */
+  /* QUICK CHIPS (property lens tabs) — most-recently-active first; delete revealed on hover */
   .mh-quick-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:.85rem}
-  .mh-qchip{padding:5px 13px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:999px;color:rgba(255,255,255,0.55);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
-  .mh-qchip:hover{background:rgba(255,255,255,0.09);color:#fff;border-color:rgba(255,255,255,0.22)}
-  .mh-qchip-active{background:rgba(0,232,122,0.1);color:#00e87a;border-color:rgba(0,232,122,0.4);cursor:default}
-  .mh-qchip-active:hover{background:rgba(0,232,122,0.1);color:#00e87a;border-color:rgba(0,232,122,0.4)}
-  .mh-qchip-more{border-style:dashed}
+  .mh-qchip-wrap{position:relative;display:flex;align-items:center;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:999px;transition:all .15s}
+  .mh-qchip-wrap:hover{background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.22)}
+  .mh-qchip-wrap.mh-qchip-active{background:rgba(0,232,122,0.1);border-color:rgba(0,232,122,0.4)}
+  .mh-qchip{padding:5px 6px 5px 13px;background:none;border:none;color:rgba(255,255,255,0.55);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:6px}
+  .mh-qchip-wrap:hover .mh-qchip{color:#fff}
+  .mh-qchip.mh-qchip-active{color:#00e87a;cursor:default}
+  .mh-qchip-wrap.mh-qchip-active:hover .mh-qchip{color:#00e87a}
+  .mh-qchip-stamp{font-weight:400;color:rgba(255,255,255,0.3);font-size:.7rem}
+  .mh-qchip-active .mh-qchip-stamp{color:rgba(0,232,122,0.5)}
+  .mh-qchip-del{flex-shrink:0;width:18px;height:18px;margin-right:6px;border-radius:50%;border:none;cursor:pointer;background:transparent;color:rgba(255,255,255,0.25);font-size:.9rem;line-height:1;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .15s;font-family:inherit}
+  .mh-qchip-wrap:hover .mh-qchip-del{opacity:1}
+  .mh-qchip-del:hover{background:rgba(249,112,102,0.12);color:#f97066 !important}
+  /* "More ▾" button is not wrapped (no delete affordance on it) — keeps the original pill look */
+  .mh-qchip-more{padding:5px 13px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-style:dashed;border-radius:999px;color:rgba(255,255,255,0.55);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+  .mh-qchip-more:hover{background:rgba(255,255,255,0.09);color:#fff;border-color:rgba(255,255,255,0.22)}
 
   /* LENS DRAWER */
   .mh-lens-drawer{position:absolute;top:calc(100% + 6px);left:0;z-index:200;width:280px;max-height:70vh;display:flex;flex-direction:column;background:#141c28;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:6px;box-shadow:0 12px 40px rgba(0,0,0,0.55)}

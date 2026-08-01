@@ -25,12 +25,16 @@ export async function GET() {
 
   const supabase = db();
 
+  // Ordered by recency, not is_primary — matches the approved My Home property-switcher
+  // redesign (property-site pattern: most recently touched property leads the list).
+  // is_primary is still tracked/displayed as a label (⭐ "My Home"), it just no longer
+  // pins position. addProperty() on the client bumps updated_at whenever a property is
+  // added or re-selected via the command bar, so this naturally puts it first next load.
   const { data: existing } = await supabase
     .from('consumer_homeowner_properties')
     .select(SEL)
     .eq('user_id', userId)
-    .order('is_primary', { ascending: false })
-    .order('created_at', { ascending: true });
+    .order('updated_at', { ascending: false });
 
   const list = existing ?? [];
 
@@ -67,8 +71,7 @@ export async function GET() {
         .from('consumer_homeowner_properties')
         .select(SEL)
         .eq('user_id', userId)
-        .order('is_primary', { ascending: false })
-        .order('created_at', { ascending: true });
+        .order('updated_at', { ascending: false });
 
       return NextResponse.json({ properties: seeded ?? [] });
     }
