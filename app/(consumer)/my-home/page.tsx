@@ -1544,6 +1544,7 @@ function MyHomePageInner() {
   const [addingNew, setAddingNew]             = useState(false);
   const [saving, setSaving]                   = useState(false);
   const [saved, setSaved]                     = useState(false);
+  const [alreadySavedNotice, setAlreadySavedNotice] = useState(false);
   const [lensDrawerOpen, setLensDrawerOpen]   = useState(false);
   const [drawerFocusId, setDrawerFocusId]     = useState<string | null>(null);
   const lensDrawerRef                         = useRef<HTMLDivElement>(null);
@@ -1963,13 +1964,20 @@ function MyHomePageInner() {
     if (!newAddress.trim()) return;
     const normalized = newAddress.trim().toLowerCase();
     const streetOf = (s: string) => s.split(',')[0].trim().toLowerCase();
-    const alreadySaved = properties.some(p =>
+    // Previously this branch cleared the input and returned with zero feedback — from the
+    // user's perspective, entering an address that was already saved looked like the page
+    // had silently done nothing. Now it switches to the existing property (so *something*
+    // visibly changes) and shows a brief notice explaining why nothing new was created.
+    const existingMatch = properties.find(p =>
       p.property_address?.toLowerCase() === normalized ||
       streetOf(p.property_address ?? '') === streetOf(newAddress.trim())
     );
-    if (alreadySaved) {
+    if (existingMatch) {
+      setActivePropertyId(existingMatch.id);
       setNewAddress('');
       setAddingNew(false);
+      setAlreadySavedNotice(true);
+      setTimeout(() => setAlreadySavedNotice(false), 3500);
       return;
     }
     setSaving(true);
@@ -1985,8 +1993,9 @@ function MyHomePageInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address: newAddress.trim() }),
       });
-      const { property } = await res.json();
-      if (property) {
+      const body = await res.json().catch(() => null);
+      const property = body?.property;
+      if (res.ok && property) {
         setProperties(prev => {
           const updated = property.is_primary
             ? prev.map(p => ({ ...p, is_primary: false }))
@@ -1998,6 +2007,10 @@ function MyHomePageInner() {
         setAddingNew(false);
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
+      } else {
+        // Previously a failed/empty response here just reset the button with zero feedback —
+        // the page appeared to do nothing. Surface it instead of swallowing it.
+        alert(body?.error ?? 'Could not save that address — please try again.');
       }
     } finally {
       setSaving(false);
@@ -2179,6 +2192,12 @@ function MyHomePageInner() {
                     {saving ? 'Saving…' : 'Analyze →'}
                   </button>
                 </div>
+              )}
+              {alreadySavedNotice && (
+                <div className="mh-saved-msg" style={{ marginTop: 8 }}>Already in My Home — showing your saved property</div>
+              )}
+              {saved && (
+                <div className="mh-saved-msg" style={{ marginTop: 8 }}>Saved — analyzing your new property…</div>
               )}
 
               {/* Property lens chips — property switcher inline, More ▾ for overflow + org actions */}
