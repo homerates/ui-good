@@ -65,3 +65,6 @@ _local_trash/
 /.clerk/
 # TypeScript incremental build cache
 tsconfig.tsbuildinfo
+
+# Playwright MCP debug artifacts (screenshots, console logs, page snapshots)
+.playwright-mcp/
