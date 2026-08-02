@@ -1995,9 +1995,15 @@ function MyHomePageInner() {
       setActivePropertyId(existingMatch.id);
       // Bump to the front of the list immediately (matches the approved redesign: re-selecting
       // a property via the command bar is "recent activity" the same as adding a new one).
+      // Also stamp updated_at optimistically — caught live in browser testing: without this,
+      // the chip correctly jumped to the front but its relative-time stamp still showed the
+      // OLD value (e.g. "1h ago") until a full page reload re-fetched from the server, even
+      // though the server-side touch below had already succeeded. The stamp exists specifically
+      // to make the reordering legible, so it can't lag the reorder itself.
+      const touchedMatch = { ...existingMatch, updated_at: new Date().toISOString() };
+      setProperties(prev => [touchedMatch, ...prev.filter(p => p.id !== existingMatch.id)]);
       // Server-side, touch updated_at too so a fresh page load keeps it in the same position —
       // POST with just property_id updates updated_at without changing anything else.
-      setProperties(prev => [existingMatch, ...prev.filter(p => p.id !== existingMatch.id)]);
       void fetch('/api/homeowner/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
