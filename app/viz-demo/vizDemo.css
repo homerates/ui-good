@@ -1,0 +1,25 @@
+/*
+ * Scoped, plain CSS for the viz-demo route only — this app has no active Tailwind entry point
+ * (tailwindcss is installed but never @import'd anywhere in app/globals.css), so every other
+ * style in this route is inline (React style objects) to avoid any dependency on a build step
+ * that doesn't exist. This file exists only for the handful of things inline styles genuinely
+ * can't express: a responsive breakpoint and a hover state. Class names are prefixed `vizDemo`
+ * to guarantee no collision with the rest of the app's CSS — this file becomes part of the
+ * global stylesheet once imported (Next.js does not scope plain .css imports to one route).
+ */
+
+.vizDemoGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (min-width: 1024px) {
+  .vizDemoGrid {
+    grid-template-columns: 320px 1fr;
+  }
+}
+
+.vizDemoTermBtn:hover {
+  background-color: #f8fafc;
+}
