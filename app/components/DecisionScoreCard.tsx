@@ -156,6 +156,11 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
     return `/rate-intelligence-engine?${p.toString()}`;
   })();
 
+  // "→ See where you rank" — personalized Rates Oracle chart, keyed only by
+  // sid (unlike rateIntelUrl, it re-derives everything server-side from the
+  // saved session, so no other scenario params are needed).
+  const ratesOracleUrl = sessionId ? `/rates-oracle?sid=${sessionId}` : null;
+
   const levels = [
     { num: 'L1', name: 'Financial', weight: '35%', score: l1Score,        done: true },
     { num: 'L2', name: 'Property',  weight: '25%', score: l2Score,        done: l2Score != null },
@@ -313,19 +318,31 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
               <span style={{ fontSize: '0.58rem', color: 'rgba(185,208,192,0.18)', marginLeft: 'auto' }}>🔬</span>
             </div>
 
-            {/* Always-visible CTA */}
-            <a href={rateIntelUrl} style={{
-              flex: 1, fontSize: '0.72rem', fontWeight: 700,
-              color: 'rgba(167,139,250,0.65)', textDecoration: 'none',
-              letterSpacing: '0.01em', transition: 'color 0.2s ease',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#c4b5fd')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(167,139,250,0.65)')}
-            >
-              → Decode your rate
-            </a>
-
-            <div style={{ width: 44 }} />
+            {/* Always-visible CTAs */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <a href={rateIntelUrl} style={{
+                fontSize: '0.72rem', fontWeight: 700,
+                color: 'rgba(167,139,250,0.65)', textDecoration: 'none',
+                letterSpacing: '0.01em', transition: 'color 0.2s ease',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#c4b5fd')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(167,139,250,0.65)')}
+              >
+                → Decode your rate
+              </a>
+              {ratesOracleUrl && (
+                <a href={ratesOracleUrl} style={{
+                  fontSize: '0.72rem', fontWeight: 700,
+                  color: 'rgba(0,232,122,0.65)', textDecoration: 'none',
+                  letterSpacing: '0.01em', transition: 'color 0.2s ease',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#4ade80')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(0,232,122,0.65)')}
+                >
+                  → See where you rank
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}
