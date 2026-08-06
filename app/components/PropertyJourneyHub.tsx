@@ -13,13 +13,17 @@
 // URL itself, per components/CLAUDE.md) animated through a zoom/orbit/
 // descend/land keyframe sequence. Once a flyover-video vendor is chosen (or
 // deemed not cost-effective — Higgsfield priced out at our likely volume,
-// 2026-08-05), a <video> element would play through a comparable duration
-// before landing in the same place — not a separate implementation, just a
-// different source feeding this sequence. The real "wow" this component
-// controls is the code-generated animation itself, not the backing image.
+// 2026-08-05, and Google's Photorealistic 3D Tiles has the same opaque-
+// pricing problem, 2026-08-06), a <video> element would play through a
+// comparable duration before landing in the same place — not a separate
+// implementation, just a different source feeding this sequence. The real
+// "wow" this component controls is the code-generated animation itself, not
+// the backing image — hence the production-value pass below (staggered
+// reveal, count-up scores, gradient connectors, depth/glow on the photo)
+// instead of chasing a paid 3D/video vendor.
 
 import { useEffect, useState, useMemo } from 'react';
-import { motion, useReducedMotion, type Transition } from 'framer-motion';
+import { motion, animate, useReducedMotion, type Transition } from 'framer-motion';
 import PropertyPhoto from './PropertyPhoto';
 
 export interface PropertyJourneyLevel {
@@ -47,6 +51,7 @@ const CENTER = SIZE / 2;
 const RADIUS = 180;
 const NODE_SIZE = 84;
 const CENTER_SIZE = 148;
+const STAGGER_STEP = 0.09;
 
 const ACCENT = '#00e87a';
 const INK = '#f0f4ff';
@@ -62,40 +67,73 @@ function levelPosition(index: number, total: number) {
   };
 }
 
-function Connector({ x, y, relevance, reduced }: { x: number; y: number; relevance: number; reduced: boolean }) {
+/** Ticks a level's score up from 0 once it appears — reads as "the system just computed this," not a static label. */
+function CountUpScore({ value, active, reduced }: { value: number | null; active: boolean; reduced: boolean }) {
+  const [display, setDisplay] = useState(reduced || !active ? (value ?? 0) : 0);
+
+  useEffect(() => {
+    if (value == null) return;
+    if (reduced || !active) { setDisplay(value); return; }
+    const controls = animate(0, value, {
+      duration: 1,
+      ease: 'easeOut',
+      delay: 0.15,
+      onUpdate: v => setDisplay(Math.round(v)),
+    });
+    return () => controls.stop();
+  }, [value, active, reduced]);
+
+  return <>{value != null ? display : '—'}</>;
+}
+
+function Connector({ x, y, relevance, reduced, delay, visible }: {
+  x: number; y: number; relevance: number; reduced: boolean; delay: number; visible: boolean;
+}) {
   const strokeWidth = 2 + relevance * 3;
-  const strokeOpacity = 0.3 + relevance * 0.5;
+  const strokeOpacity = 0.35 + relevance * 0.55;
   const duration = 3.2 - relevance * 2; // higher relevance = faster pulse
   const dash = 10;
+  const gradId = `hub-connector-grad-${x.toFixed(0)}-${y.toFixed(0)}`;
 
   return (
-    <g>
-      {/* Static base line — always visible, even under reduced motion */}
-      <line x1={CENTER} y1={CENTER} x2={x} y2={y} stroke={ACCENT} strokeOpacity={strokeOpacity * 0.35} strokeWidth={strokeWidth} />
+    <motion.g
+      initial={reduced ? false : { opacity: 0 }}
+      animate={{ opacity: visible ? 1 : 0 }}
+      transition={reduced ? { duration: 0.2 } : { delay, duration: 0.5 }}
+    >
+      <defs>
+        <linearGradient id={gradId} x1={CENTER} y1={CENTER} x2={x} y2={y} gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor={ACCENT} stopOpacity={strokeOpacity * 0.15} />
+          <stop offset="1" stopColor={ACCENT} stopOpacity={strokeOpacity} />
+        </linearGradient>
+      </defs>
+      {/* Static gradient base — always visible, even under reduced motion */}
+      <line x1={CENTER} y1={CENTER} x2={x} y2={y} stroke={`url(#${gradId})`} strokeWidth={strokeWidth} strokeLinecap="round" />
       {/* Animated "energy flowing toward the level" overlay */}
       {!reduced && (
         <motion.line
           x1={CENTER} y1={CENTER} x2={x} y2={y}
           stroke={ACCENT}
           strokeOpacity={strokeOpacity}
-          strokeWidth={strokeWidth}
+          strokeWidth={Math.max(1, strokeWidth - 1)}
+          strokeLinecap="round"
           strokeDasharray={`${dash} ${dash * 2.5}`}
           animate={{ strokeDashoffset: [0, -(dash * 3.5)] }}
           transition={{ duration, repeat: Infinity, ease: 'linear' }}
         />
       )}
-    </g>
+    </motion.g>
   );
 }
 
 function LevelNode({
-  level, x, y, selected, mostRelevant, reduced, onSelect,
+  level, selected, mostRelevant, reduced, active, onSelect,
 }: {
   level: PropertyJourneyLevel;
-  x: number; y: number;
   selected: boolean;
   mostRelevant: boolean;
   reduced: boolean;
+  active: boolean;
   onSelect: () => void;
 }) {
   const springTap: Transition = reduced
@@ -114,10 +152,7 @@ function LevelNode({
       transition={springTap}
       style={{
         position: 'absolute',
-        left: x - NODE_SIZE / 2,
-        top: y - NODE_SIZE / 2,
-        width: NODE_SIZE,
-        height: NODE_SIZE,
+        inset: 0,
         borderRadius: '50%',
         display: 'flex',
         flexDirection: 'column',
@@ -127,12 +162,14 @@ function LevelNode({
         textDecoration: 'none',
         background: SURFACE,
         border: `2px solid ${selected || mostRelevant ? ACCENT : 'rgba(255,255,255,0.14)'}`,
-        boxShadow: mostRelevant ? '0 0 0 4px rgba(0,232,122,0.12)' : 'none',
+        boxShadow: mostRelevant
+          ? '0 0 0 4px rgba(0,232,122,0.12), 0 6px 18px rgba(0,0,0,0.45)'
+          : '0 6px 18px rgba(0,0,0,0.45)',
         cursor: 'pointer',
       }}
     >
-      <span style={{ fontSize: '1.1rem', fontWeight: 800, color: level.score != null ? INK : INK_DIM }}>
-        {level.score != null ? level.score : '—'}
+      <span style={{ fontSize: '1.1rem', fontWeight: 800, color: level.score != null ? INK : INK_DIM, fontVariantNumeric: 'tabular-nums' }}>
+        <CountUpScore value={level.score} active={active} reduced={reduced} />
       </span>
       <span style={{ fontSize: '0.55rem', fontWeight: 700, color: INK_DIM, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', lineHeight: 1.15, padding: '0 4px' }}>
         {level.label}
@@ -163,18 +200,31 @@ export function PropertyJourneyHub({
     [levels],
   );
 
+  const settled = phase === 'settled';
+
   return (
-    <div style={{ position: 'relative', width: SIZE, height: SIZE, margin: '0 auto' }}>
+    <div
+      style={{
+        position: 'relative',
+        width: SIZE,
+        height: SIZE,
+        margin: '0 auto',
+        background: 'radial-gradient(circle at center, rgba(0,232,122,0.07), transparent 65%)',
+        borderRadius: '50%',
+      }}
+    >
       {/* ── Flyover / property image — same element serves as entrance and center ── */}
       <motion.div
-        initial={reduced ? false : { scale: 2.2, x: 60, y: -40, rotate: 6, opacity: 0.4, filter: 'blur(6px)' }}
+        initial={reduced ? false : { scale: 2.2, x: 60, y: -40, rotate: 6, opacity: 0.4, filter: 'blur(6px) saturate(1.15) contrast(1.08)' }}
         animate={reduced ? { scale: 1, opacity: 1 } : {
           scale: phase === 'flyover' ? [2.2, 1.7, 1.15, 1] : 1,
           x: phase === 'flyover' ? [60, -30, 10, 0] : 0,
           y: phase === 'flyover' ? [-40, 10, -6, 0] : 0,
           rotate: phase === 'flyover' ? [6, -3, 1, 0] : 0,
           opacity: 1,
-          filter: phase === 'flyover' ? ['blur(6px)', 'blur(2px)', 'blur(0px)', 'blur(0px)'] : 'blur(0px)',
+          filter: phase === 'flyover'
+            ? ['blur(6px) saturate(1.15) contrast(1.08)', 'blur(2px) saturate(1.15) contrast(1.08)', 'blur(0px) saturate(1.15) contrast(1.08)', 'blur(0px) saturate(1.15) contrast(1.08)']
+            : 'blur(0px) saturate(1.15) contrast(1.08)',
         }}
         transition={reduced ? { duration: 0.2 } : { duration: 2.2, times: [0, 0.4, 0.75, 1], ease: 'easeInOut' }}
         onAnimationComplete={() => { if (phase === 'flyover') setPhase('settled'); }}
@@ -187,6 +237,7 @@ export function PropertyJourneyHub({
           borderRadius: '50%',
           overflow: 'hidden',
           border: `3px solid ${ACCENT}`,
+          boxShadow: '0 0 44px rgba(0,232,122,0.28), 0 24px 48px rgba(0,0,0,0.5)',
           zIndex: 2,
         }}
       >
@@ -198,6 +249,11 @@ export function PropertyJourneyHub({
         ) : (
           <PropertyPhoto address={propertyAddress} width={CENTER_SIZE} height={CENTER_SIZE} style={{ width: '100%', height: '100%' }} />
         )}
+        {/* Vignette — pulls focus toward the center, reads as depth rather than a flat cutout */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          background: 'radial-gradient(circle, transparent 45%, rgba(0,0,0,0.45) 100%)',
+        }} />
         {/* Ambient "breathing" ring — center, at rest only */}
         {!reduced && phase === 'settled' && (
           <motion.div
@@ -208,34 +264,49 @@ export function PropertyJourneyHub({
         )}
       </motion.div>
 
-      {/* ── Connectors + level nodes — fade in once the flyover has landed ── */}
-      <motion.div
-        initial={reduced ? false : { opacity: 0 }}
-        animate={{ opacity: phase === 'settled' ? 1 : 0 }}
-        transition={{ duration: 0.5 }}
-        style={{ position: 'absolute', inset: 0, pointerEvents: phase === 'settled' ? 'auto' : 'none' }}
-      >
-        <svg width={SIZE} height={SIZE} style={{ position: 'absolute', inset: 0 }}>
-          {levels.map((level, i) => {
-            const { x, y } = levelPosition(i, levels.length);
-            return <Connector key={level.id} x={x} y={y} relevance={level.relevance} reduced={reduced} />;
-          })}
-        </svg>
+      {/* ── Connectors — each staggers in as its level node reveals ── */}
+      <svg width={SIZE} height={SIZE} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
         {levels.map((level, i) => {
           const { x, y } = levelPosition(i, levels.length);
           return (
-            <LevelNode
-              key={level.id}
-              level={level}
-              x={x} y={y}
-              selected={selectedId === level.id}
-              mostRelevant={level.id === mostRelevantId}
-              reduced={reduced}
-              onSelect={() => { setSelectedId(level.id); onSelectLevel?.(level.id); }}
+            <Connector
+              key={level.id} x={x} y={y} relevance={level.relevance} reduced={reduced}
+              delay={i * STAGGER_STEP}
+              visible={settled}
             />
           );
         })}
-      </motion.div>
+      </svg>
+
+      {/* ── Level nodes — staggered spring-in, one after another around the circle ── */}
+      {levels.map((level, i) => {
+        const { x, y } = levelPosition(i, levels.length);
+        return (
+          <motion.div
+            key={level.id}
+            initial={reduced ? false : { opacity: 0, scale: 0.4 }}
+            animate={settled ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.4 }}
+            transition={reduced ? { duration: 0.2 } : { delay: i * STAGGER_STEP, type: 'spring', stiffness: 260, damping: 20 }}
+            style={{
+              position: 'absolute',
+              left: x - NODE_SIZE / 2,
+              top: y - NODE_SIZE / 2,
+              width: NODE_SIZE,
+              height: NODE_SIZE,
+              pointerEvents: settled ? 'auto' : 'none',
+            }}
+          >
+            <LevelNode
+              level={level}
+              selected={selectedId === level.id}
+              mostRelevant={level.id === mostRelevantId}
+              reduced={reduced}
+              active={settled}
+              onSelect={() => { setSelectedId(level.id); onSelectLevel?.(level.id); }}
+            />
+          </motion.div>
+        );
+      })}
     </div>
   );
 }
