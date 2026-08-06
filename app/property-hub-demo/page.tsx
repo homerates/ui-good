@@ -8,28 +8,6 @@
 import AppNav from '../components/AppNav';
 import { PropertyJourneyHub, type PropertyJourneyLevel } from '../components/PropertyJourneyHub';
 
-// Self-contained placeholder — a simple gradient + house silhouette, not a real
-// (possibly rights-encumbered) property photo. No external network dependency.
-const PLACEHOLDER_IMAGE =
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
-      <defs>
-        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#1e3a5f"/>
-          <stop offset="1" stop-color="#0e1420"/>
-        </linearGradient>
-      </defs>
-      <rect width="300" height="300" fill="url(#sky)"/>
-      <rect x="0" y="210" width="300" height="90" fill="#141b28"/>
-      <polygon points="150,90 230,170 70,170" fill="#00e87a" fill-opacity="0.85"/>
-      <rect x="95" y="170" width="110" height="80" fill="#1b2433"/>
-      <rect x="135" y="205" width="30" height="45" fill="#0e1420"/>
-      <rect x="110" y="185" width="20" height="20" fill="#00e87a" fill-opacity="0.5"/>
-      <rect x="170" y="185" width="20" height="20" fill="#00e87a" fill-opacity="0.5"/>
-    </svg>
-  `.trim());
-
 const SAMPLE_LEVELS: PropertyJourneyLevel[] = [
   { id: 'l1', label: 'Financial Readiness', score: 82, href: '/chat', relevance: 0.4 },
   { id: 'l2', label: 'Property Evaluation', score: 74, href: '/check-property', relevance: 0.5 },
@@ -49,13 +27,13 @@ export default function PropertyHubDemoPage() {
           </div>
           <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>2420 E County Down Dr</h1>
           <p style={{ fontSize: '0.8rem', color: '#8fa3b8', marginTop: 6, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto' }}>
-            Sample data — property image is a placeholder graphic, not a real photo. L4 (Location Intelligence)
-            is shown unscored with the highest relevance to demonstrate the "next step" emphasis.
+            Sample scores — property image is real Street View/satellite imagery via the existing PropertyPhoto
+            fallback chain (no flyover video: Higgsfield priced out at our likely volume, 2026-08-05). L4
+            (Location Intelligence) is shown unscored with the highest relevance to demonstrate the "next step" emphasis.
           </p>
         </div>
         <div style={{ marginTop: 24 }}>
           <PropertyJourneyHub
-            propertyImageUrl={PLACEHOLDER_IMAGE}
             propertyAddress="2420 E County Down Dr, Chandler, AZ 85249"
             levels={SAMPLE_LEVELS}
           />

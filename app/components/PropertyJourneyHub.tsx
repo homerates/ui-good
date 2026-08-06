@@ -8,13 +8,19 @@
 // something this component tries to resolve.
 //
 // The flyover entrance is deliberately the SAME code path as the graceful
-// fallback: a static image animated through a zoom/orbit/descend/land keyframe
-// sequence. Once a flyover-video vendor is chosen, a <video> element would
-// play through a comparable duration before landing in the same place — not a
-// separate implementation, just a different source feeding this sequence.
+// fallback: a real image (Street View → satellite, via PropertyPhoto's
+// existing fallback chain — this component never constructs a Google Maps
+// URL itself, per components/CLAUDE.md) animated through a zoom/orbit/
+// descend/land keyframe sequence. Once a flyover-video vendor is chosen (or
+// deemed not cost-effective — Higgsfield priced out at our likely volume,
+// 2026-08-05), a <video> element would play through a comparable duration
+// before landing in the same place — not a separate implementation, just a
+// different source feeding this sequence. The real "wow" this component
+// controls is the code-generated animation itself, not the backing image.
 
 import { useEffect, useState, useMemo } from 'react';
 import { motion, useReducedMotion, type Transition } from 'framer-motion';
+import PropertyPhoto from './PropertyPhoto';
 
 export interface PropertyJourneyLevel {
   id: 'l1' | 'l2' | 'l3' | 'l4' | 'l5';
@@ -27,7 +33,8 @@ export interface PropertyJourneyLevel {
 }
 
 interface PropertyJourneyHubProps {
-  propertyImageUrl: string;
+  /** A real listing photo (e.g. Redfin CDN), if the caller has one — takes priority. Falls back to PropertyPhoto's Street View → satellite chain when absent. */
+  photoUrl?: string;
   /** Optional — once a flyover-video vendor is wired in, pass its URL here. Falls back to the static-image sequence when absent. */
   flyoverVideoUrl?: string;
   propertyAddress: string;
@@ -140,7 +147,7 @@ function LevelNode({
 }
 
 export function PropertyJourneyHub({
-  propertyImageUrl, flyoverVideoUrl, propertyAddress, levels, onSelectLevel,
+  photoUrl, flyoverVideoUrl, propertyAddress, levels, onSelectLevel,
 }: PropertyJourneyHubProps) {
   const reducedMotionPref = useReducedMotion();
   const reduced = !!reducedMotionPref;
@@ -160,7 +167,6 @@ export function PropertyJourneyHub({
     <div style={{ position: 'relative', width: SIZE, height: SIZE, margin: '0 auto' }}>
       {/* ── Flyover / property image — same element serves as entrance and center ── */}
       <motion.div
-        layout={!reduced}
         initial={reduced ? false : { scale: 2.2, x: 60, y: -40, rotate: 6, opacity: 0.4, filter: 'blur(6px)' }}
         animate={reduced ? { scale: 1, opacity: 1 } : {
           scale: phase === 'flyover' ? [2.2, 1.7, 1.15, 1] : 1,
@@ -187,8 +193,10 @@ export function PropertyJourneyHub({
         {flyoverVideoUrl ? (
           <video src={flyoverVideoUrl} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             onEnded={() => setPhase('settled')} />
+        ) : photoUrl ? (
+          <img src={photoUrl} alt={propertyAddress} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <img src={propertyImageUrl} alt={propertyAddress} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <PropertyPhoto address={propertyAddress} width={CENTER_SIZE} height={CENTER_SIZE} style={{ width: '100%', height: '100%' }} />
         )}
         {/* Ambient "breathing" ring — center, at rest only */}
         {!reduced && phase === 'settled' && (
