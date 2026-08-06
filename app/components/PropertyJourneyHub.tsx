@@ -8,10 +8,13 @@
 // something this component tries to resolve.
 //
 // The flyover entrance is deliberately the SAME code path as the graceful
-// fallback: a real image (Street View → satellite, via PropertyPhoto's
-// existing fallback chain — this component never constructs a Google Maps
-// URL itself, per components/CLAUDE.md) animated through a zoom/orbit/
-// descend/land keyframe sequence. Once a flyover-video vendor is chosen (or
+// fallback: a wide satellite/map view (location context — PropertyMap,
+// already-enabled Static Maps API) cross-fades into the Street View photo of
+// the actual home (PropertyPhoto's existing fallback chain) partway through
+// one continuous zoom/orbit/descend/land camera move — this component never
+// constructs a Google Maps URL itself, per components/CLAUDE.md. No new API
+// enabled for this: both images use Google APIs already wired into this
+// codebase. Once a flyover-video vendor is chosen (or
 // deemed not cost-effective — Higgsfield priced out at our likely volume,
 // 2026-08-05, and Google's Photorealistic 3D Tiles has the same opaque-
 // pricing problem, 2026-08-06), a <video> element would play through a
@@ -25,6 +28,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, animate, useReducedMotion, type Transition } from 'framer-motion';
 import PropertyPhoto from './PropertyPhoto';
+import PropertyMap from './PropertyMap';
 
 export interface PropertyJourneyLevel {
   id: 'l1' | 'l2' | 'l3' | 'l4' | 'l5';
@@ -244,10 +248,33 @@ export function PropertyJourneyHub({
         {flyoverVideoUrl ? (
           <video src={flyoverVideoUrl} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             onEnded={() => setPhase('settled')} />
-        ) : photoUrl ? (
-          <img src={photoUrl} alt={propertyAddress} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <PropertyPhoto address={propertyAddress} width={CENTER_SIZE} height={CENTER_SIZE} style={{ width: '100%', height: '100%' }} />
+          <>
+            {/* Stage 1 — wide location context, visible at the start of the flyover, fades out mid-sequence. */}
+            {!reduced && phase === 'flyover' && (
+              <motion.div
+                initial={{ opacity: 1 }}
+                animate={{ opacity: [1, 1, 0, 0] }}
+                transition={{ duration: 2.2, times: [0, 0.4, 0.75, 1], ease: 'easeInOut' }}
+                style={{ position: 'absolute', inset: 0 }}
+              >
+                <PropertyMap address={propertyAddress} variant="thumbnail" mapType="satellite" zoom={14} width={CENTER_SIZE} height={CENTER_SIZE} style={{ width: '100%', height: '100%' }} />
+              </motion.div>
+            )}
+            {/* Stage 2 — the actual home, fades in mid-sequence, remains as the permanent center. */}
+            <motion.div
+              initial={reduced ? { opacity: 1 } : { opacity: 0 }}
+              animate={reduced ? { opacity: 1 } : { opacity: [0, 0, 1, 1] }}
+              transition={reduced ? { duration: 0.2 } : { duration: 2.2, times: [0, 0.4, 0.75, 1], ease: 'easeInOut' }}
+              style={{ position: 'absolute', inset: 0 }}
+            >
+              {photoUrl ? (
+                <img src={photoUrl} alt={propertyAddress} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <PropertyPhoto address={propertyAddress} width={CENTER_SIZE} height={CENTER_SIZE} style={{ width: '100%', height: '100%' }} />
+              )}
+            </motion.div>
+          </>
         )}
         {/* Vignette — pulls focus toward the center, reads as depth rather than a flat cutout */}
         <div style={{
