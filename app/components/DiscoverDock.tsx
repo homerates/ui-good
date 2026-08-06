@@ -11,6 +11,7 @@ import {
   type ScenarioSnapshot,
   type GapStatus,
 } from '../../lib/discoverQuestions';
+import { AIDisclosureTag } from './AIDisclosureTag';
 
 const GAP_COLORS: Record<GapStatus, { bg: string; border: string; text: string; label: string }> = {
   match:   { bg: 'rgba(0,232,122,0.05)',   border: 'rgba(0,232,122,0.18)',   text: '#00e87a', label: '✓ Match'   },
@@ -660,6 +661,9 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                               </>
                             ) : (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+                                {/* aiNotes[q.id]?.analysis is real AI-generated text from /api/discover/analyze-reply;
+                                    gap.note (the fallback) is a deterministic string — only the AI path needs the tag */}
+                                {aiNotes[q.id]?.analysis && <AIDisclosureTag variant="inline" />}
                                 <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
                                   <span className="dd-analysis-icon">
                                     {gap.status === 'match' ? '✓' : gap.status === 'check' ? '⚡' : '⚠'}
@@ -695,7 +699,8 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                 <div className="da-header">
                   <span style={{ fontSize: 14 }}>🤖</span>
                   <span className="da-header-title">AI Full Scorecard</span>
-                  <span className="da-header-sub">Grok · all 4 chips analyzed</span>
+                  <span className="da-header-sub">all 4 chips analyzed</span>
+                  {fullAnalysis && !fullAnalysisLoading && <AIDisclosureTag variant="inline" />}
                   {!fullAnalysisLoading && !fullAnalysis && (
                     <button className="da-retry-btn" onClick={() => { scorecardTriggeredRef.current = false; setFullAnalysisError(''); fetchFullScorecard(); }}>
                       Retry
@@ -871,10 +876,14 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                           <div className="dd-ai-turn-lbl">You asked</div>
                           <div className="dd-ai-q">{m.q}</div>
                           <div className="dd-ai-turn-lbl">HomeRates AI</div>
-                          {m.loading
-                            ? <div className="dd-ai-loading"><span /><span /><span /></div>
-                            : <div className="dd-ai-a">{m.a}</div>
-                          }
+                          {m.loading ? (
+                            <div className="dd-ai-loading"><span /><span /><span /></div>
+                          ) : (
+                            <>
+                              <AIDisclosureTag variant="inline" />
+                              <div className="dd-ai-a">{m.a}</div>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>

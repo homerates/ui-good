@@ -2,6 +2,7 @@
 
 import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
+import { AIDisclosureTag } from "./AIDisclosureTag";
 
 // ===== Section metadata =====================================================
 const SECTION_META = [
@@ -420,6 +421,15 @@ export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
                 </span>
                 {data_freshness && <span>{data_freshness}</span>}
             </div>
+
+            {/* AI-origin disclosure (Fannie Mae LL-2026-04) — only when this card
+                is actually AI-narrated (grok truthy); the deterministic "Answer"
+                path never needs it */}
+            {isAiResponse && (
+                <div style={{ padding: "6px 16px 0" }}>
+                    <AIDisclosureTag variant="inline" />
+                </div>
+            )}
 
             {/* Content */}
             <div style={{ padding: "8px 16px 4px" }}>
