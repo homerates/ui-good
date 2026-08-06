@@ -6,6 +6,7 @@ import { SignInButton, SignedIn, SignedOut, useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
 import { ShareAnswerButton } from '../components/ShareAnswerButton';
+import { AIDisclosureTag } from '../components/AIDisclosureTag';
 import { normalizeListingStatus } from '@/prefetchGrokProperty';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -919,6 +920,7 @@ function PropertyIntelInner() {
                       <i className="fa-solid fa-brain" style={{ color: '#a78bfa', fontSize: '1.05rem' }} />
                       <span style={{ fontWeight: 700, fontSize: '0.93rem' }}>Grok Intelligence</span>
                       </div>
+                    {summary && <AIDisclosureTag variant="inline" style={{ marginBottom: 10 }} />}
                     {summary ? (
                       <p style={{ fontSize: '0.84rem', color: '#cbd5e1', lineHeight: 1.75, margin: 0, minHeight: 64 }}>
                         {summary}
@@ -953,6 +955,7 @@ function PropertyIntelInner() {
                   {d.buyer_strategy && (
                     <div className="fi" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: 14, padding: 20 }}>
                       <div style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#fbbf24', marginBottom: 10 }}>Buyer Strategy</div>
+                      <AIDisclosureTag variant="inline" style={{ marginBottom: 10 }} />
                       <p style={{ fontSize: '0.84rem', color: '#cbd5e1', lineHeight: 1.75, margin: 0 }}>{d.buyer_strategy}</p>
                     </div>
                   )}
@@ -1086,6 +1089,7 @@ function PropertyIntelInner() {
                       <span style={{ fontSize: '1rem' }}>📍</span>
                       <span style={{ fontWeight: 700, fontSize: '0.93rem', color: '#e2e8f0' }}>Location Intelligence</span>
                       <span style={{ fontSize: '0.58rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'rgba(20,184,166,0.1)', color: '#2dd4bf', border: '1px solid rgba(20,184,166,0.25)', borderRadius: 4, padding: '2px 7px' }}>L4 · Deep Analysis</span>
+                      <AIDisclosureTag variant="inline" />
                     </div>
 
                     {/* Overall score */}
