@@ -7,6 +7,7 @@ import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
+import { computeComposite, verdict, COMPOSITE_WEIGHTS } from '../../../lib/scoring/decisionScore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,37 +17,27 @@ interface LevelData {
 }
 
 interface Levels {
-  l1: LevelData; // Financial Readiness  35%
-  l2: LevelData; // Market Conditions    25%
-  l3: LevelData; // Property Value       25%
+  l1: LevelData; // Financial Readiness   30%
+  l2: LevelData; // Property Evaluation   20%
+  l3: LevelData; // Market Intelligence   20%
   l4: LevelData; // Location Intelligence 15%
+  l5: LevelData; // Rate Intelligence     15%
 }
-
-// ─── Weights ─────────────────────────────────────────────────────────────────
-
-const WEIGHTS = { l1: 0.35, l2: 0.25, l3: 0.25, l4: 0.15 };
 
 // ─── Decision Index ───────────────────────────────────────────────────────────
+// Canonical math lives in lib/scoring/decisionScore.ts — this wraps it to also
+// report what fraction of the total weight is currently backed by real data
+// (used for the "N% weighted" display), which computeComposite itself doesn't return.
 
 function computeIndex(levels: Levels): { score: number; pct: number } | null {
-  let weighted = 0, totalW = 0;
-  for (const [k, w] of Object.entries(WEIGHTS) as [keyof Levels, number][]) {
-    if (levels[k].score != null) {
-      weighted += levels[k].score! * w;
-      totalW   += w;
-    }
-  }
-  if (totalW === 0) return null;
-  const score = Math.round(weighted / totalW);
+  const score = computeComposite({
+    l1: levels.l1.score, l2: levels.l2.score, l3: levels.l3.score,
+    l4: levels.l4.score, l5: levels.l5.score,
+  });
+  if (score == null) return null;
+  const totalW = (Object.keys(COMPOSITE_WEIGHTS) as (keyof typeof COMPOSITE_WEIGHTS)[])
+    .reduce((a, k) => a + (levels[k].score != null ? COMPOSITE_WEIGHTS[k] : 0), 0);
   return { score, pct: totalW };
-}
-
-function verdict(score: number): { label: string; color: string } {
-  if (score >= 85) return { label: 'Strong Buy',        color: '#4ade80' };
-  if (score >= 70) return { label: 'Ready to Offer',    color: '#4ade80' };
-  if (score >= 55) return { label: 'Buy with Caution',  color: '#fbbf24' };
-  if (score >= 40) return { label: 'Watch the Market',  color: '#fbbf24' };
-  return               { label: 'Hold Off',             color: '#f87171' };
 }
 
 // ─── Score ring ───────────────────────────────────────────────────────────────
@@ -293,11 +284,13 @@ function Track5Inner() {
     l2: { score: (sessionData.l2_score as number) ?? null, summary: (sessionData.l2_summary as string) ?? null },
     l3: { score: (sessionData.l3_score as number) ?? null, summary: (sessionData.l3_summary as string) ?? null },
     l4: { score: (sessionData.l4_score as number) ?? null, summary: (sessionData.l4_summary as string) ?? null },
+    l5: { score: (sessionData.l5_score as number) ?? null, summary: (sessionData.l5_summary as string) ?? null },
   } : {
     l1: { score: clampScore(params?.get('l1_score')), summary: params?.get('l1_summary') ?? null },
     l2: { score: clampScore(params?.get('l2_score')), summary: params?.get('l2_summary') ?? null },
     l3: { score: clampScore(params?.get('l3_score')), summary: params?.get('l3_summary') ?? null },
     l4: { score: clampScore(params?.get('l4_score')), summary: params?.get('l4_summary') ?? null },
+    l5: { score: clampScore(params?.get('l5_score')), summary: params?.get('l5_summary') ?? null },
   };
 
   // ── Extract address — prefer property_address from session (always clean) ──
@@ -431,7 +424,9 @@ function Track5Inner() {
 
   const idx       = computeIndex(levels);
   const v         = idx ? verdict(idx.score) : null;
-  const scoredN   = Object.values(levels).filter(l => l.score != null).length + (rieResult != null ? 1 : 0);
+  // levels.l5.score covers new sessions (written by RateEngineClient); the rieResult
+  // fallback covers sessions that ran Rate Intelligence before l5_score existed.
+  const scoredN   = Object.values(levels).filter(l => l.score != null).length + (levels.l5.score == null && rieResult != null ? 1 : 0);
   const weightPct = idx ? Math.round(idx.pct * 100) : 0;
 
   // ── Effect 1: Load from ?session=<id> — restores all scores + scenario context ──
@@ -492,6 +487,7 @@ function Track5Inner() {
         if (levels.l2.score != null) { body.l2_score = levels.l2.score; body.l2_summary = levels.l2.summary; }
         if (levels.l3.score != null) { body.l3_score = levels.l3.score; body.l3_summary = levels.l3.summary; }
         if (levels.l4.score != null) { body.l4_score = levels.l4.score; body.l4_summary = levels.l4.summary; }
+        if (levels.l5.score != null) { body.l5_score = levels.l5.score; body.l5_summary = levels.l5.summary; }
         return fetch('/api/buyer-sessions', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -636,9 +632,9 @@ function Track5Inner() {
         {/* ── Level Cards ── */}
         {/* L1 back-link: re-run the scenario in chat */}
         <LevelCard
-          num="L1" title="Financial Readiness" weight="35%"
+          num="L1" title="Financial Readiness" weight="30%"
           data={levels.l1}
-          tooltip="Scored from your loan scenario — loan type, down payment %, and LTV. Formula by type: Conventional (LTV ≤80→85, ≤85→78, ≤90→70, >90→60) · FHA (LTV ≤90→72, ≤95→65, >95→58) · VA (LTV ≤80→88, else→78) · Jumbo (LTV ≤75→86, ≤80→80, else→72). This level contributes 35% of your final Decision Score."
+          tooltip="Scored from your loan scenario — loan type, down payment %, and LTV. Formula by type: Conventional (LTV ≤80→85, ≤85→78, ≤90→70, >90→60) · FHA (LTV ≤90→72, ≤95→65, >95→58) · VA (LTV ≤80→88, else→78) · Jumbo (LTV ≤75→86, ≤80→80, else→72). This level contributes 30% of your final Decision Score."
           cta={{
             label: hasPurchaseCtx ? 'Back to Scenario ↗' : 'Run Scenario ↗',
             href:  hasPurchaseCtx
@@ -648,9 +644,9 @@ function Track5Inner() {
         />
         {/* L2 back-link: back to check-property (gap analysis, AVM vs list) */}
         <LevelCard
-          num="L2" title="Property Evaluation" weight="25%"
+          num="L2" title="Property Evaluation" weight="20%"
           data={levels.l2}
-          tooltip="Grok 4 scores the property against your budget and market comps. Key factors: PITI vs qualified monthly budget (gap %), list price vs Redfin/Zillow AVM (value gap), and days on market positioning. A property that fits your budget and is priced at or below market value scores 80+. This level contributes 25% of your final Decision Score."
+          tooltip="Grok 4 scores the property against your budget and market comps. Key factors: PITI vs qualified monthly budget (gap %), list price vs Redfin/Zillow AVM (value gap), and days on market positioning. A property that fits your budget and is priced at or below market value scores 80+. This level contributes 20% of your final Decision Score."
           cta={{
             label: address ? 'Back to Property ↗' : 'Check a Property ↗',
             href:  hasPurchaseCtx
@@ -660,9 +656,9 @@ function Track5Inner() {
         />
         {/* L3 back-link: back to property-intel (market conditions + comps) */}
         <LevelCard
-          num="L3" title="Market Intelligence" weight="25%"
+          num="L3" title="Market Intelligence" weight="20%"
           data={levels.l3}
-          tooltip="Grok 4 live web search scores the local market conditions. Key signals: median days on market (longer = buyer's market = higher score), sale-to-list ratio (below 100% = negotiating room), and recent comp velocity. Competitive seller's markets score 30–50; buyer's markets with slow DOM score 70+. This level contributes 25% of your final Decision Score."
+          tooltip="Grok 4 live web search scores the local market conditions. Key signals: median days on market (longer = buyer's market = higher score), sale-to-list ratio (below 100% = negotiating room), and recent comp velocity. Competitive seller's markets score 30–50; buyer's markets with slow DOM score 70+. This level contributes 20% of your final Decision Score."
           cta={{
             label: address ? 'Back to Property Intel ↗' : 'Property Intelligence ↗',
             href:  address ? `${piUrlS}${sessionId ? `&sid=${sessionId}` : ''}` : '/property-intel',

@@ -4,6 +4,7 @@
 
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
+import { verdictLabel } from "../../../../lib/scoring/decisionScore";
 
 export const runtime = "edge";
 
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
   const address    = p.get("address")  ?? "Property Analysis";
   const scoreStr   = p.get("score");
   const score      = scoreStr ? parseInt(scoreStr, 10) : null;
-  const verdict    = p.get("verdict")  ?? (score != null ? (score >= 80 ? "Strong Buy Signal" : score >= 65 ? "Ready to Offer" : score >= 50 ? "Proceed with Caution" : "High Risk") : "Decision Score");
+  const verdict    = p.get("verdict")  ?? (score != null ? verdictLabel(score) : "Decision Score");
   const priceStr   = p.get("price");
   const price      = priceStr ? parseInt(priceStr, 10) : null;
   const beds       = p.get("beds");
