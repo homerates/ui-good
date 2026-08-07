@@ -83,8 +83,9 @@ function eventSignature(e: ConsumerActivityEvent): string {
 export async function getRecentConsumerActivity(
     sb: SupabaseClient,
     consumerUserId: string,
+    sinceOverride?: string,
 ): Promise<ConsumerActivityEvent[]> {
-    const since = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const since = sinceOverride ?? new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
     const { data } = await sb
         .from('consumer_activity')
         .select('id, event_type, subject, key_facts, created_at')
@@ -104,6 +105,56 @@ export async function getRecentConsumerActivity(
         if (distinct.length >= MAX_EVENTS) break;
     }
     return distinct;
+}
+
+// ── "Since you were last here" — visit tracking ────────────────────────────
+// Deliberately NOT called from buildConsumerMemorySummary itself: that
+// function is also called from app/api/answers/route.ts on every chat turn,
+// and chatting is not "visiting home" — bumping last_seen_at there would
+// reset the marker on every message and break this feature. Only
+// app/api/consumer-memory/route.ts's GET handler (the real "opened /activity"
+// moment) calls this, then passes the result into buildConsumerMemorySummary.
+
+export interface LastVisitInfo {
+    /** null = first-ever visit — no prior row existed. */
+    previousLastSeenAt: string | null;
+}
+
+export async function readAndBumpLastSeen(
+    sb: SupabaseClient,
+    consumerUserId: string,
+): Promise<LastVisitInfo> {
+    const { data } = await sb
+        .from('consumer_last_seen')
+        .select('last_seen_at')
+        .eq('user_id', consumerUserId)
+        .maybeSingle();
+    const previousLastSeenAt = (data?.last_seen_at as string | undefined) ?? null;
+
+    await sb
+        .from('consumer_last_seen')
+        .upsert({ user_id: consumerUserId, last_seen_at: new Date().toISOString() });
+
+    return { previousLastSeenAt };
+}
+
+interface NewProperty {
+    property_address: string;
+    created_at: string;
+}
+
+async function getPropertiesSince(
+    sb: SupabaseClient,
+    consumerUserId: string,
+    since: string,
+): Promise<NewProperty[]> {
+    const { data } = await sb
+        .from('consumer_homeowner_properties')
+        .select('property_address, created_at')
+        .eq('user_id', consumerUserId)
+        .gte('created_at', since)
+        .order('created_at', { ascending: false });
+    return (data as NewProperty[] | null) ?? [];
 }
 
 function relativeDay(iso: string): string {
@@ -398,8 +449,12 @@ async function synthesizeWelcomeBack(
     consumerUserId: string,
     events: ConsumerActivityEvent[],
     marketLine: string,
+    sinceVisitSection: string,
 ): Promise<SynthResult | null> {
-    const cacheKey = `${consumerUserId}:${events[0]?.id ?? ''}`;
+    // Cache key includes whether a since-visit section is present so a fresh
+    // visit (or a newly saved property with no consumer_activity event) isn't
+    // served stale copy from a cache entry keyed on the same newest event id.
+    const cacheKey = `${consumerUserId}:${events[0]?.id ?? ''}:${sinceVisitSection ? 'sv' : 'nosv'}`;
     const cached = _synthCache.get(cacheKey);
     if (cached && Date.now() - cached.at < SYNTH_CACHE_TTL_MS) {
         console.log('[consumer-memory] serving cached synthesis', cacheKey);
@@ -422,6 +477,7 @@ The message (2-3 sentences, under 45 words):
 - Mentions today's rate only if it's genuinely relevant (e.g. it moved, or they were rate-sensitive)
 - Tone: warm, calm, precise — a competent assistant who remembers you, not a marketer
 - Never invent facts, numbers, or activity beyond what's listed below
+- If a "SINCE YOUR LAST VISIT" section is present below, open with that — genuine "since you were here [when]..." framing, naming what's actually new. If that section is absent, do NOT invent a "since you were here" narrative — summarize their recent activity normally instead.
 
 The next steps (2-3 of them), each:
 - "label": a short action name, max 6 words, grounded in what they actually did
@@ -440,7 +496,7 @@ LOAN-TYPE COMPARISON RULE — if you notice the user tried more than one loan ty
 Return ONLY valid JSON:
 {"message": "...", "next_steps": [{"label": "...", "detail": "...", "seed": "..."}]}`;
 
-    const userMessage = `RECENT ACTIVITY (most recent first):\n${factLines}${marketLine ? `\n\n${marketLine}` : ''}`;
+    const userMessage = `${sinceVisitSection ? `${sinceVisitSection}\n\n` : ''}RECENT ACTIVITY (most recent first):\n${factLines}${marketLine ? `\n\n${marketLine}` : ''}`;
 
     try {
         const { parsed } = await withTimeout(
@@ -472,6 +528,7 @@ Return ONLY valid JSON:
 export async function buildConsumerMemorySummary(
     sb: SupabaseClient,
     consumerUserId: string,
+    opts?: { previousLastSeenAt?: string | null },
 ): Promise<ConsumerMemorySummary> {
     const events = await getRecentConsumerActivity(sb, consumerUserId);
     if (!events.length) {
@@ -488,12 +545,39 @@ export async function buildConsumerMemorySummary(
         // Market line is a nice-to-have — never block personalization on it.
     }
 
-    const synthesized = await synthesizeWelcomeBack(consumerUserId, events, marketLine);
+    // "Since you were last here" — only when there's a real prior visit AND
+    // genuinely new content since it. Never a "nothing changed" filler.
+    let sinceVisitSection = '';
+    let sinceVisitOpener = '';
+    if (opts?.previousLastSeenAt) {
+        const since = opts.previousLastSeenAt;
+        const [sinceEvents, sinceProperties] = await Promise.all([
+            getRecentConsumerActivity(sb, consumerUserId, since),
+            getPropertiesSince(sb, consumerUserId, since),
+        ]);
+        const lines: string[] = [
+            ...sinceEvents.map(describeEvent),
+            ...sinceProperties.map(p => `you saved a new property: ${p.property_address}`),
+        ];
+        if (lines.length) {
+            const when = relativeDay(since);
+            sinceVisitSection = `SINCE YOUR LAST VISIT (${when}):\n${lines.join('\n')}`;
+            sinceVisitOpener = `Since your last visit ${when}, ${lines.map(l => l.charAt(0).toUpperCase() + l.slice(1)).join('. ')}.`;
+        }
+    }
+
+    const synthesized = await synthesizeWelcomeBack(consumerUserId, events, marketLine, sinceVisitSection);
+    // sinceVisitOpener already recaps what's new (which overlaps the general
+    // 30-day recap below whenever the last visit was recent, the common
+    // case) — show one or the other, never both, to avoid an obviously
+    // duplicated-looking fallback message.
     const summaryText = synthesized?.message
-        ?? [
-            `${events.map(describeEvent).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('. ')}.`,
-            marketLine,
-        ].filter(Boolean).join(' ');
+        ?? (sinceVisitOpener
+            ? [sinceVisitOpener, marketLine].filter(Boolean).join(' ')
+            : [
+                `${events.map(describeEvent).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('. ')}.`,
+                marketLine,
+            ].filter(Boolean).join(' '));
     const nextSteps = synthesized?.nextSteps.length
         ? synthesized.nextSteps
         : buildHeuristicNextSteps(events);

@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
-import { buildConsumerMemorySummary } from '../../../lib/crm/consumer-memory';
+import { buildConsumerMemorySummary, readAndBumpLastSeen } from '../../../lib/crm/consumer-memory';
 
 function db() {
     return createClient(
@@ -47,7 +47,12 @@ export async function GET() {
     if (!userId) return noStore({ ok: true, hasActivity: false, summaryText: '', events: [] });
 
     const sb = db();
-    const summary = await buildConsumerMemorySummary(sb, userId);
+    // This GET is the real "opened /activity" moment — the one place that
+    // should bump last_seen_at (as opposed to app/api/answers/route.ts's
+    // separate buildConsumerMemorySummary call on every chat turn, which
+    // must not).
+    const { previousLastSeenAt } = await readAndBumpLastSeen(sb, userId);
+    const summary = await buildConsumerMemorySummary(sb, userId, { previousLastSeenAt });
 
     return noStore({ ok: true, ...summary });
 }

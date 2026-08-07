@@ -19,6 +19,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PropertyPhoto from '@/components/PropertyPhoto';
+import { AIDisclosureTag } from './AIDisclosureTag';
 import type { ConsumerActivityEvent, ConsumerLastAction, ConsumerNextStep } from '../../lib/crm/consumer-memory';
 
 export interface WelcomeHomeProperty {
@@ -159,7 +160,12 @@ export default function WelcomeHome({
                                 <div className="wh-hero-detail">{lastAction.detail}</div>
                             </div>
                         </div>
-                        {summaryText && <p className="wh-hero-copy">{summaryText}</p>}
+                        {summaryText && (
+                            <>
+                                <AIDisclosureTag variant="inline" style={{ marginBottom: 6 }} />
+                                <p className="wh-hero-copy">{summaryText}</p>
+                            </>
+                        )}
                         <Link href={lastAction.href} className="wh-hero-cta">
                             {lastAction.ctaLabel} <span aria-hidden="true">→</span>
                         </Link>
