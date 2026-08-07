@@ -120,6 +120,22 @@ export type LLPAOutput = {
    * the headline rate disagreed with rateCurve on the same page.
    */
   lenderParRate: number;
+  /**
+   * Transparency data for jumbo scenarios only — echoes lib/pricing/
+   * jumboEstimate.ts's estimateJumboAnchor() result so callers can render an
+   * "estimated, adjusted for your credit/LTV" disclaimer. Absent for every
+   * other loan type. `rateAnchorSource` stays 'obmmi' when baseSource is
+   * 'real-jumbo' (still grounded in a real observed number), so this field
+   * is the only signal that a credit/LTV adjustment was layered on top.
+   */
+  jumboEstimate?: {
+    baseSource: 'real-jumbo' | 'conforming-plus-spread';
+    spreadUsed: number | null;
+    spreadSource: 'live-trailing' | 'hardcoded-fallback' | null;
+    adjustmentDelta: number;
+    conformingRate: number | null;
+    clamped: boolean;
+  };
 };
 
 // ─── Bucket helpers ────────────────────────────────────────────────────────────
@@ -373,6 +389,7 @@ export function computeLLPA(
   input: LLPAInput,
   parRate: number,
   marketRate?: number | null,
+  jumboEstimateMeta?: LLPAOutput['jumboEstimate'],
 ): LLPAOutput & { ineligible?: string } {
   const cb = creditBucket(input.creditScore);
   const lb = ltvBucket(input.ltv);
@@ -455,6 +472,7 @@ export function computeLLPA(
     disclaimer: LLPA_DISCLAIMER,
     rateAnchorSource: usingObmmi ? 'obmmi' : 'synthetic',
     ...(usingObmmi ? { obmmiSegmentLabel: obmmiSegmentLabel(input) } : {}),
+    ...(jumboEstimateMeta ? { jumboEstimate: jumboEstimateMeta } : {}),
     lenderParRate: lenderPar,
   };
 }

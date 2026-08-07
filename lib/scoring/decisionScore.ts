@@ -192,9 +192,13 @@ export function scoreL5({
   lenderParRate, conformingSegments, nationalParRate, loanType, synthetic,
 }: ScoreL5Input): { score: number; summary: string } | null {
   if (lenderParRate == null) return null;
-  const estTag = synthetic ? ' (estimated)' : '';
+  // Jumbo's "segments" are always an estimated table (lib/pricing/jumboEstimate.ts
+  // buildEstimatedJumboSegments) -- no real per-credit-score/LTV OBMMI series
+  // exists for jumbo -- so the estimated tag applies unconditionally there,
+  // not just on the `synthetic` (cold-start-anchor) signal.
+  const estTag = synthetic || loanType === 'jumbo' ? ' (estimated)' : '';
 
-  if (loanType === 'conventional' && conformingSegments) {
+  if ((loanType === 'conventional' || loanType === 'jumbo') && conformingSegments) {
     const rates = conformingSegments.map(s => s.rate).filter((r): r is number => r != null);
     if (rates.length >= 2) {
       const best = Math.min(...rates);

@@ -12,6 +12,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import type { LLPAInput, RateCurvePoint, LoanType } from '../../lib/pricing/llpa-engine';
 import { resolveObmmiSeriesId } from '../../lib/pricing/llpa-engine';
+import { resolveJumboSegmentId } from '../../lib/pricing/jumboEstimate';
 import { RatesOracleChart } from './RatesOracleChart';
 
 interface EngineResult {
@@ -24,6 +25,7 @@ interface EngineResult {
     marketRate: number;
     segmentLabel: string;
     conformingSegments?: { label: string; seriesId: string; rate: number }[];
+    estimated?: boolean;
   };
   parRate: number;
 }
@@ -175,10 +177,13 @@ export default function RatesOracleClient() {
 
   const loanType: LoanType = (session.scenario_json?.lt as LoanType) ?? 'conventional';
   const marketComparison = result?.marketComparison;
-  const mySegmentId = marketComparison && loanType === 'conventional'
-    ? resolveObmmiSeriesId('conventional', creditScore, parseFloat((100 - (session.scenario_json?.dp_pct ?? 20)).toFixed(2)))
+  const ltvForSegment = parseFloat((100 - (session.scenario_json?.dp_pct ?? 20)).toFixed(2));
+  const mySegmentId = !marketComparison ? null
+    : loanType === 'conventional' ? resolveObmmiSeriesId('conventional', creditScore, ltvForSegment)
+    : loanType === 'jumbo' ? resolveJumboSegmentId(creditScore, ltvForSegment)
     : null;
-  const sortedSegments = marketComparison?.conformingSegments
+  const hasSegments = loanType === 'conventional' || loanType === 'jumbo';
+  const sortedSegments = hasSegments && marketComparison?.conformingSegments
     ? [...marketComparison.conformingSegments].sort((a, b) => a.rate - b.rate)
     : null;
   const myRank = sortedSegments && mySegmentId
@@ -241,12 +246,13 @@ export default function RatesOracleClient() {
       {result && !loading && (
         <div style={card}>
           <RatesOracleChart
-            segments={loanType === 'conventional' ? sortedSegments : null}
+            segments={hasSegments ? sortedSegments : null}
             mySegmentId={mySegmentId}
             myRank={myRank}
-            flagshipRate={loanType !== 'conventional' ? marketComparison?.marketRate ?? null : null}
-            flagshipLabel={loanType !== 'conventional' ? (result.obmmiSegmentLabel ?? loanType.toUpperCase()) : null}
-            parRate={loanType !== 'conventional' ? result.parRate : null}
+            estimated={loanType === 'jumbo'}
+            flagshipRate={!hasSegments ? marketComparison?.marketRate ?? null : null}
+            flagshipLabel={!hasSegments ? (result.obmmiSegmentLabel ?? loanType.toUpperCase()) : null}
+            parRate={!hasSegments ? result.parRate : null}
           />
           <p style={{ margin: '14px 0 0', fontSize: '0.72rem', color: '#8fa3b8', lineHeight: 1.5 }}>
             {result.dataSource}

@@ -45,6 +45,17 @@ interface EngineResult {
     marketRate: number;
     segmentLabel: string;
     conformingSegments?: { label: string; seriesId: string; rate: number }[];
+    /** True only for jumbo's estimated segment table -- absent/falsy for real conforming segments. */
+    estimated?: boolean;
+  };
+  /** Jumbo only -- see lib/pricing/jumboEstimate.ts. Transparency data for the estimate disclaimer below. */
+  jumboEstimate?: {
+    baseSource: 'real-jumbo' | 'conforming-plus-spread';
+    spreadUsed: number | null;
+    spreadSource: 'live-trailing' | 'hardcoded-fallback' | null;
+    adjustmentDelta: number;
+    conformingRate: number | null;
+    clamped: boolean;
   };
 }
 
@@ -734,6 +745,20 @@ export default function RateEngineClient() {
               </div>
             ))}
           </div>
+
+          {result.jumboEstimate && (
+            <div style={{ ...card, padding: "0.85rem 1.1rem", border: "1px dashed rgba(240,193,75,0.35)", background: "rgba(240,193,75,0.05)" }}>
+              <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#f0c14b", marginBottom: 3 }}>
+                Estimated jumbo rate
+              </div>
+              <div style={{ fontSize: "0.74rem", color: "#8fa3b8", lineHeight: 1.55 }}>
+                {result.jumboEstimate.baseSource === 'real-jumbo'
+                  ? "Jumbo has no real per-credit-score/LTV OBMMI series (only one national average exists), so this adjusts today's real jumbo average for your credit score and LTV using published spread ranges — not a live per-segment observation the way conforming rates are."
+                  : "Today's jumbo average hasn't synced yet, so this estimate is built from the real conforming average plus an observed jumbo-conforming spread, adjusted for your credit score and LTV."}
+                {' '}This is an estimate, not a committed or quoted rate — actual investor pricing may vary.
+              </div>
+            </div>
+          )}
 
           {/* ── CARD A-1: Rate Range to Expect ── */}
           <div style={card}>
