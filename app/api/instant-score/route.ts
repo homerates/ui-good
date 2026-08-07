@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdictLabel } from '../../../lib/scoring/decisionScore';
 
 // ── POST /api/instant-score ────────────────────────────────────────────────────
 // Partner-facing API: one call, full 4-level Decision Score + report URL.
@@ -19,31 +20,13 @@ import { NextRequest, NextResponse } from 'next/server';
 //   }
 
 function calcL1(loanAmt: number, price: number, downPct: number, rate: number) {
-  const ltv     = (1 - downPct / 100) * 100;
   const isJumbo = loanAmt > 832_750;
-  const base    = isJumbo
-    ? (ltv <= 75 ? 86 : ltv <= 80 ? 80 : 72)
-    : (ltv <= 80 ? 85 : ltv <= 85 ? 78 : ltv <= 90 ? 70 : 60);
-  return {
-    score:   Math.min(100, Math.max(45, base)),
-    summary: `${isJumbo ? 'Jumbo' : 'Conventional'} · ${downPct}% down · LTV ${ltv.toFixed(1)}% · ${rate.toFixed(2)}% rate`,
-  };
+  const { score, summary: baseSummary } = scoreL1({ downPct, loanType: isJumbo ? 'jumbo' : 'conventional' });
+  return { score, summary: `${baseSummary} · ${rate.toFixed(2)}% rate` };
 }
 
 function calcL2(price: number, avm: number | null) {
-  if (!avm || !price) return null;
-  const prem  = (price - avm) / avm;
-  const score = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
-               : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
-  return { score, summary: `Listed ${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}% vs AVM $${Math.round(avm / 1000)}K` };
-}
-
-function verdictLabel(score: number): string {
-  if (score >= 85) return 'Strong Buy';
-  if (score >= 70) return 'Ready to Offer';
-  if (score >= 55) return 'Buy with Caution';
-  if (score >= 40) return 'Watch the Market';
-  return 'Hold Off';
+  return scoreL2({ listPrice: price, avm });
 }
 
 export async function POST(req: NextRequest) {
@@ -152,35 +135,32 @@ export async function POST(req: NextRequest) {
     const spViews = (d.zillowViews     as number | null) ?? null;
     const spRank  = (d.redfinViews     as string | null) ?? null;
 
-    const l3Subs: number[] = [];
-    if (dom != null) l3Subs.push(dom > 90 ? 90 : dom > 60 ? 80 : dom > 45 ? 68 : dom > 30 ? 55 : dom > 15 ? 42 : 32);
-    if (stl != null) l3Subs.push(stl < 0.95 ? 90 : stl < 0.98 ? 80 : stl < 1.00 ? 68 : stl < 1.02 ? 55 : stl < 1.05 ? 42 : 30);
-    let l3Score: number = l3Subs.length > 0 ? Math.round(l3Subs.reduce((a, b) => a + b, 0) / l3Subs.length) : (sub != null ? (sub > 30 ? 65 : sub > 14 ? 55 : 45) : 65);
-    if (spScore != null) l3Score = Math.min(100, Math.round(l3Score * 0.65 + spScore * 0.35));
+    const socialProofNotes: string[] = [];
+    if (spViews != null) socialProofNotes.push(`${spViews.toLocaleString()} views`);
+    if (spRank) socialProofNotes.push(spRank);
+    const { score: l3Score, summary: l3SummaryRaw } = scoreL3({
+      domMedian: dom, saleToList: stl, subjectDom: sub, socialProofScore: spScore, socialProofNotes,
+    });
+    // scoreL3 doesn't know this route's "S/L NN%" / "Nd on market" phrasing —
+    // preserve it here rather than in the shared module (partner-facing text contract).
     const l3Parts: string[] = [];
     if (dom != null) l3Parts.push(`Median DOM ${dom}d`);
     if (stl != null) l3Parts.push(`S/L ${(stl * 100).toFixed(0)}%`);
     if (spViews != null) l3Parts.push(`${spViews.toLocaleString()} views`);
     if (spRank)  l3Parts.push(spRank);
-    const l3Summary = l3Parts.join(' · ') || (sub != null ? `${sub}d on market` : 'Market stats pending');
+    const l3Summary = l3Parts.join(' · ') || (sub != null ? `${sub}d on market` : l3SummaryRaw);
 
     // ── L4 ───────────────────────────────────────────────────────────────────
-    let l4Score: number | null = null;
-    let l4Summary = '';
     const li = deepResult.location_intelligence as Record<string, unknown> | null;
-    if (li?.overall_score != null) {
-      l4Score   = Math.min(100, Math.max(0, Math.round(li.overall_score as number)));
-      const pts = ((li.sub_scores as { metric: string; rating: string }[]) ?? []).slice(0, 3).map(s => `${s.metric}: ${s.rating}`);
-      l4Summary = pts.join(' · ') || `Location score ${l4Score}/100`;
-    }
+    const l4Result = scoreL4({
+      overallScore: (li?.overall_score as number | null) ?? null,
+      subScores: (li?.sub_scores as { metric: string; rating: string }[]) ?? [],
+    });
+    const l4Score = l4Result?.score ?? null;
+    const l4Summary = l4Result?.summary?.replace(/, /g, ' · ').replace(/\.$/, '') ?? '';
 
     // ── Composite ────────────────────────────────────────────────────────────
-    const entries = [
-      { s: l1.score, w: 0.35 }, { s: l2Score, w: 0.25 },
-      { s: l3Score,  w: 0.25 }, { s: l4Score, w: 0.15 },
-    ].filter(e => e.s != null) as { s: number; w: number }[];
-    const tw        = entries.reduce((a, e) => a + e.w, 0);
-    const composite = entries.length >= 2 ? Math.round(entries.reduce((a, e) => a + e.s * e.w, 0) / tw) : null;
+    const composite = computeComposite({ l1: l1.score, l2: l2Score, l3: l3Score, l4: l4Score });
 
     // ── Report URL ───────────────────────────────────────────────────────────
     const rp = new URLSearchParams({ address, down: String(dp), rate: liveRate.toFixed(3) });
