@@ -17,6 +17,9 @@ import { useConsumerMode } from '@/useConsumerMode';
 import { NAV_ITEMS } from '@/nav-config';
 import { logAnswerToLibrary } from '../../lib/logAnswerToLibrary';
 import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict } from '../../lib/scoring/decisionScore';
+import { resolveObmmiSeriesId } from '../../lib/pricing/llpa-engine';
+import { resolveJumboSegmentId } from '../../lib/pricing/jumboEstimate';
+import CompactRateChartCard from '../components/CompactRateChartCard';
 import './styles.css';
 import GrokCard from "@/components/GrokCard";
 import GrokAnswerBlock from '@/components/AnswerBlock';
@@ -558,6 +561,20 @@ type ApiResponse = {
     labModules?: Array<{ icon: string; label: string; tag: string; desc: string; seed: string }> | null;
     decisionScoreCard?: DecisionScoreData | null;
     dpaEligibilityCard?: { zip: string; income: number; householdSize?: number } | null;
+    // Auto-computed alongside decisionScoreCard's 'complete' transition — see
+    // CompactRateChartCard.tsx. Display-only: uses a default 740 credit score
+    // (chat never collects a real one), so it's never written back to the
+    // session the way a real /rate-intelligence-engine visit is.
+    rateChart?: {
+        segments: { label: string; seriesId: string; rate: number }[] | null;
+        mySegmentId: string | null;
+        myRank: number;
+        estimated: boolean;
+        flagshipRate: number | null;
+        flagshipLabel: string | null;
+        parRate: number | null;
+        sessionId: string;
+    } | null;
 };
 
 
@@ -659,6 +676,62 @@ function computeDSComposite(
     l3?: number | null, l4?: number | null, l5?: number | null,
 ): number | null {
     return computeComposite({ l1, l2, l3, l4, l5 });
+}
+
+// ── Compact Rate Chart (Build 5) — display-only, never written to the session ──
+// Chat has never collected a real credit score, so this uses the same 740
+// default RatesOracleClient.tsx falls back to when a saved scenario doesn't
+// record one. sessionId is attached by the caller once known (this function
+// doesn't need it — only the RIE request itself), so the same in-flight
+// promise can be kicked off before a session exists and joined afterward.
+async function fetchCompactRateChart(params: {
+    price: number;
+    downPct: number;
+    loanType: 'conventional' | 'fha' | 'va' | 'jumbo';
+    state?: string;
+}): Promise<Omit<NonNullable<ApiResponse['rateChart']>, 'sessionId'> | null> {
+    const { price, downPct, loanType, state } = params;
+    if (!price || price <= 0) return null;
+    const ltv = parseFloat((100 - downPct).toFixed(2));
+    const loanAmount = Math.round(price * (1 - downPct / 100));
+    try {
+        const r = await fetch('/api/rate-intelligence-engine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                creditScore: 740, ltv, occupancy: 'primary', loanPurpose: 'purchase',
+                propertyType: 'sfr', loanAmount, lockDays: 30, loanType, state,
+            }),
+        });
+        if (!r.ok) return null;
+        const data = await r.json();
+        const marketComparison = data.marketComparison as {
+            marketRate?: number;
+            conformingSegments?: { label: string; seriesId: string; rate: number }[];
+        } | undefined;
+        const hasSegments = loanType === 'conventional' || loanType === 'jumbo';
+        const mySegmentId = !marketComparison ? null
+            : loanType === 'conventional' ? resolveObmmiSeriesId('conventional', 740, ltv)
+            : loanType === 'jumbo' ? resolveJumboSegmentId(740, ltv)
+            : null;
+        const sortedSegments = hasSegments && marketComparison?.conformingSegments
+            ? [...marketComparison.conformingSegments].sort((a, b) => a.rate - b.rate)
+            : null;
+        const myRank = sortedSegments && mySegmentId
+            ? sortedSegments.findIndex(s => s.seriesId === mySegmentId) + 1
+            : 0;
+        return {
+            segments: hasSegments ? sortedSegments : null,
+            mySegmentId,
+            myRank,
+            estimated: loanType === 'jumbo',
+            flagshipRate: !hasSegments ? marketComparison?.marketRate ?? null : null,
+            flagshipLabel: !hasSegments ? (data.obmmiSegmentLabel ?? loanType.toUpperCase()) : null,
+            parRate: !hasSegments ? data.parRate ?? null : null,
+        };
+    } catch {
+        return null;
+    }
 }
 
 /** Strip trailing sentence noise from a raw regex address capture. */
@@ -2715,6 +2788,11 @@ export default function Page() {
                         const _dsRedfinViews      = (d.redfinViews      as string | null | undefined) ?? null;
                         const _dsSocialProofScore = (d.socialProofScore as number | null | undefined) ?? null;
                         const _dsInterestLevel    = (d.interestLevel    as string | null | undefined) ?? null;
+                        // Kicked off in parallel with the Grok layers below — needs none of
+                        // that data, only price/down/loanType which are already known.
+                        const _rateChartPromise = fetchCompactRateChart({
+                            price: _dsPrice ?? 0, downPct: _dsDown, loanType: _dsLoanType, state: _dsPropertyState,
+                        });
                         void (async () => {
                             try {
                                 // ── Layer 1: featured_properties cache (shared discovery intelligence) ──
@@ -2879,6 +2957,13 @@ export default function Page() {
                                     } catch { /* session save is best-effort */ }
                                 }
 
+                                // Compact rate chart — display-only, only meaningful once a real
+                                // session exists (its "expand" link requires /rates-oracle?sid=).
+                                const rateChartBase = await _rateChartPromise;
+                                const rateChart = rateChartBase && dsSessionId
+                                    ? { ...rateChartBase, sessionId: dsSessionId }
+                                    : null;
+
                                 // Build final messages with complete DSC — read current slider state from ref
                                 // (ref is current at Grok completion; user may have adjusted sliders during the async wait)
                                 const _currentMsg  = messagesRef.current.find(m => m.id === _dsAnswerId && m.role === 'assistant') as Extract<ChatMsg, { role: 'assistant' }> | undefined;
@@ -2908,7 +2993,7 @@ export default function Page() {
                                 // Build updated array explicitly so it can be used for both UI + portfolio save
                                 const msgsWithCompleteDsc = messagesRef.current.map(m =>
                                     m.id === _dsAnswerId && m.role === 'assistant' && m.meta
-                                        ? { ...m, meta: { ...m.meta, decisionScoreCard: completeDsc } }
+                                        ? { ...m, meta: { ...m.meta, decisionScoreCard: completeDsc, rateChart } }
                                         : m
                                 );
                                 setMessages(msgsWithCompleteDsc);
@@ -3369,6 +3454,12 @@ export default function Page() {
                             : m
                     ));
 
+                    // Kicked off in parallel with the Grok layers below — needs none of
+                    // that data, only price/down/loanType which are already known.
+                    const _rateChartPromiseCma = fetchCompactRateChart({
+                        price: _dsPrice, downPct: _dsDown, loanType: _dsLoanType, state: _dsPropertyState,
+                    });
+
                     // Background: L2 AVM + L3 + L4 via Grok deep analysis — non-blocking
                     void (async () => {
                         try {
@@ -3499,6 +3590,13 @@ export default function Page() {
                                 } catch { /* best-effort */ }
                             }
 
+                            // Compact rate chart — display-only, only meaningful once a real
+                            // session exists (its "expand" link requires /rates-oracle?sid=).
+                            const rateChartBaseCma = await _rateChartPromiseCma;
+                            const rateChartCma = rateChartBaseCma && dsSessionId
+                                ? { ...rateChartBaseCma, sessionId: dsSessionId }
+                                : null;
+
                             // Update card to complete state
                             setMessages(prev => prev.map(m =>
                                 m.id === _dsAnswerIdCma && m.role === 'assistant'
@@ -3513,7 +3611,7 @@ export default function Page() {
                                         l4Score:        dsL4Score,      l4Summary:      dsL4Summary,
                                         compositeScore: dsComposite ?? undefined,
                                         sessionId:      dsSessionId ?? undefined,
-                                    } as DecisionScoreData } }
+                                    } as DecisionScoreData, rateChart: rateChartCma } }
                                     : m
                             ));
                         } catch { /* fire and forget — any error is silent */ }
@@ -4610,6 +4708,10 @@ export default function Page() {
                                                                 scenarioIncome={m.meta.interactiveSlider?.annualIncome ?? m.meta.affordabilityPurchaseCard?.annualIncome}
                                                                 scenarioDebt={m.meta.interactiveSlider?.monthlyDebt ?? m.meta.affordabilityPurchaseCard?.monthlyDebt}
                                                             />
+                                                        )}
+                                                        {/* Compact rate chart — auto-computed alongside decisionScoreCard's 'complete' transition, display-only (Build 5) */}
+                                                        {m.meta.rateChart && (
+                                                            <CompactRateChartCard data={m.meta.rateChart} />
                                                         )}
                                                         {/* DPA Eligibility card — fires from AMI qualifier handoff (?dpaCheck=1) */}
                                                         {m.meta.dpaEligibilityCard && (
