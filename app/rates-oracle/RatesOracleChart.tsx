@@ -4,6 +4,9 @@ import {
   BarChart,
   Bar,
   Cell,
+  AreaChart,
+  Area,
+  ReferenceDot,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -11,6 +14,7 @@ import {
   ResponsiveContainer,
   LabelList,
 } from 'recharts';
+import { OBMMI_CITATION } from '../../lib/market-data/registry';
 
 interface ConformingSegment {
   label: string;
@@ -42,71 +46,125 @@ function shortLabel(label: string): string {
   return label.replace(/^30Y Conforming:\s*/, '');
 }
 
+function median(nums: number[]): number {
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+// Custom hover card: real segment criteria + the exact OBMMI methodology line,
+// not a generic recharts tooltip — this is the "citation on hover" surface.
+function SegmentTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload as { label: string; rate: number; isMine: boolean };
+  return (
+    <div style={{
+      background: '#0e1420', border: `1px solid ${d.isMine ? YOURS_FILL : NEUTRAL_STROKE}`,
+      borderRadius: 8, padding: '10px 12px', maxWidth: 240,
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: d.isMine ? YOURS_FILL : '#f0f4ff', marginBottom: 2 }}>
+        {d.label}{d.isMine ? ' (yours)' : ''}
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: '#f0f4ff', marginBottom: 6 }}>
+        {d.rate.toFixed(3)}%
+      </div>
+      <div style={{ fontSize: 10, color: AXIS_INK, lineHeight: 1.5 }}>
+        OBMMI, via FRED release 473 — a real observed daily rate-lock average, not an estimate.
+      </div>
+    </div>
+  );
+}
+
 function RankedSegmentChart({ segments, mySegmentId, myRank }: {
   segments: ConformingSegment[];
   mySegmentId: string | null | undefined;
   myRank: number;
 }) {
-  const data = segments.map(s => ({
-    label: shortLabel(s.label),
-    seriesId: s.seriesId,
-    rate: s.rate,
-    isMine: s.seriesId === mySegmentId,
-  }));
+  const rates = segments.map(s => s.rate);
+  const mid = median(rates);
+  const spread = Math.max(...rates) - Math.min(...rates) || 0.01;
+  // sigma sized so the widest-spread segment sits at roughly 15% of peak height —
+  // a stylistic envelope, not a claim about loan volume or population density.
+  const sigma = spread / 2.5;
+
+  const data = [...segments]
+    .sort((a, b) => a.rate - b.rate)
+    .map(s => ({
+      label: shortLabel(s.label),
+      seriesId: s.seriesId,
+      rate: s.rate,
+      isMine: s.seriesId === mySegmentId,
+      weight: Math.exp(-((s.rate - mid) ** 2) / (2 * sigma * sigma)),
+    }));
+  const mine = data.find(d => d.isMine);
 
   return (
     <div>
       {myRank > 0 && (
         <p style={{ margin: '0 0 14px', fontSize: '0.95rem', color: '#e6edf3' }}>
           Your segment ranks <strong style={{ color: YOURS_FILL }}>{ordinal(myRank)}</strong> of{' '}
-          {segments.length} OBMMI credit/LTV tiers today — highlighted below.
+          {segments.length} OBMMI credit/LTV tiers today, at <strong style={{ color: YOURS_FILL }}>{mine?.rate.toFixed(3)}%</strong>.
         </p>
       )}
-      <div style={{ height: 320, width: '100%' }}>
+      <div style={{ height: 220, width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ top: 4, right: 36, left: 8, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
+          <AreaChart data={data} margin={{ top: 16, right: 24, left: 8, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
             <XAxis
               type="number"
-              domain={['dataMin - 0.1', 'dataMax + 0.1']}
+              dataKey="rate"
+              domain={['dataMin - 0.05', 'dataMax + 0.05']}
               tickFormatter={(v: number) => `${v.toFixed(2)}%`}
               stroke={AXIS_INK}
               fontSize={11}
               tickLine={false}
               axisLine={false}
             />
-            <YAxis
-              type="category"
-              dataKey="label"
-              width={150}
-              stroke={AXIS_INK}
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
+            <YAxis hide domain={[0, 1.15]} />
+            <Tooltip content={<SegmentTooltip />} cursor={{ stroke: NEUTRAL_STROKE, strokeDasharray: '3 3' }} />
+            <Area
+              type="natural"
+              dataKey="weight"
+              stroke={NEUTRAL_STROKE}
+              strokeWidth={1.5}
+              fill="url(#oracleFade)"
+              isAnimationActive
+              animationDuration={600}
+              dot={(props: any) => {
+                const { cx, cy, payload } = props;
+                return (
+                  <circle
+                    key={payload.seriesId}
+                    cx={cx} cy={cy}
+                    r={payload.isMine ? 5 : 3}
+                    fill={payload.isMine ? YOURS_FILL : NEUTRAL_FILL}
+                    stroke={payload.isMine ? YOURS_FILL : NEUTRAL_STROKE}
+                    strokeWidth={payload.isMine ? 2 : 1}
+                  />
+                );
+              }}
             />
-            <Tooltip
-              formatter={(value) => [`${Number(value).toFixed(3)}%`, 'Rate']}
-              contentStyle={{ background: '#0e1420', border: `1px solid ${NEUTRAL_STROKE}`, borderRadius: 8, color: '#f0f4ff' }}
-              labelStyle={{ color: '#f0f4ff' }}
-              cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-            />
-            <Bar dataKey="rate" radius={4} barSize={16} isAnimationActive animationDuration={500}>
-              {data.map(d => (
-                <Cell key={d.seriesId} fill={d.isMine ? YOURS_FILL : NEUTRAL_FILL} stroke={d.isMine ? YOURS_FILL : NEUTRAL_STROKE} />
-              ))}
-              <LabelList
-                dataKey="rate"
-                position="right"
-                formatter={(v) => `${Number(v).toFixed(3)}%`}
-                style={{ fontSize: 11, fill: '#f0f4ff' }}
-              />
-            </Bar>
-          </BarChart>
+            <defs>
+              <linearGradient id="oracleFade" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={YOURS_FILL} stopOpacity={0.18} />
+                <stop offset="100%" stopColor={YOURS_FILL} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            {mine && (
+              <ReferenceDot x={mine.rate} y={mine.weight} r={0} label={{
+                value: '↓ yours', position: 'top', fill: YOURS_FILL, fontSize: 11, fontWeight: 700,
+              }} />
+            )}
+          </AreaChart>
         </ResponsiveContainer>
       </div>
       <p style={{ margin: '10px 0 0', fontSize: '0.72rem', color: AXIS_INK, lineHeight: 1.5 }}>
-        Green bar = your credit/LTV segment. Gray bars = the other 9 OBMMI-tracked conforming
-        tiers, all real observed rates today, not estimates.
+        Each point is a real OBMMI credit/LTV tier observed today — curve shape shows how far
+        each sits from today's median rate, not loan volume. Hover a point for its exact criteria.
+        Green = your segment.
+      </p>
+      <p style={{ margin: '6px 0 0', fontSize: '0.66rem', color: AXIS_INK, lineHeight: 1.5, opacity: 0.75 }}>
+        {OBMMI_CITATION}
       </p>
     </div>
   );
@@ -141,12 +199,7 @@ function FlagshipChart({ flagshipRate, flagshipLabel, parRate }: {
               axisLine={false}
             />
             <YAxis type="category" dataKey="label" width={190} stroke={AXIS_INK} fontSize={11} tickLine={false} axisLine={false} />
-            <Tooltip
-              formatter={(value) => [`${Number(value).toFixed(3)}%`, 'Rate']}
-              contentStyle={{ background: '#0e1420', border: `1px solid ${NEUTRAL_STROKE}`, borderRadius: 8, color: '#f0f4ff' }}
-              labelStyle={{ color: '#f0f4ff' }}
-              cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-            />
+            <Tooltip content={<SegmentTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
             <Bar dataKey="rate" radius={4} barSize={20} isAnimationActive animationDuration={500}>
               {data.map((d, i) => (
                 <Cell key={i} fill={d.isMine ? YOURS_FILL : NEUTRAL_FILL} stroke={d.isMine ? YOURS_FILL : NEUTRAL_STROKE} />
@@ -156,6 +209,9 @@ function FlagshipChart({ flagshipRate, flagshipLabel, parRate }: {
           </BarChart>
         </ResponsiveContainer>
       </div>
+      <p style={{ margin: '10px 0 0', fontSize: '0.66rem', color: AXIS_INK, lineHeight: 1.5, opacity: 0.75 }}>
+        {OBMMI_CITATION}
+      </p>
     </div>
   );
 }
