@@ -8,27 +8,13 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
+import { computeComposite } from '../../../lib/scoring/decisionScore';
 
 function db() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
-}
-
-// Weighted composite score — null when < 2 levels filled
-function computeComposite(
-  l1?: number | null, l2?: number | null,
-  l3?: number | null, l4?: number | null,
-): number | null {
-  const entries = [
-    { s: l1, w: 0.35 }, { s: l2, w: 0.25 },
-    { s: l3, w: 0.25 }, { s: l4, w: 0.15 },
-  ].filter(e => e.s != null);
-  if (entries.length < 2) return null;
-  const totalW   = entries.reduce((a, e) => a + e.w, 0);
-  const weighted = entries.reduce((a, e) => a + e.s! * e.w, 0);
-  return Math.round(weighted / totalW);
 }
 
 function autoSessionName(body: Record<string, unknown>): string {
@@ -56,6 +42,7 @@ const SEL = [
   'scenario_json',
   'l1_score', 'l1_summary', 'l2_score', 'l2_summary',
   'l3_score', 'l3_summary', 'l4_score', 'l4_summary',
+  'l5_score', 'l5_summary',
   'composite_score', 'created_at', 'updated_at',
 ].join(', ');
 
@@ -120,6 +107,7 @@ export async function POST(req: NextRequest) {
   const l2 = typeof body.l2_score === 'number' ? body.l2_score : null;
   const l3 = typeof body.l3_score === 'number' ? body.l3_score : null;
   const l4 = typeof body.l4_score === 'number' ? body.l4_score : null;
+  const l5 = typeof body.l5_score === 'number' ? body.l5_score : null;
 
   const payload: Record<string, unknown> = {
     user_id:         userId,
@@ -127,7 +115,7 @@ export async function POST(req: NextRequest) {
     session_name:    autoSessionName(body),
     status:          'active',
     updated_at:      new Date().toISOString(),
-    composite_score: computeComposite(l1, l2, l3, l4),
+    composite_score: computeComposite({ l1, l2, l3, l4, l5 }),
   };
 
   if (body.scenario_json != null)            payload.scenario_json = body.scenario_json;
@@ -135,6 +123,7 @@ export async function POST(req: NextRequest) {
   if (l2 != null) { payload.l2_score = l2;  payload.l2_summary   = body.l2_summary   ?? null; }
   if (l3 != null) { payload.l3_score = l3;  payload.l3_summary   = body.l3_summary   ?? null; }
   if (l4 != null) { payload.l4_score = l4;  payload.l4_summary   = body.l4_summary   ?? null; }
+  if (l5 != null) { payload.l5_score = l5;  payload.l5_summary   = body.l5_summary   ?? null; }
 
   let data: unknown, error: unknown;
 
