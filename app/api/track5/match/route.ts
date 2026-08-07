@@ -14,6 +14,7 @@ import { NextRequest, NextResponse }   from 'next/server';
 import { auth }                        from '@clerk/nextjs/server';
 import { createClient }                from '@supabase/supabase-js';
 import { sendTrack5Alerts }            from '../../../../lib/sendScenarioAlerts';
+import { verdictLabel }                from '../../../../lib/scoring/decisionScore';
 
 function db() {
   return createClient(
@@ -43,14 +44,6 @@ function priceToRange(price: number): string {
   if (price < 1_000_000) return '$750k–$1M';
   if (price < 1_500_000) return '$1M–$1.5M';
   return '$1.5M+';
-}
-
-function verdictLabel(score: number): string {
-  if (score >= 85) return 'Strong Buy';
-  if (score >= 70) return 'Ready to Offer';
-  if (score >= 55) return 'Buy with Caution';
-  if (score >= 40) return 'Watch the Market';
-  return 'Hold Off';
 }
 
 function loanTypeLabel(lt: string | undefined | null): string {

@@ -6,6 +6,7 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
+import { verdictLabel } from '../../lib/scoring/decisionScore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,14 +33,6 @@ function scoreColor(s: number | null): string {
   if (s >= 70)   return '#4ade80';
   if (s >= 50)   return '#fbbf24';
   return '#f87171';
-}
-
-function verdict(score: number): string {
-  if (score >= 85) return 'Strong Buy';
-  if (score >= 70) return 'Ready to Offer';
-  if (score >= 55) return 'Buy with Caution';
-  if (score >= 40) return 'Watch the Market';
-  return 'Hold Off';
 }
 
 function fmtDate(iso: string): string {
@@ -128,7 +121,7 @@ function PropertyCard({ s }: { s: EvalSession }) {
   const cc     = scoreColor(c);
   const addr   = getAddress(s);
   const { street, city } = splitAddress(addr);
-  const vLabel = c != null ? verdict(c) : null;
+  const vLabel = c != null ? verdictLabel(c) : null;
   const n      = levelCount(s);
   const sLabel = scenarioLabel(s);
   const t5url  = `/track5?session=${s.id}`;

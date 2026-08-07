@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import AdminCardBadge from './AdminCardBadge';
+import { verdict, computeComposite } from '../../lib/scoring/decisionScore';
 
 export type DecisionScoreData = {
   state: 'computing' | 'complete';
@@ -21,39 +22,17 @@ export type DecisionScoreData = {
   l3Summary?: string;
   l4Score?: number | null;
   l4Summary?: string;
+  l5Score?: number | null;
+  l5Summary?: string;
   compositeScore?: number;
   sessionId?: string;
 };
-
-function verdict(score: number): { label: string; color: string } {
-  if (score >= 85) return { label: 'Strong Buy',       color: '#4ade80' };
-  if (score >= 70) return { label: 'Ready to Offer',   color: '#4ade80' };
-  if (score >= 55) return { label: 'Buy with Caution', color: '#fbbf24' };
-  if (score >= 40) return { label: 'Watch the Market', color: '#fbbf24' };
-  return               { label: 'Hold Off',            color: '#f87171' };
-}
 
 function barColor(score: number | null | undefined): string {
   if (score == null) return 'rgba(255,255,255,0.1)';
   if (score >= 70)   return '#4ade80';
   if (score >= 50)   return '#fbbf24';
   return '#f87171';
-}
-
-function computeComposite(
-  l1: number, l2: number | null,
-  l3?: number | null, l4?: number | null,
-): number | null {
-  const entries = [
-    { s: l1,        w: 0.35 },
-    { s: l2,        w: 0.25 },
-    { s: l3 ?? null, w: 0.25 },
-    { s: l4 ?? null, w: 0.15 },
-  ].filter(e => e.s != null) as { s: number; w: number }[];
-  if (entries.length < 2) return null;
-  const totalW   = entries.reduce((a, e) => a + e.w, 0);
-  const weighted = entries.reduce((a, e) => a + e.s * e.w, 0);
-  return Math.round(weighted / totalW);
 }
 
 interface Props {
@@ -86,9 +65,9 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
     }
   }, [data.state]);
 
-  const { address, l1Score, l2Score, l3Score, l4Score, sessionId } = data;
+  const { address, l1Score, l2Score, l3Score, l4Score, l5Score, sessionId } = data;
 
-  const composite = data.compositeScore ?? computeComposite(l1Score, l2Score, l3Score, l4Score);
+  const composite = data.compositeScore ?? computeComposite({ l1: l1Score, l2: l2Score, l3: l3Score, l4: l4Score, l5: l5Score });
   const v         = composite != null ? verdict(composite) : null;
   // Only colour the ring/badge once we have an actual composite score
   const hasScore  = complete && composite != null;
@@ -161,10 +140,13 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
   // saved session, so no other scenario params are needed).
   const ratesOracleUrl = sessionId ? `/rates-oracle?sid=${sessionId}` : null;
 
+  // Note: only L1-L4 render as bars here (unchanged) — L5 is plumbed into
+  // `composite` above but stays a CTA-only row below; the gauge that will
+  // actually surface L5 visually is a separate follow-up build.
   const levels = [
-    { num: 'L1', name: 'Financial', weight: '35%', score: l1Score,        done: true },
-    { num: 'L2', name: 'Property',  weight: '25%', score: l2Score,        done: l2Score != null },
-    { num: 'L3', name: 'Market',    weight: '25%', score: l3Score ?? null, done: complete && l3Score != null },
+    { num: 'L1', name: 'Financial', weight: '30%', score: l1Score,        done: true },
+    { num: 'L2', name: 'Property',  weight: '20%', score: l2Score,        done: l2Score != null },
+    { num: 'L3', name: 'Market',    weight: '20%', score: l3Score ?? null, done: complete && l3Score != null },
     { num: 'L4', name: 'Location',  weight: '15%', score: l4Score ?? null, done: complete && l4Score != null },
   ];
 
