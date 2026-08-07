@@ -23,11 +23,13 @@ interface ConformingSegment {
 }
 
 interface RatesOracleChartProps {
-  /** Conventional path: 10 real OBMMI credit/LTV segments, already sorted ascending by rate. */
+  /** Conventional: 10 real OBMMI credit/LTV segments. Jumbo: 10 estimated segments (see `estimated`). Sorted ascending by rate. */
   segments?: ConformingSegment[] | null;
   mySegmentId?: string | null;
   myRank?: number;
-  /** Flagship path (fha/va/jumbo): a single national OBMMI average vs. the FRED 30yr par rate. */
+  /** True when `segments` is jumbo's estimated table (lib/pricing/jumboEstimate.ts), not a real per-segment OBMMI series. */
+  estimated?: boolean;
+  /** Flagship path (fha/va/dscr): a single national OBMMI average vs. the FRED 30yr par rate. */
   flagshipRate?: number | null;
   flagshipLabel?: string | null;
   parRate?: number | null;
@@ -36,6 +38,7 @@ interface RatesOracleChartProps {
 const NEUTRAL_FILL = 'rgba(255,255,255,0.14)';
 const NEUTRAL_STROKE = 'rgba(255,255,255,0.28)';
 const YOURS_FILL = '#00e87a';
+const ESTIMATED_FILL = '#f0c14b';
 const AXIS_INK = '#8fa3b8';
 const GRID_STROKE = 'rgba(255,255,255,0.07)';
 
@@ -54,32 +57,39 @@ function median(nums: number[]): number {
 
 // Custom hover card: real segment criteria + the exact OBMMI methodology line,
 // not a generic recharts tooltip — this is the "citation on hover" surface.
+// Reads `estimated` off the point itself (set per-datum) so the same tooltip
+// serves both real conforming segments and jumbo's estimated table correctly.
 function SegmentTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
-  const d = payload[0].payload as { label: string; rate: number; isMine: boolean };
+  const d = payload[0].payload as { label: string; rate: number; isMine: boolean; estimated?: boolean };
+  const accent = d.isMine ? (d.estimated ? ESTIMATED_FILL : YOURS_FILL) : NEUTRAL_STROKE;
   return (
     <div style={{
-      background: '#0e1420', border: `1px solid ${d.isMine ? YOURS_FILL : NEUTRAL_STROKE}`,
-      borderRadius: 8, padding: '10px 12px', maxWidth: 240,
+      background: '#0e1420', border: `1px solid ${accent}`,
+      borderRadius: 8, padding: '10px 12px', maxWidth: 260,
     }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: d.isMine ? YOURS_FILL : '#f0f4ff', marginBottom: 2 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: d.isMine ? accent : '#f0f4ff', marginBottom: 2 }}>
         {d.label}{d.isMine ? ' (yours)' : ''}
       </div>
       <div style={{ fontSize: 13, fontWeight: 800, color: '#f0f4ff', marginBottom: 6 }}>
         {d.rate.toFixed(3)}%
       </div>
       <div style={{ fontSize: 10, color: AXIS_INK, lineHeight: 1.5 }}>
-        OBMMI, via FRED release 473 — a real observed daily rate-lock average, not an estimate.
+        {d.estimated
+          ? "Estimated — jumbo has no real per-segment OBMMI series. Adjusts today's real national jumbo average for this credit/LTV tier using published spread ranges, not a live observation."
+          : 'OBMMI, via FRED release 473 — a real observed daily rate-lock average, not an estimate.'}
       </div>
     </div>
   );
 }
 
-function RankedSegmentChart({ segments, mySegmentId, myRank }: {
+function RankedSegmentChart({ segments, mySegmentId, myRank, estimated }: {
   segments: ConformingSegment[];
   mySegmentId: string | null | undefined;
   myRank: number;
+  estimated: boolean;
 }) {
+  const accentFill = estimated ? ESTIMATED_FILL : YOURS_FILL;
   const rates = segments.map(s => s.rate);
   const mid = median(rates);
   const spread = Math.max(...rates) - Math.min(...rates) || 0.01;
@@ -94,6 +104,7 @@ function RankedSegmentChart({ segments, mySegmentId, myRank }: {
       seriesId: s.seriesId,
       rate: s.rate,
       isMine: s.seriesId === mySegmentId,
+      estimated,
       weight: Math.exp(-((s.rate - mid) ** 2) / (2 * sigma * sigma)),
     }));
   const mine = data.find(d => d.isMine);
@@ -102,8 +113,9 @@ function RankedSegmentChart({ segments, mySegmentId, myRank }: {
     <div>
       {myRank > 0 && (
         <p style={{ margin: '0 0 14px', fontSize: '0.95rem', color: '#e6edf3' }}>
-          Your segment ranks <strong style={{ color: YOURS_FILL }}>{ordinal(myRank)}</strong> of{' '}
-          {segments.length} OBMMI credit/LTV tiers today, at <strong style={{ color: YOURS_FILL }}>{mine?.rate.toFixed(3)}%</strong>.
+          Your segment ranks <strong style={{ color: accentFill }}>{ordinal(myRank)}</strong> of{' '}
+          {segments.length} {estimated ? 'estimated jumbo credit/LTV tiers' : 'OBMMI credit/LTV tiers'} today, at{' '}
+          <strong style={{ color: accentFill }}>{mine?.rate.toFixed(3)}%</strong>.
         </p>
       )}
       <div style={{ height: 220, width: '100%' }}>
@@ -127,6 +139,7 @@ function RankedSegmentChart({ segments, mySegmentId, myRank }: {
               dataKey="weight"
               stroke={NEUTRAL_STROKE}
               strokeWidth={1.5}
+              strokeDasharray={estimated ? '5 3' : undefined}
               fill="url(#oracleFade)"
               isAnimationActive
               animationDuration={600}
@@ -137,31 +150,34 @@ function RankedSegmentChart({ segments, mySegmentId, myRank }: {
                     key={payload.seriesId}
                     cx={cx} cy={cy}
                     r={payload.isMine ? 5 : 3}
-                    fill={payload.isMine ? YOURS_FILL : NEUTRAL_FILL}
-                    stroke={payload.isMine ? YOURS_FILL : NEUTRAL_STROKE}
+                    fill={payload.isMine ? accentFill : NEUTRAL_FILL}
+                    stroke={payload.isMine ? accentFill : NEUTRAL_STROKE}
                     strokeWidth={payload.isMine ? 2 : 1}
+                    strokeDasharray={estimated && !payload.isMine ? '2 1' : undefined}
                   />
                 );
               }}
             />
             <defs>
               <linearGradient id="oracleFade" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={YOURS_FILL} stopOpacity={0.18} />
-                <stop offset="100%" stopColor={YOURS_FILL} stopOpacity={0} />
+                <stop offset="0%" stopColor={accentFill} stopOpacity={0.18} />
+                <stop offset="100%" stopColor={accentFill} stopOpacity={0} />
               </linearGradient>
             </defs>
             {mine && (
               <ReferenceDot x={mine.rate} y={mine.weight} r={0} label={{
-                value: '↓ yours', position: 'top', fill: YOURS_FILL, fontSize: 11, fontWeight: 700,
+                value: '↓ yours', position: 'top', fill: accentFill, fontSize: 11, fontWeight: 700,
               }} />
             )}
           </AreaChart>
         </ResponsiveContainer>
       </div>
       <p style={{ margin: '10px 0 0', fontSize: '0.72rem', color: AXIS_INK, lineHeight: 1.5 }}>
-        Each point is a real OBMMI credit/LTV tier observed today — curve shape shows how far
-        each sits from today's median rate, not loan volume. Hover a point for its exact criteria.
-        Green = your segment.
+        {estimated
+          ? <>Each point is <strong>estimated</strong> — jumbo has no real per-segment OBMMI series (only one national average exists). These adjust that real average for credit score and LTV using published spread ranges, not live per-tier observations. Hover a point for detail. Amber = your segment.</>
+          : <>Each point is a real OBMMI credit/LTV tier observed today — curve shape shows how far
+          each sits from today's median rate, not loan volume. Hover a point for its exact criteria.
+          Green = your segment.</>}
       </p>
       <p style={{ margin: '6px 0 0', fontSize: '0.66rem', color: AXIS_INK, lineHeight: 1.5, opacity: 0.75 }}>
         {OBMMI_CITATION}
@@ -223,10 +239,10 @@ function ordinal(n: number): string {
 }
 
 export function RatesOracleChart(props: RatesOracleChartProps) {
-  const { segments, mySegmentId, myRank = 0, flagshipRate, flagshipLabel, parRate } = props;
+  const { segments, mySegmentId, myRank = 0, estimated = false, flagshipRate, flagshipLabel, parRate } = props;
 
   if (segments && segments.length > 0) {
-    return <RankedSegmentChart segments={segments} mySegmentId={mySegmentId} myRank={myRank} />;
+    return <RankedSegmentChart segments={segments} mySegmentId={mySegmentId} myRank={myRank} estimated={estimated} />;
   }
   if (flagshipRate != null && flagshipLabel && parRate != null) {
     return <FlagshipChart flagshipRate={flagshipRate} flagshipLabel={flagshipLabel} parRate={parRate} />;

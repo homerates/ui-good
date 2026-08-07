@@ -17,6 +17,7 @@ import {
 } from '../../../lib/pricing/llpa-engine';
 import { getStateLimitInfo } from '../../../lib/pricing/conforming-limits';
 import { getLatestValue, getLatest, getSnapshot, getSeriesDefinition } from '../../../lib/market-data';
+import { estimateJumboAnchor, buildEstimatedJumboSegments } from '../../../lib/pricing/jumboEstimate';
 
 // AD-11 Seam 2: was its own direct FRED fetch (byte-identical duplicate also
 // existed in app/api/rate-marketplace/route.ts) -- now reads the synced
@@ -87,14 +88,24 @@ export async function POST(req: NextRequest) {
   // 'conventional', also batch-fetch every conforming segment so the
   // negotiation brief can quote real neighboring-segment rates.
   const obmmiSeriesId = resolveObmmiSeriesId(loanType, creditScore, ltv);
-  const [parRate, marketObs, conformingSnapshot] = await Promise.all([
+  const [parRate, marketObs, conformingSnapshot, jumboResult] = await Promise.all([
     fetchParRate(),
-    obmmiSeriesId ? getLatest(obmmiSeriesId) : Promise.resolve(null),
+    // Jumbo resolves its anchor via estimateJumboAnchor below instead -- skip
+    // the plain getLatest here so we don't fetch OBMMIJUMBO30YF twice.
+    obmmiSeriesId && loanType !== 'jumbo' ? getLatest(obmmiSeriesId) : Promise.resolve(null),
     loanType === 'conventional' ? getSnapshot(CONFORMING_OBMMI_SERIES_IDS) : Promise.resolve(null),
+    loanType === 'jumbo' ? estimateJumboAnchor({ creditScore, ltv, occupancy, loanPurpose }) : Promise.resolve(null),
   ]);
-  const marketRate = marketObs?.value ?? null;
+  const marketRate = loanType === 'jumbo' ? jumboResult?.anchorRate ?? null : marketObs?.value ?? null;
 
-  const result = computeLLPA(engineInput, parRate, marketRate);
+  const result = computeLLPA(engineInput, parRate, marketRate, jumboResult ? {
+    baseSource: jumboResult.baseSource,
+    spreadUsed: jumboResult.spreadUsed,
+    spreadSource: jumboResult.spreadSource,
+    adjustmentDelta: jumboResult.adjustmentDelta,
+    conformingRate: jumboResult.conformingRate,
+    clamped: jumboResult.clamped,
+  } : undefined);
 
   if ('ineligible' in result && result.ineligible) {
     return NextResponse.json({ error: result.ineligible, ineligible: true }, { status: 422 });
@@ -127,7 +138,14 @@ export async function POST(req: NextRequest) {
                 rate: conformingSnapshot[id]?.value ?? null,
               }))
               .filter((s): s is { label: string; seriesId: string; rate: number } => s.rate !== null)
-          : undefined,
+          // Jumbo has no real per-segment OBMMI series -- these are estimated
+          // (see lib/pricing/jumboEstimate.ts), not real observed rates.
+          : jumboResult
+            ? buildEstimatedJumboSegments(jumboResult.baseAnchor)
+            : undefined,
+        // Only true for jumbo's estimated table -- absent (falsy) for real
+        // conforming segments, so downstream consumers default to "real".
+        ...(jumboResult ? { estimated: true } : {}),
       }
     : undefined;
 
