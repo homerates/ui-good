@@ -112,11 +112,18 @@ function RankedSegmentChart({ segments, mySegmentId, myRank, estimated }: {
   return (
     <div>
       {myRank > 0 && (
-        <p style={{ margin: '0 0 14px', fontSize: '0.95rem', color: '#e6edf3' }}>
-          Your segment ranks <strong style={{ color: accentFill }}>{ordinal(myRank)}</strong> of{' '}
-          {segments.length} {estimated ? 'estimated jumbo credit/LTV tiers' : 'OBMMI credit/LTV tiers'} today, at{' '}
-          <strong style={{ color: accentFill }}>{mine?.rate.toFixed(3)}%</strong>.
-        </p>
+        <>
+          <p style={{ margin: '0 0 6px', fontSize: '0.95rem', color: '#e6edf3' }}>
+            Your segment ranks <strong style={{ color: accentFill }}>{ordinal(myRank)}</strong> of{' '}
+            {segments.length} {estimated ? 'estimated jumbo credit/LTV tiers' : 'OBMMI credit/LTV tiers'} today, at{' '}
+            <strong style={{ color: accentFill }}>{mine?.rate.toFixed(3)}%</strong>.
+          </p>
+          {estimated && (
+            <p style={{ margin: '0 0 14px', fontSize: '0.72rem', color: AXIS_INK, lineHeight: 1.5 }}>
+              Estimated using the national Optimal Blue Jumbo average, adjusted for your credit/LTV tier using published spread ranges.
+            </p>
+          )}
+        </>
       )}
       <div style={{ height: 220, width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">

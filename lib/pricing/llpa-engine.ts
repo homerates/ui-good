@@ -467,7 +467,9 @@ export function computeLLPA(
     rateCurve,
     conformingStatus,
     dataSource: usingObmmi
-      ? `${OBMMI_CITATION_SHORT}. Surcharges (occupancy, purpose, property type, lock) from ${LLPA_DATA_SOURCE}`
+      ? `${OBMMI_CITATION_SHORT}. Surcharges (occupancy, purpose, property type, lock) from ${LLPA_DATA_SOURCE}${
+          input.loanType === 'jumbo' ? ' — used as a conforming-market proxy for relative sensitivity; no published jumbo-specific surcharge grid exists' : ''
+        }`
       : LLPA_DATA_SOURCE,
     disclaimer: LLPA_DISCLAIMER,
     rateAnchorSource: usingObmmi ? 'obmmi' : 'synthetic',
