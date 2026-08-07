@@ -3353,11 +3353,7 @@ export default function Page() {
                     const _dsAnswerIdCma = answerId;
 
                     // L1 — instant from LTV formula (same as URL-paste path)
-                    const _dsLtv      = 1 - _dsDown / 100;
-                    const _dsL1Score  = _dsLoanType === 'jumbo'
-                        ? (_dsLtv <= 0.75 ? 86 : _dsLtv <= 0.80 ? 80 : 72)
-                        : (_dsLtv <= 0.80 ? 85 : _dsLtv <= 0.85 ? 78 : _dsLtv <= 0.90 ? 70 : 60);
-                    const _dsL1Summary = `${_dsLoanType === 'jumbo' ? 'Jumbo' : 'Conventional'} · ${_dsDown}% down · LTV ${Math.round(_dsLtv * 100)}%`;
+                    const { score: _dsL1Score, summary: _dsL1Summary } = scoreL1({ downPct: _dsDown, loanType: _dsLoanType });
 
                     // Inject computing-state card (L2 null — AVM not in cmaAddress params, resolves from Grok)
                     setMessages(prev => prev.map(m =>
@@ -3430,8 +3426,6 @@ export default function Page() {
 
                             // L2 from deep analysis AVM (same fallback chain as FOR-SALE path)
                             // Fix: use sold_price (Grok schema field), not sale_price
-                            let dsL2ScoreFinal: number | null = null;
-                            let dsL2SummaryFinal = 'AVM data unavailable';
                             const compsArr = Array.isArray(deepResult.comparable_sales) ? deepResult.comparable_sales : [];
                             const compsAvgAF = compsArr.length > 0
                                 ? Math.round(compsArr.reduce((s: number, c: any) => s + (c.sold_price ?? 0), 0) / compsArr.length)
@@ -3439,75 +3433,50 @@ export default function Page() {
                             const deepAvm = (deepResult.zillow_estimate as number | null | undefined)
                                 ?? (deepResult.redfin_estimate as number | null | undefined)
                                 ?? (compsAvgAF && compsAvgAF > 0 ? compsAvgAF : null);
-                            if (_dsPrice && deepAvm) {
-                                const prem = (_dsPrice - deepAvm) / deepAvm;
-                                dsL2ScoreFinal = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
-                                    : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
-                                const premStr = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
-                                dsL2SummaryFinal = `Listed ${premStr} vs AVM $${Math.round(deepAvm / 1000)}K`;
-                            }
+                            const l2deep = scoreL2({ listPrice: _dsPrice, avm: deepAvm ?? null });
+                            let dsL2ScoreFinal = l2deep?.score ?? null;
+                            let dsL2SummaryFinal = l2deep?.summary ?? 'AVM data unavailable';
                             // Final L2 fallback — use market median price or neutral score so L2 never stays null
                             if (dsL2ScoreFinal == null) {
                                 const medP = (deepResult.market_median_price as number | null | undefined);
-                                if (_dsPrice && medP && medP > 0) {
-                                    const prem = (_dsPrice - medP) / medP;
-                                    dsL2ScoreFinal = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
-                                        : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
-                                    dsL2SummaryFinal = `Listed ${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}% vs area median`;
+                                const l2med = _dsPrice && medP ? scoreL2({ listPrice: _dsPrice, avm: medP }) : null;
+                                if (l2med) {
+                                    dsL2ScoreFinal = l2med.score;
+                                    dsL2SummaryFinal = l2med.summary.replace(/vs AVM \$[\d,]+K/, 'vs area median');
                                 } else {
                                     dsL2ScoreFinal = 65;
                                     dsL2SummaryFinal = 'AVM limited — visit Property Intel for full analysis';
                                 }
                             }
 
-                            // L3 — market conditions (same scoring as FOR-SALE path)
-                            let dsL3Score: number | null = null;
-                            let dsL3Summary = '';
+                            // L3 — market conditions. Canonicalized on the richer FOR-SALE-path
+                            // formula (with social-proof blend) per product decision 2026-08-06 —
+                            // this deliberately changes scores vs. the old CMA-specific formula
+                            // that used to live here (e.g. DOM=20 was 55, now scores 42).
                             const dom = deepResult.market_median_dom ?? null;
-                            const s2l = deepResult.market_sale_to_list ?? null;
-                            if (dom != null || s2l != null) {
-                                const domS = dom == null ? 75 : dom <= 10 ? 40 : dom <= 21 ? 55 : dom <= 30 ? 65 : dom <= 45 ? 75 : dom <= 60 ? 82 : 90;
-                                const s2lS = s2l == null ? 75 : s2l >= 1.03 ? 30 : s2l >= 1.01 ? 45 : s2l >= 0.99 ? 65 : s2l >= 0.97 ? 78 : 90;
-                                dsL3Score   = Math.round((domS + s2lS) / 2);
-                                dsL3Summary = [dom != null ? `DOM ${dom}d` : null, s2l != null ? `S/L ${(s2l * 100).toFixed(0)}%` : null].filter(Boolean).join(' · ');
-                            }
-                            // Final L3 fallback — use subject DOM or neutral score so L3 never stays null
-                            if (dsL3Score == null) {
-                                const subDomAF = (deepResult.days_on_market as number | null | undefined);
-                                if (subDomAF != null && subDomAF >= 0) {
-                                    dsL3Score = subDomAF > 90 ? 90 : subDomAF > 60 ? 80 : subDomAF > 45 ? 68 : subDomAF > 30 ? 55 : subDomAF > 15 ? 42 : 32;
-                                    dsL3Summary = `Property at ${subDomAF}d on market (area stats pending)`;
-                                } else {
-                                    dsL3Score = 65;
-                                    dsL3Summary = 'Market data limited — visit Property Intel';
-                                }
-                            }
+                            const s2lRaw = deepResult.market_sale_to_list ?? null;
+                            const s2l = s2lRaw != null && s2lRaw > 2 ? s2lRaw / 100 : s2lRaw;
+                            const { score: dsL3Score, summary: dsL3Summary } = scoreL3({
+                                domMedian: dom,
+                                saleToList: s2l,
+                                subjectDom: (deepResult.days_on_market as number | null | undefined) ?? null,
+                            });
 
                             // L4 — location intelligence (same scoring as FOR-SALE path)
-                            let dsL4Score: number | null = null;
-                            let dsL4Summary = '';
                             const locIntel = deepResult.location_intelligence;
-                            if (locIntel) {
-                                if (locIntel.overall_score != null) {
-                                    dsL4Score   = Math.round(locIntel.overall_score);
-                                    dsL4Summary = locIntel.summary ?? 'Location score';
-                                } else {
-                                    const scores = [locIntel.school_score, locIntel.walk_score, locIntel.transit_score, locIntel.safety_score].filter((s): s is number => s != null);
-                                    if (scores.length > 0) {
-                                        dsL4Score   = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-                                        dsL4Summary = 'Schools · Walk · Transit · Safety';
-                                    }
-                                }
-                            }
+                            const l4deep = locIntel ? scoreL4({
+                                overallScore: locIntel.overall_score ?? null,
+                                school: locIntel.school_score ?? null,
+                                walk: locIntel.walk_score ?? null,
+                                otherScores: [locIntel.transit_score, locIntel.safety_score],
+                            }) : null;
+                            const dsL4Score = l4deep?.score ?? null;
+                            const dsL4Summary = locIntel?.overall_score != null
+                                ? (locIntel.summary ?? 'Location score')
+                                : (dsL4Score != null ? 'Schools · Walk · Transit · Safety' : '');
 
                             // Composite (same formula as FOR-SALE path)
-                            const dsEntries = [
-                                { s: _dsL1Score,     w: 0.35 }, { s: dsL2ScoreFinal, w: 0.25 },
-                                { s: dsL3Score,      w: 0.25 }, { s: dsL4Score,      w: 0.15 },
-                            ].filter(e => e.s != null) as { s: number; w: number }[];
-                            const dsComposite = dsEntries.length >= 2
-                                ? Math.round(dsEntries.reduce((a, e) => a + e.s * e.w, 0) / dsEntries.reduce((a, e) => a + e.w, 0))
-                                : null;
+                            const dsComposite = computeComposite({ l1: _dsL1Score, l2: dsL2ScoreFinal, l3: dsL3Score, l4: dsL4Score });
 
                             // Session save (best-effort, only when signed in)
                             let dsSessionId: string | null = null;

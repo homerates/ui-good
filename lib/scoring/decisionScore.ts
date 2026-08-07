@@ -142,10 +142,12 @@ export interface ScoreL4Input {
   walk?: number | null;   // 0-100
   commuteMinutes?: number | null;
   appreciation3yrPct?: number | null;
+  /** Additional already-0-100 sub-scores (e.g. transit_score, safety_score) averaged in alongside school/walk. */
+  otherScores?: (number | null | undefined)[];
 }
 
 export function scoreL4({
-  overallScore, subScores, school, walk, commuteMinutes, appreciation3yrPct,
+  overallScore, subScores, school, walk, commuteMinutes, appreciation3yrPct, otherScores,
 }: ScoreL4Input): { score: number; summary: string } | null {
   if (overallScore != null) {
     const score = Math.min(100, Math.max(0, Math.round(overallScore)));
@@ -153,9 +155,10 @@ export function scoreL4({
     return { score, summary: pts.length ? pts.join(', ') + '.' : `Location score ${score}/100.` };
   }
 
-  if (school == null && walk == null && commuteMinutes == null && appreciation3yrPct == null) return null;
+  const cleanOthers = (otherScores ?? []).filter((s): s is number => s != null);
+  if (school == null && walk == null && commuteMinutes == null && appreciation3yrPct == null && cleanOthers.length === 0) return null;
 
-  const subs: number[] = [];
+  const subs: number[] = [...cleanOthers];
   const pts: string[] = [];
   if (school != null) { subs.push(Math.min(100, Math.max(0, school * 10))); pts.push(`Schools ${school}/10`); }
   if (walk != null) { subs.push(Math.min(100, Math.max(0, walk))); pts.push(`Walk ${walk}`); }
