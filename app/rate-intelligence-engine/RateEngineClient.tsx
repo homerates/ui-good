@@ -16,6 +16,7 @@ import {
   NATIONAL_CONFORMING_BASELINE,
 } from "../../lib/loanLimitsNational2026";
 import { CA_LOAN_LIMITS_2026 } from "../../lib/loanLimits2026";
+import { scoreL5 } from "../../lib/scoring/decisionScore";
 
 // ─── Types for API response ────────────────────────────────────────────────────
 
@@ -255,13 +256,23 @@ export default function RateEngineClient() {
       const data = await r.json();
       if (!r.ok) { setError(data.error ?? "Calculation failed"); return; }
       setResult(data);
-      // Write decoded rate back to the originating buyer session (keyed by ?sid=)
-      // so Track 5 reads card_fair_par_rate from the same row as l1–l4.
+      // Write decoded rate + L5 score back to the originating buyer session
+      // (keyed by ?sid=) so Track 5 reads both from the same row as l1–l4.
       if (paramSid) {
+        const l5 = scoreL5({
+          lenderParRate:      data.lenderParRate,
+          conformingSegments: data.marketComparison?.conformingSegments ?? null,
+          nationalParRate:    data.parRate,
+          loanType,
+          synthetic:          data.rateAnchorSource === 'synthetic',
+        });
         fetch(`/api/buyer-sessions/${paramSid}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ card_fair_par_rate: data.lenderParRate }),
+          body: JSON.stringify({
+            card_fair_par_rate: data.lenderParRate,
+            ...(l5 ? { l5_score: l5.score, l5_summary: l5.summary } : {}),
+          }),
         }).catch(() => { /* best-effort */ });
       }
       // Auto-capture rate_engine_run → consumer_activity. No auto-run-on-mount
