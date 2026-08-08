@@ -114,12 +114,14 @@ export default function PropertyJourneyPage() {
 
     const levels: PropertyJourneyLevel[] = LEVEL_META.map(({ id, label }) => {
         const score = session[`${id}_score` as const];
+        const summary = session[`${id}_summary` as const];
         return {
             id,
             label,
             score,
             href: `/track5?session=${sid}`,
             relevance: relevanceFor(score),
+            summary,
         };
     });
 
@@ -131,12 +133,14 @@ export default function PropertyJourneyPage() {
             <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1.25rem 4rem', fontFamily: "'DM Sans', system-ui, sans-serif", color: '#f0f4ff' }}>
                 <div style={{ marginBottom: 8, textAlign: 'center' as const }}>
                     <div style={{ fontSize: '0.68rem', color: '#8fa3b8', textTransform: 'uppercase' as const, letterSpacing: '0.08em', fontWeight: 700, marginBottom: 4 }}>
-                        Property Journey
+                        Your Homeownership Intelligence
                     </div>
                     <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>{session.property_address ?? 'Your scenario'}</h1>
+                    <div style={{ fontSize: '0.78rem', color: '#8fa3b8', marginTop: 4 }}>
+                        Decision Levels for your primary wealth asset
+                    </div>
                     {v && (
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '6px 14px', borderRadius: 10, background: 'rgba(0,232,122,0.08)', border: '1px solid rgba(0,232,122,0.28)' }}>
-                            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: v.color }}>{session.composite_score}</span>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 12, padding: '6px 14px', borderRadius: 10, background: 'rgba(0,232,122,0.08)', border: '1px solid rgba(0,232,122,0.28)' }}>
                             <span style={{ fontSize: '0.78rem', fontWeight: 700, color: v.color }}>{v.label}</span>
                         </div>
                     )}
@@ -146,6 +150,7 @@ export default function PropertyJourneyPage() {
                         propertyAddress={session.property_address ?? ''}
                         photoUrl={photoUrl}
                         levels={levels}
+                        compositeScore={session.composite_score}
                     />
                 </div>
             </main>
