@@ -168,5 +168,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: (error as any).message }, { status: 500 });
   }
 
+  // Best-effort audit trail — never blocks or fails the primary save.
+  // See supabase/migrations/077_decision_score_history.sql.
+  try {
+    const saved = data as Record<string, unknown>;
+    await supabase.from('decision_score_history').insert({
+      session_id:      saved.id,
+      user_id:         userId,
+      l1_score:        saved.l1_score ?? null,
+      l2_score:        saved.l2_score ?? null,
+      l3_score:        saved.l3_score ?? null,
+      l4_score:        saved.l4_score ?? null,
+      l5_score:        saved.l5_score ?? null,
+      composite_score: saved.composite_score ?? null,
+    });
+  } catch (historyErr) {
+    console.warn('[buyer-sessions POST] history insert failed (non-fatal)', historyErr);
+  }
+
   return NextResponse.json({ ok: true, session: data });
 }
