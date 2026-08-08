@@ -136,7 +136,6 @@ export default function RateEngineClient() {
   const paramOcc     = (params?.get('occupancy') ?? null) as LLPAInput['occupancy']   | null;
   const paramLT      = (params?.get('lt')        ?? null) as LoanType | null;
   const paramSt      = params?.get('st') ?? null;
-  const fromScenario = paramPrice != null;
 
   // Derived initial values — used to seed useState once on mount
   const initPrice    = paramPrice ?? 562_500;
@@ -198,6 +197,65 @@ export default function RateEngineClient() {
   // Only run on initial mount — paramZip from URL is fixed
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Session carry-through — hard rule: whenever a session's scenario data is
+  // already known (price, down %, loan type, property address), landing on
+  // this page via ?sid= alone (e.g. Track 5's "Decode your rate" CTA, which
+  // passes only sid) must auto-fill from it rather than falling back to
+  // generic defaults. Skipped when explicit scenario params are already in
+  // the URL (paramPrice etc. above) — those already prefill correctly and
+  // take priority over a session fetch.
+  const [sessionPrefilled, setSessionPrefilled] = useState(false);
+  const [stateFromSession, setStateFromSession] = useState(false);
+  useEffect(() => {
+    if (!paramSid || paramPrice != null) return;
+    fetch(`/api/buyer-sessions/${paramSid}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const row = d?.session;
+        if (!row) return;
+        const sj = row.scenario_json as { price?: number; dp_pct?: number; lt?: LoanType } | null | undefined;
+        if (sj && typeof sj.price === 'number' && typeof sj.dp_pct === 'number') {
+          const price = sj.price;
+          const down  = Math.round(price * sj.dp_pct / 100);
+          setHomePrice(price);
+          setDownPayment(down);
+          setPriceDraft(fmtCurrency(price));
+          setDownDraft(String(sj.dp_pct));
+          syncLTV(price, down);
+          if (sj.lt) setLoanType(sj.lt);
+          setSessionPrefilled(true);
+        }
+        // Resolve state + county from the session's property address —
+        // same zip→county lookup the ?zip= path above already uses — when
+        // no explicit ?st=/?zip=/?county= was passed.
+        const addr = row.property_address as string | undefined;
+        const m = !paramSt && addr ? addr.match(/,\s*([A-Za-z]{2})\s+(\d{5})(?:-\d{4})?\s*$/) : null;
+        if (m) {
+          setState(m[1].toUpperCase());
+          setStateFromSession(true);
+          if (!paramZip && !paramCounty) {
+            fetch(`/api/zip-county-lookup?zip=${m[2]}`)
+              .then(r => r.ok ? r.json() : null)
+              .then(cd => {
+                if (cd && !cd.notFound && cd.county) {
+                  setCounty((cd.county as string).toUpperCase().replace(/\s+COUNTY$/i, '').trim());
+                  setCountyFromZip(true);
+                }
+              })
+              .catch(() => {});
+          }
+        }
+      })
+      .catch(() => {});
+  // Only run on initial mount — paramSid/paramPrice/paramSt/paramZip/paramCounty are fixed from the URL
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // True whenever price/down are non-default — whether from explicit URL
+  // params (chat, DecisionScoreCard) or a session fetch (bare ?sid= links
+  // like Track 5's "Decode your rate") — both mean these aren't defaults.
+  const fromScenario = paramPrice != null || sessionPrefilled;
 
   // Sync loan amount / LTV from home price + down payment
   function syncLTV(price: number, down: number) {
@@ -441,11 +499,11 @@ export default function RateEngineClient() {
           <div>
             <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
               <label style={{ ...label, marginBottom: 0 }}>Home Price</label>
-              {labelTag(fromScenario && paramPrice != null)}
+              {labelTag(fromScenario)}
             </div>
             <input
               type="text" inputMode="numeric"
-              style={fromScenario && paramPrice != null ? inpFilled : inp}
+              style={fromScenario ? inpFilled : inp}
               value={priceDraft}
               onChange={e => setPriceDraft(e.target.value)}
               onFocus={() => setPriceDraft(String(homePrice))}
@@ -463,7 +521,7 @@ export default function RateEngineClient() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <label style={{ ...label, marginBottom: 0 }}>Down Payment</label>
-                {labelTag(fromScenario && paramDownPct != null)}
+                {labelTag(fromScenario)}
               </div>
               <div style={{ display: "flex", gap: 3 }}>
                 {(['$', '%'] as const).map(m => (
@@ -487,7 +545,7 @@ export default function RateEngineClient() {
             </div>
             <input
               type="text" inputMode="numeric"
-              style={fromScenario && paramDownPct != null ? inpFilled : inp}
+              style={fromScenario ? inpFilled : inp}
               value={downDraft}
               placeholder={downMode === '%' ? "e.g. 20" : "e.g. 112500"}
               onChange={e => setDownDraft(e.target.value)}
@@ -608,8 +666,11 @@ export default function RateEngineClient() {
 
           {/* Loan type — for marketplace filter */}
           <div>
-            <label style={label}>Loan Type</label>
-            <select style={inp} value={loanType}
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+              <label style={{ ...label, marginBottom: 0 }}>Loan Type</label>
+              {labelTag(paramLT != null || sessionPrefilled)}
+            </div>
+            <select style={paramLT != null || sessionPrefilled ? inpFilled : inp} value={loanType}
               onChange={e => setLoanType(e.target.value as LoanType)}>
               <option value="conventional">Conventional</option>
               <option value="fha">FHA</option>
@@ -620,9 +681,12 @@ export default function RateEngineClient() {
 
           {/* Property State */}
           <div>
-            <label style={label}>Property State</label>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+              <label style={{ ...label, marginBottom: 0 }}>Property State</label>
+              {labelTag(paramSt != null || stateFromSession)}
+            </div>
             <input
-              style={inp}
+              style={paramSt != null || stateFromSession ? inpFilled : inp}
               value={state}
               onChange={e => handleStateChange(e.target.value)}
               maxLength={2}
