@@ -140,6 +140,11 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
   // saved session, so no other scenario params are needed).
   const ratesOracleUrl = sessionId ? `/rates-oracle?sid=${sessionId}` : null;
 
+  // "🗺️ View Journey Map" — the radial 5-level front door (Build 6), same
+  // sid-only pattern as ratesOracleUrl since it also re-derives everything
+  // server-side from the saved session.
+  const journeyUrl = sessionId ? `/property/${sessionId}` : null;
+
   // Note: only L1-L4 render as bars here (unchanged) — L5 is plumbed into
   // `composite` above but stays a CTA-only row below; the gauge that will
   // actually surface L5 visually is a separate follow-up build.
@@ -331,7 +336,7 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
 
       {/* ── Footer ── */}
       {complete ? (
-        <div style={{ padding: '10px 20px 14px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ padding: '10px 20px 14px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <a
             href={fullAnalysisUrl}
             target="_blank"
@@ -347,6 +352,21 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
           >
             Full Analysis ↗
           </a>
+          {journeyUrl && (
+            <a
+              href={journeyUrl}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                color: 'rgba(185,208,192,0.75)', fontWeight: 700, fontSize: '0.77rem',
+                borderRadius: 10, padding: '10px 14px', textDecoration: 'none', whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+            >
+              🗺️ View Journey Map
+            </a>
+          )}
         </div>
       ) : (
         <div style={{ padding: '11px 20px 13px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
