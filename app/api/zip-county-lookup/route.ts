@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
     // Pick the row with the highest residential ratio when a ZIP spans multiple counties
     const { data, error } = await sb
       .from('geo_crosswalk')
-      .select('county_name, state_abbr')
+      .select('county_fips, county_name, state_abbr')
       .eq('zip', zip)
       .order('res_ratio', { ascending: false })
       .limit(1)
@@ -76,7 +76,26 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ notFound: true }, { status: 200 });
     }
 
-    const { county_name: countyName, state_abbr: stateCode } = data;
+    let { county_name: countyName, state_abbr: stateCode } = data;
+
+    // geo_crosswalk's county_name is null for every row (the HUD USPS ETL only
+    // ever populates county_fips — see tools/etl-hud.mjs) — county_fips is the
+    // one field this table reliably has. Same override app/api/ami-qualifier
+    // /route.ts already uses: resolve the real name from hud_features by fips.
+    if (!countyName && data.county_fips) {
+      const { data: hud } = await sb
+        .from('hud_features')
+        .select('county_name, state_abbr')
+        .eq('county_fips', data.county_fips)
+        .order('fiscal_year', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (hud) {
+        countyName = hud.county_name as string;
+        stateCode  = (hud.state_abbr as string) ?? stateCode;
+      }
+    }
+
     if (!countyName || !stateCode) {
       return NextResponse.json({ notFound: true }, { status: 200 });
     }
