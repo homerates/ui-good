@@ -155,6 +155,33 @@ function CheckPropertyInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Session carry-through — hard rule: a ?sid= link with no explicit scenario
+    // params (price/dp/rate/lt) must still pull real numbers from the session's
+    // scenario_json rather than silently falling back to this page's generic
+    // defaults ($500k/20%/6.5%/conventional — see `sc` above). Every current
+    // caller already passes the full scenario alongside sid, so this guards
+    // against a future bare-sid deep link hitting the same gap
+    // RateEngineClient.tsx just had fixed for its own bare-sid entry point.
+    useEffect(() => {
+        if (!incomingSid || sp?.get('price')) return;
+        fetch(`/api/buyer-sessions/${incomingSid}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => {
+                const sj = d?.session?.scenario_json as
+                    { price?: number; dp_pct?: number; rate?: number; lt?: Scenario['lt'] } | null | undefined;
+                if (!sj || typeof sj.price !== 'number') return;
+                const newP = new URLSearchParams(sp.toString());
+                newP.set('price', String(sj.price));
+                if (typeof sj.dp_pct === 'number') newP.set('dp', String(sj.dp_pct));
+                if (typeof sj.rate === 'number')    newP.set('rate', String(sj.rate));
+                if (sj.lt)                          newP.set('lt', sj.lt);
+                router.replace(`/check-property?${newP.toString()}`);
+            })
+            .catch(() => {});
+    // Only run on initial mount — incomingSid is fixed from the URL
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // ── Session persistence — L1 + L2 auto-save ───────────────────────────────
     // L2 = Property Evaluation: gap-based score (PITI gap vs scenario budget,
     // blended with AVM premium when available). Address is in l2_summary prefix.

@@ -226,18 +226,22 @@ function LevelNode({
 
   return (
     <>
-      <motion.a
-        href={level.href}
-        onClick={(e) => {
-          // Let modifier/middle clicks behave natively (open in new tab, etc.)
-          // — only plain clicks open the in-place detail card.
-          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-          e.preventDefault();
-          onSelect();
-        }}
+      {/* Real <button>, not an anchor — a real <a href> here (even with
+          preventDefault) still let native navigation through on a genuine
+          mousedown/mouseup/click sequence, because Framer Motion's whileTap
+          gesture handling on a real link interacts with that native
+          sequence in a way preventDefault couldn't reliably beat (confirmed
+          live: a synthetic dispatchEvent('click') respected preventDefault
+          fine, a real click via Playwright's CDP-driven mouse sequence did
+          not). A <button> has no default navigation to prevent in the first
+          place, so this class of bug can't recur. The only real navigation
+          now happens through LevelDetailCard's "Go deeper" link, a plain
+          anchor with no gesture machinery on it. */}
+      <motion.button
+        type="button"
+        onClick={onSelect}
         onHoverStart={onHoverStart}
         onHoverEnd={onHoverEnd}
-        role="button"
         aria-pressed={selected}
         whileHover={reduced ? { opacity: 0.85 } : { scale: 1.08 }}
         whileTap={reduced ? { opacity: 0.7 } : { scale: 0.94 }}
@@ -261,6 +265,8 @@ function LevelNode({
               ? '0 0 0 4px rgba(0,232,122,0.12), 0 6px 18px rgba(0,0,0,0.45)'
               : '0 6px 18px rgba(0,0,0,0.45)',
           cursor: 'pointer',
+          padding: 0,
+          font: 'inherit',
         }}
       >
         <span style={{ fontSize: '1.1rem', fontWeight: 800, color: level.score != null ? INK : INK_DIM, fontVariantNumeric: 'tabular-nums' }}>
@@ -274,7 +280,7 @@ function LevelNode({
             → Next step
           </span>
         )}
-      </motion.a>
+      </motion.button>
       {/* Continuous gentle invitation on the current "next step" node — same
           breathing pattern as the center photo's ambient ring, not just a
           one-time static label. */}
