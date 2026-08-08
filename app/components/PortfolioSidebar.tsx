@@ -157,9 +157,9 @@ function JourneyCard({ item, active, onResume }: { item: PortfolioItem; active: 
 
       {/* Level bars */}
       <div style={{ padding: '3px 11px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <LevelBar label="L1" pct="35%" score={l1} total={100} />
-        <LevelBar label="L2" pct="25%" score={l2} total={100} />
-        <LevelBar label="L3" pct="25%" score={l3} total={100} />
+        <LevelBar label="L1" pct="30%" score={l1} total={100} />
+        <LevelBar label="L2" pct="20%" score={l2} total={100} />
+        <LevelBar label="L3" pct="20%" score={l3} total={100} />
         <LevelBar label="L4" pct="15%" score={l4} total={100} />
       </div>
 
