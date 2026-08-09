@@ -52,6 +52,17 @@ function fmtRate(r: number): string {
     return `${r.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}%`;
 }
 
+// Rate sliders use min:3, step:0.125 — a live FRED/borrower-reported rate
+// (e.g. 6.69) rarely lands on that 0.125 grid. SliderField's underlying
+// <input type="range"> renders/reports whatever value it's given even when
+// off-step, which desyncs the browser's accessible value from the label
+// text next to it. Snap once at state-init so the slider's own value is
+// always a valid step, not just the label — matches the fix pattern
+// already used for click-to-edit commits elsewhere in this file.
+function snapRate(r: number): number {
+    return Math.round(r / 0.125) * 0.125;
+}
+
 // ── Bar width helper — scale against 9% max ───────────────────────────────────
 function barW(rate: number): string { return `${Math.min(100, (rate / 9) * 100).toFixed(1)}%`; }
 
@@ -100,8 +111,8 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
 
     // Adjustable state — init from props per slider-state pattern
     const [balance, setBalance]           = useState(initBalance);
-    const [currentRate, setCurrentRate]   = useState(initCurrentRate);
-    const [newRate, setNewRate]           = useState(initNewRate);
+    const [currentRate, setCurrentRate]   = useState(snapRate(initCurrentRate));
+    const [newRate, setNewRate]           = useState(snapRate(initNewRate));
     const [termMonths, setTermMonths]     = useState(initTermMonths);
     const [closingCosts, setClosingCosts] = useState(initClosingCosts);
     const [noCost, setNoCost]             = useState(false);
@@ -557,7 +568,7 @@ export default function RefiIntelligenceCard(props: RefiIntelligenceParams) {
                 {[
                     { label:'Break-Even', val: calc.beMonths != null ? `${calc.beMonths} mo` : 'N/A', sub:'Months to recoup', color: calc.beMonths != null && calc.beMonths <= 30 ? C.green : C.amber },
                     { label:'5-Yr Net',   val: calc.net5yr > 0 ? fmt$(calc.net5yr, true) : '—',      sub:'After closing costs', color: C.text },
-                    { label:'HELOC Avail',val: calc.helocMax ? fmt$(calc.helocMax, true) : '—',      sub:`LTV ${calc.ltv ?? '?'}% · 80% CLTV`, color: C.text },
+                    { label:'HELOC Avail',val: calc.helocMax ? fmt$(calc.helocMax, true) : '—',      sub:`LTV ${calc.ltv ?? '—'}% · 80% CLTV`, color: C.text },
                 ].map(({ label, val, sub, color }) => (
                     <div key={label} style={{ flex:1, padding:'14px 10px', textAlign:'center', borderRight:'1px solid rgba(255,255,255,0.04)' }}>
                         <div style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em', color:C.dim, marginBottom:5 }}>{label}</div>
