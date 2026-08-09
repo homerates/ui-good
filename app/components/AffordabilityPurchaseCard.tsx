@@ -36,6 +36,8 @@ import {
   DTI_STANDARD_MAX,
   DTI_VA_MAX,
 } from '../../lib/constants';
+import { CA_LOAN_LIMITS_2026 } from '../../lib/loanLimits2026';
+import { HIGH_COST_COUNTIES, type NationalCountyLimits } from '../../lib/loanLimitsNational2026';
 
 export interface AffordabilityPurchaseParams {
   loanType: 'conventional' | 'fha' | 'va' | 'jumbo';
@@ -164,6 +166,29 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const [vaFF,         setVaFF]         = useState(cached?.vaFF ?? (isVA ? (props.vaFundingFeePct ?? 2.5) : 0));
   const [drawerOpen,   setDrawerOpen]   = useState(cached?.drawerOpen ?? false);
 
+  // FHA county-aware loan limit — no address/zip prop exists on this card
+  // (pure scenario-numbers card, unlike InteractiveSliderCard's cmaZip), so
+  // this is manual-search only. Real HUD 2026 per-county FHA data for CA
+  // (lib/loanLimits2026.ts); other states have no per-county FHA figure in
+  // this codebase (only conforming), shown as "verify at hud.gov" instead
+  // of a guessed number.
+  const [fhaCounty,         setFhaCounty]         = useState<string | null>(null);
+  const [fhaCountyFhaLimit, setFhaCountyFhaLimit] = useState<number | null>(null);
+  const [fhaCountyQuery,    setFhaCountyQuery]    = useState('');
+  const [fhaCountyResults,  setFhaCountyResults]  = useState<{label: string; state: string; fhaLimit: number | null; conformingLimit: number}[]>([]);
+
+  function searchFhaCounty(q: string) {
+    const upper = q.toUpperCase().trim();
+    if (upper.length < 2) { setFhaCountyResults([]); return; }
+    const results: {label: string; state: string; fhaLimit: number | null; conformingLimit: number}[] = [];
+    for (const c of CA_LOAN_LIMITS_2026)
+      if (c.county.includes(upper)) results.push({ label: c.county, state: 'CA', fhaLimit: c.fha.units1, conformingLimit: c.conforming.units1 });
+    for (const [state, counties] of Object.entries(HIGH_COST_COUNTIES) as [string, NationalCountyLimits[]][])
+      for (const c of counties)
+        if (c.county.includes(upper)) results.push({ label: c.county, state, fhaLimit: null, conformingLimit: c.conforming.units1 });
+    setFhaCountyResults(results.slice(0, 8));
+  }
+
   const { userId } = useAuth();
 
   // ── Income interaction state (for transient helper line) ──────────────────
@@ -223,6 +248,9 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const jumboZoneColor = jumboZone === 'Conforming' ? '#00e87a'
     : jumboZone === 'High-Balance' ? '#f59e0b'
     : '#8b5cf6';
+
+  const fhaLimitStatus: 'unknown' | 'within' | 'exceeds' =
+    fhaCountyFhaLimit == null ? 'unknown' : baseLoan <= fhaCountyFhaLimit ? 'within' : 'exceeds';
 
   // ── Commit handlers (called on blur / Enter) ──────────────────────────────
   function commitPrice(s: string) {
@@ -440,6 +468,64 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
                 ? `Loan ${fmtK(Math.round(baseLoan))} qualifies as high-balance conforming (up to ${fmtK(CONF_HIGH_BALANCE)}).`
                 : `Loan ${fmtK(Math.round(baseLoan))} exceeds the high-balance limit — full Jumbo underwriting applies.`}
           </span>
+        </div>
+      )}
+
+      {/* FHA county loan limit — real when a county is resolved, honest "search yours" otherwise */}
+      {isFHA && fhaLimitStatus !== 'unknown' && (
+        <div className="apc-jumbo-zone" style={{
+          borderColor: fhaLimitStatus === 'within' ? '#00e87a28' : '#ef444428',
+          background:  fhaLimitStatus === 'within' ? '#00e87a06' : '#ef444406',
+        }}>
+          <span className="apc-jumbo-badge" style={{
+            color: fhaLimitStatus === 'within' ? '#00e87a' : '#ef4444',
+            background: fhaLimitStatus === 'within' ? '#00e87a18' : '#ef444418',
+            border: `1px solid ${fhaLimitStatus === 'within' ? '#00e87a35' : '#ef444435'}`,
+          }}>
+            {fhaLimitStatus === 'within' ? 'FHA Eligible' : 'Exceeds FHA Max'}
+          </span>
+          <span className="apc-jumbo-note">
+            {fhaLimitStatus === 'within'
+              ? `Base loan ${fmtK(Math.round(baseLoan))} is within the FHA limit for ${fhaCounty} County (${fmtK(fhaCountyFhaLimit!)}).`
+              : `Base loan ${fmtK(Math.round(baseLoan))} exceeds the FHA limit for ${fhaCounty} County (${fmtK(fhaCountyFhaLimit!)}) — consider Conventional or Jumbo.`}
+          </span>
+        </div>
+      )}
+      {isFHA && fhaLimitStatus === 'unknown' && (
+        <div className="apc-jumbo-zone" style={{ position: 'relative', borderColor: '#f59e0b28', background: '#f59e0b06' }}>
+          <div style={{ flex: 1 }}>
+            <span className="apc-jumbo-note" style={{ display: 'block', marginBottom: 6 }}>
+              FHA limits vary by county (national range: $541,287–$1,249,125). Search yours for the exact figure:
+            </span>
+            <input
+              type="text"
+              placeholder="e.g. San Diego or Los Angeles"
+              value={fhaCountyQuery}
+              onChange={e => { setFhaCountyQuery(e.target.value); searchFhaCounty(e.target.value); }}
+              className="apc-fha-county-input"
+            />
+            {fhaCountyResults.length > 0 && (
+              <div className="apc-fha-county-results">
+                {fhaCountyResults.map((r, i) => (
+                  <button key={i}
+                    type="button"
+                    onClick={() => {
+                      setFhaCounty(r.label);
+                      setFhaCountyFhaLimit(r.fhaLimit);
+                      setFhaCountyQuery('');
+                      setFhaCountyResults([]);
+                    }}
+                    className="apc-fha-county-result"
+                  >
+                    <span>{r.label}, {r.state}</span>
+                    <span className="apc-fha-county-result-val">
+                      {r.fhaLimit != null ? fmtK(r.fhaLimit) : 'verify at hud.gov'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -754,6 +840,12 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         .apc-jumbo-zone { margin: 0 16px 10px; border: 1px solid; border-radius: 10px; padding: 10px 13px; display: flex; align-items: flex-start; gap: 10px; }
         .apc-jumbo-badge { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 20px; flex-shrink: 0; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; margin-top: 1px; }
         .apc-jumbo-note { font-size: 11.5px; color: rgba(255,255,255,0.5); line-height: 1.45; }
+
+        .apc-fha-county-input { width: 100%; padding: 7px 10px; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.12); font-size: 13px; outline: none; background: rgba(255,255,255,0.06); color: #c4cfe0; box-sizing: border-box; font-family: inherit; }
+        .apc-fha-county-results { position: absolute; top: 100%; left: 16px; right: 16px; z-index: 30; background: #1a2035; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); margin-top: 4px; max-height: 220px; overflow-y: auto; }
+        .apc-fha-county-result { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: none; border: none; border-bottom: 1px solid rgba(255,255,255,0.06); cursor: pointer; text-align: left; font-size: 12px; color: #c4cfe0; font-family: inherit; }
+        .apc-fha-county-result:last-child { border-bottom: none; }
+        .apc-fha-county-result-val { font-weight: 700; color: #f59e0b; margin-left: 8px; flex-shrink: 0; }
 
         .apc-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; background: transparent; border: none; border-top: 1px solid rgba(255,255,255,0.07); cursor: pointer; font-family: inherit; transition: background 0.15s; }
         .apc-trigger:hover { background: rgba(255,255,255,0.03); }
