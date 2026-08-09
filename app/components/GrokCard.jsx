@@ -27,11 +27,12 @@ const SECTION_META = [
     { keys: ['fha'],                         icon: '🏛', color: '#f97316' },
     { keys: ['va loan', 'entitlement'],      icon: '🎖️', color: '#dc2626' },
     { keys: ['jumbo'],                       icon: '🏛️', color: '#7c3aed' },
+    { keys: ['broker', 'loan officer'],      icon: '🏠', color: '#3b82f6' },
     { keys: ['analysis', 'breakdown'],       icon: '🔍', color: '#94a3b8' },
 ];
 
 function getSectionMeta(heading) {
-    const lower = heading.toLowerCase();
+    const lower = (heading || '').toLowerCase();
     for (const m of SECTION_META) {
         if (m.keys.some(k => lower.includes(k))) return m;
     }
@@ -70,6 +71,30 @@ function injectMiniChartMarkers(text) {
     });
 }
 
+// Lightweight inline-markdown renderer for contexts that don't go through
+// ReactMarkdown (table cells). Handles the subset that actually shows up in
+// generated table content: **bold**, *italic*, `code`. Anything unmatched
+// passes through as plain text — this is deliberately not a full parser.
+function renderInlineMd(text, keyPrefix = '') {
+    const str = String(text ?? '');
+    if (!str) return str;
+    const parts = str.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g).filter(s => s !== '');
+    if (parts.length === 1) return str;
+    return parts.map((part, i) => {
+        const key = `${keyPrefix}-${i}`;
+        if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={key} style={{ color: "#f1f5f9", fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith('`') && part.endsWith('`')) {
+            return <code key={key} style={{ fontSize: "0.9em", fontFamily: "monospace", background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: 5, color: "#00e87a" }}>{part.slice(1, -1)}</code>;
+        }
+        if (part.startsWith('*') && part.endsWith('*')) {
+            return <em key={key} style={{ color: "#94a3b8", fontStyle: "italic" }}>{part.slice(1, -1)}</em>;
+        }
+        return part;
+    });
+}
+
 function isTableSeparatorLine(line) {
     const s = line.trim();
     if (!s.includes("-") || !s.includes("|")) return false;
@@ -103,7 +128,51 @@ function parseTableAt(lines, startIdx) {
     return { table: { headers, rows }, nextIndex: i };
 }
 
-// ===== Block splitter — adds section header detection =======================
+// ===== Lead extraction ======================================================
+// Pulls an optional card title (a leading "# Heading") and an optional
+// "bottom line" lead paragraph (plain prose immediately following it, before
+// any subheading/table/list) off the front of the markdown. Anything that
+// doesn't match this shape (answer opens directly with a table, a ##
+// subsection, a list, etc.) falls through with title/lead both null — the
+// card then renders exactly as it always has, no forced structure.
+function extractLeadContent(markdown) {
+    const lines = (markdown || "").replace(/\r\n/g, "\n").split("\n");
+    let i = 0;
+    while (i < lines.length && lines[i].trim() === "") i++;
+
+    // Accepts either "# Title" or "## Title" as the card's title line — both
+    // show up as the leading heading across different answer sources (e.g.
+    // the affordability reference-table fallback in app/api/answers/route.ts
+    // uses "## 💰 What Can You Afford?"). Whichever it is, it's consumed here
+    // and won't be re-processed as a section boundary by splitMarkdownIntoBlocks.
+    let title = null;
+    if (lines[i] && /^#{1,2}\s+.+/.test(lines[i])) {
+        title = lines[i].replace(/^#{1,2}\s+/, "").trim();
+        i++;
+    }
+    if (!title) return { title: null, lead: null, remainder: markdown || "" };
+
+    while (i < lines.length && lines[i].trim() === "") i++;
+
+    const leadLines = [];
+    while (
+        i < lines.length &&
+        lines[i].trim() !== "" &&
+        !/^#{1,6}\s/.test(lines[i]) &&
+        !lines[i].includes("|") &&
+        !/^[-*]\s/.test(lines[i]) &&
+        !/^\d+\.\s/.test(lines[i]) &&
+        !/^>/.test(lines[i])
+    ) {
+        leadLines.push(lines[i]);
+        i++;
+    }
+    const lead = leadLines.join(" ").trim();
+    const remainder = lines.slice(i).join("\n");
+    return { title, lead: lead.length > 0 ? lead : null, remainder };
+}
+
+// ===== Block splitter — tables + section (##) boundaries ====================
 function splitMarkdownIntoBlocks(markdown) {
     const lines  = (markdown || "").replace(/\r\n/g, "\n").split("\n");
     const blocks = [];
@@ -111,13 +180,20 @@ function splitMarkdownIntoBlocks(markdown) {
 
     const flushBuffer = () => {
         if (!buffer.length) return;
-        blocks.push({ type: "md", content: buffer.join("\n") });
+        const content = buffer.join("\n");
+        if (content.trim()) blocks.push({ type: "md", content });
         buffer = [];
     };
 
     let i = 0;
     while (i < lines.length) {
-        // Table detection
+        const h2Match = lines[i].match(/^##\s+(.+)$/);
+        if (h2Match) {
+            flushBuffer();
+            blocks.push({ type: "section-start", title: h2Match[1].trim() });
+            i += 1;
+            continue;
+        }
         const attempt = parseTableAt(lines, i);
         if (attempt) {
             flushBuffer();
@@ -130,6 +206,24 @@ function splitMarkdownIntoBlocks(markdown) {
     }
     flushBuffer();
     return blocks;
+}
+
+// Groups a flat block list into { intro: [...blocks before first section],
+// sections: [{ title, blocks: [...] }, ...] } so sections can render as
+// fully-enclosed panels instead of a heading with nothing marking where it ends.
+function groupIntoSections(blocks) {
+    const intro = [];
+    const sections = [];
+    let current = null;
+    for (const b of blocks) {
+        if (b.type === "section-start") {
+            current = { title: b.title, blocks: [] };
+            sections.push(current);
+            continue;
+        }
+        (current ? current.blocks : intro).push(b);
+    }
+    return { intro, sections };
 }
 
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
@@ -178,7 +272,7 @@ function ModernTable({ headers, rows }) {
                                 letterSpacing: "0.06em", color: "#eaf8f7",
                                 textAlign: i === 0 ? "left" : numericCols.has(i) ? "right" : "left",
                                 borderRight: i < colCount - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                            }}>{h}</div>
+                            }}>{renderInlineMd(h, `h-${i}`)}</div>
                         ))}
                     </div>
                     {rows.map((r, rowIdx) => (
@@ -196,7 +290,7 @@ function ModernTable({ headers, rows }) {
                                     textAlign: colIdx === 0 ? "left" : numericCols.has(colIdx) ? "right" : "left",
                                     borderRight: colIdx < colCount - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
                                     wordBreak: "break-word", overflowWrap: "anywhere",
-                                }}>{cell || "\u00A0"}</div>
+                                }}>{cell ? renderInlineMd(cell, `c-${rowIdx}-${colIdx}`) : " "}</div>
                             ))}
                         </div>
                     ))}
@@ -253,10 +347,11 @@ function buildComponents(isAiResponse = false) {
             );
         },
         h2({ children }) {
+            // Section h2s are now consumed by splitMarkdownIntoBlocks/groupIntoSections
+            // and rendered as panel headers (see SectionPanel below) — this only
+            // fires for a ## that appears somewhere ReactMarkdown parses directly
+            // (e.g. inside a lead paragraph edge case), so keep a plain fallback.
             const text = String(children ?? "");
-            if (!isAiResponse) {
-                return <h2 style={{ margin: "16px 0 6px", fontSize: 14, fontWeight: 700, color: "#f1f5f9" }}>{text}</h2>;
-            }
             const meta = getSectionMeta(text);
             return (
                 <div style={{ display: "flex", alignItems: "center", gap: 7, margin: "20px 0 8px", padding: "7px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 8, borderLeft: `3px solid ${meta.color}` }}>
@@ -267,9 +362,6 @@ function buildComponents(isAiResponse = false) {
         },
         h3({ children }) {
             const text = String(children ?? "");
-            if (!isAiResponse) {
-                return <h3 style={{ margin: "12px 0 4px", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.6)" }}>{text}</h3>;
-            }
             const meta = getSectionMeta(text);
             return (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "14px 0 6px" }}>
@@ -280,7 +372,6 @@ function buildComponents(isAiResponse = false) {
         },
 
         blockquote({ children }) {
-            // Extract text to classify
             const raw = (function extract(c) {
                 if (typeof c === "string") return c;
                 if (Array.isArray(c)) return c.map(extract).join("");
@@ -303,7 +394,6 @@ function buildComponents(isAiResponse = false) {
             return <ol style={{ margin: "8px 0", paddingLeft: "20px" }}>{children}</ol>;
         },
         li({ children }) {
-            // Try to parse as a stat line: "Label: $value (sub-note)"
             const raw = (function extract(c) {
                 if (typeof c === "string") return c;
                 if (Array.isArray(c)) return c.map(extract).join("");
@@ -333,7 +423,6 @@ function buildComponents(isAiResponse = false) {
                     </li>
                 );
             }
-            // Regular li
             return (
                 <li style={{ listStyle: "none", display: "flex", alignItems: "flex-start", gap: 8, margin: "5px 0", color: "rgba(255,255,255,0.8)", fontSize: 13, lineHeight: 1.5 }}>
                     <span style={{ color: "#00e87a", marginTop: 2, flexShrink: 0, fontSize: 10 }}>▸</span>
@@ -370,6 +459,42 @@ function buildComponents(isAiResponse = false) {
     };
 }
 
+// ===== Block renderer (shared by intro + section bodies) ===================
+function RenderBlocks({ blocks, components, keyPrefix }) {
+    return blocks.map((b, idx) => {
+        if (b.type === "table") {
+            const { headers, rows } = b.table || {};
+            if (!headers?.length) return null;
+            return <ModernTable key={`${keyPrefix}-t-${idx}`} headers={headers} rows={rows || []} />;
+        }
+        return (
+            <ReactMarkdown key={`${keyPrefix}-m-${idx}`} className="grok-markdown" components={components}>
+                {b.content}
+            </ReactMarkdown>
+        );
+    });
+}
+
+// ===== Section panel — fully enclosed, icon + colored header =============
+function SectionPanel({ title, blocks, components, keyPrefix }) {
+    const meta = getSectionMeta(title);
+    return (
+        <div style={{ margin: "16px 0", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "11px 14px", background: "rgba(255,255,255,0.025)" }}>
+                <span style={{
+                    width: 24, height: 24, borderRadius: 7, flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12,
+                    background: `${meta.color}1f`,
+                }}>{meta.icon}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: meta.color }}>{title}</span>
+            </div>
+            <div style={{ padding: "12px 14px 4px" }}>
+                <RenderBlocks blocks={blocks} components={components} keyPrefix={keyPrefix} />
+            </div>
+        </div>
+    );
+}
+
 // ===== GrokCard =============================================================
 export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
     if (!data) return null;
@@ -381,17 +506,30 @@ export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
     const [vaultState, setVaultState] = React.useState("idle");
 
     const preparedFull = useMemo(() => injectMiniChartMarkers(answerMarkdown || ""), [answerMarkdown]);
+
+    const { title, lead, remainder } = useMemo(() => extractLeadContent(preparedFull), [preparedFull]);
+
     const blocks = useMemo(() => {
-        try { return splitMarkdownIntoBlocks(preparedFull); }
-        catch { return [{ type: "md", content: preparedFull }]; }
-    }, [preparedFull]);
+        try { return splitMarkdownIntoBlocks(remainder); }
+        catch { return [{ type: "md", content: remainder }]; }
+    }, [remainder]);
+
+    const { intro, sections } = useMemo(() => groupIntoSections(blocks), [blocks]);
 
     const isAiResponse = !!grok;
     const components = useMemo(() => buildComponents(isAiResponse), [isAiResponse]);
 
-    // Detect answer type for accent color
+    // Accent: derived from the extracted title when present (matches the
+    // per-topic identity every loan-type card already has — FHA amber, VA
+    // teal, Jumbo purple), falling back to the first section's topic, then
+    // to the original buyer/default green split for content with no clean
+    // title (e.g. answers that open directly with a table).
+    const topicMeta = title ? getSectionMeta(title) : sections[0] ? getSectionMeta(sections[0].title) : null;
     const isBuyer    = /buyer|for sale|offer|comp|market position/i.test(answerMarkdown || "");
-    const accentColor = isBuyer ? "#3b82f6" : "#00e87a";
+    const accentColor = topicMeta && topicMeta.color !== 'rgba(255,255,255,0.3)'
+        ? topicMeta.color
+        : (isBuyer ? "#3b82f6" : "#00e87a");
+    const headerIcon = topicMeta ? topicMeta.icon : "✦";
 
     return (
         <div className="grok-card" style={{
@@ -405,46 +543,74 @@ export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
             lineHeight: 1.65,
             overflow: "hidden",
         }}>
-            {/* Accent top bar */}
-            <div style={{ height: 3, background: `linear-gradient(90deg, ${accentColor}, ${isBuyer ? "#6366f1" : "#00b459"})` }} />
+            {title ? (
+                // ── Titled header — icon chip + title + freshness, topic-colored ──
+                <div style={{
+                    display: "flex", alignItems: "center", gap: 12, padding: "14px 16px 12px",
+                    background: `linear-gradient(135deg, ${accentColor}1a, ${accentColor}05)`,
+                    borderBottom: "1px solid rgba(255,255,255,0.07)",
+                }}>
+                    <span style={{
+                        width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                        background: `${accentColor}24`, border: `1px solid ${accentColor}4d`,
+                        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17,
+                    }}>{headerIcon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9", letterSpacing: "-0.01em" }}>{title}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2, fontSize: 11, color: "#8fa3b8" }}>
+                            {isAiResponse && <AIDisclosureTag variant="inline" />}
+                            {data_freshness && <span>{isAiResponse ? "· " : ""}{data_freshness}</span>}
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                // ── Fallback header — original treatment for content with no
+                //    clean leading "# Title" (opens directly with a table, list, etc.) ──
+                <>
+                    <div style={{ height: 3, background: `linear-gradient(90deg, ${accentColor}, ${isBuyer ? "#6366f1" : "#00b459"})` }} />
+                    <div style={{
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                        padding: "10px 16px 0",
+                        fontSize: 10, fontWeight: 700, letterSpacing: "0.07em",
+                        textTransform: "uppercase", color: "#eaf8f7",
+                    }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                            <span style={{ color: accentColor, fontSize: 8 }}>●</span>
+                            {grok ? "AI Analysis" : "Answer"}
+                        </span>
+                        {data_freshness && <span>{data_freshness}</span>}
+                    </div>
+                    {isAiResponse && (
+                        <div style={{ padding: "6px 16px 0" }}>
+                            <AIDisclosureTag variant="inline" />
+                        </div>
+                    )}
+                </>
+            )}
 
-            {/* Card header */}
-            <div style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "10px 16px 0",
-                fontSize: 10, fontWeight: 700, letterSpacing: "0.07em",
-                textTransform: "uppercase", color: "#eaf8f7",
-            }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    <span style={{ color: accentColor, fontSize: 8 }}>●</span>
-                    {grok ? "AI Analysis" : "Answer"}
-                </span>
-                {data_freshness && <span>{data_freshness}</span>}
-            </div>
-
-            {/* AI-origin disclosure (Fannie Mae LL-2026-04) — only when this card
-                is actually AI-narrated (grok truthy); the deterministic "Answer"
-                path never needs it */}
-            {isAiResponse && (
-                <div style={{ padding: "6px 16px 0" }}>
-                    <AIDisclosureTag variant="inline" />
+            {/* Bottom line — the lead paragraph, promoted so the takeaway doesn't
+                require reading past a table first. Only renders when the content
+                had a clean lead paragraph to extract. */}
+            {lead && (
+                <div style={{
+                    margin: "14px 16px 4px", padding: "13px 15px", borderRadius: 11,
+                    background: "rgba(0,232,122,0.06)", border: "1px solid rgba(0,232,122,0.2)",
+                    display: "flex", gap: 10, alignItems: "flex-start",
+                }}>
+                    <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>💡</span>
+                    <div>
+                        <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#00e87a", marginBottom: 3 }}>Bottom line</div>
+                        <div style={{ fontSize: 13.5, lineHeight: 1.6, color: "#eafff4" }}>{renderInlineMd(lead, 'lead')}</div>
+                    </div>
                 </div>
             )}
 
             {/* Content */}
             <div style={{ padding: "8px 16px 4px" }}>
-                {blocks.map((b, idx) => {
-                    if (b.type === "table") {
-                        const { headers, rows } = b.table || {};
-                        if (!headers?.length) return null;
-                        return <ModernTable key={`t-${idx}`} headers={headers} rows={rows || []} />;
-                    }
-                    return (
-                        <ReactMarkdown key={`m-${idx}`} className="grok-markdown" components={components}>
-                            {b.content}
-                        </ReactMarkdown>
-                    );
-                })}
+                <RenderBlocks blocks={intro} components={components} keyPrefix="intro" />
+                {sections.map((s, i) => (
+                    <SectionPanel key={`sec-${i}`} title={s.title} blocks={s.blocks} components={components} keyPrefix={`sec-${i}`} />
+                ))}
             </div>
 
             {/* Footer: disclaimer + vault */}
@@ -452,7 +618,7 @@ export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
                 margin: "4px 16px 0",
                 padding: "10px 0 12px",
                 borderTop: "1px solid rgba(255,255,255,0.06)",
-                display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12,
+                display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
             }}>
                 <div style={{ fontSize: 11, color: "#eaf8f7", lineHeight: 1.5, flex: "1 1 auto" }}>
                     ⓘ Educational only — not financial advice or a commitment to lend. Verify rates and eligibility with a licensed lender.
@@ -467,11 +633,11 @@ export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
                             catch { setVaultState("error"); setTimeout(() => setVaultState("idle"), 3000); }
                         }}
                         style={{
-                            flexShrink: 0, fontSize: 11, fontWeight: 600,
-                            padding: "4px 10px", borderRadius: 999,
-                            border: "1px solid rgba(0,232,122,0.3)",
-                            background: vaultState === "saved" ? "rgba(0,232,122,0.12)" : "rgba(0,232,122,0.05)",
-                            color: vaultState === "saved" ? "#00e87a" : vaultState === "error" ? "#ef4444" : "rgba(0,232,122,0.7)",
+                            flexShrink: 0, fontSize: 11, fontWeight: 700,
+                            padding: "6px 12px", borderRadius: 999,
+                            border: "1px solid rgba(0,232,122,0.35)",
+                            background: vaultState === "saved" ? "rgba(0,232,122,0.14)" : "rgba(0,232,122,0.08)",
+                            color: vaultState === "saved" ? "#00e87a" : vaultState === "error" ? "#ef4444" : "#00e87a",
                             cursor: vaultState === "saved" ? "default" : "pointer",
                             transition: "all 150ms ease", whiteSpace: "nowrap",
                         }}
@@ -481,18 +647,21 @@ export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
                 )}
             </div>
 
-            {/* Follow-up CTA */}
+            {/* Follow-up CTA — promoted to the same solid-green pill used for
+                primary actions elsewhere (Decode my rate, Run Adjusted Scenario)
+                since it's the action most likely to move the conversation forward. */}
             {followUp && onFollowUp && (
                 <div style={{ padding: "0 16px 14px" }}>
                     <button
                         type="button"
                         onClick={() => onFollowUp(followUp)}
                         style={{
-                            fontSize: 12, padding: "6px 14px", borderRadius: 999,
-                            border: `1px solid rgba(255,255,255,0.1)`,
-                            background: "rgba(255,255,255,0.04)",
-                            color: "rgba(255,255,255,0.6)",
-                            cursor: "pointer", transition: "all 120ms",
+                            fontSize: 12.5, fontWeight: 700, padding: "8px 16px", borderRadius: 999,
+                            border: "none",
+                            background: "#00e87a",
+                            color: "#04120a",
+                            cursor: "pointer", transition: "opacity 120ms",
+                            display: "inline-flex", alignItems: "center", gap: 6,
                         }}
                     >
                         {followUp} →
