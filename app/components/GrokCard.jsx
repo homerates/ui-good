@@ -31,12 +31,34 @@ const SECTION_META = [
     { keys: ['analysis', 'breakdown'],       icon: '🔍', color: '#94a3b8' },
 ];
 
+// Fallback color must stay a 6-digit hex — callers append an alpha suffix
+// directly to it (e.g. `${meta.color}1f`) for panel/header backgrounds,
+// which only produces valid CSS for hex values. An rgba(...) fallback here
+// silently breaks that (rgba(...)+suffix is not valid CSS, browser just
+// drops the background) for every section whose title doesn't match a
+// SECTION_META keyword — which, in practice, is most of them ("Overview",
+// "Details Table", "Key Takeaways" all miss).
+const DEFAULT_META_COLOR = '#8fa3b8';
+// Strips a leading emoji from a title before display — the header already
+// shows a topic icon in its own chip (from getSectionMeta), and AI-generated
+// headings sometimes start with their own emoji too (e.g. "🏦 Mortgage
+// Broker vs. Loan Officer"), which without this reads as two icons in a row.
+// Falls back to the original text if stripping would leave nothing (title
+// that's emoji-only). ‍ = zero-width joiner, ️ = variation
+// selector-16 — both commonly appear inside multi-codepoint emoji sequences.
+const LEADING_EMOJI_RE = new RegExp('^[\\p{Extended_Pictographic}\\u200d\\ufe0f\\s]+', 'u');
+function stripLeadingEmoji(text) {
+    const str = String(text ?? '');
+    const stripped = str.replace(LEADING_EMOJI_RE, '').trim();
+    return stripped || str;
+}
+
 function getSectionMeta(heading) {
     const lower = (heading || '').toLowerCase();
     for (const m of SECTION_META) {
         if (m.keys.some(k => lower.includes(k))) return m;
     }
-    return { icon: '▸', color: 'rgba(255,255,255,0.3)' };
+    return { icon: '▸', color: DEFAULT_META_COLOR };
 }
 
 // ===== MiniChart ===========================================================
@@ -79,7 +101,12 @@ function renderInlineMd(text, keyPrefix = '') {
     const str = String(text ?? '');
     if (!str) return str;
     const parts = str.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g).filter(s => s !== '');
-    if (parts.length === 1) return str;
+    // Bail out only when nothing matched at all (split returned the string
+    // untouched) — NOT just because there's one part. A cell that's entirely
+    // one token (e.g. a table cell containing only "**Employment**") also
+    // produces a single-element array after the empty-string filter above,
+    // and that single element is the token itself, still needing rendering.
+    if (parts.length === 1 && parts[0] === str) return str;
     return parts.map((part, i) => {
         const key = `${keyPrefix}-${i}`;
         if (part.startsWith('**') && part.endsWith('**')) {
@@ -187,10 +214,16 @@ function splitMarkdownIntoBlocks(markdown) {
 
     let i = 0;
     while (i < lines.length) {
-        const h2Match = lines[i].match(/^##\s+(.+)$/);
-        if (h2Match) {
+        // Accepts "## Title" or "### Title" as a section boundary — real
+        // generated answers use either level depending on the answer type
+        // (confirmed live: a broker-vs-loan-officer answer used ### for every
+        // subsection, while the affordability fallback uses ##). #{2,3} only
+        // matches exactly 2 or 3 leading hashes: a lone "#" (h1, handled by
+        // extractLeadContent above) and "####"+ both correctly fail to match.
+        const sectionMatch = lines[i].match(/^#{2,3}\s+(.+)$/);
+        if (sectionMatch) {
             flushBuffer();
-            blocks.push({ type: "section-start", title: h2Match[1].trim() });
+            blocks.push({ type: "section-start", title: sectionMatch[1].trim() });
             i += 1;
             continue;
         }
@@ -526,10 +559,11 @@ export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
     // title (e.g. answers that open directly with a table).
     const topicMeta = title ? getSectionMeta(title) : sections[0] ? getSectionMeta(sections[0].title) : null;
     const isBuyer    = /buyer|for sale|offer|comp|market position/i.test(answerMarkdown || "");
-    const accentColor = topicMeta && topicMeta.color !== 'rgba(255,255,255,0.3)'
+    const accentColor = topicMeta && topicMeta.color !== DEFAULT_META_COLOR
         ? topicMeta.color
         : (isBuyer ? "#3b82f6" : "#00e87a");
     const headerIcon = topicMeta ? topicMeta.icon : "✦";
+    const displayTitle = title ? stripLeadingEmoji(title) : title;
 
     return (
         <div className="grok-card" style={{
@@ -556,7 +590,7 @@ export default function GrokCard({ data, onFollowUp, onSaveToVault }) {
                         display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17,
                     }}>{headerIcon}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9", letterSpacing: "-0.01em" }}>{title}</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9", letterSpacing: "-0.01em" }}>{displayTitle}</div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2, fontSize: 11, color: "#8fa3b8" }}>
                             {isAiResponse && <AIDisclosureTag variant="inline" />}
                             {data_freshness && <span>{isAiResponse ? "· " : ""}{data_freshness}</span>}
