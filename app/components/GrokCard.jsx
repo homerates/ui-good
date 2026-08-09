@@ -97,16 +97,25 @@ function injectMiniChartMarkers(text) {
 // ReactMarkdown (table cells). Handles the subset that actually shows up in
 // generated table content: **bold**, *italic*, `code`. Anything unmatched
 // passes through as plain text — this is deliberately not a full parser.
+// Two regexes, same pattern: TEST has no /g flag on purpose. A global regex's
+// .test() mutates and persists lastIndex across separate calls, which would
+// make this function alternate between correct and silently-wrong results
+// depending on what the previous call happened to match — a classic stateful-
+// regex bug. .split() doesn't carry that same cross-call state, so the /g
+// version stays safe to reuse there.
+const INLINE_MD_TOKEN_TEST  = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/;
+const INLINE_MD_TOKEN_SPLIT = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
 function renderInlineMd(text, keyPrefix = '') {
     const str = String(text ?? '');
     if (!str) return str;
-    const parts = str.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g).filter(s => s !== '');
-    // Bail out only when nothing matched at all (split returned the string
-    // untouched) — NOT just because there's one part. A cell that's entirely
-    // one token (e.g. a table cell containing only "**Employment**") also
-    // produces a single-element array after the empty-string filter above,
-    // and that single element is the token itself, still needing rendering.
-    if (parts.length === 1 && parts[0] === str) return str;
+    // Test for a match BEFORE splitting — a cell that's entirely one token
+    // (e.g. a table cell containing only "**Employment**") produces a
+    // single-element array after split+filter that's indistinguishable from
+    // "no token matched, split returned the string untouched" by comparing
+    // array contents alone (both cases yield [str]). Checking the pattern
+    // directly against the source string first removes that ambiguity.
+    if (!INLINE_MD_TOKEN_TEST.test(str)) return str;
+    const parts = str.split(INLINE_MD_TOKEN_SPLIT).filter(s => s !== '');
     return parts.map((part, i) => {
         const key = `${keyPrefix}-${i}`;
         if (part.startsWith('**') && part.endsWith('**')) {
