@@ -6729,17 +6729,13 @@ ${_refRows}
                         { label: "I make $75k/year and have $25k saved", seed: "I make $75k/year and have $25k saved" },
                         { label: "I make $150k/year and have $80k saved", seed: "I make $150k/year and have $80k saved" },
                     ],
-                    affordabilitySlider: {
-                        annualIncome: 100000,
-                        monthlyDebts: 0,
-                        savings: 40000,
-                        downPct: 20,
-                        rate: _liveRate,
-                        term: 30,
-                        taxRate: 0.011,
-                        insRate: 0.005,
-                        loanType: 'conventional' as const,
-                    },
+                    // No affordabilitySlider here — this branch fires when the user gave NO
+                    // income/savings. Attaching one seeded with placeholder numbers
+                    // ($100k/$40k) used to suppress this card's own "share your numbers"
+                    // markdown (chat/page.tsx hides GrokCard whenever any slider-family key
+                    // is present), so a generic question like "first-time buyer... what DPA
+                    // programs am I eligible for" rendered a fully-computed-looking result
+                    // with fabricated income/savings instead of the real prompt-for-info text.
                 };
                 } // end isIncomeQuery+price branch
             }
