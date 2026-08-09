@@ -9,7 +9,7 @@ import SliderField from './SliderField';
 import { COLORS } from '../../lib/tokens';
 import AdminCardBadge from './AdminCardBadge';
 import FredRateBadge from './FredRateBadge';
-import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
+import { CA_LOAN_LIMITS_2026, getCALoanLimits, getCACountyByZip } from '@/loanLimits2026';
 import { HIGH_COST_COUNTIES, type NationalCountyLimits } from '@/loanLimitsNational2026';
 import { calcPI } from '../../lib/math';
 import { useAnimatedNumber } from '../../lib/hooks/useAnimatedNumber';
@@ -108,6 +108,16 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     const [countyResults,  setCountyResults]   = useState<{label: string; state: string; limit: number}[]>([]);
     const [countyMsg,      setCountyMsg]       = useState('');
     const [countySelected, setCountySelected]  = useState('');
+
+    // FHA county-aware loan limit — real HUD 2026 per-county figures for CA
+    // (lib/loanLimits2026.ts); other states have no per-county FHA data in
+    // this codebase (only conforming), so those results show conforming only
+    // with a "verify at hud.gov" note rather than a guessed FHA number.
+    const [fhaCounty,          setFhaCounty]          = useState<string | null>(null);
+    const [fhaCountyFhaLimit,  setFhaCountyFhaLimit]  = useState<number | null>(null);
+    const [fhaCountyConfLimit, setFhaCountyConfLimit] = useState<number | null>(null);
+    const [fhaCountyQuery,     setFhaCountyQuery]     = useState('');
+    const [fhaCountyResults,   setFhaCountyResults]   = useState<{label: string; state: string; fhaLimit: number | null; conformingLimit: number}[]>([]);
     const initBdType = (props.buydownType ?? 'none') as '2/1' | '1/0' | '3/2/1' | 'none';
     const [activeBdType,    setActiveBdType]    = useState<'2/1' | '1/0' | '3/2/1' | 'none'>(initBdType);
     const [sellerCreditAmt, setSellerCreditAmt] = useState(props.sellerCredit ?? 0);
@@ -195,6 +205,42 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [countyQuery]);
 
+    // ── FHA county limit — auto-resolve + manual search ──────────────────────
+    // Auto-resolve is CA-only: getCACountyByZip is a local, synchronous ZIP
+    // table (lib/loanLimits2026.ts) — no equivalent exists for other states
+    // in this codebase, so a non-CA cmaZip falls through to the manual
+    // search below instead of guessing.
+    useEffect(() => {
+        if (props.loanType !== 'fha' || fhaCounty || !props.cmaZip) return;
+        const county = getCACountyByZip(props.cmaZip);
+        if (!county) return;
+        const limits = getCALoanLimits(county, 1);
+        if (limits) {
+            setFhaCounty(limits.county);
+            setFhaCountyFhaLimit(limits.fhaLimit);
+            setFhaCountyConfLimit(limits.conformingLimit);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.loanType, props.cmaZip]);
+
+    function searchFhaCounty(q: string) {
+        const upper = q.toUpperCase().trim();
+        if (upper.length < 2) { setFhaCountyResults([]); return; }
+        const results: {label: string; state: string; fhaLimit: number | null; conformingLimit: number}[] = [];
+        for (const c of CA_LOAN_LIMITS_2026)
+            if (c.county.includes(upper)) results.push({ label: c.county, state: 'CA', fhaLimit: c.fha.units1, conformingLimit: c.conforming.units1 });
+        for (const [state, counties] of Object.entries(HIGH_COST_COUNTIES) as [string, NationalCountyLimits[]][])
+            for (const c of counties)
+                if (c.county.includes(upper)) results.push({ label: c.county, state, fhaLimit: null, conformingLimit: c.conforming.units1 });
+        setFhaCountyResults(results.slice(0, 8));
+    }
+
+    useEffect(() => {
+        if (!fhaCountyQuery) { setFhaCountyResults([]); return; }
+        searchFhaCounty(fhaCountyQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [fhaCountyQuery]);
+
     useEffect(() => {
         if (!isSubsequentUse || loanType !== 'va') { if (!isSubsequentUse && loanType === 'va') setDownPct(0); return; }
         const entTotal  = Math.round(countyLimit * 0.25);
@@ -252,6 +298,9 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
     }, [price, downPct, downAmtState, downMode, rate, term, loanType, vaFfPct, activeBdType, props.taxRate, props.insRate, isSubsequentUse, countyLimit, prevEntUsed]);
 
     const { downAmt, baseLoan, loanAmt, fundingFee, ltv, pi, tax, ins, pmi, total, totalInterest, buydown, entTotalEntitlement, entUsed, entRemaining, entMaxZeroDn, entDpNeeded, entDpPct } = calc;
+
+    const fhaLimitStatus: 'unknown' | 'within' | 'exceeds' =
+        fhaCountyFhaLimit == null ? 'unknown' : baseLoan <= fhaCountyFhaLimit ? 'within' : 'exceeds';
 
     const yr1Total   = buydown ? buydown.rows[0].pi + tax + ins + pmi : null;
     const heroTotal  = (activeBdType !== 'none' && yr1Total) ? yr1Total : total;
@@ -502,6 +551,16 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 {loanType === 'fha' && (
                     <div className="isc-badge isc-badge--fha">FHA · 3.5% min down · MIP: {fmtDollar(pmi)}/mo</div>
                 )}
+                {loanType === 'fha' && fhaLimitStatus === 'within' && (
+                    <div className="isc-badge isc-badge--fha-ok">
+                        ✓ Within FHA limit for {fhaCounty} County — {fmtDollar(fhaCountyFhaLimit!)} max
+                    </div>
+                )}
+                {loanType === 'fha' && fhaLimitStatus === 'exceeds' && (
+                    <div className="isc-badge isc-badge--fha-warn">
+                        ⚠ Base loan {fmtDollar(baseLoan)} exceeds the FHA limit for {fhaCounty} County ({fmtDollar(fhaCountyFhaLimit!)}) — consider Conventional or Jumbo
+                    </div>
+                )}
 
                 {/* Buydown year-by-year table */}
                 {activeBdType !== 'none' && buydown && (
@@ -731,6 +790,48 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                         🏠 <strong>FHA loan</strong> — 1.75% upfront MIP financed into the loan · Annual MIP 0.55% (most scenarios) · DTI up to 57% with compensating factors · FHA loan limits apply by county · MIP stays for life of loan if down &lt; 10%.
                     </div>
                 )}
+                {/* FHA county limit picker — auto-resolved from cmaZip when possible (CA only); manual search otherwise */}
+                {loanType === 'fha' && (
+                    <div className="isc-fha-county" style={{ position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: '#8fa3b8' }}>Your county (for exact FHA limit)</span>
+                            {fhaCounty && <span style={{ fontSize: 11, fontWeight: 700, color: '#00e87a' }}>✓ {fhaCounty} County</span>}
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="e.g. San Diego or Los Angeles"
+                            value={fhaCountyQuery}
+                            onChange={e => setFhaCountyQuery(e.target.value)}
+                            className="isc-fha-county-input"
+                        />
+                        {fhaCountyResults.length > 0 && (
+                            <div className="isc-fha-county-results">
+                                {fhaCountyResults.map((r, i) => (
+                                    <button key={i}
+                                        onClick={() => {
+                                            setFhaCounty(r.label);
+                                            setFhaCountyFhaLimit(r.fhaLimit);
+                                            setFhaCountyConfLimit(r.conformingLimit);
+                                            setFhaCountyQuery('');
+                                            setFhaCountyResults([]);
+                                        }}
+                                        className="isc-fha-county-result"
+                                    >
+                                        <span>{r.label}, {r.state}</span>
+                                        <span className="isc-fha-county-result-val">
+                                            {r.fhaLimit != null ? fmtDollar(r.fhaLimit) : `verify at hud.gov`}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {!fhaCounty && fhaCountyResults.length === 0 && (
+                            <div className="isc-hint" style={{ marginTop: 4 }}>
+                                National FHA range: $541,287–$1,249,125 · search your county for the exact figure
+                            </div>
+                        )}
+                    </div>
+                )}
                 {/* VA advisory */}
                 {loanType === 'va' && (
                     <div className="isc-drawer-advisory isc-drawer-advisory--va">
@@ -856,6 +957,14 @@ export default function InteractiveSliderCard(props: SliderCardParams) {
                 .isc-badge--va    { color:#14b8a6; background:rgba(20,184,166,0.08); border:1px solid rgba(20,184,166,0.2); }
                 .isc-badge--jumbo { color:#8b5cf6; background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.2); }
                 .isc-badge--fha   { color:#f59e0b; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); }
+                .isc-badge--fha-ok   { color:#00e87a; background:rgba(0,232,122,0.08);  border:1px solid rgba(0,232,122,0.22); }
+                .isc-badge--fha-warn { color:#f87171; background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.22); }
+
+                .isc-fha-county-input { width:100%; padding:7px 10px; border-radius:8px; border:1.5px solid rgba(255,255,255,0.12); font-size:13px; outline:none; background:rgba(255,255,255,0.06); color:#c4cfe0; box-sizing:border-box; font-family:inherit; }
+                .isc-fha-county-results { position:absolute; top:100%; left:0; right:0; z-index:30; background:#1a2035; border:1px solid rgba(255,255,255,0.1); border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.4); margin-top:4px; max-height:220px; overflow-y:auto; }
+                .isc-fha-county-result { width:100%; display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:none; border:none; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer; text-align:left; font-size:12px; color:#c4cfe0; font-family:inherit; }
+                .isc-fha-county-result:last-child { border-bottom:none; }
+                .isc-fha-county-result-val { font-weight:700; color:#f59e0b; margin-left:8px; flex-shrink:0; }
 
                 /* stacked bar */
                 .isc-bar { display:flex; height:8px; border-radius:9999px; overflow:hidden; background:rgba(255,255,255,0.07); margin:10px 0 8px; gap:1px; }

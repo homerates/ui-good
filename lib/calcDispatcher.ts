@@ -27,13 +27,13 @@ import {
     VAInput,
     JumboInput,
     VAEntitlementInput,
-    FHA_FLOOR_2026,
     FHA_CEILING_2026,
     CONF_STANDARD,
     CONF_HIGH_BALANCE,
     VA_FF_FIRST_LT5,
 } from './calcEngine';
 import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from './constants';
+import { extractCACityOrCounty, getCALoanLimits } from './loanLimits2026';
 
 // Canonical extractors — single source of truth (replaces local copies below)
 import {
@@ -153,18 +153,47 @@ export interface SellerCreditInput {
 // ─────────────────────────────────────────────
 
 export function detectLoanLimits(text: string): {
-    fhaLimit: number;
+    fhaLimit: number | undefined;
     confLimit: number;
     locationLabel: string;
 } {
+    // Real, HUD-published per-county FHA limits (lib/loanLimits2026.ts) for
+    // California — replaces the old high-cost/mid-cost text-bucket guess,
+    // which mislabeled a conforming figure ($832,750) as San Diego's FHA
+    // limit when San Diego's real 2026 FHA limit is $1,104,000. See
+    // DEBT-06 in DEBT_REGISTER.md.
+    const caCounty = extractCACityOrCounty(text);
+    if (caCounty) {
+        const limits = getCALoanLimits(caCounty, 1);
+        if (limits) {
+            return { fhaLimit: limits.fhaLimit, confLimit: limits.conformingLimit, locationLabel: `${limits.county} County, CA` };
+        }
+    }
+
     const t = text.toLowerCase();
-    if (/san francisco|san jose|los angeles|seattle|new york|nyc|boston|miami|dc|washington.*dc|orange county|marin|santa clara|contra costa/i.test(t)) {
-        return { fhaLimit: FHA_CEILING_2026, confLimit: CONF_HIGH_BALANCE, locationLabel: 'high-cost area' };
+
+    // DC's conforming limit sits exactly at the national high-cost ceiling —
+    // HUD defines FHA's ceiling as the identical statutory cap, so this
+    // equivalence is real, not an estimate, unlike the cities below.
+    if (/\bdc\b|washington.*\bdc\b/i.test(t)) {
+        return { fhaLimit: FHA_CEILING_2026, confLimit: CONF_HIGH_BALANCE, locationLabel: 'Washington, DC' };
+    }
+
+    // Known high-cost/mid-cost areas by real conforming data — but this
+    // codebase has no real per-county FHA figures for them (only CA and DC,
+    // above; Miami/Miami-Dade removed from this list — it isn't actually a
+    // high-cost county in current FHFA data). Naming a specific FHA number
+    // here would be a guess dressed as fact, so fhaLimit is left undefined —
+    // calcEngine.ts's existing 'unknown' path (share your county for an
+    // exact check) already handles this gracefully instead of stating a
+    // wrong figure.
+    if (/san francisco|san jose|los angeles|seattle|new york|nyc|boston|orange county|marin|santa clara|contra costa/i.test(t)) {
+        return { fhaLimit: undefined, confLimit: CONF_HIGH_BALANCE, locationLabel: 'high-cost area' };
     }
     if (/sacramento|san diego|riverside|fresno|phoenix|denver|portland|austin|dallas|chicago|atlanta/i.test(t)) {
-        return { fhaLimit: CONF_STANDARD, confLimit: CONF_STANDARD, locationLabel: 'mid-cost area' };
+        return { fhaLimit: undefined, confLimit: CONF_STANDARD, locationLabel: 'mid-cost area' };
     }
-    return { fhaLimit: FHA_FLOOR_2026, confLimit: CONF_STANDARD, locationLabel: '' };
+    return { fhaLimit: undefined, confLimit: CONF_STANDARD, locationLabel: '' };
 }
 
 // ─────────────────────────────────────────────
