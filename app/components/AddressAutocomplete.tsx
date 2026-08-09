@@ -4,19 +4,35 @@
 // Google Places address autocomplete — drop-in replacement for plain <input type="text">
 // Requires NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in env.
 // Loads the Maps JS SDK once per page; subsequent instances reuse the same script.
+//
+// Uses the Places API (New) — AutocompleteSuggestion.fetchAutocompleteSuggestions() +
+// Place.fetchFields() — instead of the legacy google.maps.places.Autocomplete class.
+// Google's own deprecation notice on the legacy class: "not available to new customers"
+// as of March 2025, and "existing bugs in google.maps.places.Autocomplete will not be
+// addressed." The legacy class also renders its dropdown via an opaque, Google-managed
+// .pac-container appended to document.body — outside this component's control, which
+// made the reported mobile bug (tapping a nearby button sometimes does nothing, as if
+// the address was never entered) impossible to diagnose or fix directly. This version
+// renders its own dropdown, so the exact click/touch handling is ours to control —
+// selection uses onMouseDown+preventDefault (fires before the input's blur), the
+// standard fix for "tap dismisses the dropdown instead of registering the tap" on
+// touch devices.
+//
+// External contract (value/onChange/onSelect/onKeyDown/disabled/className/style) and
+// DOM shape (a single <input>, no wrapper div) are unchanged from the previous
+// implementation — every existing call site keeps working with zero changes, including
+// CSS written against a bare <input> as a direct flex/grid child.
 
-import { useEffect, useRef, useCallback, forwardRef, CSSProperties, KeyboardEvent } from 'react';
+import { useEffect, useRef, useCallback, useState, forwardRef, CSSProperties, KeyboardEvent } from 'react';
 
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     google: any;
     __mapsScriptLoading?: boolean;
+    __mapsScriptFailed?: boolean;
   }
 }
-
-// Tracks whether the script load was attempted and failed, so pollers give up.
-declare global { interface Window { __mapsScriptFailed?: boolean; } }
 
 function loadMapsScript(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -55,55 +71,187 @@ interface Props {
   disabled?: boolean;
 }
 
+interface Suggestion {
+  id: string;
+  text: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prediction: any;
+}
+
+const DEBOUNCE_MS = 220;
+const MIN_CHARS = 4;
+
 const AddressAutocomplete = forwardRef<HTMLInputElement, Props>(function AddressAutocomplete(
   { value, onChange, onSelect, placeholder = '123 Main St, City, CA 90001', className, style, onKeyDown, disabled },
   forwardedRef,
 ) {
   const internalRef = useRef<HTMLInputElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const acRef = useRef<any>(null);
-
-  // Use forwarded ref if provided, otherwise fall back to internal ref
   const inputRef = (forwardedRef as React.RefObject<HTMLInputElement>) ?? internalRef;
 
-  const initAutocomplete = useCallback(() => {
-    const input = inputRef.current;
-    if (!input || !window.google?.maps?.places || acRef.current) return;
+  const [placesReady, setPlacesReady] = useState(false);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
 
-    acRef.current = new window.google.maps.places.Autocomplete(input, {
-      types:                ['address'],
-      componentRestrictions: { country: 'us' },
-      fields:               ['formatted_address'],
-    });
-
-    acRef.current.addListener('place_changed', () => {
-      const place = acRef.current!.getPlace();
-      const raw   = place.formatted_address ?? input.value;
-      const addr  = raw.replace(/,\s*(USA|United States)$/i, '').trim();
-      onChange(addr);
-      onSelect?.(addr);
-    });
-  }, [onChange, onSelect, inputRef]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef(0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sessionTokenRef = useRef<any>(null);
 
   useEffect(() => {
     loadMapsScript()
-      .then(initAutocomplete)
+      .then(() => window.google.maps.importLibrary('places'))
+      .then(() => setPlacesReady(true))
       .catch(() => { /* graceful degradation — input still works as plain text */ });
-  }, [initAutocomplete]);
+  }, []);
+
+  const updateRect = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setRect({ top: r.bottom, left: r.left, width: r.width });
+  }, [inputRef]);
+
+  useEffect(() => {
+    if (!open) return;
+    updateRect();
+    const onScroll = () => updateRect();
+    const onResize = () => updateRect();
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [open, updateRect]);
+
+  const fetchSuggestions = useCallback((text: string) => {
+    if (!placesReady || !window.google?.maps?.places?.AutocompleteSuggestion) return;
+    const thisRequest = ++requestIdRef.current;
+    if (!sessionTokenRef.current) {
+      try { sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken(); } catch { /* optional */ }
+    }
+    window.google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+      input: text,
+      includedRegionCodes: ['us'],
+      sessionToken: sessionTokenRef.current,
+    }).then((res: { suggestions?: unknown[] }) => {
+      if (thisRequest !== requestIdRef.current) return; // stale response — a newer keystroke already fired
+      const list: Suggestion[] = (res?.suggestions ?? []).flatMap((s: any, i: number) => {
+        const pred = s?.placePrediction;
+        const t = pred?.text?.text;
+        return t ? [{ id: `${i}-${t}`, text: t, prediction: pred }] : [];
+      });
+      setSuggestions(list);
+      setOpen(list.length > 0);
+      updateRect();
+    }).catch(() => {
+      if (thisRequest !== requestIdRef.current) return;
+      setSuggestions([]);
+      setOpen(false);
+    });
+  }, [placesReady, updateRect]);
+
+  function handleChange(text: string) {
+    onChange(text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (text.trim().length < MIN_CHARS) {
+      requestIdRef.current++; // invalidate any in-flight request
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
+    debounceRef.current = setTimeout(() => fetchSuggestions(text), DEBOUNCE_MS);
+  }
+
+  async function selectSuggestion(s: Suggestion) {
+    setOpen(false);
+    setSuggestions([]);
+    let addr = s.text;
+    try {
+      const place = s.prediction.toPlace();
+      await place.fetchFields({ fields: ['formattedAddress'] });
+      addr = (place.formattedAddress ?? addr).replace(/,\s*(USA|United States)$/i, '').trim();
+    } catch {
+      // fetchFields failed — fall back to the prediction's own display text rather
+      // than blocking selection entirely.
+    }
+    sessionTokenRef.current = null; // sessions are single-use per Google's billing model
+    onChange(addr);
+    onSelect?.(addr);
+  }
+
+  function handleInputKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Escape' && open) { setOpen(false); }
+    onKeyDown?.(e);
+  }
 
   return (
-    <input
-      ref={inputRef}
-      type="text"
-      autoComplete="off"
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      onKeyDown={onKeyDown}
-      placeholder={placeholder}
-      className={className}
-      style={style}
-      disabled={disabled}
-    />
+    <>
+      <input
+        ref={inputRef}
+        type="text"
+        autoComplete="off"
+        value={value}
+        onChange={e => handleChange(e.target.value)}
+        onFocus={() => { if (suggestions.length > 0) { setOpen(true); updateRect(); } }}
+        // Delay so a suggestion's onMouseDown (which preventDefault()s to stop this
+        // blur firing first) has already run by the time this closes the dropdown.
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={handleInputKeyDown}
+        placeholder={placeholder}
+        className={className}
+        style={style}
+        disabled={disabled}
+        role="combobox"
+        aria-expanded={open}
+        aria-autocomplete="list"
+      />
+      {open && rect && suggestions.length > 0 && (
+        <div
+          className="aac-dropdown"
+          style={{
+            position: 'fixed',
+            top: rect.top + 4,
+            left: rect.left,
+            width: rect.width,
+            zIndex: 2000,
+            background: '#1a2035',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 10,
+            boxShadow: '0 8px 28px rgba(0,0,0,0.45)',
+            maxHeight: 260,
+            overflowY: 'auto',
+          }}
+        >
+          {suggestions.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              // onMouseDown (not onClick) + preventDefault: fires before the input's
+              // onBlur, so the browser doesn't dismiss the dropdown out from under the
+              // tap before the selection registers.
+              onMouseDown={e => { e.preventDefault(); selectSuggestion(s); }}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: '10px 14px',
+                background: 'none',
+                border: 'none',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                color: '#e6edf3',
+                fontSize: '0.85rem',
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+              }}
+            >
+              {s.text}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
   );
 });
 
