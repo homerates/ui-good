@@ -64,6 +64,11 @@ interface Props {
   value: string;
   onChange: (val: string) => void;
   onSelect?: (val: string) => void;
+  // Optional — fires alongside onSelect with the selected place's coordinates
+  // (or null if the coordinate fetch failed). Callers that need to resolve a
+  // bare city name to a county (city name often != county name) should use
+  // this instead of trying to parse the county out of the address string.
+  onSelectPlace?: (val: string, coords: { lat: number; lng: number } | null) => void;
   placeholder?: string;
   className?: string;
   style?: CSSProperties;
@@ -82,7 +87,7 @@ const DEBOUNCE_MS = 220;
 const MIN_CHARS = 4;
 
 const AddressAutocomplete = forwardRef<HTMLInputElement, Props>(function AddressAutocomplete(
-  { value, onChange, onSelect, placeholder = '123 Main St, City, CA 90001', className, style, onKeyDown, disabled },
+  { value, onChange, onSelect, onSelectPlace, placeholder = '123 Main St, City, CA 90001', className, style, onKeyDown, disabled },
   forwardedRef,
 ) {
   const internalRef = useRef<HTMLInputElement>(null);
@@ -168,9 +173,14 @@ const AddressAutocomplete = forwardRef<HTMLInputElement, Props>(function Address
     setOpen(false);
     setSuggestions([]);
     let addr = s.text;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let place: any = null;
     try {
-      const place = s.prediction.toPlace();
-      await place.fetchFields({ fields: ['formattedAddress'] });
+      place = s.prediction.toPlace();
+      // 'location' is only fetched when a caller actually needs coordinates
+      // (onSelectPlace) — no extra cost for the other call sites.
+      const fields = onSelectPlace ? ['formattedAddress', 'location'] : ['formattedAddress'];
+      await place.fetchFields({ fields });
       addr = (place.formattedAddress ?? addr).replace(/,\s*(USA|United States)$/i, '').trim();
     } catch {
       // fetchFields failed — fall back to the prediction's own display text rather
@@ -179,6 +189,11 @@ const AddressAutocomplete = forwardRef<HTMLInputElement, Props>(function Address
     sessionTokenRef.current = null; // sessions are single-use per Google's billing model
     onChange(addr);
     onSelect?.(addr);
+    if (onSelectPlace) {
+      const loc = place?.location; // google.maps.LatLng — lat()/lng() are methods, not properties
+      const coords = loc && typeof loc.lat === 'function' ? { lat: loc.lat(), lng: loc.lng() } : null;
+      onSelectPlace(addr, coords);
+    }
   }
 
   function handleInputKeyDown(e: KeyboardEvent<HTMLInputElement>) {

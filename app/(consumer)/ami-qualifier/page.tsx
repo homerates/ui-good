@@ -235,6 +235,7 @@ export default function AmiQualifierPage() {
   const isDebugUser = isAdmin && user?.primaryEmailAddress?.emailAddress === 'rayaanarif57@gmail.com';
 
   const [location,      setLocation]      = useState('');
+  const [coords,        setCoords]        = useState<{ lat: number; lng: number } | null>(null);
   const [incomeDraft,   setIncomeDraft]   = useState('');
   const [incomeValue,   setIncomeValue]   = useState<number | null>(null);
   const [householdSize, setHouseholdSize] = useState(4);
@@ -267,7 +268,7 @@ export default function AmiQualifierPage() {
     setIncomeDraft(n ? '$' + n.toLocaleString() : '');
   }
 
-  async function runCheck(loc: string, income: number, size: number) {
+  async function runCheck(loc: string, income: number, size: number, place?: { lat: number; lng: number } | null) {
     setLoading(true);
     setError('');
     setResult(null);
@@ -278,7 +279,12 @@ export default function AmiQualifierPage() {
       const res = await fetch('/api/ami-qualifier', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location: loc, annualIncome: income, householdSize: size }),
+        body: JSON.stringify({
+          location: loc,
+          annualIncome: income,
+          householdSize: size,
+          ...(place ? { lat: place.lat, lng: place.lng } : {}),
+        }),
       });
       const json = await res.json();
       if (json.ok) {
@@ -298,13 +304,14 @@ export default function AmiQualifierPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!location.trim() || !incomeValue) return;
-    await runCheck(location, incomeValue, householdSize);
+    await runCheck(location, incomeValue, householdSize, coords);
   }
 
   function handleRerun(addr: string, income?: number, size?: number) {
     const inc = income ?? incomeValue ?? 0;
     const sz  = size ?? householdSize;
     setLocation(addr);
+    setCoords(null); // saved text address resolves fine through the existing text strategies
     if (income)  { setIncomeValue(income); setIncomeDraft('$' + income.toLocaleString()); }
     if (size)    setHouseholdSize(sz);
     if (addr && inc) runCheck(addr, inc, sz);
@@ -564,8 +571,9 @@ export default function AmiQualifierPage() {
                 <label>Location</label>
                 <AddressAutocomplete
                   value={location}
-                  onChange={setLocation}
+                  onChange={val => { setLocation(val); setCoords(null); }}
                   onSelect={setLocation}
+                  onSelectPlace={(val, place) => { setLocation(val); setCoords(place); }}
                   placeholder="ZIP code, county (Orange County, CA), or full address..."
                   style={{
                     width: '100%', padding: '11px 14px',
