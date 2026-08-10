@@ -24,11 +24,17 @@ function calcPI(loan: number, annualRate: number, years = 30): number {
     const n = years * 12;
     return (loan * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
 }
-function fmt(n: number) { return '$' + Math.round(n).toLocaleString(); }
+// `|| 0` normalizes JS's negative zero (e.g. Math.round(-2.9e-11) === -0) to plain 0 —
+// (-0).toLocaleString() renders the literal string "-0" (unlike String(-0), which is "0"),
+// which surfaced as "$-0" whenever two independently-computed values that are
+// mathematically equal (e.g. conventional vs jumbo down payment on the same price)
+// differ by a sub-cent floating-point epsilon. -0 is falsy in JS, so `x || 0` is safe
+// for every real value too — it only ever replaces -0/0, never a genuine number.
+function fmt(n: number) { return '$' + (Math.round(n) || 0).toLocaleString(); }
 function fmtK(n: number) {
     if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(2).replace(/\.?0+$/, '') + 'M';
     if (Math.abs(n) >= 10_000) return '$' + Math.round(n / 1_000) + 'k';
-    return '$' + Math.round(n).toLocaleString();
+    return '$' + (Math.round(n) || 0).toLocaleString();
 }
 function fmtPct(n: number) { return n.toFixed(2) + '%'; }
 
