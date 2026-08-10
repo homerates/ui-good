@@ -1,6 +1,7 @@
 import { getSupabase } from './supabaseServer';
 
 const GEOCODER_URL = 'https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress';
+const GEOCODER_COORDS_URL = 'https://geocoding.geo.census.gov/geocoder/geographies/coordinates';
 
 // Newest-first vintage chain. Current_Current uses the most recent TIGER/Line address data;
 // older ACS vintages are tried when Current_Current returns no match.
@@ -75,6 +76,57 @@ async function tryVintage(address: string, vintage: string): Promise<GeocodeResu
   }
 
   return { censusTractGeoid, latitude, longitude, vintage_used: vintage };
+}
+
+// Reverse-geocode: coordinates → county FIPS. Unlike onelineaddress, this is a direct
+// spatial join against TIGER geography (no addressMatches wrapper) — used when the
+// caller already has a trusted lat/lng (e.g. a Google Places selection) and a bare
+// city name would otherwise fail text-based matching (city name ≠ county name for
+// most US cities).
+async function tryVintageCoordinates(lat: number, lng: number, vintage: string): Promise<GeocodeResult | null> {
+  const url =
+    `${GEOCODER_COORDS_URL}?x=${lng}&y=${lat}` +
+    `&benchmark=Public_AR_Current&vintage=${vintage}&layers=10&format=json`;
+
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+  } catch (err) {
+    throw new GeocoderError(`Census Geocoder network error: ${(err as Error).message}`);
+  }
+
+  if (!res.ok) {
+    throw new GeocoderError(`Census Geocoder HTTP ${res.status}`, res.status);
+  }
+
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    throw new GeocoderError('Census Geocoder returned non-JSON response');
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bg = ((body as any)?.result?.geographies?.['Census Block Groups'] as any[])?.[0];
+  if (!bg?.STATE || !bg?.COUNTY || !bg?.TRACT) {
+    return null; // valid no-match (e.g. water, out-of-coverage territory) — caller tries next vintage
+  }
+
+  const censusTractGeoid =
+    String(bg.STATE).padStart(2, '0') +
+    String(bg.COUNTY).padStart(3, '0') +
+    String(bg.TRACT).padStart(6, '0');
+
+  return { censusTractGeoid, latitude: lat, longitude: lng, vintage_used: vintage };
+}
+
+export async function geocodeCoordinates(lat: number, lng: number): Promise<GeocodeResult | null> {
+  let result: GeocodeResult | null = null;
+  for (const vintage of VINTAGE_CHAIN) {
+    result = await tryVintageCoordinates(lat, lng, vintage);
+    if (result) break;
+  }
+  return result;
 }
 
 export async function geocodeAddress(address: string): Promise<GeocodeResult | null> {

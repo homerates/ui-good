@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { AMI_SIZE_FACTORS } from '@/amiSizeFactors';
 import { checkFfiecEligibility } from '@/ffiecEligibility';
-import { geocodeAddress } from '@/censusGeocoder';
+import { geocodeAddress, geocodeCoordinates } from '@/censusGeocoder';
 import { HIGH_COST_COUNTIES, NATIONAL_CONFORMING_BASELINE } from '@/loanLimitsNational2026';
 import { CA_LOAN_LIMITS_2026 } from '@/loanLimits2026';
 
@@ -63,7 +63,7 @@ function amiForSize(ami4: number, size: number): number {
 
 export async function POST(req: NextRequest) {
   try {
-    const { location, annualIncome, householdSize = 4 } = await req.json();
+    const { location, annualIncome, householdSize = 4, lat, lng } = await req.json();
 
     if (!location?.trim()) {
       return NextResponse.json({ ok: false, error: 'Location is required' }, { status: 400 });
@@ -82,6 +82,40 @@ export async function POST(req: NextRequest) {
     let stateAbbr: string | null = null;
     let resolvedZip: string | null = null;
     let resolvedFrom: 'zip' | 'address' | 'county' = 'address';
+
+    // ── Strategy 0: trusted coordinates (e.g. a Google Places selection) ──────
+    // Runs before all text-based strategies when the caller supplies lat/lng —
+    // this is the fix for bare city-name inputs like "Menifee, CA" whose city
+    // name doesn't match its county name (strategy 3 below only catches the
+    // lucky subset of CA cities where city name == county name). Reverse-geocodes
+    // via the Census "coordinates" endpoint (direct spatial join, not text matching),
+    // so it resolves correctly regardless of city/county name relationship.
+    // Purely additive — does not reorder or change strategies 1-4 below.
+    const latNum = typeof lat === 'number' ? lat : Number(lat);
+    const lngNum = typeof lng === 'number' ? lng : Number(lng);
+    if (Number.isFinite(latNum) && Number.isFinite(lngNum)) {
+      try {
+        const geo = await geocodeCoordinates(latNum, lngNum);
+        if (geo) {
+          const derivedFips = geo.censusTractGeoid.slice(0, 5);
+          const { data: hudGeo } = await sb
+            .from('hud_features')
+            .select('county_fips, county_name, state_abbr')
+            .eq('county_fips', derivedFips)
+            .order('fiscal_year', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (hudGeo) {
+            resolvedFrom = 'address';
+            countyFips = hudGeo.county_fips as string;
+            countyName = hudGeo.county_name as string;
+            stateAbbr  = hudGeo.state_abbr  as string;
+          }
+        }
+      } catch {
+        // geocoder errors are non-fatal — fall through to text-based strategies
+      }
+    }
 
     // ── Strategy 1: ZIP present in input ──────────────────────────────────────
     const zip = extractZip(loc);
