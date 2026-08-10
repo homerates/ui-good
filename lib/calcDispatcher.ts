@@ -343,11 +343,16 @@ export function isScenarioComparisonQuestion(q: string): ScenarioComparisonTool 
     // Rent vs buy
     if (/\b(rent\s*(vs|versus|or)\s*buy|buy\s*(vs|versus|or)\s*rent|should\s*i\s*(rent|buy))\b/i.test(q) ||
         /\b(renting\s*vs\s*buying|buying\s*vs\s*renting)\b/i.test(q)) return 'rent_buy';
-    // Conventional vs Jumbo
-    if (/\b(conventional|conforming)\s*(vs|versus|or|compared\s*to)\s*(jumbo)\b/i.test(q) ||
-        /\b(jumbo)\s*(vs|versus|or|compared\s*to)\s*(conventional|conforming)\b/i.test(q) ||
-        /\bconforming\s*vs\s*jumbo\b|\bjumbo\s*vs\s*conforming\b/i.test(q) ||
-        /\bstay\s*conforming\b|\bkeep.{0,10}conforming\b/i.test(q)) return 'conv_vs_jumbo';
+    // Conventional vs Jumbo — proximity-bound (not adjacency-bound), same fix class as
+    // ISSUE-027/030. The old adjacency-only pattern required near-literal "conforming vs
+    // jumbo" and silently missed natural phrasing with filler words in between — including
+    // the exact hardcoded My Home next-step seed in lib/crm/consumer-memory.ts
+    // ("Compare staying conforming vs going jumbo on a $X home"), which fell through to
+    // the empty AI scenario path instead of this dedicated tool.
+    if (/\b(conventional|conforming)\b[^.?!]{0,20}\b(vs|versus|or|compared\s*to)\b[^.?!]{0,20}\bjumbo\b/i.test(q) ||
+        /\bjumbo\b[^.?!]{0,20}\b(vs|versus|or|compared\s*to)\b[^.?!]{0,20}\b(conventional|conforming)\b/i.test(q) ||
+        /\bstay(?:ing)?\s+conforming\b/i.test(q) ||
+        /\bkeep(?:ing)?[^.?!]{0,10}conforming\b/i.test(q)) return 'conv_vs_jumbo';
     // Conventional vs FHA
     if (/\b(fha)\s*(vs|versus|or|compared\s*to)\s*(conventional|conv)\b/i.test(q) ||
         /\b(conventional|conv)\s*(vs|versus|or|compared\s*to)\s*(fha)\b/i.test(q) ||
@@ -357,7 +362,11 @@ export function isScenarioComparisonQuestion(q: string): ScenarioComparisonTool 
 
 export function isLoanLimitsQuestion(q: string): boolean {
     return /\b(?:loan\s*limits?|conforming\s*limits?|high.?balance\s*limits?|jumbo\s*threshold|conforming\s*zone|high.?cost\s*area|fhfa\s*limits?)\b/i.test(q) ||
-        /\b(?:stay\s+conforming|conforming\s+vs\s+jumbo|jumbo\s+vs\s+conforming)\b/i.test(q) ||
+        // Same proximity-bound fix as isScenarioComparisonQuestion's conv_vs_jumbo above —
+        // the old pattern was adjacency-only and missed "staying conforming vs going jumbo".
+        /\bstay(?:ing)?\s+conforming\b/i.test(q) ||
+        /\bconforming\b[^.?!]{0,20}\bvs\b[^.?!]{0,20}\bjumbo\b/i.test(q) ||
+        /\bjumbo\b[^.?!]{0,20}\bvs\b[^.?!]{0,20}\bconforming\b/i.test(q) ||
         /\b(?:ca|california)\s+(?:loan\s*limits?|conforming|high.?balance|jumbo\s+threshold)/i.test(q) ||
         /\b(?:loan\s*limits?|conforming\s*limits?)\s+(?:for|in)\b/i.test(q) ||
         /\bloan\s*limits?\s+for\s+\d{5}\b/i.test(q) ||
