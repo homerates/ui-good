@@ -24,6 +24,10 @@ type Borrower = {
     actual_purchase_price: number | null;
     actual_purchase_date:  string | null;
     actual_value:          number | null;
+    heloc_limit:            number | null;
+    heloc_balance:          number | null;
+    heloc_rate:             number | null;
+    heloc_origination_date: string | null;
 };
 
 export default function LoBorrowersPage() {
@@ -66,9 +70,11 @@ export default function LoBorrowersPage() {
     const [deleting, setDeleting] = React.useState<string | null>(null);
     // Loan detail overrides per borrower
     const [loanOpen, setLoanOpen]   = React.useState<string | null>(null);   // borrower id with open panel
-    const [loanForm, setLoanForm]   = React.useState<Record<string, { balance: string; rate: string; purchasePrice: string; purchaseDate: string; email: string; value: string }>>({});
+    const [loanForm, setLoanForm]   = React.useState<Record<string, { balance: string; rate: string; purchasePrice: string; purchaseDate: string; email: string; value: string; helocLimit: string; helocBalance: string; helocRate: string }>>({});
     const [loanSaving, setLoanSaving] = React.useState<string | null>(null);
     const [loanSaved,  setLoanSaved]  = React.useState<string | null>(null);
+    // 2nd-lien HELOC sub-section — collapsed by default per borrower, same pattern as my-home
+    const [helocSectionOpen, setHelocSectionOpen] = React.useState<Record<string, boolean>>({});
     // Quick-add state
     const [quickAddOpen, setQuickAddOpen] = React.useState(false);
     const [quickAdding, setQuickAdding] = React.useState(false);
@@ -369,8 +375,12 @@ export default function LoBorrowersPage() {
                 purchaseDate:  b.actual_purchase_date  ?? '',
                 value:         b.actual_value          ? String(b.actual_value)          : '',
                 email:         b.email ?? '',
+                helocLimit:    b.heloc_limit   ? String(b.heloc_limit)   : '',
+                helocBalance:  b.heloc_balance ? String(b.heloc_balance) : '',
+                helocRate:     b.heloc_rate    ? String(b.heloc_rate)    : '',
             },
         }));
+        setHelocSectionOpen(prev => ({ ...prev, [b.id]: !!b.heloc_limit }));
         setLoanOpen(prev => prev === b.id ? null : b.id);
         setLoanSaved(null);
     }
@@ -389,6 +399,9 @@ export default function LoBorrowersPage() {
                 actual_purchase_price: f.purchasePrice ? Number(f.purchasePrice) : null,
                 actual_purchase_date:  f.purchaseDate  || null,
                 actual_value:          f.value         ? Number(f.value)         : null,
+                heloc_limit:            f.helocLimit   ? Number(f.helocLimit)   : null,
+                heloc_balance:          f.helocBalance ? Number(f.helocBalance) : null,
+                heloc_rate:             f.helocRate    ? Number(f.helocRate)    : null,
                 ...(f.email.trim() ? { email: f.email.trim() } : {}),
             }),
         });
@@ -852,8 +865,9 @@ export default function LoBorrowersPage() {
                         const isLoanOpen   = loanOpen   === b.id;
                         const isLoanSaving = loanSaving === b.id;
                         const didLoanSave  = loanSaved  === b.id;
-                        const lf = loanForm[b.id] ?? { balance: '', rate: '', purchasePrice: '', purchaseDate: '', value: '' };
+                        const lf = loanForm[b.id] ?? { balance: '', rate: '', purchasePrice: '', purchaseDate: '', value: '', email: '', helocLimit: '', helocBalance: '', helocRate: '' };
                         const hasOverrides = !!(b.actual_balance || b.actual_rate || b.actual_purchase_price || b.actual_purchase_date || b.actual_value);
+                        const isHelocOpen = helocSectionOpen[b.id] ?? !!b.heloc_limit;
 
                         const isSendingPreview = sendingPreview === b.id;
                         const didSendPreview   = sentPreviewOk  === b.id;
@@ -1115,6 +1129,50 @@ export default function LoBorrowersPage() {
                                                 />
                                             </div>
                                         </div>
+
+                                        {!isHelocOpen ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setHelocSectionOpen(prev => ({ ...prev, [b.id]: true }))}
+                                                style={{ background: "none", border: "none", color: "#00e87a", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", padding: 0, textAlign: "left" }}
+                                            >
+                                                + Add a 2nd lien / HELOC
+                                            </button>
+                                        ) : (
+                                            <div style={{ borderTop: "1px dashed rgba(255,255,255,0.1)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                                                <div style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "rgba(185,208,192,0.5)" }}>2nd Lien (HELOC)</div>
+                                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                        <label style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.5)", fontWeight: 600 }}>Credit Limit ($)</label>
+                                                        <input
+                                                            type="number" min={0} placeholder="e.g. 100000"
+                                                            value={lf.helocLimit}
+                                                            onChange={e => setLoanForm(prev => ({ ...prev, [b.id]: { ...lf, helocLimit: e.target.value } }))}
+                                                            style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
+                                                        />
+                                                    </div>
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                        <label style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.5)", fontWeight: 600 }}>Balance Drawn ($)</label>
+                                                        <input
+                                                            type="number" min={0} placeholder="e.g. 35000"
+                                                            value={lf.helocBalance}
+                                                            onChange={e => setLoanForm(prev => ({ ...prev, [b.id]: { ...lf, helocBalance: e.target.value } }))}
+                                                            style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
+                                                        />
+                                                    </div>
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: 4, gridColumn: "1 / -1" }}>
+                                                        <label style={{ fontSize: "0.72rem", color: "rgba(185,208,192,0.5)", fontWeight: 600 }}>Rate (%) — optional</label>
+                                                        <input
+                                                            type="number" min={0} max={20} step={0.01} placeholder="leave blank to use estimated market rate"
+                                                            value={lf.helocRate}
+                                                            onChange={e => setLoanForm(prev => ({ ...prev, [b.id]: { ...lf, helocRate: e.target.value } }))}
+                                                            style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(255,255,255,0.04)", color: "#e0f0e8", fontSize: "0.85rem", outline: "none", fontFamily: "inherit" }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                                             <button type="button" onClick={() => saveLoanDetails(b)} disabled={isLoanSaving} style={{
                                                 padding: "7px 18px", borderRadius: 999, border: "none",
@@ -1130,9 +1188,9 @@ export default function LoBorrowersPage() {
                                                 color: "rgba(185,208,192,0.45)", fontSize: "0.82rem", cursor: "pointer",
                                             }}>Cancel</button>
                                         </div>
-                                        {hasOverrides && (
+                                        {(hasOverrides || b.heloc_limit) && (
                                             <p style={{ margin: 0, fontSize: "0.72rem", color: "rgba(0,232,122,0.5)" }}>
-                                                Active overrides: {[b.actual_balance && `balance $${Number(b.actual_balance).toLocaleString()}`, b.actual_rate && `rate ${b.actual_rate}%`, b.actual_purchase_price && `purchase $${Number(b.actual_purchase_price).toLocaleString()}`, b.actual_purchase_date && `closed ${b.actual_purchase_date}`].filter(Boolean).join(" · ")}
+                                                Active overrides: {[b.actual_balance && `balance $${Number(b.actual_balance).toLocaleString()}`, b.actual_rate && `rate ${b.actual_rate}%`, b.actual_purchase_price && `purchase $${Number(b.actual_purchase_price).toLocaleString()}`, b.actual_purchase_date && `closed ${b.actual_purchase_date}`, b.heloc_limit && `HELOC limit $${Number(b.heloc_limit).toLocaleString()}`].filter(Boolean).join(" · ")}
                                             </p>
                                         )}
                                     </div>

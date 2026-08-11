@@ -59,6 +59,16 @@ export interface DigestEmailData {
   // Rate alert mode — set true when digest is triggered by a rate move
   isRateAlert?:       boolean;
   rateDelta?:         number | null;
+
+  // 2nd-lien HELOC (see supabase/migrations/078_heloc_second_lien.sql).
+  // combinedBalance is what equity/LTV sections should use in place of estimatedBalance.
+  hasSecondLien?:      boolean;
+  secondLienBalance?:  number | null;
+  secondLienLimit?:    number | null;
+  secondLienRate?:     number | null;
+  helocRoomRemaining?: number | null;
+  secondLienPayment?:  number | null;
+  combinedBalance?:    number | null;
 }
 
 // ── Format helpers ─────────────────────────────────────────────────────────────
@@ -195,7 +205,9 @@ function primeRate(fedFunds: number | null | undefined): number {
 
 function sectionAlerts(data: DigestEmailData): string {
   const alerts: string[] = [];
-  const { estimatedBalance, estimatedValue, estimatedEquity, purchaseRate, liveRate, fedFundsRate } = data;
+  const { estimatedBalance, estimatedValue, estimatedEquity, purchaseRate, liveRate, fedFundsRate,
+          hasSecondLien, combinedBalance, helocRoomRemaining } = data;
+  const totalBalance = combinedBalance ?? estimatedBalance;
 
   // Refi opportunity
   if (purchaseRate && estimatedBalance && purchaseRate - liveRate >= 0.5) {
@@ -226,10 +238,11 @@ function sectionAlerts(data: DigestEmailData): string {
       </td></tr>`);
   }
 
-  // HELOC window
-  if (estimatedValue && estimatedBalance && estimatedEquity) {
-    const ltv = estimatedBalance / estimatedValue;
-    const maxHELOC = helocMax(estimatedValue, estimatedBalance);
+  // HELOC window — hypothetical "open a new one" framing is wrong once a real HELOC
+  // already exists on file; that case gets its own "room remaining" alert instead.
+  if (!hasSecondLien && estimatedValue && totalBalance && estimatedEquity) {
+    const ltv = totalBalance / estimatedValue;
+    const maxHELOC = helocMax(estimatedValue, totalBalance);
     if (ltv < 0.8 && maxHELOC > 50_000) {
       const helRate = primeRate(fedFundsRate) + 0.5;
       const ioPmt = helocPayment(Math.round(maxHELOC * 0.5), helRate);
@@ -253,6 +266,26 @@ function sectionAlerts(data: DigestEmailData): string {
     }
   }
 
+  // Existing HELOC has meaningful room left — a real (not hypothetical) draw-more prompt.
+  if (hasSecondLien && helocRoomRemaining && helocRoomRemaining > 10_000) {
+    alerts.push(`
+      <tr><td style="padding:0 0 10px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;">
+          <tr><td style="padding:14px 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td style="width:20px;font-size:14px;padding-right:10px;vertical-align:top;color:#eab308;">●</td>
+              <td>
+                <div style="font-size:12px;font-weight:700;color:#eab308;margin-bottom:3px;">Room to draw more on your HELOC</div>
+                <div style="font-size:12px;color:${TXT2};line-height:1.5;">
+                  You have ${fmtDollar(helocRoomRemaining)} of undrawn room left on your existing HELOC.
+                </div>
+              </td>
+            </tr></table>
+          </td></tr>
+        </table>
+      </td></tr>`);
+  }
+
   if (alerts.length === 0) return '';
 
   return card(`
@@ -265,9 +298,11 @@ function sectionAlerts(data: DigestEmailData): string {
 
 function sectionValueEquity(data: DigestEmailData): string {
   const { estimatedValue, estimatedEquity, estimatedBalance, estimatedValueLow, estimatedValueHigh,
-          valueDelta, equityDelta, lastSalePrice, lastSaleDate, valueHistory } = data;
+          valueDelta, equityDelta, lastSalePrice, lastSaleDate, valueHistory,
+          hasSecondLien, combinedBalance } = data;
+  const totalBalance = combinedBalance ?? estimatedBalance;
 
-  const ltv = (estimatedValue && estimatedBalance) ? Math.round((estimatedBalance / estimatedValue) * 100) : null;
+  const ltv = (estimatedValue && totalBalance) ? Math.round((totalBalance / estimatedValue) * 100) : null;
   const equityPct = (estimatedValue && estimatedEquity) ? Math.round((estimatedEquity / estimatedValue) * 100) : null;
 
   // Appreciation from purchase
@@ -296,15 +331,15 @@ function sectionValueEquity(data: DigestEmailData): string {
         </td>
         <td width="2%"></td>
         <td width="31%" style="padding:12px;background:rgba(255,255,255,0.04);border:1px solid ${BORDER};border-radius:10px;vertical-align:top;">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${TXT2};margin-bottom:5px;">LTV Ratio</div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${TXT2};margin-bottom:5px;">${hasSecondLien ? 'Combined LTV' : 'LTV Ratio'}</div>
           <div style="font-size:18px;font-weight:800;color:${TXT};">${ltv !== null ? ltv + '%' : '—'}</div>
-          <div style="margin-top:3px;">${estimatedBalance ? `<span style="font-size:11px;color:${TXT2};">${fmtDollar(estimatedBalance)} balance</span>` : ''}</div>
+          <div style="margin-top:3px;">${totalBalance ? `<span style="font-size:11px;color:${TXT2};">${fmtDollar(totalBalance)} balance${hasSecondLien ? ' · incl. 2nd lien' : ''}</span>` : ''}</div>
         </td>
       </tr>
     </table>
 
     <!-- Equity bar -->
-    ${(estimatedEquity && estimatedBalance && equityPct !== null) ? `
+    ${(estimatedEquity && totalBalance && equityPct !== null) ? `
     <div style="margin-bottom:4px;"><span style="font-size:11px;color:${TXT2};">Equity breakdown</span></div>
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:4px;"><tr>
       <td style="width:${equityPct}%;background:${GREEN};border-radius:4px 0 0 4px;height:8px;"></td>
@@ -312,7 +347,7 @@ function sectionValueEquity(data: DigestEmailData): string {
     </tr></table>
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:14px;"><tr>
       <td style="font-size:10px;color:${GREEN};">${fmtDollar(estimatedEquity)} equity (${equityPct}%)</td>
-      <td style="font-size:10px;color:${TXT2};text-align:right;">${fmtDollar(estimatedBalance!)} remaining</td>
+      <td style="font-size:10px;color:${TXT2};text-align:right;">${fmtDollar(totalBalance)} remaining${hasSecondLien ? ' (both liens)' : ''}</td>
     </tr></table>` : ''}
 
     <!-- Value range + appreciation -->
@@ -414,20 +449,54 @@ function sectionMortgage(data: DigestEmailData): string {
 }
 
 function sectionHELOC(data: DigestEmailData): string {
-  const { estimatedValue, estimatedBalance, fedFundsRate } = data;
-  if (!estimatedValue || !estimatedBalance) return '';
-
-  const max = helocMax(estimatedValue, estimatedBalance);
-  if (max < 10_000) return ''; // not enough equity
+  const { estimatedValue, estimatedBalance, fedFundsRate,
+          hasSecondLien, secondLienBalance, secondLienLimit, secondLienRate, helocRoomRemaining, secondLienPayment,
+          combinedBalance } = data;
+  const totalBalance = combinedBalance ?? estimatedBalance;
+  if (!estimatedValue || !totalBalance) return '';
 
   const prime = primeRate(fedFundsRate);
-  const helRate = prime + 0.5;
-  const cashOutMax = Math.max(0, Math.round(estimatedValue * 0.80 - estimatedBalance));
+  const estRate = prime + 0.5;
+
+  // Once a real HELOC is on file, "room to open a new one" no longer applies —
+  // draw scenarios are against actual remaining room on the existing line.
+  const drawBase = hasSecondLien ? (helocRoomRemaining ?? 0) : helocMax(estimatedValue, totalBalance);
+  if (!hasSecondLien && drawBase < 10_000) return ''; // not enough equity, and no real HELOC to report on
+
+  const helRate = hasSecondLien ? (secondLienRate ?? estRate) : estRate;
+  const cashOutMax = Math.max(0, Math.round(estimatedValue * 0.80 - totalBalance));
+
+  const yourHelocBlock = hasSecondLien ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;"><tr>
+      <td style="width:33%;padding-right:8px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${TXT2};margin-bottom:5px;">Credit Limit</div>
+        <div style="font-size:18px;font-weight:800;color:${TXT};">${fmtDollar(secondLienLimit ?? 0)}</div>
+      </td>
+      <td style="width:33%;padding:0 8px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${TXT2};margin-bottom:5px;">Drawn</div>
+        <div style="font-size:18px;font-weight:800;color:${TXT};">${fmtDollar(secondLienBalance ?? 0)}</div>
+      </td>
+      <td style="width:33%;padding-left:8px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${TXT2};margin-bottom:5px;">Room Remaining</div>
+        <div style="font-size:18px;font-weight:800;color:${GREEN};">${fmtDollar(helocRoomRemaining ?? 0)}</div>
+        ${secondLienPayment ? `<div style="font-size:10px;color:${TXT2};margin-top:3px;">${fmtDollar(secondLienPayment)}/mo interest-only</div>` : ''}
+      </td>
+    </tr></table>
+    ${divider()}
+  ` : '';
+
+  if (hasSecondLien && (helocRoomRemaining ?? 0) < 1_000) {
+    return card(`
+      ${eyebrow('Your HELOC')}
+      ${yourHelocBlock}
+      <div style="font-size:12px;color:${TXT2};">Your HELOC is fully drawn — no room remaining on this line right now.</div>
+    `);
+  }
 
   const draws: { label: string; amount: number }[] = [
-    { label: '25% draw', amount: Math.round(max * 0.25) },
-    { label: '50% draw', amount: Math.round(max * 0.50) },
-    { label: 'Full draw', amount: max },
+    { label: '25% draw', amount: Math.round(drawBase * 0.25) },
+    { label: '50% draw', amount: Math.round(drawBase * 0.50) },
+    { label: 'Full draw', amount: drawBase },
   ];
 
   const drawRows = draws.map(d => {
@@ -443,17 +512,18 @@ function sectionHELOC(data: DigestEmailData): string {
   }).join('');
 
   return card(`
-    ${eyebrow('HELOC & Borrowing Power')}
+    ${eyebrow(hasSecondLien ? 'Your HELOC' : 'HELOC & Borrowing Power')}
+    ${yourHelocBlock}
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;"><tr>
       <td style="width:50%;padding-right:8px;border-right:1px solid ${BORDER};">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${TXT2};margin-bottom:5px;">Max HELOC Available</div>
-        <div style="font-size:22px;font-weight:800;color:${GREEN};">${fmtDollar(max)}</div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${TXT2};margin-bottom:5px;">${hasSecondLien ? 'Additional Room Available' : 'Max HELOC Available'}</div>
+        <div style="font-size:22px;font-weight:800;color:${GREEN};">${fmtDollar(drawBase)}</div>
         <div style="font-size:10px;color:${TXT2};margin-top:3px;">Available today at 85% CLTV</div>
       </td>
       <td style="width:50%;padding-left:8px;">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${TXT2};margin-bottom:5px;">HELOC Rate</div>
         <div style="font-size:22px;font-weight:800;color:${TXT};">${fmtRate(helRate)}</div>
-        <div style="font-size:10px;color:${TXT2};margin-top:3px;">Prime ${fmtRate(prime)} + 0.50%</div>
+        <div style="font-size:10px;color:${TXT2};margin-top:3px;">${hasSecondLien && secondLienRate != null ? 'On file' : `Prime ${fmtRate(prime)} + 0.50%`}</div>
       </td>
     </tr></table>
 
@@ -464,7 +534,7 @@ function sectionHELOC(data: DigestEmailData): string {
 
     <table width="100%" cellpadding="0" cellspacing="0">
       <tr>
-        <td style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${TXT2};padding-bottom:6px;">Draw scenario</td>
+        <td style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${TXT2};padding-bottom:6px;">${hasSecondLien ? 'If you drew more' : 'Draw scenario'}</td>
         <td style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${TXT2};text-align:right;padding-bottom:6px;">Amount</td>
         <td style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${TXT2};text-align:right;padding-bottom:6px;">Interest only</td>
         <td style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${TXT2};text-align:right;padding-bottom:6px;">Amortizing</td>
@@ -701,8 +771,11 @@ export function digestEmailHtml(data: DigestEmailData): string {
   }
 
   // 2. HELOC Power
-  if (data.estimatedValue && data.estimatedBalance) {
-    const ctaHelocMax = helocMax(data.estimatedValue, data.estimatedBalance);
+  if (data.estimatedValue && (data.combinedBalance ?? data.estimatedBalance)) {
+    const ctaTotalBalance = data.combinedBalance ?? data.estimatedBalance!;
+    const ctaHelocMax = data.hasSecondLien
+      ? (data.helocRoomRemaining ?? 0)
+      : helocMax(data.estimatedValue, ctaTotalBalance);
     if (ctaHelocMax >= 10_000) {
       ctaCards.push(`
         <tr><td style="padding-bottom:10px;">
@@ -711,7 +784,9 @@ export function digestEmailHtml(data: DigestEmailData): string {
               <table width="100%" cellpadding="0" cellspacing="0"><tr>
                 <td style="vertical-align:middle;">
                   <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:${GREEN};margin-bottom:3px;">HELOC Power</div>
-                  <div style="font-size:13px;color:#e6edf3;">You could access up to <strong>${fmtDollar(ctaHelocMax)}</strong> via a HELOC today</div>
+                  <div style="font-size:13px;color:#e6edf3;">${data.hasSecondLien
+                    ? `You have <strong>${fmtDollar(ctaHelocMax)}</strong> of room left on your HELOC`
+                    : `You could access up to <strong>${fmtDollar(ctaHelocMax)}</strong> via a HELOC today`}</div>
                 </td>
                 <td style="text-align:right;white-space:nowrap;padding-left:12px;vertical-align:middle;">
                   <a href="${BASE}/my-home?chip=heloc" style="display:inline-block;padding:9px 18px;background:${GREEN};color:#07100f;font-size:12px;font-weight:700;border-radius:999px;text-decoration:none;">

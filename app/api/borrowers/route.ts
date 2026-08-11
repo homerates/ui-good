@@ -41,7 +41,7 @@ export async function GET() {
     const col = pro.type === "lo" ? "loan_officer_id" : "agent_id";
     const { data, error } = await supabase
         .from("borrowers")
-        .select("id, name, email, user_id, property_address, digest_enabled, created_at, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value")
+        .select("id, name, email, user_id, property_address, digest_enabled, created_at, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value, heloc_limit, heloc_balance, heloc_rate, heloc_origination_date")
         .eq(col, pro.id)
         .order("created_at", { ascending: false });
 
@@ -70,6 +70,10 @@ export async function PATCH(req: NextRequest) {
     if ('actual_purchase_price' in body) updates.actual_purchase_price = body.actual_purchase_price ? Number(body.actual_purchase_price) : null;
     if ('actual_purchase_date'  in body) updates.actual_purchase_date  = body.actual_purchase_date  ?? null;
     if ('actual_value'          in body) updates.actual_value          = body.actual_value          ? Number(body.actual_value)          : null;
+    if ('heloc_limit'            in body) updates.heloc_limit            = body.heloc_limit            ? Number(body.heloc_limit)            : null;
+    if ('heloc_balance'          in body) updates.heloc_balance          = body.heloc_balance          ? Number(body.heloc_balance)          : null;
+    if ('heloc_rate'             in body) updates.heloc_rate             = body.heloc_rate             ? Number(body.heloc_rate)             : null;
+    if ('heloc_origination_date' in body) updates.heloc_origination_date = body.heloc_origination_date  ?? null;
 
     const col = pro.type === "lo" ? "loan_officer_id" : "agent_id";
     const { data, error } = await supabase
