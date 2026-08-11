@@ -618,7 +618,7 @@ function CardHELOC({ d }: { d: AnalysisData }) {
         </Link>
       </div>
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href={`/chat?sq=${encodeURIComponent(`HELOC vs cash-out refi analysis for ${d.address}: I have ${d.helocMax ? '$' + Math.round(d.helocMax).toLocaleString() : 'equity'} available at ~${d.helocRate?.toFixed(2) ?? '7.75'}% HELOC rate. Compare accessing equity via HELOC vs cash-out refi at today's ${d.liveRate.toFixed(2)}% rate. Show payments, costs, and break-even.`)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link">
+        <Link href={`/chat?sq=${encodeURIComponent(`HELOC vs cash-out refi analysis for ${d.address}: I have ${(() => { const avail = d.hasSecondLien ? d.helocRoomRemaining : d.helocMax; return avail ? '$' + Math.round(avail).toLocaleString() : 'equity'; })()} available at ~${d.helocRate?.toFixed(2) ?? '7.75'}% HELOC rate. Compare accessing equity via HELOC vs cash-out refi at today's ${d.liveRate.toFixed(2)}% rate. Show payments, costs, and break-even.`)}&from=%2Fmy-home&fromLabel=My+Properties`} className="mh-cta-link">
           Compare HELOC vs cash-out refi →
         </Link>
       </div>
@@ -760,7 +760,9 @@ function CardEconomy({ d }: { d: AnalysisData }) {
     ...(d.refiMonthlySaving > 0 && d.refiBreakEven
       ? [`Refi would save ~$${Math.round(d.refiMonthlySaving)}/mo, break-even ${d.refiBreakEven} months.`]
       : d.purchaseRate && d.purchaseRate < d.liveRate ? [`My current rate is below market — refi doesn't pencil today.`] : []),
-    ...(d.helocMax ? [`HELOC line: up to ${fmtK(d.helocMax)} at ~${d.helocRate.toFixed(2)}% (${d.helocRateLabel}).`] : []),
+    ...(d.hasSecondLien
+      ? [`I have an existing HELOC: ${fmtK(d.secondLienLimit)} limit, ${fmtK(d.secondLienBalance)} drawn, ${fmtK(d.helocRoomRemaining)} room remaining at ~${d.secondLienRate?.toFixed(2) ?? '?'}%.`]
+      : d.helocMax ? [`HELOC line: up to ${fmtK(d.helocMax)} at ~${d.helocRate.toFixed(2)}% (${d.helocRateLabel}).`] : []),
     `Prime: ${d.prime.toFixed(2)}%.`,
     `How do current economic conditions — rates, prime, Fed direction — affect my refi timing, HELOC strategy, and overall equity position?`,
   ];
@@ -2217,8 +2219,11 @@ function MyHomePageInner() {
       if (a.daysOnMarket != null && a.daysOnMarket > 30) return `${a.daysOnMarket} days on market. Seller motivation may be growing — your negotiating position is stronger now than at listing.`;
       return `${a.listingStatus === 'PENDING' ? 'Pending' : 'Active listing'} — run your numbers to know if this fits your budget before the window closes.`;
     }
-    if (a.equityPct != null && a.equityPct >= 40 && a.helocMax && a.helocMax > 50_000) {
-      return `${a.equityPct}% equity — ${fmt(a.helocMax)} available for a HELOC at ~${a.helocRate.toFixed(2)}%. Your equity is a liquid asset.`;
+    const helocAvail = a.hasSecondLien ? (a.helocRoomRemaining ?? 0) : (a.helocMax ?? 0);
+    if (a.equityPct != null && a.equityPct >= 40 && helocAvail > 10_000) {
+      return a.hasSecondLien
+        ? `${a.equityPct}% equity — ${fmt(helocAvail)} of room left on your HELOC. Your equity is a liquid asset.`
+        : `${a.equityPct}% equity — ${fmt(helocAvail)} available for a HELOC at ~${a.helocRate.toFixed(2)}%. Your equity is a liquid asset.`;
     }
     if (a.purchaseRate && a.liveRate && a.purchaseRate - a.liveRate > 0.75 && a.refiMonthlySaving > 200) {
       return `Your rate ${a.purchaseRate.toFixed(2)}% vs today's ${a.liveRate.toFixed(2)}% market. Potential ${fmt(a.refiMonthlySaving)}/mo savings — check refi math tab.`;
