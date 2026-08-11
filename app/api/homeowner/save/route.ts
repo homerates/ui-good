@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
 
-const SEL = 'id, user_id, property_address, is_primary, digest_enabled, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value, email, name, updated_at, created_at';
+const SEL = 'id, user_id, property_address, is_primary, digest_enabled, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value, heloc_limit, heloc_balance, heloc_rate, heloc_origination_date, email, name, updated_at, created_at';
 
 function db() {
   return createClient(
@@ -108,6 +108,10 @@ export async function POST(req: NextRequest) {
   if ('actual_purchase_price' in body) payload.actual_purchase_price = body.actual_purchase_price ? Number(body.actual_purchase_price) : null;
   if ('actual_purchase_date'  in body) payload.actual_purchase_date  = body.actual_purchase_date  ?? null;
   if ('actual_value'          in body) payload.actual_value          = body.actual_value          ? Number(body.actual_value)          : null;
+  if ('heloc_limit'            in body) payload.heloc_limit            = body.heloc_limit            ? Number(body.heloc_limit)            : null;
+  if ('heloc_balance'          in body) payload.heloc_balance          = body.heloc_balance          ? Number(body.heloc_balance)          : null;
+  if ('heloc_rate'             in body) payload.heloc_rate             = body.heloc_rate             ? Number(body.heloc_rate)             : null;
+  if ('heloc_origination_date' in body) payload.heloc_origination_date = body.heloc_origination_date  ?? null;
 
   // When setting as primary, unset all others for this user first
   if (body.is_primary === true) {

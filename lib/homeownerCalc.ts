@@ -100,6 +100,12 @@ export interface HomeownerFinancialsInput {
   /** Full calendar years since purchase (server: new Date().getFullYear() - purchaseYear;
    *  client: same, from whatever date field it parsed). Null if purchase date unknown. */
   yearsElapsed: number | null;
+  /** 2nd-lien HELOC currently-drawn balance, if a HELOC is on file. Null = no 2nd lien / not entered. */
+  helocBalanceOverride?: number | null;
+  /** 2nd-lien HELOC credit limit. Presence (non-null) is what defines "hasSecondLien". */
+  helocLimitOverride?: number | null;
+  /** 2nd-lien HELOC's own on-file rate, if entered. Null = fall back to the computed PRIME_RATE + HELOC_MARGIN estimate. */
+  helocRateOverride?: number | null;
 }
 
 export interface HomeownerFinancials {
@@ -119,6 +125,26 @@ export interface HomeownerFinancials {
   piti: number | null;
   rentMonthly: number | null;
   rentVsOwn: number | null;
+  // ── 2nd-lien HELOC + combined-balance equity (see lib/CLAUDE.md-style note above) ──
+  /** True iff a 2nd-lien HELOC is on file (heloc_limit is set). */
+  hasSecondLien: boolean;
+  /** Currently-drawn HELOC balance. 0 if hasSecondLien but no balance entered; null if no 2nd lien. */
+  secondLienBalance: number | null;
+  secondLienLimit: number | null;
+  /** helocRateOverride if entered, else the computed helocRate estimate. Null if no 2nd lien. */
+  secondLienRate: number | null;
+  /** secondLienLimit - secondLienBalance, clamped >= 0. Null if no 2nd lien. */
+  helocRoomRemaining: number | null;
+  /** Interest-only estimate on the currently-drawn HELOC balance. Null if no 2nd lien. */
+  secondLienPayment: number | null;
+  /** estimatedBalance + secondLienBalance — the real combined-debt figure equity/LTV should use. */
+  combinedBalance: number | null;
+  /** piti + secondLienPayment — total monthly debt service across both liens. */
+  totalMonthlyDebtService: number | null;
+  /** Combined LTV (both liens) when a 2nd lien is on file; otherwise identical to 1st-lien-only LTV. */
+  ltv: number | null;
+  equityPct: number | null;
+  estimatedEquity: number | null;
 }
 
 /**
@@ -137,17 +163,35 @@ export function computeHomeownerFinancials(input: HomeownerFinancialsInput): Hom
 
   const helocRate = PRIME_RATE + HELOC_MARGIN;
 
-  const helocMax   = (estimatedValue && estimatedBalance) ? Math.max(0, Math.round(estimatedValue * 0.85 - estimatedBalance)) : null;
-  const cashOutMax = (estimatedValue && estimatedBalance) ? Math.max(0, Math.round(estimatedValue * 0.80 - estimatedBalance)) : null;
-  const helocDraws: HelocDraw[] = helocMax ? [
-    { label: '25% draw', amount: Math.round(helocMax * 0.25) },
-    { label: '50% draw', amount: Math.round(helocMax * 0.50) },
-    { label: 'Full draw', amount: helocMax },
+  // ── 2nd-lien HELOC — presence-based, like every other override in this codebase ──
+  const hasSecondLien      = input.helocLimitOverride != null;
+  const secondLienLimit    = hasSecondLien ? input.helocLimitOverride! : null;
+  const secondLienBalance  = hasSecondLien ? (input.helocBalanceOverride ?? 0) : null;
+  const secondLienRate     = hasSecondLien ? (input.helocRateOverride ?? helocRate) : null;
+  const helocRoomRemaining = hasSecondLien ? Math.max(0, secondLienLimit! - secondLienBalance!) : null;
+  const secondLienPayment  = hasSecondLien ? Math.round((secondLienBalance ?? 0) * (secondLienRate! / 100) / 12) : null;
+  const combinedBalance    = estimatedBalance != null ? estimatedBalance + (secondLienBalance ?? 0) : null;
+
+  // helocMax/cashOutMax/helocDraws/ltv/equityPct/estimatedEquity all use combinedBalance —
+  // a drawn 2nd lien already eats into available equity/CLTV room just like the 1st does.
+  const helocMax   = (estimatedValue && combinedBalance != null) ? Math.max(0, Math.round(estimatedValue * 0.85 - combinedBalance)) : null;
+  const cashOutMax = (estimatedValue && combinedBalance != null) ? Math.max(0, Math.round(estimatedValue * 0.80 - combinedBalance)) : null;
+  // Once a real HELOC is on file, "room to open a NEW one" (helocMax) no longer applies —
+  // draw-scenario tiers should be against actual remaining room on the existing line instead.
+  const drawBase = hasSecondLien ? helocRoomRemaining : helocMax;
+  const helocDraws: HelocDraw[] = drawBase ? [
+    { label: '25% draw', amount: Math.round(drawBase * 0.25) },
+    { label: '50% draw', amount: Math.round(drawBase * 0.50) },
+    { label: 'Full draw', amount: drawBase },
   ].map(d => ({
     ...d,
     interestOnly: Math.round((d.amount * (helocRate / 100)) / 12),
     amortizing:   monthlyPayment(d.amount, helocRate, 240),
   })) : [];
+
+  const ltv       = (estimatedValue && combinedBalance != null) ? Math.round((combinedBalance / estimatedValue) * 100) : null;
+  const estimatedEquity = (estimatedValue && combinedBalance != null) ? Math.round(estimatedValue - combinedBalance) : null;
+  const equityPct = (estimatedValue && estimatedEquity != null) ? Math.round((estimatedEquity / estimatedValue) * 100) : null;
 
   const origPurchasePrice = purchasePriceOverride ?? lastSalePrice;
   const origBalance = actualBalanceOverride
@@ -182,6 +226,7 @@ export function computeHomeownerFinancials(input: HomeownerFinancialsInput): Hom
   const piti        = (estimatedBalance && purchaseRate) ? monthlyPayment(estimatedBalance, purchaseRate) + Math.round((estimatedValue ?? 0) * 0.015 / 12) : null;
   const rentMonthly = rentEstimate ?? (estimatedValue ? Math.round(estimatedValue * 0.0055) : null);
   const rentVsOwn   = (piti && rentMonthly) ? rentMonthly - piti : null;
+  const totalMonthlyDebtService = piti != null ? piti + (secondLienPayment ?? 0) : null;
 
   return {
     helocRate, helocMax, cashOutMax, helocDraws,
@@ -189,5 +234,8 @@ export function computeHomeownerFinancials(input: HomeownerFinancialsInput): Hom
     paidOffPct, interestPaid, yearsElapsed, payoffYear,
     nextValueTarget, nextValueTargetYear,
     piti, rentMonthly, rentVsOwn,
+    hasSecondLien, secondLienBalance, secondLienLimit, secondLienRate,
+    helocRoomRemaining, secondLienPayment, combinedBalance, totalMonthlyDebtService,
+    ltv, equityPct, estimatedEquity,
   };
 }

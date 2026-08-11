@@ -14,6 +14,7 @@ import { clerkClient } from '@clerk/nextjs/server';
 import { digestEmailHtml, type NearbySale } from '@/digest/emailTemplate';
 import { getFredSnapshot } from '@/lib/fred';
 import { isEmailSuppressed, unsubscribeUrl } from '../../../../lib/unsubscribe';
+import { PRIME_RATE, HELOC_MARGIN } from '../../../../lib/homeownerCalc';
 
 const sb = () => createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -260,7 +261,7 @@ export async function POST(req: Request) {
     {
         const res = await db
             .from('borrowers')
-            .select('*, loan_officers(user_id, email), actual_balance, actual_rate, actual_purchase_price, actual_purchase_date')
+            .select('*, loan_officers(user_id, email), actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, heloc_limit, heloc_balance, heloc_rate')
             .eq('id', borrower_id)
             .single();
         if (res.error?.code === '42703') {
@@ -412,7 +413,22 @@ export async function POST(req: Request) {
     const overrideValue   = propData.estimatedValue;
     const effectiveBalance = overrideBalance ?? propData.estimatedBalance;
     const effectiveRate    = overrideRate    ?? propData.purchaseRate;
-    const effectiveEquity  = (overrideValue && effectiveBalance) ? Math.round(overrideValue - effectiveBalance) : propData.estimatedEquity;
+
+    // 2nd-lien HELOC — see supabase/migrations/078_heloc_second_lien.sql. Presence of
+    // heloc_limit is what defines "hasSecondLien" (no separate boolean column).
+    const helocLimitOverride   = borrower.heloc_limit   ? Number(borrower.heloc_limit)   : null;
+    const helocBalanceOverride = borrower.heloc_balance ? Number(borrower.heloc_balance) : null;
+    const helocRateOverride    = borrower.heloc_rate    ? Number(borrower.heloc_rate)    : null;
+    const hasSecondLien      = helocLimitOverride != null;
+    const secondLienBalance  = hasSecondLien ? (helocBalanceOverride ?? 0) : null;
+    const secondLienRate     = hasSecondLien ? (helocRateOverride ?? (PRIME_RATE + HELOC_MARGIN)) : null;
+    const helocRoomRemaining = hasSecondLien ? Math.max(0, helocLimitOverride! - secondLienBalance!) : null;
+    const secondLienPayment  = hasSecondLien ? Math.round((secondLienBalance ?? 0) * (secondLienRate! / 100) / 12) : null;
+    const combinedBalance    = effectiveBalance != null ? effectiveBalance + (secondLienBalance ?? 0) : null;
+
+    // estimatedEquity now nets out BOTH liens, not just the 1st — see lib/homeownerCalc.ts's
+    // identical combinedBalance rationale for why (equity is what's left after all liens).
+    const effectiveEquity  = (overrideValue && combinedBalance != null) ? Math.round(overrideValue - combinedBalance) : propData.estimatedEquity;
 
     const emailData = {
         borrowerName:    borrower.name,
@@ -424,6 +440,8 @@ export async function POST(req: Request) {
         estimatedBalance: effectiveBalance,
         estimatedEquity:  effectiveEquity,
         purchaseRate:     effectiveRate,
+        hasSecondLien, secondLienBalance, secondLienLimit: helocLimitOverride, secondLienRate,
+        helocRoomRemaining, secondLienPayment, combinedBalance,
         valueDelta: (propData.estimatedValue && prevSnapshot?.estimated_value)
             ? propData.estimatedValue - prevSnapshot.estimated_value : null,
         equityDelta: (effectiveEquity && prevSnapshot?.estimated_equity)

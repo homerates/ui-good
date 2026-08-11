@@ -837,15 +837,17 @@ function buildAnalysis(
 
   const balance        = record.actual_balance ? Number(record.actual_balance) : avm.estimatedBalance;
   const purchaseRate   = record.actual_rate    ? Number(record.actual_rate)    : avm.purchaseRate;
-  const estimatedEquity  = (estimatedValue && balance) ? Math.round(estimatedValue - balance) : avm.estimatedEquity;
   const estimatedBalance = balance;
 
   const balanceIsEstimated    = !record.actual_balance;
   const rateIsEstimated       = !record.actual_rate;
   const purchasePriceOverride = record.actual_purchase_price ? Number(record.actual_purchase_price) : null;
 
-  const ltv       = (estimatedValue && estimatedBalance) ? Math.round((estimatedBalance / estimatedValue) * 100) : null;
-  const equityPct = (estimatedValue && estimatedEquity)  ? Math.round((estimatedEquity  / estimatedValue) * 100) : null;
+  // 2nd-lien HELOC overrides — see supabase/migrations/078_heloc_second_lien.sql.
+  // Presence of heloc_limit is what defines "hasSecondLien" (no separate boolean column).
+  const helocLimitOverride   = record.heloc_limit   ? Number(record.heloc_limit)   : null;
+  const helocBalanceOverride = record.heloc_balance ? Number(record.heloc_balance) : null;
+  const helocRateOverride    = record.heloc_rate    ? Number(record.heloc_rate)    : null;
 
   const purchaseDateStr = record.actual_purchase_date ?? lastSaleDate;
   const purchaseYear    = purchaseDateStr ? new Date(purchaseDateStr).getFullYear() : null;
@@ -857,6 +859,9 @@ function buildAnalysis(
     paidOffPct, interestPaid, payoffYear,
     nextValueTarget, nextValueTargetYear,
     piti, rentMonthly, rentVsOwn,
+    hasSecondLien, secondLienBalance, secondLienLimit, secondLienRate,
+    helocRoomRemaining, secondLienPayment, combinedBalance, totalMonthlyDebtService,
+    ltv, equityPct, estimatedEquity,
   } = computeHomeownerFinancials({
     estimatedValue, estimatedBalance, purchaseRate, liveRate,
     lastSalePrice: lastSalePrice ?? null,
@@ -864,6 +869,7 @@ function buildAnalysis(
     purchasePriceOverride,
     actualBalanceOverride: record.actual_balance ? Number(record.actual_balance) : null,
     yearsElapsed,
+    helocLimitOverride, helocBalanceOverride, helocRateOverride,
   });
 
   // Use actual purchase price override when available — avoids comparing vs a stale historical sale
@@ -893,6 +899,10 @@ function buildAnalysis(
       actual_purchase_price: record.actual_purchase_price ?? null,
       actual_purchase_date:  record.actual_purchase_date  ?? null,
       actual_value:          record.actual_value          ?? null,
+      heloc_limit:            record.heloc_limit            ?? null,
+      heloc_balance:          record.heloc_balance          ?? null,
+      heloc_rate:             record.heloc_rate             ?? null,
+      heloc_origination_date: record.heloc_origination_date ?? null,
     },
     balanceIsEstimated, rateIsEstimated,
     ltv, equityPct, appreciationPct,
@@ -901,6 +911,8 @@ function buildAnalysis(
     paidOffPct, interestPaid, yearsElapsed,
     payoffYear, nextValueTarget, nextValueTargetYear,
     piti, rentMonthly, rentVsOwn, prime: PRIME_RATE, helocRateLabel: `${PRIME_RATE.toFixed(2)}% + 0.50%`,
+    hasSecondLien, secondLienBalance, secondLienLimit, secondLienRate,
+    helocRoomRemaining, secondLienPayment, combinedBalance, totalMonthlyDebtService,
   };
 }
 
@@ -917,7 +929,7 @@ export async function GET(request: NextRequest) {
 
     const { data: bor } = await db()
       .from('borrowers')
-      .select('id, name, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value')
+      .select('id, name, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value, heloc_limit, heloc_balance, heloc_rate, heloc_origination_date')
       .eq('id', rep.borrower_id)
       .single();
     if (!bor?.property_address) return NextResponse.json({ error: 'No address on file' }, { status: 404 });
@@ -980,7 +992,7 @@ export async function GET(request: NextRequest) {
     {
       let q = db()
         .from('borrowers')
-        .select('id, name, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value')
+        .select('id, name, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value, heloc_limit, heloc_balance, heloc_rate, heloc_origination_date')
         .eq('id', borrowerId);
       if (!isAdmin && ownerId) q = q.eq(ownerCol, ownerId);
       const res = await q.maybeSingle();
@@ -1028,7 +1040,7 @@ export async function GET(request: NextRequest) {
   // ── CONSUMER PATH: viewing own home ───────────────────────────────────────
   // Accepts ?property_id=<uuid> for multi-home; falls back to primary or first.
   const propertyId = request.nextUrl.searchParams.get('property_id');
-  const SEL = 'id, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value';
+  const SEL = 'id, property_address, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value, heloc_limit, heloc_balance, heloc_rate, heloc_origination_date';
 
   let homeowner: Record<string, any> | null = null;
 
@@ -1070,7 +1082,7 @@ export async function GET(request: NextRequest) {
     // Legacy fallback: old consumer_homeowners table (pre-migration)
     const legacy = await db()
       .from('consumer_homeowners')
-      .select('property_address, id, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value')
+      .select('property_address, id, actual_balance, actual_rate, actual_purchase_price, actual_purchase_date, actual_value, heloc_limit, heloc_balance, heloc_rate, heloc_origination_date')
       .eq('user_id', userId)
       .maybeSingle();
     homeowner = legacy.data ?? null;

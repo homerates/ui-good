@@ -29,6 +29,10 @@ interface HomeownerProperty {
   actual_purchase_price: number | null;
   actual_purchase_date: string | null;
   actual_value: number | null;
+  heloc_limit: number | null;
+  heloc_balance: number | null;
+  heloc_rate: number | null;
+  heloc_origination_date: string | null;
 }
 
 interface SavedOverrides {
@@ -37,6 +41,10 @@ interface SavedOverrides {
   actual_purchase_price: number | null;
   actual_purchase_date:  string | null;
   actual_value:          number | null;
+  heloc_limit:            number | null;
+  heloc_balance:          number | null;
+  heloc_rate:             number | null;
+  heloc_origination_date: string | null;
 }
 
 interface AttomComp {
@@ -82,6 +90,15 @@ interface AnalysisData {
   savedOverrides: SavedOverrides;
   balanceIsEstimated: boolean;
   rateIsEstimated: boolean;
+  // 2nd-lien HELOC (see supabase/migrations/078_heloc_second_lien.sql)
+  hasSecondLien: boolean;
+  secondLienBalance: number | null;
+  secondLienLimit: number | null;
+  secondLienRate: number | null;
+  helocRoomRemaining: number | null;
+  secondLienPayment: number | null;
+  combinedBalance: number | null;
+  totalMonthlyDebtService: number | null;
   borrowerName?: string;
   isLoView?: boolean;
   // Listing context (buyer mode)
@@ -431,18 +448,18 @@ function CardEquity({ d, nearbySales, onEdit }: { d: AnalysisData; nearbySales?:
           <div className="mh-stat-sub">{pct(d.equityPct)} of value</div>
         </div>
         <div className="mh-stat">
-          <div className="mh-stat-label">LTV Ratio</div>
+          <div className="mh-stat-label">{d.hasSecondLien ? 'Combined LTV' : 'LTV Ratio'}</div>
           <div className="mh-stat-value">{d.ltv !== null ? pct(d.ltv) : missingBalance && onEdit ? <button onClick={onEdit} style={{ background: 'none', border: '1px dashed rgba(148,163,184,0.35)', borderRadius: 6, color: '#eaf8f7', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', padding: '3px 8px' }}>Add balance →</button> : '—'}</div>
-          <div className="mh-stat-sub">{d.estimatedBalance ? fmt(d.estimatedBalance) + ' balance' : ''}</div>
+          <div className="mh-stat-sub">{d.combinedBalance ? fmt(d.combinedBalance) + ' balance' : ''}{d.hasSecondLien ? ' · incl. 2nd lien' : ''}</div>
         </div>
       </div>
 
       {/* Equity bar */}
-      {d.estimatedEquity && d.estimatedBalance && (
+      {d.estimatedEquity && d.combinedBalance && (
         <div style={{ margin: '20px 0 8px' }}>
           <div className="mh-bar-label-row">
             <span style={{ color: '#22c55e' }}>{fmt(d.estimatedEquity)} equity ({pct(d.equityPct)})</span>
-            <span style={{ color: 'rgba(255,255,255,0.4)' }}>{fmt(d.estimatedBalance)} remaining</span>
+            <span style={{ color: 'rgba(255,255,255,0.4)' }}>{fmt(d.combinedBalance)} remaining{d.hasSecondLien ? ' (both liens)' : ''}</span>
           </div>
           <div className="mh-bar-track">
             <div className="mh-bar-fill" style={{ width: `${eqPct}%`, background: '#22c55e' }} />
@@ -510,21 +527,59 @@ function CardEquity({ d, nearbySales, onEdit }: { d: AnalysisData; nearbySales?:
 }
 
 function CardHELOC({ d }: { d: AnalysisData }) {
-  if (!d.helocMax || d.helocMax < 10_000) {
+  if (d.hasSecondLien && (!d.helocRoomRemaining || d.helocRoomRemaining < 1_000)) {
+    return (
+      <div>
+        <div className="mh-stat-row" style={{ marginBottom: 12 }}>
+          <div className="mh-stat">
+            <div className="mh-stat-label">Credit Limit</div>
+            <div className="mh-stat-value">{fmt(d.secondLienLimit ?? 0)}</div>
+          </div>
+          <div className="mh-stat">
+            <div className="mh-stat-label">Drawn</div>
+            <div className="mh-stat-value">{fmt(d.secondLienBalance ?? 0)}</div>
+          </div>
+        </div>
+        <p className="mh-empty-note">Your HELOC is fully drawn — no room remaining on this line right now.</p>
+      </div>
+    );
+  }
+  if (!d.hasSecondLien && (!d.helocMax || d.helocMax < 10_000)) {
     return <p className="mh-empty-note">Not enough equity for a HELOC right now. Typically requires at least 15% equity above your balance.</p>;
   }
   return (
     <div>
+      {d.hasSecondLien && (
+        <div style={{ marginBottom: 20 }}>
+          <div className="mh-section-sub-label" style={{ marginBottom: 8 }}>Your HELOC</div>
+          <div className="mh-stat-row">
+            <div className="mh-stat">
+              <div className="mh-stat-label">Credit Limit</div>
+              <div className="mh-stat-value">{fmt(d.secondLienLimit ?? 0)}</div>
+            </div>
+            <div className="mh-stat">
+              <div className="mh-stat-label">Drawn</div>
+              <div className="mh-stat-value">{fmt(d.secondLienBalance ?? 0)}</div>
+            </div>
+            <div className="mh-stat">
+              <div className="mh-stat-label">Room Remaining</div>
+              <div className="mh-stat-value" style={{ color: '#22c55e' }}>{fmt(d.helocRoomRemaining ?? 0)}</div>
+              <div className="mh-stat-sub">{d.secondLienPayment ? fmt(d.secondLienPayment) + '/mo interest-only' : ''}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mh-stat-row" style={{ marginBottom: 20 }}>
         <div className="mh-stat">
-          <div className="mh-stat-label">Max HELOC Available</div>
-          <div className="mh-stat-value" style={{ color: '#22c55e' }}>{fmt(d.helocMax)}</div>
+          <div className="mh-stat-label">{d.hasSecondLien ? 'Additional Room Available' : 'Max HELOC Available'}</div>
+          <div className="mh-stat-value" style={{ color: '#22c55e' }}>{fmt(d.hasSecondLien ? (d.helocRoomRemaining ?? 0) : (d.helocMax ?? 0))}</div>
           <div className="mh-stat-sub">At 85% CLTV</div>
         </div>
         <div className="mh-stat">
           <div className="mh-stat-label">HELOC Rate</div>
-          <div className="mh-stat-value">{rate(d.helocRate)}</div>
-          <div className="mh-stat-sub">{d.helocRateLabel} variable</div>
+          <div className="mh-stat-value">{rate(d.secondLienRate ?? d.helocRate)}</div>
+          <div className="mh-stat-sub">{d.hasSecondLien && d.secondLienRate != null ? 'on file' : `${d.helocRateLabel} variable`}</div>
         </div>
         {d.cashOutMax && d.cashOutMax > 10_000 && (
           <div className="mh-stat">
@@ -535,7 +590,7 @@ function CardHELOC({ d }: { d: AnalysisData }) {
         )}
       </div>
 
-      <div className="mh-section-sub-label" style={{ marginBottom: 8 }}>Draw scenarios</div>
+      <div className="mh-section-sub-label" style={{ marginBottom: 8 }}>{d.hasSecondLien ? 'If you drew more' : 'Draw scenarios'}</div>
       <table className="mh-table">
         <thead>
           <tr>
@@ -1296,7 +1351,6 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
   }
 
   let estimatedBalance = (d.estimatedBalance as number | null) ?? null;
-  let estimatedEquity  = (d.estimatedEquity  as number | null) ?? null;
 
   // Estimate mortgage balance via amortization when Redfin doesn't provide it
   if (!estimatedBalance && lastSalePrice && saleDateObj && purchaseRate) {
@@ -1304,29 +1358,30 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
     estimatedBalance = Math.round(remainingBalance(lastSalePrice, 0.20, purchaseRate, monthsElapsed));
   }
 
-  // Derive equity when Redfin doesn't provide it
-  if (!estimatedEquity && estimatedBalance != null && estimatedValue) {
-    estimatedEquity = Math.round(estimatedValue - estimatedBalance);
-  }
-
-  const ltv        = (estimatedBalance && estimatedValue) ? Math.round(estimatedBalance / estimatedValue * 100) : null;
-  const equityPct  = (estimatedEquity  && estimatedValue) ? Math.round(Math.max(0, estimatedEquity) / estimatedValue * 100) : null;
   const appreciationPct = (lastSalePrice && estimatedValue && lastSalePrice > 0)
     ? Math.round((estimatedValue - lastSalePrice) / lastSalePrice * 100) : null;
 
   const yearsElapsed = saleDateObj ? new Date().getFullYear() - saleDateObj.getFullYear() : null;
 
+  // This buyer/preview path never has saved override data (no property_id to read
+  // heloc_* from) — always pass null for the 2nd-lien inputs. ltv/equityPct/
+  // estimatedEquity now come from the engine (off combinedBalance === estimatedBalance
+  // here, since there's no 2nd lien) instead of being independently recomputed —
+  // this is exactly the two-formulas-diverging pattern homeownerCalc.ts was
+  // extracted to prevent.
   const {
     helocRate, helocMax, cashOutMax, helocDraws,
     refiMonthlySaving, refiClosingCost, refiBreakEven,
     paidOffPct, interestPaid, payoffYear,
     nextValueTarget, nextValueTargetYear,
     piti, rentMonthly, rentVsOwn,
+    ltv, equityPct, estimatedEquity,
   } = computeHomeownerFinancials({
     estimatedValue, estimatedBalance, purchaseRate, liveRate,
     lastSalePrice, rentEstimate: null,
     purchasePriceOverride: null, actualBalanceOverride: null,
     yearsElapsed,
+    helocLimitOverride: null, helocBalanceOverride: null, helocRateOverride: null,
   });
 
   // No real historical snapshots exist for a buyer/preview lookup (that data
@@ -1369,7 +1424,9 @@ function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
     paidOffPct, interestPaid, yearsElapsed, payoffYear,
     nextValueTarget, nextValueTargetYear,
     piti, rentMonthly, rentVsOwn, prime: PRIME_RATE,
-    savedOverrides: { actual_balance: null, actual_rate: null, actual_purchase_price: null, actual_purchase_date: null, actual_value: null },
+    savedOverrides: { actual_balance: null, actual_rate: null, actual_purchase_price: null, actual_purchase_date: null, actual_value: null, heloc_limit: null, heloc_balance: null, heloc_rate: null, heloc_origination_date: null },
+    hasSecondLien: false, secondLienBalance: null, secondLienLimit: null, secondLienRate: null,
+    helocRoomRemaining: null, secondLienPayment: null, combinedBalance: estimatedBalance, totalMonthlyDebtService: null,
     balanceIsEstimated: true, rateIsEstimated: true,
     listingStatus, daysOnMarket, listPrice, beds, baths, sqft,
     yearBuilt: null, propertyType: null, lotSizeSqft: null, apn: null,
@@ -1594,6 +1651,11 @@ function MyHomePageInner() {
   const [loanPurchasePrice, setLoanPurchasePrice]   = useState('');
   const [loanPurchaseDate, setLoanPurchaseDate]     = useState('');
   const [loanValue, setLoanValue]                   = useState('');
+  // 2nd-lien HELOC — optional, collapsed by default (see migration 078)
+  const [showHelocSection, setShowHelocSection]     = useState(false);
+  const [helocLimit, setHelocLimit]                 = useState('');
+  const [helocBalance, setHelocBalance]             = useState('');
+  const [helocRate, setHelocRate]                   = useState('');
   const [loanSaving, setLoanSaving]                 = useState(false);
   const [loanSaved, setLoanSaved]                   = useState(false);
 
@@ -2103,6 +2165,10 @@ function MyHomePageInner() {
     setLoanPurchasePrice(ov?.actual_purchase_price ? String(ov.actual_purchase_price) : '');
     setLoanPurchaseDate(ov?.actual_purchase_date   ?? '');
     setLoanValue(ov?.actual_value            ? String(ov.actual_value)           : '');
+    setHelocLimit(ov?.heloc_limit   ? String(ov.heloc_limit)   : '');
+    setHelocBalance(ov?.heloc_balance ? String(ov.heloc_balance) : '');
+    setHelocRate(ov?.heloc_rate     ? String(ov.heloc_rate)     : '');
+    setShowHelocSection(!!ov?.heloc_limit); // auto-expand only if already on file
     setEditingLoan(true);
     setTimeout(() => loanEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   }
@@ -2120,6 +2186,9 @@ function MyHomePageInner() {
         actual_purchase_price: loanPurchasePrice ? parseFloat(loanPurchasePrice.replace(/[,$]/g, '')) : null,
         actual_purchase_date:  loanPurchaseDate  || null,
         actual_value:          loanValue         ? parseFloat(loanValue.replace(/[,$]/g, ''))          : null,
+        heloc_limit:            helocLimit   ? parseFloat(helocLimit.replace(/[,$]/g, ''))   : null,
+        heloc_balance:          helocBalance ? parseFloat(helocBalance.replace(/[,$]/g, '')) : null,
+        heloc_rate:             helocRate    ? parseFloat(helocRate.replace('%', ''))         : null,
       }),
     });
     const saved = await res.json().catch(() => null);
@@ -2975,6 +3044,50 @@ function MyHomePageInner() {
                         />
                       </div>
                     </div>
+
+                    {!showHelocSection ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowHelocSection(true)}
+                        style={{ background: 'none', border: 'none', color: '#00e87a', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: 0, marginTop: '1rem' }}
+                      >
+                        + Add a 2nd lien / HELOC
+                      </button>
+                    ) : (
+                      <div className="mh-heloc-subsection">
+                        <div className="mh-loan-label" style={{ marginBottom: '.5rem' }}>2nd Lien (HELOC)</div>
+                        <div className="mh-loan-grid">
+                          <div className="mh-loan-field">
+                            <label className="mh-loan-label">Credit limit</label>
+                            <input
+                              className="mh-input"
+                              placeholder="e.g. 100000"
+                              value={helocLimit}
+                              onChange={e => setHelocLimit(e.target.value)}
+                            />
+                          </div>
+                          <div className="mh-loan-field">
+                            <label className="mh-loan-label">Current balance drawn</label>
+                            <input
+                              className="mh-input"
+                              placeholder="e.g. 35000"
+                              value={helocBalance}
+                              onChange={e => setHelocBalance(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="mh-loan-field" style={{ marginTop: '.75rem' }}>
+                          <label className="mh-loan-label">Your rate (%) — optional</label>
+                          <input
+                            className="mh-input"
+                            placeholder="leave blank to use estimated market rate"
+                            value={helocRate}
+                            onChange={e => setHelocRate(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     <div className="mh-form-row" style={{ marginTop: '1rem' }}>
                       <button className="mh-save-btn" onClick={saveLoanDetails} disabled={loanSaving}>
                         {loanSaving ? 'Saving…' : 'Save my numbers'}
@@ -3244,6 +3357,7 @@ const CSS = `
   .mh-loan-label{font-size:.72rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:rgba(255,255,255,0.4)}
   .mh-est-notice{font-size:.78rem;color:rgba(255,255,255,0.4);background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.15);border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.5}
   .mh-inline-btn{background:none;border:none;cursor:pointer;color:#eab308;font-size:.78rem;text-decoration:underline;padding:0;font-family:inherit}
+  .mh-heloc-subsection{margin-top:1rem;padding-top:1rem;border-top:1px dashed rgba(255,255,255,0.1)}
   @media(max-width:600px){.mh-loan-grid{grid-template-columns:1fr}}
 
   /* LOADING / ERROR */
