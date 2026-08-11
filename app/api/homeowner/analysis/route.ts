@@ -328,12 +328,18 @@ async function liveRedfinLookup(address: string): Promise<LivePropertyFields | n
     sqft:           redfin?.sqft           ?? gpt?.sqft          ?? null,
     lotSqft:        gpt?.lotSqft           ?? null,
     yearBuilt:      gpt?.yearBuilt         ?? null,
-    // AVM: use the Redfin Estimate (current value), NOT the sold price
-    redfinEstimate: rx.redfinEstimate      ?? gpt?.redfinEstimate ?? null,
-    estimatedValue: rx.redfinEstimate      ?? gpt?.redfinEstimate ?? null,
-    // Historical sale — regex-parsed from Redfin page text (deterministic)
-    lastSalePrice:  rx.lastSalePrice       ?? gpt?.lastSalePrice  ?? null,
-    lastSaleDate:   rx.lastSaleDate        ?? gpt?.lastSaleDate   ?? null,
+    // AVM: use the Redfin Estimate (current value), NOT the sold price.
+    // redfin?.estimatedValue (lib/property/parse/redfin.ts) is read directly off the page's
+    // HTML via a stable data-rf-test-name anchor — takes priority over rx.redfinEstimate,
+    // a looser "label near a number" regex against Tavily-flattened text that misses this
+    // figure whenever the label and value aren't textually adjacent in the flattened text
+    // (which is the normal case for Redfin's actual markup — confirmed live 2026-08-11).
+    redfinEstimate: redfin?.estimatedValue ?? rx.redfinEstimate      ?? gpt?.redfinEstimate ?? null,
+    estimatedValue: redfin?.estimatedValue ?? rx.redfinEstimate      ?? gpt?.redfinEstimate ?? null,
+    // Historical sale — redfin?.lastSaleDate/lastSalePrice (lib/property/parse/redfin.ts)
+    // read directly off the page's own HTML, same priority rationale as estimatedValue above.
+    lastSalePrice:  redfin?.lastSalePrice  ?? rx.lastSalePrice       ?? gpt?.lastSalePrice  ?? null,
+    lastSaleDate:   redfin?.lastSaleDate   ?? rx.lastSaleDate        ?? gpt?.lastSaleDate   ?? null,
     // Status: Redfin scraper structured data > regex > GPT-4o
     listingStatus:  redfin?.listingStatus  ?? rx.listingStatus    ?? gpt?.listingStatus ?? null,
     listPrice:      redfin?.price          ?? gpt?.listPrice      ?? null,
