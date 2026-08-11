@@ -877,6 +877,13 @@ async function handleUrl(rawUrl: string) {
         taxSource:        d.taxSource,
         photoUrl:         (typeof d.photoUrl === 'string' && d.photoUrl.startsWith('http') && !/\/logo/i.test(d.photoUrl) && !/redfin-logo/i.test(d.photoUrl)) ? d.photoUrl : (tavilyPhotoUrl ?? null),
         ...ext,
+        // d.estimatedValue/lastSaleDate/lastSalePrice are read directly off the listing
+        // page's own HTML (see lib/property/parse/redfin.ts) — placed after `...ext` so they
+        // win over ext's versions, which are only a looser "label near a number" regex guess
+        // against Tavily-flattened text and less reliable when both are present.
+        estimatedValue:   (d.estimatedValue as number | null | undefined) ?? ext.estimatedValue ?? null,
+        lastSaleDate:     (d.lastSaleDate as string | null | undefined) ?? ext.lastSaleDate ?? null,
+        lastSalePrice:    (d.lastSalePrice as number | null | undefined) ?? ext.lastSalePrice ?? null,
     };
 
     const merged = mergeGpt4o(baseData, gpt);

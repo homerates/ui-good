@@ -17,6 +17,21 @@ export interface PropertyData {
     // Price (integer dollars)
     price: number | null;
 
+    // Current-value AVM read directly off the listing page (e.g. Redfin's own "Redfin
+    // Estimate" widget) — distinct from `price`, which for a SOLD/OFF_MARKET listing is
+    // the historical transaction price, not today's value. Optional: only Redfin's parser
+    // populates this today; other site parsers simply omit it (undefined, not null, so a
+    // caller's `d.estimatedValue ?? fallback` chain isn't disrupted by a stray explicit null).
+    estimatedValue?: number | null;
+
+    // Historical transaction — read directly off the listing page's own "About this home"
+    // summary (Redfin only, same rationale as estimatedValue above). lastSaleDate is a
+    // freeform "Month DD, YYYY" string, parsed the same way other date strings in this
+    // pipeline are (see parseMonthYear in the API routes) — not a Date here to keep this
+    // module free of any parsing-library assumption.
+    lastSaleDate?: string | null;
+    lastSalePrice?: number | null;
+
     // Address
     address: string | null;   // full one-line: "123 Main St, Austin, TX 78701"
     city:    string | null;

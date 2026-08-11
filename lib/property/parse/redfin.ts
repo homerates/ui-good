@@ -140,6 +140,42 @@ function detectRedfinStatus(html: string, blob: unknown): ListingStatus {
     return null;
 }
 
+/** Redfin's own current-value AVM ("Redfin Estimate") — NOT in the JSON-LD blob at all
+ *  (which only carries `price`, the listing/sale price). Lives in a server-rendered
+ *  (no JS execution needed) section anchored by the stable test-id
+ *  `data-rf-test-name="redfinEstimateSection"`; the actual dollar figure is several DOM
+ *  nodes deeper (`<div class="price ...">$964,326</div>`), not textually adjacent to the
+ *  words "Redfin Estimate" — which is exactly why a naive "label near a number" text-regex
+ *  (as used elsewhere in this pipeline on Tavily-flattened text) misses it. Confirmed live
+ *  2026-08-11 against a SOLD listing whose JSON-LD `price` was a 1977 sale price ($60,000)
+ *  while this section held the real current value ($964,326).
+ *  Returns null (not a false value) when the section is absent — e.g. some listing states
+ *  may not render it — so callers must still treat this as "no estimate available", not "$0". */
+function extractRedfinEstimate(html: string): number | null {
+    const m = html.match(/data-rf-test-name="redfinEstimateSection"[\s\S]{0,500}?class="price[^"]*">\$([\d,]+)</i);
+    return m ? parsePrice(m[1]) : null;
+}
+
+/** Historical sale date + price, read from the same stable "About this home" summary
+ *  sentence Redfin renders server-side (e.g. "...it last sold on April 06, 1977 for
+ *  $60,000. Based on Redfin's ... data, we estimate the home's value is $964,326."),
+ *  anchored on the stable `data-rf-test-id="house-info"` container. This is the field
+ *  the FHFA-appreciation tier in lib/propertyAvm.ts needs to anchor from, and what "N%
+ *  since purchase" style UI copy needs — without it, both silently show 0%/blank rather
+ *  than erroring, which is what made this gap easy to miss. Confirmed live 2026-08-11. */
+function extractRedfinSaleHistory(html: string): { lastSaleDate: string | null; lastSalePrice: number | null } {
+    const m = html.match(/data-rf-test-id="house-info"[\s\S]{0,600}?last\s+sold\s+on\s+([A-Za-z]+)\s+\d{1,2},?\s+(\d{4})\s+for\s+\$([\d,]+)/i);
+    // Normalize to "Month YYYY" (drop the day-of-month) — every caller's date parser
+    // (parseMonthYear in both API routes, parseFlexDateClient in my-home/page.tsx) only
+    // ever handles this shape, since it's what the existing Tavily-text regexes already
+    // produce elsewhere in this pipeline. A "Month DD, YYYY" string silently fails all of
+    // them, which would have quietly reintroduced the same null-date gap this is fixing.
+    return {
+        lastSaleDate:  m ? `${m[1]} ${m[2]}` : null,
+        lastSalePrice: m ? parsePrice(m[3]) : null,
+    };
+}
+
 export function parseRedfin(html: string, url?: string): Partial<PropertyData> | null {
     const blobs = extractAllJsonLd(html);
     const blob  = findListingBlob(blobs, urlExpectations(url));
@@ -149,6 +185,9 @@ export function parseRedfin(html: string, url?: string): Partial<PropertyData> |
         parsePrice(dig(blob, 'offers', 'price')) ??
         parsePrice(dig(blob, 'price')) ??
         null;
+
+    const estimatedValue = extractRedfinEstimate(html);
+    const { lastSaleDate, lastSalePrice } = extractRedfinSaleHistory(html);
 
     const addrObj   = dig(blob, 'address');
     const streetAddr = toStr(dig(addrObj, 'streetAddress'));
@@ -176,6 +215,9 @@ export function parseRedfin(html: string, url?: string): Partial<PropertyData> |
     return {
         source:       'redfin',
         price,
+        estimatedValue,
+        lastSaleDate,
+        lastSalePrice,
         address,
         city,
         state,
