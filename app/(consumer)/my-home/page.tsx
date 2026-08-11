@@ -1265,8 +1265,16 @@ function parseFlexDateClient(raw: string | null): Date | null {
 function lookupToAnalysis(d: any, liveRate: number): AnalysisData {
   const address = (d.address as string | null) || '';
 
-  // Parse sale data first — needed for value + balance estimation below
-  const lastSalePrice   = (d.lastSalePrice  as number | null) ?? (d.price as number | null) ?? null;
+  // Parse sale data first — needed for value + balance estimation below.
+  // Do NOT fall back to d.price here: for a SOLD/OFF_MARKET listing where the server found a
+  // live Redfin Estimate, d.price is now that CURRENT value (server overwrites price to match
+  // estimatedValue once a real AVM is found — see computeAvmTier() in lib/propertyAvm.ts), not
+  // a historical purchase price. Falling back to it silently compared estimatedValue against
+  // itself whenever lastSalePrice was unavailable, producing "0% since purchase" every time —
+  // the exact same "repurpose a same-page number as if it were the target field" bug class this
+  // whole pipeline was just fixed for. No lastSalePrice = genuinely unknown; leave it null and
+  // let the `appreciationPct !== null` guard hide the stat, rather than fabricate 0%.
+  const lastSalePrice   = (d.lastSalePrice  as number | null) ?? null;
   const lastSaleDate    = (d.lastSaleDate   as string | null) ?? null;
   const saleDateObj     = parseFlexDateClient(lastSaleDate);
 
