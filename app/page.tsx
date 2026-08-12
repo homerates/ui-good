@@ -16,11 +16,13 @@ export default function LandingPage() {
 
   function goChat(q: string) {
     if (!q.trim()) return;
-    window.open(
-      '/chat?sq=' + encodeURIComponent(q.trim()) + '&from=%2F&fromLabel=Home',
-      '_blank',
-      'noopener,noreferrer',
-    );
+    // Same-tab client-side navigation, not window.open('_blank') -- real mobile
+    // browsers (confirmed on iPhone across Safari, Chrome, DuckDuckGo, Edge) block
+    // JS-invoked popups far more aggressively than desktop or Playwright's
+    // automation context ever surfaces, silently swallowing the navigation.
+    // ConsumerWelcomeCard's equivalent flow (app/chat/page.tsx) never opens a new
+    // tab at all and works reliably -- matching that is what actually fixes this.
+    router.push('/chat?sq=' + encodeURIComponent(q.trim()) + '&from=%2F&fromLabel=Home');
   }
 
   function handleCmdSubmit(e: React.FormEvent) {
@@ -1059,21 +1061,12 @@ export default function LandingPage() {
                 onChange={(val) => {
                   setPropInput(val);
                   if (val.trim().startsWith('http')) {
-                    // Must call window.open synchronously inside the user-gesture event.
-                    // setTimeout breaks the gesture context and browsers silently block the popup.
-                    window.open(
-                      '/chat?sq=' + encodeURIComponent(val.trim()) + '&from=%2F&fromLabel=Home',
-                      '_blank',
-                      'noopener,noreferrer',
-                    );
-                    setTimeout(() => setPropInput(''), 50);
+                    goChat(val.trim());
+                    setPropInput('');
                   }
                 }}
                 onSelect={(val) => {
                   setPropInput(val);
-                  // Must call goChat (window.open) synchronously inside the user-gesture
-                  // event -- setTimeout breaks the gesture context and mobile browsers
-                  // silently block the popup, same failure mode as the paste-URL case above.
                   goChat(val);
                   setPropInput('');
                 }}
