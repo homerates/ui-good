@@ -48,11 +48,23 @@ export async function checkOrRenderVideo(address: string): Promise<{ state: Aeri
 
 // BILLABLE -- call exactly once, only when about to hand the URI to a viewer.
 // Never call this speculatively or inside a poll loop.
-export async function lookupVideoUris(address: string): Promise<AerialViewUris | null> {
+// shape is included for debugging (e.g. surfaced behind ?debug=1) -- keys only,
+// never the actual signed URI values.
+export async function lookupVideoUris(address: string): Promise<{ uris: AerialViewUris | null; shape: unknown }> {
   const url = `${AERIAL_BASE}:lookupVideo?address=${encodeURIComponent(address)}&key=${apiKey()}`;
   const res = await fetch(url);
-  if (!res.ok) return null;
+  if (!res.ok) return { uris: null, shape: { httpStatus: res.status } };
   const json = await res.json().catch(() => null);
-  if (json?.state !== 'ACTIVE' || !json?.uris?.landscapeUri) return null;
-  return { landscapeUri: json.uris.landscapeUri, portraitUri: json.uris.portraitUri };
+  const shape = {
+    httpStatus: res.status,
+    state: json?.state,
+    urisType: typeof json?.uris,
+    urisKeys: json?.uris && typeof json.uris === 'object' ? Object.keys(json.uris) : null,
+  };
+  if (json?.state !== 'ACTIVE' || !json?.uris) return { uris: null, shape };
+  // Per Google's docs, `uris` is a MAP of media-type -> {landscapeUri, portraitUri},
+  // not a flat object -- take the first available entry.
+  const first = Object.values(json.uris)[0] as { landscapeUri?: string; portraitUri?: string } | undefined;
+  if (!first?.landscapeUri) return { uris: null, shape };
+  return { uris: { landscapeUri: first.landscapeUri, portraitUri: first.portraitUri ?? first.landscapeUri }, shape };
 }

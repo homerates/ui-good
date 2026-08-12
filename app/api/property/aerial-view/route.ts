@@ -57,10 +57,11 @@ export async function GET(req: NextRequest) {
     // Already confirmed ACTIVE -- skip the renderVideo idempotent-check hop,
     // go straight to the one billable lookupVideo call for this viewer.
     if (cached?.state === 'ACTIVE') {
-      const uris = await lookupVideoUris(address);
+      const { uris, shape } = await lookupVideoUris(address);
       if (uris) {
         return NextResponse.json<AerialViewResponse>({ status: 'ready', ...uris });
       }
+      if (debug) return NextResponse.json({ status: 'processing', debug: { cachedActive: true, lookupShape: shape } });
       // Cache said ACTIVE but Google no longer has it (expired/purged) -- fall
       // through to a fresh render-check below instead of trusting stale cache.
     }
@@ -74,11 +75,11 @@ export async function GET(req: NextRequest) {
         state: 'ACTIVE',
         checked_at: new Date().toISOString(),
       });
-      const uris = await lookupVideoUris(address);
+      const { uris, shape } = await lookupVideoUris(address);
       if (uris) {
         return NextResponse.json<AerialViewResponse>({ status: 'ready', ...uris });
       }
-      return NextResponse.json(debug ? { status: 'processing', debug: { state, raw, httpStatus } } : { status: 'processing' });
+      return NextResponse.json(debug ? { status: 'processing', debug: { state, raw, httpStatus, lookupShape: shape } } : { status: 'processing' });
     }
 
     if (state === 'PROCESSING') {
