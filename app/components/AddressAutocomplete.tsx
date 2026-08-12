@@ -111,7 +111,7 @@ const AddressAutocomplete = forwardRef<HTMLInputElement, Props>(function Address
   const [placesReady, setPlacesReady] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
-  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [rect, setRect] = useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestIdRef = useRef(0);
@@ -129,7 +129,18 @@ const AddressAutocomplete = forwardRef<HTMLInputElement, Props>(function Address
     const el = inputRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    setRect({ top: r.bottom, left: r.left, width: r.width });
+    // Flip the dropdown above the input when there isn't enough room below --
+    // on a typical phone viewport the input can sit close enough to the bottom
+    // edge (hero content stacking above it) that a below-anchored dropdown
+    // renders entirely off-screen, invisible without scrolling.
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+    const openUpward = spaceBelow < 260 && spaceAbove > spaceBelow;
+    setRect(
+      openUpward
+        ? { bottom: window.innerHeight - r.top + 4, left: r.left, width: r.width }
+        : { top: r.bottom + 4, left: r.left, width: r.width },
+    );
   }, [inputRef]);
 
   useEffect(() => {
@@ -251,7 +262,7 @@ const AddressAutocomplete = forwardRef<HTMLInputElement, Props>(function Address
           className="aac-dropdown"
           style={{
             position: 'fixed',
-            top: rect.top + 4,
+            ...(rect.top != null ? { top: rect.top } : { bottom: rect.bottom }),
             left: rect.left,
             width: rect.width,
             zIndex: 2000,
