@@ -4,7 +4,7 @@
 // Displays a scraped property listing snapshot — photo, address, price, beds/baths/sqft, tax note.
 // Rendered in the chat when a user pastes a Zillow/Redfin URL.
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { prefetchGrokProperty } from '@/prefetchGrokProperty';
 import AdminCardBadge from './AdminCardBadge';
 
@@ -102,6 +102,48 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
             last_sold_price:    data.lastSalePrice ?? undefined,
             last_sold_date:     data.lastSaleDate ?? undefined,
         });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [fullAddress]);
+
+    const [aerialState, setAerialState] = useState<'idle' | 'polling' | 'ready' | 'unavailable'>('idle');
+    const [aerialUris, setAerialUris] = useState<{ landscapeUri: string; portraitUri: string } | null>(null);
+
+    // Fire-and-forget: poll for an Aerial View flyover video; swap the hero photo
+    // to it if/when it's ready. Bounded — gives up after ~30s. Never blocks the card
+    // (the static photo above already renders immediately, independent of this).
+    useEffect(() => {
+        if (!fullAddress) return;
+        let cancelled = false;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 6;      // 6 polls
+        const INTERVAL_MS = 5000;    // every 5s -> ~30s total budget
+
+        setAerialState('polling');
+
+        const poll = async () => {
+            if (cancelled) return;
+            attempts++;
+            try {
+                const res = await fetch(`/api/property/aerial-view?address=${encodeURIComponent(fullAddress)}`);
+                const json = await res.json();
+                if (cancelled) return;
+                if (json.status === 'ready') {
+                    setAerialUris({ landscapeUri: json.landscapeUri, portraitUri: json.portraitUri });
+                    setAerialState('ready');
+                    return;
+                }
+                if (json.status === 'unavailable' || attempts >= MAX_ATTEMPTS) {
+                    setAerialState('unavailable');
+                    return;
+                }
+                setTimeout(poll, INTERVAL_MS);
+            } catch {
+                if (!cancelled) setAerialState('unavailable');
+            }
+        };
+
+        const firstTick = setTimeout(poll, 0);
+        return () => { cancelled = true; clearTimeout(firstTick); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fullAddress]);
 
@@ -229,13 +271,26 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
             {/* Photo */}
             {hasPhoto && (
                 <div className="property-photo-wrap">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                        src={data.photoUrl!}
-                        alt={data.address ?? 'Property photo'}
-                        className="property-photo"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
+                    {aerialState === 'ready' && aerialUris ? (
+                        <video
+                            className="property-photo"
+                            src={aerialUris.landscapeUri}
+                            poster={data.photoUrl!}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            onError={() => setAerialState('unavailable')}
+                        />
+                    ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={data.photoUrl!}
+                            alt={data.address ?? 'Property photo'}
+                            className="property-photo"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                    )}
                 </div>
             )}
 
