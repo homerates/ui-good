@@ -124,9 +124,18 @@ const AddressAutocomplete = forwardRef<HTMLInputElement, Props>(function Address
     const onResize = () => updateRect();
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onResize);
+    // iOS Safari does not reliably fire window's own 'resize'/'scroll' when the
+    // on-screen keyboard opens/closes or the page auto-scrolls a focused input
+    // into view above it -- only window.visualViewport's events fire for that.
+    // Without this, the dropdown's position: fixed coordinates can be computed
+    // mid-keyboard-animation and never get corrected, rendering off-screen.
+    window.visualViewport?.addEventListener('resize', onResize);
+    window.visualViewport?.addEventListener('scroll', onScroll);
     return () => {
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onResize);
+      window.visualViewport?.removeEventListener('resize', onResize);
+      window.visualViewport?.removeEventListener('scroll', onScroll);
     };
   }, [open, updateRect]);
 
