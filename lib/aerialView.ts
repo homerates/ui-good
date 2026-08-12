@@ -30,18 +30,20 @@ function apiKey(): string {
 }
 
 // Poll-safe, never billable -- checks (and if needed, queues) a render for this address.
-export async function checkOrRenderVideo(address: string): Promise<AerialViewState> {
+// raw is included for debugging (e.g. surfaced behind a ?debug=1 flag in the route) --
+// never logged or exposed by default.
+export async function checkOrRenderVideo(address: string): Promise<{ state: AerialViewState; raw: unknown; httpStatus: number }> {
   const res = await fetch(`${AERIAL_BASE}:renderVideo?key=${apiKey()}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address }),
   });
-  if (!res.ok) return 'ERROR';
   const json = await res.json().catch(() => null);
+  if (!res.ok) return { state: 'ERROR', raw: json, httpStatus: res.status };
   const state = json?.state as string | undefined;
-  if (state === 'ACTIVE') return 'ACTIVE';
-  if (state === 'PROCESSING' || state === 'STATE_UNSPECIFIED') return 'PROCESSING';
-  return 'ERROR'; // unknown/missing state -- caller gives up, does not retry indefinitely
+  if (state === 'ACTIVE') return { state: 'ACTIVE', raw: json, httpStatus: res.status };
+  if (state === 'PROCESSING' || state === 'STATE_UNSPECIFIED') return { state: 'PROCESSING', raw: json, httpStatus: res.status };
+  return { state: 'ERROR', raw: json, httpStatus: res.status }; // unknown/missing state -- caller gives up, does not retry indefinitely
 }
 
 // BILLABLE -- call exactly once, only when about to hand the URI to a viewer.
