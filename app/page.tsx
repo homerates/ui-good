@@ -1071,7 +1071,11 @@ export default function LandingPage() {
                 }}
                 onSelect={(val) => {
                   setPropInput(val);
-                  setTimeout(() => { goChat(val); setPropInput(''); }, 50);
+                  // Must call goChat (window.open) synchronously inside the user-gesture
+                  // event -- setTimeout breaks the gesture context and mobile browsers
+                  // silently block the popup, same failure mode as the paste-URL case above.
+                  goChat(val);
+                  setPropInput('');
                 }}
               />
               <button type="submit" className="lp-prop-btn" disabled={!propInput.trim()}>Analyze Property</button>
