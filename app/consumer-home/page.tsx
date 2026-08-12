@@ -2,24 +2,27 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 
 export default function ConsumerHomePage() {
+  const router = useRouter();
   const [cmdInput, setCmdInput] = useState('');
   const [scenarioInput, setScenarioInput] = useState('');
   const [propInput, setPropInput] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const cmdRef = useRef<HTMLInputElement>(null);
 
-  // Opens chat on the same domain (homerates.ai/chat) — never crosses to chat.homerates.ai
+  // Opens chat on the same domain (homerates.ai/chat) — never crosses to chat.homerates.ai.
+  // Same-tab client-side navigation, not window.open('_blank') -- real mobile browsers
+  // block JS-invoked popups far more aggressively than desktop or Playwright's automation
+  // context ever surfaces, silently swallowing the navigation. See app/page.tsx's goChat
+  // for the full incident writeup -- this file is middleware.ts's actual homerates.ai "/"
+  // rewrite target, so this copy needs the identical fix, not app/page.tsx's.
   function goChat(q: string) {
     if (!q.trim()) return;
-    window.open(
-      '/chat?sq=' + encodeURIComponent(q.trim()) + '&from=%2F&fromLabel=Home',
-      '_blank',
-      'noopener,noreferrer',
-    );
+    router.push('/chat?sq=' + encodeURIComponent(q.trim()) + '&from=%2F&fromLabel=Home');
   }
 
   function handleCmdSubmit(e: React.FormEvent) {
@@ -651,12 +654,14 @@ export default function ConsumerHomePage() {
                   onChange={(val) => {
                     setPropInput(val);
                     if (val.trim().startsWith('http')) {
-                      setTimeout(() => { goChat(val.trim()); setPropInput(''); }, 50);
+                      goChat(val.trim());
+                      setPropInput('');
                     }
                   }}
                   onSelect={(val) => {
                     setPropInput(val);
-                    setTimeout(() => { goChat(val); setPropInput(''); }, 50);
+                    goChat(val);
+                    setPropInput('');
                   }}
                 />
                 <button type="submit" className="ch-ic-go blue">→</button>
