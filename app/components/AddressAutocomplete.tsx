@@ -22,8 +22,23 @@
 // DOM shape (a single <input>, no wrapper div) are unchanged from the previous
 // implementation — every existing call site keeps working with zero changes, including
 // CSS written against a bare <input> as a direct flex/grid child.
+//
+// The suggestions dropdown is rendered via a portal into document.body (not as an
+// inline sibling of the <input>). It's styled position: fixed and its coordinates
+// are computed from the input's getBoundingClientRect() (viewport-relative), but per
+// the CSS spec, ANY ancestor with a non-none transform/filter/perspective/contain
+// becomes the containing block for a position: fixed descendant instead of the real
+// viewport — and a CSS entrance animation with fill-mode both/forwards (e.g.
+// `animation: fadeUp .6s ease both`) leaves transform: translateY(0) permanently
+// applied even after the animation finishes, since translateY(0) still counts as
+// "not none". Any call site with such an ancestor (confirmed on the homepage's
+// .lp-prop-wrap) silently breaks the dropdown's positioning — reproducible on every
+// browser/device, not a mobile- or engine-specific bug. Portaling to document.body
+// sidesteps this permanently, everywhere this component is used, rather than
+// requiring every caller's CSS to avoid transforms above the input.
 
 import { useEffect, useRef, useCallback, useState, forwardRef, CSSProperties, KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 
 declare global {
   interface Window {
@@ -231,7 +246,7 @@ const AddressAutocomplete = forwardRef<HTMLInputElement, Props>(function Address
         aria-expanded={open}
         aria-autocomplete="list"
       />
-      {open && rect && suggestions.length > 0 && (
+      {open && rect && suggestions.length > 0 && typeof document !== 'undefined' && createPortal(
         <div
           className="aac-dropdown"
           style={{
@@ -273,7 +288,8 @@ const AddressAutocomplete = forwardRef<HTMLInputElement, Props>(function Address
               {s.text}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
