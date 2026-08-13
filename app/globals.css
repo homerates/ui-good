@@ -2170,6 +2170,29 @@ body:has(.page-standalone) { display: block !important; height: auto !important;
   height: 200px;
   overflow: hidden;
   background: #0a1628;
+  position: relative;
+}
+
+.property-video-toggle {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(10, 22, 40, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  transition: background 0.15s;
+}
+.property-video-toggle:hover {
+  background: rgba(10, 22, 40, 0.9);
 }
 
 .property-photo {
