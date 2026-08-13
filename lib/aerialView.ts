@@ -59,7 +59,7 @@ export async function lookupVideoUris(address: string): Promise<{ uris: AerialVi
     httpStatus: res.status,
     state: json?.state,
     urisType: typeof json?.uris,
-    urisKeys: json?.uris && typeof json.uris === 'object' ? Object.keys(json.uris) : null,
+    uris: json?.uris ?? null, // TEMP: full raw map to identify the correct video key -- remove with debug scaffold
   };
   if (json?.state !== 'ACTIVE' || !json?.uris) return { uris: null, shape };
   // Per Google's docs, `uris` is a MAP of media-type -> {landscapeUri, portraitUri},

@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     if (cached?.state === 'ACTIVE') {
       const { uris, shape } = await lookupVideoUris(address);
       if (uris) {
-        return NextResponse.json<AerialViewResponse>({ status: 'ready', ...uris });
+        return NextResponse.json(debug ? { status: 'ready', ...uris, debugShape: shape } : { status: 'ready', ...uris });
       }
       if (debug) return NextResponse.json({ status: 'processing', debug: { cachedActive: true, lookupShape: shape } });
       // Cache said ACTIVE but Google no longer has it (expired/purged) -- fall
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
       });
       const { uris, shape } = await lookupVideoUris(address);
       if (uris) {
-        return NextResponse.json<AerialViewResponse>({ status: 'ready', ...uris });
+        return NextResponse.json(debug ? { status: 'ready', ...uris, debugShape: shape } : { status: 'ready', ...uris });
       }
       return NextResponse.json(debug ? { status: 'processing', debug: { state, raw, httpStatus, lookupShape: shape } } : { status: 'processing' });
     }
