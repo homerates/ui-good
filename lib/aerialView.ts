@@ -23,6 +23,19 @@ export interface AerialViewUris {
   portraitUri: string;
 }
 
+// Persistent diagnostic info -- written to aerial_view_cache's debug columns
+// (migration 080) on every check, never returned to the client. videoId lets
+// us tell whether repeated checks for "the same" address are tracking one
+// Google render job or several (e.g. a malformed/duplicated address string
+// producing a materially different query -- confirmed root cause 2026-08 for
+// what first looked like "Google is just slow").
+export interface AerialViewCheckResult {
+  state: AerialViewState;
+  videoId: string | null;
+  httpStatus: number;
+  errorDetail: string | null;
+}
+
 function apiKey(): string {
   const key = process.env.GOOGLE_AERIAL_VIEW_API_KEY;
   if (!key) throw new Error('GOOGLE_AERIAL_VIEW_API_KEY not configured');
@@ -30,18 +43,24 @@ function apiKey(): string {
 }
 
 // Poll-safe, never billable -- checks (and if needed, queues) a render for this address.
-export async function checkOrRenderVideo(address: string): Promise<AerialViewState> {
+export async function checkOrRenderVideo(address: string): Promise<AerialViewCheckResult> {
   const res = await fetch(`${AERIAL_BASE}:renderVideo?key=${apiKey()}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address }),
   });
-  if (!res.ok) return 'ERROR';
   const json = await res.json().catch(() => null);
+  const videoId = (json?.metadata?.videoId as string | undefined) ?? null;
+  if (!res.ok) {
+    return { state: 'ERROR', videoId, httpStatus: res.status, errorDetail: json?.error?.message ?? `HTTP ${res.status}` };
+  }
   const state = json?.state as string | undefined;
-  if (state === 'ACTIVE') return 'ACTIVE';
-  if (state === 'PROCESSING' || state === 'STATE_UNSPECIFIED') return 'PROCESSING';
-  return 'ERROR'; // unknown/missing state -- caller gives up, does not retry indefinitely
+  if (state === 'ACTIVE') return { state: 'ACTIVE', videoId, httpStatus: res.status, errorDetail: null };
+  if (state === 'PROCESSING' || state === 'STATE_UNSPECIFIED') {
+    return { state: 'PROCESSING', videoId, httpStatus: res.status, errorDetail: null };
+  }
+  // unknown/missing state -- caller gives up, does not retry indefinitely
+  return { state: 'ERROR', videoId, httpStatus: res.status, errorDetail: `unexpected state: ${state ?? 'missing'}` };
 }
 
 // `uris` is a map of media-type -> {landscapeUri, portraitUri} (confirmed live keys:

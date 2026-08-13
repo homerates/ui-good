@@ -86,7 +86,16 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
     // Homeowner analysis mode: off-market with equity data from the AVM pipeline
     const isHomeowner = isOffMarket && data.estimatedEquity != null && data.estimatedBalance != null;
 
-    const fullAddress = [data.address, data.city, data.state, data.zip].filter(Boolean).join(', ');
+    // data.address is already the full "street, city, state zip" string whenever
+    // it's present (confirmed: lib/property/parse/redfin.ts's parser builds it that
+    // way) -- appending city/state/zip again produced a duplicated string like
+    // "123 Main St, City, CA 90001, City, CA, 90001", which both silently doubled
+    // Google Aerial View render/billing calls (a duplicate-vs-clean string is a
+    // materially different query to Google, so it's a wholly separate cache entry
+    // and render job, never benefiting from any prior warm-up) and fragmented the
+    // existing Grok property-intelligence cache this same variable also keys.
+    // Only fall back to reconstructing from parts when address itself is missing.
+    const fullAddress = data.address ?? [data.city, data.state, data.zip].filter(Boolean).join(', ');
 
     // Fire-and-forget: warm the Grok cache so "View Intelligence Report →" loads instantly
     useEffect(() => {
