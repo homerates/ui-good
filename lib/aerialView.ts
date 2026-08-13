@@ -30,41 +30,40 @@ function apiKey(): string {
 }
 
 // Poll-safe, never billable -- checks (and if needed, queues) a render for this address.
-// raw is included for debugging (e.g. surfaced behind a ?debug=1 flag in the route) --
-// never logged or exposed by default.
-export async function checkOrRenderVideo(address: string): Promise<{ state: AerialViewState; raw: unknown; httpStatus: number }> {
+export async function checkOrRenderVideo(address: string): Promise<AerialViewState> {
   const res = await fetch(`${AERIAL_BASE}:renderVideo?key=${apiKey()}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address }),
   });
+  if (!res.ok) return 'ERROR';
   const json = await res.json().catch(() => null);
-  if (!res.ok) return { state: 'ERROR', raw: json, httpStatus: res.status };
   const state = json?.state as string | undefined;
-  if (state === 'ACTIVE') return { state: 'ACTIVE', raw: json, httpStatus: res.status };
-  if (state === 'PROCESSING' || state === 'STATE_UNSPECIFIED') return { state: 'PROCESSING', raw: json, httpStatus: res.status };
-  return { state: 'ERROR', raw: json, httpStatus: res.status }; // unknown/missing state -- caller gives up, does not retry indefinitely
+  if (state === 'ACTIVE') return 'ACTIVE';
+  if (state === 'PROCESSING' || state === 'STATE_UNSPECIFIED') return 'PROCESSING';
+  return 'ERROR'; // unknown/missing state -- caller gives up, does not retry indefinitely
 }
+
+// `uris` is a map of media-type -> {landscapeUri, portraitUri} (confirmed live keys:
+// IMAGE, MP4_LOW, MP4_MEDIUM, MP4_HIGH, DASH, HLS) -- NOT a flat object. IMAGE is a
+// static thumbnail, not a video. DASH/HLS are streaming manifests that need MSE/hls.js
+// support. MP4_* are direct, plain-<video>-playable files -- prefer the smallest
+// (MP4_LOW, ~1-3MB) since this renders in a small card, not a full-screen player.
+const VIDEO_KEY_PREFERENCE = ['MP4_LOW', 'MP4_MEDIUM', 'MP4_HIGH'] as const;
 
 // BILLABLE -- call exactly once, only when about to hand the URI to a viewer.
 // Never call this speculatively or inside a poll loop.
-// shape is included for debugging (e.g. surfaced behind ?debug=1) -- keys only,
-// never the actual signed URI values.
-export async function lookupVideoUris(address: string): Promise<{ uris: AerialViewUris | null; shape: unknown }> {
+export async function lookupVideoUris(address: string): Promise<AerialViewUris | null> {
   const url = `${AERIAL_BASE}:lookupVideo?address=${encodeURIComponent(address)}&key=${apiKey()}`;
   const res = await fetch(url);
-  if (!res.ok) return { uris: null, shape: { httpStatus: res.status } };
+  if (!res.ok) return null;
   const json = await res.json().catch(() => null);
-  const shape = {
-    httpStatus: res.status,
-    state: json?.state,
-    urisType: typeof json?.uris,
-    uris: json?.uris ?? null, // TEMP: full raw map to identify the correct video key -- remove with debug scaffold
-  };
-  if (json?.state !== 'ACTIVE' || !json?.uris) return { uris: null, shape };
-  // Per Google's docs, `uris` is a MAP of media-type -> {landscapeUri, portraitUri},
-  // not a flat object -- take the first available entry.
-  const first = Object.values(json.uris)[0] as { landscapeUri?: string; portraitUri?: string } | undefined;
-  if (!first?.landscapeUri) return { uris: null, shape };
-  return { uris: { landscapeUri: first.landscapeUri, portraitUri: first.portraitUri ?? first.landscapeUri }, shape };
+  if (json?.state !== 'ACTIVE' || !json?.uris) return null;
+  for (const key of VIDEO_KEY_PREFERENCE) {
+    const entry = json.uris[key] as { landscapeUri?: string; portraitUri?: string } | undefined;
+    if (entry?.landscapeUri) {
+      return { landscapeUri: entry.landscapeUri, portraitUri: entry.portraitUri ?? entry.landscapeUri };
+    }
+  }
+  return null;
 }

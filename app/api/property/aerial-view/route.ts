@@ -29,10 +29,6 @@ type AerialViewResponse =
 
 export async function GET(req: NextRequest) {
   const address = req.nextUrl.searchParams.get('address')?.trim();
-  // TEMP diagnostic flag -- surfaces Google's raw response so this can be
-  // inspected directly via curl. Never used by the client poll loop. Remove
-  // once the stuck-in-PROCESSING investigation is resolved.
-  const debug = req.nextUrl.searchParams.get('debug') === '1';
   if (!address) {
     return NextResponse.json<AerialViewResponse>({ status: 'unavailable' });
   }
@@ -57,16 +53,15 @@ export async function GET(req: NextRequest) {
     // Already confirmed ACTIVE -- skip the renderVideo idempotent-check hop,
     // go straight to the one billable lookupVideo call for this viewer.
     if (cached?.state === 'ACTIVE') {
-      const { uris, shape } = await lookupVideoUris(address);
+      const uris = await lookupVideoUris(address);
       if (uris) {
-        return NextResponse.json(debug ? { status: 'ready', ...uris, debugShape: shape } : { status: 'ready', ...uris });
+        return NextResponse.json<AerialViewResponse>({ status: 'ready', ...uris });
       }
-      if (debug) return NextResponse.json({ status: 'processing', debug: { cachedActive: true, lookupShape: shape } });
       // Cache said ACTIVE but Google no longer has it (expired/purged) -- fall
       // through to a fresh render-check below instead of trusting stale cache.
     }
 
-    const { state, raw, httpStatus } = await checkOrRenderVideo(address);
+    const state = await checkOrRenderVideo(address);
 
     if (state === 'ACTIVE') {
       await sb.from('aerial_view_cache').upsert({
@@ -75,11 +70,11 @@ export async function GET(req: NextRequest) {
         state: 'ACTIVE',
         checked_at: new Date().toISOString(),
       });
-      const { uris, shape } = await lookupVideoUris(address);
+      const uris = await lookupVideoUris(address);
       if (uris) {
-        return NextResponse.json(debug ? { status: 'ready', ...uris, debugShape: shape } : { status: 'ready', ...uris });
+        return NextResponse.json<AerialViewResponse>({ status: 'ready', ...uris });
       }
-      return NextResponse.json(debug ? { status: 'processing', debug: { state, raw, httpStatus, lookupShape: shape } } : { status: 'processing' });
+      return NextResponse.json<AerialViewResponse>({ status: 'processing' });
     }
 
     if (state === 'PROCESSING') {
@@ -89,7 +84,7 @@ export async function GET(req: NextRequest) {
         state: 'PROCESSING',
         checked_at: new Date().toISOString(),
       });
-      return NextResponse.json(debug ? { status: 'processing', debug: { state, raw, httpStatus } } : { status: 'processing' });
+      return NextResponse.json<AerialViewResponse>({ status: 'processing' });
     }
 
     // ERROR -- cache permanently, short-circuits all future polls for this address.
@@ -99,8 +94,8 @@ export async function GET(req: NextRequest) {
       state: 'ERROR',
       checked_at: new Date().toISOString(),
     });
-    return NextResponse.json(debug ? { status: 'unavailable', debug: { state, raw, httpStatus } } : { status: 'unavailable' });
-  } catch (e) {
-    return NextResponse.json(debug ? { status: 'unavailable', debug: { caught: String(e) } } : { status: 'unavailable' });
+    return NextResponse.json<AerialViewResponse>({ status: 'unavailable' });
+  } catch {
+    return NextResponse.json<AerialViewResponse>({ status: 'unavailable' });
   }
 }
