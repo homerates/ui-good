@@ -6,7 +6,11 @@
 //
 // This card is decorative -- any failure here (missing key, Google down, Supabase
 // down) must never break the surrounding chat message, so every branch resolves to
-// a 200 with a status field rather than throwing.
+// a 200 with a status field rather than throwing. Diagnostic detail (Google's
+// videoId/http status/error) is persisted to aerial_view_cache's debug columns
+// (migration 080) on every check -- never returned in this response -- so a stuck
+// or failing address can be investigated later via a direct Supabase query instead
+// of needing to reproduce it live with a temporary debug flag.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '../../../../lib/supabaseServer';
@@ -61,14 +65,16 @@ export async function GET(req: NextRequest) {
       // through to a fresh render-check below instead of trusting stale cache.
     }
 
-    const state = await checkOrRenderVideo(address);
+    const check = await checkOrRenderVideo(address);
+    const debugCols = { video_id: check.videoId, http_status: check.httpStatus, error_detail: check.errorDetail };
 
-    if (state === 'ACTIVE') {
+    if (check.state === 'ACTIVE') {
       await sb.from('aerial_view_cache').upsert({
         address_normalized: normalized,
         address_raw: address,
         state: 'ACTIVE',
         checked_at: new Date().toISOString(),
+        ...debugCols,
       });
       const uris = await lookupVideoUris(address);
       if (uris) {
@@ -77,12 +83,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json<AerialViewResponse>({ status: 'processing' });
     }
 
-    if (state === 'PROCESSING') {
+    if (check.state === 'PROCESSING') {
       await sb.from('aerial_view_cache').upsert({
         address_normalized: normalized,
         address_raw: address,
         state: 'PROCESSING',
         checked_at: new Date().toISOString(),
+        ...debugCols,
       });
       return NextResponse.json<AerialViewResponse>({ status: 'processing' });
     }
@@ -93,9 +100,13 @@ export async function GET(req: NextRequest) {
       address_raw: address,
       state: 'ERROR',
       checked_at: new Date().toISOString(),
+      ...debugCols,
     });
     return NextResponse.json<AerialViewResponse>({ status: 'unavailable' });
-  } catch {
+  } catch (e) {
+    // Best-effort: still worth knowing an uncaught exception happened, even though
+    // we can't safely upsert here without knowing which step failed.
+    void e;
     return NextResponse.json<AerialViewResponse>({ status: 'unavailable' });
   }
 }
