@@ -4,7 +4,7 @@
 // Displays a scraped property listing snapshot — photo, address, price, beds/baths/sqft, tax note.
 // Rendered in the chat when a user pastes a Zillow/Redfin URL.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { prefetchGrokProperty } from '@/prefetchGrokProperty';
 import AdminCardBadge from './AdminCardBadge';
 
@@ -107,6 +107,16 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
 
     const [aerialState, setAerialState] = useState<'idle' | 'polling' | 'ready' | 'unavailable'>('idle');
     const [aerialUris, setAerialUris] = useState<{ landscapeUri: string; portraitUri: string } | null>(null);
+    const [videoPlaying, setVideoPlaying] = useState(true);
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    function toggleVideoPlayback(e: React.MouseEvent) {
+        e.stopPropagation();
+        const el = videoRef.current;
+        if (!el) return;
+        if (el.paused) { el.play(); setVideoPlaying(true); }
+        else { el.pause(); setVideoPlaying(false); }
+    }
 
     // Fire-and-forget: poll for an Aerial View flyover video; swap the hero photo
     // to it if/when it's ready. Bounded — gives up after ~30s. Never blocks the card
@@ -272,16 +282,31 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
             {hasPhoto && (
                 <div className="property-photo-wrap">
                     {aerialState === 'ready' && aerialUris ? (
-                        <video
-                            className="property-photo"
-                            src={aerialUris.landscapeUri}
-                            poster={data.photoUrl!}
-                            autoPlay
-                            loop
-                            muted
-                            playsInline
-                            onError={() => setAerialState('unavailable')}
-                        />
+                        <>
+                            <video
+                                ref={videoRef}
+                                className="property-photo"
+                                src={aerialUris.landscapeUri}
+                                poster={data.photoUrl!}
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                onError={() => setAerialState('unavailable')}
+                            />
+                            <button
+                                type="button"
+                                className="property-video-toggle"
+                                onClick={toggleVideoPlayback}
+                                aria-label={videoPlaying ? 'Pause video' : 'Play video'}
+                            >
+                                {videoPlaying ? (
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="5" height="16" /><rect x="14" y="4" width="5" height="16" /></svg>
+                                ) : (
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20" /></svg>
+                                )}
+                            </button>
+                        </>
                     ) : (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
