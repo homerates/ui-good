@@ -13,6 +13,7 @@
 // of needing to reproduce it live with a temporary debug flag.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from '../../../../lib/supabaseServer';
 import { checkOrRenderVideo, lookupVideoUris } from '../../../../lib/aerialView';
 
@@ -24,6 +25,24 @@ export const dynamic = 'force-dynamic';
 // (app/api/beta/grok-property/route.ts:253-255), so this cache keys the same way.
 function normalizeAddress(addr: string): string {
   return addr.trim().toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// `onConflict` is required here -- without it, Supabase's upsert defaults to the
+// primary key (id, a fresh random UUID every call), so every write after the
+// first for a given address silently fails a duplicate-key check on the
+// address_normalized UNIQUE constraint instead of updating the existing row.
+// Confirmed live 2026-08-14: every address checked after the previous fix was
+// permanently frozen at its first-ever state/video_id because of this. Logging
+// the error here (rather than swallowing it like before) so a future write
+// failure surfaces in Vercel logs instead of silently corrupting the cache again.
+async function writeCache(
+  sb: SupabaseClient,
+  row: { address_normalized: string; address_raw: string; state: string; video_id: string | null; http_status: number | null; error_detail: string | null },
+) {
+  const { error } = await sb
+    .from('aerial_view_cache')
+    .upsert({ ...row, checked_at: new Date().toISOString() }, { onConflict: 'address_normalized' });
+  if (error) console.error('[aerial-view] cache write failed', { address: row.address_normalized, error: error.message });
 }
 
 type AerialViewResponse =
@@ -66,16 +85,10 @@ export async function GET(req: NextRequest) {
     }
 
     const check = await checkOrRenderVideo(address);
-    const debugCols = { video_id: check.videoId, http_status: check.httpStatus, error_detail: check.errorDetail };
+    const base = { address_normalized: normalized, address_raw: address, video_id: check.videoId, http_status: check.httpStatus, error_detail: check.errorDetail };
 
     if (check.state === 'ACTIVE') {
-      await sb.from('aerial_view_cache').upsert({
-        address_normalized: normalized,
-        address_raw: address,
-        state: 'ACTIVE',
-        checked_at: new Date().toISOString(),
-        ...debugCols,
-      });
+      await writeCache(sb, { ...base, state: 'ACTIVE' });
       const uris = await lookupVideoUris(address);
       if (uris) {
         return NextResponse.json<AerialViewResponse>({ status: 'ready', ...uris });
@@ -84,29 +97,17 @@ export async function GET(req: NextRequest) {
     }
 
     if (check.state === 'PROCESSING') {
-      await sb.from('aerial_view_cache').upsert({
-        address_normalized: normalized,
-        address_raw: address,
-        state: 'PROCESSING',
-        checked_at: new Date().toISOString(),
-        ...debugCols,
-      });
+      await writeCache(sb, { ...base, state: 'PROCESSING' });
       return NextResponse.json<AerialViewResponse>({ status: 'processing' });
     }
 
     // ERROR -- cache permanently, short-circuits all future polls for this address.
-    await sb.from('aerial_view_cache').upsert({
-      address_normalized: normalized,
-      address_raw: address,
-      state: 'ERROR',
-      checked_at: new Date().toISOString(),
-      ...debugCols,
-    });
+    await writeCache(sb, { ...base, state: 'ERROR' });
     return NextResponse.json<AerialViewResponse>({ status: 'unavailable' });
   } catch (e) {
     // Best-effort: still worth knowing an uncaught exception happened, even though
     // we can't safely upsert here without knowing which step failed.
-    void e;
+    console.error('[aerial-view] uncaught error', { error: String(e) });
     return NextResponse.json<AerialViewResponse>({ status: 'unavailable' });
   }
 }
