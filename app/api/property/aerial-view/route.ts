@@ -56,6 +56,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json<AerialViewResponse>({ status: 'unavailable' });
   }
 
+  // TEMP diagnostic, read-only, never writes to the cache: tests whether
+  // Google's lookupVideo alone already has this address active, independent
+  // of what our renderVideo-based PROCESSING checks have been reporting.
+  // Remove once the "confirmed-available-elsewhere but stuck here" question
+  // is resolved.
+  if (req.nextUrl.searchParams.get('debugLookupOnly') === '1') {
+    const uris = await lookupVideoUris(address).catch(() => null);
+    return NextResponse.json({ debugLookupOnly: true, ready: !!uris, uris });
+  }
+
   try {
     const sb = getSupabase();
     if (!sb) return NextResponse.json<AerialViewResponse>({ status: 'unavailable' });
