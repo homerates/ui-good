@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import AppNav from '../../components/AppNav';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -107,17 +108,18 @@ export default function AerialViewStatusPage() {
     fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
   });
   const cardStyle: React.CSSProperties = {
-    background: '#161b22', border: '1px solid rgba(255,255,255,0.08)',
+    background: '#0e1420', border: '1px solid rgba(255,255,255,0.08)',
     borderRadius: 12, padding: 16,
   };
 
   return (
-    <div style={{
-      minHeight: '100vh', background: '#0d1117', color: '#e6edf3',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      padding: '32px 24px',
+    <div className="page-standalone" style={{
+      minHeight: '100vh', width: '100%', background: '#080c12', color: '#f0f4ff',
+      fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      overflowY: 'auto',
     }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <AppNav />
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px', boxSizing: 'border-box' as const }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
           <div>
@@ -172,7 +174,7 @@ export default function AerialViewStatusPage() {
               onKeyDown={e => { if (e.key === 'Enter') runCheck(); }}
               placeholder="123 Main St, City, ST 00000"
               style={{
-                flex: '1 1 300px', background: '#0d1117', border: '1px solid rgba(255,255,255,0.12)',
+                flex: '1 1 300px', background: '#080c12', border: '1px solid rgba(255,255,255,0.12)',
                 borderRadius: 6, color: '#e6edf3', fontSize: 13, padding: '8px 10px',
                 fontFamily: 'inherit', boxSizing: 'border-box',
               }}
