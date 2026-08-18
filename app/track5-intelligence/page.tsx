@@ -6,14 +6,14 @@ import AppNav from '../components/AppNav';
 
 export const metadata: Metadata = {
   title: 'Track 5 — The 5 Signals That Tell You Whether to Buy, Wait, or Walk Away | HomeRates.AI',
-  description: 'Track 5 is a data-driven buying decision framework. Five scored signals — affordability, market conditions, value gap, location intelligence, and wealth monitor — tell you exactly where you stand before you make an offer.',
+  description: 'Track 5 is a data-driven buying decision framework. Five scored signals — affordability, market conditions, value gap, location intelligence, and rate intelligence — tell you exactly where you stand before you make an offer.',
   alternates: { canonical: 'https://chat.homerates.ai/track5-intelligence' },
 };
 
 const LEVELS = [
   {
     num: 'L1',
-    weight: '35%',
+    weight: '30%',
     title: 'Affordability Signal',
     question: 'Can you actually afford this at today\'s rate?',
     description: 'The foundational gate. Deterministic PITI calculation — principal, interest, taxes, insurance — stacked against your gross income and existing debts. Pulls live 30-year conforming rates from the Federal Reserve (FRED) so the number is real, not a lender\'s marketing rate.',
@@ -23,7 +23,7 @@ const LEVELS = [
   },
   {
     num: 'L2',
-    weight: '25%',
+    weight: '20%',
     title: 'Market Conditions',
     question: 'Is this a buyer\'s or seller\'s market right now?',
     description: 'Two live data points from Redfin tell the full story: days on market (DOM) and sale-to-list ratio. A DOM above 60 days with sale-to-list below 98% is a buyer\'s market — you have negotiating room. A DOM under 15 days with sale-to-list above 102% means bidding wars and no contingencies.',
@@ -33,7 +33,7 @@ const LEVELS = [
   },
   {
     num: 'L3',
-    weight: '25%',
+    weight: '20%',
     title: 'Value Gap',
     question: 'Is the list price fair, cheap, or overpriced?',
     description: 'Compares the listing price against the Redfin Automated Valuation Model (AVM) — an independent estimate built from recent comp sales, square footage, and local market data. A list price more than 5% below AVM signals genuine value. More than 12% above AVM signals the seller is fishing.',
@@ -50,6 +50,16 @@ const LEVELS = [
     sources: ['School ratings (GreatSchools/Niche)', 'Walk Score', 'Commute distance to employment hubs', '3-year neighbourhood appreciation trend'],
     signal: 'Score above 75 = strong fundamentals, appreciating location. Score below 40 = single-employer dependency, long commute, or declining schools.',
     accent: '#f59e0b',
+  },
+  {
+    num: 'L5',
+    weight: '15%',
+    title: 'Rate Intelligence',
+    question: 'What\'s your real, decoded mortgage rate — not a marketing teaser?',
+    description: 'Runs your credit profile and loan scenario through the Rate Engine — a full Loan-Level Price Adjustment (LLPA) breakdown against the public Fannie Mae matrix, benchmarked against real OBMMI market rate segments and live FRED data. The result is a decoded lender par rate, not an estimate: what a lender would actually price your loan at today, and how it compares to the market.',
+    sources: ['Fannie Mae LLPA matrix (public)', 'OBMMI market rate segments', 'FRED live par rate', 'Your credit profile & loan scenario'],
+    signal: 'Score above 70 = your decoded rate beats most of the market. Score below 40 = you\'re paying a real premium — worth shopping or restructuring before you lock.',
+    accent: '#f472b6',
   },
 ];
 
@@ -75,8 +85,14 @@ const DATA_SOURCES = [
   {
     name: 'Grok-4 Deep Analysis',
     role: 'Synthesis and scoring',
-    detail: 'xAI\'s Grok-4 model via the Responses API synthesises all five data streams, resolves conflicts, and produces the final scored output with a plain-language verdict.',
+    detail: 'xAI\'s Grok-4 model via the Responses API synthesises all data streams, resolves conflicts, and produces the final scored output with a plain-language verdict.',
     icon: '🧠',
+  },
+  {
+    name: 'Rate Engine',
+    role: 'Decoded lender par rate (L5)',
+    detail: 'Full LLPA breakdown against the public Fannie Mae matrix, benchmarked against real OBMMI market segments — a calculated rate, not an estimate.',
+    icon: '📉',
   },
 ];
 
@@ -220,7 +236,7 @@ export default function Track5IntelligencePage() {
             <span className="t5i-eyebrow">Track 5 — Decision Intelligence</span>
             <h1 className="t5i-h1">Five Signals.<br />One Verdict.<br />Buy, Wait, or Walk Away.</h1>
             <p className="t5i-subtitle">
-              Most home buyers rely on feeling. Track 5 replaces emotion with five scored data signals — affordability, market conditions, value gap, location intelligence — and shows you where this property stands before you make an offer.
+              Most home buyers rely on feeling. Track 5 replaces emotion with five scored data signals — affordability, market conditions, value gap, location intelligence, and rate intelligence — and shows you where this property stands before you make an offer.
             </p>
             <Link href="/property-intel" className="t5i-hero-cta">
               Run Track 5 on an address →
@@ -232,7 +248,7 @@ export default function Track5IntelligencePage() {
             <div className="t5i-section-label">What Track 5 Is</div>
             <h2 className="t5i-section-h2">A buying decision framework powered by live data, not opinions</h2>
             <p className="t5i-section-body">
-              Track 5 aggregates four independent data streams — Federal Reserve rate data, Redfin market statistics, AI-powered web research, and your own affordability numbers — into five scored levels. Each level answers one critical question. Together they give you a complete, data-grounded picture of whether this property is a smart purchase at this price in this market right now.
+              Track 5 aggregates five independent data streams — Federal Reserve rate data, Redfin market statistics, AI-powered web research, live lender rate pricing via the Rate Engine, and your own affordability numbers — into five scored levels. Each level answers one critical question. Together they give you a complete, data-grounded picture of whether this property is a smart purchase at this price in this market right now.
               <br /><br />
               There is no opinion here. No agent incentive. No lender commission. The score is what the data says.
             </p>
@@ -333,7 +349,7 @@ export default function Track5IntelligencePage() {
               <br /><br />
               Track 5 is designed to answer a single question with data: <strong style={{ color: '#f0f4ff' }}>Is this a good buy at this price in this market?</strong> Not "can I get approved" — that's the minimum bar. The question is whether the economics make sense, whether the location supports appreciation, and whether the market timing works in your favour.
               <br /><br />
-              A score above 70 across all four levels is a strong buy signal. A score below 45 on any single level is a red flag worth understanding before you proceed.
+              A score above 70 across all five levels is a strong buy signal. A score below 45 on any single level is a red flag worth understanding before you proceed.
             </p>
           </div>
 
@@ -341,7 +357,7 @@ export default function Track5IntelligencePage() {
           <div className="t5i-cta">
             <h2 className="t5i-cta-h">Run Track 5 on any property</h2>
             <p className="t5i-cta-sub">
-              Paste an address or listing URL. Get a scored verdict across all four buying signals in under 60 seconds. No email. No forms. No lender hand-off.
+              Paste an address or listing URL. Get a scored verdict across all five buying signals in under 60 seconds. No email. No forms. No lender hand-off.
             </p>
             <Link href="/property-intel" className="t5i-cta-btn">
               Analyse a property now →

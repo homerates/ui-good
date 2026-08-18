@@ -6,7 +6,7 @@ import AppNav from '../components/AppNav';
 
 export const metadata: Metadata = {
   title: 'Decision Score — From First Number to Final Verdict | HomeRates.AI',
-  description: 'How HomeRates.AI takes you from a single loan scenario all the way to a data-grounded buying decision. Four scored intelligence layers — affordability, market conditions, value gap, and location — converge into one verdict: Buy, Wait, or Walk Away.',
+  description: 'How HomeRates.AI takes you from a single loan scenario all the way to a data-grounded buying decision. Five scored intelligence layers — affordability, market conditions, value gap, location, and rate intelligence — converge into one verdict: Buy, Wait, or Walk Away.',
   alternates: { canonical: 'https://chat.homerates.ai/decision-score' },
 };
 
@@ -19,7 +19,7 @@ const ENTRY_POINTS = [
   {
     icon: '🔎',
     label: 'Check Property Page',
-    description: 'Navigate to /check-property or click "Check a Property" from the AI chat sidebar. Enter any address manually and launch the full four-level analysis from scratch.',
+    description: 'Navigate to /check-property or click "Check a Property" from the AI chat sidebar. Enter any address manually and launch the full five-level analysis from scratch.',
   },
   {
     icon: '🔗',
@@ -32,7 +32,7 @@ const STEPS = [
   {
     level: 'L1',
     seq: 'Step 1 — Scenario Card',
-    weight: '35% weight',
+    weight: '30% weight',
     title: 'Affordability Signal',
     question: 'Can you actually afford this at today\'s rate?',
     description: 'You start by telling the AI your income, existing debts, target price, and down payment. HomeRates.AI pulls the live 30-year conforming rate directly from the Federal Reserve (FRED) and runs a deterministic PITI calculation — principal, interest, taxes, and insurance — against your gross income and existing debts. L1 is scored using a deterministic formula by loan type: Conventional (LTV ≤80 → 85, ≤85 → 78, ≤90 → 70, >90 → 60), FHA (LTV ≤90 → 72, ≤95 → 65, >95 → 58), VA (LTV ≤80 → 88, else → 78), Jumbo (LTV ≤75 → 86, ≤80 → 80, else → 72). This reflects real-world lending risk tolerance, not an opinion.',
@@ -44,7 +44,7 @@ const STEPS = [
   {
     level: 'L2',
     seq: 'Step 2 — Property Scoring',
-    weight: '25% weight',
+    weight: '20% weight',
     title: 'Property vs. Budget & Comps',
     question: 'Does this specific property fit your budget — and what do the comps say?',
     description: 'Once a property address is in context (from any of the 3 entry points), Grok 4 scores the specific property against your qualified monthly budget. Three factors drive the score: (1) PITI vs. your qualified payment — the gap between what you\'re approved for and what this property actually costs month-to-month; (2) List price vs. Redfin/Zillow AVM — how the asking price compares to the automated valuations built from recent comp sales within 0.5 miles; (3) Days on market positioning — a property sitting 60+ days with a price cut is priced differently than a fresh listing. A property that fits the budget and prices at or below AVM scores 80+.',
@@ -56,7 +56,7 @@ const STEPS = [
   {
     level: 'L3',
     seq: 'Step 3 — Market Conditions',
-    weight: '25% weight',
+    weight: '20% weight',
     title: 'Local Market Intelligence',
     question: 'Is this a buyer\'s or seller\'s market — and what room do you have to negotiate?',
     description: 'Grok 4 runs a live web search across the local market to score broader conditions independent of the individual property. Three signals determine the score: (1) Median days on market — a DOM above 60 days indicates buyer leverage; under 15 days means active competition; (2) Sale-to-list ratio — offers closing below 100% of list price signal negotiating room; above 102% means waived contingencies; (3) Recent comp velocity — how quickly similar properties are moving. Seller\'s markets with sub-20 DOM and 101%+ sale-to-list score 30–50. Buyer\'s markets with 60+ DOM and sub-98% sale-to-list score 70+.',
@@ -76,6 +76,18 @@ const STEPS = [
     signal: 'Score above 75 = strong fundamentals, appreciating location. Score below 40 = wildfire exposure, long commute, or declining school district.',
     accent: '#f59e0b',
     icon: '🧠',
+  },
+  {
+    level: 'L5',
+    seq: 'Step 5 — Rate Engine',
+    weight: '15% weight',
+    title: 'Rate Intelligence',
+    question: 'What\'s your real, decoded mortgage rate — not a marketing teaser?',
+    description: 'Running your credit profile and loan scenario through the Rate Engine produces a full Loan-Level Price Adjustment (LLPA) breakdown against the public Fannie Mae matrix, benchmarked against real OBMMI market rate segments and live FRED data. The result is a decoded lender par rate — a calculated output, not an estimate — showing exactly where you stand against the market. L5 populates once you run a rate decode; it is not automatic like L1–L4.',
+    sources: ['Fannie Mae LLPA matrix (public)', 'OBMMI market rate segments', 'FRED live par rate', 'Your credit profile & loan scenario'],
+    signal: 'Score above 70 = your decoded rate beats most of the market. Score below 40 = you\'re paying a real premium — worth shopping or restructuring before you lock.',
+    accent: '#f472b6',
+    icon: '📉',
   },
 ];
 
@@ -203,7 +215,7 @@ export default function DecisionScorePage() {
         .ds-verdict-eyebrow{font-size:0.72rem;font-weight:700;letter-spacing:0.1em;
           text-transform:uppercase;color:#00e87a;margin-bottom:18px;}
         .ds-verdict-body{font-size:0.92rem;color:rgba(185,208,192,0.8);line-height:1.7;margin-bottom:20px;}
-        .ds-verdict-levels{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+        .ds-verdict-levels{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
         .ds-vl{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);
           border-radius:10px;padding:12px;text-align:center;}
         .ds-vl-num{font-size:0.65rem;font-weight:800;letter-spacing:0.06em;
@@ -260,7 +272,7 @@ export default function DecisionScorePage() {
             <span className="ds-eyebrow">Full Buyer Journey — Decision Intelligence</span>
             <h1 className="ds-h1">From First Number<br />to Final Score.</h1>
             <p className="ds-subtitle">
-              Most home buyers check one thing — the monthly payment. HomeRates.AI runs four scored intelligence layers across affordability, market conditions, value gap, and location before you make an offer. This is how the full journey works.
+              Most home buyers check one thing — the monthly payment. HomeRates.AI runs five scored intelligence layers across affordability, market conditions, value gap, location, and rate intelligence before you make an offer. This is how the full journey works.
             </p>
             <Link href="/property-intel" className="ds-hero-cta">
               Run the full analysis on any address →
@@ -270,18 +282,18 @@ export default function DecisionScorePage() {
           {/* What it is */}
           <div>
             <div className="ds-section-label">How the Journey Works</div>
-            <h2 className="ds-section-h2">Four levels. One verdict. No gut-feel required.</h2>
+            <h2 className="ds-section-h2">Five levels. One verdict. No gut-feel required.</h2>
             <p className="ds-section-body">
-              The journey begins the moment you enter a loan scenario in the AI chat — your income, target price, and down payment. From there, each step deepens the analysis: adding a property address (from My Home, the Check Property page, or a Redfin/Zillow URL pasted directly in chat) unlocks property scoring and market conditions; a single tap triggers the full deep analysis across location, wildfire risk, and school quality. By the time you see a Track 5 score, four levels of Grok 4 intelligence have been synthesised into a single, honest verdict.
+              The journey begins the moment you enter a loan scenario in the AI chat — your income, target price, and down payment. From there, each step deepens the analysis: adding a property address (from My Home, the Check Property page, or a Redfin/Zillow URL pasted directly in chat) unlocks property scoring and market conditions; a single tap triggers the full deep analysis across location, wildfire risk, and school quality. By the time you see a Track 5 score, four levels of Grok 4 intelligence have been synthesised into a single, honest verdict — with a fifth, Rate Intelligence, completing the picture once you run a live rate decode.
               <br /><br />
-              L1 is a deterministic formula based on your loan type and LTV. L2, L3, and L4 are scored by Grok 4 using live data from Redfin, Tavily web search, and the xAI Responses API. No opinion. No agent incentive. No lender margin.
+              L1 is a deterministic formula based on your loan type and LTV. L2, L3, and L4 are scored by Grok 4 using live data from Redfin, Tavily web search, and the xAI Responses API. L5 is a deterministic rate decode from the Rate Engine, run on demand. No opinion. No agent incentive. No lender margin.
             </p>
           </div>
 
           {/* 3 Entry Points */}
           <div>
             <div className="ds-section-label">3 Ways to Start Your Analysis</div>
-            <h2 className="ds-section-h2">Any property. Any entry point. Same four-level verdict.</h2>
+            <h2 className="ds-section-h2">Any property. Any entry point. Same five-level verdict.</h2>
             <p className="ds-section-body">
               You don&apos;t need to navigate a multi-step wizard to start. HomeRates.AI recognises three paths into property analysis — pick whichever matches how you found the property.
             </p>
@@ -298,7 +310,7 @@ export default function DecisionScorePage() {
 
           {/* The 4 Steps */}
           <div>
-            <div className="ds-section-label">The Four Scoring Levels</div>
+            <div className="ds-section-label">The Five Scoring Levels</div>
             <h2 className="ds-section-h2">What each step scores — and where the data comes from</h2>
             <div className="ds-steps">
               {STEPS.map((s, i) => (
@@ -329,11 +341,11 @@ export default function DecisionScorePage() {
           {/* Verdict preview */}
           <div>
             <div className="ds-section-label">The Decision Score</div>
-            <h2 className="ds-section-h2">Four levels converge into one verdict</h2>
+            <h2 className="ds-section-h2">Five levels converge into one verdict</h2>
             <div className="ds-verdict" style={{ marginTop: 24 }}>
               <div className="ds-verdict-eyebrow">Track 5 — Composite Score Output</div>
               <p className="ds-verdict-body">
-                Once all four levels are scored, Track 5 computes a weighted composite: <strong style={{ color: '#00e87a' }}>L1×35% + L2×25% + L3×25% + L4×15%</strong>. The final number maps to a plain-language verdict — Ready to Offer, Proceed Carefully, or Hold Off. This is the number you bring to your agent when you discuss price, contingencies, and negotiating strategy. A composite above 70 is a strong buy signal. Any single level below 45 is a red flag worth understanding before you make an offer.
+                Once all five levels are scored, Track 5 computes a weighted composite: <strong style={{ color: '#00e87a' }}>L1×30% + L2×20% + L3×20% + L4×15% + L5×15%</strong>. The final number maps to a plain-language verdict — Ready to Offer, Proceed Carefully, or Hold Off. This is the number you bring to your agent when you discuss price, contingencies, and negotiating strategy. A composite above 70 is a strong buy signal. Any single level below 45 is a red flag worth understanding before you make an offer.
               </p>
               <div className="ds-verdict-levels">
                 {[
@@ -341,6 +353,7 @@ export default function DecisionScorePage() {
                   { level: 'L2', name: 'Market', color: '#60a5fa' },
                   { level: 'L3', name: 'Value Gap', color: '#a78bfa' },
                   { level: 'L4', name: 'Location', color: '#f59e0b' },
+                  { level: 'L5', name: 'Rate', color: '#f472b6' },
                 ].map(l => (
                   <div key={l.level} className="ds-vl">
                     <div className="ds-vl-num" style={{ color: l.color }}>{l.level}</div>
@@ -370,7 +383,7 @@ export default function DecisionScorePage() {
           <div className="ds-cta">
             <h2 className="ds-cta-h">Start your full decision analysis</h2>
             <p className="ds-cta-sub">
-              Paste any address or listing URL. Get a four-level scored verdict in under 90 seconds.<br />No email. No forms. No lender hand-off.
+              Paste any address or listing URL. Get a five-level scored verdict in under 90 seconds.<br />No email. No forms. No lender hand-off.
             </p>
             <Link href="/property-intel" className="ds-cta-btn">
               Run your full analysis now →
