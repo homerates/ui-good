@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     'mortgage rate breakdown',
     'why is my mortgage rate higher',
     'mortgage pricing calculator',
-    'Fannie Mae LLPA matrix 2026',
+    'Fannie Mae LLPA matrix',
   ],
   openGraph: {
     title: 'Mortgage Rate Engine — Decode Your Real Rate | HomeRates.ai',
@@ -241,10 +241,10 @@ export default function RateIntelligenceEnginePage() {
 
         {/* LLPA reference table */}
         <section className="rie-section">
-          <h2>LLPA by credit score & LTV — 2026 reference</h2>
+          <h2>LLPA by credit score & LTV — purchase reference</h2>
           <p className="rie-section-lead">
-            Approximate base LLPAs for a standard purchase loan on a primary-residence SFR with a 30-day lock.
-            All values in price points (1 point = 1% of loan amount). Source: Fannie Mae public matrix.
+            Base LLPAs for a standard purchase loan on a primary-residence SFR with a 30-day lock, from Fannie
+            Mae&apos;s LLPA Matrix effective 01/28/2026. All values in price points (1 point = 1% of loan amount).
           </p>
           <div className="rie-table-wrapper">
             <table className="rie-table">
@@ -260,15 +260,15 @@ export default function RateIntelligenceEnginePage() {
               </thead>
               <tbody>
                 {[
-                  { bucket: '760+',     v: [0.000, 0.000, 0.000, 0.250, 1.000] },
-                  { bucket: '740–759',  v: [0.125, 0.500, 0.625, 0.875, 1.625] },
-                  { bucket: '720–739',  v: [0.250, 0.875, 1.125, 1.375, 2.125] },
-                  { bucket: '700–719',  v: [0.375, 1.125, 1.375, 1.625, 2.375] },
-                  { bucket: '680–699',  v: [0.625, 1.375, 1.625, 1.875, 2.625] },
-                  { bucket: '660–679',  v: [1.000, 1.750, 2.000, 2.250, 3.000] },
-                  { bucket: '640–659',  v: [1.500, 2.250, 2.500, 2.750, 3.500] },
-                  { bucket: '620–639',  v: [1.875, 2.625, 2.875, 3.125, 3.875] },
-                  { bucket: '< 620',    v: [2.750, 3.500, 3.750, 4.000, 4.750] },
+                  { bucket: '≥ 780',    v: [0.000, 0.000, 0.375, 0.375, 0.250] },
+                  { bucket: '760–779',  v: [0.000, 0.250, 0.625, 0.625, 0.500] },
+                  { bucket: '740–759',  v: [0.000, 0.375, 0.875, 1.000, 0.625] },
+                  { bucket: '720–739',  v: [0.000, 0.750, 1.250, 1.250, 0.875] },
+                  { bucket: '700–719',  v: [0.000, 0.875, 1.375, 1.500, 1.125] },
+                  { bucket: '680–699',  v: [0.000, 1.125, 1.750, 1.875, 1.375] },
+                  { bucket: '660–679',  v: [0.000, 1.375, 1.875, 2.125, 1.625] },
+                  { bucket: '640–659',  v: [0.000, 1.500, 2.250, 2.500, 1.875] },
+                  { bucket: '≤ 639',    v: [0.125, 2.125, 2.750, 2.875, 2.250] },
                 ].map(r => (
                   <tr key={r.bucket}>
                     <td className="rie-td-bold">{r.bucket}</td>
@@ -283,8 +283,9 @@ export default function RateIntelligenceEnginePage() {
             </table>
           </div>
           <p className="rie-table-note">
-            Base adjustments only. Add occupancy (0–1.000), loan purpose (0–2.875), property type (0–1.000),
-            and lock period (−0.125 to +0.250). Use the calculator above for your full total.
+            Base purchase adjustments only. Refinances price on a different Fannie Mae grid (higher for cash-out).
+            Add occupancy (0–4.125 for second home/investment), property type (0–0.750), and lock period
+            (−0.125 to +0.250). Use the calculator above for your full total.
           </p>
         </section>
 
@@ -296,7 +297,7 @@ export default function RateIntelligenceEnginePage() {
             available to every borrower before they ever talk to a lender.
           </p>
           <p className="rie-last-updated">
-            Matrix source: Fannie Mae LLPA Matrix, 2024 · Rate data: FRED Freddie Mac PMMS (updated weekly) · Last reviewed: June 2026
+            Matrix source: Fannie Mae LLPA Matrix, effective 01/28/2026 (singlefamily.fanniemae.com) · Rate data: FRED Freddie Mac PMMS (updated weekly)
           </p>
           <p className="rie-disclaimer">
             <strong>Educational purposes only.</strong> HomeRates.ai is not a lender, broker, or mortgage advisor.

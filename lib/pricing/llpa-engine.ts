@@ -1,21 +1,51 @@
 // lib/pricing/llpa-engine.ts
 // Fannie Mae LLPA (Loan-Level Price Adjustment) engine.
 //
-// Matrix source: singlefamily.fanniemae.com/media/9391/display (public document).
-// Effective 2024. Verify against the current published matrix before any lending decisions.
+// Matrix source: https://singlefamily.fanniemae.com/media/9391/display
+// (LLPA Matrix, incorporated by reference into the Selling Guide).
+// Effective 01/28/2026. This is the version live at the cited URL as of the
+// Workstream 1 LLPA correction (2026-08-19) -- re-verify against that same
+// URL before assuming these tables are still current; Fannie republishes
+// this document periodically and it "supersedes any earlier dated version."
+//
+// Base credit-score/LTV tables (BASE_LLPA_PURCHASE/LCOR/CASHOUT below) are a
+// direct transcription of the Matrix's Tables 1-3 (Purchase Money,
+// Limited Cash-out Refinance, Cash-out Refinance), each keyed by its own
+// credit-score x LTV grid -- these are NOT the same numbers with a purpose
+// surcharge layered on top; Fannie prices each purpose on a structurally
+// different grid, most visibly for cash-out (steeper, and LTV-capped at 80%
+// -- there is no cash-out pricing above 80% LTV in this Matrix at all).
 //
 // All values are in price POINTS (1 point = 1% of loan amount).
+//
+// DTI-based LLPAs do NOT exist in the current Matrix. They were introduced
+// in Lender Letter LL-2023-01 (2023) and then explicitly REMOVED effective
+// 01/24/24 per LL-2023-06 ("Removed all DTI ratio-based LLPAs from this
+// Matrix") -- confirmed directly from the Matrix's own Change Tracking Log
+// (page 9 of the source PDF). No DTI input belongs in this engine.
+
+export const LLPA_MATRIX_EFFECTIVE_DATE = '2026-01-28';
 
 export const LLPA_DATA_SOURCE =
-  "Fannie Mae LLPA Matrix, 2024 — singlefamily.fanniemae.com (publicly available). Verify current matrix.";
+  "Fannie Mae Loan-Level Price Adjustment (LLPA) Matrix, effective 01/28/2026 — singlefamily.fanniemae.com/media/9391/display (publicly available). This Matrix supersedes any earlier dated version; re-verify before relying on it for a lending decision.";
 
+// Boundary, resolved as a domain decision (2026-08-19): this engine
+// calculates PRICE, not eligibility. It must never be read as an approval,
+// underwriting, or eligibility determination -- Fannie's own Matrix prices
+// every credit score it lists (including its lowest published band) with no
+// implication that a given score is or isn't approvable. Eligibility is a
+// separate underwriting question this engine does not answer. This
+// disclaimer is the one piece of output-semantics boundary that reaches
+// every LLPAOutput regardless of input -- see LLPAOutput.disclaimer.
 export const LLPA_DISCLAIMER =
-  "LLPA estimates are educational and based on the publicly posted Fannie Mae matrix. Actual lender pricing varies by loan program, lender margin, and market conditions. Not a commitment to lend. Consult a licensed mortgage professional.";
+  "LLPA estimates are a pricing calculation only — they do not represent or imply loan eligibility, underwriting approval, or a commitment to lend. Based on the publicly posted Fannie Mae matrix. Actual lender pricing varies by loan program, lender margin, and market conditions. Consult a licensed mortgage professional to determine eligibility.";
 
 // AD-11 Seam 3b: short form for LLPAOutput.dataSource when OBMMI anchors the
-// rate. Full citation text lives in lib/market-data/registry.ts (OBMMI_CITATION).
-const OBMMI_CITATION_SHORT =
-  "Optimal Blue Mortgage Market Indices (OBMMI), via FRED release 473 — real observed daily rate-lock averages, not a synthetic estimate";
+// rate. Full citation text lives in lib/market-data/registry.ts
+// (OBMMI_CITATION) -- import that constant directly rather than
+// hand-duplicating its wording here, so the two can never drift apart.
+import { OBMMI_CITATION } from '../market-data/registry';
+const OBMMI_CITATION_SHORT = OBMMI_CITATION;
 
 // Market convention: 1 price point ≈ 0.25% rate change.
 // This ratio shifts with market conditions — update when the market moves significantly.
@@ -139,130 +169,182 @@ export type LLPAOutput = {
 };
 
 // ─── Bucket helpers ────────────────────────────────────────────────────────────
+// Boundaries match the Matrix's actual published bands exactly (verified
+// against Tables 1-3 directly, not assumed). Two corrections from the prior
+// implementation: the Matrix's bottom credit row is a single "<= 639" band
+// (no further split below that -- the old code's separate "<620" band, and
+// its use of a null cell to signal ineligibility at high LTV, did not come
+// from this Matrix; see the ineligibility note in computeLLPA below), and
+// the Matrix's low-LTV band is a single "60.01-70.00%" row (the old code's
+// 60-65 / 65-70 split does not exist in the source).
+//
+// The Matrix's own "< 30.00%" column is folded into the "<=60%" bucket here:
+// its values are identical to the "30.01-60.00%" column in every row except
+// the bottom credit tier (<=639), where "<30%" is 0.000% vs "30.01-60%"'s
+// 0.125% -- a real but negligible difference (sub-30%-LTV purchases at
+// sub-639 credit are a vanishingly rare combination). Using the 30.01-60%
+// column's value for the whole "<=60%" bucket is the closest single-value
+// representation of that column pair.
 
 function creditBucket(score: number): number {
-  if (score < 620)  return 0;
-  if (score <= 639) return 1;
-  if (score <= 659) return 2;
-  if (score <= 679) return 3;
-  if (score <= 699) return 4;
-  if (score <= 719) return 5;
-  if (score <= 739) return 6;
-  if (score <= 759) return 7;
-  return 8; // 760+
+  if (score <= 639) return 0;
+  if (score <= 659) return 1;
+  if (score <= 679) return 2;
+  if (score <= 699) return 3;
+  if (score <= 719) return 4;
+  if (score <= 739) return 5;
+  if (score <= 759) return 6;
+  if (score <= 779) return 7;
+  return 8; // >= 780
 }
 
 function ltvBucket(ltv: number): number {
   if (ltv <= 60)  return 0;
-  if (ltv <= 65)  return 1;
-  if (ltv <= 70)  return 2;
-  if (ltv <= 75)  return 3;
-  if (ltv <= 80)  return 4;
-  if (ltv <= 85)  return 5;
-  if (ltv <= 90)  return 6;
-  if (ltv <= 95)  return 7;
-  return 8; // 95.01–97
+  if (ltv <= 70)  return 1;
+  if (ltv <= 75)  return 2;
+  if (ltv <= 80)  return 3;
+  if (ltv <= 85)  return 4;
+  if (ltv <= 90)  return 5;
+  if (ltv <= 95)  return 6;
+  return 7; // > 95%, up to 97%
 }
 
-// ─── Base LLPA matrix ─────────────────────────────────────────────────────────
-// Indexed [ltvBucket][creditBucket].
-// Source: Fannie Mae Standard Eligible Mortgages — Credit Score / LTV table.
-// null = combination not eligible (e.g., <620 FICO at 95–97% LTV).
+// ─── Base LLPA matrices — one per loan purpose ─────────────────────────────────
+// Indexed [ltvBucket][creditBucket]. Transcribed directly from the Matrix's
+// Tables 1-3 (XLSX version, for exact values -- the PDF's text layout
+// mangles several merged cells under naive extraction).
+//
+// Unlike the prior single-table implementation, Fannie's real matrix has no
+// null/ineligible cells anywhere in these three tables -- every credit x LTV
+// combination has a real published price, including <=639 credit at >95%
+// LTV (1.750% for purchase). The prior code's null cell at "<620, 95-97%
+// LTV" (used to trigger an "ineligible" response) was not sourced from this
+// document. See the DOMAIN DECISION note on the minimum-credit-score guard
+// in computeLLPA.
 
-const BASE_LLPA: (number | null)[][] = [
-//  credit:   <620   620-39  640-59  660-79  680-99  700-19  720-39  740-59  760+
-/* ltv≤60  */[2.750, 1.875, 1.500, 1.000, 0.625, 0.375, 0.250, 0.125, 0.000],
-/* 60-65   */[3.000, 2.125, 1.750, 1.250, 0.875, 0.625, 0.375, 0.250, 0.000],
-/* 65-70   */[3.250, 2.375, 2.000, 1.500, 1.125, 0.875, 0.625, 0.375, 0.000],
-/* 70-75   */[3.500, 2.625, 2.250, 1.750, 1.375, 1.125, 0.875, 0.500, 0.000],
-/* 75-80   */[3.750, 2.875, 2.500, 2.000, 1.625, 1.375, 1.125, 0.625, 0.000],
-/* 80-85   */[4.000, 3.125, 2.750, 2.250, 1.875, 1.625, 1.375, 0.875, 0.250],
-/* 85-90   */[4.250, 3.375, 3.000, 2.500, 2.125, 1.875, 1.625, 1.125, 0.500],
-/* 90-95   */[4.750, 3.875, 3.500, 3.000, 2.625, 2.375, 2.125, 1.625, 1.000],
-/* 95-97   */[null,  4.125, 3.750, 3.250, 2.875, 2.625, 2.375, 1.875, 1.250],
+// Table 1 — Purchase Money Loans
+const BASE_LLPA_PURCHASE: number[][] = [
+//  credit:  <=639  640-59 660-79 680-99 700-19 720-39 740-59 760-79 >=780
+/* <=60  */ [0.125, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
+/* 60-70 */ [1.500, 1.125, 0.750, 0.625, 0.375, 0.250, 0.125, 0.000, 0.000],
+/* 70-75 */ [2.125, 1.500, 1.375, 1.125, 0.875, 0.750, 0.375, 0.250, 0.000],
+/* 75-80 */ [2.750, 2.250, 1.875, 1.750, 1.375, 1.250, 0.875, 0.625, 0.375],
+/* 80-85 */ [2.875, 2.500, 2.125, 1.875, 1.500, 1.250, 1.000, 0.625, 0.375],
+/* 85-90 */ [2.625, 2.000, 1.750, 1.500, 1.250, 1.000, 0.750, 0.500, 0.250],
+/* 90-95 */ [2.250, 1.875, 1.625, 1.375, 1.125, 0.875, 0.625, 0.500, 0.250],
+/* >95   */ [1.750, 1.500, 1.250, 1.125, 0.875, 0.750, 0.500, 0.250, 0.125],
 ];
 
-// ─── Occupancy surcharge ──────────────────────────────────────────────────────
-// Primary = 0. Second home and investment add to base LLPA.
+// Table 2 — Limited Cash-out Refinance Loans (i.e. HomeRates' 'rate_term_refi')
+const BASE_LLPA_LCOR: number[][] = [
+//  credit:  <=639  640-59 660-79 680-99 700-19 720-39 740-59 760-79 >=780
+/* <=60  */ [0.375, 0.250, 0.125, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
+/* 60-70 */ [1.750, 1.375, 1.125, 0.875, 0.625, 0.500, 0.250, 0.125, 0.000],
+/* 70-75 */ [2.500, 2.125, 1.875, 1.625, 1.250, 1.000, 0.750, 0.375, 0.125],
+/* 75-80 */ [3.500, 2.875, 2.500, 2.250, 1.875, 1.625, 1.125, 0.875, 0.500],
+/* 80-85 */ [3.875, 3.375, 3.000, 2.500, 2.125, 1.750, 1.375, 1.000, 0.625],
+/* 85-90 */ [3.625, 2.875, 2.375, 2.125, 1.750, 1.500, 1.125, 0.750, 0.500],
+/* 90-95 */ [2.500, 2.500, 2.125, 1.750, 1.625, 1.250, 1.000, 0.625, 0.375],
+/* >95   */ [2.500, 2.500, 2.125, 1.750, 1.625, 1.250, 1.000, 0.625, 0.375],
+];
 
-function occupancySurcharge(ltv: number, occupancy: LLPAInput['occupancy']): number {
-  if (occupancy === 'primary') return 0;
-  if (occupancy === 'second') {
-    if (ltv <= 75) return 0.125;
-    if (ltv <= 85) return 0.250;
-    return 0.375;
+// Table 3 — Cash-out Refinance Loans. Fannie's cash-out grid does not extend
+// past 80% LTV at all -- there is no published cash-out pricing above 80%
+// LTV in this Matrix (not "expensive," genuinely absent). computeLLPA()
+// treats cash-out above 80% LTV as ineligible via this matrix, matching the
+// existing ineligible-response shape used for other out-of-grid scenarios.
+const BASE_LLPA_CASHOUT: number[][] = [
+//  credit:  <=639  640-59 660-79 680-99 700-19 720-39 740-59 760-79 >=780
+/* <=60  */ [1.375, 1.375, 0.875, 0.625, 0.500, 0.500, 0.375, 0.375, 0.375],
+/* 60-70 */ [3.375, 3.125, 2.750, 2.000, 1.625, 1.375, 1.000, 0.875, 0.625],
+/* 70-75 */ [4.875, 4.625, 4.000, 2.875, 2.625, 2.000, 1.625, 1.250, 0.875],
+/* 75-80 */ [5.125, 5.125, 4.750, 3.750, 3.250, 2.750, 2.375, 1.875, 1.375],
+];
+
+function baseLLPAFor(purpose: LLPAInput['loanPurpose'], ltv: number, creditScore: number): number | null {
+  const cb = creditBucket(creditScore);
+  if (purpose === 'cash_out_refi') {
+    if (ltv > 80) return null; // out of grid — Fannie does not price cash-out above 80% LTV
+    return BASE_LLPA_CASHOUT[ltvBucket(ltv)]?.[cb] ?? null;
   }
-  // investment
-  if (ltv <= 65) return 0.375;
-  if (ltv <= 75) return 0.500;
-  if (ltv <= 80) return 0.625;
-  if (ltv <= 85) return 0.750;
-  if (ltv <= 90) return 0.875;
-  return 1.000;
+  const table = purpose === 'rate_term_refi' ? BASE_LLPA_LCOR : BASE_LLPA_PURCHASE;
+  return table[ltvBucket(ltv)]?.[cb] ?? null;
 }
 
-// ─── Loan purpose surcharge ───────────────────────────────────────────────────
-// Purchase = 0. Rate/term refi is modest. Cash-out refi varies significantly.
+// ─── Occupancy surcharge ──────────────────────────────────────────────────────
+// Table 1/2's "Investment property" and "Second home" rows are numerically
+// IDENTICAL to each other in the current Matrix (verified directly, all
+// three loan-purpose tables) -- Fannie currently prices investment and
+// second-home occupancy the same. The prior implementation charged
+// investment noticeably more than second-home; that distinction is not in
+// the current source and has been removed. Primary residence remains 0.
+// Indexed by ltvBucket (same 8-band scheme as the base tables).
 
-function loanPurposeSurcharge(
-  ltv: number,
-  creditScore: number,
-  purpose: LLPAInput['loanPurpose'],
-): number {
-  if (purpose === 'purchase') return 0;
-  if (purpose === 'rate_term_refi') {
-    return ltv <= 80 ? 0.125 : 0.250;
-  }
-  // cash-out refi — surcharge table by LTV and credit tier
-  if (ltv > 80) return 2.875; // high-LTV cash-out has steep pricing
-  if (creditScore >= 760) {
-    if (ltv <= 60) return 0.375;
-    if (ltv <= 70) return 0.625;
-    return 1.125;
-  }
-  if (creditScore >= 720) {
-    if (ltv <= 60) return 0.625;
-    if (ltv <= 70) return 1.125;
-    return 1.625;
-  }
-  if (creditScore >= 680) {
-    if (ltv <= 60) return 0.875;
-    if (ltv <= 70) return 1.375;
-    return 2.000;
-  }
-  // <680
-  if (ltv <= 60) return 1.250;
-  if (ltv <= 70) return 1.875;
-  return 2.625;
+const OCCUPANCY_SURCHARGE_PURCHASE_LCOR = [1.125, 1.625, 2.125, 3.375, 4.125, 4.125, 4.125, 4.125];
+const OCCUPANCY_SURCHARGE_CASHOUT       = [1.125, 1.625, 2.125, 3.375]; // LTV capped at 80% for cash-out
+
+function occupancySurcharge(ltv: number, occupancy: LLPAInput['occupancy'], purpose: LLPAInput['loanPurpose']): number {
+  if (occupancy === 'primary') return 0;
+  const table = purpose === 'cash_out_refi' ? OCCUPANCY_SURCHARGE_CASHOUT : OCCUPANCY_SURCHARGE_PURCHASE_LCOR;
+  return table[ltvBucket(ltv)] ?? table[table.length - 1];
 }
 
 // ─── Property type surcharge ──────────────────────────────────────────────────
+// Condo and "two- to four-unit property" surcharges are LTV-graduated per
+// the Matrix (previously flat 2-tier approximations). The Matrix does not
+// distinguish 2-unit from 3-4-unit properties -- both fall under a single
+// "Two- to four-unit property" row; the prior code's separate flat values
+// for '2unit' (0.500) vs '3_4unit' (1.000) did not come from this source
+// and have been merged into one schedule. Manufactured home is a flat
+// 0.500% across all LTVs in every table (unchanged from before -- this one
+// was already correct).
 
-function propertyTypeSurcharge(ltv: number, type: LLPAInput['propertyType']): number {
+const CONDO_SURCHARGE_PURCHASE_LCOR = [0.000, 0.125, 0.125, 0.750, 0.750, 0.750, 0.750, 0.750];
+const CONDO_SURCHARGE_CASHOUT       = [0.000, 0.125, 0.125, 0.750];
+const TWOTOFOUR_SURCHARGE_PURCHASE_LCOR = [0.000, 0.375, 0.375, 0.625, 0.625, 0.625, 0.625, 0.625];
+const TWOTOFOUR_SURCHARGE_CASHOUT       = [0.000, 0.375, 0.375, 0.625];
+
+function propertyTypeSurcharge(ltv: number, type: LLPAInput['propertyType'], purpose: LLPAInput['loanPurpose']): number {
+  const isCashOut = purpose === 'cash_out_refi';
+  const lb = ltvBucket(ltv);
   switch (type) {
     case 'sfr':          return 0;
-    case 'condo':        return ltv <= 75 ? 0.375 : 0.750;
-    case '2unit':        return 0.500;
-    case '3_4unit':      return 1.000;
-    case 'manufactured': return 0.500;
+    case 'manufactured':  return 0.500;
+    case 'condo': {
+      const t = isCashOut ? CONDO_SURCHARGE_CASHOUT : CONDO_SURCHARGE_PURCHASE_LCOR;
+      return t[lb] ?? t[t.length - 1];
+    }
+    case '2unit':
+    case '3_4unit': {
+      const t = isCashOut ? TWOTOFOUR_SURCHARGE_CASHOUT : TWOTOFOUR_SURCHARGE_PURCHASE_LCOR;
+      return t[lb] ?? t[t.length - 1];
+    }
   }
 }
 
 // ─── High-balance surcharge ───────────────────────────────────────────────────
-// Standard conforming (≤ $832,750):       no surcharge
-// High-balance conforming (> baseline, ≤ area ceiling): Fannie HB surcharge
-// Above area ceiling (jumbo territory):   max HB surcharge applied; results flagged
+// Uses the Matrix's "High-balance fixed-rate" row (fixed-rate assumed --
+// HomeRates does not currently collect an ARM-vs-fixed input, so the
+// separate, generally higher "High-balance ARM" row cannot be selected;
+// see DEFERRED notes). Standard conforming (<= $832,750): no surcharge.
+// High-balance / above-ceiling: Matrix surcharge applied either way; the
+// above-ceiling case is flagged separately via conformingStatus, same as
+// before.
 
-function highBalanceSurcharge(loanAmount: number, ltv: number, ceiling: number): number {
+const HIGHBALANCE_FIXED_PURCHASE_LCOR = [0.500, 0.750, 0.750, 1.000, 1.000, 1.000, 1.000, 1.000];
+const HIGHBALANCE_FIXED_CASHOUT       = [1.250, 1.500, 1.500, 1.750];
+
+function highBalanceSurcharge(loanAmount: number, ltv: number, purpose: LLPAInput['loanPurpose']): number {
   if (loanAmount <= CONFORMING_BASELINE) return 0;
-  // Both high-balance and above-ceiling cases apply the surcharge —
-  // above-ceiling results are flagged separately via conformingStatus.
-  if (ltv <= 80)  return 0.250;
-  if (ltv <= 90)  return 0.500;
-  return 0.750;
+  const t = purpose === 'cash_out_refi' ? HIGHBALANCE_FIXED_CASHOUT : HIGHBALANCE_FIXED_PURCHASE_LCOR;
+  const lb = ltvBucket(ltv);
+  return t[lb] ?? t[t.length - 1];
 }
 
 // ─── Lock period adjustment ───────────────────────────────────────────────────
+// Not a Fannie LLPA -- this is HomeRates' own lender-margin-style lock-day
+// convention, unrelated to the Matrix. Left unchanged; out of scope for this
+// workstream (the Matrix does not price rate locks at all).
 
 function lockAdjustment(lockDays: LLPAInput['lockDays']): number {
   switch (lockDays) {
@@ -391,15 +473,12 @@ export function computeLLPA(
   marketRate?: number | null,
   jumboEstimateMeta?: LLPAOutput['jumboEstimate'],
 ): LLPAOutput & { ineligible?: string } {
-  const cb = creditBucket(input.creditScore);
-  const lb = ltvBucket(input.ltv);
+  const baseLLPA = baseLLPAFor(input.loanPurpose, input.ltv, input.creditScore);
 
-  // Base LLPA lookup -- still computed even when OBMMI anchors the rate,
-  // because a null cell here reflects a real Fannie Mae eligibility rule
-  // (credit < 620 not eligible for conventional at this LTV), not just a
-  // pricing artifact of the synthetic path.
-  const baseLLPA = BASE_LLPA[lb]?.[cb];
-  if (baseLLPA === null || baseLLPA === undefined) {
+  // Out-of-grid scenarios per the Matrix itself (currently: cash-out refi
+  // above 80% LTV -- Fannie simply does not publish pricing for that
+  // combination in this document).
+  if (baseLLPA === null) {
     return {
       totalLLPA: 0,
       totalLLPADollars: 0,
@@ -411,9 +490,18 @@ export function computeLLPA(
       disclaimer: LLPA_DISCLAIMER,
       rateAnchorSource: 'synthetic',
       lenderParRate: parRate,
-      ineligible: `Credit score < 620 is not eligible for conventional financing at ${input.ltv}% LTV. Consider FHA financing.`,
+      ineligible: `Cash-out refinances above 80% LTV are not priced in Fannie Mae's current LLPA Matrix for conventional financing. Consider FHA financing or a lower cash-out amount.`,
     };
   }
+
+  // Domain decision resolved 2026-08-19: no minimum-credit-score gate here.
+  // This engine prices; it does not underwrite. Every credit score the
+  // Matrix publishes -- including its lowest band, <=639 -- gets that
+  // band's real published price, with no implication that the resulting
+  // number means the loan is approvable. That boundary is carried in
+  // LLPA_DISCLAIMER (attached to every output below), not as a computation
+  // gate. Eligibility/approval is a separate underwriting determination
+  // this engine does not make.
 
   // Area ceiling — defaults to national baseline if caller didn't look up county
   const ceiling = input.highBalanceCeiling ?? CONFORMING_BASELINE;
@@ -424,11 +512,13 @@ export function computeLLPA(
     input.loanAmount <= ceiling             ? 'high_balance' : 'above_limit';
 
   // Surcharges — stay synthetic regardless of anchor source; OBMMI has no
-  // equivalent for occupancy/purpose/property-type/lock-day pricing.
-  const occupancy = occupancySurcharge(input.ltv, input.occupancy);
-  const purpose   = loanPurposeSurcharge(input.ltv, input.creditScore, input.loanPurpose);
-  const propType  = propertyTypeSurcharge(input.ltv, input.propertyType);
-  const highBal   = highBalanceSurcharge(input.loanAmount, input.ltv, ceiling);
+  // equivalent for occupancy/property-type/lock-day pricing. Loan purpose is
+  // no longer a separate additive surcharge -- it's baked into which base
+  // grid was selected above (Purchase / LCOR / Cash-out each have genuinely
+  // different pricing, not a shared base plus a purpose delta).
+  const occupancy = occupancySurcharge(input.ltv, input.occupancy, input.loanPurpose);
+  const propType  = propertyTypeSurcharge(input.ltv, input.propertyType, input.loanPurpose);
+  const highBal   = highBalanceSurcharge(input.loanAmount, input.ltv, input.loanPurpose);
   const lock      = lockAdjustment(input.lockDays);
 
   const usingObmmi = marketRate != null;
@@ -436,7 +526,7 @@ export function computeLLPA(
   // When OBMMI anchors the rate, baseLLPA is excluded -- it's already priced
   // into marketRate. Surcharges still apply on top either way.
   const totalLLPA = parseFloat(
-    ((usingObmmi ? 0 : baseLLPA) + occupancy + purpose + propType + highBal + lock).toFixed(3),
+    ((usingObmmi ? 0 : baseLLPA) + occupancy + propType + highBal + lock).toFixed(3),
   );
   const totalLLPADollars = Math.round((totalLLPA * input.loanAmount) / 100);
   const rateEquivalent   = parseFloat((totalLLPA / 4).toFixed(3));
@@ -447,7 +537,6 @@ export function computeLLPA(
   const breakdown: { label: string; points: number }[] = [
     ...(usingObmmi ? [] : [{ label: 'Credit score / LTV (base)', points: baseLLPA }]),
     { label: 'Occupancy',                   points: occupancy },
-    { label: 'Loan purpose',                points: purpose },
     { label: 'Property type',               points: propType },
     { label: 'High-balance loan',           points: highBal },
     { label: `${input.lockDays}-day lock`,  points: lock },
@@ -467,7 +556,7 @@ export function computeLLPA(
     rateCurve,
     conformingStatus,
     dataSource: usingObmmi
-      ? `${OBMMI_CITATION_SHORT}. Surcharges (occupancy, purpose, property type, lock) from ${LLPA_DATA_SOURCE}${
+      ? `${OBMMI_CITATION_SHORT}. Surcharges (occupancy, property type, high-balance, lock) from ${LLPA_DATA_SOURCE}${
           input.loanType === 'jumbo' ? ' — used as a conforming-market proxy for relative sensitivity; no published jumbo-specific surcharge grid exists' : ''
         }`
       : LLPA_DATA_SOURCE,
@@ -521,7 +610,7 @@ export function buildNegotiationBrief(
   if (usingObmmi) {
     points.push(
       output.totalLLPA > 0
-        ? `Your base rate already reflects real market pricing for your ${output.obmmiSegmentLabel} segment (OBMMI) — not an estimate. On top of that, your scenario carries ${output.totalLLPA} points ($${llpaDollars}) in additional adjustments (occupancy, loan purpose, property type, lock period). Lender margin (0.50–1.50 points) is what's left to negotiate.`
+        ? `Your base rate already reflects real market pricing for your ${output.obmmiSegmentLabel} segment (OBMMI) — not an estimate. On top of that, your scenario carries ${output.totalLLPA} points ($${llpaDollars}) in additional adjustments (occupancy, property type, lock period). Lender margin (0.50–1.50 points) is what's left to negotiate.`
         : `Your base rate already reflects real market pricing for your ${output.obmmiSegmentLabel} segment (OBMMI) — not an estimate, and no additional adjustments apply to your scenario. Lender margin (0.50–1.50 points) is the only variable left. Get at least 3 Loan Estimates and compare Line A on the fee sheet.`,
     );
   } else if (output.totalLLPA > 0) {
@@ -573,39 +662,36 @@ export function buildNegotiationBrief(
     }
   } else if (!usingObmmi) {
     // Synthetic-path tips (dscr, or OBMMI unavailable) -- unchanged from the
-    // pre-Seam-3b Fannie-matrix-delta approach.
+    // pre-Seam-3b Fannie-matrix-delta approach, now reading the correct
+    // per-purpose grid instead of a single shared table.
     const nextBucket = input.creditScore < 760
       ? input.creditScore < 620 ? null : Math.ceil(input.creditScore / 20) * 20
       : null;
     if (nextBucket && nextBucket > input.creditScore && nextBucket <= 760) {
       const upperBucket = [639, 659, 679, 699, 719, 739, 759, 760].find(b => b >= input.creditScore);
       if (upperBucket) {
-        const currentBase = BASE_LLPA[ltvBucket(input.ltv)]?.[creditBucket(input.creditScore)] ?? 0;
-        const nextBase    = BASE_LLPA[ltvBucket(input.ltv)]?.[creditBucket(upperBucket + 1)] ?? 0;
-        if (typeof currentBase === 'number' && typeof nextBase === 'number') {
-          const diff = parseFloat((currentBase - nextBase).toFixed(3));
-          if (diff > 0) {
-            const saving = Math.round((diff * input.loanAmount) / 100);
-            points.push(
-              `Getting your score from ${input.creditScore} to the next tier (${upperBucket + 1}+) would drop your LLPA by ${diff} points, saving $${saving.toLocaleString()} on this loan. Pay down revolving balances first — that moves scores fastest.`,
-            );
-          }
+        const currentBase = baseLLPAFor(input.loanPurpose, input.ltv, input.creditScore) ?? 0;
+        const nextBase    = baseLLPAFor(input.loanPurpose, input.ltv, upperBucket + 1) ?? 0;
+        const diff = parseFloat((currentBase - nextBase).toFixed(3));
+        if (diff > 0) {
+          const saving = Math.round((diff * input.loanAmount) / 100);
+          points.push(
+            `Getting your score from ${input.creditScore} to the next tier (${upperBucket + 1}+) would drop your LLPA by ${diff} points, saving $${saving.toLocaleString()} on this loan. Pay down revolving balances first — that moves scores fastest.`,
+          );
         }
       }
     }
 
     if (input.ltv > 75 && input.ltv <= 95) {
       const ltvLower = Math.floor(input.ltv / 5) * 5;
-      const currentBase = BASE_LLPA[ltvBucket(input.ltv)]?.[creditBucket(input.creditScore)] ?? 0;
-      const lowerBase   = BASE_LLPA[ltvBucket(ltvLower - 0.01)]?.[creditBucket(input.creditScore)] ?? 0;
-      if (typeof currentBase === 'number' && typeof lowerBase === 'number') {
-        const diff = parseFloat((currentBase - lowerBase).toFixed(3));
-        if (diff > 0) {
-          const extraDown = Math.round((input.ltv - ltvLower) / 100 * (input.loanAmount / (1 - input.ltv / 100)));
-          points.push(
-            `Adding $${extraDown.toLocaleString()} to your down payment would drop your LTV from ${input.ltv}% to ${ltvLower}%, saving ${diff} points ($${Math.round((diff * input.loanAmount) / 100).toLocaleString()}) in LLPAs. Ask your lender for the exact breakeven.`,
-          );
-        }
+      const currentBase = baseLLPAFor(input.loanPurpose, input.ltv, input.creditScore) ?? 0;
+      const lowerBase   = baseLLPAFor(input.loanPurpose, ltvLower - 0.01, input.creditScore) ?? 0;
+      const diff = parseFloat((currentBase - lowerBase).toFixed(3));
+      if (diff > 0) {
+        const extraDown = Math.round((input.ltv - ltvLower) / 100 * (input.loanAmount / (1 - input.ltv / 100)));
+        points.push(
+          `Adding $${extraDown.toLocaleString()} to your down payment would drop your LTV from ${input.ltv}% to ${ltvLower}%, saving ${diff} points ($${Math.round((diff * input.loanAmount) / 100).toLocaleString()}) in LLPAs. Ask your lender for the exact breakeven.`,
+        );
       }
     }
   }
