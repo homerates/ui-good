@@ -131,9 +131,41 @@
       line-height: 1.65; max-width: 720px; text-align: left;
     }
     .big-quote .highlight { color: #00e87a; font-style: normal; font-weight: 700; }
+
+    /* ── Password gate ── */
+    #hr-gate{position:fixed;inset:0;z-index:1000;background:#080c12;
+      display:flex;align-items:center;justify-content:center;padding:24px;}
+    .hr-gate-card{max-width:380px;width:100%;text-align:center;}
+    .hr-gate-logo{font-size:1.5rem;font-weight:900;color:#00e87a;letter-spacing:-0.02em;margin-bottom:6px;}
+    .hr-gate-title{font-size:1.1rem;font-weight:800;color:#f0f4ff;margin-bottom:6px;}
+    .hr-gate-sub{font-size:0.85rem;color:rgba(185,208,192,0.6);margin-bottom:24px;line-height:1.5;}
+    .hr-gate-input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.15);
+      border-radius:10px;color:#f0f4ff;font-size:0.95rem;padding:12px 14px;text-align:center;
+      font-family:inherit;box-sizing:border-box;margin-bottom:12px;}
+    .hr-gate-input:focus{outline:none;border-color:#00e87a;}
+    .hr-gate-btn{width:100%;background:#00e87a;color:#080c12;border:none;border-radius:10px;
+      padding:12px 14px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;}
+    .hr-gate-btn:hover{background:#00ff8a;}
+    .hr-gate-error{font-size:0.8rem;color:#ff8a8a;margin-top:10px;min-height:1.2em;}
+    .hr-gate-shake{animation:hrShake 0.35s;}
+    @keyframes hrShake{10%,90%{transform:translateX(-2px);}20%,80%{transform:translateX(4px);}
+      30%,50%,70%{transform:translateX(-8px);}40%,60%{transform:translateX(8px);}}
   </style>
 </head>
 <body>
+
+<div id="hr-gate">
+  <div class="hr-gate-card">
+    <div class="hr-gate-logo">HomeRates.AI</div>
+    <div class="hr-gate-title">Investor Deck — 2026</div>
+    <div class="hr-gate-sub">This deck is shared privately. Enter the password to continue.</div>
+    <input type="password" id="hr-gate-pw" class="hr-gate-input" placeholder="Password" autocomplete="off" />
+    <button type="button" id="hr-gate-btn" class="hr-gate-btn">View Deck →</button>
+    <div class="hr-gate-error" id="hr-gate-err"></div>
+  </div>
+</div>
+
+<div id="hr-deck" style="display:none;">
 
 <!-- ══════════════════ SLIDE 1 — COVER ══════════════════ -->
 <div class="slide cover-slide">
@@ -819,6 +851,47 @@
     <span>rayaan@homerates.ai</span>
   </div>
 </div>
+
+</div><!-- /hr-deck -->
+
+<script>
+  (function () {
+    var PW = 'HomeRates2026';
+    var gate = document.getElementById('hr-gate');
+    var deck = document.getElementById('hr-deck');
+    var input = document.getElementById('hr-gate-pw');
+    var btn = document.getElementById('hr-gate-btn');
+    var err = document.getElementById('hr-gate-err');
+
+    function unlock() {
+      gate.style.display = 'none';
+      deck.style.display = 'block';
+      try { sessionStorage.setItem('hr_deck_unlocked', '1'); } catch (e) {}
+    }
+
+    function tryUnlock() {
+      if (input.value === PW) {
+        unlock();
+      } else {
+        err.textContent = 'Incorrect password — try again.';
+        var card = gate.querySelector('.hr-gate-card');
+        card.classList.remove('hr-gate-shake');
+        void card.offsetWidth;
+        card.classList.add('hr-gate-shake');
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    try {
+      if (sessionStorage.getItem('hr_deck_unlocked') === '1') { unlock(); }
+    } catch (e) {}
+
+    btn.addEventListener('click', tryUnlock);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') tryUnlock(); });
+    input.focus();
+  })();
+</script>
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
