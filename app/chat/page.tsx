@@ -4672,7 +4672,7 @@ export default function Page() {
                                                                     const newDebt    = (overrides as any).monthlyDebt   ?? 0;
                                                                     const totalMo    = (overrides as any).totalMonthly  ?? 0;
                                                                     const loanAmt    = isl.price * (1 - newDown / 100);
-                                                                    const newLt: 'conventional' | 'jumbo' = loanAmt > 832_750 ? 'jumbo' : 'conventional';
+                                                                    const newLt: 'conventional' | 'fha' | 'jumbo' | 'va' = (overrides as any).loanType ?? isl.loanType ?? (loanAmt > 832_750 ? 'jumbo' : 'conventional');
                                                                     // Compute borrower DTI when income is known — feeds into L1 score
                                                                     // totalMonthly already includes monthlyDebt (sent by IQC as piti+debt)
                                                                     const dti = newIncome > 0 && totalMo > 0

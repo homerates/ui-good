@@ -19,9 +19,8 @@ import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdictLabel } fr
 //     "processing_ms": 4230
 //   }
 
-function calcL1(loanAmt: number, price: number, downPct: number, rate: number) {
-  const isJumbo = loanAmt > 832_750;
-  const { score, summary: baseSummary } = scoreL1({ downPct, loanType: isJumbo ? 'jumbo' : 'conventional' });
+function calcL1(loanAmt: number, price: number, downPct: number, rate: number, loanType: string) {
+  const { score, summary: baseSummary } = scoreL1({ downPct, loanType });
   return { score, summary: `${baseSummary} · ${rate.toFixed(2)}% rate` };
 }
 
@@ -65,8 +64,9 @@ export async function POST(req: NextRequest) {
     const dp      = downPct ?? ((price > 832_750) ? 20 : 10);
     const loanAmt = price * (1 - dp / 100);
     const avm     = (d.estimatedValue as number | null) ?? null;
+    const loanType = body.scenario?.loan_type ?? (loanAmt > 832_750 ? 'jumbo' : 'conventional');
 
-    const l1   = calcL1(loanAmt, price, dp, liveRate);
+    const l1   = calcL1(loanAmt, price, dp, liveRate, loanType);
     let l2raw  = calcL2(price, avm);
 
     // ── Step 2: Grok deep analysis (L3 + L4) ─────────────────────────────────
@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
         social_proof_score: (d.socialProofScore as number | null) ?? null,
         interest_level: (d.interestLevel as string | null) ?? null,
       },
-      scenario: { down_pct: dp, rate: liveRate, loan_type: body.scenario?.loan_type ?? (loanAmt > 832_750 ? 'jumbo' : 'conventional') },
+      scenario: { down_pct: dp, rate: liveRate, loan_type: loanType },
       report_url,
       instant_url: `${origin}/instant?address=${encodeURIComponent(address)}`,
       processing_ms: Date.now() - t0,

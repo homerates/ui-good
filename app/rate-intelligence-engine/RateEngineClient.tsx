@@ -427,6 +427,29 @@ export default function RateEngineClient() {
     ? sortedSegments.findIndex(s => s.seriesId === mySegmentId) + 1 // 0 -> not found
     : 0;
 
+  // "Continue → Get Matched" target. With a session (?sid=), runCalc already
+  // PATCHed l5_score/l5_summary onto the session row, so Track 5 just re-reads
+  // that row via ?session=. Without one (page reached directly, no prior Track 5
+  // session), fall back to carrying the just-decoded L5 result + purchase context
+  // as URL params instead of a bare /track5 link that would lose the decode entirely.
+  const track5Href = (() => {
+    if (paramSid) return `/track5?session=${paramSid}`;
+    if (!result) return '/track5';
+    const l5 = scoreL5({
+      lenderParRate:      result.lenderParRate,
+      conformingSegments: result.marketComparison?.conformingSegments ?? null,
+      nationalParRate:    result.parRate,
+      loanType,
+      synthetic:          result.rateAnchorSource === 'synthetic',
+    });
+    const p = new URLSearchParams();
+    if (l5) { p.set('l5_score', String(l5.score)); p.set('l5_summary', l5.summary); }
+    p.set('ctx_price', String(homePrice));
+    p.set('ctx_lt',    loanType);
+    p.set('ctx_dp',    String(homePrice > 0 ? Math.round((downPayment / homePrice) * 100) : 20));
+    return `/track5?${p.toString()}`;
+  })();
+
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: "#f0f4ff" }}>
 
@@ -742,7 +765,7 @@ export default function RateEngineClient() {
           </button>
 
           {result && (
-            <a href={paramSid ? `/track5?session=${paramSid}` : '/track5'} style={{
+            <a href={track5Href} style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               background: "rgba(139,92,246,0.85)",
               color: "#fff", fontWeight: 700, fontSize: "0.92rem",
