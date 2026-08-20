@@ -391,7 +391,10 @@ function CheckPropertyInner() {
 
     function getMatchedUrl() {
         const p = new URLSearchParams({
-            from: 'check-property', lt: theme.label, purpose: 'Purchase',
+            // 'scenario' (not 'check-property') is the literal value connect/post checks
+            // for to activate its pre-filled Path A flow — anything else silently drops
+            // price/dp/rate/monthly/term and falls back to the cold-start form.
+            from: 'scenario', lt: theme.label, purpose: 'Purchase',
             price: String(Math.round(sc.price)),
             dp:    String(sc.dp),
             monthly: String(Math.round(actualPITI)),

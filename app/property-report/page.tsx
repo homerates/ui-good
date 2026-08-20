@@ -379,6 +379,13 @@ function ReportInner() {
         ? data.location_intelligence.sub_scores.slice(0, 2).map(s => `${s.metric}: ${s.rating}`).join(', ')
         : `Location score ${l4Score}/100`);
     }
+    // Purchase-scenario context — without these, Track 5 loses price/loan-type/rate
+    // and shows no scenario detail even though this page already computed them.
+    p.set('ctx_price', String(price));
+    p.set('ctx_lt',    scoringLoanType);
+    p.set('ctx_dp',    String(downPct));
+    p.set('ctx_rate',  String(rate));
+    p.set('ctx_piti',  String(Math.round(totalPITI)));
     return `https://chat.homerates.ai/track5?${p.toString()}`;
   })();
 
