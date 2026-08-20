@@ -15,6 +15,7 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase }               from '../../../lib/supabaseServer';
+import { computeComposite }          from '../../../lib/scoring/decisionScore';
 
 function normAddr(a: string) {
   return a.trim().toLowerCase();
@@ -105,15 +106,18 @@ export async function POST(req: NextRequest) {
   const norm = normAddr(address);
   const now  = new Date().toISOString();
 
-  // L2/L3/L4 composite (no L1 — L1 is user-specific)
-  const scores = [
-    { s: l2_score as number | null, w: 0.40 },
-    { s: l3_score as number | null, w: 0.35 },
-    { s: l4_score as number | null, w: 0.25 },
-  ].filter(e => e.s != null) as { s: number; w: number }[];
-  const composite = scores.length >= 2
-    ? Math.round(scores.reduce((a, e) => a + e.s * e.w, 0) / scores.reduce((a, e) => a + e.w, 0))
-    : null;
+  // L2/L3/L4 composite (no L1 — L1 is user-specific). Uses the canonical
+  // engine's own weights (L2:25, L3:25, L4:15, renormalized since L1 is
+  // absent) instead of this route's own custom 0.40/0.35/0.25 ratio --
+  // Decision Score consolidation, 2026-08-19. This makes the "L1 excluded"
+  // composite mathematically consistent with what canonical produces
+  // anywhere else L1 happens to be unavailable, rather than an
+  // independently-chosen ratio.
+  const composite = computeComposite({
+    l2: l2_score as number | null,
+    l3: l3_score as number | null,
+    l4: l4_score as number | null,
+  });
 
   const upsertData: Record<string, unknown> = {
     address:           address.trim(),
