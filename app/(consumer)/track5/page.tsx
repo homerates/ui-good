@@ -30,9 +30,10 @@ interface Levels {
 // (used for the "N% weighted" display), which computeComposite itself doesn't return.
 
 function computeIndex(levels: Levels): { score: number; pct: number } | null {
+  // l5 (Rate Intelligence) intentionally excluded -- separate first-class
+  // output, never a composite input (locked product decision, 2026-08-19).
   const score = computeComposite({
-    l1: levels.l1.score, l2: levels.l2.score, l3: levels.l3.score,
-    l4: levels.l4.score, l5: levels.l5.score,
+    l1: levels.l1.score, l2: levels.l2.score, l3: levels.l3.score, l4: levels.l4.score,
   });
   if (score == null) return null;
   const totalW = (Object.keys(COMPOSITE_WEIGHTS) as (keyof typeof COMPOSITE_WEIGHTS)[])
