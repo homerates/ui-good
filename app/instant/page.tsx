@@ -5,68 +5,14 @@ import { SHORT_DISCLOSURE } from '../../lib/disclosures';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
+import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict } from '../../lib/scoring/decisionScore';
 
-// ── Scoring helpers (mirrors chat/page.tsx DSC logic) ─────────────────────────
-
-function calcL1(loanAmt: number, price: number, downPct: number, rate: number): { score: number; summary: string } {
-  const ltv     = (1 - downPct / 100) * 100;
-  const isJumbo = loanAmt > 832_750;
-  let base = isJumbo
-    ? (ltv <= 75 ? 86 : ltv <= 80 ? 80 : 72)
-    : (ltv <= 80 ? 85 : ltv <= 85 ? 78 : ltv <= 90 ? 70 : 60);
-  const loanType = isJumbo ? 'Jumbo' : 'Conventional';
-  return {
-    score:   Math.min(100, Math.max(45, base)),
-    summary: `${loanType} · ${downPct}% down · LTV ${ltv.toFixed(1)}% · ${rate.toFixed(2)}% rate`,
-  };
-}
-
-function calcL2(price: number, avm: number | null): { score: number; summary: string } | null {
-  if (!avm || !price) return null;
-  const prem = (price - avm) / avm;
-  const score = prem < -0.05 ? 92 : prem < 0 ? 84 : prem < 0.03 ? 76
-               : prem < 0.07 ? 65 : prem < 0.12 ? 52 : prem < 0.20 ? 38 : 22;
-  const str   = `${prem >= 0 ? '+' : ''}${(prem * 100).toFixed(1)}%`;
-  return { score, summary: `Listed ${str} vs AVM $${Math.round(avm / 1000)}K` };
-}
-
-function calcL3(dom: number | null, stl: number | null, subDom: number | null, sp: { score: number; level: string; views: number | null; redfinRank: string | null } | null): { score: number; summary: string } {
-  const subs: number[] = [];
-  if (dom != null) subs.push(dom > 90 ? 90 : dom > 60 ? 80 : dom > 45 ? 68 : dom > 30 ? 55 : dom > 15 ? 42 : 32);
-  if (stl != null) subs.push(stl < 0.95 ? 90 : stl < 0.98 ? 80 : stl < 1.00 ? 68 : stl < 1.02 ? 55 : stl < 1.05 ? 42 : 30);
-  let score = subs.length > 0 ? Math.round(subs.reduce((a, b) => a + b, 0) / subs.length) : null;
-  const pts: string[] = [];
-  if (dom != null) pts.push(`Median DOM ${dom}d`);
-  if (stl != null) pts.push(`S/L ${(stl * 100).toFixed(0)}%`);
-  if (sp?.views != null) pts.push(`${sp.views.toLocaleString()} Zillow views`);
-  if (sp?.redfinRank) pts.push(sp.redfinRank);
-  if (sp?.level && sp.level !== 'Moderate') pts.push(`${sp.level} demand`);
-  if (sp?.score != null && score != null) score = Math.min(100, Math.round(score * 0.65 + sp.score * 0.35));
-  else if (sp?.score != null && score == null) score = sp.score;
-  if (score == null && subDom != null) {
-    score = subDom > 60 ? 80 : subDom > 30 ? 60 : subDom > 14 ? 45 : 38;
-    pts.push(`${subDom}d on market`);
-  }
-  return { score: score ?? 65, summary: pts.join(' · ') || 'Market stats pending' };
-}
-
-function calcComposite(l1: number, l2: number | null, l3: number | null, l4: number | null): number | null {
-  const entries = [
-    { s: l1, w: 0.35 }, { s: l2, w: 0.25 },
-    { s: l3, w: 0.25 }, { s: l4, w: 0.15 },
-  ].filter(e => e.s != null) as { s: number; w: number }[];
-  if (entries.length < 2) return null;
-  const tw = entries.reduce((a, e) => a + e.w, 0);
-  return Math.round(entries.reduce((a, e) => a + e.s * e.w, 0) / tw);
-}
-
-function verdict(score: number): { label: string; color: string } {
-  if (score >= 85) return { label: 'Strong Buy',       color: '#4ade80' };
-  if (score >= 70) return { label: 'Ready to Offer',   color: '#4ade80' };
-  if (score >= 55) return { label: 'Buy with Caution', color: '#fbbf24' };
-  if (score >= 40) return { label: 'Watch the Market', color: '#fbbf24' };
-  return               { label: 'Hold Off',            color: '#f87171' };
-}
+// L1-L4 scoring, composite, and verdict now come from the canonical engine
+// (lib/scoring/decisionScore.ts) instead of this page's own hand-copied
+// formulas -- Decision Score consolidation, 2026-08-19. This was the
+// sharpest confirmed inconsistency in the audit: app/api/instant-score/
+// route.ts already imports canonical and links directly to this page, so a
+// partner could see two different scores for the same address in one flow.
 
 function fmtK(n: number) {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M`;
@@ -205,11 +151,13 @@ function InstantInner() {
 
       // ── Step 2: L1 ──────────────────────────────────────────────────────────
       setStep(1);
-      const l1 = calcL1(loanAmt, price, defaultDown, liveRate);
+      // No VA/FHA path collected on this page -- jumbo determined by amount,
+      // same threshold as before this migration.
+      const l1 = scoreL1({ downPct: defaultDown, loanType: loanAmt > 832_750 ? 'jumbo' : 'conventional' });
 
       // ── Step 3: L2 (AVM) ────────────────────────────────────────────────────
       setStep(2);
-      const l2raw = calcL2(price, avm);
+      const l2raw = scoreL2({ listPrice: price, avm });
 
       // ── Step 3–4: Grok deep analysis (L3 + L4) ─────────────────────────────
       const grokRes = await fetch('/api/beta/grok-property', {
@@ -268,7 +216,7 @@ function InstantInner() {
         const deepAvm = (deepResult.zillow_estimate as number | null)
             ?? (deepResult.redfin_estimate as number | null)
             ?? null;
-        const l2deep  = calcL2(price, deepAvm);
+        const l2deep  = scoreL2({ listPrice: price, avm: deepAvm });
         if (l2deep) { l2Score = l2deep.score; l2Summary = l2deep.summary; }
         else { l2Score = 65; l2Summary = 'AVM limited — visit Property Intel'; }
       }
@@ -277,31 +225,27 @@ function InstantInner() {
       const dom = (deepResult.market_median_dom  as number | null) ?? null;
       const stl = (deepResult.market_sale_to_list as number | null) ?? null;
       const sub = (deepResult.days_on_market     as number | null) ?? (d.daysOnMarket as number | null) ?? null;
-      const sp  = spScore != null ? { score: spScore, level: spLevel ?? 'Moderate', views: spViews, redfinRank: spRank } : null;
-      const l3  = calcL3(dom, stl, sub, sp);
+      const socialProofNotes: string[] = [];
+      if (spViews != null) socialProofNotes.push(`${spViews.toLocaleString()} Zillow views`);
+      if (spRank) socialProofNotes.push(spRank);
+      if (spLevel && spLevel !== 'Moderate') socialProofNotes.push(`${spLevel} demand`);
+      const l3 = scoreL3({
+        domMedian: dom, saleToList: stl, subjectDom: sub,
+        socialProofScore: spScore, socialProofNotes, interestLevel: spLevel,
+      });
 
       // ── L4 ────────────────────────────────────────────────────────────────
-      let l4Score: number | null = null;
-      let l4Summary = '';
-      const li = deepResult.location_intelligence as Record<string, unknown> | null;
-      if (li?.overall_score != null) {
-        l4Score   = Math.min(100, Math.max(0, Math.round(li.overall_score as number)));
-        const pts = ((li.sub_scores as { metric: string; rating: string }[]) ?? []).slice(0, 3).map(s => `${s.metric}: ${s.rating}`);
-        l4Summary = pts.join(' · ') || `Location score ${l4Score}/100`;
-      } else {
-        const walk   = deepResult.walk_score        as number | null ?? null;
-        const school = deepResult.school_score      as number | null ?? null;
-        if (walk != null || school != null) {
-          const subs = [walk, school != null ? Math.min(100, school * 10) : null].filter((v): v is number => v != null);
-          l4Score   = Math.round(subs.reduce((a, b) => a + b, 0) / subs.length);
-          const pts: string[] = [];
-          if (walk != null)   pts.push(`Walk ${walk}`);
-          if (school != null) pts.push(`Schools ${school}/10`);
-          l4Summary = pts.join(' · ');
-        }
-      }
+      const li = deepResult.location_intelligence as { overall_score?: number; sub_scores?: { metric: string; rating: string }[] } | null;
+      const l4 = scoreL4({
+        overallScore: li?.overall_score ?? null,
+        subScores: li?.sub_scores,
+        school: (deepResult.school_score as number | null) ?? null,
+        walk: (deepResult.walk_score as number | null) ?? null,
+      });
+      const l4Score   = l4?.score ?? null;
+      const l4Summary = l4?.summary ?? '';
 
-      const composite = calcComposite(l1.score, l2Score, l3.score, l4Score);
+      const composite = computeComposite({ l1: l1.score, l2: l2Score, l3: l3.score, l4: l4Score });
 
       // ── Build report URL — white-label path uses /wl-report (no HomeRates links)
       const rp = new URLSearchParams({ address, down: String(defaultDown), rate: liveRate.toFixed(3) });
