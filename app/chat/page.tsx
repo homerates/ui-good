@@ -670,12 +670,18 @@ function recalcDSL1(downPct: number, loanType: string, dti?: number): { score: n
     return scoreL1({ downPct, loanType, dti });
 }
 
-/** Re-compute composite score from up to 5 levels. */
+/**
+ * Re-compute composite score from L1-L4. `l5` stays in the signature for
+ * call-site compatibility but is no longer forwarded to computeComposite --
+ * Rate Intelligence is a separate first-class output, never a composite
+ * input (locked product decision, 2026-08-19).
+ */
 function computeDSComposite(
     l1: number, l2: number | null,
     l3?: number | null, l4?: number | null, l5?: number | null,
 ): number | null {
-    return computeComposite({ l1, l2, l3, l4, l5 });
+    void l5;
+    return computeComposite({ l1, l2, l3, l4 });
 }
 
 // ── Compact Rate Chart (Build 5) — display-only, never written to the session ──

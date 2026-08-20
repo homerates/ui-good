@@ -904,7 +904,7 @@ Your mortgage rate isn't a black box. For conforming loans, the foundation is a 
 
 What lenders control is their margin on top, and whether they absorb or overlay specific hits. That's where comparison shopping has real leverage.
 
-*Rate adjustments shown in HomeRates.AI are based on the publicly posted Fannie Mae LLPA Matrix (2024) at singlefamily.fanniemae.com. Lender pricing may include additional overlays and margin not reflected in these estimates. Not a commitment to lend.*
+*Rate adjustments shown in HomeRates.AI are based on the publicly posted Fannie Mae LLPA Matrix (effective 01/28/2026) at singlefamily.fanniemae.com. Lender pricing may include additional overlays and margin not reflected in these estimates. Not a commitment to lend.*
     `,
   },
   {
@@ -1102,7 +1102,7 @@ HomeRates.AI does neither. The Market Rates engine is:
 
 The result is rate intelligence you can actually use in a real conversation with a lender — knowing what the base price is, what your specific adjustments cost, and where the margin lives.
 
-*Rate estimates use the publicly posted Fannie Mae LLPA Matrix (2024) and live FRED data. Lender pricing includes additional margin and may include overlays not reflected here. Not a commitment to lend.*
+*Rate estimates use the publicly posted Fannie Mae LLPA Matrix (effective 01/28/2026) and live FRED data. Lender pricing includes additional margin and may include overlays not reflected here. Not a commitment to lend.*
     `,
   },
 ];

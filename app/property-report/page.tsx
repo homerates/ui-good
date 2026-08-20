@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { EDUCATIONAL_DISCLAIMER, DATA_ATTRIBUTION } from '../../lib/disclosures';
+import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict, resolveAvm } from '../../lib/scoring/decisionScore';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Comp {
@@ -92,26 +93,9 @@ function scoreColor(s: number | null): string {
   return '#f87171';
 }
 
-function verdict(s: number): { label: string; color: string } {
-  if (s >= 85) return { label: 'Strong Buy',       color: '#4ade80' };
-  if (s >= 70) return { label: 'Ready to Offer',   color: '#4ade80' };
-  if (s >= 55) return { label: 'Buy with Caution', color: '#fbbf24' };
-  if (s >= 40) return { label: 'Watch the Market', color: '#fbbf24' };
-  return             { label: 'Hold Off',           color: '#f87171' };
-}
-
-function computeComposite(l1: number, l2: number | null, l3: number | null, l4: number | null): number | null {
-  const entries = [
-    { s: l1,  w: 0.35 },
-    { s: l2,  w: 0.25 },
-    { s: l3,  w: 0.25 },
-    { s: l4,  w: 0.15 },
-  ].filter(e => e.s != null) as { s: number; w: number }[];
-  if (entries.length < 2) return null;
-  const totalW   = entries.reduce((a, e) => a + e.w, 0);
-  const weighted = entries.reduce((a, e) => a + e.s! * e.w, 0);
-  return Math.round(weighted / totalW);
-}
+// verdict() and computeComposite() now imported from the canonical
+// lib/scoring/decisionScore.ts (Decision Score consolidation, 2026-08-19) --
+// this page previously hand-copied its own local versions.
 
 function locSubColor(s: number): string {
   if (s >= 70) return 'green';
@@ -337,6 +321,7 @@ function ReportInner() {
   const insMo     = Math.round((price * 0.005) / 12);
   const totalPITI = pi + taxMo + insMo;
   const loanType  = loanAmt > 1_089_300 ? '30-Yr Jumbo Fixed' : '30-Yr Conventional Fixed';
+  const scoringLoanType = loanAmt > 1_089_300 ? 'jumbo' : 'conventional'; // no VA/FHA path collected on this page
   const hasPMI    = downPct < 20;
 
   // 15yr and ARM estimates
@@ -344,27 +329,34 @@ function ReportInner() {
   const piARM = calcPI(loanAmt, rate - 0.63);
 
   // ── Scores ────────────────────────────────────────────────────────────────────
-  // L1: financial fit
-  const ltvScore   = downPct >= 20 ? 90 : downPct >= 10 ? 72 : 55;
+  // L1-L4 scored via the canonical engine (lib/scoring/decisionScore.ts)
+  // instead of this page's own hand-copied formulas -- Decision Score
+  // consolidation, 2026-08-19. No DTI is collected on this page, so L1
+  // omits the DTI adjustment (unchanged from before this migration). The
+  // prior life_fit_score L4 fallback isn't part of the canonical formula
+  // and is intentionally dropped here.
   const pitiIncome = (totalPITI / 0.35) * 12;  // annual income required at 35% DTI
-  const l1Score    = Math.min(100, Math.round(ltvScore));
+  const l1Score    = scoreL1({ downPct, loanType: scoringLoanType }).score;
 
   // L2: market position (AVM vs list)
-  const avm = ((data.zillow_estimate ?? 0) + (data.redfin_estimate ?? 0)) / 2 || price;
+  const avm = resolveAvm(data.zillow_estimate, data.redfin_estimate) ?? price;
   const avmDiff = avm > 0 ? ((avm - price) / avm) * 100 : 0;
-  const l2Score = Math.min(100, Math.max(30, Math.round(50 + avmDiff * 5)));
+  const l2Score = scoreL2({ listPrice: price, avm })?.score ?? null;
 
   // L3: market timing (DOM, sale-to-list)
-  const domScore  = data.market_median_dom
-    ? Math.min(100, Math.max(30, Math.round(70 - ((data.days_on_market ?? 0) - data.market_median_dom) * 1.5)))
-    : 65;
-  const stlScore  = data.market_sale_to_list ? Math.round(data.market_sale_to_list * 100) : 70;
-  const l3Score   = Math.round((domScore + stlScore) / 2);
+  const l3Score = scoreL3({
+    domMedian: data.market_median_dom, saleToList: data.market_sale_to_list,
+    subjectDom: data.days_on_market, socialProofScore: data.social_proof_score,
+    interestLevel: data.interest_level,
+  }).score;
 
   // L4: location
-  const l4Score = data.location_intelligence?.overall_score ?? data.life_fit_score ?? null;
+  const l4Score = scoreL4({
+    overallScore: data.location_intelligence?.overall_score,
+    school: data.school_score, walk: data.walk_score,
+  })?.score ?? null;
 
-  const composite = computeComposite(l1Score, l2Score, l3Score, l4Score);
+  const composite = computeComposite({ l1: l1Score, l2: l2Score, l3: l3Score, l4: l4Score });
   const verd      = composite != null ? verdict(composite) : null;
 
   // ── Date ─────────────────────────────────────────────────────────────────────

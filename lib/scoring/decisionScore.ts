@@ -13,11 +13,32 @@
 // is a deliberate score change on the CMA-seeded chat path and instant-score,
 // which previously used simpler/different L3 formulas.
 //
-// L5 is new: no L5 score existed anywhere before this module. The formula
-// below (par-rate position within the real OBMMI segment distribution, with
-// a spread-vs-national-par fallback) is a genuinely new design, not an
-// extraction of existing code — treat it as a reasonable default, not a
-// validated-by-precedent formula the way L1-L4 are.
+// L5 (Rate Intelligence) is NOT part of the Decision Score composite.
+// Locked product decision, 2026-08-19: Composite Decision Score = L1-L4
+// only. scoreL5() stays exported below for Rate Intelligence's own use as a
+// separate, peer, first-class output (alongside Personal Fit) -- neither is
+// folded into computeComposite(), and CompositeLevels has no l5 field.
+//
+// L1's per-program LTV curves (Conventional/FHA/VA/Jumbo) are HomeRates'
+// own existing, already-approved scoring heuristic -- NOT a republished
+// agency underwriting threshold and NOT an empirically validated risk
+// model. Do not present these values, or the resulting L1 score, as an
+// official agency determination anywhere they're surfaced. Program
+// distinctions and LTV boundaries were sanity-checked against known agency
+// program structure (VA's high-LTV tolerance with no PMI; FHA's ~96.5%
+// typical LTV ceiling; the conventional 80% PMI threshold) as part of
+// Decision Score consolidation (2026-08-19), but no score values were
+// changed in that pass -- the VA/FHA curves are exactly what
+// app/(consumer)/check-property/page.tsx already computed locally before
+// this migration, and Conventional/Jumbo are decisionScore.ts's own
+// pre-existing values. Changing any of these numbers is a separate product
+// decision, not an engineering one.
+//
+// DTI is a HomeRates Financial Readiness (L1) signal only. It is never an
+// LLPA/pricing input -- lib/pricing/llpa-engine.ts confirms directly from
+// Fannie Mae's own Matrix change log that DTI-based LLPAs were introduced
+// in 2023 and explicitly removed effective 01/24/24. Do not reintroduce a
+// DTI-to-pricing path anywhere in the Rate Intelligence engine.
 
 // ── L1 — Financial Readiness (LTV + optional DTI) ──────────────────────────
 
@@ -29,12 +50,24 @@ export interface ScoreL1Input {
   dti?: number | null;
 }
 
+// Four explicit program curves. VA and FHA are consolidated from
+// app/(consumer)/check-property/page.tsx's pre-existing local logic (same
+// values, now shared instead of duplicated); Conventional and Jumbo are
+// decisionScore.ts's own pre-existing values, unchanged. See the module
+// header for the boundary on presenting these as agency thresholds.
+function ltvScoreForProgram(loanType: string, ltv: number): number {
+  switch (loanType) {
+    case 'va':     return ltv <= 0.80 ? 88 : 78;
+    case 'fha':    return ltv <= 0.90 ? 72 : ltv <= 0.95 ? 65 : 58;
+    case 'jumbo':  return ltv <= 0.75 ? 86 : ltv <= 0.80 ? 80 : 72;
+    default:       return ltv <= 0.80 ? 85 : ltv <= 0.85 ? 78 : ltv <= 0.90 ? 70 : 60; // conventional
+  }
+}
+
 export function scoreL1({ downPct, loanType, dti }: ScoreL1Input): { score: number; summary: string } {
   const ltv = 1 - downPct / 100;
   const isJumbo = loanType === 'jumbo';
-  const ltvScore = isJumbo
-    ? (ltv <= 0.75 ? 86 : ltv <= 0.80 ? 80 : 72)
-    : (ltv <= 0.80 ? 85 : ltv <= 0.85 ? 78 : ltv <= 0.90 ? 70 : 60);
+  const ltvScore = ltvScoreForProgram(loanType, ltv);
 
   let dtiAdj = 0;
   let dtiTag = '';
@@ -221,16 +254,71 @@ export function scoreL5({
   return null;
 }
 
+// ── AVM resolution helper (for scoreL2 callers) ─────────────────────────────
+// Averages Zillow + Redfin estimates when both are available, else uses
+// whichever exists. Pure -- callers already have these values in hand; this
+// does not fetch anything. Compute the `avm` value passed into scoreL2 with
+// this, rather than picking a single provider ad hoc per call site.
+
+export function resolveAvm(zillowEstimate?: number | null, redfinEstimate?: number | null): number | null {
+  const vals = [zillowEstimate, redfinEstimate].filter((v): v is number => v != null && v > 0);
+  if (vals.length === 0) return null;
+  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+}
+
+// ── Personal Fit — separate first-class output, NOT part of the composite ──
+// Answers a different question than L2: does THIS specific listing fit THIS
+// buyer's own stated budget, vs. L2's buyer-independent "is this priced
+// fairly against the market" question. Extracted from
+// app/(consumer)/check-property/page.tsx's pre-existing PITI-gap logic
+// during Decision Score consolidation (2026-08-19) -- same formula, now
+// shared rather than duplicated. Compute/display only for now -- not
+// persisted; whether to retain it is a pending product decision.
+
+export interface ScorePersonalFitInput {
+  actualPITI: number;    // PITI for the actual property being evaluated
+  scenarioPITI: number;  // buyer's stated budget/scenario PITI
+  avm?: number | null;
+  listPrice?: number | null;
+}
+
+export function scorePersonalFit({ actualPITI, scenarioPITI, avm, listPrice }: ScorePersonalFitInput): { score: number; summary: string } {
+  const gapPct = scenarioPITI > 0 ? ((actualPITI - scenarioPITI) / scenarioPITI) * 100 : 0;
+  const gapScore = gapPct <= 0 ? 90 : gapPct <= 5 ? 80 : gapPct <= 10 ? 70
+    : gapPct <= 20 ? 58 : gapPct <= 35 ? 44 : 30;
+  const gapSign = gapPct >= 0 ? '+' : '';
+  const gapSummary = `PITI $${Math.round(actualPITI).toLocaleString()}/mo vs $${Math.round(scenarioPITI).toLocaleString()} budget (${gapSign}${gapPct.toFixed(0)}%)`;
+
+  if (avm && listPrice) {
+    const avmPrem = (listPrice - avm) / avm;
+    const avmScore = avmPrem < -0.05 ? 92 : avmPrem < 0 ? 84 : avmPrem < 0.03 ? 76
+      : avmPrem < 0.07 ? 65 : avmPrem < 0.12 ? 52 : avmPrem < 0.20 ? 38 : 22;
+    const score = Math.round(gapScore * 0.65 + avmScore * 0.35);
+    const premStr = `${avmPrem >= 0 ? '+' : ''}${(avmPrem * 100).toFixed(1)}%`;
+    return { score, summary: `${gapSummary}. Listed ${premStr} vs AVM.` };
+  }
+
+  return { score: gapScore, summary: `${gapSummary}.` };
+}
+
 // ── Composite ────────────────────────────────────────────────────────────
 
-export const COMPOSITE_WEIGHTS = { l1: 0.30, l2: 0.20, l3: 0.20, l4: 0.15, l5: 0.15 } as const;
+// L1-L4 only. Locked product decision, 2026-08-19: Rate Intelligence (L5)
+// is never part of the composite -- these are the original weights, not
+// newly invented ones (reverted from the 30/20/20/15/15 split that existed
+// only to make room for L5 in the composite math, before that placement
+// was reconsidered).
+export const COMPOSITE_WEIGHTS = { l1: 0.35, l2: 0.25, l3: 0.25, l4: 0.15 } as const;
 
 export interface CompositeLevels {
   l1?: number | null;
   l2?: number | null;
   l3?: number | null;
   l4?: number | null;
-  l5?: number | null;
+  // l5 intentionally absent -- Rate Intelligence is a separate, peer,
+  // first-class output (alongside Personal Fit below), never a composite
+  // input. A caller trying to pass l5 here is a type error, not a silent
+  // no-op.
 }
 
 export function computeComposite(levels: CompositeLevels): number | null {

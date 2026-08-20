@@ -109,13 +109,16 @@ export async function POST(req: NextRequest) {
   const l4 = typeof body.l4_score === 'number' ? body.l4_score : null;
   const l5 = typeof body.l5_score === 'number' ? body.l5_score : null;
 
+  // l5 (Rate Intelligence) intentionally excluded from the composite --
+  // separate first-class output, never a composite input (locked product
+  // decision, 2026-08-19). l5_score is still stored below for display.
   const payload: Record<string, unknown> = {
     user_id:         userId,
     property_address: address,
     session_name:    autoSessionName(body),
     status:          'active',
     updated_at:      new Date().toISOString(),
-    composite_score: computeComposite({ l1, l2, l3, l4, l5 }),
+    composite_score: computeComposite({ l1, l2, l3, l4 }),
   };
 
   if (body.scenario_json != null)            payload.scenario_json = body.scenario_json;
