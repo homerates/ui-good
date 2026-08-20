@@ -305,34 +305,29 @@ export default function BlueprintPage() {
             SECTION D — TRACK 5 SCORING
         ═══════════════════════════════════════════════════════════════ */}
         <SectionHeader num="D" title="TRACK 5 — AUTONOMOUS DECISION SCORE"
-          sub="Five-level intelligence system covering the complete property ownership lifecycle (L1–L5)" />
+          sub="Composite Decision Score = L1–L4 only. Rate Intelligence and Personal Fit are separate, peer, first-class outputs — neither is part of the composite and neither is 'L5' (locked product decision, 2026-08-19; see below)." />
 
         <Row gap={10}>
           {[
             { lvl: 'L1', name: 'Financial Readiness', wt: '35%', color: BP.green,
-              inputs: 'LTV, loan type, down%, rate, DTI (if income provided)',
-              formula: 'Jumbo(LTV≤75→86, ≤80→80, else→72) / Conv(LTV≤80→85, ≤85→78, ≤90→70, else→60) + DTI adj (≤28:+10, ≤36:+6, ≤43:0, ≤49:-7, 50+:-15)',
-              source: 'Computed from PropertyCard + ISC/IQC params',
+              inputs: 'LTV, loan type (Conventional/FHA/VA/Jumbo), down%, DTI (if provided)',
+              formula: 'Per-program LTV curve (Conv/FHA/VA/Jumbo each distinct) + DTI adj (≤28:+10, ≤36:+6, ≤43:0, ≤49:-7, 50+:-15). HomeRates scoring heuristic, not a republished agency threshold.',
+              source: 'lib/scoring/decisionScore.ts — scoreL1()',
             },
             { lvl: 'L2', name: 'Property Evaluation', wt: '25%', color: BP.cyan,
-              inputs: 'List price, Zillow estimate, Redfin estimate, comparable sales avg',
+              inputs: 'List price, AVM (avg of Zillow + Redfin when both available)',
               formula: 'AVM premium: <-5%→92, <0%→84, <3%→76, <7%→65, <12%→52, <20%→38, else→22',
-              source: 'Computed from property lookup + Grok deep analysis',
+              source: 'lib/scoring/decisionScore.ts — scoreL2() + resolveAvm()',
             },
             { lvl: 'L3', name: 'Market Intelligence', wt: '25%', color: BP.yellow,
               inputs: 'market_median_dom, market_sale_to_list, days_on_market, socialProofScore, zillowViews, redfinRank',
               formula: 'DOM score + S/L score avg, blended with socialProofScore at 35% weight when available',
-              source: 'Grok deep analysis + property lookup social proof signals',
+              source: 'lib/scoring/decisionScore.ts — scoreL3()',
             },
             { lvl: 'L4', name: 'Location Intelligence', wt: '15%', color: BP.purple,
               inputs: 'walk_score, school_score, commute, neighborhood_appreciation_3yr, wildfire risk',
               formula: 'location_intelligence.overall_score (Grok wildfire-aware) or manual sub-score average',
-              source: 'Grok deep analysis only — requires Full Market Analysis to be run',
-            },
-            { lvl: 'L5', name: 'Homeowner Wealth Mgmt', wt: 'Post-close · ongoing', color: BP.dim,
-              inputs: 'equity position, current rate vs market, HELOC capacity, appreciation',
-              formula: 'Living intelligence layer — not a one-time score. Monitors equity milestones, refi triggers, payoff timeline.',
-              source: 'My Home page (CardEquity, CardRefi, CardMilestones, CardEconomy) — partially built',
+              source: 'lib/scoring/decisionScore.ts — scoreL4()',
             },
           ].map(l => (
             <Box key={l.lvl} title={`${l.lvl} — ${l.name}`} color={l.color} width={220} minHeight={160}>
@@ -355,6 +350,36 @@ export default function BlueprintPage() {
           </div>
           <div style={{ fontFamily: MONO, fontSize: '0.62rem', color: BP.dim2, marginTop: 6 }}>
             Verdict: 85–100 Strong Buy · 70–84 Ready to Offer · 55–69 Buy with Caution · 40–54 Watch the Market · 0–39 Hold Off
+          </div>
+        </div>
+
+        {/* Peer outputs — NOT part of the composite, NOT numbered levels */}
+        <div style={{ marginTop: 16 }}>
+          <Label>PEER OUTPUTS — separate from the L1–L4 composite, never folded into it</Label>
+          <div style={{ marginTop: 8 }}>
+          <Row gap={10}>
+            {[
+              { name: 'Rate Intelligence', color: BP.dim,
+                inputs: 'Decoded lender par rate, real OBMMI credit/LTV segment rates, FRED national par rate',
+                formula: 'Par-rate rank within the real OBMMI segment distribution, or spread-vs-national-par fallback. Requires a completed Rate Engine decode — not automatic like L1-L4.',
+                source: 'lib/scoring/decisionScore.ts — scoreL5() (kept as a standalone export; excluded from computeComposite/COMPOSITE_WEIGHTS)',
+              },
+              { name: 'Personal Fit', color: BP.dim,
+                inputs: 'Actual property PITI vs. buyer\'s own stated scenario/budget PITI, AVM vs. list price',
+                formula: 'PITI-gap-vs-budget score (65% weight) blended with AVM-premium score (35%) when AVM available, else PITI-gap alone.',
+                source: 'lib/scoring/decisionScore.ts — scorePersonalFit(). Compute/display only — not persisted (pending product decision on retention).',
+              },
+            ].map(o => (
+              <Box key={o.name} title={o.name} color={o.color} width={300} minHeight={140}>
+                <Label>Inputs</Label>
+                <div style={{ fontFamily: SANS, fontSize: '0.6rem', color: BP.dim, lineHeight: 1.5, marginBottom: 6 }}>{o.inputs}</div>
+                <Label>Formula</Label>
+                <div style={{ fontFamily: MONO, fontSize: '0.58rem', color: BP.dim2, lineHeight: 1.5, marginBottom: 6 }}>{o.formula}</div>
+                <Label>Source</Label>
+                <div style={{ fontFamily: SANS, fontSize: '0.6rem', color: BP.dim, lineHeight: 1.5 }}>{o.source}</div>
+              </Box>
+            ))}
+          </Row>
           </div>
         </div>
 

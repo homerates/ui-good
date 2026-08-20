@@ -67,7 +67,10 @@ export default function DecisionScoreCard({ data, scenarioPrice, scenarioDown, s
 
   const { address, l1Score, l2Score, l3Score, l4Score, l5Score, sessionId } = data;
 
-  const composite = data.compositeScore ?? computeComposite({ l1: l1Score, l2: l2Score, l3: l3Score, l4: l4Score, l5: l5Score });
+  // l5Score (Rate Intelligence) intentionally excluded from the composite --
+  // separate first-class output, never a composite input (locked product
+  // decision, 2026-08-19). Still destructured above for its own display row.
+  const composite = data.compositeScore ?? computeComposite({ l1: l1Score, l2: l2Score, l3: l3Score, l4: l4Score });
   const v         = composite != null ? verdict(composite) : null;
   // Only colour the ring/badge once we have an actual composite score
   const hasScore  = complete && composite != null;

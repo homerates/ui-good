@@ -81,11 +81,13 @@ export async function PATCH(
   const l2 = typeof body.l2_score === 'number' ? body.l2_score : current.l2_score;
   const l3 = typeof body.l3_score === 'number' ? body.l3_score : current.l3_score;
   const l4 = typeof body.l4_score === 'number' ? body.l4_score : current.l4_score;
-  const l5 = typeof body.l5_score === 'number' ? body.l5_score : current.l5_score;
 
+  // l5 (Rate Intelligence) intentionally excluded from the composite --
+  // separate first-class output, never a composite input (locked product
+  // decision, 2026-08-19). l5_score is still stored below for display.
   const patch: Record<string, unknown> = {
     updated_at:      new Date().toISOString(),
-    composite_score: computeComposite({ l1, l2, l3, l4, l5 }),
+    composite_score: computeComposite({ l1, l2, l3, l4 }),
   };
 
   if (typeof body.l1_score === 'number') { patch.l1_score = body.l1_score; patch.l1_summary = body.l1_summary ?? null; }

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 
 import { prefetchGrokProperty, normalizeListingStatus } from '@/prefetchGrokProperty';
+import { scoreL1, scoreL2, scorePersonalFit, resolveAvm } from '../../../lib/scoring/decisionScore';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
@@ -190,48 +191,27 @@ function CheckPropertyInner() {
         if (!resolved || propData === null) return;
         if (sessionSavedRef.current === resolved) return;
 
-        const avm       = (propData as any)?.estimatedValue ?? null;
+        // L1-L2 now scored via the canonical engine (lib/scoring/decisionScore.ts)
+        // instead of this page's own local formulas -- Decision Score
+        // consolidation, 2026-08-19. This page's prior L1 VA/FHA ladder values
+        // are exactly what canonical's scoreL1 now uses (consolidated FROM here);
+        // its prior "other" (conventional/jumbo) band and its prior L2
+        // PITI-gap-blended-with-AVM formula are superseded -- L2 is now the
+        // canonical AVM-only formula (matching every other canonical-importing
+        // page), and the PITI-gap-vs-budget signal moves to the separate
+        // Personal Fit output below (computed/displayed, not persisted here).
+        const avm       = resolveAvm((propData as any)?.estimatedValue ?? null, null);
         const listPrice = (propData as any)?.price ?? sc.price;
 
         // L1 — scenario financial readiness
-        const ltv     = (1 - sc.dp / 100) * 100;
-        const l1Score = sc.lt === 'va'  ? (ltv <= 80 ? 88 : 78)
-                      : sc.lt === 'fha' ? (ltv <= 90 ? 72 : ltv <= 95 ? 65 : 58)
-                      : (ltv <= 80 ? 85 : ltv <= 85 ? 75 : ltv <= 90 ? 65 : ltv <= 95 ? 55 : 45);
-        const l1Sum   = `${theme.label} ${sc.dp}% down · ${pct(ltv, 1)} LTV · ${sc.rate.toFixed(2)}% rate`;
+        const l1 = scoreL1({ downPct: sc.dp, loanType: sc.lt });
+        const l1Score = l1.score;
+        const l1Sum   = l1.summary;
 
-        // L2 — Property Evaluation: PITI gap + AVM premium
-        // Recompute PITI from first principles (same formula as JSX block)
-        const rM  = sc.rate / 100 / 12;
-        const nP  = sc.term * 12;
-        const piF = (prin: number) => prin <= 0 ? 0 : rM <= 0 ? prin / nP
-            : (prin * rM * Math.pow(1 + rM, nP)) / (Math.pow(1 + rM, nP) - 1);
-
-        const scenPITI  = piF(sc.price * (1 - sc.dp / 100)) + (sc.price * sc.taxRate) / 12 + (sc.price * sc.insRate) / 12;
-        const realAnnTax = (propData as any)?.annualTaxes ?? ((propData as any)?.taxRateEffective ? listPrice * (propData as any).taxRateEffective : null);
-        const actualPITI = piF(listPrice * (1 - sc.dp / 100))
-            + (realAnnTax ? realAnnTax / 12 : (listPrice * sc.taxRate) / 12)
-            + (listPrice * sc.insRate) / 12
-            + ((propData as any)?.hoaMonthly ?? 0);
-
-        const pitiGapPct = scenPITI > 0 ? ((actualPITI - scenPITI) / scenPITI) * 100 : 0;
-        const gapScore   = pitiGapPct <= 0 ? 90 : pitiGapPct <= 5 ? 80 : pitiGapPct <= 10 ? 70
-                         : pitiGapPct <= 20 ? 58 : pitiGapPct <= 35 ? 44 : 30;
-
-        let l2Score: number;
-        let l2Summary: string;
-        const gapSign = pitiGapPct >= 0 ? '+' : '';
-        if (!degraded && avm && listPrice) {
-            const avmPrem  = (listPrice - avm) / avm;
-            const avmScore = avmPrem < -0.05 ? 92 : avmPrem < 0 ? 84 : avmPrem < 0.03 ? 76
-                           : avmPrem < 0.07 ? 65 : avmPrem < 0.12 ? 52 : avmPrem < 0.20 ? 38 : 22;
-            l2Score   = Math.round(gapScore * 0.65 + avmScore * 0.35);
-            const premStr = `${avmPrem >= 0 ? '+' : ''}${(avmPrem * 100).toFixed(1)}%`;
-            l2Summary = `${resolved} — PITI $${Math.round(actualPITI).toLocaleString()}/mo vs $${Math.round(scenPITI).toLocaleString()} budget (${gapSign}${pitiGapPct.toFixed(0)}%). Listed ${premStr} vs AVM.`;
-        } else {
-            l2Score   = gapScore;
-            l2Summary = `${resolved} — PITI $${Math.round(actualPITI).toLocaleString()}/mo vs $${Math.round(scenPITI).toLocaleString()} budget (${gapSign}${pitiGapPct.toFixed(0)}%).`;
-        }
+        // L2 — Property Evaluation (AVM premium only)
+        const l2 = scoreL2({ listPrice, avm });
+        const l2Score   = l2?.score ?? null;
+        const l2Summary = l2?.summary ?? `${resolved} — AVM data unavailable.`;
 
         const payload: Record<string, unknown> = {
             property_address: resolved,
@@ -356,6 +336,15 @@ function CheckPropertyInner() {
     const actualIncome = Math.round((actualTotalMo / dtiPct) * 12);
     const incomeGap    = actualIncome - scenIncome;
     const downGap      = (actualPrice - sc.price) * sc.dp / 100;   // extra down needed
+
+    // Personal Fit — separate first-class output (Decision Score
+    // consolidation, 2026-08-19): does THIS property fit YOUR stated budget,
+    // as distinct from L2's buyer-independent "is this priced fairly vs
+    // market" question. Compute/display only -- not persisted this pass.
+    const personalFit = scorePersonalFit({
+        actualPITI, scenarioPITI: scenPITI,
+        avm: resolveAvm(avm, null), listPrice: actualPrice,
+    });
 
     // ── Cash to close (on actual property price) ─────────────────────────────
 
@@ -711,6 +700,9 @@ function CheckPropertyInner() {
                                     <span style={{ fontSize: 16 }}>{canAfford ? '✅' : '⚠️'}</span>
                                     <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: statusColor }}>
                                         {canAfford ? 'This Property Fits Your Price Range' : 'Gap Analysis — How This Property Compares'}
+                                    </span>
+                                    <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, letterSpacing: '.05em', color: '#4b6080', padding: '2px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.08)' }}>
+                                        Personal Fit {personalFit.score}/100
                                     </span>
                                 </div>
                                 <div style={{ fontSize: 12, color: '#4b6080', marginBottom: 14 }}>

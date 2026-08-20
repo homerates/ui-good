@@ -8,6 +8,7 @@
 import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { EDUCATIONAL_DISCLAIMER, DATA_ATTRIBUTION } from '../../lib/disclosures';
+import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict, resolveAvm } from '../../lib/scoring/decisionScore';
 
 // ── Types (mirrored from property-report) ─────────────────────────────────────
 interface Comp { address: string; sold_price: number; sold_date: string; sqft: number | null; price_per_sqft: number | null; days_on_market?: number | null; }
@@ -36,13 +37,9 @@ const fmt    = (n: number | null | undefined) => n != null ? n.toLocaleString('e
 const fmtK   = (n: number | null | undefined) => { if (n == null) return '—'; if (n >= 1e6) return `$${(n/1e6).toFixed(2)}M`; if (n >= 1e3) return `$${Math.round(n/1e3)}K`; return `$${n}`; };
 function calcPI(p: number, r: number, m = 360) { const mr = r/100/12; if (!mr) return Math.round(p/m); return Math.round(p*(mr*Math.pow(1+mr,m))/(Math.pow(1+mr,m)-1)); }
 function scoreColor(s: number | null) { if (s == null) return '#4b5c70'; if (s >= 70) return '#4ade80'; if (s >= 50) return '#fbbf24'; return '#f87171'; }
-function verdict(s: number) { if (s >= 85) return { label:'Strong Buy', color:'#4ade80' }; if (s >= 70) return { label:'Ready to Offer', color:'#4ade80' }; if (s >= 55) return { label:'Buy with Caution', color:'#fbbf24' }; if (s >= 40) return { label:'Watch the Market', color:'#fbbf24' }; return { label:'Hold Off', color:'#f87171' }; }
-function computeComposite(l1: number, l2: number|null, l3: number|null, l4: number|null) {
-  const e = [{s:l1,w:.35},{s:l2,w:.25},{s:l3,w:.25},{s:l4,w:.15}].filter(x=>x.s!=null) as {s:number;w:number}[];
-  if (e.length < 2) return null;
-  const tw = e.reduce((a,x)=>a+x.w,0);
-  return Math.round(e.reduce((a,x)=>a+x.s*x.w,0)/tw);
-}
+// verdict() and computeComposite() now imported from the canonical
+// lib/scoring/decisionScore.ts (Decision Score consolidation, 2026-08-19) --
+// this page previously hand-copied its own local versions.
 function locSubColor(s: number) { if (s >= 70) return 'green'; if (s >= 50) return 'yellow'; if (s >= 35) return 'orange'; return 'red'; }
 
 function ScoreRing({ score, size=100 }: { score: number; size?: number }) {
@@ -182,20 +179,31 @@ function WLReportInner() {
   const insMo    = Math.round((price*0.005)/12);
   const totalPITI = pi+taxMo+insMo;
   const loanType = loanAmt>1_089_300 ? '30-Yr Jumbo Fixed' : '30-Yr Conventional Fixed';
+  const scoringLoanType = loanAmt>1_089_300 ? 'jumbo' : 'conventional'; // no VA/FHA path collected on this page
   const hasPMI   = downPct<20;
   const pi15     = calcPI(loanAmt,rate-0.47,180);
   const piARM    = calcPI(loanAmt,rate-0.63);
   const pitiIncome = (totalPITI/0.35)*12;
-  const avm      = ((data.zillow_estimate??0)+(data.redfin_estimate??0))/2 || price;
+  const avm      = resolveAvm(data.zillow_estimate, data.redfin_estimate) ?? price;
   const avmDiff  = avm>0 ? ((avm-price)/avm)*100 : 0;
-  const ltvScore = downPct>=20?90:downPct>=10?72:55;
-  const l1Score  = Math.min(100,Math.round(ltvScore));
-  const l2Score  = Math.min(100,Math.max(30,Math.round(50+avmDiff*5)));
-  const domScore = data.market_median_dom ? Math.min(100,Math.max(30,Math.round(70-((data.days_on_market??0)-data.market_median_dom)*1.5))) : 65;
-  const stlScore = data.market_sale_to_list ? Math.round(data.market_sale_to_list*100) : 70;
-  const l3Score  = Math.round((domScore+stlScore)/2);
-  const l4Score  = data.location_intelligence?.overall_score ?? data.life_fit_score ?? null;
-  const composite = computeComposite(l1Score,l2Score,l3Score,l4Score);
+  // L1-L4 scored via the canonical engine (lib/scoring/decisionScore.ts)
+  // instead of this page's own hand-copied formulas -- Decision Score
+  // consolidation, 2026-08-19. No DTI is collected on this page, so L1
+  // omits the DTI adjustment (unchanged from before this migration). The
+  // prior life_fit_score L4 fallback isn't part of the canonical formula
+  // and is intentionally dropped here.
+  const l1Score  = scoreL1({ downPct, loanType: scoringLoanType }).score;
+  const l2Score  = scoreL2({ listPrice: price, avm })?.score ?? null;
+  const l3Score  = scoreL3({
+    domMedian: data.market_median_dom, saleToList: data.market_sale_to_list,
+    subjectDom: data.days_on_market, socialProofScore: data.social_proof_score,
+    interestLevel: data.interest_level,
+  }).score;
+  const l4Score  = scoreL4({
+    overallScore: data.location_intelligence?.overall_score,
+    school: data.school_score, walk: data.walk_score,
+  })?.score ?? null;
+  const composite = computeComposite({ l1: l1Score, l2: l2Score, l3: l3Score, l4: l4Score });
   const verd      = composite!=null ? verdict(composite) : null;
   const today     = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const locSubs   = data.location_intelligence?.sub_scores??[];
