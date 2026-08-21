@@ -10,16 +10,24 @@ export type ScenarioSnapshot = {
   price:         number;
   loanAmount:    number;
   downPct:       number;
-  rate:          number;   // FRED benchmark rate
+  rate:          number;   // FRED benchmark rate — ambient market context, NOT the Rate
+                           // chip's evaluation benchmark once fairParRate is known (see below)
   term:          number;
   ltv:           number;   // decimal e.g. 0.965
   monthlyPayment: number;
   monthlyMIP?:   number;   // FHA
   monthlyPMI?:   number;   // Conventional
   fundingFee?:   number;   // VA — dollar amount
-  // L5 Rate Intelligence — populated when borrower decoded their rate before matching
-  fairParRate?:   number;  // decoded lender par rate (FRED + LLPA)
-  fairParCounty?: string;  // county used in LLPA calculation
+  // Rate Intelligence (LLPA/OBMMI) — populated once the borrower supplies the
+  // inputs the engine needs (creditScore/occupancy/propertyType/loanPurpose/state)
+  // via Discover's own "precise rate benchmark" panel, regardless of entry path.
+  fairParRate?:   number;  // real lender par rate from computeLLPA(), not a flat FRED+offset guess
+  fairParCounty?: string;  // county/state label used in the LLPA calculation
+  creditScore?:   number;
+  occupancy?:     'primary' | 'second' | 'investment';
+  propertyType?:  'sfr' | '2unit' | '3_4unit' | 'condo' | 'manufactured';
+  loanPurpose?:   'purchase' | 'rate_term_refi' | 'cash_out_refi';
+  state?:         string;
 };
 
 export type DiscoverQuestion = {
@@ -64,8 +72,10 @@ function makeRateQuestion(lt: LoanTypeKey): DiscoverQuestion {
     icon:  '📊',
     title: 'Rate, APR & Program',
     subtopics: 'Exact rate · APR · fixed vs ARM · rate lock options & extension cost',
-    aiValue: s => `${s.rate.toFixed(3)}%`,
-    aiSub:   () => 'FRED 30yr avg interest rate · live benchmark',
+    aiValue: s => `${(s.fairParRate ?? s.rate).toFixed(3)}%`,
+    aiSub:   s => s.fairParRate
+      ? `LLPA fair par rate${s.fairParCounty ? ` · ${s.fairParCounty}` : ''} · your credit/LTV/program`
+      : 'FRED 30yr avg interest rate · live benchmark (add credit score + state below for a precise rate)',
     prompt:  s => s.fairParRate
       ? `My LLPA analysis shows fair par at ${s.fairParRate.toFixed(3)}%${s.fairParCounty ? ` (${s.fairParCounty})` : ''}. What rate can you offer on a ${fmt$(s.loanAmount)} ${lt.toUpperCase()} ${s.downPct}% down purchase? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost? ${loanSpecific[lt]}`
       : `What is your interest rate on a ${fmt$(s.loanAmount)} ${lt.toUpperCase()} loan at ${s.downPct}% down? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost? ${loanSpecific[lt]}`,
@@ -75,15 +85,19 @@ function makeRateQuestion(lt: LoanTypeKey): DiscoverQuestion {
       if (!raw) return { status: 'pending', note: '' };
       const v = parseFloat(raw);
       if (isNaN(v)) return { status: 'check', note: 'No specific rate quoted yet — reply in chat asking for an exact interest rate' };
-      const diff = v - s.rate;
-      // Jumbo rates carry a natural 0.35–0.65% premium above FRED conforming.
-      // Apply a 0.50 offset so a 0.60% spread doesn't incorrectly fire as Alert.
-      const premiumOffset = lt === 'jumbo' ? 0.50 : 0;
+      // Prefer the real LLPA/OBMMI par rate over the flat FRED average whenever
+      // it's known — it already reflects this borrower's actual credit score,
+      // LTV, occupancy, property type and loan purpose, so no flat jumbo
+      // "premium" guess is needed on top of it (the engine prices that itself).
+      const usingFairPar = s.fairParRate != null;
+      const benchmark = s.fairParRate ?? s.rate;
+      const diff = v - benchmark;
+      const premiumOffset = !usingFairPar && lt === 'jumbo' ? 0.50 : 0;
       const adjDiff = diff - premiumOffset;
-      const typeCtx = lt === 'jumbo' ? ' (Jumbo portfolio premium applied)' : '';
-      if (adjDiff <= 0.25) return { status: 'match', note: `${v.toFixed(3)}% — competitive${lt === 'jumbo' ? ' for Jumbo' : ' vs today\'s FRED average'}` };
-      if (adjDiff <= 0.50) return { status: 'check', note: `${diff.toFixed(3)}% above FRED${typeCtx} — confirm no hidden points` };
-      return             { status: 'alert', note: `${diff.toFixed(3)}% above FRED${typeCtx} — ask for rate sheet and zero-point option` };
+      const benchLabel = usingFairPar ? 'your LLPA fair par rate' : lt === 'jumbo' ? 'FRED (Jumbo portfolio premium applied)' : 'FRED';
+      if (adjDiff <= 0.25) return { status: 'match', note: `${v.toFixed(3)}% — competitive vs ${benchLabel}` };
+      if (adjDiff <= 0.50) return { status: 'check', note: `${diff.toFixed(3)}% above ${benchLabel} — confirm no hidden points` };
+      return             { status: 'alert', note: `${diff.toFixed(3)}% above ${benchLabel} — ask for rate sheet and zero-point option` };
     },
   };
 }
