@@ -156,16 +156,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
     }
   }
 
-  // If the viewer is the professional, resolve borrower's display name
+  // If the viewer is the professional, resolve borrower's display name --
+  // but ONLY once contact has been explicitly shared. Before that, the LO
+  // must not receive borrower identity from HomeRates through ANY channel,
+  // so we do not even call Clerk for the borrower's profile pre-consent --
+  // the alias is a fixed literal, never derived from Clerk/ID/thread data.
   let borrowerName: string | null = null;
   if (!isBorrower) {
-    try {
-      const clerk = await clerkClient();
-      const borrowerClerk = await clerk.users.getUser(thread.borrower_id);
-      borrowerName = [borrowerClerk.firstName, borrowerClerk.lastName].filter(Boolean).join(" ")
-        || borrowerClerk.emailAddresses[0]?.emailAddress?.split("@")[0]
-        || null;
-    } catch { /* non-fatal */ }
+    if (contactShare) {
+      try {
+        const clerk = await clerkClient();
+        const borrowerClerk = await clerk.users.getUser(thread.borrower_id);
+        borrowerName = [borrowerClerk.firstName, borrowerClerk.lastName].filter(Boolean).join(" ")
+          || borrowerClerk.emailAddresses[0]?.emailAddress?.split("@")[0]
+          || null;
+      } catch { /* non-fatal */ }
+    } else {
+      borrowerName = "Borrower";
+    }
   }
 
   // Fetch scenario card data for Discover dock (borrower-facing only)
@@ -221,9 +229,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ thre
     }
   } catch { /* non-fatal — dock just won't appear */ }
 
+  // The raw Clerk borrower_id must not reach the LO's browser pre-consent
+  // either -- it's as identity-revealing as a name once cross-referenced.
+  const canSeeBorrowerId = isBorrower || !!contactShare;
+  const { borrower_id: _borrowerId, ...threadSafe } = thread;
+
   return NextResponse.json({
     thread: {
-      ...thread,
+      ...threadSafe,
+      ...(canSeeBorrowerId ? { borrower_id: thread.borrower_id } : {}),
       is_borrower: isBorrower,
       borrower_name: borrowerName,
     },
@@ -284,10 +298,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
     }
   }
 
-  // Metadata: only professionals can attach it, only for known structured types
-  const allowedMetaTypes = ['lo_prompt'];
-  const metadata = (!isBorrower && rawMetadata && allowedMetaTypes.includes(rawMetadata.type))
-    ? rawMetadata
+  // Metadata: only known structured types, scoped to the correct sender.
+  // 'lo_prompt' is professional-only; 'discover_followup' (borrower-only) tags
+  // an auto-generated follow-up with the Discover domain it belongs to, so the
+  // LO's reply can be associated back to that domain's cumulative Finding.
+  const rawMetaType = rawMetadata?.type;
+  const metadata =
+    (!isBorrower && rawMetaType === 'lo_prompt') ? rawMetadata
+    : (isBorrower && rawMetaType === 'discover_followup' && typeof rawMetadata?.chipId === 'string')
+      ? { type: 'discover_followup', chipId: rawMetadata.chipId }
     : null;
 
   // Auto-append rate disclosure if professional mentions a rate
@@ -320,18 +339,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
     })
     .eq("id", threadId);
 
-  // Email the other party — only when they had 0 unread (were caught up), to avoid spam
+  // Email the other party — only when they had 0 unread (were caught up), to avoid spam.
+  // When the recipient is the LO (borrower sent this message), the borrower's real
+  // name must not leak through this email channel pre-consent either — same rule
+  // as the API payload, just a different transport.
   if ((currentUnread ?? 0) === 0) {
     try {
       const clerk = await clerkClient();
       const recipientId = isBorrower ? thread.professional_id : thread.borrower_id;
-      const [recipientClerk, senderClerk] = await Promise.all([
-        clerk.users.getUser(recipientId),
-        clerk.users.getUser(userId),
-      ]);
+
+      let contactShareExists = false;
+      if (isBorrower) {
+        const { data: cs } = await sb.from("contact_shares").select("thread_id").eq("thread_id", threadId).maybeSingle();
+        contactShareExists = !!cs;
+      }
+
+      const recipientClerk = await clerk.users.getUser(recipientId);
       const recipientEmail = recipientClerk.emailAddresses[0]?.emailAddress ?? null;
       const recipientName  = [recipientClerk.firstName, recipientClerk.lastName].filter(Boolean).join(" ") || "there";
-      const senderName     = [senderClerk.firstName, senderClerk.lastName].filter(Boolean).join(" ") || "Someone";
+
+      let senderName: string;
+      if (isBorrower && !contactShareExists) {
+        senderName = "Borrower";
+      } else {
+        const senderClerk = await clerk.users.getUser(userId);
+        senderName = [senderClerk.firstName, senderClerk.lastName].filter(Boolean).join(" ") || "Someone";
+      }
+
       if (recipientEmail) {
         await emailNewReply({ toEmail: recipientEmail, toName: recipientName, fromName: senderName, threadId, preview: finalContent });
       }

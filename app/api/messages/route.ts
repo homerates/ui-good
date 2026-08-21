@@ -44,11 +44,23 @@ export async function GET() {
 
   const threads = merged;
 
-  // Resolve display names for the other party in each thread
-  const otherIds = threads.map(t =>
-    t.borrower_id === userId ? t.professional_id : t.borrower_id
-  );
-  const uniqueIds = [...new Set(otherIds)];
+  // Before resolving any names: for threads where this viewer is the professional,
+  // the borrower's identity must not be resolved from Clerk at all unless contact
+  // has already been explicitly shared for that specific thread.
+  const proThreadIds = threads.filter(t => t.professional_id === userId).map(t => t.id);
+  let sharedThreadIds = new Set<string>();
+  if (proThreadIds.length > 0) {
+    const { data: shares } = await sb.from("contact_shares").select("thread_id").in("thread_id", proThreadIds);
+    sharedThreadIds = new Set((shares ?? []).map(s => s.thread_id));
+  }
+
+  // Resolve display names -- but only for parties we're actually allowed to reveal:
+  // the professional's name (never anonymous) when this viewer is the borrower, or
+  // the borrower's name only for threads where contact has already been shared.
+  const resolvableIds = threads
+    .filter(t => t.borrower_id === userId || sharedThreadIds.has(t.id))
+    .map(t => (t.borrower_id === userId ? t.professional_id : t.borrower_id));
+  const uniqueIds = [...new Set(resolvableIds)];
 
   let nameMap: Record<string, string> = {};
   if (uniqueIds.length > 0) {
@@ -67,9 +79,12 @@ export async function GET() {
   const enriched = threads.map(t => {
     const isBorrower = t.borrower_id === userId;
     const otherId = isBorrower ? t.professional_id : t.borrower_id;
+    const canReveal = isBorrower || sharedThreadIds.has(t.id);
+    const { borrower_id, ...tRest } = t;
     return {
-      ...t,
-      other_name: nameMap[otherId] ?? "Unknown",
+      ...tRest,
+      ...(canReveal ? { borrower_id } : {}),
+      other_name: canReveal ? (nameMap[otherId] ?? "Unknown") : "Borrower",
       other_role: isBorrower ? t.professional_type : "borrower",
       unread: isBorrower ? t.unread_borrower : t.unread_professional,
     };
@@ -160,22 +175,21 @@ export async function POST(req: NextRequest) {
     })
     .eq("id", thread.id);
 
-  // Email the professional on new thread (fire-and-forget)
+  // Email the professional on new thread (fire-and-forget). A brand-new thread
+  // is always pre-consent (contact sharing requires an existing thread), so the
+  // LO must never learn the borrower's real name here -- no Clerk lookup for
+  // the borrower happens in this path at all.
   if (!existing) {
     try {
       const clerk = await clerkClient();
-      const [borrowerClerk, proClerk] = await Promise.all([
-        clerk.users.getUser(userId),
-        clerk.users.getUser(professional_id),
-      ]);
-      const borrowerName = [borrowerClerk.firstName, borrowerClerk.lastName].filter(Boolean).join(" ") || "A borrower";
-      const proName      = [proClerk.firstName, proClerk.lastName].filter(Boolean).join(" ") || "there";
-      const proEmail     = proClerk.emailAddresses[0]?.emailAddress ?? null;
+      const proClerk = await clerk.users.getUser(professional_id);
+      const proName  = [proClerk.firstName, proClerk.lastName].filter(Boolean).join(" ") || "there";
+      const proEmail = proClerk.emailAddresses[0]?.emailAddress ?? null;
       const { data: scenario } = scenario_id
         ? await sb.from("scenario_briefs").select("loan_type").eq("id", scenario_id).maybeSingle()
         : { data: null };
       if (proEmail) {
-        await emailNewThread({ toEmail: proEmail, toName: proName, fromName: borrowerName, threadId: thread.id, loanType: scenario?.loan_type });
+        await emailNewThread({ toEmail: proEmail, toName: proName, fromName: "Borrower", threadId: thread.id, loanType: scenario?.loan_type });
       }
     } catch (e) {
       console.error("[messages] emailNewThread lookup failed:", e);

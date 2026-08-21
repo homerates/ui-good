@@ -44,6 +44,7 @@ type Props = {
   loRepliedChipIds?:  string[];              // chips where the LO has already replied in chat
   loReplies?:         Record<string, string>; // chipId → LO's reply text for auto-analysis
   onGapSummary?:      (chips: ChipSummary[]) => void; // fires whenever chip states change
+  onNewContent?:      () => void; // fires when a chip's AI analysis or the full synthesis newly appears — parent may scroll it into view
   isAgentProxy?:      boolean;               // true when an agent posts on behalf of a client
 };
 
@@ -135,7 +136,7 @@ function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTyp
   };
 }
 
-export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId, sentChipIds = [], loRepliedChipIds = [], loReplies = {}, onGapSummary, isAgentProxy = false }: Props) {
+export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId, sentChipIds = [], loRepliedChipIds = [], loReplies = {}, onGapSummary, onNewContent, isAgentProxy = false }: Props) {
   // ── Session ──────────────────────────────────────────────────────────────
   const [sessionId, setSessionId]   = useState<string | null>(null);
   const sessionCreatedRef           = useRef(false);
@@ -218,7 +219,11 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   const fredFetchedRef = useRef(false);
 
   // ── Auto-extract tracking ────────────────────────────────────────────────
-  const processedRepliesRef = useRef<Set<string>>(new Set());
+  // chipId -> the exact reply text last processed for it. A Discover domain is
+  // an evolving interview: re-processing must fire whenever the cumulative
+  // text for that domain actually changes (a follow-up got answered), not just
+  // once ever — otherwise a Finding freezes on the LO's first reply forever.
+  const processedRepliesRef = useRef<Record<string, string>>({});
 
   const allSentChips   = [...new Set([...sentChipIds, ...localSentChips])];
   const nextChipIndex  = allSentChips.length;
@@ -325,6 +330,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
       const data = await res.json();
       if (!res.ok) { setFullAnalysisError(data.error ?? 'Analysis failed'); return; }
       setFullAnalysis(data.analysis ?? null);
+      if (data.analysis) onNewContent?.();
     } catch {
       setFullAnalysisError('Could not reach AI');
     } finally {
@@ -352,7 +358,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
     const entries = Object.entries(loReplies);
     if (entries.length === 0) return;
     const toProcess = entries.filter(
-      ([chipId]) => !processedRepliesRef.current.has(chipId)
+      ([chipId, replyText]) => processedRepliesRef.current[chipId] !== replyText
     );
     if (toProcess.length === 0) return;
 
@@ -361,7 +367,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
     const benchSnap = benchmarkSnap ?? activeScenario;
 
     for (const [chipId, replyText] of toProcess) {
-      processedRepliesRef.current.add(chipId);
+      processedRepliesRef.current[chipId] = replyText;
       const q   = questions.find(q => q.id === chipId);
       if (!q) continue;
       const val = extractFromReply(q.inputType, replyText);
@@ -492,6 +498,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
       const data = await res.json();
       if (data.analysis) {
         setAiNotes(prev => ({ ...prev, [chipId]: { analysis: data.analysis, followUp: data.followUp ?? '' } }));
+        onNewContent?.();
       }
     } catch { /* silent */ } finally {
       setAiNoteLoading(prev => ({ ...prev, [chipId]: false }));
@@ -505,7 +512,10 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
       await fetch(`/api/messages/${threadId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: question.trim() }),
+        // Tag with the domain this follow-up belongs to, so the parent page can
+        // associate the LO's next reply back to this chip's cumulative Finding
+        // instead of only the timestamp-ordering heuristic.
+        body: JSON.stringify({ message: question.trim(), metadata: { type: 'discover_followup', chipId } }),
       });
     } catch { /* silent — optimistic UI already applied */ }
   }

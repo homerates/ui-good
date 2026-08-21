@@ -89,6 +89,31 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   const [showShareConfirm, setShowShareConfirm] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "discover">("chat");
   const [discoverChipStates, setDiscoverChipStates] = useState<ChipSummary[]>([]);
+
+  // ── Discover pane: scroll-into-view for new content + mobile tab indicator ──
+  const dockColRef = useRef<HTMLDivElement>(null);
+  const dockNearBottomRef = useRef(true); // sensible-scroll: only auto-scroll if already near the bottom
+
+  function handleDockScroll() {
+    const el = dockColRef.current;
+    if (!el) return;
+    dockNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }
+
+  function handleDockNewContent() {
+    const el = dockColRef.current;
+    if (!el || !dockNearBottomRef.current) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }
+
+  // Mobile "new activity" indicator on the Discover tab -- acknowledged
+  // automatically whenever the borrower is actually viewing that tab.
+  const [lastSeenDiscoverSig, setLastSeenDiscoverSig] = useState("");
+  const currentDiscoverSig = discoverChipStates.map(c => `${c.id}:${c.status}`).join(",");
+  const hasNewDiscoverActivity = mobileTab !== "discover" && currentDiscoverSig !== "" && currentDiscoverSig !== lastSeenDiscoverSig;
+  useEffect(() => {
+    if (mobileTab === "discover") setLastSeenDiscoverSig(currentDiscoverSig);
+  }, [mobileTab, currentDiscoverSig]);
   const [showDebug, setShowDebug] = useState(false);
   const [viewerRole, setViewerRole] = useState<'borrower' | 'agent'>('borrower');
   const [fredRate, setFredRate] = useState<number | null>(null);
@@ -267,7 +292,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   const proType = thread?.professional_type === "agent" ? "Agent" : "Loan Officer";
   const navTitle = isBorrower
     ? (proCard?.name ? `${proType} · ${proCard.name}` : proType)
-    : (thread?.borrower_name ? `Borrower · ${thread.borrower_name}` : "Borrower");
+    : (thread?.borrower_name && thread.borrower_name !== "Borrower" ? `Borrower · ${thread.borrower_name}` : "Borrower");
   const isClosed = thread?.status === "closed";
   const contactShared = thread?.status === "contact_shared" || !!contactShare;
   const hasDock = isBorrower;
@@ -283,18 +308,37 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     .map(m => (m.metadata as { chipId?: string })?.chipId ?? "")
     .filter(Boolean);
 
-  // Derive which chips the LO has already replied to, and their reply text
+  // Derive which chips the LO has replied to, and their CUMULATIVE reply text.
+  // A Discover domain is an evolving interview, not a one-message evaluation:
+  // collect every professional reply from the chip's own message up to the
+  // start of the NEXT DIFFERENT chip's message (or thread end), not just the
+  // first one — so a later follow-up answer is captured, not lost.
   const loRepliedChipIds: string[] = [];
   const loReplies: Record<string, string> = {};
-  for (const chipId of sentChipIds) {
-    const chipMsg = messagesAfterReset.find(
-      m => m.metadata?.type === "discover_chip" && m.metadata?.chipId === chipId
-    );
-    if (!chipMsg) continue;
-    const loReply = messagesAfterReset.find(m => m.sender_role === "professional" && m.created_at > chipMsg.created_at);
-    if (loReply) {
+  const chipMsgEntries = messagesAfterReset
+    .map((m, i) => ({ m, i }))
+    .filter(({ m }) => m.metadata?.type === "discover_chip");
+
+  for (let k = 0; k < chipMsgEntries.length; k++) {
+    const { m: chipMsg, i: startIdx } = chipMsgEntries[k];
+    const chipId = (chipMsg.metadata as { chipId?: string })?.chipId ?? "";
+    if (!chipId) continue;
+
+    let endIdx = messagesAfterReset.length;
+    for (let j = k + 1; j < chipMsgEntries.length; j++) {
+      const nextChipId = (chipMsgEntries[j].m.metadata as { chipId?: string })?.chipId ?? "";
+      if (nextChipId !== chipId) { endIdx = chipMsgEntries[j].i; break; }
+    }
+
+    const replies = messagesAfterReset
+      .slice(startIdx + 1, endIdx)
+      .filter(m => m.sender_role === "professional");
+
+    if (replies.length > 0) {
       loRepliedChipIds.push(chipId);
-      loReplies[chipId] = loReply.content;
+      loReplies[chipId] = replies.length === 1
+        ? replies[0].content
+        : replies.map((r, idx) => idx === 0 ? r.content : `Follow-up reply: ${r.content}`).join("\n\n");
     }
   }
 
@@ -341,6 +385,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
             </button>
             <button className={`ch-tab-btn${mobileTab === "discover" ? " active" : ""}`} onClick={() => setMobileTab("discover")}>
               {viewerRole === 'agent' ? '🤝 Discover — For Client' : '🔍 Discover'}
+              {hasNewDiscoverActivity && <span className="ch-tab-dot" aria-label="New Discover activity" />}
             </button>
           </div>
         )}
@@ -808,7 +853,11 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
 
           {/* ── Right: Discover dock column ── */}
           {hasDock && (
-            <div className={`ch-dock-col${mobileTab !== "discover" ? " ch-mobile-hidden" : ""}`}>
+            <div
+              ref={dockColRef}
+              onScroll={handleDockScroll}
+              className={`ch-dock-col${mobileTab !== "discover" ? " ch-mobile-hidden" : ""}`}
+            >
 
               {/* AI Guide — borrower advisory (desktop: top of dock; mobile: top of Discover tab) */}
               <div className="ch-ai-guide">
@@ -831,6 +880,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                 loRepliedChipIds={loRepliedChipIds}
                 loReplies={loReplies}
                 onGapSummary={setDiscoverChipStates}
+                onNewContent={handleDockNewContent}
                 isAgentProxy={viewerRole === 'agent'}
               />
             </div>
@@ -991,14 +1041,22 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           margin-right: auto;
         }
 
-        /* Discover dock column */
+        /* Discover dock column — scrollbar deliberately more visible than the
+           chat pane's: this column independently scrolls and borrowers must be
+           able to tell at a glance that more content exists below the fold. */
         .ch-dock-col {
           overflow-y: auto;
           height: 100%;
           padding-top: 0;
           scrollbar-width: thin;
-          scrollbar-color: rgba(148,163,184,0.12) transparent;
+          scrollbar-color: rgba(148,163,184,0.38) transparent;
         }
+        .ch-dock-col::-webkit-scrollbar { width: 8px; }
+        .ch-dock-col::-webkit-scrollbar-thumb {
+          background: rgba(148,163,184,0.38);
+          border-radius: 4px;
+        }
+        .ch-dock-col::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.55); }
 
         /* Mobile tab bar — hidden on desktop */
         .ch-tab-bar {
@@ -1008,6 +1066,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           border-bottom: 1px solid rgba(148,163,184,0.12);
         }
         .ch-tab-btn {
+          position: relative;
           flex: 1; padding: 12px 0;
           font-size: 13px; font-weight: 600;
           color: rgba(148,163,184,0.50);
@@ -1018,6 +1077,13 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           font-family: 'DM Sans', system-ui, sans-serif;
         }
         .ch-tab-btn.active { color: #00e87a; border-bottom-color: #00e87a; }
+        .ch-tab-dot {
+          display: inline-block;
+          width: 7px; height: 7px; border-radius: 50%;
+          background: #00e87a;
+          margin-left: 6px; vertical-align: middle;
+          box-shadow: 0 0 0 2px rgba(0,232,122,0.20);
+        }
 
         /* Portal card */
         .ch-portal {
