@@ -95,12 +95,18 @@ export async function POST(req: NextRequest) {
 
   const loanType: string  = clientLoanType ?? 'conventional';
   const loanLabel: string = LOAN_LABELS[loanType] ?? loanType.toUpperCase();
-  // Jumbo rates carry ~0.50% premium over FRED conforming
-  const marketRate = loanType === 'jumbo'
-    ? parseFloat((fredRate + 0.50).toFixed(3))
-    : fredRate;
 
   const snap = clientScenario;
+  // Prefer the real LLPA/OBMMI fair par rate (already priced to this borrower's
+  // credit score, LTV, occupancy, property type, and program) over the flat FRED
+  // average + hardcoded Jumbo offset — same fix as analyze-reply's benchmark.
+  const usingFairPar = typeof snap?.fairParRate === 'number';
+  const marketRate = usingFairPar
+    ? snap!.fairParRate!
+    : loanType === 'jumbo'
+      ? parseFloat((fredRate + 0.50).toFixed(3))
+      : fredRate;
+
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric', month: 'long', day: 'numeric',
   });
@@ -112,6 +118,7 @@ export async function POST(req: NextRequest) {
       loan_amount:           snap.loanAmount,
       down_payment_pct:      snap.downPct,
       fred_benchmark_rate:   fredRate,
+      ...(usingFairPar && { fair_par_rate_llpa_adjusted: snap!.fairParRate }),
       term_years:            snap.term ?? 30,
       estimated_monthly_pi:  snap.monthlyPayment,
     } : null,
@@ -127,8 +134,9 @@ ${JSON.stringify(inputData, null, 2)}
 
 Current date: ${currentDate}
 FRED 30yr conforming rate: ${fredRate.toFixed(3)}%
-Current 30yr ${loanLabel} market average: ${marketRate.toFixed(3)}%
-Note: ${loanType === 'jumbo' ? 'Jumbo rates naturally run 0.35–0.65% above FRED conforming. Adjust competitiveness assessment accordingly.' : 'Compare quoted rate directly to FRED benchmark.'}
+${usingFairPar
+    ? `This borrower's real fair par rate (LLPA-adjusted for their credit score, LTV, occupancy, property type, and program): ${marketRate.toFixed(3)}%. Benchmark the quoted rate against THIS number, not the flat FRED conforming rate above — it is already the correct, borrower-specific figure.`
+    : `Current 30yr ${loanLabel} market average: ${marketRate.toFixed(3)}%\nNote: ${loanType === 'jumbo' ? 'Jumbo rates naturally run 0.35–0.65% above FRED conforming. Adjust competitiveness assessment accordingly.' : 'Compare quoted rate directly to FRED benchmark.'}`}
 
 Return ONLY this exact JSON structure:
 {

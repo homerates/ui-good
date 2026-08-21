@@ -112,8 +112,61 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
 
   // ── Active state ─────────────────────────────────────────────────────────
   const activeLoanType: LoanTypeKey     = propLoanType ?? localLoanType;
-  const activeScenario: ScenarioSnapshot | null = propScenario ?? localScenario;
+  const baseScenario: ScenarioSnapshot | null = propScenario ?? localScenario;
+  // llpaEnrichment merges on top of whichever base scenario is active (prop-driven
+  // from an existing thread, or built locally via the setup form) — one single
+  // mechanism supplies the LLPA inputs regardless of entry path.
+  const [llpaEnrichment, setLlpaEnrichment] = useState<Partial<ScenarioSnapshot> | null>(null);
+  const activeScenario: ScenarioSnapshot | null = baseScenario
+    ? (llpaEnrichment ? { ...baseScenario, ...llpaEnrichment } : baseScenario)
+    : null;
   const needsSetup = !activeScenario;
+
+  // ── Rate Intelligence (LLPA) inputs — collected directly in Discover ─────
+  const [llpaCreditScore, setLlpaCreditScore]   = useState('');
+  const [llpaState, setLlpaState]               = useState('');
+  const [llpaOccupancy, setLlpaOccupancy]       = useState<'primary' | 'second' | 'investment'>('primary');
+  const [llpaPropertyType, setLlpaPropertyType] = useState<'sfr' | '2unit' | '3_4unit' | 'condo' | 'manufactured'>('sfr');
+  const [llpaPurpose, setLlpaPurpose]           = useState<'purchase' | 'rate_term_refi' | 'cash_out_refi'>('purchase');
+  const [llpaComputing, setLlpaComputing]       = useState(false);
+  const [llpaError, setLlpaError]               = useState('');
+
+  async function computeFairParRate() {
+    if (!baseScenario) return;
+    const creditScore = parseInt(llpaCreditScore, 10);
+    const state = llpaState.trim().toUpperCase().slice(0, 2);
+    if (!creditScore || creditScore < 580 || creditScore > 850) { setLlpaError('Enter a valid credit score (580–850)'); return; }
+    if (state.length !== 2) { setLlpaError('Enter a valid 2-letter state'); return; }
+    setLlpaError('');
+    setLlpaComputing(true);
+    try {
+      // ltv here is a decimal (e.g. 0.965); the engine expects a 1–97 percentage.
+      const ltvPct = parseFloat((baseScenario.ltv * 100).toFixed(2));
+      const res = await fetch('/api/rate-intelligence-engine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creditScore, ltv: ltvPct, loanAmount: Math.round(baseScenario.loanAmount),
+          occupancy: llpaOccupancy, loanPurpose: llpaPurpose, propertyType: llpaPropertyType,
+          lockDays: 30, loanType: activeLoanType, state,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || typeof data.lenderParRate !== 'number') {
+        setLlpaError(data.error ?? 'Could not compute a fair par rate for these inputs');
+        return;
+      }
+      setLlpaEnrichment({
+        fairParRate:   data.lenderParRate,
+        fairParCounty: data.stateName ?? undefined,
+        creditScore, occupancy: llpaOccupancy, propertyType: llpaPropertyType, loanPurpose: llpaPurpose, state,
+      });
+    } catch {
+      setLlpaError('Network error — could not reach the rate engine');
+    } finally {
+      setLlpaComputing(false);
+    }
+  }
 
   const questions = getQuestions(activeLoanType);
 
@@ -573,6 +626,62 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
               ))}
             </div>
 
+            {/* LLPA inputs — shown regardless of how this scenario was reached
+                (thread-linked or standalone setup) until a real fair par rate exists */}
+            {!activeScenario.fairParRate && (
+              <div className="dd-llpa-panel">
+                <div className="dd-llpa-hdr">📐 Add these for a precise rate benchmark</div>
+                <div className="dd-llpa-sub">
+                  Without this, the Rate chip benchmarks your lender's quote against today's flat FRED average instead of a rate priced to your actual credit score, LTV, and program.
+                </div>
+                <div className="dd-llpa-fields">
+                  <input
+                    type="text" inputMode="numeric" placeholder="Credit score" value={llpaCreditScore}
+                    onChange={e => setLlpaCreditScore(e.target.value)}
+                    className="dd-field-input" style={{ width: 92 }}
+                  />
+                  <input
+                    type="text" placeholder="State (e.g. CA)" value={llpaState} maxLength={2}
+                    onChange={e => setLlpaState(e.target.value)}
+                    className="dd-field-input" style={{ width: 92 }}
+                  />
+                  <select
+                    value={llpaOccupancy}
+                    onChange={e => setLlpaOccupancy(e.target.value as 'primary' | 'second' | 'investment')}
+                    className="dd-field-input"
+                  >
+                    <option value="primary">Primary residence</option>
+                    <option value="second">Second home</option>
+                    <option value="investment">Investment</option>
+                  </select>
+                  <select
+                    value={llpaPropertyType}
+                    onChange={e => setLlpaPropertyType(e.target.value as 'sfr' | '2unit' | '3_4unit' | 'condo' | 'manufactured')}
+                    className="dd-field-input"
+                  >
+                    <option value="sfr">Single family</option>
+                    <option value="condo">Condo</option>
+                    <option value="2unit">2-unit</option>
+                    <option value="3_4unit">3–4 unit</option>
+                    <option value="manufactured">Manufactured</option>
+                  </select>
+                  <select
+                    value={llpaPurpose}
+                    onChange={e => setLlpaPurpose(e.target.value as 'purchase' | 'rate_term_refi' | 'cash_out_refi')}
+                    className="dd-field-input"
+                  >
+                    <option value="purchase">Purchase</option>
+                    <option value="rate_term_refi">Rate/term refi</option>
+                    <option value="cash_out_refi">Cash-out refi</option>
+                  </select>
+                  <button onClick={computeFairParRate} disabled={llpaComputing} className="dd-setup-btn">
+                    {llpaComputing ? 'Computing…' : 'Compute fair rate →'}
+                  </button>
+                </div>
+                {llpaError && <div className="dd-setup-error">{llpaError}</div>}
+              </div>
+            )}
+
             <div className="dd-section-lbl">Evaluation questions · tap next chip to ask lender</div>
 
             {/* Question chips */}
@@ -1006,6 +1115,26 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
           letter-spacing: 0.09em; text-transform: uppercase;
           color: rgba(148,163,184,0.35);
           flex-shrink: 0;
+        }
+
+        /* LLPA precise-rate panel */
+        .dd-llpa-panel {
+          margin: 10px 14px 0;
+          padding: 12px 14px;
+          background: rgba(139,92,246,0.05);
+          border: 1px solid rgba(139,92,246,0.16);
+          border-radius: 10px;
+          display: flex; flex-direction: column; gap: 8px;
+        }
+        .dd-llpa-hdr { font-size: 12px; font-weight: 700; color: #c4b5fd; }
+        .dd-llpa-sub { font-size: 10.5px; color: rgba(185,208,192,0.6); line-height: 1.5; }
+        .dd-llpa-fields { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .dd-llpa-fields select {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(148,163,184,0.18);
+          border-radius: 6px; padding: 7px 8px;
+          color: #e2e8f0; font-size: 12.5px; outline: none;
+          font-family: inherit;
         }
 
         /* Chips */

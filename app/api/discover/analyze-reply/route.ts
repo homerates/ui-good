@@ -19,6 +19,7 @@ function buildSystemPrompt(params: {
   scenario: {
     price: number; loanAmount: number; downPct: number;
     rate: number; term: number; ltv: number; monthlyPayment: number;
+    fairParRate?: number; fairParCounty?: string;
   };
 }): string {
   const { chipTitle, chipSubtopics, loanType, scenario } = params;
@@ -26,10 +27,15 @@ function buildSystemPrompt(params: {
     fha: 'FHA', conventional: 'Conventional', va: 'VA', jumbo: 'Jumbo',
   };
   const label = typeLabel[loanType] ?? loanType.toUpperCase();
+  const usingFairPar = typeof scenario.fairParRate === 'number';
 
   // Loan-type-specific context injected into the system prompt
   const loanTypeContext: string[] = [];
-  if (loanType === 'jumbo') {
+  // The flat Jumbo portfolio-premium guess is only needed when falling back to
+  // the FRED conforming average — a real LLPA/OBMMI fair par rate already
+  // prices the Jumbo segment correctly, so applying the flat offset on top of
+  // it would double-count the premium.
+  if (loanType === 'jumbo' && !usingFairPar) {
     loanTypeContext.push(
       'JUMBO RATE CONTEXT: The FRED 30yr Benchmark is for conforming loans only. Jumbo rates naturally carry a 0.35–0.65% portfolio premium above conforming. A Jumbo rate 0.60% above FRED is within normal range — do NOT flag it as Alert. Only flag as elevated if the spread exceeds 0.90% above FRED after accounting for the Jumbo premium.'
     );
@@ -52,7 +58,11 @@ function buildSystemPrompt(params: {
     `This question covers: ${chipSubtopics}`,
     '',
     'LOAN SCENARIO:',
-    `Type: ${label} | Purchase: ${fmt$(scenario.price)} | Loan: ${fmt$(scenario.loanAmount)} | Down: ${scenario.downPct}% | FRED 30yr Benchmark: ${scenario.rate.toFixed(3)}% | LTV: ${(scenario.ltv * 100).toFixed(1)}%`,
+    `Type: ${label} | Purchase: ${fmt$(scenario.price)} | Loan: ${fmt$(scenario.loanAmount)} | Down: ${scenario.downPct}% | ` +
+      (usingFairPar
+        ? `Fair Par Rate (LLPA-adjusted for this borrower's credit/LTV/program${scenario.fairParCounty ? `, ${scenario.fairParCounty}` : ''}): ${scenario.fairParRate!.toFixed(3)}%`
+        : `FRED 30yr Benchmark: ${scenario.rate.toFixed(3)}%`) +
+      ` | LTV: ${(scenario.ltv * 100).toFixed(1)}%`,
     ...(loanTypeContext.length > 0 ? ['', ...loanTypeContext] : []),
     '',
     'INSTRUCTIONS — stay strictly within the topic above.',
