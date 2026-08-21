@@ -159,7 +159,9 @@ function makeProcessQuestion(lt: LoanTypeKey): DiscoverQuestion {
         if (days <= 45) return { status: 'check',  note: `${days} days — confirm loan contingency removal day with your agent` };
         return { status: 'alert', note: `${days} days — above standard; may weaken your offer in a competitive market` };
       }
-      return { status: 'match', note: raw };
+      // No measurable day-count parsed — the LO's reply didn't actually answer
+      // "how many days to close," so this cannot count as confirmation.
+      return { status: 'check', note: 'No specific day count quoted yet — ask for an exact number of days to close' };
     },
   };
 }
