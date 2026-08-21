@@ -10,6 +10,7 @@ import {
   type LoanTypeKey,
   type ScenarioSnapshot,
   type GapStatus,
+  type GapResult,
 } from '../../lib/discoverQuestions';
 import { AIDisclosureTag } from './AIDisclosureTag';
 
@@ -76,6 +77,43 @@ function extractFromReply(inputType: string, text: string): string {
   if (lower.includes('lifetime') || lower.includes('guarantee') || lower.includes('certificate')) signals.push('guarantee');
   if (signals.length > 0) return signals.join(' + ');
   return '';
+}
+
+// Structured cost facts, extracted conservatively (anchored regexes only —
+// no guessing) so AI synthesis can cite them directly instead of re-inferring
+// them from prose. Deliberately NOT used to change Costs' gap status/benchmark
+// — no cost benchmarking methodology is being added here (Phase B boundary).
+export type CostFacts = {
+  apr?:               number;  // %
+  points?:            number;  // discount points
+  lenderCredit?:      number;  // $
+  originationFee?:    number;  // $
+  originationFeePct?: number;  // %
+};
+
+function extractCostFacts(text: string): CostFacts {
+  const facts: CostFacts = {};
+  const trimmed = text.trim();
+  if (!trimmed) return facts;
+
+  const aprMatch = trimmed.match(/APR\s*(?:of|is|:)?\s*(\d+\.?\d*)\s*%/i);
+  if (aprMatch) facts.apr = parseFloat(aprMatch[1]);
+
+  const pointsMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*(?:discount\s+)?points?\b/i);
+  if (pointsMatch) facts.points = parseFloat(pointsMatch[1]);
+
+  const creditMatch = trimmed.match(/\$\s*([\d,]+(?:\.\d+)?)\s*(?:lender\s+)?credit/i);
+  if (creditMatch) facts.lenderCredit = parseFloat(creditMatch[1].replace(/,/g, ''));
+
+  const origDollarMatch = trimmed.match(/\$\s*([\d,]+(?:\.\d+)?)\s*origination/i);
+  if (origDollarMatch) {
+    facts.originationFee = parseFloat(origDollarMatch[1].replace(/,/g, ''));
+  } else {
+    const origPctMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*%\s*origination/i);
+    if (origPctMatch) facts.originationFeePct = parseFloat(origPctMatch[1]);
+  }
+
+  return facts;
 }
 
 function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTypeKey): ScenarioSnapshot {
@@ -198,6 +236,9 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   // ── Per-chip AI analysis of LO replies ───────────────────────────────────
   const [aiNotes, setAiNotes]             = useState<Record<string, { analysis: string; followUp: string }>>({});
   const [aiNoteLoading, setAiNoteLoading] = useState<Record<string, boolean>>({});
+  // Structured cost facts extracted per chip (APR/points/lender credit/origination
+  // fee) — passed to AI synthesis as ground truth, never used to score Costs.
+  const [costFactsByChip, setCostFactsByChip] = useState<Record<string, CostFacts>>({});
   const [followUpSent, setFollowUpSent]   = useState<Set<string>>(new Set());
 
   // ── Full Grok Scorecard (auto-fires when all 4 chips replied) ─────────────
@@ -258,6 +299,19 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
     setFullAnalysisLoading(true);
     setFullAnalysisError('');
     try {
+      // Pass the deterministic per-chip findings (extracted value + gap status +
+      // any structured cost facts) explicitly — the model synthesizes their
+      // significance, it does not re-derive the numbers from raw conversation.
+      const findings = questions.map((q, i) => ({
+        id:             q.id,
+        title:          q.title,
+        extractedValue: inputs[q.id] || null,
+        gapStatus:      gaps[i]?.status ?? 'pending',
+        gapNote:        gaps[i]?.note ?? '',
+        ...(costFactsByChip[q.id] && Object.keys(costFactsByChip[q.id]).length > 0
+          ? { costFacts: costFactsByChip[q.id] }
+          : {}),
+      }));
       const res = await fetch('/api/discover/full-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -265,6 +319,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
           threadId,
           loanType: activeLoanType,
           scenario: activeScenario,
+          findings,
         }),
       });
       const data = await res.json();
@@ -302,6 +357,8 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
     if (toProcess.length === 0) return;
 
     const extracted: Record<string, string> = {};
+    const newCostFacts: Record<string, CostFacts> = {};
+    const benchSnap = benchmarkSnap ?? activeScenario;
 
     for (const [chipId, replyText] of toProcess) {
       processedRepliesRef.current.add(chipId);
@@ -309,11 +366,22 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
       if (!q) continue;
       const val = extractFromReply(q.inputType, replyText);
       extracted[chipId] = val; // may be empty string — lender cell shows "Not quoted yet"
-      // AI analysis always runs for every chip the LO has replied to
-      analyzeLoReply(chipId, replyText);
+      const facts = extractCostFacts(replyText);
+      if (Object.keys(facts).length > 0) newCostFacts[chipId] = facts;
+      // Deterministic gap computed once, here — so the AI analysis below is
+      // handed the SAME status it's asked to explain, instead of the two
+      // potentially disagreeing.
+      const gap = benchSnap ? q.evaluateGap(val, benchSnap) : { status: 'pending' as const, note: '' };
+      // AI analysis always runs for every chip the LO has replied to — given
+      // the already-extracted value, gap, and cost facts as ground truth, not
+      // asked to re-derive them from the reply text.
+      analyzeLoReply(chipId, replyText, val, gap, facts);
     }
 
     setInputs(prev => ({ ...prev, ...extracted }));
+    if (Object.keys(newCostFacts).length > 0) {
+      setCostFactsByChip(prev => ({ ...prev, ...newCostFacts }));
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loReplies]);
 
@@ -395,9 +463,11 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // AI analysis of LO reply (called when extraction produces non-numeric text)
+  // AI analysis of LO reply — receives the already-extracted value, the
+  // deterministic gap status/note, and any structured cost facts as ground
+  // truth. The model explains their significance; it does not re-derive them.
   // ─────────────────────────────────────────────────────────────────────────
-  async function analyzeLoReply(chipId: string, loReply: string) {
+  async function analyzeLoReply(chipId: string, loReply: string, extractedValue: string, gap: GapResult, costFacts: CostFacts) {
     if (!benchmarkSnap && !activeScenario) return;
     const snap = benchmarkSnap ?? activeScenario!;
     const q    = questions.find(q => q.id === chipId);
@@ -409,10 +479,14 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           loReply,
-          chipTitle:     q.title,
-          chipSubtopics: q.subtopics,
-          loanType:      activeLoanType,
-          scenario:      snap,
+          chipTitle:      q.title,
+          chipSubtopics:  q.subtopics,
+          loanType:       activeLoanType,
+          scenario:       snap,
+          extractedValue: extractedValue || undefined,
+          gapStatus:      gap.status !== 'pending' ? gap.status : undefined,
+          gapNote:        gap.note || undefined,
+          costFacts:      Object.keys(costFacts).length > 0 ? costFacts : undefined,
         }),
       });
       const data = await res.json();
@@ -802,13 +876,15 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
               })}
             </div>
 
-            {/* ── Full AI Scorecard — auto-renders when all 4 chips answered ── */}
+            {/* ── AI Discovery Synthesis — auto-renders when all 4 chips answered.
+                Evidence-based explanation of the deterministic findings above —
+                deliberately no overall score/grade of any kind. ── */}
             {(fullAnalysisLoading || fullAnalysis || fullAnalysisError) && (
               <div className="da-shell">
                 <div className="da-header">
                   <span style={{ fontSize: 14 }}>🤖</span>
-                  <span className="da-header-title">AI Full Scorecard</span>
-                  <span className="da-header-sub">all 4 chips analyzed</span>
+                  <span className="da-header-title">AI Discovery Synthesis</span>
+                  <span className="da-header-sub">all 4 domains analyzed</span>
                   {fullAnalysis && !fullAnalysisLoading && <AIDisclosureTag variant="inline" />}
                   {!fullAnalysisLoading && !fullAnalysis && (
                     <button className="da-retry-btn" onClick={() => { scorecardTriggeredRef.current = false; setFullAnalysisError(''); fetchFullScorecard(); }}>
@@ -820,7 +896,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                 {fullAnalysisLoading && (
                   <div className="da-loading">
                     <span className="dd-dots"><span /><span /><span /></span>
-                    Grok is analyzing all 4 lender responses…
+                    Grok is synthesizing all 4 lender responses…
                   </div>
                 )}
 
@@ -830,31 +906,42 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
 
                 {fullAnalysis && !fullAnalysisLoading && (() => {
                   const a = fullAnalysis;
-                  const score: number = a.decision_score ?? 0;
-                  const scoreCol = score >= 70 ? '#00e87a' : score >= 50 ? '#fbbf24' : '#f87171';
-                  const scoreLabel = score >= 70 ? 'Proceed' : score >= 50 ? 'Negotiate' : 'Shop Around';
-                  const strengths: string[] = a.key_strengths ?? [];
-                  const concerns: string[]  = a.key_concerns ?? [];
-                  const mc = a.market_context ?? {};
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  const scenarios: Array<Record<string, any>> = a.personalized_scenarios ?? [];
-                  const risks = a.risk_assessment ?? {};
-                  const questions_nxt: string[] = a.next_best_questions ?? [];
-                  const wealth: string = a.wealth_building_tie_in ?? '';
+                  const strengths: string[]    = a.strengths ?? [];
+                  const concerns: string[]     = a.concerns ?? [];
+                  const missing: string[]      = a.missing_information ?? [];
+                  const mc                     = a.market_context ?? {};
+                  const commentary: string     = a.market_commentary ?? '';
+                  const questions_nxt: string[] = a.questions_worth_asking ?? [];
+                  const alternatives: string[] = a.alternatives_or_tradeoffs ?? [];
+                  const rateSourceLabel = mc.market_rate_source === 'llpa_fair_par' ? 'your fair par rate' : 'FRED market average';
 
                   return (
                     <div className="da-body">
-                      {/* Score + recommendation */}
-                      <div className="da-score-row">
-                        <div className="da-score-badge" style={{ background: `${scoreCol}12`, border: `2px solid ${scoreCol}40`, color: scoreCol }}>
-                          <span className="da-score-num">{score}</span>
-                          <span className="da-score-lbl">{scoreLabel}</span>
+                      {/* Market context — numbers are computed deterministically
+                          server-side, never by the model; only the commentary
+                          sentence is AI-generated explanation of them. */}
+                      {(mc.current_market_rate != null || commentary) && (
+                        <div className="da-market">
+                          <div className="da-market-lbl">📊 Market Context</div>
+                          {mc.current_market_rate != null && (
+                            <div className="da-market-row">
+                              {mc.quoted_rate != null && <span className="da-market-val">Quoted <strong>{mc.quoted_rate}%</strong></span>}
+                              <span className="da-market-val">{rateSourceLabel} <strong>{mc.current_market_rate}%</strong></span>
+                              {mc.quoted_vs_market != null && (
+                                <span className="da-market-val" style={{ color: mc.quoted_vs_market > 0 ? '#fbbf24' : '#00e87a' }}>
+                                  {mc.quoted_vs_market > 0 ? '+' : ''}{mc.quoted_vs_market} vs {mc.market_rate_source === 'llpa_fair_par' ? 'fair par' : 'market'}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {mc.monthly_impact != null && mc.monthly_impact !== 0 && (
+                            <div className="da-market-impact">
+                              ≈ <strong style={{ color: mc.monthly_impact > 0 ? '#fbbf24' : '#00e87a' }}>${Math.abs(mc.monthly_impact)}/mo</strong> {mc.monthly_impact > 0 ? 'above' : 'below'} {rateSourceLabel}
+                            </div>
+                          )}
+                          {commentary && <div className="da-market-commentary">{commentary}</div>}
                         </div>
-                        <div className="da-score-meta">
-                          <div className="da-confidence">{a.confidence ?? ''} confidence</div>
-                          <div className="da-recommendation">{a.overall_recommendation ?? ''}</div>
-                        </div>
-                      </div>
+                      )}
 
                       {/* Strengths / Concerns */}
                       {(strengths.length > 0 || concerns.length > 0) && (
@@ -878,68 +965,30 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                         </div>
                       )}
 
-                      {/* Market context */}
-                      {mc.quoted_vs_market && (
-                        <div className="da-market">
-                          <div className="da-market-lbl">📊 Market Context</div>
-                          <div className="da-market-row">
-                            {mc.quoted_rate && <span className="da-market-val">Quoted <strong>{mc.quoted_rate}%</strong></span>}
-                            <span className="da-market-val">Market <strong>{mc.current_market_rate}%</strong></span>
-                            <span className="da-market-val" style={{ color: parseFloat(String(mc.quoted_vs_market)) > 0 ? '#fbbf24' : '#00e87a' }}>
-                              {mc.quoted_vs_market} vs market
-                            </span>
-                          </div>
-                          {mc.monthly_impact > 0 && (
-                            <div className="da-market-impact">
-                              ≈ <strong style={{ color: '#fbbf24' }}>${mc.monthly_impact}/mo</strong> above market rate
-                            </div>
-                          )}
-                          {mc.lock_strategy && (
-                            <div className="da-market-lock">🔒 {mc.lock_strategy}</div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Scenarios */}
-                      {scenarios.length >= 2 && (
-                        <div className="da-scenarios">
-                          <div className="da-section-lbl">💡 Scenarios</div>
-                          <div className="da-scen-grid">
-                            {scenarios.map((sc, i) => (
-                              <div key={i} className={`da-scen-card ${i === 1 ? 'da-scen-better' : ''}`}>
-                                <div className="da-scen-name">{String(sc.scenario_name ?? '')}</div>
-                                {sc.monthly_pi != null && (
-                                  <div className="da-scen-val">${Number(sc.monthly_pi).toLocaleString()}/mo</div>
-                                )}
-                                {sc.savings_per_month != null && (
-                                  <div className="da-scen-save">saves ${Number(sc.savings_per_month).toLocaleString()}/mo</div>
-                                )}
-                                {(sc['5yr_savings'] ?? sc.total_interest_5yrs) && (
-                                  <div className="da-scen-sub">
-                                    {sc['5yr_savings'] ? `${sc['5yr_savings']} saved over 5yr` : `${sc.total_interest_5yrs} interest 5yr`}
-                                  </div>
-                                )}
-                                {sc.notes && <div className="da-scen-note">{String(sc.notes)}</div>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Risk assessment */}
-                      {Object.keys(risks).length > 0 && (
+                      {/* Missing or unconfirmed information */}
+                      {missing.length > 0 && (
                         <div className="da-risks">
-                          <div className="da-section-lbl">⚡ Risk Assessment</div>
-                          {Object.values(risks).filter(Boolean).map((r, i) => (
-                            <div key={i} className="da-risk-item">· {String(r)}</div>
+                          <div className="da-section-lbl">❓ Missing or Unconfirmed</div>
+                          {missing.map((m, i) => (
+                            <div key={i} className="da-risk-item">· {m}</div>
                           ))}
                         </div>
                       )}
 
-                      {/* Next best questions — clickable send buttons */}
+                      {/* Alternatives & tradeoffs */}
+                      {alternatives.length > 0 && (
+                        <div className="da-risks">
+                          <div className="da-section-lbl">⚖ Alternatives &amp; Tradeoffs</div>
+                          {alternatives.map((al, i) => (
+                            <div key={i} className="da-risk-item">· {al}</div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Questions worth asking — clickable send buttons */}
                       {questions_nxt.length > 0 && (
                         <div className="da-nextqs">
-                          <div className="da-section-lbl">💬 Ask Your Lender Next</div>
+                          <div className="da-section-lbl">💬 Questions Worth Asking</div>
                           {questions_nxt.map((q, i) => (
                             <button
                               key={i}
@@ -951,14 +1000,6 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
                               <span className="da-q-text">{q}</span>
                             </button>
                           ))}
-                        </div>
-                      )}
-
-                      {/* Wealth tie-in */}
-                      {wealth && (
-                        <div className="da-wealth">
-                          <span className="da-wealth-icon">🏡</span>
-                          <span>{wealth}</span>
                         </div>
                       )}
                     </div>
@@ -1387,19 +1428,6 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         .da-error { padding: 12px 14px; font-size: 11px; color: #f87171; }
         .da-body  { padding: 12px 13px; display: flex; flex-direction: column; gap: 12px; }
 
-        /* Score row */
-        .da-score-row { display: flex; gap: 12px; align-items: flex-start; }
-        .da-score-badge {
-          flex-shrink: 0; width: 64px; height: 64px; border-radius: 12px;
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          gap: 1px;
-        }
-        .da-score-num { font-size: 26px; font-weight: 800; line-height: 1; }
-        .da-score-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.75; }
-        .da-score-meta { flex: 1; min-width: 0; }
-        .da-confidence { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(148,163,184,0.50); margin-bottom: 4px; }
-        .da-recommendation { font-size: 11.5px; color: rgba(185,208,192,0.80); line-height: 1.55; }
-
         /* Strengths / Concerns */
         .da-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .da-col { display: flex; flex-direction: column; gap: 3px; }
@@ -1421,26 +1449,11 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         .da-market-val { font-size: 11.5px; color: rgba(185,208,192,0.65); }
         .da-market-val strong { color: #f0f4ff; }
         .da-market-impact { font-size: 11.5px; color: rgba(185,208,192,0.65); }
-        .da-market-lock { font-size: 10.5px; color: rgba(148,163,184,0.55); font-style: italic; line-height: 1.45; margin-top: 2px; }
+        .da-market-commentary { font-size: 11.5px; color: rgba(185,208,192,0.80); line-height: 1.55; margin-top: 2px; }
 
-        /* Scenarios */
         .da-section-lbl { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(148,163,184,0.40); margin-bottom: 4px; }
-        .da-scen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-        .da-scen-card {
-          background: rgba(255,255,255,0.03); border: 1px solid rgba(148,163,184,0.12);
-          border-radius: 8px; padding: 8px 10px;
-          display: flex; flex-direction: column; gap: 2px;
-        }
-        .da-scen-card.da-scen-better {
-          background: rgba(0,232,122,0.04); border-color: rgba(0,232,122,0.18);
-        }
-        .da-scen-name { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(148,163,184,0.50); margin-bottom: 3px; }
-        .da-scen-val  { font-size: 15px; font-weight: 800; color: #f0f4ff; }
-        .da-scen-save { font-size: 10.5px; color: #00e87a; font-weight: 600; }
-        .da-scen-sub  { font-size: 9.5px; color: rgba(148,163,184,0.50); margin-top: 1px; }
-        .da-scen-note { font-size: 10px; color: rgba(185,208,192,0.55); line-height: 1.4; margin-top: 2px; }
 
-        /* Risk assessment */
+        /* Missing info / alternatives */
         .da-risks { display: flex; flex-direction: column; gap: 4px; }
         .da-risk-item { font-size: 11px; color: rgba(185,208,192,0.65); line-height: 1.5; padding-left: 4px; }
 
@@ -1465,21 +1478,11 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         }
         .da-q-text { flex: 1; }
 
-        /* Wealth tie-in */
-        .da-wealth {
-          display: flex; gap: 7px; align-items: flex-start;
-          background: rgba(0,232,122,0.05); border: 1px solid rgba(0,232,122,0.14);
-          border-radius: 8px; padding: 9px 11px;
-          font-size: 11px; color: #9de8bc; line-height: 1.55;
-        }
-        .da-wealth-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
-
         /* Mobile adjustments */
         @media (max-width: 700px) {
           .dd-setup-fields { grid-template-columns: 1fr; }
           .dd-expand-grid  { grid-template-columns: 1fr 1fr; }
           .da-two-col      { grid-template-columns: 1fr; }
-          .da-scen-grid    { grid-template-columns: 1fr; }
         }
       `}</style>
     </>

@@ -28,7 +28,9 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
-  const { threadId, loanType: clientLoanType, scenario: clientScenario } = body;
+  const { threadId, loanType: clientLoanType, scenario: clientScenario, findings: clientFindings } = body;
+  const findings: Array<{ id: string; title: string; extractedValue: string | null; gapStatus: string; gapNote: string; costFacts?: Record<string, number> }> =
+    Array.isArray(clientFindings) ? clientFindings : [];
 
   if (!threadId) return NextResponse.json({ error: 'threadId required' }, { status: 400 });
 
@@ -111,6 +113,34 @@ export async function POST(req: NextRequest) {
     year: 'numeric', month: 'long', day: 'numeric',
   });
 
+  // ── Deterministic market context — computed here, never by the model ──────
+  // The Rate finding's extractedValue is already parsed by DiscoverDock's
+  // extractFromReply(); reuse it directly rather than asking the model to
+  // re-derive a quoted rate from conversation prose.
+  const rateFinding    = findings.find(f => f.id === 'rate') ?? null;
+  const quotedRateVal  = rateFinding?.extractedValue ? parseFloat(rateFinding.extractedValue) : null;
+  const rateDelta      = quotedRateVal != null && !isNaN(quotedRateVal)
+    ? parseFloat((quotedRateVal - marketRate).toFixed(3))
+    : null;
+
+  function monthlyPI(loanAmt: number, ratePct: number, years = 30): number {
+    const r = ratePct / 100 / 12, n = years * 12;
+    if (r <= 0) return loanAmt / n;
+    return loanAmt * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+  }
+  const monthlyImpact = quotedRateVal != null && snap?.loanAmount
+    ? Math.round(monthlyPI(snap.loanAmount, quotedRateVal) - monthlyPI(snap.loanAmount, marketRate))
+    : null;
+
+  const marketContext = {
+    market_rate_source:  usingFairPar ? 'llpa_fair_par' : 'fred_flat',
+    current_market_rate: marketRate,
+    quoted_rate:         quotedRateVal,
+    quoted_vs_market:    rateDelta,
+    monthly_impact:      monthlyImpact,
+    rate_gap_status:     rateFinding?.gapStatus ?? null,
+  };
+
   const inputData = {
     loan_type: loanLabel,
     scenario: snap ? {
@@ -122,60 +152,34 @@ export async function POST(req: NextRequest) {
       term_years:            snap.term ?? 30,
       estimated_monthly_pi:  snap.monthlyPayment,
     } : null,
+    // Already extracted/computed by HomeRates deterministically — ground truth.
+    // The model explains these; it does not re-derive or override them.
+    deterministic_findings: findings,
+    deterministic_market_context: marketContext,
+    // Raw Q&A text — use ONLY to judge completeness/tone/vagueness (e.g. was
+    // lock period addressed, was the after-close commitment concrete). Any
+    // numeric fact already present above must come from there, not from
+    // re-reading this text.
     conversation,
   };
 
-  const systemPrompt = `You are an expert mortgage AI Coach for HomeRates.ai. Produce clear, borrower-first analysis that quantifies dollar impacts and benchmarks lender quotes against current market data. Be direct, neutral, and factual. Output ONLY valid JSON — no markdown, no code fences, no extra text.`;
+  const systemPrompt = `You are an expert mortgage AI Coach for HomeRates.ai. Synthesize the deterministic findings already provided into a clear, borrower-first explanation. You explain what the numbers mean — you never invent, recompute, or restate different numbers than the ones given. Be direct, neutral, and factual. Output ONLY valid JSON — no markdown, no code fences, no extra text.`;
 
-  const userPrompt = `Analyze this borrower-lender conversation and produce a complete scorecard.
+  const userPrompt = `Synthesize this borrower-lender Discovery conversation into an evidence-based explanation. Do NOT produce an overall score, grade, or single numeric verdict of any kind — HomeRates deliberately does not reduce a 4-domain lender evaluation to one number.
 
-Input:
+Input (deterministic_findings and deterministic_market_context are already-computed facts — treat them as ground truth; conversation is raw text for completeness/tone judgment only):
 ${JSON.stringify(inputData, null, 2)}
 
 Current date: ${currentDate}
-FRED 30yr conforming rate: ${fredRate.toFixed(3)}%
-${usingFairPar
-    ? `This borrower's real fair par rate (LLPA-adjusted for their credit score, LTV, occupancy, property type, and program): ${marketRate.toFixed(3)}%. Benchmark the quoted rate against THIS number, not the flat FRED conforming rate above — it is already the correct, borrower-specific figure.`
-    : `Current 30yr ${loanLabel} market average: ${marketRate.toFixed(3)}%\nNote: ${loanType === 'jumbo' ? 'Jumbo rates naturally run 0.35–0.65% above FRED conforming. Adjust competitiveness assessment accordingly.' : 'Compare quoted rate directly to FRED benchmark.'}`}
 
 Return ONLY this exact JSON structure:
 {
-  "overall_recommendation": "2-3 sentences: rate competitiveness, fee assessment, clear verdict on proceed/negotiate/shop",
-  "decision_score": integer 0-100 (70+ = proceed, 50-69 = negotiate first, below 50 = shop elsewhere),
-  "confidence": "low|medium|medium-high|high",
-  "key_strengths": ["3-5 short bullets"],
-  "key_concerns": ["3-5 short bullets"],
-  "market_context": {
-    "current_market_rate": ${marketRate.toFixed(3)},
-    "quoted_rate": null,
-    "quoted_vs_market": "+X.XXX string (positive if above market, negative if below)",
-    "monthly_impact": integer dollar difference per month vs market rate,
-    "lock_strategy": "1-2 sentence lock recommendation"
-  },
-  "personalized_scenarios": [
-    {
-      "scenario_name": "Accept Current Quote",
-      "monthly_pi": integer,
-      "total_interest_5yrs": "~$XXX,000",
-      "notes": "brief note"
-    },
-    {
-      "scenario_name": "Negotiate to Market Rate (${marketRate.toFixed(2)}%)",
-      "monthly_pi": integer,
-      "savings_per_month": integer,
-      "5yr_savings": "~$XX,000",
-      "notes": "achievability note"
-    }
-  ],
-  "risk_assessment": {
-    "loan_type_specific": "key requirement or risk for ${loanLabel} loans",
-    "servicing": "assessment of servicing quality",
-    "timeline": "assessment of closing timeline and contingency risk"
-  },
-  "next_best_questions": [
-    "4 specific, high-value questions the borrower should ask next"
-  ],
-  "wealth_building_tie_in": "1-2 sentences on equity strategy, refi threshold, or long-term wealth angle"
+  "strengths": ["3-5 short bullets — what this LO's responses got right, citing the deterministic findings/facts above"],
+  "concerns": ["3-5 short bullets — where the findings show a gap (check/alert status) or a fact worth questioning"],
+  "missing_information": ["bullets — sub-topics, documents (e.g. Loan Estimate), or commitments not yet confirmed in the conversation"],
+  "market_commentary": "1-2 sentences explaining what deterministic_market_context's numbers mean for this borrower in plain English — do not restate different numbers than the ones given",
+  "questions_worth_asking": ["3-5 specific, high-value questions the borrower should ask next"],
+  "alternatives_or_tradeoffs": ["2-4 bullets on real tradeoffs worth weighing — e.g. negotiating toward the fair par rate, points vs. lender credit, lock-period length, timeline vs. rate risk — grounded in the facts given, not invented figures"]
 }`;
 
   const apiKey = process.env.XAI_API_KEY;
@@ -207,14 +211,26 @@ Return ONLY this exact JSON structure:
     const raw      = grokData.choices?.[0]?.message?.content?.trim() ?? '{}';
     const cleaned  = extractJson(raw);
 
-    let analysis: Record<string, unknown> = {};
-    try { analysis = JSON.parse(cleaned); } catch { /* malformed */ }
+    let parsed: Record<string, unknown> = {};
+    try { parsed = JSON.parse(cleaned); } catch { /* malformed */ }
 
-    // Stamp with metadata
-    analysis._generated_at   = new Date().toISOString();
-    analysis._fred_rate       = fredRate;
-    analysis._market_rate     = marketRate;
-    analysis._loan_type       = loanType;
+    // market_context is assembled from the deterministic values computed above,
+    // never from the model's output — even if the model echoed numbers into
+    // its response, they are ignored here. No decision_score field exists
+    // anywhere in this contract; do not reintroduce one.
+    const analysis: Record<string, unknown> = {
+      strengths:                 parsed.strengths ?? [],
+      concerns:                  parsed.concerns ?? [],
+      missing_information:       parsed.missing_information ?? [],
+      market_context:            marketContext,
+      market_commentary:         parsed.market_commentary ?? '',
+      questions_worth_asking:    parsed.questions_worth_asking ?? [],
+      alternatives_or_tradeoffs: parsed.alternatives_or_tradeoffs ?? [],
+      _generated_at:             new Date().toISOString(),
+      _fred_rate:                fredRate,
+      _market_rate:              marketRate,
+      _loan_type:                loanType,
+    };
 
     return NextResponse.json({ analysis });
 

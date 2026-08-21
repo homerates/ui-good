@@ -12,6 +12,11 @@ function fmt$(n: number) {
   return '$' + Math.round(n).toLocaleString();
 }
 
+type CostFacts = {
+  apr?: number; points?: number; lenderCredit?: number;
+  originationFee?: number; originationFeePct?: number;
+};
+
 function buildSystemPrompt(params: {
   chipTitle: string;
   chipSubtopics: string;
@@ -21,8 +26,14 @@ function buildSystemPrompt(params: {
     rate: number; term: number; ltv: number; monthlyPayment: number;
     fairParRate?: number; fairParCounty?: string;
   };
+  // Already computed by HomeRates deterministically — the model's job is to
+  // explain what these mean, never to re-derive, re-parse, or override them.
+  extractedValue?: string;
+  gapStatus?: string;
+  gapNote?: string;
+  costFacts?: CostFacts;
 }): string {
-  const { chipTitle, chipSubtopics, loanType, scenario } = params;
+  const { chipTitle, chipSubtopics, loanType, scenario, extractedValue, gapStatus, gapNote, costFacts } = params;
   const typeLabel: Record<string, string> = {
     fha: 'FHA', conventional: 'Conventional', va: 'VA', jumbo: 'Jumbo',
   };
@@ -40,15 +51,28 @@ function buildSystemPrompt(params: {
       'JUMBO RATE CONTEXT: The FRED 30yr Benchmark is for conforming loans only. Jumbo rates naturally carry a 0.35–0.65% portfolio premium above conforming. A Jumbo rate 0.60% above FRED is within normal range — do NOT flag it as Alert. Only flag as elevated if the spread exceeds 0.90% above FRED after accounting for the Jumbo premium.'
     );
   }
-  if (chipTitle.toLowerCase().includes('cost')) {
-    loanTypeContext.push(
-      'ORIGINATION FEE BENCHMARK: Market rate is 0–1% of loan amount. 1.5% is above market and should be flagged as a "check." 2%+ should be flagged as an "alert." If the LO quotes an origination fee percentage, compare it explicitly to this benchmark in your analysis.'
-    );
-  }
+  // NOTE: no generic origination-fee percentage benchmark here (Phase B) —
+  // Discovery does not classify individual fees as fair/high/low from a
+  // percentage assumption. Cost facts are relayed as plain facts below.
   if (chipTitle.toLowerCase().includes('after') || chipTitle.toLowerCase().includes('future')) {
     loanTypeContext.push(
       'COMMITMENT QUALITY: Distinguish between concrete commitments ("we send an email alert when rates drop 0.50%", "we waive all lender fees on a refi") and vague marketing language ("we care about your future", "we have a lifetime guarantee"). Vague commitments with no mechanism or threshold should be flagged as "check" — ask the borrower to request specifics in writing.'
     );
+  }
+
+  const factLines: string[] = [];
+  if (extractedValue) factLines.push(`DETERMINISTICALLY EXTRACTED VALUE FROM THIS REPLY: ${extractedValue}`);
+  if (gapStatus) factLines.push(`DETERMINISTIC GAP STATUS (already computed — explain it, do not recompute or contradict it): ${gapStatus.toUpperCase()}${gapNote ? ` — ${gapNote}` : ''}`);
+  if (costFacts) {
+    const parts: string[] = [];
+    if (costFacts.apr != null)               parts.push(`APR ${costFacts.apr}%`);
+    if (costFacts.points != null)            parts.push(`${costFacts.points} discount point(s)`);
+    if (costFacts.lenderCredit != null)      parts.push(`${fmt$(costFacts.lenderCredit)} lender credit`);
+    if (costFacts.originationFee != null)    parts.push(`${fmt$(costFacts.originationFee)} origination fee`);
+    if (costFacts.originationFeePct != null) parts.push(`${costFacts.originationFeePct}% origination fee`);
+    if (parts.length > 0) {
+      factLines.push(`ADDITIONAL EXTRACTED FACTS FROM THIS REPLY: ${parts.join(', ')}. State these plainly — do not independently judge any fee as high, low, or fair using a percentage assumption of your own.`);
+    }
   }
 
   return [
@@ -63,23 +87,24 @@ function buildSystemPrompt(params: {
         ? `Fair Par Rate (LLPA-adjusted for this borrower's credit/LTV/program${scenario.fairParCounty ? `, ${scenario.fairParCounty}` : ''}): ${scenario.fairParRate!.toFixed(3)}%`
         : `FRED 30yr Benchmark: ${scenario.rate.toFixed(3)}%`) +
       ` | LTV: ${(scenario.ltv * 100).toFixed(1)}%`,
+    ...(factLines.length > 0 ? ['', 'DETERMINISTIC FACTS (already extracted/computed by HomeRates — treat as ground truth; do not re-derive, re-parse, or contradict these):', ...factLines] : []),
     ...(loanTypeContext.length > 0 ? ['', ...loanTypeContext] : []),
     '',
     'INSTRUCTIONS — stay strictly within the topic above.',
-    '1. Evaluate the LO\'s response on two dimensions in 2-3 sentences:',
-    '   (a) COMPETITIVENESS: For any numbers quoted (rate, costs, days), compare directly against the benchmark in the scenario above, applying the loan-type context above. State the exact spread and whether it is competitive, within normal range, or above market. Be direct — do not hedge.',
-    '   (b) COMPLETENESS: Identify any sub-topics from the list above that were NOT addressed. Only flag a sub-topic as missing if it is genuinely absent.',
-    '   Combine both into one flowing, plain-English assessment the borrower can act on.',
+    '1. Write a 2-3 sentence assessment for the borrower:',
+    '   (a) If a deterministic gap status is provided above, explain in plain English WHY that status makes sense given the numbers already shown — do not recompute the spread or state a different status.',
+    '   (b) If no deterministic value was extracted, say plainly that no specific figure was quoted yet — do not guess one from the reply text.',
+    '   (c) COMPLETENESS: identify any sub-topics from the list above that were genuinely not addressed in the reply.',
     '2. If ANY sub-topic is missing OR a commitment is vague/unverifiable: write ONE focused follow-up question the borrower can send. If ALL sub-topics are fully and concretely addressed: set followUp to an empty string.',
     '',
     'Return valid JSON only — no markdown, no extra text:',
-    '{"analysis":"2-3 sentence assessment combining competitiveness verdict and coverage check","followUp":"One specific follow-up question, or empty string if all sub-topics were addressed"}',
+    '{"analysis":"2-3 sentence assessment explaining the deterministic status and coverage check","followUp":"One specific follow-up question, or empty string if all sub-topics were addressed"}',
   ].join('\n');
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { loReply, chipTitle, chipSubtopics, loanType, scenario } = await req.json();
+    const { loReply, chipTitle, chipSubtopics, loanType, scenario, extractedValue, gapStatus, gapNote, costFacts } = await req.json();
 
     if (!loReply?.trim()) return NextResponse.json({ error: 'loReply required' }, { status: 400 });
     if (!chipTitle)       return NextResponse.json({ error: 'chipTitle required' }, { status: 400 });
@@ -99,7 +124,7 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: buildSystemPrompt({ chipTitle, chipSubtopics, loanType: loanType ?? 'conventional', scenario }),
+            content: buildSystemPrompt({ chipTitle, chipSubtopics, loanType: loanType ?? 'conventional', scenario, extractedValue, gapStatus, gapNote, costFacts }),
           },
           {
             role: 'user',
