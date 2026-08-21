@@ -670,20 +670,6 @@ function recalcDSL1(downPct: number, loanType: string, dti?: number): { score: n
     return scoreL1({ downPct, loanType, dti });
 }
 
-/**
- * Re-compute composite score from L1-L4. `l5` stays in the signature for
- * call-site compatibility but is no longer forwarded to computeComposite --
- * Rate Intelligence is a separate first-class output, never a composite
- * input (locked product decision, 2026-08-19).
- */
-function computeDSComposite(
-    l1: number, l2: number | null,
-    l3?: number | null, l4?: number | null, l5?: number | null,
-): number | null {
-    void l5;
-    return computeComposite({ l1, l2, l3, l4 });
-}
-
 // ── Compact Rate Chart (Build 5) — display-only, never written to the session ──
 // Chat has never collected a real credit score, so this uses the same 740
 // default RatesOracleClient.tsx falls back to when a saved scenario doesn't
@@ -4643,61 +4629,12 @@ export default function Page() {
                                                                 }}
                                                             />
                                                         )}
-                                                        {/* Income Qualify card — legacy property_lookup path only. AFFD-012 has income qualify built in, so suppress when present. */}
-                                                        {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && m.meta.interactiveSlider.cmaAddress && !m.meta.affordabilityPurchaseCard && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !loading && typingId === null && (
-                                                            <IncomeQualifySliderCard
-                                                                fredStamp={fredStampFromMeta(m.meta)}
-                                                                key={`iqsc-${m.id}`}
-                                                                price={m.meta.interactiveSlider.price}
-                                                                downPct={m.meta.interactiveSlider.downPct}
-                                                                rate={m.meta.interactiveSlider.rate}
-                                                                term={m.meta.interactiveSlider.term}
-                                                                taxRate={m.meta.interactiveSlider.taxRate}
-                                                                insRate={m.meta.interactiveSlider.insRate}
-                                                                loanType={m.meta.interactiveSlider.loanType}
-                                                                annualIncome={m.meta.interactiveSlider.annualIncome}
-                                                                monthlyDebt={m.meta.interactiveSlider.monthlyDebt}
-                                                                decisionScoreState={m.meta.decisionScoreCard?.state}
-                                                                journeyAddress={
-                                                                    m.meta.interactiveSlider.cmaAddress ?? cmaContextRef.current?.cmaAddress ?? searchParams?.get('cmaAddress') ?? undefined
-                                                                }
-                                                                onRunScenario={(seed, overrides) => {
-                                                                    // Property_lookup path: carry all property data forward, only update scenario params.
-                                                                    // Inject messages client-side — no API re-scrape needed.
-                                                                    const isl = m.meta!.interactiveSlider!;
-                                                                    const newDown    = (overrides as any).downPaymentPct ?? isl.downPct;
-                                                                    const newRate    = (overrides as any).rate          ?? isl.rate;
-                                                                    const newTerm    = (overrides as any).term          ?? isl.term;
-                                                                    const newIncome  = (overrides as any).annualIncome  ?? isl.annualIncome ?? 0;
-                                                                    const newDebt    = (overrides as any).monthlyDebt   ?? 0;
-                                                                    const totalMo    = (overrides as any).totalMonthly  ?? 0;
-                                                                    const loanAmt    = isl.price * (1 - newDown / 100);
-                                                                    const newLt: 'conventional' | 'fha' | 'jumbo' | 'va' = (overrides as any).loanType ?? isl.loanType ?? (loanAmt > 832_750 ? 'jumbo' : 'conventional');
-                                                                    // Compute borrower DTI when income is known — feeds into L1 score
-                                                                    // totalMonthly already includes monthlyDebt (sent by IQC as piti+debt)
-                                                                    const dti = newIncome > 0 && totalMo > 0
-                                                                        ? (totalMo / (newIncome / 12)) * 100
-                                                                        : undefined;
-                                                                    // Recompute L1 only — L2/L3/L4 are property-level data, unchanged by scenario
-                                                                    const { score: l1Score, summary: l1Summary } = recalcDSL1(newDown, newLt, dti);
-                                                                    const existingDsc = m.meta!.decisionScoreCard;
-                                                                    const newComposite = existingDsc
-                                                                        ? computeDSComposite(l1Score, existingDsc.l2Score ?? null, existingDsc.l3Score, existingDsc.l4Score)
-                                                                        : null;
-                                                                    const newMeta: ApiResponse = {
-                                                                        ...m.meta!,
-                                                                        interactiveSlider: { ...isl, downPct: newDown, rate: newRate, term: newTerm, loanType: newLt, annualIncome: newIncome > 0 ? newIncome : undefined, monthlyDebt: newDebt > 0 ? newDebt : undefined },
-                                                                        decisionScoreCard: existingDsc ? { ...existingDsc, l1Score, l1Summary, compositeScore: newComposite ?? undefined } : undefined,
-                                                                        answer: `Adjusted scenario — ${newDown}% down · ${newRate.toFixed(2)}% rate · ${newTerm}yr term on ${isl.cmaAddress ?? 'this property'}.${newIncome > 0 && dti ? ` DTI: ${dti.toFixed(0)}%.` : ''}${newDebt > 0 ? ` Other debts: $${newDebt}/mo.` : ''}`,
-                                                                    };
-                                                                    setMessages(prev => [
-                                                                        ...prev,
-                                                                        { id: uid(), role: 'user',      content: seed } as ChatMsg,
-                                                                        { id: uid(), role: 'assistant', content: newMeta.answer!, meta: newMeta } as ChatMsg,
-                                                                    ]);
-                                                                }}
-                                                            />
-                                                        )}
+                                                        {/* Income Qualify card (legacy property_lookup path) retired 2026-08-20 — its
+                                                            render gate required meta.interactiveSlider.cmaAddress, but no code path
+                                                            ever sets cmaAddress on interactiveSlider (confirmed dead: the only
+                                                            builders that populate interactiveSlider — FHA, VA, buydown — always also
+                                                            set their own guard field or a real buydownType, which this gate excluded).
+                                                            AFFD-012's incomeQualifySlider-gated instance is the live equivalent. */}
                                                         {/* Locked Intelligence Card — scenario seeded, no property address yet */}
                                                         {m.meta.interactiveSlider && (!m.meta.interactiveSlider.buydownType || m.meta.interactiveSlider.buydownType === 'none') && !m.meta.interactiveSlider.cmaAddress && !m.meta.vaSlider && !m.meta.dscrSlider && !m.meta.jumboAffordabilitySlider && !m.meta.fhaSlider && !m.meta.jumboSlider && !m.meta.decisionScoreCard && !loading && typingId === null && (
                                                             <LockedIntelligenceCard
