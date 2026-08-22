@@ -144,7 +144,11 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         const incoming: Message[] = data.messages ?? [];
         setMessages(prev => incoming.length > prev.length ? incoming : prev);
         if (data.contact_share) setContactShare(data.contact_share);
-        if (data.thread) setThread(t => t ? { ...t, status: data.thread.status } : t);
+        // last_message_at must track the poll's fresh read -- it was previously
+        // dropped here (only status was merged), so the thread object in React
+        // state showed a stale timestamp indefinitely even though the server's
+        // last_message_at column (updated by every message POST) was correct.
+        if (data.thread) setThread(t => t ? { ...t, status: data.thread.status, last_message_at: data.thread.last_message_at } : t);
       } catch { /* ignore network blips */ }
     }, 5000);
     return () => clearInterval(interval);
@@ -309,10 +313,20 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     .filter(Boolean);
 
   // Derive which chips the LO has replied to, and their CUMULATIVE reply text.
-  // A Discover domain is an evolving interview, not a one-message evaluation:
-  // collect every professional reply from the chip's own message up to the
-  // start of the NEXT DIFFERENT chip's message (or thread end), not just the
-  // first one — so a later follow-up answer is captured, not lost.
+  // A Discover domain is an evolving interview: a professional reply is
+  // associated with whichever domain is EXPLICITLY in effect at that point in
+  // the conversation -- set by the original discover_chip message, and
+  // re-set by any later discover_followup message's own chipId tag. This is
+  // metadata-driven, not positional: it does NOT assume "the last chip fired"
+  // stays the owner forever, which is what silently mis-attributed every
+  // later reply (including cross-domain scorecard follow-ups, which carry no
+  // domain tag at all) to whichever chip happened to be fired last.
+  //
+  // An untagged borrower message (e.g. a "Questions Worth Asking" send from
+  // the full synthesis, or free-form chat) explicitly breaks association --
+  // the professional's reply to it is excluded from every domain's
+  // cumulative Finding rather than guessed at, per the safe-fallback this was
+  // designed to allow.
   const loRepliedChipIds: string[] = [];
   const loReplies: Record<string, string> = {};
   // The literal question text actually sent for each chip -- persisted
@@ -320,32 +334,36 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   // since changed (e.g. once a fair-par rate arrives after the question
   // already went out referencing FRED).
   const chipQuestions: Record<string, string> = {};
-  const chipMsgEntries = messagesAfterReset
-    .map((m, i) => ({ m, i }))
-    .filter(({ m }) => m.metadata?.type === "discover_chip");
 
-  for (let k = 0; k < chipMsgEntries.length; k++) {
-    const { m: chipMsg, i: startIdx } = chipMsgEntries[k];
-    const chipId = (chipMsg.metadata as { chipId?: string })?.chipId ?? "";
-    if (!chipId) continue;
-    chipQuestions[chipId] = chipMsg.content;
-
-    let endIdx = messagesAfterReset.length;
-    for (let j = k + 1; j < chipMsgEntries.length; j++) {
-      const nextChipId = (chipMsgEntries[j].m.metadata as { chipId?: string })?.chipId ?? "";
-      if (nextChipId !== chipId) { endIdx = chipMsgEntries[j].i; break; }
+  const repliesByDomain: Record<string, string[]> = {};
+  let currentDomain: string | null = null;
+  for (const m of messagesAfterReset) {
+    const metaType = m.metadata?.type;
+    if (metaType === "discover_chip") {
+      const chipId = (m.metadata as { chipId?: string })?.chipId ?? null;
+      currentDomain = chipId;
+      if (chipId) chipQuestions[chipId] = m.content;
+      continue;
     }
-
-    const replies = messagesAfterReset
-      .slice(startIdx + 1, endIdx)
-      .filter(m => m.sender_role === "professional");
-
-    if (replies.length > 0) {
-      loRepliedChipIds.push(chipId);
-      loReplies[chipId] = replies.length === 1
-        ? replies[0].content
-        : replies.map((r, idx) => idx === 0 ? r.content : `Follow-up reply: ${r.content}`).join("\n\n");
+    if (metaType === "discover_followup") {
+      currentDomain = (m.metadata as { chipId?: string })?.chipId ?? null;
+      continue;
     }
+    if (m.sender_role === "professional") {
+      if (currentDomain) (repliesByDomain[currentDomain] ??= []).push(m.content);
+      continue;
+    }
+    // Any other borrower message (untagged) breaks domain association.
+    if (m.sender_role === "borrower") currentDomain = null;
+  }
+
+  for (const chipId of sentChipIds) {
+    const replies = repliesByDomain[chipId];
+    if (!replies || replies.length === 0) continue;
+    loRepliedChipIds.push(chipId);
+    loReplies[chipId] = replies.length === 1
+      ? replies[0]
+      : replies.map((content, idx) => idx === 0 ? content : `Follow-up reply: ${content}`).join("\n\n");
   }
 
   // L5 comparison strip — find the Rate chip message and its LO reply for inline delta display
