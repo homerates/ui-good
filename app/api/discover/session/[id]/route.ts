@@ -1,5 +1,9 @@
 // app/api/discover/session/[id]/route.ts
-// PATCH /api/discover/session/:id — save one lender response + gap result.
+// PATCH /api/discover/session/:id — merge one domain's Finding into the
+// session's findings JSONB. Atomic via the discover_merge_finding() Postgres
+// function (081_discover_findings.sql) -- never a JS read-modify-write, so
+// concurrent writes (a different domain, or this same domain's later
+// AI-explanation update) can never clobber each other.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -11,6 +15,8 @@ function db() {
   );
 }
 
+const VALID_DOMAINS = ['rate', 'costs', 'process', 'after-close'];
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -18,45 +24,29 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { questionId, raw, gapStatus, gapNote } = body;
+    const { domain, finding } = body;
 
-    if (!questionId || !raw) {
-      return NextResponse.json({ error: 'questionId and raw required' }, { status: 400 });
+    if (!domain || !VALID_DOMAINS.includes(domain)) {
+      return NextResponse.json({ error: 'valid domain required' }, { status: 400 });
+    }
+    if (!finding || typeof finding !== 'object') {
+      return NextResponse.json({ error: 'finding object required' }, { status: 400 });
     }
 
-    // Fetch current session
-    const { data: session, error: fetchErr } = await db()
-      .from('discover_sessions')
-      .select('lender_responses, gap_analysis')
-      .eq('id', id)
-      .single();
+    const { error } = await db().rpc('discover_merge_finding', {
+      p_session_id: id,
+      p_domain: domain,
+      p_finding: finding,
+    });
 
-    if (fetchErr || !session) {
-      return NextResponse.json({ error: 'session not found' }, { status: 404 });
-    }
-
-    const lenderResponses = {
-      ...(session.lender_responses ?? {}),
-      [questionId]: { raw, evaluated_at: new Date().toISOString() },
-    };
-    const gapAnalysis = {
-      ...(session.gap_analysis ?? {}),
-      [questionId]: { status: gapStatus, note: gapNote },
-    };
-
-    const { error: updateErr } = await db()
-      .from('discover_sessions')
-      .update({ lender_responses: lenderResponses, gap_analysis: gapAnalysis })
-      .eq('id', id);
-
-    if (updateErr) {
-      console.error('[discover/session PATCH]', updateErr);
+    if (error) {
+      console.error('[discover/session/[id] PATCH]', error);
       return NextResponse.json({ error: 'db error' }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('[discover/session PATCH]', err);
+    console.error('[discover/session/[id] PATCH]', err);
     return NextResponse.json({ error: 'server error' }, { status: 500 });
   }
 }

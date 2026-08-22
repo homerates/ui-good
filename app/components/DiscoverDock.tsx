@@ -43,6 +43,7 @@ type Props = {
   sentChipIds?:       string[];              // chips already sent (derived from thread messages by page)
   loRepliedChipIds?:  string[];              // chips where the LO has already replied in chat
   loReplies?:         Record<string, string>; // chipId → LO's reply text for auto-analysis
+  chipQuestions?:     Record<string, string>; // chipId → literal question text actually sent, for persistence
   onGapSummary?:      (chips: ChipSummary[]) => void; // fires whenever chip states change
   onNewContent?:      () => void; // fires when a chip's AI analysis or the full synthesis newly appears — parent may scroll it into view
   isAgentProxy?:      boolean;               // true when an agent posts on behalf of a client
@@ -136,7 +137,7 @@ function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTyp
   };
 }
 
-export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId, sentChipIds = [], loRepliedChipIds = [], loReplies = {}, onGapSummary, onNewContent, isAgentProxy = false }: Props) {
+export default function DiscoverDock({ loanType: propLoanType, scenario: propScenario, threadId, sentChipIds = [], loRepliedChipIds = [], loReplies = {}, chipQuestions = {}, onGapSummary, onNewContent, isAgentProxy = false }: Props) {
   // ── Session ──────────────────────────────────────────────────────────────
   const [sessionId, setSessionId]   = useState<string | null>(null);
   const sessionCreatedRef           = useRef(false);
@@ -255,12 +256,27 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
   const scorecardTriggeredRef = useRef(false);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Auto-create session when scenario is available
+  // Recover an existing session for this thread's CURRENT scenario chapter
+  // before ever creating a new one -- otherwise every reload orphans whatever
+  // was already persisted (findings, AI notes, synthesis) and starts fresh.
+  // Gated exactly like the old create-only effect (only once propScenario/
+  // propLoanType are both ready) so recovery can't race ahead of them.
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (propScenario && propLoanType && !sessionCreatedRef.current) {
       sessionCreatedRef.current = true;
-      createSession(propLoanType, propScenario);
+      if (threadId) {
+        fetch(`/api/discover/session?threadId=${threadId}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(d => {
+            const s = d?.session;
+            if (s) { setSessionId(s.id); hydrateFromSession(s); }
+            else createSession(propLoanType, propScenario);
+          })
+          .catch(() => createSession(propLoanType, propScenario));
+      } else {
+        createSession(propLoanType, propScenario);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propScenario]);
@@ -330,7 +346,12 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
       const data = await res.json();
       if (!res.ok) { setFullAnalysisError(data.error ?? 'Analysis failed'); return; }
       setFullAnalysis(data.analysis ?? null);
-      if (data.analysis) onNewContent?.();
+      if (data.analysis) {
+        onNewContent?.();
+        // Session-level, persisted separately from per-domain Findings via
+        // its own endpoint -- a failure here never touches Findings already saved.
+        persistSynthesis(data.analysis);
+      }
     } catch {
       setFullAnalysisError('Could not reach AI');
     } finally {
@@ -378,6 +399,24 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
       // handed the SAME status it's asked to explain, instead of the two
       // potentially disagreeing.
       const gap = benchSnap ? q.evaluateGap(val, benchSnap) : { status: 'pending' as const, note: '' };
+
+      // Persist the deterministic Finding BEFORE calling AI, so an AI failure
+      // (or the borrower closing the tab before it resolves) can never lose
+      // what HomeRates already concluded deterministically.
+      if (benchSnap) {
+        const meta = buildComparisonMeta(chipId, benchSnap);
+        persistFinding(chipId, {
+          domain: chipId,
+          consumer_question: chipQuestions[chipId] ?? '',
+          lo_response: replyText,
+          extracted_facts: Object.keys(facts).length > 0 ? { value: val, cost_facts: facts } : { value: val },
+          gap_status: gap.status,
+          gap_note: gap.note,
+          ...meta,
+          analyzed_at: new Date().toISOString(),
+        });
+      }
+
       // AI analysis always runs for every chip the LO has replied to — given
       // the already-extracted value, gap, and cost facts as ground truth, not
       // asked to re-derive them from the reply text.
@@ -421,6 +460,126 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
       }
     } catch { /* non-blocking */ }
     return null;
+  }
+
+  // ── Canonical Finding persistence (Phase C) ──────────────────────────────
+  // Classifies the comparison basis each domain actually used, so a Finding
+  // never represents a heuristic guess as equivalent to real market
+  // intelligence. Rate's fair-par case carries full provenance so a later
+  // viewer can understand the historical comparison without HomeRates having
+  // to reconstruct it from whatever market data happens to exist by then.
+  function buildComparisonMeta(chipId: string, snap: ScenarioSnapshot) {
+    if (chipId === 'rate') {
+      if (snap.fairParRate != null) {
+        return {
+          comparison_basis: { type: 'llpa_fair_par' as const, value: snap.fairParRate },
+          evidence_authority: 'derived_market_intelligence' as const,
+          comparison_provenance: {
+            fair_par_county: snap.fairParCounty ?? null,
+            credit_score:    snap.creditScore ?? null,
+            ltv:             snap.ltv,
+            occupancy:       snap.occupancy ?? null,
+            property_type:   snap.propertyType ?? null,
+            loan_purpose:    snap.loanPurpose ?? null,
+            state:           snap.state ?? null,
+            computed_at:     new Date().toISOString(),
+          },
+        };
+      }
+      return {
+        comparison_basis: { type: 'fred_flat' as const, value: snap.rate },
+        evidence_authority: 'market_reference' as const,
+        comparison_provenance: { fred_as_of: new Date().toISOString() },
+      };
+    }
+    if (chipId === 'costs') {
+      return {
+        comparison_basis: { type: 'industry_flat_pct' as const, value: snap.price * (snap.downPct / 100) + snap.price * 0.03 },
+        evidence_authority: 'heuristic' as const,
+        comparison_provenance: { pct: 0.03 },
+      };
+    }
+    if (chipId === 'process') {
+      return {
+        comparison_basis: { type: 'industry_standard_days' as const, value: null },
+        evidence_authority: 'heuristic' as const,
+        comparison_provenance: { bands: '≤30 match · ≤45 check · >45 alert' },
+      };
+    }
+    // after-close: no HomeRates-computed benchmark exists for this domain --
+    // it is, and remains, entirely a self-reported lender statement.
+    return {
+      comparison_basis: undefined,
+      evidence_authority: 'self_reported' as const,
+      comparison_provenance: undefined,
+    };
+  }
+
+  async function persistFinding(domain: string, finding: Record<string, unknown>) {
+    const sid = await ensureSession();
+    if (!sid) return;
+    try {
+      await fetch(`/api/discover/session/${sid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain, finding }),
+      });
+    } catch { /* non-blocking -- local UI state already reflects the deterministic result */ }
+  }
+
+  async function persistSynthesis(synthesis: Record<string, unknown>) {
+    const sid = await ensureSession();
+    if (!sid) return;
+    try {
+      await fetch(`/api/discover/session/${sid}/synthesis`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ synthesis }),
+      });
+    } catch { /* non-blocking */ }
+  }
+
+  // Restore exactly what was persisted for a recovered session -- never
+  // re-derive or silently recompute. A domain with no persisted Finding stays
+  // unanswered; it is not manufactured.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function hydrateFromSession(s: Record<string, any>) {
+    const findings = (s.findings ?? {}) as Record<string, any>;
+    const newInputs: Record<string, string> = {};
+    const newCostFacts: Record<string, CostFacts> = {};
+    const newAiNotes: Record<string, { analysis: string; followUp: string }> = {};
+
+    for (const [chipId, f] of Object.entries(findings)) {
+      if (!f || typeof f !== 'object') continue;
+      newInputs[chipId] = f.extracted_facts?.value ?? '';
+      if (f.extracted_facts?.cost_facts) newCostFacts[chipId] = f.extracted_facts.cost_facts;
+      if (f.ai_explanation) newAiNotes[chipId] = { analysis: f.ai_explanation, followUp: f.ai_follow_up ?? '' };
+      // Prevents the auto-extract effect from treating this recovered,
+      // already-processed reply as new and re-persisting/re-analyzing it.
+      processedRepliesRef.current[chipId] = f.lo_response ?? '';
+    }
+
+    setInputs(prev => ({ ...prev, ...newInputs }));
+    if (Object.keys(newCostFacts).length > 0) setCostFactsByChip(prev => ({ ...prev, ...newCostFacts }));
+    if (Object.keys(newAiNotes).length > 0) setAiNotes(prev => ({ ...prev, ...newAiNotes }));
+
+    // Restore the exact Rate benchmark used at the time, rather than letting
+    // it silently fall back to a fresh FRED read on reload.
+    const rateFinding = findings['rate'];
+    if (rateFinding?.comparison_basis?.type === 'llpa_fair_par' && rateFinding.comparison_provenance) {
+      const p = rateFinding.comparison_provenance;
+      setLlpaEnrichment({
+        fairParRate:   rateFinding.comparison_basis.value,
+        fairParCounty: p.fair_par_county ?? undefined,
+        creditScore:   p.credit_score ?? undefined,
+        occupancy:     p.occupancy ?? undefined,
+        propertyType:  p.property_type ?? undefined,
+        loanPurpose:   p.loan_purpose ?? undefined,
+        state:         p.state ?? undefined,
+      });
+    }
+
+    if (s.ai_synthesis) setFullAnalysis(s.ai_synthesis);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -499,6 +658,10 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
       if (data.analysis) {
         setAiNotes(prev => ({ ...prev, [chipId]: { analysis: data.analysis, followUp: data.followUp ?? '' } }));
         onNewContent?.();
+        // Merges into the SAME domain's Finding already persisted deterministically
+        // above -- the RPC merge means this never overwrites gap_status/gap_note/
+        // extracted_facts, only adds the AI fields on top.
+        persistFinding(chipId, { ai_explanation: data.analysis, ai_follow_up: data.followUp ?? '' });
       }
     } catch { /* silent */ } finally {
       setAiNoteLoading(prev => ({ ...prev, [chipId]: false }));
