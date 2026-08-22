@@ -315,6 +315,11 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   // first one — so a later follow-up answer is captured, not lost.
   const loRepliedChipIds: string[] = [];
   const loReplies: Record<string, string> = {};
+  // The literal question text actually sent for each chip -- persisted
+  // verbatim rather than recomputed later from a template that may have
+  // since changed (e.g. once a fair-par rate arrives after the question
+  // already went out referencing FRED).
+  const chipQuestions: Record<string, string> = {};
   const chipMsgEntries = messagesAfterReset
     .map((m, i) => ({ m, i }))
     .filter(({ m }) => m.metadata?.type === "discover_chip");
@@ -323,6 +328,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     const { m: chipMsg, i: startIdx } = chipMsgEntries[k];
     const chipId = (chipMsg.metadata as { chipId?: string })?.chipId ?? "";
     if (!chipId) continue;
+    chipQuestions[chipId] = chipMsg.content;
 
     let endIdx = messagesAfterReset.length;
     for (let j = k + 1; j < chipMsgEntries.length; j++) {
@@ -879,6 +885,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                 sentChipIds={sentChipIds}
                 loRepliedChipIds={loRepliedChipIds}
                 loReplies={loReplies}
+                chipQuestions={chipQuestions}
                 onGapSummary={setDiscoverChipStates}
                 onNewContent={handleDockNewContent}
                 isAgentProxy={viewerRole === 'agent'}
