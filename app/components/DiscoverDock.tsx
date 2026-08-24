@@ -118,6 +118,97 @@ function extractCostFacts(text: string): CostFacts {
   return facts;
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Follow-up domain classification -- an AI-generated follow-up is created
+// scoped to whichever chip's analyze-reply call produced it, but its actual
+// subject can belong to a different Discover domain (e.g. a Process chip's
+// completeness check surfacing a Rate-lock question). Deterministic,
+// pattern-based on purpose: reassigning the domain is a correction to an
+// obvious mismatch, not an attempt at full semantic understanding, so this
+// only overrides when there's a real signal for another domain AND none at
+// all for the originating one -- otherwise it keeps the originating chip.
+const RATE_PATTERNS: RegExp[] = [
+  /\bapr\b/i,
+  /\bfixed\b.{0,15}\barm\b|\barm\b.{0,15}\bfixed\b|\badjustable[- ]rate\b/i,
+  /\block\b/i,                 // rate lock, lock period/window/expiration/extension
+  /\bextension\b/i,            // lock-extension cost -- no other domain uses "extension"
+  /\bfair[- ]par\b|\bmarket[- ]rate\b/i,
+  /\bnote rate\b/i,
+];
+const COSTS_PATTERNS: RegExp[] = [
+  /\borigination fee\b/i,
+  /\blender fee/i,
+  /\bclosing cost/i,
+  /\btitle\b|\bescrow\b/i,
+  /\bprepaid/i,
+  /\bcash to close\b/i,
+  /\bpmi\b/i,
+  /\bitemized fee/i,
+];
+const PROCESS_PATTERNS: RegExp[] = [
+  /\bunderwrit/i,
+  /\bappraisal/i,
+  /\bclear to close\b/i,
+  /\bcontingenc/i,
+  /\bdocument(ation)?\b.{0,20}\b(timing|needed|deadline)\b|\b(timing|deadline)\b.{0,20}\bdocument/i,
+  /\bclosing timeline\b|\btimeline\b/i,
+  /\bmilestone/i,
+  /\bconditions?\b.{0,15}\b(loan|clear|remove)\b/i,
+];
+const AFTER_CLOSE_PATTERNS: RegExp[] = [
+  /\brefinanc/i,
+  /\bservic(e|ing)\b/i,
+  /\bstrike[- ]?point/i,
+  /\blifetime guarantee/i,
+  /\bfuture rate review/i,
+  /\bmonitor/i,
+  /\bequity monitoring/i,
+  /\bafter closing\b|\bpost[- ]close\b/i,
+];
+const DOMAIN_PATTERNS: Record<string, RegExp[]> = {
+  rate: RATE_PATTERNS, costs: COSTS_PATTERNS, process: PROCESS_PATTERNS, 'after-close': AFTER_CLOSE_PATTERNS,
+};
+
+function countMatches(text: string, patterns: RegExp[]): number {
+  return patterns.reduce((n, p) => n + (p.test(text) ? 1 : 0), 0);
+}
+
+export function classifyFollowUpDomain(question: string, originatingChipId: string): string {
+  const text = question.trim();
+  if (!text) return originatingChipId;
+
+  // Explicit overlap rule: "points"/"credit" alone are ambiguous between Rate
+  // (mechanics of obtaining a rate) and Costs (upfront/economic cost) -- the
+  // domain rules resolve this by primary intent: cash-to-close/closing-cost
+  // context wins for Costs, rate/percentage context wins for Rate.
+  if (/\bpoints?\b|\bcredit\b/i.test(text)) {
+    if (/\bcash to close\b|\bclosing cost|\borigination fee|\bitemized fee/i.test(text)) return 'costs';
+    if (/\brate\b|\d+(?:\.\d+)?\s*%/i.test(text)) return 'rate';
+    // Otherwise fall through to general scoring below.
+  }
+
+  const scores: Record<string, number> = {
+    rate: countMatches(text, RATE_PATTERNS),
+    costs: countMatches(text, COSTS_PATTERNS),
+    process: countMatches(text, PROCESS_PATTERNS),
+    'after-close': countMatches(text, AFTER_CLOSE_PATTERNS),
+  };
+
+  // Only reassign when the originating domain has ZERO signal of its own and
+  // exactly one other domain has a clear (and uniquely highest) signal --
+  // otherwise this is ambiguous/mixed and the safe fallback is to keep the
+  // originating chip rather than guess.
+  if ((scores[originatingChipId] ?? 0) > 0) return originatingChipId;
+
+  const domains = Object.keys(DOMAIN_PATTERNS);
+  const best = domains.reduce((a, b) => (scores[b] > scores[a] ? b : a), domains[0]);
+  const bestScore = scores[best];
+  const tiedForBest = domains.filter(d => scores[d] === bestScore).length > 1;
+
+  if (bestScore > 0 && !tiedForBest) return best;
+  return originatingChipId;
+}
+
 function buildSnapshot(price: number, downPct: number, rate: number, lt: LoanTypeKey): ScenarioSnapshot {
   const term      = 30;
   const down      = price * downPct / 100;
@@ -670,7 +761,15 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
 
   async function sendFollowUp(chipId: string, question: string) {
     if (!threadId || !question.trim() || followUpSent.has(chipId)) return;
+    // followUpSent stays keyed by the ORIGINATING chip -- it marks the "Ask"
+    // button under that chip's own analysis UI as sent, independent of which
+    // domain the message actually gets tagged with below.
     setFollowUpSent(prev => new Set([...prev, chipId]));
+    // The follow-up was generated scoped to `chipId`'s analysis, but its
+    // actual subject can belong to a different domain (e.g. a Process chip's
+    // completeness check surfacing a Rate-lock question) -- reclassify
+    // before tagging so downstream attribution isn't fed a wrong chipId.
+    const routedChipId = classifyFollowUpDomain(question, chipId);
     try {
       await fetch(`/api/messages/${threadId}`, {
         method: 'POST',
@@ -678,7 +777,7 @@ export default function DiscoverDock({ loanType: propLoanType, scenario: propSce
         // Tag with the domain this follow-up belongs to, so the parent page can
         // associate the LO's next reply back to this chip's cumulative Finding
         // instead of only the timestamp-ordering heuristic.
-        body: JSON.stringify({ message: question.trim(), metadata: { type: 'discover_followup', chipId } }),
+        body: JSON.stringify({ message: question.trim(), metadata: { type: 'discover_followup', chipId: routedChipId } }),
       });
     } catch { /* silent — optimistic UI already applied */ }
   }
