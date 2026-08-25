@@ -325,13 +325,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: 'monthly' as const,
             priority: 0.75,
         },
-        {
-            url: `${base}/track5`,
-            lastModified: new Date(),
-            changeFrequency: 'monthly' as const,
-            priority: 0.75,
-        },
-
         // Auto-generated articles from DB
         ...(await getGeneratedArticles()).map((a) => ({
             url: `${base}/${a.category}/${a.slug}`,
