@@ -97,12 +97,24 @@ function parseAndValidateCsv(text: string): { rows: RowValidation[]; columnError
   return { rows };
 }
 
+// A single lookup can take several seconds (real Redfin scrape + Tavily
+// fallback). A 350-row file is a realistic real-world size for this route,
+// and processing every new row in one request would run far past any
+// reasonable serverless timeout. Bounded like every other cron in this
+// workstream: process a page of the deduped candidate list per request,
+// and report exactly how many remain so the caller (the admin UI below,
+// or a script) can request the next page -- re-parsing the same CSV text
+// each time is cheap; only the lookup step is capped.
+const DEFAULT_BATCH_LIMIT = 20;
+
 export async function POST(req: NextRequest) {
   const { error } = await requireAdmin();
   if (error) return error;
 
   const url = new URL(req.url);
   const previewOnly = url.searchParams.get('preview') === '1';
+  const offset = parseInt(url.searchParams.get('offset') ?? '0', 10) || 0;
+  const limit = parseInt(url.searchParams.get('limit') ?? String(DEFAULT_BATCH_LIMIT), 10) || DEFAULT_BATCH_LIMIT;
 
   const text = await req.text();
   if (!text.trim()) return NextResponse.json({ error: 'Empty request body -- send raw CSV text.' }, { status: 400 });
@@ -137,11 +149,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, preview });
   }
 
-  const processed = await processAcquisitionCandidates(dedupedValidRows.map(r => r.candidate!), { origin: url.origin });
+  const page = dedupedValidRows.slice(offset, offset + limit);
+  const processed = await processAcquisitionCandidates(page.map(r => r.candidate!), { origin: url.origin });
 
   return NextResponse.json({
     ok: true,
     preview,
+    batch: { offset, limit, processedThisBatch: processed.length, remaining: Math.max(0, dedupedValidRows.length - (offset + processed.length)) },
     counts: {
       duplicateExisting: processed.filter(p => p.outcome === 'duplicate_existing').length,
       lookupSucceeded: processed.filter(p => p.outcome === 'lookup_succeeded').length,
