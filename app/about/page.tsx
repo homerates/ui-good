@@ -46,7 +46,7 @@ export default function AboutPage() {
 
       <section>
         <h2>More Information</h2>
-        <p>For full details, please review the <a href="/disclosures">Terms &amp; Disclosures</a> and <a href="/privacy">Privacy &amp; Data Policy</a>.</p>
+        <p>For full details, please review the <a href="/disclosures">Terms &amp; Disclosures</a> and <a href="/privacy">Privacy &amp; Data Policy</a>. To understand how HomeRates.ai is built to be findable and verifiable by AI systems, see <a href="/searchable-by-design">Searchable by Design</a>.</p>
         <p>Questions? Contact us at <a href="mailto:support@homerates.ai">support@homerates.ai</a>.</p>
       </section>
     </PageShell>

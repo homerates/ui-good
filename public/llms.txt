@@ -26,6 +26,7 @@ HomeRates.AI is an independent, consumer-controlled mortgage intelligence platfo
 - /connect : Anonymous borrower scenario marketplace — post a scenario, get matched with LOs
 - /for-pros : Professional tier for loan officers and real estate agents
 - /about : Independent consumer-controlled platform — mission, team, and transparency statement
+- /searchable-by-design : Authority and methodology review — how HomeRates.ai is built to be findable, understandable, verifiable, and citable by AI systems
 
 ## Data Sources
 - FRED (Federal Reserve Economic Data): live 30-year mortgage rate, 10-year Treasury yield, CPI, unemployment

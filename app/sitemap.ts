@@ -211,6 +211,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.85,
         },
         {
+            url: `${base}/searchable-by-design`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly' as const,
+            priority: 0.8,
+        },
+        {
             url: `${base}/decision-score`,
             lastModified: new Date(),
             changeFrequency: 'monthly' as const,
