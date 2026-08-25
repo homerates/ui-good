@@ -153,8 +153,25 @@ export interface PropertyIntelligenceData {
 
 const METHODOLOGY_VERSION = 'Decision Score L1-L4 (locked 2026-08-19), L2-L4 property-centered subset';
 
+// Two different normalization conventions genuinely coexist in this codebase's
+// existing tables -- confirmed directly against real rows, not assumed:
+//   - featured_properties.address_norm: lower(trim(address)) -- punctuation
+//     (commas) intact. Matches this table's own migration comment.
+//   - grok_property_cache.address_normalized: written by
+//     app/api/beta/grok-property/route.ts's normalizeAddressStrict(), which
+//     also strips all punctuation. A loose-normalized lookup key silently
+//     misses every row written that way -- confirmed live: a freshly deep-
+//     enriched address ("441 Potter Way, Ladera Ranch, CA 92694") stored as
+//     "441 potter way ladera ranch ca 92694" (no commas), while the loose key
+//     would have looked up "441 potter way, ladera ranch, ca 92694" (commas
+//     intact) and never found it -- so a just-enriched property kept being
+//     treated as never-enriched.
+// Use the matching one for each table; never assume they're interchangeable.
 function normAddr(full: string): string {
   return full.trim().toLowerCase();
+}
+function normAddrStrict(full: string): string {
+  return full.trim().toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function parseNum(v: unknown): number | null {
@@ -183,7 +200,7 @@ function lifecycleFromStatus(status: string | null | undefined): LifecycleStatus
 // No engine/network calls -- pure data assembly, cheap enough for a bulk pass.
 
 interface RawMerge {
-  prop: { id: string; address_full: string; address_line: string | null; city: string | null; state: string | null; zip: string | null; beds: number | null; baths: number | null; sqft: number | null; property_type: string | null; enriched_at: string | null; enrichment_source: string | null };
+  prop: { id: string; address_full: string; address_line: string | null; city: string | null; state: string | null; zip: string | null; beds: number | null; baths: number | null; sqft: number | null; property_type: string | null; enriched_at: string | null; enrichment_source: string | null; latest_value: number | null; latest_value_low: number | null; latest_value_high: number | null; latest_listing_status: string | null };
   snapshot: Record<string, unknown> | null;
   snapshotFetchedAt: string | null;
   grok: Record<string, unknown> | null;
@@ -206,16 +223,17 @@ async function assembleRaw(propertyId: string): Promise<RawMerge | null> {
 
   const { data: prop } = await sb
     .from('properties')
-    .select('id, address_full, address_line, city, state, zip, beds, baths, sqft, property_type, enriched_at, enrichment_source')
+    .select('id, address_full, address_line, city, state, zip, beds, baths, sqft, property_type, enriched_at, enrichment_source, latest_value, latest_value_low, latest_value_high, latest_listing_status')
     .eq('id', propertyId)
     .maybeSingle();
   if (!prop) return null;
 
   const addressNorm = normAddr(prop.address_full);
+  const addressNormStrict = normAddrStrict(prop.address_full);
 
   const [{ data: snapRows }, { data: grokRows }, { data: fpRow }] = await Promise.all([
     sb.from('property_snapshots').select('data, fetched_at').eq('property_id', prop.id).eq('snapshot_type', 'full').order('fetched_at', { ascending: false }).limit(1),
-    sb.from('grok_property_cache').select('grok_result, fetched_at').eq('address_normalized', addressNorm).maybeSingle(),
+    sb.from('grok_property_cache').select('grok_result, fetched_at').eq('address_normalized', addressNormStrict).maybeSingle(),
     sb.from('featured_properties').select('l2_score, l2_summary, l3_score, l3_summary, l4_score, l4_summary, score_computed_at, raw_data').eq('address_norm', addressNorm).maybeSingle(),
   ]);
 
@@ -226,15 +244,17 @@ async function assembleRaw(propertyId: string): Promise<RawMerge | null> {
   const fpRaw = (fpRow?.raw_data ?? {}) as Record<string, unknown>;
 
   const avmCandidates = [
+    parseNum(prop.latest_value),
     parseNum(snapshot?.estimatedValue),
     parseNum(grok?.zillow_estimate ?? fpRaw.zillow_estimate),
     parseNum(grok?.redfin_estimate ?? fpRaw.redfin_estimate),
   ];
   const { avm, count: avmCount } = mergeAvm(avmCandidates);
   const avmSources: string[] = [];
-  if (avmCandidates[0] != null) avmSources.push('Redfin scrape estimate');
-  if (avmCandidates[1] != null) avmSources.push('Zillow estimate');
-  if (avmCandidates[2] != null) avmSources.push('Redfin estimate (Grok)');
+  if (avmCandidates[0] != null) avmSources.push('Redfin scrape estimate (canonical)');
+  if (avmCandidates[1] != null) avmSources.push('Redfin scrape estimate (snapshot)');
+  if (avmCandidates[2] != null) avmSources.push('Zillow estimate');
+  if (avmCandidates[3] != null) avmSources.push('Redfin estimate (Grok)');
 
   const rawComps = Array.isArray(grok?.comparable_sales) ? (grok!.comparable_sales as Record<string, unknown>[])
     : Array.isArray(fpRaw.comparable_sales) ? (fpRaw.comparable_sales as Record<string, unknown>[]) : [];
@@ -251,7 +271,12 @@ async function assembleRaw(propertyId: string): Promise<RawMerge | null> {
   const listPrice = parseNum(snapshot?.price);
   const city = prop.city ?? (typeof snapshot?.city === 'string' ? snapshot.city as string : null);
   const state = prop.state ?? (typeof snapshot?.state === 'string' ? snapshot.state as string : null);
-  const lifecycleStatus = lifecycleFromStatus(typeof snapshot?.listingStatus === 'string' ? snapshot.listingStatus as string : null);
+  // properties.latest_listing_status is written directly by /api/property/lookup on every
+  // lookup (321/557 rows as of the corpus audit) -- a wider, more current source than the
+  // latest property_snapshots row alone, which only exists for addresses fetched through
+  // that specific pipeline. Prefer it; fall back to the snapshot for older rows.
+  const rawStatus = prop.latest_listing_status ?? (typeof snapshot?.listingStatus === 'string' ? snapshot.listingStatus as string : null);
+  const lifecycleStatus = lifecycleFromStatus(rawStatus);
 
   const enrichedAt = prop.enriched_at ?? snapshotFetchedAt ?? grokFetchedAt ?? fpRow?.score_computed_at ?? null;
 
@@ -275,21 +300,42 @@ async function assembleRaw(propertyId: string): Promise<RawMerge | null> {
   };
 }
 
-// ── Cheap bulk pass for sitemap + cron: no engine calls, ~4 queries total ──
+// ── Cheap bulk pass, shared by the sitemap and the deep-enrichment cron:
+// no engine calls, 4 queries total regardless of corpus size. Both callers
+// MUST derive eligibility from this single merge so "what counts as
+// INDEX-worthy" can never drift between the two crons. ──
 
-export async function listIndexEligiblePropertyIds(): Promise<{ id: string; lastModified: string | null }[]> {
+interface BulkSummary {
+  id: string;
+  addressFull: string;
+  avm: number | null;
+  comps: number;
+  city: string | null;
+  state: string | null;
+  enrichedAt: string | null;
+  status: LifecycleStatus;
+  hasFeaturedProperties: boolean;
+  hasL234: boolean;
+  hasListPrice: boolean;
+  hasDeepGrok: boolean;
+  grokFetchedAt: string | null;
+  searchCount: number;
+  meetsDataBar: boolean;
+}
+
+async function bulkMergeCorpus(): Promise<BulkSummary[]> {
   const sb = getSupabase();
   if (!sb) return [];
 
   const { data: props } = await sb
     .from('properties')
-    .select('id, address_full, city, state, enriched_at');
+    .select('id, address_full, city, state, enriched_at, latest_value, latest_value_low, latest_listing_status');
   if (!props || props.length === 0) return [];
 
   const [{ data: snaps }, { data: groks }, { data: fps }] = await Promise.all([
     sb.from('property_snapshots').select('property_id, data, fetched_at').eq('snapshot_type', 'full').order('fetched_at', { ascending: false }),
     sb.from('grok_property_cache').select('address_normalized, grok_result, fetched_at'),
-    sb.from('featured_properties').select('address_norm, score_computed_at'),
+    sb.from('featured_properties').select('address_norm, score_computed_at, l2_score, l3_score, l4_score, search_count'),
   ]);
 
   const latestSnapByProperty = new Map<string, { data: Record<string, unknown>; fetched_at: string }>();
@@ -298,31 +344,84 @@ export async function listIndexEligiblePropertyIds(): Promise<{ id: string; last
   }
   const grokByAddr = new Map<string, { result: Record<string, unknown>; fetched_at: string }>();
   for (const g of groks ?? []) grokByAddr.set(g.address_normalized, { result: g.grok_result, fetched_at: g.fetched_at });
-  const fpAddrSet = new Map<string, string | null>();
-  for (const f of fps ?? []) fpAddrSet.set(f.address_norm, f.score_computed_at);
+  const fpByAddr = new Map<string, { score_computed_at: string | null; l2_score: number | null; l3_score: number | null; l4_score: number | null; search_count: number | null }>();
+  for (const f of fps ?? []) fpByAddr.set(f.address_norm, f);
 
-  const eligible: { id: string; lastModified: string | null }[] = [];
-  for (const p of props) {
+  return props.map((p) => {
     const addressNorm = normAddr(p.address_full);
+    const addressNormStrict = normAddrStrict(p.address_full);
     const snap = latestSnapByProperty.get(p.id) ?? null;
-    const grok = grokByAddr.get(addressNorm) ?? null;
-    const hasFp = fpAddrSet.has(addressNorm);
+    const grok = grokByAddr.get(addressNormStrict) ?? null;
+    const fp = fpByAddr.get(addressNorm) ?? null;
 
-    const avmVals = [parseNum(snap?.data?.estimatedValue), parseNum(grok?.result?.zillow_estimate), parseNum(grok?.result?.redfin_estimate)];
+    const avmVals = [parseNum(p.latest_value), parseNum(snap?.data?.estimatedValue), parseNum(grok?.result?.zillow_estimate), parseNum(grok?.result?.redfin_estimate)];
     const { avm } = mergeAvm(avmVals);
     const comps = Array.isArray(grok?.result?.comparable_sales) ? (grok!.result.comparable_sales as unknown[]).length : 0;
     const city = p.city ?? snap?.data?.city ?? null;
     const state = p.state ?? snap?.data?.state ?? null;
-    const enrichedAt = p.enriched_at ?? snap?.fetched_at ?? grok?.fetched_at ?? fpAddrSet.get(addressNorm) ?? null;
-    const status = lifecycleFromStatus(typeof snap?.data?.listingStatus === 'string' ? snap!.data.listingStatus as string : null);
-    const meetsBar = !!enrichedAt && avm != null && comps >= 1 && !!city && !!state;
-    void hasFp;
+    const enrichedAt = p.enriched_at ?? snap?.fetched_at ?? grok?.fetched_at ?? fp?.score_computed_at ?? null;
+    const rawStatus = p.latest_listing_status ?? (typeof snap?.data?.listingStatus === 'string' ? snap!.data.listingStatus as string : null);
+    const status = lifecycleFromStatus(rawStatus);
+    const hasL234 = !!fp && (fp.l2_score != null || fp.l3_score != null || fp.l4_score != null);
+    const hasListPrice = parseNum(snap?.data?.price) != null;
 
-    if (meetsBar && (status === 'active' || status === 'pending')) {
-      eligible.push({ id: p.id, lastModified: enrichedAt });
-    }
-  }
-  return eligible;
+    return {
+      id: p.id, addressFull: p.address_full, avm, comps, city, state, enrichedAt, status,
+      hasFeaturedProperties: !!fp, hasL234, hasListPrice,
+      hasDeepGrok: grok?.result?.deep_analysis === true,
+      grokFetchedAt: grok?.fetched_at ?? null,
+      searchCount: fp?.search_count ?? 0,
+      meetsDataBar: !!enrichedAt && avm != null && comps >= 1 && !!city && !!state,
+    };
+  });
+}
+
+export async function listIndexEligiblePropertyIds(): Promise<{ id: string; lastModified: string | null }[]> {
+  const rows = await bulkMergeCorpus();
+  return rows
+    .filter(r => r.meetsDataBar && (r.status === 'active' || r.status === 'pending'))
+    .map(r => ({ id: r.id, lastModified: r.enrichedAt }));
+}
+
+// ── Deep-enrichment candidate selection (Part 3) ──
+// NOINDEX/DO-NOT-PUBLISH properties with enough identity to attempt deeper
+// analysis, missing AVM and/or comps, not already deep-enriched and fresh.
+// Prioritized (not filtered) by: active/pending status, existing
+// featured_properties record, existing L2-L4, existing financing inputs
+// (a resolved list price), recency. search_count is used only as an
+// internal ranking signal here -- never returned or rendered publicly.
+
+export interface DeepEnrichmentCandidate {
+  id: string;
+  addressFull: string;
+  hasAvm: boolean;
+  comps: number;
+  priorityScore: number;
+}
+
+const DEEP_FRESH_MS = 7 * 24 * 60 * 60 * 1000; // matches grok_property_cache's own sold/off-market TTL
+
+export async function listDeepEnrichmentCandidates(): Promise<DeepEnrichmentCandidate[]> {
+  const rows = await bulkMergeCorpus();
+  const now = Date.now();
+
+  return rows
+    .filter(r => {
+      if (!r.city || !r.state) return false; // not enough identity to attempt
+      if (r.avm != null && r.comps >= 1) return false; // already has what deep enrichment would add
+      if (r.hasDeepGrok && r.grokFetchedAt && (now - new Date(r.grokFetchedAt).getTime()) < DEEP_FRESH_MS) return false; // recently deep-enriched already
+      return true;
+    })
+    .map(r => {
+      let priorityScore = 0;
+      if (r.status === 'active' || r.status === 'pending') priorityScore += 40;
+      if (r.hasFeaturedProperties) priorityScore += 20;
+      if (r.hasL234) priorityScore += 15;
+      if (r.hasListPrice) priorityScore += 10;
+      priorityScore += Math.min(r.searchCount, 10); // small, capped nudge from organic interest
+      return { id: r.id, addressFull: r.addressFull, hasAvm: r.avm != null, comps: r.comps, priorityScore };
+    })
+    .sort((a, b) => b.priorityScore - a.priorityScore);
 }
 
 // ── Full page data: only called for one property per real request ──

@@ -5,6 +5,18 @@ import { createClient } from '@supabase/supabase-js';
 import { listIndexEligiblePropertyIds } from '../lib/propertyIntelligence';
 
 export const revalidate = 3600;
+// Without this, Next.js's Data Cache silently caches the underlying fetch()
+// calls Supabase's client makes (since this route is ISR-eligible, not
+// force-dynamic) independently of -- and outliving -- this route's own
+// revalidate window. Confirmed directly: with this route on default fetch
+// caching, /sitemap.xml served a stale property-intelligence count (78)
+// across multiple fresh builds and processes with zero DB changes in
+// between, while a force-dynamic route calling the exact same function in
+// the same process always returned the true current count (86). This
+// forces every fetch inside the route to be genuinely live on each
+// regeneration, while the route's own output is still cached for
+// `revalidate` seconds as intended.
+export const fetchCache = 'force-no-store';
 
 async function getGeneratedArticles() {
   try {

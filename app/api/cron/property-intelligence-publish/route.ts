@@ -103,17 +103,24 @@ export async function GET(req: Request) {
     // the cap bounding INSERT attempts rather than candidates examined (see
     // below), a corpus that's mostly already backfilled would otherwise cost
     // one DB round-trip per already-existing address on every single run,
-    // which only gets worse as the corpus fills in over time. Chunked to stay
-    // well clear of PostgREST's query-string length limit on a wide manual
-    // catch-up run (normal daily volume is far smaller than one chunk).
-    const addressList = Array.from(candidates.values()).map(c => c.address);
+    // which only gets worse as the corpus fills in over time.
+    //
+    // Fetches ALL address_full values rather than filtering with
+    // `.in('address_full', chunk)`, and compares case-insensitively in JS.
+    // Fixed 2026-08-26, discovered while building the property-acquisition
+    // workstream: `address_full`'s casing is inconsistent across this
+    // table's own write paths (some rows lowercased by /api/property/lookup's
+    // upsert, others written with original mixed-case text by an earlier
+    // manual backfill) -- confirmed directly by querying a known
+    // lowercase-stored row with its exact-cased original string and getting
+    // zero matches, since Postgres text equality is case-sensitive with no
+    // collation override here. A case-sensitive IN-filter silently missed
+    // real duplicates whenever stored casing differed from the candidate's,
+    // meaning this cron could insert a near-duplicate `properties` row for
+    // an address that already existed under different casing.
     const existingSet = new Set<string>();
-    const EXISTENCE_CHECK_CHUNK = 100;
-    for (let i = 0; i < addressList.length; i += EXISTENCE_CHECK_CHUNK) {
-      const chunk = addressList.slice(i, i + EXISTENCE_CHECK_CHUNK);
-      const { data: existingRows } = await sb.from('properties').select('address_full').in('address_full', chunk);
-      for (const r of existingRows ?? []) existingSet.add(r.address_full);
-    }
+    const { data: existingRows } = await sb.from('properties').select('address_full');
+    for (const r of existingRows ?? []) existingSet.add(r.address_full.toLowerCase());
 
     // The cap bounds actual INSERT attempts, not how many candidates are
     // looked at -- capping the candidate list itself would mean that once
@@ -126,7 +133,7 @@ export async function GET(req: Request) {
     for (const c of candidates.values()) {
       if (insertAttempts >= BATCH_CAP) break;
       try {
-        if (existingSet.has(c.address)) { results.skippedExisting++; continue; }
+        if (existingSet.has(c.address.toLowerCase())) { results.skippedExisting++; continue; }
         insertAttempts++;
 
         const parsed = parseAddress(c.address);
