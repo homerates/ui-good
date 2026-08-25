@@ -1,4 +1,15 @@
 // next.config.ts
+//
+// NOT CURRENTLY LIVE: a sibling next.config.mjs exists in this repo, and Next.js
+// resolves that file in preference to this one whenever both are present — confirmed
+// directly 2026-08-24 via a local production build + curl (this file's redirects()
+// and headers() were found to have no effect; /chat did not redirect, and none of the
+// X-Robots-Tag rules below were present on any response). next.config.mjs is the file
+// that actually governs headers/redirects/webpack config today, and now carries its
+// own copy of the noindex headers() this file defines. This file's redirects() (the
+// legacy /lo, /borrowers, /join shims) and serverExternalPackages PDF workaround
+// remain untouched and are DEFERRED — NOT PART OF THIS WORKSTREAM; if they're meant to
+// be live, they need to move to next.config.mjs the same way headers() did.
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -30,7 +41,11 @@ const nextConfig: NextConfig = {
       { source: "/probe",             headers: [noIndex] },
       { source: "/identity",          headers: [noIndex] },
       { source: "/s/:slug",           headers: [noIndex] },
-      { source: "/share",             headers: [noIndex] },
+      { source: "/share/:path*",      headers: [noIndex] },
+      { source: "/track5",            headers: [noIndex] },
+      { source: "/messages",          headers: [noIndex] },
+      { source: "/messages/:path*",   headers: [noIndex] },
+      { source: "/pro/:path*",        headers: [noIndex] },
       { source: "/join",              headers: [noIndex] },
       { source: "/onboarding/:path*", headers: [noIndex] },
       { source: "/onboarding",        headers: [noIndex] },

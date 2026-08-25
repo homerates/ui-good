@@ -369,6 +369,18 @@ export default function PropertyIntelligencePage() {
             </div>
           </div>
 
+          {/* Canonical public example */}
+          <div>
+            <div className="pi-section-label">See a Public Example</div>
+            <p style={{ color: 'rgba(185,208,192,0.75)', fontSize: '0.95rem', lineHeight: 1.7, marginBottom: 16 }}>
+              A small pilot set of already-analyzed properties is published as standalone, source-dated pages —
+              the financing and ownership-cost intelligence layer, not a listing.
+            </p>
+            <Link href="/property-intelligence/09ae496e-14be-4b74-b680-65e2b6b9c94d" style={{ color: '#00e87a', textDecoration: 'none', fontWeight: 600, fontSize: '0.9rem' }}>
+              View a live example →
+            </Link>
+          </div>
+
           {/* CTA */}
           <div className="pi-cta-block">
             <h2 className="pi-cta-h">See It Run on Any Property</h2>
