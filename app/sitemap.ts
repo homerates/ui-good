@@ -2,29 +2,9 @@ import { MetadataRoute } from 'next';
 import { knowledgeHubArticles } from './knowledge-hub/articles';
 import { marketNewsArticles } from './market-news/articles';
 import { createClient } from '@supabase/supabase-js';
-import { getPropertyIntelligencePilotData } from '../lib/propertyIntelligencePilot';
+import { listIndexEligiblePropertyIds } from '../lib/propertyIntelligence';
 
 export const revalidate = 3600;
-
-// Canonical Property Intelligence pilot — hand-selected properties.id values only
-// (no cron/automation yet; see the pilot's implementation report). Each is still
-// re-checked against the real §8 threshold here so a property that becomes stale
-// or loses its underlying data drops out of the sitemap automatically rather than
-// requiring a manual edit to notice.
-const PILOT_PROPERTY_IDS = [
-  'dd9b27fc-8a8a-40b0-b7c1-3ca4d6d4d86c', // 1727 Stone Canyon Rd, Los Angeles
-  '68011278-fc09-46c3-9526-0feb515d494b', // 40701 Penn Ln, Fremont
-  '0f62a72b-ed54-4bf3-973b-bde12176bc0a', // 476 Jeanne Ct, Newbury Park
-  '057d1dce-689b-4b19-9637-a152e8d403ca', // 16 Appomattox, Irvine
-  '09ae496e-14be-4b74-b680-65e2b6b9c94d', // 107 Oxford #34, Irvine
-];
-
-async function getIndexEligiblePilotPages() {
-  try {
-    const results = await Promise.all(PILOT_PROPERTY_IDS.map(id => getPropertyIntelligencePilotData(id)));
-    return results.filter((d): d is NonNullable<typeof d> => d != null && d.eligibility === 'index');
-  } catch { return []; }
-}
 
 async function getGeneratedArticles() {
   try {
@@ -354,10 +334,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: a.category === 'market-news' ? 0.8 : 0.75,
         })),
 
-        // Canonical Property Intelligence pilot — index-eligible pages only
-        ...(await getIndexEligiblePilotPages()).map((p) => ({
+        // Canonical Property Intelligence corpus — every properties.id row that
+        // currently passes the real §8 threshold (cheap presence-only check, no
+        // LLPA/OBMMI calls; see lib/propertyIntelligence.ts). A property that
+        // loses its underlying data or goes sold/off-market drops out on the
+        // next hourly regeneration without a manual edit.
+        ...(await listIndexEligiblePropertyIds()).map((p) => ({
             url: `${base}/property-intelligence/${p.id}`,
-            lastModified: p.provenance.intelligenceComputedAt ? new Date(p.provenance.intelligenceComputedAt) : new Date(),
+            lastModified: p.lastModified ? new Date(p.lastModified) : new Date(),
             changeFrequency: 'weekly' as const,
             priority: 0.65,
         })),

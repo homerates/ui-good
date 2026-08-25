@@ -22,6 +22,10 @@
       "schedule": "0 15 * * *"
     },
     {
+      "path": "/api/cron/property-intelligence-publish",
+      "schedule": "0 16 * * *"
+    },
+    {
       "path": "/api/nudge/cron",
       "schedule": "0 17 * * *"
     },
