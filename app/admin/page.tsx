@@ -409,6 +409,7 @@ export default function AdminDashboard() {
             <Link href="/admin/white-label" className="adm-nav-link">White Label</Link>
             <Link href="/admin/blueprint" className="adm-nav-link">Blueprint</Link>
             <Link href="/admin/aerial-view-status" className="adm-nav-link">Aerial View Status</Link>
+            <Link href="/admin/property-acquisition" className="adm-nav-link">Property Acquisition</Link>
             <span className="adm-nav-badge">ADMIN</span>
             <AppNav drawerOnly />
           </div>
