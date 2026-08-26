@@ -23,7 +23,7 @@ export const maxDuration = 150;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../lib/adminAuth';
-import { processAcquisitionCandidates, normalizeCandidateAddress, type PropertyCandidate } from '../../../../lib/propertyAcquisition';
+import { processAcquisitionCandidates, normalizeCandidateAddress, desirabilityScore, type PropertyCandidate } from '../../../../lib/propertyAcquisition';
 
 const REQUIRED_COLUMNS = ['address'];
 const OPTIONAL_COLUMNS = ['city', 'state', 'zip', 'observed_status', 'observed_price', 'source_url'];
@@ -46,6 +46,15 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   observed_status: ['observed_status', 'status'],
   observed_price: ['observed_price', 'price'],
   source_url: ['source_url', 'url'], // 'url' matched by prefix below, not exact
+  // Optional, feed desirabilityScore() in lib/propertyAcquisition.ts -- used
+  // only to decide processing ORDER (real market-demand signal first),
+  // never required and never rendered publicly.
+  observed_days_on_market: ['observed_days_on_market', 'days on market'],
+  observed_property_type: ['observed_property_type', 'property type'],
+  observed_beds: ['observed_beds', 'beds'],
+  observed_baths: ['observed_baths', 'baths'],
+  observed_sqft: ['observed_sqft', 'square feet'],
+  observed_year_built: ['observed_year_built', 'year built'],
 };
 
 function resolveColumnIndex(header: string[], field: string): number {
@@ -97,7 +106,10 @@ function parseAndValidateCsv(text: string): { rows: RowValidation[]; columnError
 
   const header = parseCsvLine(lines[0]).map(h => h.toLowerCase());
   const colIdx: Record<string, number> = {};
-  for (const field of ['address', 'city', 'state', 'zip', 'observed_status', 'observed_price', 'source_url']) {
+  for (const field of [
+    'address', 'city', 'state', 'zip', 'observed_status', 'observed_price', 'source_url',
+    'observed_days_on_market', 'observed_property_type', 'observed_beds', 'observed_baths', 'observed_sqft', 'observed_year_built',
+  ]) {
     colIdx[field] = resolveColumnIndex(header, field);
   }
   if (colIdx.address === -1) {
@@ -119,6 +131,11 @@ function parseAndValidateCsv(text: string): { rows: RowValidation[]; columnError
     if (!address) { rows.push({ rowNumber, raw, valid: false, reason: 'Missing address.' }); continue; }
 
     const priceRaw = get('observed_price');
+    const domRaw = get('observed_days_on_market');
+    const bedsRaw = get('observed_beds');
+    const bathsRaw = get('observed_baths');
+    const sqftRaw = get('observed_sqft');
+    const yearRaw = get('observed_year_built');
     const candidate: PropertyCandidate = {
       address,
       city: get('city') || null,
@@ -129,6 +146,12 @@ function parseAndValidateCsv(text: string): { rows: RowValidation[]; columnError
       source_url: get('source_url') || null,
       source_type: 'spreadsheet',
       observed_at: new Date().toISOString(),
+      observed_days_on_market: domRaw ? parseInt(domRaw, 10) || null : null,
+      observed_property_type: get('observed_property_type') || null,
+      observed_beds: bedsRaw ? parseFloat(bedsRaw) || null : null,
+      observed_baths: bathsRaw ? parseFloat(bathsRaw) || null : null,
+      observed_sqft: sqftRaw ? parseInt(sqftRaw.replace(/[^0-9]/g, ''), 10) || null : null,
+      observed_year_built: yearRaw ? parseInt(yearRaw, 10) || null : null,
     };
 
     const normalized = normalizeCandidateAddress(candidate);
@@ -203,6 +226,16 @@ export async function POST(req: NextRequest) {
   if (previewOnly) {
     return NextResponse.json({ ok: true, preview });
   }
+
+  // Highest desirability first (real market-demand signal -- pending
+  // status, low days-on-market -- see lib/propertyAcquisition.ts's
+  // desirabilityScore()), so a partial run through a large file spends its
+  // limited enrichment budget on the properties most likely to be worth
+  // it, not whatever happened to be earliest in the source export's row
+  // order. Sorting the same deterministic list on every call (rather than
+  // once and caching) keeps repeated offset/limit pagination consistent
+  // across calls without needing to persist any ordering decision.
+  dedupedValidRows.sort((a, b) => desirabilityScore(b.candidate!) - desirabilityScore(a.candidate!));
 
   const page = dedupedValidRows.slice(offset, offset + limit);
   const processed = await processAcquisitionCandidates(page.map(r => r.candidate!), { origin: url.origin });

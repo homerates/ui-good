@@ -40,6 +40,15 @@ export interface PropertyCandidate {
   source_url?: string | null;
   source_type: AcquisitionSourceType;
   observed_at: string;
+  // Optional -- present when the source export carries them (e.g. Redfin's
+  // native CSV columns). Used only for desirabilityScore() below; never
+  // required, never invented when absent.
+  observed_days_on_market?: number | null;
+  observed_property_type?: string | null;
+  observed_beds?: number | null;
+  observed_baths?: number | null;
+  observed_sqft?: number | null;
+  observed_year_built?: number | null;
 }
 
 export type CandidateOutcome =
@@ -80,6 +89,49 @@ export function normalizeCandidateAddress(c: PropertyCandidate): string | null {
   return ADDRESS_SHAPE.test(full) ? full : null;
 }
 
+// ── Desirability signal (internal prioritization only) ──────────────────────
+//
+// Purpose: when a source (a Redfin export, a discovery batch) hands over
+// more candidates than can be processed at once, decide which ones are
+// worth spending real enrichment budget on FIRST. Deliberately built from
+// only objective, already-real market behavior already present in the
+// source data -- NOT an AI-inferred "popularity" guess. Confirmed earlier
+// this session that generic web search is unreliable even at the simpler
+// task of finding one address; asking it to infer *why* an area is
+// desirable would be a harder, fuzzier version of the same problem, and
+// redundant with signals a real MLS export already states outright.
+//
+// Two real signals used, both direct market behavior, not inference:
+//   - observed_status containing "pending" -- a real buyer already chose
+//     this home; the strongest concrete demand signal a listing can carry.
+//   - observed_days_on_market -- lower is a genuine proxy for demand (the
+//     home attracted an accepted offer, or is attracting showings, faster
+//     than a comparable stale listing). Capped rather than linear-forever,
+//     since a very low DOM (a day or two) isn't meaningfully "more desired"
+//     than a slightly higher one -- it's the difference between fast and
+//     slow that carries signal, not fine-grained ranking within "fast."
+//
+// This score is NEVER rendered on the public property page (matches the
+// same "internal prioritization signal only" boundary already established
+// for featured_properties.search_count) -- it only decides processing
+// order here, and (see lib/propertyIntelligence.ts) deep-enrich candidate
+// priority once a property is anchored.
+export function desirabilityScore(c: PropertyCandidate): number {
+  let score = 0;
+  const status = (c.observed_status ?? '').toLowerCase();
+  if (status.includes('pending')) score += 50;
+  else if (status.includes('active') || status.includes('for_sale') || status.includes('for sale')) score += 20;
+  // A recently-sold reference in the same export is a useful comp but not
+  // itself a live "worth enriching now" signal -- no boost, no penalty.
+
+  if (c.observed_days_on_market != null && c.observed_days_on_market >= 0) {
+    const dom = c.observed_days_on_market;
+    const domScore = dom <= 7 ? 40 : dom <= 21 ? 28 : dom <= 45 ? 15 : dom <= 90 ? 5 : 0;
+    score += domScore;
+  }
+  return score;
+}
+
 export interface ProcessAcquisitionOptions {
   origin: string; // for the internal server-to-server call to /api/property/lookup
 }
@@ -110,6 +162,16 @@ export async function processAcquisitionCandidates(
     seenInBatch.add(key);
     toCheck.push({ candidate, normalized });
   }
+
+  // Highest desirability first -- when a caller hands over more candidates
+  // than the batch cap allows, the ones with real market-demand signal
+  // (pending status, low days-on-market) get real enrichment spend before
+  // whatever happened to be earlier in the source file's row order. For a
+  // caller that already paginates a larger list (the spreadsheet route),
+  // this only re-orders within whatever page arrived here -- the route
+  // itself sorts the full deduped list before slicing so this ordering is
+  // meaningful across the whole file, not just within one batch.
+  toCheck.sort((a, b) => desirabilityScore(b.candidate) - desirabilityScore(a.candidate));
 
   // One bulk existence check against `properties`, chunked -- same pattern
   // as the publish cron, for the same reason (avoid one query per candidate).
