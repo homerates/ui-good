@@ -17,7 +17,9 @@
 // objects and validating them; the enrichment handoff is shared code.
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+// Matches app/api/beta/grok-property/route.ts's own maxDuration -- already
+// confirmed live in production at this value, so the plan supports it.
+export const maxDuration = 150;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../lib/adminAuth';
@@ -147,7 +149,18 @@ function parseAndValidateCsv(text: string): { rows: RowValidation[]; columnError
 // and report exactly how many remain so the caller (the admin UI below,
 // or a script) can request the next page -- re-parsing the same CSV text
 // each time is cheap; only the lookup step is capped.
-const DEFAULT_BATCH_LIMIT = 20;
+//
+// processAcquisitionCandidates() processes this batch SEQUENTIALLY
+// (CONCURRENCY = 1 there, deliberately, after a live regression -- see its
+// own comment: parallel lookups tripped Redfin's rate-limiting and pushed
+// the failure rate from ~17% to 55% on a real 350-row test). At 20s worst
+// case per lookup, 5 candidates is <=100s worst case -- comfortably inside
+// this route's 150s maxDuration with margin for parsing/existence-check
+// overhead. The original default of 20 (also fully sequential, before the
+// concurrency detour) was confirmed live to exceed the route's timeout and
+// leave the client with no response at all -- not a clean error, just a
+// frozen "Processing..." state; 5 is small enough to actually fit.
+const DEFAULT_BATCH_LIMIT = 5;
 
 export async function POST(req: NextRequest) {
   const { error } = await requireAdmin();
