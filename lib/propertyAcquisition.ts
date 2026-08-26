@@ -132,37 +132,64 @@ export async function processAcquisitionCandidates(
     for (const r of data ?? []) existingSet.add(r.address_full.toLowerCase());
   }
 
-  for (const { candidate, normalized } of toCheck) {
-    if (existingSet.has(normalized.toLowerCase())) {
-      results.push({ candidate, normalizedAddress: normalized, outcome: 'duplicate_existing', reason: 'A properties row already exists for this address -- not re-enriched.' });
-      continue;
-    }
+  // Sequential (CONCURRENCY = 1), not parallel -- reverted after a live
+  // regression: an earlier version of this function used CONCURRENCY = 4
+  // to fix a timeout/hang problem (see the per-lookup timeout below), but
+  // running 4 simultaneous /api/property/lookup calls means 4 simultaneous
+  // Redfin scrape requests from this same server -- a real 350-row test
+  // run immediately showed the failure rate jump from ~17% (an earlier
+  // sequential test on comparable addresses) to 55%, consistent with
+  // tripping Redfin's own anti-bot/rate-limit defenses under concurrent
+  // load. Sequential was already proven reliable; the timeout problem is
+  // solved instead by capping the batch size a caller requests per call
+  // (see DEFAULT_BATCH_LIMIT in the spreadsheet route) rather than by
+  // parallelizing scrape requests against an external site that doesn't
+  // want to be hit that way.
+  const CONCURRENCY = 1;
+  const PER_LOOKUP_TIMEOUT_MS = 20_000;
 
-    // Hand off to the EXISTING basic-enrichment pipeline, exactly as an
-    // organic user lookup would trigger it -- no new enrichment logic here.
-    try {
-      const res = await fetch(`${options.origin}/api/property/lookup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: normalized }),
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok || !body?.ok) {
-        results.push({ candidate, normalizedAddress: normalized, outcome: 'lookup_failed', reason: body?.error ?? `HTTP ${res.status}` });
+  let cursor = 0;
+  async function worker() {
+    while (cursor < toCheck.length) {
+      const { candidate, normalized } = toCheck[cursor++];
+      if (existingSet.has(normalized.toLowerCase())) {
+        results.push({ candidate, normalizedAddress: normalized, outcome: 'duplicate_existing', reason: 'A properties row already exists for this address -- not re-enriched.' });
         continue;
       }
-      // The lookup route reconciles against loosely-matching existing rows
-      // before upserting (see its own cachePropertyResult) -- re-read by
-      // address to get the canonical id it actually wrote to, rather than
-      // assuming our normalized string is the exact stored key.
-      const { data: prop } = sb
-        ? await sb.from('properties').select('id').ilike('address_full', `%${normalized.split(',')[0].trim()}%`).limit(1).maybeSingle()
-        : { data: null };
-      results.push({ candidate, normalizedAddress: normalized, outcome: 'lookup_succeeded', propertyId: prop?.id });
-    } catch (e) {
-      results.push({ candidate, normalizedAddress: normalized, outcome: 'lookup_failed', reason: e instanceof Error ? e.message : String(e) });
+
+      // Hand off to the EXISTING basic-enrichment pipeline, exactly as an
+      // organic user lookup would trigger it -- no new enrichment logic here.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), PER_LOOKUP_TIMEOUT_MS);
+      try {
+        const res = await fetch(`${options.origin}/api/property/lookup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: normalized }),
+          signal: controller.signal,
+        });
+        const body = await res.json().catch(() => null);
+        if (!res.ok || !body?.ok) {
+          results.push({ candidate, normalizedAddress: normalized, outcome: 'lookup_failed', reason: body?.error ?? `HTTP ${res.status}` });
+          continue;
+        }
+        // The lookup route reconciles against loosely-matching existing rows
+        // before upserting (see its own cachePropertyResult) -- re-read by
+        // address to get the canonical id it actually wrote to, rather than
+        // assuming our normalized string is the exact stored key.
+        const { data: prop } = sb
+          ? await sb.from('properties').select('id').ilike('address_full', `%${normalized.split(',')[0].trim()}%`).limit(1).maybeSingle()
+          : { data: null };
+        results.push({ candidate, normalizedAddress: normalized, outcome: 'lookup_succeeded', propertyId: prop?.id });
+      } catch (e) {
+        const timedOut = e instanceof Error && e.name === 'AbortError';
+        results.push({ candidate, normalizedAddress: normalized, outcome: 'lookup_failed', reason: timedOut ? `Timed out after ${PER_LOOKUP_TIMEOUT_MS / 1000}s` : e instanceof Error ? e.message : String(e) });
+      } finally {
+        clearTimeout(timeoutId);
+      }
     }
   }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, toCheck.length) }, () => worker()));
 
   return results;
 }

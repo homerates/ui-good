@@ -16,7 +16,7 @@
 // running for tens of minutes. This page loops batches automatically and
 // shows running totals, with a Stop button to pause between batches.
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import AppNav from '../../components/AppNav';
 
 interface Preview {
@@ -36,7 +36,17 @@ interface ProcessedRow {
   propertyId?: string;
 }
 
-const BATCH_LIMIT = 20;
+// Matches the route's own DEFAULT_BATCH_LIMIT (sized against its 150s
+// maxDuration and processAcquisitionCandidates' sequential processing --
+// reduced from an earlier concurrent design after a live regression, see
+// that function's own comment).
+const BATCH_LIMIT = 5;
+// Client-side backstop, slightly above the route's own maxDuration: if the
+// server hasn't responded by then, something is genuinely stuck (a hung
+// external call, a dropped connection) rather than just slow, and the UI
+// should say so instead of sitting on "Processing..." forever with no way
+// to tell the difference between working and frozen.
+const FETCH_TIMEOUT_MS = 160_000;
 
 const cardStyle: React.CSSProperties = {
   background: '#0e1420', border: '1px solid rgba(255,255,255,0.08)',
@@ -60,7 +70,31 @@ export default function PropertyAcquisitionAdminPage() {
   const [log, setLog] = useState<ProcessedRow[]>([]);
   const [totals, setTotals] = useState({ duplicateExisting: 0, lookupSucceeded: 0, lookupFailed: 0 });
   const [error, setError] = useState('');
+  const [batchNumber, setBatchNumber] = useState(0);
+  const [batchStartedAt, setBatchStartedAt] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(Date.now());
   const stopRef = useRef(false);
+
+  // Live elapsed-time ticker while a batch is in flight -- the concrete
+  // reason this exists: a frozen-looking "Processing…" button with no
+  // moving number is indistinguishable from a genuinely hung request. A
+  // visibly ticking elapsed-seconds count at least confirms the page
+  // itself is alive and a request really is outstanding, not stuck.
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      return await fetch(url, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -96,9 +130,13 @@ export default function PropertyAcquisitionAdminPage() {
     stopRef.current = false;
     setError('');
     let currentOffset = offset;
+    let batchNum = batchNumber;
     while (!stopRef.current) {
+      batchNum++;
+      setBatchNumber(batchNum);
+      setBatchStartedAt(Date.now());
       try {
-        const res = await fetch(`/api/admin/property-acquisition-spreadsheet?offset=${currentOffset}&limit=${BATCH_LIMIT}`, {
+        const res = await fetchWithTimeout(`/api/admin/property-acquisition-spreadsheet?offset=${currentOffset}&limit=${BATCH_LIMIT}`, {
           method: 'POST',
           body: csvText,
         });
@@ -114,7 +152,10 @@ export default function PropertyAcquisitionAdminPage() {
         setOffset(currentOffset);
         if (data.batch.remaining === 0 || data.batch.processedThisBatch === 0) break;
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        const timedOut = e instanceof Error && e.name === 'AbortError';
+        setError(timedOut
+          ? `Batch ${batchNum} did not respond within ${FETCH_TIMEOUT_MS / 1000}s — likely one slow address stalling the whole request. Click "Process next batch" to retry from where it left off (offset ${currentOffset}).`
+          : e instanceof Error ? e.message : String(e));
         break;
       }
     }
@@ -151,7 +192,9 @@ export default function PropertyAcquisitionAdminPage() {
             </button>
             {preview && (
               <button onClick={runBatches} disabled={running || remaining === 0} style={btnStyle()}>
-                {running ? `Processing… (${offset}/${preview.newCandidates})` : remaining === 0 ? 'Done' : `2. Process next batch (${BATCH_LIMIT} at a time)`}
+                {running
+                  ? `Batch ${batchNumber} running — ${batchStartedAt ? Math.round((nowTick - batchStartedAt) / 1000) : 0}s elapsed (${offset}/${preview.newCandidates} done)`
+                  : remaining === 0 ? 'Done' : `2. Process next batch (${BATCH_LIMIT} at a time)`}
               </button>
             )}
             {running && (
