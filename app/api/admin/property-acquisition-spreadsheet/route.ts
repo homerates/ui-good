@@ -26,6 +26,38 @@ import { processAcquisitionCandidates, normalizeCandidateAddress, type PropertyC
 const REQUIRED_COLUMNS = ['address'];
 const OPTIONAL_COLUMNS = ['city', 'state', 'zip', 'observed_status', 'observed_price', 'source_url'];
 
+// Column-name aliases -- accepts this app's own simple schema AND a real
+// Redfin CSV export verbatim (confirmed against an actual export: SALE
+// TYPE, SOLD DATE, PROPERTY TYPE, ADDRESS, CITY, STATE OR PROVINCE, ZIP OR
+// POSTAL CODE, PRICE, BEDS, BATHS, LOCATION, SQUARE FEET, LOT SIZE, YEAR
+// BUILT, DAYS ON MARKET, $/SQUARE FEET, HOA/MONTH, STATUS, NEXT OPEN HOUSE
+// START TIME, NEXT OPEN HOUSE END TIME, URL (SEE ... FOR INFO ON PRICING),
+// SOURCE, MLS#, FAVORITE, INTERESTED, LATITUDE, LONGITUDE) -- so an
+// operator can hand this route Redfin's raw download with no reformatting.
+// Matched case-insensitively; the URL column is matched by prefix since
+// Redfin appends an explanatory parenthetical to that header.
+const COLUMN_ALIASES: Record<string, string[]> = {
+  address: ['address'],
+  city: ['city'],
+  state: ['state', 'state or province'],
+  zip: ['zip', 'zip or postal code'],
+  observed_status: ['observed_status', 'status'],
+  observed_price: ['observed_price', 'price'],
+  source_url: ['source_url', 'url'], // 'url' matched by prefix below, not exact
+};
+
+function resolveColumnIndex(header: string[], field: string): number {
+  const aliases = COLUMN_ALIASES[field] ?? [field];
+  for (const alias of aliases) {
+    const exact = header.indexOf(alias);
+    if (exact !== -1) return exact;
+  }
+  // Redfin's URL column header carries trailing explanatory text
+  // ("url (see ... for info on pricing)") -- prefix match as a fallback.
+  const prefixIdx = header.findIndex(h => aliases.some(a => h.startsWith(a)));
+  return prefixIdx;
+}
+
 // Minimal CSV row splitter -- handles simple double-quoted fields (with
 // escaped "" inside) since the accepted schema has no multiline fields and
 // this repo has no CSV dependency to reach for instead.
@@ -62,27 +94,37 @@ function parseAndValidateCsv(text: string): { rows: RowValidation[]; columnError
   if (lines.length === 0) return { rows: [], columnError: 'Empty file.' };
 
   const header = parseCsvLine(lines[0]).map(h => h.toLowerCase());
-  const missing = REQUIRED_COLUMNS.filter(c => !header.includes(c));
-  if (missing.length > 0) return { rows: [], columnError: `Missing required column(s): ${missing.join(', ')}` };
+  const colIdx: Record<string, number> = {};
+  for (const field of ['address', 'city', 'state', 'zip', 'observed_status', 'observed_price', 'source_url']) {
+    colIdx[field] = resolveColumnIndex(header, field);
+  }
+  if (colIdx.address === -1) {
+    return { rows: [], columnError: `Missing required column: address (also accepts "ADDRESS"). Found columns: ${header.join(', ')}` };
+  }
 
   const rows: RowValidation[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cells = parseCsvLine(lines[i]);
-    const raw: Record<string, string> = {};
-    header.forEach((col, idx) => { raw[col] = cells[idx] ?? ''; });
     const rowNumber = i + 1; // 1-indexed, matching a spreadsheet's own row numbers (header = row 1)
+    const get = (field: string): string => (colIdx[field] !== -1 ? (cells[colIdx[field]] ?? '') : '');
+    const raw: Record<string, string> = { address: get('address'), city: get('city'), state: get('state'), zip: get('zip') };
 
-    const address = raw.address?.trim();
+    const address = get('address').trim();
+    // Rows that don't actually match this file's own column count (e.g. a
+    // one-cell disclaimer line some exports prepend before the real data)
+    // naturally fail here too, since `get('address')` reads an index that
+    // such a row never populated -- no separate special-case skip needed.
     if (!address) { rows.push({ rowNumber, raw, valid: false, reason: 'Missing address.' }); continue; }
 
+    const priceRaw = get('observed_price');
     const candidate: PropertyCandidate = {
       address,
-      city: raw.city || null,
-      state: raw.state || null,
-      zip: raw.zip || null,
-      observed_status: raw.observed_status || null,
-      observed_price: raw.observed_price ? parseFloat(raw.observed_price.replace(/[^0-9.]/g, '')) || null : null,
-      source_url: raw.source_url || null,
+      city: get('city') || null,
+      state: get('state') || null,
+      zip: get('zip') || null,
+      observed_status: get('observed_status') || null,
+      observed_price: priceRaw ? parseFloat(priceRaw.replace(/[^0-9.]/g, '')) || null : null,
+      source_url: get('source_url') || null,
       source_type: 'spreadsheet',
       observed_at: new Date().toISOString(),
     };
