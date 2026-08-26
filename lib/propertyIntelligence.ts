@@ -320,6 +320,7 @@ interface BulkSummary {
   hasDeepGrok: boolean;
   grokFetchedAt: string | null;
   searchCount: number;
+  daysOnMarket: number | null;
   meetsDataBar: boolean;
 }
 
@@ -371,6 +372,7 @@ async function bulkMergeCorpus(): Promise<BulkSummary[]> {
       hasDeepGrok: grok?.result?.deep_analysis === true,
       grokFetchedAt: grok?.fetched_at ?? null,
       searchCount: fp?.search_count ?? 0,
+      daysOnMarket: parseNum(snap?.data?.daysOnMarket),
       meetsDataBar: !!enrichedAt && avm != null && comps >= 1 && !!city && !!state,
     };
   });
@@ -414,7 +416,19 @@ export async function listDeepEnrichmentCandidates(): Promise<DeepEnrichmentCand
     })
     .map(r => {
       let priorityScore = 0;
-      if (r.status === 'active' || r.status === 'pending') priorityScore += 40;
+      // Pending outranks merely-active: a pending listing already has a
+      // real accepted offer -- a stronger, more concrete demand signal than
+      // simply being on the market. Both real market_status facts, not
+      // AI-inferred popularity (see lib/propertyAcquisition.ts's
+      // desirabilityScore(), which this mirrors for the CSV/discovery
+      // acquisition path -- same reasoning, applied here to properties
+      // already anchored rather than incoming candidates).
+      if (r.status === 'pending') priorityScore += 45;
+      else if (r.status === 'active') priorityScore += 35;
+      if (r.daysOnMarket != null && r.daysOnMarket >= 0) {
+        const dom = r.daysOnMarket;
+        priorityScore += dom <= 7 ? 20 : dom <= 21 ? 14 : dom <= 45 ? 7 : 0;
+      }
       if (r.hasFeaturedProperties) priorityScore += 20;
       if (r.hasL234) priorityScore += 15;
       if (r.hasListPrice) priorityScore += 10;
