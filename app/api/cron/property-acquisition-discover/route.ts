@@ -46,7 +46,12 @@ export async function GET(req: NextRequest) {
 
   const origin = url.origin;
   const discovery = await discoverForSaleCandidates(geographies, perGeographyCap);
-  const processed = await processAcquisitionCandidates(discovery.candidates, { origin });
+  // 15s margin under this route's own maxDuration -- same reasoning as the
+  // spreadsheet route: lets processAcquisitionCandidates skip a failed
+  // lookup's retry once too little budget remains, rather than risk the
+  // retry pushing this request past its own timeout.
+  const deadlineMs = Date.now() + (maxDuration - 15) * 1000;
+  const processed = await processAcquisitionCandidates(discovery.candidates, { origin, deadlineMs });
 
   const counts = {
     searchRequests: discovery.queryLog.length,

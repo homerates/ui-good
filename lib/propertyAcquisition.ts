@@ -134,6 +134,11 @@ export function desirabilityScore(c: PropertyCandidate): number {
 
 export interface ProcessAcquisitionOptions {
   origin: string; // for the internal server-to-server call to /api/property/lookup
+  // Absolute Date.now()-comparable deadline (typically the caller's own
+  // maxDuration minus a safety margin). When set, a failed lookup's single
+  // retry is skipped if there isn't enough remaining budget for it -- a
+  // retry must never be the reason a batch exceeds the route's timeout.
+  deadlineMs?: number;
 }
 
 import { getSupabase } from './supabaseServer';
@@ -209,6 +214,54 @@ export async function processAcquisitionCandidates(
   // want to be hit that way.
   const CONCURRENCY = 1;
   const PER_LOOKUP_TIMEOUT_MS = 20_000;
+  // Pacing between requests, not just avoiding concurrency: discovered on a
+  // real sustained 216-row run that a fully back-to-back sequential stream
+  // (no gap at all between one lookup finishing and the next starting)
+  // still degrades over several minutes -- confirmed live by retrying two
+  // "failed" addresses moments later from an entirely separate connection
+  // and getting real, correct data both times. That rules out "bad
+  // addresses" and points at a request-RATE-based defense (not just
+  // concurrency-based), which a short gap between requests reduces.
+  const PACING_DELAY_MS = 1_000;
+  // One retry for a failed lookup, after a longer backoff -- since the
+  // same evidence shows a real fraction of failures are transient, not
+  // permanent. Bounded by remaining time budget (below) so a retry can
+  // never be the reason a batch exceeds the route's own maxDuration.
+  const RETRY_BACKOFF_MS = 3_000;
+
+  function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function attemptLookup(normalized: string): Promise<{ outcome: 'lookup_succeeded' | 'lookup_failed'; reason?: string; propertyId?: string }> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), PER_LOOKUP_TIMEOUT_MS);
+    try {
+      const res = await fetch(`${options.origin}/api/property/lookup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: normalized }),
+        signal: controller.signal,
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body?.ok) {
+        return { outcome: 'lookup_failed', reason: body?.error ?? `HTTP ${res.status}` };
+      }
+      // The lookup route reconciles against loosely-matching existing rows
+      // before upserting (see its own cachePropertyResult) -- re-read by
+      // address to get the canonical id it actually wrote to, rather than
+      // assuming our normalized string is the exact stored key.
+      const { data: prop } = sb
+        ? await sb.from('properties').select('id').ilike('address_full', `%${normalized.split(',')[0].trim()}%`).limit(1).maybeSingle()
+        : { data: null };
+      return { outcome: 'lookup_succeeded', propertyId: prop?.id };
+    } catch (e) {
+      const timedOut = e instanceof Error && e.name === 'AbortError';
+      return { outcome: 'lookup_failed', reason: timedOut ? `Timed out after ${PER_LOOKUP_TIMEOUT_MS / 1000}s` : e instanceof Error ? e.message : String(e) };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
 
   let cursor = 0;
   async function worker() {
@@ -219,36 +272,24 @@ export async function processAcquisitionCandidates(
         continue;
       }
 
-      // Hand off to the EXISTING basic-enrichment pipeline, exactly as an
-      // organic user lookup would trigger it -- no new enrichment logic here.
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), PER_LOOKUP_TIMEOUT_MS);
-      try {
-        const res = await fetch(`${options.origin}/api/property/lookup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address: normalized }),
-          signal: controller.signal,
-        });
-        const body = await res.json().catch(() => null);
-        if (!res.ok || !body?.ok) {
-          results.push({ candidate, normalizedAddress: normalized, outcome: 'lookup_failed', reason: body?.error ?? `HTTP ${res.status}` });
-          continue;
+      let outcome = await attemptLookup(normalized);
+      if (outcome.outcome === 'lookup_failed') {
+        const enoughTimeForRetry = !options.deadlineMs || (Date.now() + RETRY_BACKOFF_MS + PER_LOOKUP_TIMEOUT_MS) < options.deadlineMs;
+        if (enoughTimeForRetry) {
+          await sleep(RETRY_BACKOFF_MS);
+          const retryOutcome = await attemptLookup(normalized);
+          if (retryOutcome.outcome === 'lookup_succeeded') {
+            outcome = retryOutcome;
+          } else {
+            outcome = { outcome: 'lookup_failed', reason: `${outcome.reason ?? 'failed'} (retried once, also failed: ${retryOutcome.reason ?? 'failed'})` };
+          }
         }
-        // The lookup route reconciles against loosely-matching existing rows
-        // before upserting (see its own cachePropertyResult) -- re-read by
-        // address to get the canonical id it actually wrote to, rather than
-        // assuming our normalized string is the exact stored key.
-        const { data: prop } = sb
-          ? await sb.from('properties').select('id').ilike('address_full', `%${normalized.split(',')[0].trim()}%`).limit(1).maybeSingle()
-          : { data: null };
-        results.push({ candidate, normalizedAddress: normalized, outcome: 'lookup_succeeded', propertyId: prop?.id });
-      } catch (e) {
-        const timedOut = e instanceof Error && e.name === 'AbortError';
-        results.push({ candidate, normalizedAddress: normalized, outcome: 'lookup_failed', reason: timedOut ? `Timed out after ${PER_LOOKUP_TIMEOUT_MS / 1000}s` : e instanceof Error ? e.message : String(e) });
-      } finally {
-        clearTimeout(timeoutId);
       }
+      results.push({ candidate, normalizedAddress: normalized, ...outcome });
+
+      // Pace even successful lookups -- the evidence points at a
+      // request-rate defense, not a "punish failures" one.
+      if (cursor < toCheck.length) await sleep(PACING_DELAY_MS);
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, toCheck.length) }, () => worker()));

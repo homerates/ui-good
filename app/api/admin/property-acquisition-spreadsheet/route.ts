@@ -238,7 +238,12 @@ export async function POST(req: NextRequest) {
   dedupedValidRows.sort((a, b) => desirabilityScore(b.candidate!) - desirabilityScore(a.candidate!));
 
   const page = dedupedValidRows.slice(offset, offset + limit);
-  const processed = await processAcquisitionCandidates(page.map(r => r.candidate!), { origin: url.origin });
+  // 10s margin under this route's own maxDuration for parsing/existence-check
+  // overhead and response serialization -- processAcquisitionCandidates uses
+  // this to skip a failed lookup's retry once too little budget remains,
+  // rather than risk the retry itself being the reason this request times out.
+  const deadlineMs = Date.now() + (maxDuration - 10) * 1000;
+  const processed = await processAcquisitionCandidates(page.map(r => r.candidate!), { origin: url.origin, deadlineMs });
 
   return NextResponse.json({
     ok: true,
