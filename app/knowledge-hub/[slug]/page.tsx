@@ -14,12 +14,29 @@ export async function generateStaticParams() {
   return knowledgeHubArticles.map((a) => ({ slug: a.slug }));
 }
 
+// generated_articles' real columns are published_at (ISO) and read_time
+// (a plain number) -- NOT the `date` (pre-formatted string) and `readTime`
+// (e.g. "6 min read") fields the static knowledgeHubArticles array and this
+// page's own JSX expect. Returning the raw row directly here meant every
+// DB-generated article silently rendered a blank date/read-time in its
+// meta line -- confirmed by reading api/content/generate/route.ts's own
+// insert() call, which writes published_at/read_time, never date/readTime.
+// Normalize into the same shape the static array already uses, and keep
+// the real ISO timestamp too (publishedAtISO) for structured data, which
+// needs a real machine-readable date, not the display string.
 async function getDbArticle(slug: string) {
   try {
     const { createClient } = await import('@supabase/supabase-js');
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
     const { data } = await sb.from('generated_articles').select('*').eq('slug', slug).eq('category', 'knowledge-hub').eq('status', 'published').maybeSingle();
-    return data ?? null;
+    if (!data) return null;
+    return {
+      ...data,
+      date: new Date(data.published_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      readTime: `${data.read_time ?? 6} min read`,
+      publishedAtISO: data.published_at as string,
+      updatedAtISO: (data.updated_at ?? data.published_at) as string,
+    };
   } catch { return null; }
 }
 
@@ -161,8 +178,33 @@ export default async function KnowledgeHubArticle({
     ...staticRelated.map((a) => ({ slug: a.slug, title: a.title, excerpt: a.excerpt, tag: (a as { category?: string }).category ?? 'Guide', date: a.date, readTime: a.readTime })),
   ].slice(0, 3);
 
+  // DB-sourced articles carry a real ISO timestamp (publishedAtISO, set
+  // above); static articles only have article.date as a human string
+  // ("April 30, 2026") -- JS Date can parse that reliably for this small,
+  // stable, hand-authored set, so no ISO field was retrofitted onto the
+  // static array itself for this fix.
+  const isoDate = 'publishedAtISO' in article && article.publishedAtISO
+    ? article.publishedAtISO
+    : new Date(article.date).toISOString();
+  const isoUpdated = 'updatedAtISO' in article && article.updatedAtISO ? article.updatedAtISO : isoDate;
+  const articleUrl = `https://chat.homerates.ai/knowledge-hub/${article.slug}`;
+  const schemaArticle = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: article.title,
+    description: article.excerpt,
+    datePublished: isoDate,
+    dateModified: isoUpdated,
+    articleSection: article.category,
+    url: articleUrl,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': articleUrl },
+    publisher: { '@type': 'Organization', name: 'HomeRates.ai', url: 'https://chat.homerates.ai' },
+    isPartOf: { '@type': 'WebSite', name: 'HomeRates.ai', url: 'https://chat.homerates.ai' },
+  };
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaArticle) }} />
       <style>{`
         body:has(.kha-root) {
           display: block !important;

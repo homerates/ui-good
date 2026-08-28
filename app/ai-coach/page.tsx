@@ -95,9 +95,22 @@ const PROMPT_TYPES = [
   },
 ];
 
+// Built directly from LO_QUESTIONS + AGENT_QUESTIONS above -- the same real
+// content already rendered on the page, not separately authored filler.
+const schemaFAQ = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [...LO_QUESTIONS, ...AGENT_QUESTIONS].map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.why },
+  })),
+};
+
 export default function AICoachPage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaFAQ) }} />
       <style>{`
         body:has(.aic-root){display:block!important;height:auto!important;overflow:visible!important;}
         html:has(.aic-root){height:auto!important;overflow:visible!important;}

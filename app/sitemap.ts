@@ -224,6 +224,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.85,
         },
         {
+            url: `${base}/market-intelligence`,
+            lastModified: new Date(),
+            changeFrequency: 'daily' as const,
+            priority: 0.8,
+        },
+        {
             url: `${base}/searchable-by-design`,
             lastModified: new Date(),
             changeFrequency: 'monthly' as const,
@@ -302,6 +308,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.75,
         },
         // Tools — public pages with client-side auth gating
+        {
+            url: `${base}/rate-intelligence-engine`,
+            lastModified: new Date(),
+            changeFrequency: 'weekly' as const,
+            priority: 0.9,
+        },
         {
             url: `${base}/jumbo-calculator`,
             lastModified: new Date(),
