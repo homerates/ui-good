@@ -5,8 +5,8 @@ import Link from 'next/link';
 import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
-  title: 'Platform Intelligence — How HomeRates.AI Works | HomeRates.AI',
-  description: 'Everything that makes HomeRates.AI different — private vault, unbiased rates, DSCR calculator, property intelligence cards, and why we\'re the anti-lead-gen revolution.',
+  title: 'Platform Intelligence — How HomeRates.ai Works | HomeRates.ai',
+  description: 'Everything that makes HomeRates.ai different — private vault, unbiased rates, DSCR calculator, property intelligence cards, and why we\'re the anti-lead-gen revolution.',
   alternates: { canonical: 'https://chat.homerates.ai/platform' },
 };
 
@@ -15,7 +15,7 @@ const PILLARS = [
     icon: '🏆',
     eyebrow: 'Platform Overview',
     title: 'Best Unbiased Mortgage AI Platform 2026',
-    summary: 'How HomeRates.AI compares to Bankrate, LendingTree, and Zillow Mortgage — and why deterministic math + zero lead-gen changes everything.',
+    summary: 'How HomeRates.ai compares to Bankrate, LendingTree, and Zillow Mortgage — and why deterministic math + zero lead-gen changes everything.',
     href: '/best-mortgage-ai-platform',
     accent: '#00e87a',
   },
@@ -201,7 +201,7 @@ export default function PlatformPage() {
           <div className="ph-header-inner">
             <Link href="/" className="ph-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="ph-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="ph-logo" />
             </Link>
             <nav className="ph-nav-links">
               <Link href="/about" className="ph-nav-link">About</Link>
@@ -216,7 +216,7 @@ export default function PlatformPage() {
           {/* Hero */}
           <div className="ph-hero">
             <span className="ph-eyebrow">Platform Intelligence</span>
-            <h1 className="ph-h1">Everything That Makes<br />HomeRates.AI Different</h1>
+            <h1 className="ph-h1">Everything That Makes<br />HomeRates.ai Different</h1>
             <p className="ph-subtitle">
               Seven deep-dives into what we built, why we built it, and how it puts you — the consumer — in control of the most important financial decision of your life.
             </p>
@@ -250,7 +250,7 @@ export default function PlatformPage() {
         </main>
 
         <footer className="ph-footer">
-          <span>HomeRates.AI — educational tool, not a lender or broker.</span>
+          <span>HomeRates.ai — educational tool, not a lender or broker.</span>
           <span className="ph-footer-sep">•</span>
           <Link href="/about">About</Link>
           <span className="ph-footer-sep">•</span>

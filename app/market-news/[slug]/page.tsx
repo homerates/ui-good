@@ -14,12 +14,26 @@ export async function generateStaticParams() {
   return marketNewsArticles.map((a) => ({ slug: a.slug }));
 }
 
+// Same normalization fix as app/knowledge-hub/[slug]/page.tsx's
+// getDbArticle() -- generated_articles' real columns are published_at
+// (ISO) and read_time (a number), not the date/readTime shape this page's
+// JSX and marketNewsArticles expect. See that file's comment for the full
+// explanation; confirmed via the same insert() call in
+// api/content/generate/route.ts, which is shared by both categories.
 async function getDbArticle(slug: string) {
   try {
     const { createClient } = await import('@supabase/supabase-js');
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
     const { data } = await sb.from('generated_articles').select('*').eq('slug', slug).eq('category', 'market-news').eq('status', 'published').maybeSingle();
-    return data ?? null;
+    if (!data) return null;
+    return {
+      ...data,
+      date: new Date(data.published_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      readTime: `${data.read_time ?? 5} min read`,
+      tag: data.tag ?? 'Market News',
+      publishedAtISO: data.published_at as string,
+      updatedAtISO: (data.updated_at ?? data.published_at) as string,
+    };
   } catch { return null; }
 }
 
@@ -150,8 +164,34 @@ export default async function MarketNewsArticle({
     ...staticRelated.map((a) => ({ slug: a.slug, title: a.title, tag: a.tag, date: a.date, readTime: a.readTime })),
   ].slice(0, 3);
 
+  // Same reasoning as knowledge-hub's [slug] page: DB articles carry a real
+  // ISO timestamp, static articles only a display string that Date can
+  // still parse reliably for this small, stable, hand-authored set.
+  const isoDate = 'publishedAtISO' in article && article.publishedAtISO
+    ? article.publishedAtISO
+    : new Date(article.date).toISOString();
+  const isoUpdated = 'updatedAtISO' in article && article.updatedAtISO ? article.updatedAtISO : isoDate;
+  const articleUrl = `https://chat.homerates.ai/market-news/${article.slug}`;
+  // NewsArticle, not the plainer Article type used for Knowledge Hub --
+  // this content is genuinely time-sensitive market news, which is exactly
+  // what schema.org's NewsArticle type exists to describe accurately.
+  const schemaNewsArticle = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: article.title,
+    description: article.excerpt,
+    datePublished: isoDate,
+    dateModified: isoUpdated,
+    articleSection: article.tag,
+    url: articleUrl,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': articleUrl },
+    publisher: { '@type': 'Organization', name: 'HomeRates.ai', url: 'https://chat.homerates.ai' },
+    isPartOf: { '@type': 'WebSite', name: 'HomeRates.ai', url: 'https://chat.homerates.ai' },
+  };
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaNewsArticle) }} />
       <style>{`
         body:has(.mna-root) {
           display: block !important;

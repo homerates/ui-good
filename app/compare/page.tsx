@@ -580,7 +580,7 @@ export default function ComparePage() {
           <div className="cp-header-inner">
             <Link href="/" className="cp-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="cp-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="cp-logo" />
             </Link>
             <span className="cp-header-title">LO Comparison Tools</span>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -623,7 +623,7 @@ export default function ComparePage() {
         </main>
 
         <footer className="cp-footer">
-          <span>HomeRates.AI — educational tool, not a lender. Numbers are estimates for comparison purposes.</span>
+          <span>HomeRates.ai — educational tool, not a lender. Numbers are estimates for comparison purposes.</span>
           <span className="cp-footer-sep">•</span>
           <Link href="/disclosures">Terms</Link>
           <span className="cp-footer-sep">•</span>

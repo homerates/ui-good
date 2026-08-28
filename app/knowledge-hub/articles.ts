@@ -11,8 +11,8 @@ export interface Article {
 export const knowledgeHubArticles: Article[] = [
   {
     slug: 'the-shift-is-here',
-    title: 'The Shift Is Here: From Searching to Asking — Welcome to HomeRates.AI',
-    excerpt: 'Consumers no longer search the old way. They ask. HomeRates.AI is built for this new reality — delivering real-time mortgage intelligence in a private, conversational experience.',
+    title: 'The Shift Is Here: From Searching to Asking — Welcome to HomeRates.ai',
+    excerpt: 'Consumers no longer search the old way. They ask. HomeRates.ai is built for this new reality — delivering real-time mortgage intelligence in a private, conversational experience.',
     category: 'Getting Started',
     readTime: '3 min read',
     date: 'April 30, 2026',
@@ -23,7 +23,7 @@ Consumers no longer search the old way.
 
 They ask.
 
-Every day, homebuyers, homeowners, and investors turn to AI with their questions — then bring those insights into conversations with professionals. The behavior has already changed. HomeRates.AI is built for this new reality.
+Every day, homebuyers, homeowners, and investors turn to AI with their questions — then bring those insights into conversations with professionals. The behavior has already changed. HomeRates.ai is built for this new reality.
 
 We deliver real-time mortgage intelligence in a private, conversational experience. Rates, scenarios, market context, and personalized possibilities — all in one place. No forms. No hidden handoffs. Just clarity that helps you move forward with confidence.
 
@@ -31,7 +31,7 @@ We deliver real-time mortgage intelligence in a private, conversational experien
 
 ## Our Statement of Intent
 
-HomeRates.AI exists to lead the evolution of mortgage intelligence.
+HomeRates.ai exists to lead the evolution of mortgage intelligence.
 
 We combine fresh market data with intelligent conversation so everyday people and licensed professionals can make better decisions together.
 
@@ -55,13 +55,13 @@ These headline numbers are useful, but they're only the beginning of the story. 
 
 The housing market is dynamic. Consumer expectations have shifted. Old gated quote systems and static rate tables no longer serve the way people naturally seek information.
 
-HomeRates.AI closes that gap — turning natural questions into clear, actionable intelligence without friction or pressure.
+HomeRates.ai closes that gap — turning natural questions into clear, actionable intelligence without friction or pressure.
 
 ---
 
-Ready to experience the shift? Ask your first question at HomeRates.AI. No email required. No strings attached.
+Ready to experience the shift? Ask your first question at HomeRates.ai. No email required. No strings attached.
 
-**The future of mortgage decisions is conversational. Welcome to HomeRates.AI.**
+**The future of mortgage decisions is conversational. Welcome to HomeRates.ai.**
 `,
   },
   {
@@ -828,7 +828,7 @@ The Fannie Mae LLPA matrix is a **public document**, updated periodically and po
 
 Freddie Mac publishes its own version as well — the two are similar but not identical. When a lender tells you your rate is "just what the market is," they mean: the market for that specific combination of credit, LTV, property type, and purpose, as defined by the agency pricing grid they must adhere to.
 
-HomeRates.AI's rate engine uses this public Fannie Mae matrix directly to calculate your LLPA estimate. Every pricing result includes a direct citation to the source document.
+HomeRates.ai's rate engine uses this public Fannie Mae matrix directly to calculate your LLPA estimate. Every pricing result includes a direct citation to the source document.
 
 ---
 
@@ -904,7 +904,7 @@ Your mortgage rate isn't a black box. For conforming loans, the foundation is a 
 
 What lenders control is their margin on top, and whether they absorb or overlay specific hits. That's where comparison shopping has real leverage.
 
-*Rate adjustments shown in HomeRates.AI are based on the publicly posted Fannie Mae LLPA Matrix (effective 01/28/2026) at singlefamily.fanniemae.com. Lender pricing may include additional overlays and margin not reflected in these estimates. Not a commitment to lend.*
+*Rate adjustments shown in HomeRates.ai are based on the publicly posted Fannie Mae LLPA Matrix (effective 01/28/2026) at singlefamily.fanniemae.com. Lender pricing may include additional overlays and margin not reflected in these estimates. Not a commitment to lend.*
     `,
   },
   {
@@ -986,14 +986,14 @@ If the property's rent doesn't support a strong DSCR but your income does, bank 
   {
     slug: 'market-rates-engine-explained',
     title: 'The Market Rates Engine: How Live Rate Data Powers Your Entire Experience',
-    excerpt: 'Every rate you see on HomeRates.AI starts with a single live data feed. Here\'s how FRED data flows from market benchmarks through to your decoded personal rate and Track 5 decision score.',
+    excerpt: 'Every rate you see on HomeRates.ai starts with a single live data feed. Here\'s how FRED data flows from market benchmarks through to your decoded personal rate and Track 5 decision score.',
     category: 'Rate Education',
     readTime: '5 min read',
     date: 'June 2026',
     body: `
 ## Where Every Rate Starts
 
-Most mortgage platforms show you a rate without explaining where it came from or how it was calculated. On HomeRates.AI, every rate figure — from the market summary on your dashboard to the decoded rate in your Decision Score — originates from the same live data source and flows through a transparent, traceable chain.
+Most mortgage platforms show you a rate without explaining where it came from or how it was calculated. On HomeRates.ai, every rate figure — from the market summary on your dashboard to the decoded rate in your Decision Score — originates from the same live data source and flows through a transparent, traceable chain.
 
 This article explains exactly how that works.
 
@@ -1003,7 +1003,7 @@ This article explains exactly how that works.
 
 The Federal Reserve Bank of St. Louis publishes a public data system called **FRED** (Federal Reserve Economic Data). It is the most trusted source of U.S. economic data, updated in real time as new surveys and releases come in.
 
-HomeRates.AI pulls two primary FRED series:
+HomeRates.ai pulls two primary FRED series:
 
 - **PMMS (Freddie Mac Primary Mortgage Market Survey):** The weekly 30-year fixed rate average, published every Thursday. This is the "headline rate" you see in the news.
 - **GS10 (10-Year Treasury Constant Maturity Rate):** The benchmark bond yield that mortgage rates are loosely priced against.
@@ -1093,7 +1093,7 @@ Every step in this chain is traceable. No black boxes, no hidden assumptions.
 
 Most mortgage tools show you one of two things: a generic market rate (which doesn't account for your specific scenario) or a rate from a lender who has a financial interest in what you see.
 
-HomeRates.AI does neither. The Market Rates engine is:
+HomeRates.ai does neither. The Market Rates engine is:
 
 - **Live** — FRED data is real-time, not a stale database
 - **Deterministic** — the same inputs produce the same output every time

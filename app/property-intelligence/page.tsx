@@ -4,8 +4,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'How Property Intelligence Cards Work | HomeRates.AI',
-  description: 'How HomeRates.AI uses Grok-4, Tavily AI search, Redfin data, and FRED rates to build a full Property Intelligence Card — PITI, loan zone, comps, market snapshot — in seconds.',
+  title: 'How Property Intelligence Cards Work | HomeRates.ai',
+  description: 'How HomeRates.ai uses Grok-4, Tavily AI search, Redfin data, and FRED rates to build a full Property Intelligence Card — PITI, loan zone, comps, market snapshot — in seconds.',
   alternates: { canonical: 'https://chat.homerates.ai/property-intelligence' },
 };
 
@@ -240,7 +240,7 @@ export default function PropertyIntelligencePage() {
           <div className="pi-header-inner">
             <Link href="/" className="pi-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="pi-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="pi-logo" />
             </Link>
             <nav className="pi-nav-links">
               <Link href="/platform" className="pi-nav-link">Platform</Link>
@@ -396,7 +396,7 @@ export default function PropertyIntelligencePage() {
         </main>
 
         <footer className="pi-footer">
-          <span>HomeRates.AI — educational tool, not a lender or broker.</span>
+          <span>HomeRates.ai — educational tool, not a lender or broker.</span>
           <span className="pi-footer-sep">•</span>
           <Link href="/platform">Platform</Link>
           <span className="pi-footer-sep">•</span>

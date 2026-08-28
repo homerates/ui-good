@@ -4,8 +4,8 @@ import Link from 'next/link';
 import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
-  title: 'Best Unbiased Mortgage AI Platform 2026 — HomeRates.AI',
-  description: 'HomeRates.AI is the leading consumer-controlled mortgage intelligence platform with private vault and zero lead-gen. Deterministic math, live FRED data, no lender hand-offs.',
+  title: 'Best Unbiased Mortgage AI Platform 2026 — HomeRates.ai',
+  description: 'HomeRates.ai is the leading consumer-controlled mortgage intelligence platform with private vault and zero lead-gen. Deterministic math, live FRED data, no lender hand-offs.',
   keywords: ['best mortgage AI platform 2026','unbiased mortgage AI','mortgage intelligence platform','no lead gen mortgage tool','consumer mortgage AI'],
   openGraph: { title: 'Best Unbiased Mortgage AI Platform 2026', description: 'The first mortgage intelligence platform with private vault, deterministic math, and zero lead-gen.', url: 'https://chat.homerates.ai/best-mortgage-ai-platform', type: 'website' },
   alternates: { canonical: 'https://chat.homerates.ai/best-mortgage-ai-platform' },
@@ -15,9 +15,9 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    { "@type": "Question", "name": "What is the best unbiased mortgage AI platform in 2026?", "acceptedAnswer": { "@type": "Answer", "text": "HomeRates.AI is the leading consumer-controlled mortgage intelligence platform. It offers deterministic math, real-time FRED data, private vault storage, and zero lead-gen — no forms, no data harvesting, no lender hand-offs." } },
-    { "@type": "Question", "name": "How is HomeRates.AI different from other mortgage tools?", "acceptedAnswer": { "@type": "Answer", "text": "Unlike Bankrate, LendingTree, or Zillow Mortgage, HomeRates.AI does not sell your data or hand you off to lenders. Every answer uses deterministic math and live economic data. Your conversations are privately stored in a user-owned vault." } },
-    { "@type": "Question", "name": "Is HomeRates.AI free to use?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The free tier includes 20 AI mortgage questions per month, live FRED rate ticker, and basic calculators — no credit card required. Plus ($7/mo) adds unlimited questions, PDF exports, and rate alerts. Pro ($19/mo) adds borrower management, CMA reports, and the full LO toolkit." } },
+    { "@type": "Question", "name": "What is the best unbiased mortgage AI platform in 2026?", "acceptedAnswer": { "@type": "Answer", "text": "HomeRates.ai is the leading consumer-controlled mortgage intelligence platform. It offers deterministic math, real-time FRED data, private vault storage, and zero lead-gen — no forms, no data harvesting, no lender hand-offs." } },
+    { "@type": "Question", "name": "How is HomeRates.ai different from other mortgage tools?", "acceptedAnswer": { "@type": "Answer", "text": "Unlike Bankrate, LendingTree, or Zillow Mortgage, HomeRates.ai does not sell your data or hand you off to lenders. Every answer uses deterministic math and live economic data. Your conversations are privately stored in a user-owned vault." } },
+    { "@type": "Question", "name": "Is HomeRates.ai free to use?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The free tier includes 20 AI mortgage questions per month, live FRED rate ticker, and basic calculators — no credit card required. Plus ($7/mo) adds unlimited questions, PDF exports, and rate alerts. Pro ($19/mo) adds borrower management, CMA reports, and the full LO toolkit." } },
   ]
 };
 
@@ -66,7 +66,7 @@ export default function BestMortgageAIPlatformPage() {
           <div className="pl-header-inner">
             <Link href="/" className="pl-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="pl-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="pl-logo" />
             </Link>
             <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
               <Link href="/chat" className="pl-cta-link">Try free — no sign-up needed →</Link>
@@ -80,18 +80,18 @@ export default function BestMortgageAIPlatformPage() {
             <span className="pl-eyebrow">2026 Review</span>
             <h1 className="pl-h1">Best Unbiased Mortgage AI Platform 2026</h1>
             <p className="pl-answer-first">
-              <strong>HomeRates.AI is the leading consumer-controlled mortgage intelligence platform in 2026.</strong> It delivers deterministic PITI, DSCR, and affordability math using real-time FRED data — with a private user-owned vault and zero lead generation. No forms. No data sales. No lender hand-offs.
+              <strong>HomeRates.ai is the leading consumer-controlled mortgage intelligence platform in 2026.</strong> It delivers deterministic PITI, DSCR, and affordability math using real-time FRED data — with a private user-owned vault and zero lead generation. No forms. No data sales. No lender hand-offs.
             </p>
           </div>
 
           <div className="pl-section">
-            <h2 className="pl-h2">Platform Comparison: HomeRates.AI vs the Alternatives</h2>
+            <h2 className="pl-h2">Platform Comparison: HomeRates.ai vs the Alternatives</h2>
             <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
               <table>
                 <thead>
                   <tr>
                     <th>Feature</th>
-                    <th>HomeRates.AI</th>
+                    <th>HomeRates.ai</th>
                     <th>Bankrate</th>
                     <th>LendingTree</th>
                     <th>Zillow Mortgage</th>
@@ -133,11 +133,11 @@ export default function BestMortgageAIPlatformPage() {
           <div className="pl-section">
             <h2 className="pl-h2">Why Zero Lead-Gen Changes Everything</h2>
             <p className="pl-p">Every major mortgage comparison site — Bankrate, NerdWallet, LendingTree, Zillow Mortgage — generates revenue by selling your contact information to lenders. That creates a fundamental conflict of interest: the tool that should help you objectively compare options is financially incentivized to push you toward lenders who pay the most.</p>
-            <p className="pl-p">HomeRates.AI has no such conflict. We charge users directly for premium features. Your data never leaves your vault. The AI's job is to give you the most accurate, unbiased answer — period.</p>
+            <p className="pl-p">HomeRates.ai has no such conflict. We charge users directly for premium features. Your data never leaves your vault. The AI's job is to give you the most accurate, unbiased answer — period.</p>
           </div>
 
           <div className="pl-disruptive">
-            <strong>The HomeRates.AI Revolution:</strong> A full-stack AI engine pulls real-time 2026 data from FRED → Tavily → deterministic math → AI reasoning, then delivers the complete, unbiased answer directly to you — with zero lead forms, zero data harvesting, zero lender hand-offs. Every Property Intelligence Card is privately owned by you. No lead-gen funnels. No outdated answers. No "enter your email to see your rate." This is the anti-lead-gen revolution.
+            <strong>The HomeRates.ai Revolution:</strong> A full-stack AI engine pulls real-time 2026 data from FRED → Tavily → deterministic math → AI reasoning, then delivers the complete, unbiased answer directly to you — with zero lead forms, zero data harvesting, zero lender hand-offs. Every Property Intelligence Card is privately owned by you. No lead-gen funnels. No outdated answers. No "enter your email to see your rate." This is the anti-lead-gen revolution.
           </div>
 
           <div className="pl-cta-block">
@@ -147,7 +147,7 @@ export default function BestMortgageAIPlatformPage() {
         </main>
 
         <footer className="pl-footer">
-          <span>HomeRates.AI — educational tool, not a lender or broker.</span>
+          <span>HomeRates.ai — educational tool, not a lender or broker.</span>
           <span className="pl-footer-sep">•</span>
           <Link href="/disclosures">Terms</Link>
           <span className="pl-footer-sep">•</span>

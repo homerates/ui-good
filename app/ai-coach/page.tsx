@@ -5,7 +5,7 @@ import Link from 'next/link';
 import AppNav from '../components/AppNav';
 
 export const metadata: Metadata = {
-  title: 'AI Coach — Interview Your Lender and Agent With the Right Questions | HomeRates.AI',
+  title: 'AI Coach — Interview Your Lender and Agent With the Right Questions | HomeRates.ai',
   description: 'HomeRates AI Coach gives consumers engineered prompts to guide them through interviewing loan officers and real estate agents. Know what to ask, what the answers mean, and when to walk away.',
   alternates: { canonical: 'https://chat.homerates.ai/ai-coach' },
 };
@@ -95,9 +95,22 @@ const PROMPT_TYPES = [
   },
 ];
 
+// Built directly from LO_QUESTIONS + AGENT_QUESTIONS above -- the same real
+// content already rendered on the page, not separately authored filler.
+const schemaFAQ = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [...LO_QUESTIONS, ...AGENT_QUESTIONS].map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.why },
+  })),
+};
+
 export default function AICoachPage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaFAQ) }} />
       <style>{`
         body:has(.aic-root){display:block!important;height:auto!important;overflow:visible!important;}
         html:has(.aic-root){height:auto!important;overflow:visible!important;}
@@ -209,7 +222,7 @@ export default function AICoachPage() {
           <div className="aic-header-inner">
             <Link href="/" className="aic-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="aic-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="aic-logo" />
             </Link>
             <nav className="aic-nav">
               <Link href="/platform" className="aic-nav-link">Platform Intelligence</Link>
@@ -355,7 +368,7 @@ export default function AICoachPage() {
         </main>
 
         <footer className="aic-footer">
-          <span>HomeRates.AI — educational tool, not a lender or broker.</span>
+          <span>HomeRates.ai — educational tool, not a lender or broker.</span>
           <span className="aic-footer-sep">•</span>
           <Link href="/platform">Platform Intelligence</Link>
           <span className="aic-footer-sep">•</span>

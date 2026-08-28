@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
-  title: 'Unbiased Mortgage Rates and Affordability Tool 2026 | HomeRates.AI',
+  title: 'Unbiased Mortgage Rates and Affordability Tool 2026 | HomeRates.ai',
   description: 'Get unbiased 2026 mortgage rates from FRED data and run real affordability scenarios — PITI, DTI, cash-to-close. No lead forms, no lender referrals, no data harvesting.',
   keywords: ['unbiased mortgage rates 2026','mortgage affordability tool','PITI calculator','mortgage rate tool no lead gen','real mortgage rates FRED'],
   openGraph: { title: 'Unbiased Mortgage Rates and Affordability Tool 2026', description: 'Live FRED mortgage rates + deterministic PITI and affordability math. No lead forms. No lender referrals.', url: 'https://chat.homerates.ai/unbiased-mortgage-rates', type: 'website' },
@@ -52,7 +52,7 @@ export default function UnbiasedMortgageRatesPage() {
           <div className="pl-header-inner">
             <Link href="/" className="pl-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="pl-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="pl-logo" />
             </Link>
             <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
               <Link href="/chat" className="pl-cta-link">Get live rates →</Link>
@@ -65,14 +65,14 @@ export default function UnbiasedMortgageRatesPage() {
             <span className="pl-eyebrow">Live FRED Data 2026</span>
             <h1 className="pl-h1">Unbiased Mortgage Rates and Affordability Tool 2026</h1>
             <p className="pl-answer-first">
-              <strong>HomeRates.AI pulls live 30-year and 15-year mortgage rates directly from the Federal Reserve (FRED) and runs deterministic PITI affordability math on any scenario.</strong> No lender partnerships, no rate manipulation, no lead forms. The rate you see is the FRED weekly average — the same benchmark published by the U.S. government.
+              <strong>HomeRates.ai pulls live 30-year and 15-year mortgage rates directly from the Federal Reserve (FRED) and runs deterministic PITI affordability math on any scenario.</strong> No lender partnerships, no rate manipulation, no lead forms. The rate you see is the FRED weekly average — the same benchmark published by the U.S. government.
             </p>
           </div>
 
           <div className="pl-section">
             <h2 className="pl-h2">Why Most Mortgage Rate Tools Are Biased</h2>
             <p className="pl-p">Sites like Bankrate, NerdWallet, and LendingTree display "rates" from lenders who pay to be featured. A lender's displayed rate is often a best-case scenario that requires high credit scores, large down payments, and no points — conditions most borrowers don't meet. These sites earn revenue when you click "Get Quote" and submit your information.</p>
-            <p className="pl-p">HomeRates.AI uses the FRED weekly mortgage rate average — the most authoritative, unmanipulated benchmark available. We then add scenario-specific premiums (high-balance, jumbo, investor) to give you a realistic rate for your actual loan type.</p>
+            <p className="pl-p">HomeRates.ai uses the FRED weekly mortgage rate average — the most authoritative, unmanipulated benchmark available. We then add scenario-specific premiums (high-balance, jumbo, investor) to give you a realistic rate for your actual loan type.</p>
           </div>
 
           <div className="pl-section">
@@ -93,8 +93,8 @@ export default function UnbiasedMortgageRatesPage() {
           </div>
 
           <div className="pl-section">
-            <h2 className="pl-h2">What HomeRates.AI Calculates</h2>
-            <p className="pl-p">For any mortgage scenario, HomeRates.AI computes:</p>
+            <h2 className="pl-h2">What HomeRates.ai Calculates</h2>
+            <p className="pl-p">For any mortgage scenario, HomeRates.ai computes:</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
               {['Monthly P&I payment','Estimated property tax','Homeowner\'s insurance','PMI (if LTV > 80%)','Total monthly PITI','Annual income needed (28% / 36% DTI)','Cash to close (down payment + closing costs)','Rate sensitivity (±0.5% scenarios)'].map(item => (
                 <div key={item} style={{ background: 'rgba(0,232,122,0.04)', border: '1px solid rgba(0,232,122,0.12)', borderRadius: 8, padding: '10px 14px', fontSize: '0.85rem', color: '#a0c0a8' }}>
@@ -105,7 +105,7 @@ export default function UnbiasedMortgageRatesPage() {
           </div>
 
           <div className="pl-disruptive">
-            <strong>The FRED difference:</strong> When you ask HomeRates.AI "what is the current mortgage rate?" you get the Federal Reserve's weekly published average — not a teaser rate from a lender paying for placement. That is the only honest starting point for any mortgage conversation.
+            <strong>The FRED difference:</strong> When you ask HomeRates.ai "what is the current mortgage rate?" you get the Federal Reserve's weekly published average — not a teaser rate from a lender paying for placement. That is the only honest starting point for any mortgage conversation.
           </div>
 
           <div className="pl-cta-block">
@@ -114,7 +114,7 @@ export default function UnbiasedMortgageRatesPage() {
           </div>
         </main>
         <footer className="pl-footer">
-          <span>HomeRates.AI — educational tool, not a lender.</span>
+          <span>HomeRates.ai — educational tool, not a lender.</span>
           <span className="pl-footer-sep">•</span>
           <Link href="/loan-limits">Loan Limits 2026</Link>
           <span className="pl-footer-sep">•</span>

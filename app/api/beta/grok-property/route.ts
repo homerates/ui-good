@@ -42,7 +42,7 @@ function calcPITI(
 
 // ── Grok prompts ──────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are HomeRates.AI's Property Intelligence Expert.
+const SYSTEM_PROMPT = `You are HomeRates.ai's Property Intelligence Expert.
 
 Current date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
 
@@ -82,7 +82,7 @@ Return ONLY valid JSON — no markdown, no explanation, no extra text:
 }`;
 
 // Deep mode: grok-4.3 with live web search
-const DEEP_SYSTEM_PROMPT = `You are HomeRates.AI's Property Intelligence Expert.
+const DEEP_SYSTEM_PROMPT = `You are HomeRates.ai's Property Intelligence Expert.
 
 Current date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
 

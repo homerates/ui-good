@@ -5,8 +5,8 @@ import Link from 'next/link';
 import AppNav from '../components/AppNav';
 
 export const metadata: Metadata = {
-  title: 'Decision Score — From First Number to Final Verdict | HomeRates.AI',
-  description: 'How HomeRates.AI takes you from a single loan scenario all the way to a data-grounded buying decision. Five scored intelligence layers — affordability, market conditions, value gap, location, and rate intelligence — converge into one verdict: Buy, Wait, or Walk Away.',
+  title: 'Decision Score — From First Number to Final Verdict | HomeRates.ai',
+  description: 'How HomeRates.ai takes you from a single loan scenario all the way to a data-grounded buying decision. Five scored intelligence layers — affordability, market conditions, value gap, location, and rate intelligence — converge into one verdict: Buy, Wait, or Walk Away.',
   alternates: { canonical: 'https://chat.homerates.ai/decision-score' },
 };
 
@@ -24,7 +24,7 @@ const ENTRY_POINTS = [
   {
     icon: '🔗',
     label: 'Paste a Redfin or Zillow URL',
-    description: 'Paste any Redfin or Zillow listing URL directly into the AI chat. HomeRates.AI extracts the address, builds your Scenario Card automatically, and wires the Property Intelligence → button right in the chat.',
+    description: 'Paste any Redfin or Zillow listing URL directly into the AI chat. HomeRates.ai extracts the address, builds your Scenario Card automatically, and wires the Property Intelligence → button right in the chat.',
   },
 ];
 
@@ -35,7 +35,7 @@ const STEPS = [
     weight: '30% weight',
     title: 'Affordability Signal',
     question: 'Can you actually afford this at today\'s rate?',
-    description: 'You start by telling the AI your income, existing debts, target price, and down payment. HomeRates.AI pulls the live 30-year conforming rate directly from the Federal Reserve (FRED) and runs a deterministic PITI calculation — principal, interest, taxes, and insurance — against your gross income and existing debts. L1 is scored using a deterministic formula by loan type: Conventional (LTV ≤80 → 85, ≤85 → 78, ≤90 → 70, >90 → 60), FHA (LTV ≤90 → 72, ≤95 → 65, >95 → 58), VA (LTV ≤80 → 88, else → 78), Jumbo (LTV ≤75 → 86, ≤80 → 80, else → 72). This reflects real-world lending risk tolerance, not an opinion.',
+    description: 'You start by telling the AI your income, existing debts, target price, and down payment. HomeRates.ai pulls the live 30-year conforming rate directly from the Federal Reserve (FRED) and runs a deterministic PITI calculation — principal, interest, taxes, and insurance — against your gross income and existing debts. L1 is scored using a deterministic formula by loan type: Conventional (LTV ≤80 → 85, ≤85 → 78, ≤90 → 70, >90 → 60), FHA (LTV ≤90 → 72, ≤95 → 65, >95 → 58), VA (LTV ≤80 → 88, else → 78), Jumbo (LTV ≤75 → 86, ≤80 → 80, else → 72). This reflects real-world lending risk tolerance, not an opinion.',
     sources: ['FRED live mortgage rates', 'Loan type + LTV formula', 'PITI engine — P+I+T+I', 'DTI calculation'],
     signal: 'Score above 75 = strong capacity, multiple loan options. Score below 50 = the payment breaks your budget at today\'s rates.',
     accent: '#00e87a',
@@ -254,7 +254,7 @@ export default function DecisionScorePage() {
           <div className="ds-header-inner">
             <Link href="/" className="ds-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="ds-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="ds-logo" />
             </Link>
             <nav className="ds-nav">
               <Link href="/platform" className="ds-nav-link">Platform Intelligence</Link>
@@ -272,7 +272,7 @@ export default function DecisionScorePage() {
             <span className="ds-eyebrow">Full Buyer Journey — Decision Intelligence</span>
             <h1 className="ds-h1">From First Number<br />to Final Score.</h1>
             <p className="ds-subtitle">
-              Most home buyers check one thing — the monthly payment. HomeRates.AI runs five scored intelligence layers across affordability, market conditions, value gap, location, and rate intelligence before you make an offer. This is how the full journey works.
+              Most home buyers check one thing — the monthly payment. HomeRates.ai runs five scored intelligence layers across affordability, market conditions, value gap, location, and rate intelligence before you make an offer. This is how the full journey works.
             </p>
             <Link href="/property-intel" className="ds-hero-cta">
               Run the full analysis on any address →
@@ -295,7 +295,7 @@ export default function DecisionScorePage() {
             <div className="ds-section-label">3 Ways to Start Your Analysis</div>
             <h2 className="ds-section-h2">Any property. Any entry point. Same five-level verdict.</h2>
             <p className="ds-section-body">
-              You don&apos;t need to navigate a multi-step wizard to start. HomeRates.AI recognises three paths into property analysis — pick whichever matches how you found the property.
+              You don&apos;t need to navigate a multi-step wizard to start. HomeRates.ai recognises three paths into property analysis — pick whichever matches how you found the property.
             </p>
             <div className="ds-entry-grid">
               {ENTRY_POINTS.map(ep => (
@@ -393,7 +393,7 @@ export default function DecisionScorePage() {
         </main>
 
         <footer className="ds-footer">
-          <span>HomeRates.AI — educational tool, not a lender or broker.</span>
+          <span>HomeRates.ai — educational tool, not a lender or broker.</span>
           <span className="ds-footer-sep">•</span>
           <Link href="/platform">Platform Intelligence</Link>
           <span className="ds-footer-sep">•</span>

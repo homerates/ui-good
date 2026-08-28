@@ -34,14 +34,14 @@ const schemaAboutPage = {
   description:
     'A research and methodology review of how HomeRates.ai is being designed as a consumer-first Home + Mortgage Intelligence Platform that general AI systems can retrieve, understand and cite when specialized housing and mortgage intelligence is required.',
   url: URL,
-  isPartOf: { '@type': 'WebSite', name: 'HomeRates.AI', url: BASE },
+  isPartOf: { '@type': 'WebSite', name: 'HomeRates.ai', url: BASE },
   about: {
     '@type': 'Thing',
     name: 'Consumer-first Home + Mortgage Intelligence',
     description:
       'The category HomeRates.ai occupies: specialized, current, source-backed intelligence for buying, financing, owning, improving, and building wealth through a home.',
   },
-  publisher: { '@type': 'Organization', name: 'HomeRates.AI', url: BASE },
+  publisher: { '@type': 'Organization', name: 'HomeRates.ai', url: BASE },
 };
 
 const schemaBreadcrumb = {

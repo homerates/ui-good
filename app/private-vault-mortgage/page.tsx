@@ -4,8 +4,8 @@ import Link from 'next/link';
 import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
-  title: 'Private Vault Mortgage Intelligence — No Lead Gen | HomeRates.AI',
-  description: 'Your mortgage intelligence, privately owned. HomeRates.AI stores every scenario, card, and PDF in your personal Supabase vault — secured by Clerk auth. Zero data harvesting.',
+  title: 'Private Vault Mortgage Intelligence — No Lead Gen | HomeRates.ai',
+  description: 'Your mortgage intelligence, privately owned. HomeRates.ai stores every scenario, card, and PDF in your personal Supabase vault — secured by Clerk auth. Zero data harvesting.',
   keywords: ['private mortgage vault','mortgage intelligence no lead gen','consumer mortgage privacy','secure mortgage data','no lead form mortgage'],
   openGraph: { title: 'Private Vault Mortgage Intelligence — No Lead Gen', description: 'Every mortgage scenario you run is stored in your private vault. No data harvesting, no lead forms.', url: 'https://chat.homerates.ai/private-vault-mortgage', type: 'website' },
   alternates: { canonical: 'https://chat.homerates.ai/private-vault-mortgage' },
@@ -15,8 +15,8 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    { "@type": "Question", "name": "What is a private mortgage vault?", "acceptedAnswer": { "@type": "Answer", "text": "A private mortgage vault is a secure, user-owned database of your mortgage intelligence cards, scenarios, PDFs, and analysis. HomeRates.AI stores this data in Supabase, secured by Clerk authentication — only you can access it." } },
-    { "@type": "Question", "name": "Does HomeRates.AI sell my mortgage data?", "acceptedAnswer": { "@type": "Answer", "text": "No. HomeRates.AI never sells user data, never shares contact information with lenders, and never uses your scenarios for lead generation. Your data belongs to you." } },
+    { "@type": "Question", "name": "What is a private mortgage vault?", "acceptedAnswer": { "@type": "Answer", "text": "A private mortgage vault is a secure, user-owned database of your mortgage intelligence cards, scenarios, PDFs, and analysis. HomeRates.ai stores this data in Supabase, secured by Clerk authentication — only you can access it." } },
+    { "@type": "Question", "name": "Does HomeRates.ai sell my mortgage data?", "acceptedAnswer": { "@type": "Answer", "text": "No. HomeRates.ai never sells user data, never shares contact information with lenders, and never uses your scenarios for lead generation. Your data belongs to you." } },
   ]
 };
 
@@ -63,7 +63,7 @@ export default function PrivateVaultMortgagePage() {
           <div className="pl-header-inner">
             <Link href="/" className="pl-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="pl-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="pl-logo" />
             </Link>
             <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
               <Link href="/chat" className="pl-cta-link">Try free →</Link>
@@ -76,7 +76,7 @@ export default function PrivateVaultMortgagePage() {
             <span className="pl-eyebrow">Privacy First</span>
             <h1 className="pl-h1">Private Vault Mortgage Intelligence — No Lead Gen</h1>
             <p className="pl-answer-first">
-              <strong>HomeRates.AI gives every user a private, user-owned mortgage intelligence vault.</strong> Every scenario you run, every card you save, every PDF you export stays encrypted in your personal Supabase database — secured by Clerk authentication. We never sell your data. We never hand you to a lender.
+              <strong>HomeRates.ai gives every user a private, user-owned mortgage intelligence vault.</strong> Every scenario you run, every card you save, every PDF you export stays encrypted in your personal Supabase database — secured by Clerk authentication. We never sell your data. We never hand you to a lender.
             </p>
           </div>
 
@@ -101,7 +101,7 @@ export default function PrivateVaultMortgagePage() {
           <div className="pl-section">
             <h2 className="pl-h2">What Other Platforms Do With Your Data</h2>
             <p className="pl-p">When you enter your information on Bankrate, LendingTree, or Zillow Mortgage, you are generating a "lead" that is sold to multiple lenders simultaneously. You will receive calls, emails, and texts — often for months. Your contact information, income, credit score estimate, and purchase intent are all monetized.</p>
-            <p className="pl-p">HomeRates.AI charges users directly for premium features. That is our entire business model. Your data is never the product.</p>
+            <p className="pl-p">HomeRates.ai charges users directly for premium features. That is our entire business model. Your data is never the product.</p>
           </div>
 
           <div className="pl-disruptive">
@@ -114,7 +114,7 @@ export default function PrivateVaultMortgagePage() {
           </div>
         </main>
         <footer className="pl-footer">
-          <span>HomeRates.AI — educational tool, not a lender.</span>
+          <span>HomeRates.ai — educational tool, not a lender.</span>
           <span className="pl-footer-sep">•</span>
           <Link href="/disclosures">Terms</Link>
           <span className="pl-footer-sep">•</span>

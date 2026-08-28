@@ -128,10 +128,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!found || isShortLink || messages.length === 0) {
     return {
-      title: "HomeRates.Ai — Home + Mortgage AI Chat",
+      title: "HomeRates.ai — Home + Mortgage AI Chat",
       openGraph: {
-        title: "HomeRates.Ai — Home + Mortgage AI Chat",
-        siteName: "HomeRates.Ai",
+        title: "HomeRates.ai — Home + Mortgage AI Chat",
+        siteName: "HomeRates.ai",
         images: [{ url: `${BASE}/assets/share/og/homerates-brand-default-og-1200x630-v1.png`, width: 1200, height: 630 }],
       },
     };
@@ -141,10 +141,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!prop.address && prop.score == null) {
     return {
-      title: "HomeRates.Ai — Home + Mortgage AI Chat",
+      title: "HomeRates.ai — Home + Mortgage AI Chat",
       openGraph: {
-        title: "HomeRates.Ai — Home + Mortgage AI Chat",
-        siteName: "HomeRates.Ai",
+        title: "HomeRates.ai — Home + Mortgage AI Chat",
+        siteName: "HomeRates.ai",
         images: [{ url: `${BASE}/assets/share/og/homerates-brand-default-og-1200x630-v1.png`, width: 1200, height: 630 }],
       },
     };
@@ -153,11 +153,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const ogUrl  = buildOgUrl(prop);
   const street = prop.address.split(",")[0]?.trim() ?? prop.address;
   const title  = prop.score != null
-    ? `${street} — My Decision Portfolio ${prop.score}/100 | HomeRates.Ai`
-    : `${street} — My Decision Portfolio | HomeRates.Ai`;
+    ? `${street} — My Decision Portfolio ${prop.score}/100 | HomeRates.ai`
+    : `${street} — My Decision Portfolio | HomeRates.ai`;
   const desc   = prop.score != null
-    ? `${prop.address}${prop.verdict ? ` · ${prop.verdict}` : ""}. Decision Score: ${prop.score}/100. My Decision Portfolio — powered by HomeRates.Ai.`
-    : `My Decision Portfolio entry for ${prop.address} — powered by HomeRates.Ai.`;
+    ? `${prop.address}${prop.verdict ? ` · ${prop.verdict}` : ""}. Decision Score: ${prop.score}/100. My Decision Portfolio — powered by HomeRates.ai.`
+    : `My Decision Portfolio entry for ${prop.address} — powered by HomeRates.ai.`;
 
   return {
     title,
@@ -165,7 +165,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title, description: desc,
       url: `${BASE}/s/${slug}`,
-      siteName: "HomeRates.Ai",
+      siteName: "HomeRates.ai",
       images: [{ url: ogUrl, width: 1200, height: 630, alt: `My Decision Portfolio — ${street}` }],
       type: "website",
     },
@@ -269,7 +269,7 @@ export default async function SharedThreadPage({ params }: Props) {
               </>
             ) : (
               <div style={{ color: "rgba(200,214,230,0.60)", fontSize: 16, fontWeight: 500, marginBottom: 32 }}>
-                HomeRates.Ai — Home + Mortgage AI Chat
+                HomeRates.ai — Home + Mortgage AI Chat
               </div>
             )}
 
@@ -278,11 +278,11 @@ export default async function SharedThreadPage({ params }: Props) {
               href={dest}
               style={{ display: "block", textAlign: "center", background: "#00e87a", color: "#000", fontSize: 14, fontWeight: 800, letterSpacing: "0.03em", padding: "14px 24px", borderRadius: 10, textDecoration: "none" }}
             >
-              Open in HomeRates.Ai →
+              Open in HomeRates.ai →
             </Link>
 
             <div style={{ textAlign: "center", marginTop: 14, color: "rgba(200,214,230,0.30)", fontSize: 11 }}>
-              My Decision Portfolio — powered by HomeRates.Ai
+              My Decision Portfolio — powered by HomeRates.ai
             </div>
           </div>
         </div>

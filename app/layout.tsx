@@ -20,8 +20,8 @@ const BASE_URL = "https://chat.homerates.ai";
 export const metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: "HomeRates.Ai — Home + Mortgage AI Chat",
-    template: "%s | HomeRates.Ai",
+    default: "HomeRates.ai — Home + Mortgage AI Chat",
+    template: "%s | HomeRates.ai",
   },
   description:
     "Ask anything about buying a home, refinancing, or investing in real estate. Real mortgage math, live rates, no sales pitch.",
@@ -34,8 +34,8 @@ export const metadata = {
     "refinance calculator",
     "mortgage rates",
   ],
-  authors: [{ name: "HomeRates.Ai", url: BASE_URL }],
-  creator: "HomeRates.Ai",
+  authors: [{ name: "HomeRates.ai", url: BASE_URL }],
+  creator: "HomeRates.ai",
   icons: {
     apple: "/apple-touch-icon.png",
   },
@@ -43,8 +43,8 @@ export const metadata = {
     type: "website",
     locale: "en_US",
     url: BASE_URL,
-    siteName: "HomeRates.Ai",
-    title: "HomeRates.Ai — Home + Mortgage AI Chat",
+    siteName: "HomeRates.ai",
+    title: "HomeRates.ai — Home + Mortgage AI Chat",
     description:
       "Ask anything about buying a home, refinancing, or investing. Real math. Live rates. No sales pitch.",
     images: [
@@ -52,13 +52,13 @@ export const metadata = {
         url: "/assets/share/og/homerates-brand-default-og-1200x630-v1.png",
         width: 1200,
         height: 630,
-        alt: "HomeRates.Ai — Home + Mortgage AI Intelligence",
+        alt: "HomeRates.ai — Home + Mortgage AI Intelligence",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "HomeRates.Ai — Home + Mortgage AI Chat",
+    title: "HomeRates.ai — Home + Mortgage AI Chat",
     description:
       "Real mortgage math, live rates, no sales pitch. Ask anything about buying, refinancing, or investing.",
     images: ["/assets/share/og/homerates-brand-default-og-1200x630-v1.png"],
@@ -89,13 +89,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebApplication",
-            "name": "HomeRates.AI",
+            "name": "HomeRates.ai",
             "url": "https://chat.homerates.ai",
             "description": "The first consumer-controlled mortgage intelligence platform with private user-owned vault, deterministic math, real-time FRED data, and unbiased AI reasoning. Zero lead forms, zero data harvesting, zero lender hand-offs.",
             "applicationCategory": "FinanceApplication",
             "operatingSystem": "Web",
             "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-            "creator": { "@type": "Organization", "name": "HomeRates.AI", "url": "https://chat.homerates.ai" },
+            "creator": { "@type": "Organization", "name": "HomeRates.ai", "url": "https://chat.homerates.ai" },
             "featureList": [
               "Private user-owned mortgage intelligence vault",
               "Deterministic PITI, DSCR, affordability, and refi calculators",

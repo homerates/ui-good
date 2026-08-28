@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
-  title: 'How to Compare Mortgage Quotes Without Getting Sold | HomeRates.AI',
+  title: 'How to Compare Mortgage Quotes Without Getting Sold | HomeRates.ai',
   description: 'A practical guide to comparing mortgage quotes without entering lead-gen funnels. Side-by-side template, red flags checklist, and how to use your own Intelligence Card.',
   keywords: ['compare mortgage quotes','how to compare mortgage rates','mortgage quote comparison template','avoid mortgage lead gen','unbiased mortgage comparison'],
   openGraph: { title: 'How to Compare Mortgage Quotes Without Getting Sold', description: 'Step-by-step guide to comparing mortgage quotes on your terms — no lead forms, no callbacks, no pressure.', url: 'https://chat.homerates.ai/compare-mortgage-quotes', type: 'website' },
@@ -17,11 +17,11 @@ const jsonLd = {
   "name": "How to Compare Mortgage Quotes Without Getting Sold",
   "description": "A step-by-step process for comparing mortgage quotes without entering lead-gen funnels or being pressured by lenders.",
   "step": [
-    { "@type": "HowToStep", "name": "Run your own numbers first", "text": "Use HomeRates.AI to calculate your PITI, down payment, and loan-to-value before contacting any lender. Know your numbers before they know yours." },
+    { "@type": "HowToStep", "name": "Run your own numbers first", "text": "Use HomeRates.ai to calculate your PITI, down payment, and loan-to-value before contacting any lender. Know your numbers before they know yours." },
     { "@type": "HowToStep", "name": "Request a Loan Estimate (LE)", "text": "Ask every lender for a standardized CFPB Loan Estimate. This is a legal document — lenders must provide it within 3 business days of application." },
     { "@type": "HowToStep", "name": "Compare APR, not just rate", "text": "The interest rate is only part of the cost. APR includes origination fees, discount points, and other lender charges. Always compare APR." },
     { "@type": "HowToStep", "name": "Check Section A on the LE", "text": "Section A of the Loan Estimate shows origination charges. This is where lenders hide fees. Compare line by line." },
-    { "@type": "HowToStep", "name": "Ask the neutral checklist questions", "text": "Use HomeRates.AI's 'Questions to Ask Any Lender' checklist — rate lock period, prepayment penalty, float-down option, servicing transfer policy." },
+    { "@type": "HowToStep", "name": "Ask the neutral checklist questions", "text": "Use HomeRates.ai's 'Questions to Ask Any Lender' checklist — rate lock period, prepayment penalty, float-down option, servicing transfer policy." },
   ]
 };
 
@@ -73,7 +73,7 @@ export default function CompareMortgageQuotesPage() {
           <div className="pl-header-inner">
             <Link href="/" className="pl-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="pl-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="pl-logo" />
             </Link>
             <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
               <Link href="/chat" className="pl-cta-link">Run your numbers free →</Link>
@@ -94,7 +94,7 @@ export default function CompareMortgageQuotesPage() {
             <h2 className="pl-h2">Step-by-Step: Compare Without the Pressure</h2>
             <ol className="pl-steps">
               {[
-                ['Know your numbers before they know yours', 'Run PITI, affordability, and loan-to-value on HomeRates.AI before contacting any lender. Walk in with a fully-formed Intelligence Card — not a blank slate they can fill in.'],
+                ['Know your numbers before they know yours', 'Run PITI, affordability, and loan-to-value on HomeRates.ai before contacting any lender. Walk in with a fully-formed Intelligence Card — not a blank slate they can fill in.'],
                 ['Request a Loan Estimate (LE) from every lender', 'The CFPB Loan Estimate is a standardized legal document. Lenders must provide it within 3 business days of application. Do not compare based on verbal quotes — get the LE.'],
                 ['Compare APR, not just interest rate', 'The interest rate is one component. APR includes origination fees, points bought, and other charges. A lower rate with high fees often costs more overall.'],
                 ['Read Section A of the Loan Estimate', 'Section A (Origination Charges) is where fees hide. Compare this line by line across lenders — not the total closing cost, which includes taxes and title that are the same everywhere.'],
@@ -125,7 +125,7 @@ export default function CompareMortgageQuotesPage() {
                 </tbody>
               </table>
             </div>
-            <p className="pl-p" style={{ fontSize: '0.82rem' }}>Print this template and fill it in for each lender. Ask HomeRates.AI to pre-calculate the P&amp;I row for each scenario.</p>
+            <p className="pl-p" style={{ fontSize: '0.82rem' }}>Print this template and fill it in for each lender. Ask HomeRates.ai to pre-calculate the P&amp;I row for each scenario.</p>
           </div>
 
           <div className="pl-section">
@@ -148,7 +148,7 @@ export default function CompareMortgageQuotesPage() {
           </div>
 
           <div className="pl-disruptive">
-            <strong>The right approach:</strong> Run your Intelligence Card on HomeRates.AI first. Walk into every lender conversation knowing your exact PITI, your loan zone (conforming / high-balance / jumbo), your DTI, and your cash-to-close. You are the informed party. They are competing for your business.
+            <strong>The right approach:</strong> Run your Intelligence Card on HomeRates.ai first. Walk into every lender conversation knowing your exact PITI, your loan zone (conforming / high-balance / jumbo), your DTI, and your cash-to-close. You are the informed party. They are competing for your business.
           </div>
 
           <div className="pl-cta-block">
@@ -157,7 +157,7 @@ export default function CompareMortgageQuotesPage() {
           </div>
         </main>
         <footer className="pl-footer">
-          <span>HomeRates.AI — educational tool, not a lender.</span>
+          <span>HomeRates.ai — educational tool, not a lender.</span>
           <span className="pl-footer-sep">•</span>
           <Link href="/disclosures">Terms</Link>
           <span className="pl-footer-sep">•</span>

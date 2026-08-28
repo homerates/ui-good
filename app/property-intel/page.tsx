@@ -1205,7 +1205,7 @@ function PropertyIntelInner() {
                   ? <span className="fi" style={{ fontSize: '0.63rem', color: '#eaf8f7' }}>{d.data_freshness}</span>
                   : <Sk w={190} h={11} />
                 }
-                <span style={{ fontSize: '0.6rem', color: '#eaf8f7' }}>Powered by Grok-4 · HomeRates.AI</span>
+                <span style={{ fontSize: '0.6rem', color: '#eaf8f7' }}>Powered by Grok-4 · HomeRates.ai</span>
               </div>
 
               {/* ── CTA bar ───────────────────────────────────────────────── */}

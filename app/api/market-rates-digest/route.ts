@@ -94,7 +94,7 @@ MBS Spread (30Y minus 10Y Treasury): ${r.spread} bps
 YTD Change: ${r.ytdChange > 0 ? "+" : ""}${r.ytdChange.toFixed(2)}%
 Source: FRED / Freddie Mac`;
 
-  const system = `You are the HomeRates.AI Rate Oracle — a sharp, data-driven mortgage market analyst.
+  const system = `You are the HomeRates.ai Rate Oracle — a sharp, data-driven mortgage market analyst.
 HARD RULES:
 1. Every specific number you write MUST come directly from the live data provided. Never use training-data values.
 2. All timelines must be calculated forward from TODAY'S DATE in the data. Never reference past years as future.

@@ -75,11 +75,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const street = item.address.split(",")[0]?.trim() ?? item.address;
   const title  = item.score != null
-    ? `${street} — My Decision Portfolio ${item.score}/100 | HomeRates.Ai`
-    : `${street} — My Decision Portfolio | HomeRates.Ai`;
+    ? `${street} — My Decision Portfolio ${item.score}/100 | HomeRates.ai`
+    : `${street} — My Decision Portfolio | HomeRates.ai`;
   const desc   = item.score != null
-    ? `${item.address}${item.verdict ? ` · ${item.verdict}` : ""}. Decision Score: ${item.score}/100. My Decision Portfolio — powered by HomeRates.Ai.`
-    : `My Decision Portfolio entry for ${item.address} — powered by HomeRates.Ai.`;
+    ? `${item.address}${item.verdict ? ` · ${item.verdict}` : ""}. Decision Score: ${item.score}/100. My Decision Portfolio — powered by HomeRates.ai.`
+    : `My Decision Portfolio entry for ${item.address} — powered by HomeRates.ai.`;
 
   return {
     title,
@@ -87,7 +87,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title, description: desc,
       url:      `${BASE}/share/${id}`,
-      siteName: "HomeRates.Ai",
+      siteName: "HomeRates.ai",
       images:   [{ url: ogUrl, width: 1200, height: 630, alt: `My Decision Portfolio — ${street}` }],
       type:     "website",
     },
@@ -176,11 +176,11 @@ export default async function SharePage({ params }: Props) {
               href={`${BASE}/chat`}
               style={{ display: "block", textAlign: "center", background: "#00e87a", color: "#000", fontSize: 14, fontWeight: 800, letterSpacing: "0.03em", padding: "14px 24px", borderRadius: 10, textDecoration: "none" }}
             >
-              Open in HomeRates.Ai →
+              Open in HomeRates.ai →
             </Link>
 
             <div style={{ textAlign: "center", marginTop: 14, color: "rgba(200,214,230,0.30)", fontSize: 11 }}>
-              My Decision Portfolio — powered by HomeRates.Ai
+              My Decision Portfolio — powered by HomeRates.ai
             </div>
           </div>
         </div>
