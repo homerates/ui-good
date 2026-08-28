@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
             color: "rgba(200,214,230,0.35)", fontSize: 13, fontWeight: 500,
             marginTop: 20, display: "flex",
           }}>
-            My Decision Portfolio  ·  powered by HomeRates.Ai
+            My Decision Portfolio  ·  powered by HomeRates.ai
           </div>
 
         </div>

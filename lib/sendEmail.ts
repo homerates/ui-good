@@ -974,14 +974,14 @@ export async function emailPilotInvite({
 
   try {
     await resend.emails.send({
-      from: `Rayaan at HomeRates.Ai <${FROM}>`,
+      from: `Rayaan at HomeRates.ai <${FROM}>`,
       to: toEmail,
       subject: `Free AI mortgage pilot for ${companyName}'s team — no strings attached`,
       html: emailShell(`
         <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Pilot Invite · ${companyName}</p>
         <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#e6edf3;line-height:1.2;">${greeting}</p>
         <p style="margin:0 0 16px;font-size:15px;color:#e6edf3;line-height:1.7;">
-          I'm Rayaan — founder of <strong style="color:#00e87a;">HomeRates.Ai</strong> — The First AI Home + Mortgage Intelligence Platform.
+          I'm Rayaan — founder of <strong style="color:#00e87a;">HomeRates.ai</strong> — The First AI Home + Mortgage Intelligence Platform.
           I'd like to invite your team to test it free, no commitment, no pitch.
         </p>
         <p style="margin:0 0 24px;font-size:15px;color:#8b949e;line-height:1.7;">
@@ -1022,7 +1022,7 @@ export async function emailPilotInvite({
             If you're not the right person for this, I'd appreciate a forward to whoever manages tools for your LOs.
           </p>
         </div>
-      `, `HomeRates.Ai · chat.homerates.ai · Sent by Rayaan, Founder. Reply directly to this email.`),
+      `, `HomeRates.ai · chat.homerates.ai · Sent by Rayaan, Founder. Reply directly to this email.`),
     });
   } catch (err) {
     console.error("[sendEmail] emailPilotInvite failed:", err);
@@ -1052,14 +1052,14 @@ export async function emailAgentPilotInvite({
 
   try {
     await resend.emails.send({
-      from: `Rayaan at HomeRates.Ai <${FROM}>`,
+      from: `Rayaan at HomeRates.ai <${FROM}>`,
       to: toEmail,
       subject: `Free AI property intelligence pilot for ${companyName}'s agents — no strings attached`,
       html: emailShell(`
         <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#00e87a;">Agent Pilot Invite · ${companyName}</p>
         <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#e6edf3;line-height:1.2;">${greeting}</p>
         <p style="margin:0 0 16px;font-size:15px;color:#e6edf3;line-height:1.7;">
-          I'm Rayaan — founder of <strong style="color:#00e87a;">HomeRates.Ai</strong> — The First AI Home + Mortgage Intelligence Platform.
+          I'm Rayaan — founder of <strong style="color:#00e87a;">HomeRates.ai</strong> — The First AI Home + Mortgage Intelligence Platform.
           I'd like to invite your agents to test it free, no commitment, no pitch.
         </p>
         <p style="margin:0 0 24px;font-size:15px;color:#8b949e;line-height:1.7;">
@@ -1100,7 +1100,7 @@ export async function emailAgentPilotInvite({
             If you're not the right person for this, I'd appreciate a forward to whoever manages tools for your agents.
           </p>
         </div>
-      `, `HomeRates.Ai · chat.homerates.ai · Sent by Rayaan, Founder. Reply directly to this email.`),
+      `, `HomeRates.ai · chat.homerates.ai · Sent by Rayaan, Founder. Reply directly to this email.`),
     });
   } catch (err) {
     console.error("[sendEmail] emailAgentPilotInvite failed:", err);

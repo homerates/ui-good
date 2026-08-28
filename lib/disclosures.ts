@@ -4,7 +4,7 @@
 // the content, not with the brand. Never strip these from white-label builds.
 
 export const EDUCATIONAL_DISCLAIMER =
-  'HomeRates.Ai is an independent educational tool — not a financial advisor, mortgage lender, or broker. ' +
+  'HomeRates.ai is an independent educational tool — not a financial advisor, mortgage lender, or broker. ' +
   'All estimates (PITI, AVM, income thresholds, Decision Scores) are statistical models and may differ from actual outcomes. ' +
   'Not a loan offer, pre-approval, or commitment to lend.';
 

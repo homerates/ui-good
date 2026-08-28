@@ -2309,7 +2309,7 @@ Do NOT recalculate. These are verified using industry-standard formulas.
         // 2) System prompt (sensitivity OPTIONAL + only if borrower asks)
 
         let systemPrompt = compactWhitespace(`
-You are HomeRates.AI Smart Scenario Engine.
+You are HomeRates.ai Smart Scenario Engine.
 
 OUTPUT RULES (hard):
 - Return ONLY valid JSON (no markdown, no backticks, no commentary).

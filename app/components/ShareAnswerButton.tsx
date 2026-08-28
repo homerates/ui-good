@@ -76,7 +76,7 @@ export function ShareAnswerButton({
                 if (typeof navigator.share === 'function') {
                     setShowModal(false);
                     try {
-                        await navigator.share({ url: shareUrl, title: 'HomeRates.Ai — Home + Mortgage AI Chat' });
+                        await navigator.share({ url: shareUrl, title: 'HomeRates.ai — Home + Mortgage AI Chat' });
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
                     } catch { /* user cancelled */ }
@@ -109,7 +109,7 @@ export function ShareAnswerButton({
             } else if (method === 'email' && email) {
                 if (staticUrl) {
                     // Static page: mailto fallback — no thread to send
-                    const subject = encodeURIComponent('HomeRates.Ai — Home + Mortgage AI Chat');
+                    const subject = encodeURIComponent('HomeRates.ai — Home + Mortgage AI Chat');
                     const body = encodeURIComponent(`${staticUrl}`);
                     window.open(`mailto:${email}?subject=${subject}&body=${body}`);
                 } else {
@@ -158,7 +158,7 @@ export function ShareAnswerButton({
                 const text = question
                     ? `${question.slice(0, 120)}${question.length > 120 ? '…' : ''}`
                     : 'Check out this mortgage analysis on HomeRates.ai';
-                const linkedInUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent('HomeRates.Ai — Home + Mortgage AI Chat')}&summary=${encodeURIComponent(text)}&source=${encodeURIComponent('HomeRates.Ai')}`;
+                const linkedInUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent('HomeRates.ai — Home + Mortgage AI Chat')}&summary=${encodeURIComponent(text)}&source=${encodeURIComponent('HomeRates.ai')}`;
                 if (isMobile) {
                     window.location.href = linkedInUrl;
                 } else {
@@ -171,7 +171,7 @@ export function ShareAnswerButton({
                         await navigator.share({
                             url: shareUrl,
                             title: 'HomeRates.ai',
-                            text: 'Check out this mortgage analysis on HomeRates.Ai',
+                            text: 'Check out this mortgage analysis on HomeRates.ai',
                         });
                     } catch { /* user dismissed */ }
                 } else {

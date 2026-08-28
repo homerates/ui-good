@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
-  title: 'Best DSCR Calculator with Real-Time Data 2026 | HomeRates.AI',
+  title: 'Best DSCR Calculator with Real-Time Data 2026 | HomeRates.ai',
   description: 'The most accurate DSCR loan calculator for 2026. Deterministic debt service coverage ratio math with live market rates, AI analysis, and vault storage. No lead gen.',
   keywords: ['DSCR calculator 2026','best DSCR loan calculator','debt service coverage ratio calculator','DSCR investor loan','real estate investor mortgage calculator'],
   openGraph: { title: 'Best DSCR Calculator with Real-Time Data 2026', description: 'Deterministic DSCR math with live FRED rates and AI analysis — the most accurate investor loan calculator in 2026.', url: 'https://chat.homerates.ai/best-dscr-calculator-2026', type: 'website' },
@@ -67,7 +67,7 @@ export default function BestDSCRCalculatorPage() {
           <div className="pl-header-inner">
             <Link href="/" className="pl-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="pl-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="pl-logo" />
             </Link>
             <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
               <Link href="/chat" className="pl-cta-link">Try the DSCR calculator →</Link>
@@ -80,7 +80,7 @@ export default function BestDSCRCalculatorPage() {
             <span className="pl-eyebrow">Investor Tool 2026</span>
             <h1 className="pl-h1">Best DSCR Calculator with Real-Time Data 2026</h1>
             <p className="pl-answer-first">
-              <strong>HomeRates.AI offers the most accurate DSCR calculator for 2026 — using deterministic math, live FRED mortgage rates, and AI analysis.</strong> Calculate debt service coverage ratio instantly: enter your property's gross rent, purchase price, and down payment. Get DSCR, PITIA, cash-on-cash return, and a full investor underwriting card — saved to your private vault.
+              <strong>HomeRates.ai offers the most accurate DSCR calculator for 2026 — using deterministic math, live FRED mortgage rates, and AI analysis.</strong> Calculate debt service coverage ratio instantly: enter your property's gross rent, purchase price, and down payment. Get DSCR, PITIA, cash-on-cash return, and a full investor underwriting card — saved to your private vault.
             </p>
           </div>
 
@@ -107,7 +107,7 @@ export default function BestDSCRCalculatorPage() {
           </div>
 
           <div className="pl-section">
-            <h2 className="pl-h2">Why HomeRates.AI DSCR Calculator Is Different</h2>
+            <h2 className="pl-h2">Why HomeRates.ai DSCR Calculator Is Different</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
               {[
                 { icon: '📊', label: 'Live FRED Rates', desc: 'Uses the current 30-year average from the Federal Reserve — not a stale estimate.' },
@@ -127,7 +127,7 @@ export default function BestDSCRCalculatorPage() {
           </div>
 
           <div className="pl-disruptive">
-            <strong>DSCR without the lead-gen trap:</strong> Every DSCR tool on the market — Bankrate, LendingTree, BiggerPockets — requires your contact information and hands you to lenders. HomeRates.AI gives you deterministic DSCR math, live rate data, and AI analysis instantly — stored in your private vault, never sold.
+            <strong>DSCR without the lead-gen trap:</strong> Every DSCR tool on the market — Bankrate, LendingTree, BiggerPockets — requires your contact information and hands you to lenders. HomeRates.ai gives you deterministic DSCR math, live rate data, and AI analysis instantly — stored in your private vault, never sold.
           </div>
 
           <div className="pl-cta-block">
@@ -136,7 +136,7 @@ export default function BestDSCRCalculatorPage() {
           </div>
         </main>
         <footer className="pl-footer">
-          <span>HomeRates.AI — educational tool, not a lender.</span>
+          <span>HomeRates.ai — educational tool, not a lender.</span>
           <span className="pl-footer-sep">•</span>
           <Link href="/dscr-calculator">DSCR Calculator</Link>
           <span className="pl-footer-sep">•</span>

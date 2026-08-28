@@ -5,7 +5,7 @@ import Link from 'next/link';
 import AppNav from '../components/AppNav';
 
 export const metadata: Metadata = {
-  title: 'Track 5 — The 5 Signals That Tell You Whether to Buy, Wait, or Walk Away | HomeRates.AI',
+  title: 'Track 5 — The 5 Signals That Tell You Whether to Buy, Wait, or Walk Away | HomeRates.ai',
   description: 'Track 5 is a data-driven buying decision framework. Five scored signals — affordability, market conditions, value gap, location intelligence, and rate intelligence — tell you exactly where you stand before you make an offer.',
   alternates: { canonical: 'https://chat.homerates.ai/track5-intelligence' },
 };
@@ -218,7 +218,7 @@ export default function Track5IntelligencePage() {
           <div className="t5i-header-inner">
             <Link href="/" className="t5i-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="t5i-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="t5i-logo" />
             </Link>
             <nav className="t5i-nav">
               <Link href="/platform" className="t5i-nav-link">Platform Intelligence</Link>
@@ -367,7 +367,7 @@ export default function Track5IntelligencePage() {
         </main>
 
         <footer className="t5i-footer">
-          <span>HomeRates.AI — educational tool, not a lender or broker.</span>
+          <span>HomeRates.ai — educational tool, not a lender or broker.</span>
           <span className="t5i-footer-sep">•</span>
           <Link href="/platform">Platform Intelligence</Link>
           <span className="t5i-footer-sep">•</span>

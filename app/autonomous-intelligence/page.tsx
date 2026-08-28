@@ -5,7 +5,7 @@ import Link from 'next/link';
 import AppNav from '../components/AppNav';
 
 export const metadata: Metadata = {
-  title: 'Autonomous Decision Score — One URL, Full Intelligence Report | HomeRates.AI',
+  title: 'Autonomous Decision Score — One URL, Full Intelligence Report | HomeRates.ai',
   description: 'Paste any Redfin or Zillow listing URL into chat. HomeRates automatically fires all four Track 5 levels — affordability, property value gap, market conditions, and location intelligence — in parallel. No buttons. No forms. One input, full Decision Score.',
   alternates: { canonical: 'https://chat.homerates.ai/autonomous-intelligence' },
 };
@@ -200,7 +200,7 @@ export default function AutonomousIntelligencePage() {
           <div className="ai-header-inner">
             <Link href="/" className="ai-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="ai-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="ai-logo" />
             </Link>
             <nav className="ai-nav">
               <Link href="/platform" className="ai-nav-link">Platform Intelligence</Link>
@@ -384,7 +384,7 @@ export default function AutonomousIntelligencePage() {
 
         {/* Footer */}
         <footer className="ai-footer">
-          <span>© 2026 HomeRates.AI</span>
+          <span>© 2026 HomeRates.ai</span>
           <span style={{ opacity: 0.4 }}>·</span>
           <Link href="/terms">Terms</Link>
           <span style={{ opacity: 0.4 }}>·</span>

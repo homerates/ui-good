@@ -390,7 +390,7 @@ function ReportInner() {
   })();
 
   // ── White-label brand vars ────────────────────────────────────────────────────
-  const brandName   = wlPartner?.name   ?? 'HomeRates.Ai';
+  const brandName   = wlPartner?.name   ?? 'HomeRates.ai';
   const brandLogo   = wlPartner?.logo_url ?? '/assets/homerates-email-logo.png';
   const brandAccent = wlPartner?.accent_color ?? '#00e87a';
   const brandDomain = wlPartner ? (wlPartner.contact_email?.split('@')[1] ?? 'homerates.ai') : 'chat.homerates.ai';

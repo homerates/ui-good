@@ -580,7 +580,7 @@ function CheckPropertyInner() {
                         <div className="cp-spinner-ring" style={{ borderTopColor: theme.accent }} />
                         <div>
                             <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f0f4ff', marginBottom: 3 }}>
-                                HomeRates.AI is analysing
+                                HomeRates.ai is analysing
                             </div>
                             <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em',
                                 textTransform: 'uppercase', color: theme.accent }}>

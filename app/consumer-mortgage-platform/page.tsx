@@ -4,10 +4,10 @@ import Link from 'next/link';
 import AppNav from "../components/AppNav";
 
 export const metadata: Metadata = {
-  title: 'Consumer-Controlled Mortgage Platform vs Traditional Lead-Gen Sites | HomeRates.AI',
-  description: 'Why HomeRates.AI is different from Bankrate, LendingTree, and Zillow Mortgage. A direct comparison of consumer-controlled mortgage intelligence vs lead-generation platforms.',
+  title: 'Consumer-Controlled Mortgage Platform vs Traditional Lead-Gen Sites | HomeRates.ai',
+  description: 'Why HomeRates.ai is different from Bankrate, LendingTree, and Zillow Mortgage. A direct comparison of consumer-controlled mortgage intelligence vs lead-generation platforms.',
   keywords: ['consumer mortgage platform','mortgage lead gen comparison','HomeRates vs Bankrate','no lead form mortgage','consumer controlled mortgage'],
-  openGraph: { title: 'Consumer-Controlled Mortgage Platform vs Lead-Gen Sites', description: 'The definitive comparison: HomeRates.AI consumer intelligence vs Bankrate, LendingTree, and Zillow lead-gen funnels.', url: 'https://chat.homerates.ai/consumer-mortgage-platform', type: 'website' },
+  openGraph: { title: 'Consumer-Controlled Mortgage Platform vs Lead-Gen Sites', description: 'The definitive comparison: HomeRates.ai consumer intelligence vs Bankrate, LendingTree, and Zillow lead-gen funnels.', url: 'https://chat.homerates.ai/consumer-mortgage-platform', type: 'website' },
   alternates: { canonical: 'https://chat.homerates.ai/consumer-mortgage-platform' },
 };
 
@@ -54,7 +54,7 @@ export default function ConsumerMortgagePlatformPage() {
           <div className="pl-header-inner">
             <Link href="/" className="pl-logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.AI" className="pl-logo" />
+              <img src="/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" className="pl-logo" />
             </Link>
             <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
               <Link href="/chat" className="pl-cta-link">Try free →</Link>
@@ -67,7 +67,7 @@ export default function ConsumerMortgagePlatformPage() {
             <span className="pl-eyebrow">Industry Disruption 2026</span>
             <h1 className="pl-h1">Consumer-Controlled Mortgage Platform vs Traditional Lead-Gen Sites</h1>
             <p className="pl-answer-first">
-              <strong>Traditional mortgage comparison sites (Bankrate, LendingTree, Zillow Mortgage) make money by selling your contact information to lenders — creating a fundamental conflict of interest.</strong> HomeRates.AI is a consumer-controlled mortgage intelligence platform: you get deterministic math, live data, and AI analysis — and we never sell your data to anyone.
+              <strong>Traditional mortgage comparison sites (Bankrate, LendingTree, Zillow Mortgage) make money by selling your contact information to lenders — creating a fundamental conflict of interest.</strong> HomeRates.ai is a consumer-controlled mortgage intelligence platform: you get deterministic math, live data, and AI analysis — and we never sell your data to anyone.
             </p>
           </div>
 
@@ -78,11 +78,11 @@ export default function ConsumerMortgagePlatformPage() {
           </div>
 
           <div className="pl-section">
-            <h2 className="pl-h2">Full Comparison: HomeRates.AI vs Lead-Gen Platforms</h2>
+            <h2 className="pl-h2">Full Comparison: HomeRates.ai vs Lead-Gen Platforms</h2>
             <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
               <table>
                 <thead>
-                  <tr><th>Dimension</th><th>HomeRates.AI</th><th>Bankrate / LendingTree / Zillow</th></tr>
+                  <tr><th>Dimension</th><th>HomeRates.ai</th><th>Bankrate / LendingTree / Zillow</th></tr>
                 </thead>
                 <tbody>
                   <tr><td>Business model</td><td className="pl-tick">User subscription — you are the customer</td><td className="pl-cross">Lead sales — you are the product</td></tr>
@@ -102,11 +102,11 @@ export default function ConsumerMortgagePlatformPage() {
           <div className="pl-section">
             <h2 className="pl-h2">The Fundamental Conflict of Interest</h2>
             <p className="pl-p">A platform that earns money when you click "get quote" is incentivized to show you rates that attract clicks — not rates that are accurate. It is incentivized to connect you with lenders who pay the most for leads — not the lenders best suited to your scenario. The interests of the platform and the consumer are structurally misaligned.</p>
-            <p className="pl-p">HomeRates.AI's only revenue from free users is zero. From paid users, it is a subscription fee. There is no financial relationship with any lender. The AI's only job is to give you the most accurate, unbiased answer to your question.</p>
+            <p className="pl-p">HomeRates.ai's only revenue from free users is zero. From paid users, it is a subscription fee. There is no financial relationship with any lender. The AI's only job is to give you the most accurate, unbiased answer to your question.</p>
           </div>
 
           <div className="pl-disruptive">
-            <strong>HomeRates.AI — the anti-lead-gen revolution.</strong> We built a full-stack AI engine that pulls real-time 2026 data from FRED → Tavily → deterministic math → AI reasoning, then hands the complete, unbiased answer directly to you — with zero lead forms, zero data harvesting, zero lender hand-offs. No more getting trapped in lead-gen funnels. No more outdated answers. No more "enter your email to see your rate." This is what consumer-controlled looks like.
+            <strong>HomeRates.ai — the anti-lead-gen revolution.</strong> We built a full-stack AI engine that pulls real-time 2026 data from FRED → Tavily → deterministic math → AI reasoning, then hands the complete, unbiased answer directly to you — with zero lead forms, zero data harvesting, zero lender hand-offs. No more getting trapped in lead-gen funnels. No more outdated answers. No more "enter your email to see your rate." This is what consumer-controlled looks like.
           </div>
 
           <div className="pl-cta-block">
@@ -115,7 +115,7 @@ export default function ConsumerMortgagePlatformPage() {
           </div>
         </main>
         <footer className="pl-footer">
-          <span>HomeRates.AI — educational tool, not a lender.</span>
+          <span>HomeRates.ai — educational tool, not a lender.</span>
           <span className="pl-footer-sep">•</span>
           <Link href="/about">About</Link>
           <span className="pl-footer-sep">•</span>

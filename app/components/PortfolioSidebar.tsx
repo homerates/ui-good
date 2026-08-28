@@ -387,7 +387,7 @@ export default function PortfolioSidebar({ onResume, onNewJourney, activeAddress
         </div>
         <PortfolioContent items={items} loading={loading} activeAddress={activeAddress} onResume={onResume} onNewJourney={onNewJourney} />
         <div style={{ borderTop: '1px solid #131f30', padding: '10px 14px', fontSize: 9.5, color: '#2a3d55', textAlign: 'center', flexShrink: 0 }}>
-          My Decision Portfolio · powered by HomeRates.Ai
+          My Decision Portfolio · powered by HomeRates.ai
         </div>
       </div>
 

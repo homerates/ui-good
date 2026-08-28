@@ -4199,10 +4199,10 @@ UPB: Unpaid Principal Balance — remaining loan balance at any point.
             ? `\n\n=== LIVE-RETRIEVED OFFICIAL SOURCE TEXT (verbatim excerpts, cite these directly) ===\n${ragContext}\n=== END LIVE-RETRIEVED SOURCE TEXT ===`
             : '';
 
-        const uwSystemPrompt = `You are HomeRates.AI Underwriting Guidelines Expert.
+        const uwSystemPrompt = `You are HomeRates.ai Underwriting Guidelines Expert.
 
 STRICT RULES — violations are not acceptable:
-- NEVER introduce yourself or mention HomeRates.AI in your response
+- NEVER introduce yourself or mention HomeRates.ai in your response
 - NEVER say "Welcome" or any greeting
 - Jump straight into the content with the headline
 - For program guidelines (DTI, credit scores, LTV, MIP, reserves, loan limits, gift funds, employment): use ONLY the guidelines database below, plus the live-retrieved source text section when present (it takes precedence for the topics it covers — it's verbatim official text, not a summary)
