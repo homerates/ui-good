@@ -114,7 +114,7 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fullAddress]);
 
-    const [aerialState, setAerialState] = useState<'idle' | 'polling' | 'ready' | 'unavailable'>('idle');
+    const [aerialState, setAerialState] = useState<'idle' | 'polling' | 'ready' | 'unavailable' | 'locked'>('idle');
     const [aerialUris, setAerialUris] = useState<{ landscapeUri: string; portraitUri: string } | null>(null);
     const [videoPlaying, setVideoPlaying] = useState(true);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -149,6 +149,12 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
                 if (json.status === 'ready') {
                     setAerialUris({ landscapeUri: json.landscapeUri, portraitUri: json.portraitUri });
                     setAerialState('ready');
+                    return;
+                }
+                // Free-tier viewer -- server already made the plan call, no point polling
+                // again since it won't change mid-session.
+                if (json.status === 'locked') {
+                    setAerialState('locked');
                     return;
                 }
                 if (json.status === 'unavailable' || attempts >= MAX_ATTEMPTS) {
@@ -317,13 +323,21 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
                             </button>
                         </>
                     ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={data.photoUrl!}
-                            alt={data.address ?? 'Property photo'}
-                            className="property-photo"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
+                        <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={data.photoUrl!}
+                                alt={data.address ?? 'Property photo'}
+                                className="property-photo"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                            {aerialState === 'locked' && (
+                                <span className="property-aerial-lock-badge" title="Aerial flyover video is a Pro feature">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 8V6a3 3 0 0 1 6 0v3z"/></svg>
+                                    Aerial · Pro
+                                </span>
+                            )}
+                        </>
                     )}
                 </div>
             )}
