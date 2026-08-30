@@ -21,11 +21,22 @@
 // (migration 080) on every renderVideo check -- never returned in this response --
 // so a stuck or failing address can be investigated later via a direct Supabase
 // query instead of needing to reproduce it live with a temporary debug flag.
+//
+// Pro-gated (confirmed with Rayaan 2026-08-28, see project_aerial_flyover memory):
+// Property Lookup itself stays free for everyone per the locked access model --
+// only this video is a Pro perk. The gate sits here, server-side, before any
+// Google call -- never client-side-only -- because lookupVideoUris() is a
+// BILLABLE call the moment it returns real URIs. A free viewer must never be able
+// to trigger that billable event even if the client-side UI would just hide the
+// result; a non-Pro request short-circuits to 'locked' with zero Google calls.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { auth } from '@clerk/nextjs/server';
 import { getSupabase } from '../../../../lib/supabaseServer';
 import { checkOrRenderVideo, lookupVideoUris } from '../../../../lib/aerialView';
+import { getUserPlan } from '../../../../lib/subscription';
+import { isAdminId } from '../../../../lib/adminAuth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,7 +68,8 @@ async function writeCache(
 type AerialViewResponse =
   | { status: 'ready'; landscapeUri: string; portraitUri: string }
   | { status: 'processing' }
-  | { status: 'unavailable' };
+  | { status: 'unavailable' }
+  | { status: 'locked' };
 
 export async function GET(req: NextRequest) {
   const address = req.nextUrl.searchParams.get('address')?.trim();
@@ -77,9 +89,29 @@ export async function GET(req: NextRequest) {
       .eq('address_normalized', normalized)
       .maybeSingle();
 
-    // Known-bad address -- never retried, zero Google calls.
+    // Known-bad address -- never retried, zero Google calls, regardless of plan.
     if (cached?.state === 'ERROR' || cached?.state === 'UNAVAILABLE') {
       return NextResponse.json<AerialViewResponse>({ status: 'unavailable' });
+    }
+
+    // Pro gate -- must happen before any Google call (see file header). A free
+    // viewer gets 'locked' immediately; the client shows a static badge and never
+    // starts (or continues) polling, so this address never drives render/lookup
+    // traffic on a free user's behalf.
+    const { userId } = await auth();
+    const [userPlanResult, adminBypass] = await Promise.all([
+      userId ? getUserPlan(userId) : Promise.resolve(null),
+      isAdminId(userId),
+    ]);
+    const plan = userPlanResult?.plan ?? 'free';
+    // 'founding' isn't in PlanKey's type union, but getUserPlan() casts the raw
+    // users.plan column value through `as PlanKey` unchecked (lib/subscription.ts) --
+    // a real founding-tier user's plan can still be the runtime string 'founding'
+    // despite the type saying otherwise, same as the established isPro check in
+    // deal-rooms/page.tsx and app/api/deal-rooms/route.ts. Widen for the comparison.
+    const isPro = adminBypass || plan === 'pro' || (plan as string) === 'founding';
+    if (!isPro) {
+      return NextResponse.json<AerialViewResponse>({ status: 'locked' });
     }
 
     // Ground truth first: does a video already exist for this address at all,
