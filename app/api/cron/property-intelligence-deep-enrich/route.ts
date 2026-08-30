@@ -48,7 +48,11 @@ const PER_CALL_WORST_CASE_MS = 145_000;
 const SAFETY_MARGIN_MS = 10_000;
 
 function parseAddress(full: string): boolean {
-  return /^(.*),\s*([^,]+),\s*([A-Z]{2})\s+(\d{5})$/.test(full);
+  // Case-insensitive -- confirmed live 2026-08-30: 453 of 521 real candidates
+  // were being rejected as "malformed" purely because address_full is stored
+  // lowercase for many rows (a known casing inconsistency across write paths,
+  // not a real address defect). e.g. "ca 90710" failed [A-Z]{2} outright.
+  return /^(.*),\s*([^,]+),\s*([A-Z]{2})\s+(\d{5})$/i.test(full);
 }
 
 async function drainDeepStream(origin: string, address: string, redfin: Record<string, unknown> | null): Promise<'done' | 'error' | 'timeout'> {
