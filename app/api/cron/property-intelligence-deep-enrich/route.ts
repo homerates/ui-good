@@ -106,7 +106,14 @@ export async function GET(req: Request) {
   // function declaration's body.
   const sb = sbClient;
 
-  const origin = new URL(req.url).origin;
+  // Fixed base URL, not new URL(req.url).origin -- Vercel Cron invokes this
+  // route via its internal deployment hostname (e.g. homerates-next-<hash>-...),
+  // not the custom domain. Confirmed live 2026-08-30: the run completed in
+  // ~1.65s (one Supabase round-trip, no real enrichment work), consistent with
+  // the self-fetch below silently failing fast against that internal hostname.
+  // Same fixed-base-URL pattern already used by every other server-to-server
+  // call in this codebase (e.g. app/api/admin/*/invite/route.ts).
+  const origin = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
   const runStart = Date.now();
   const results = {
     candidatesFound: 0,
@@ -192,8 +199,14 @@ export async function GET(req: Request) {
     }
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, toAttempt.length) }, () => worker()));
   } catch (e) {
+    console.error('[deep-enrich] run failed', { error: e instanceof Error ? e.message : String(e), partial: results });
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e), partial: results }, { status: 500 });
   }
 
+  // Logged, not just returned -- this route has no other caller to read the
+  // response body, so without this a failing/no-op run is invisible in
+  // Vercel's log viewer (confirmed live 2026-08-30: a run that silently did
+  // nothing looked identical to a healthy one from the outside).
+  console.log('[deep-enrich] run complete', { batchCap: BATCH_CAP, concurrency: CONCURRENCY, elapsedMs: Date.now() - runStart, ...results });
   return NextResponse.json({ ok: true, batchCap: BATCH_CAP, concurrency: CONCURRENCY, elapsedMs: Date.now() - runStart, ...results });
 }

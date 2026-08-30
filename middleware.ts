@@ -52,6 +52,13 @@ const isPublicRoute = createRouteMatcher([
   // Webhooks — verified by their own signature checks, not Clerk
   "/api/webhooks/clerk(.*)",
   "/api/webhooks/stripe(.*)",
+  // Cron jobs — verified by their own CRON_SECRET bearer-token check, not
+  // Clerk (Vercel's cron dispatcher carries no Clerk session at all). Without
+  // this, auth.protect() throws NEXT_HTTP_ERROR_FALLBACK;404 on every single
+  // cron invocation -- confirmed live 2026-08-30 on property-intelligence-
+  // deep-enrich's logs. It didn't block the eventual response in that case,
+  // but that's undefined behavior to depend on, not a designed safety net.
+  "/api/cron(.*)",
   // Pricing page (public — signed-out users must be able to see it)
   "/pricing(.*)",
   // Lender Match landing (public — borrowers must see it before signing up)
