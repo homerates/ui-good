@@ -1,23 +1,31 @@
 // lib/gateway/intelligenceGateway.ts
 //
-// Phase A + Phase B only, per docs/HOMERATES_INTELLIGENCE_GATEWAY_V1_IMPLEMENTATION_PLAN.md.
-// NO AUTH (Phase C), NO RATE LIMIT / QUOTA / CIRCUIT BREAKER (Phase D), NO
-// LOGGING (Phase E), NO ENDPOINT -- this file is not wired to any app/api
-// route. It exists to prove the corpus-only wrapper + output shaping path
-// works end-to-end; nothing in this file is reachable over the network today.
+// Phase A + B + C, per docs/HOMERATES_INTELLIGENCE_GATEWAY_V1_IMPLEMENTATION_PLAN.md.
+// NO RATE LIMIT / QUOTA / CIRCUIT BREAKER (Phase D), NO LOGGING (Phase E), NO
+// ENDPOINT -- this file is not wired to any app/api route. Nothing in this
+// file is reachable over the network today.
 //
-// Flow: normalize + resolve address -> properties.id -> the ONE sanctioned
-// call into existing intelligence (getPropertyIntelligenceCorpusOnly) ->
-// shape into Contract V1 -> validate -> return. Never anything else.
+// Flow: authenticate (raw API-key header string in, trusted CallerContext out
+// -- see lib/gateway/auth.ts's branding note for why this can't be forged) ->
+// scope check -> normalize + resolve address -> properties.id -> the ONE
+// sanctioned call into existing intelligence (getPropertyIntelligenceCorpusOnly)
+// -> shape into Contract V1 -> validate -> return. Authentication happens
+// BEFORE any property lookup -- an unauthenticated or unauthorized caller
+// never causes a single row of property data to be read.
+//
+// The public function takes a raw apiKeyHeader string, never a pre-built
+// CallerContext -- there is deliberately no second "already-authenticated"
+// entry point a future adapter could call to skip authentication.
 
 import { getSupabase } from '../supabaseServer';
 import { getPropertyIntelligenceCorpusOnly } from './corpusOnlyIntelligence';
 import { shapeForExternalContract } from './outputShaping';
 import { ExternalPropertyIntelligenceV1Schema, type ExternalPropertyIntelligenceV1 } from './outputSchema';
+import { authenticateRequest, requireScope } from './auth';
 
 export type GatewayResult =
   | { ok: true; data: ExternalPropertyIntelligenceV1 }
-  | { ok: false; error: 'INVALID_REQUEST' | 'INTERNAL_ERROR'; message: string };
+  | { ok: false; error: 'UNAUTHORIZED' | 'FORBIDDEN' | 'INVALID_REQUEST' | 'INTERNAL_ERROR'; message: string };
 
 const MAX_ADDRESS_LENGTH = 300;
 
@@ -36,7 +44,20 @@ async function resolvePropertyId(address: string): Promise<string | null> {
   return match?.id ?? null;
 }
 
-export async function getPropertyIntelligence(request: { address: string }): Promise<GatewayResult> {
+export async function getPropertyIntelligence(
+  request: { address: string },
+  apiKeyHeader: string | null,
+): Promise<GatewayResult> {
+  // Authentication and authorization happen first, before anything else --
+  // including before request validation -- so an invalid/unauthorized caller
+  // never learns whether their address input was even well-formed, and never
+  // causes a single Supabase read.
+  const auth = await authenticateRequest(apiKeyHeader);
+  if (!auth.ok) return auth;
+
+  const scopeError = requireScope(auth.context, 'property_intelligence:read');
+  if (scopeError) return scopeError;
+
   const address = request.address?.trim();
   if (!address || address.length === 0 || address.length > MAX_ADDRESS_LENGTH) {
     return { ok: false, error: 'INVALID_REQUEST', message: 'address is required and must be 1-300 characters.' };
