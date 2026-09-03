@@ -5,7 +5,16 @@ auth, cost-control, and platform-adapter design that follows. Nothing in this do
 implemented — no endpoint, no Gateway, no MCP integration exists yet. Locking the contract means the
 *shape and semantics* below are fixed for implementation planning purposes; it is not itself an
 implementation and does not authorize building one. Any change to this contract after this point is a
-deliberate revision (bump `contract_version`, per §16), not a silent edit.
+deliberate revision, not a silent edit — a change that alters behavior for an external consumer bumps
+`contract_version` (§16); a pre-implementation correction to a shape nothing has ever consumed does not
+(see the correction note immediately below).
+
+**CORRECTION (2026-09-02, implementation-verified, still V1):** §10 originally specified a categorical
+`decision_intelligence.verdict` field. Building Phase A+B against the real
+`getPropertyIntelligenceData()` output found no property-level verdict exists anywhere in that data path —
+see §10 for the full explanation. `decision_intelligence` is corrected to `drivers`/`limitations` only.
+This is a contract-reality correction, not a reopening of methodology, and stays at V1 per §16's own rule:
+nothing had shipped or been exposed to an external consumer for this to be a breaking change to.
 
 **LEGAL/IP REVIEW REQUIRED — PARALLEL, NON-BLOCKING FOR DEVELOPMENT.** See
 `docs/MCP_Legal_IP_Checkpoint_Brief.md`. No legal review of this contract has occurred as of this writing.
@@ -203,7 +212,7 @@ Top-level shape (names illustrative — see the note on vocabulary below):
   "financing_intelligence": { "assumption_profile": {...}, "loan": {...}, "market_rate": {...} },
   "ownership_cost_intelligence": { "tax": {...}, "insurance": {...}, "hoa": {...}, "estimated_piti": {...} },
   "market_location_intelligence": { "market": {...}, "location": {...} },
-  "decision_intelligence": { "verdict": "...", "drivers": [...], "limitations": [...] },
+  "decision_intelligence": { "drivers": [...], "limitations": [...] },
   "freshness": { "as_of": "...", "staleness": "CURRENT" },
   "provenance": { "source_category": "...", "citation": "..." },
   "limitations": ["..."],
@@ -282,27 +291,48 @@ This card requires the most deliberate design of the five, because the underlyin
 Trade Secret #1 and its raw output is the single highest-value extraction target in the entire proposal
 (see the Legal/IP brief and §14 below).
 
-**What can safely be returned:** a categorical verdict (the same 5-bucket public tier already used
-elsewhere: Strong Buy / Ready to Offer / Buy with Caution / Watch the Market / Hold Off), a short list of
-consumer-relevant drivers in plain language (re-derived from the real internal `strengths`/`concerns`
-content, but repackaged as a standalone summary — not passed through as a field literally named
-`decisionIntelligence.strengths`), and a `limitations` list (from the real internal `missing` array — e.g.
-"HOA fee not confirmed").
+**IMPLEMENTATION-VERIFIED CORRECTION (2026-09-02):** an earlier draft of this section assumed a categorical
+`verdict` field (the public 5-bucket tier: Strong Buy / Ready to Offer / Buy with Caution / Watch the
+Market / Hold Off) would be available to expose here. Building Phase A+B against the real
+`getPropertyIntelligenceData()` output found this assumption was wrong: **the existing canonical Property
+Intelligence path computes no property-level verdict at all.** The full Track 5 composite (and its verdict
+tiers) requires L1 (Financial Readiness), which needs borrower-specific information this property-centered
+view never has and is never given — `decisionIntelligence` here contains only the individual L2/L3/L4
+scores (already correctly classified `INTERNAL ONLY` below) plus plain-language `strengths`/`concerns`/
+`missing` text. There is no composite value anywhere in this data path for a verdict to be derived from.
+
+**The Gateway must not invent one.** Computing a verdict-like value from the available L2/L3/L4 scores
+inside the Gateway's output-shaping layer would be new scoring methodology — assembling a property-level
+judgment HomeRates' own canonical intelligence has never actually produced — which the Gateway is
+categorically not allowed to own (architecture doc §5: "The Gateway does not own... property methodology").
+Mapping `verdict` to some other existing signal as a stand-in was considered and rejected for the same
+reason: a relabeled proxy is still an invented judgment the underlying system never made.
+
+**Locked for V1: `decision_intelligence` consists only of the existing safe property-centered outputs —
+`drivers` and `limitations`.** No `verdict` field exists in V1's response contract. This is a
+contract-reality correction, not a reopening of methodology, and not a version bump (§16) — nothing has
+shipped that this changes the behavior of.
+
+**What can safely be returned:** `drivers`, a short list of consumer-relevant strengths in plain language
+(from the real internal `strengths` array), and `limitations` (from the real internal `missing` array —
+e.g. "HOA fee not confirmed").
 
 **What must never be returned, in any form or at any precision:** the raw `l2`/`l3`/`l4` numeric scores;
 anything resembling the level weights or verdict thresholds; `methodologyVersion`'s literal string;
 `source` (`featured_properties`\|`computed`); or any reasoning trace/prompt-derived text that shows how a
 score was assembled rather than just what HomeRates concluded.
 
-**Preference ordering, stated explicitly:** outcome over mechanism, verdict over calculation breakdown,
-consumer-relevant driver over internal score component. This is the same "outcomes, not mechanisms"
-principle from the earlier architecture assessment, applied concretely to this one card.
+**Preference ordering, stated explicitly:** outcome over mechanism, consumer-relevant driver over internal
+score component. This is the same "outcomes, not mechanisms" principle from the earlier architecture
+assessment, applied concretely to this one card — it does not depend on a verdict existing to hold.
 
-**Why the categorical verdict is materially safer than it might look:** §14 finds that even a large,
-systematic query set against a 5-bucket categorical output yields far coarser information than the same
-attack against a continuous numeric score would — there's no gradient to regress a formula against. This
-doesn't make the verdict field risk-free (§14 names it as a real, if low-severity, residual risk), but it's
-the reason a categorical outcome is the right shape here rather than a compromise.
+**A property-level verdict remains a potential future contract capability — conditionally, not by
+default.** If HomeRates' underlying intelligence methodology ever canonically computes a real
+property-level verdict (a deliberate methodology decision made behind the Gateway, in
+`lib/propertyIntelligence.ts` or wherever Track 5's canonical scoring lives — never invented inside
+`lib/gateway/`), exposing it would be a genuine, separate contract change at that time, evaluated on its own
+merits including the extraction-resistance question §14 raised about a categorical output. Until then, V1
+has nothing to expose here beyond `drivers`/`limitations`.
 
 ---
 
@@ -387,13 +417,13 @@ sensitive later.
 **After 10,000 systematically varied queries:** this is exactly the oracle-attack scenario the Legal/IP
 brief flags for Track 5. The response contract in §7 is specifically designed so this attack has *nothing
 to extract* — no raw L2/L3/L4 values exist anywhere in the response at any precision, so there is no
-numeric signal to regress against varied inputs. The one remaining soft spot: `decision_intelligence`'s
-`verdict`/`drivers` are still *derived from* the real score internally, and a large enough query set could
-in principle build a coarse map of "what verdict does HomeRates give this type of scenario" — but since
-verdict is already a 5-bucket categorical (§10) rather than a continuous score, the achievable resolution
-of any such extraction is inherently far coarser than recovering the actual weighted formula. This is a
-materially different (and much lower) risk than exposing the raw scores would be, but it is not zero —
-worth naming explicitly rather than claiming full immunity.
+numeric signal to regress against varied inputs. `decision_intelligence`'s `drivers`/`limitations` are still
+plain-language text *derived from* the real internal `strengths`/`missing` arrays, and a large enough query
+set could in principle build a coarse map of which drivers HomeRates tends to surface for which kind of
+property — a real but low-resolution signal, nowhere close to recovering a scoring formula, since §10
+confirms there is no categorical verdict (and no composite score of any kind) in this response for a
+pattern-mapping attack to target in the first place. This residual risk is lower than an earlier draft of
+this document assumed, precisely because there is less to extract than that draft believed existed.
 
 **Fields excluded specifically because they'd make extraction meaningfully easier:** `decisionIntelligence
 .l2/l3/l4` (raw scores — the single highest-value target), `methodologyVersion` (tells an attacker exactly
@@ -405,7 +435,7 @@ topology).
 already flagged as insufficient protection for proprietary methodology — this section confirms that
 position. The response *shape* itself, not request throttling, is what prevents oracle-style extraction of
 Track 5's actual formula; rate limiting only slows down attacks the shape doesn't already prevent (coverage
-mapping, verdict-pattern mapping), it doesn't stop them.
+mapping, driver-pattern mapping), it doesn't stop them.
 
 ---
 
@@ -479,7 +509,6 @@ Illustrative only — no endpoint exists to serve these.
     "market_rate": { "value": 6.42, "series_label": "OBMMI Conventional 30yr Fixed", "claim_type": "MARKET FACT" }
   },
   "decision_intelligence": {
-    "verdict": "Ready to Offer",
     "drivers": ["Comps support the current list price", "Below-median days on market for this area"],
     "limitations": ["HOA fee not confirmed"]
   },
@@ -535,19 +564,20 @@ search alone?** Yes, on the dimensions that matter most for a real estate/mortga
 blended AVM with disclosed sourcing, rather than an agent having to reconcile several different public
 estimates itself; (2) real comparable sales already matched and structured; (3) financing math (loan
 amount, monthly P&I, LLPA-adjusted rate) computed against current OBMMI/FRED data rather than a generic
-rate an agent might otherwise guess or hallucinate; (4) a categorical decision verdict with plain-language
-drivers, which is qualitatively different from an agent trying to synthesize "should I offer on this" from
-raw listing data alone. The claim-classification labels (§8) are themselves a real differentiator — most
-web sources don't tell a consuming AI which numbers are fact versus estimate versus assumption.
+rate an agent might otherwise guess or hallucinate; (4) plain-language decision drivers and limitations
+grounded in real comps/market data, which is qualitatively different from an agent trying to synthesize
+"should I offer on this" from raw listing data alone. The claim-classification labels (§8) are themselves a
+real differentiator — most web sources don't tell a consuming AI which numbers are fact versus estimate
+versus assumption.
 
 **What HomeRates specifically contributes:** the AVM blend, the comps matching, the financing/LLPA
-calculation, the categorical decision verdict, and the fact/estimate/assumption labeling — none of which
-generic web search reliably provides pre-assembled.
+calculation, the plain-language decision drivers/limitations, and the fact/estimate/assumption labeling —
+none of which generic web search reliably provides pre-assembled.
 
 **What should not be exposed merely because it exists:** the raw L2/L3/L4 numeric scores add no
-*additional* consumer value beyond what the verdict + drivers already convey (a number without the formula
-that produced it isn't actionable to an external consumer anyway) — they're pure leakage risk with no
-offsetting business value in external form. Same logic applies to `avmSources`' literal source list (the
+*additional* consumer value beyond what `drivers`/`limitations` already convey (a number without the
+formula that produced it isn't actionable to an external consumer anyway) — they're pure leakage risk with
+no offsetting business value in external form. Same logic applies to `avmSources`' literal source list (the
 blended `avm` value already carries the value; the source list only adds *methodology* detail, not
 *consumer* value) and to the four raw provenance timestamps (one `as_of` value carries all the consumer
 value; the other three only reveal internal architecture).
@@ -559,9 +589,11 @@ value; the other three only reveal internal architecture).
 1. Should `PARTIAL` responses omit missing fields entirely, or include them as explicit `null` with a
    reason? (Recommendation: explicit null + reason, so the calling AI doesn't have to infer absence from
    missing keys — but this is a real design choice, not decided here.)
-2. Does `decision_intelligence.verdict` need its own extraction-resistance monitoring in production (e.g.
-   flagging unusually systematic query patterns against it) once real usage exists, given §14's finding
-   that it's low-risk but not zero-risk?
+2. Does `decision_intelligence.drivers`/`limitations` need any extraction-resistance monitoring in
+   production (e.g. flagging unusually systematic query patterns against it) once real usage exists — §14
+   now finds this lower-risk than an earlier draft assumed, since no verdict or composite score exists in
+   V1 for a pattern-mapping attack to target, but the question of whether *any* monitoring is warranted
+   once real traffic exists remains open.
 3. Should property-not-found (`D` in §17) and property-not-in-Redfin-coverage-area be distinguished, or is
    collapsing them into one `NOT_AVAILABLE` reason acceptable for V1? (Currently: collapsed, per §12.)
 4. Who owns the `staleness` threshold definition (§11) — is 30 days the right cutoff for AVM/comps data,
