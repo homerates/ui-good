@@ -1,31 +1,46 @@
 // lib/gateway/intelligenceGateway.ts
 //
-// Phase A + B + C, per docs/HOMERATES_INTELLIGENCE_GATEWAY_V1_IMPLEMENTATION_PLAN.md.
-// NO RATE LIMIT / QUOTA / CIRCUIT BREAKER (Phase D), NO LOGGING (Phase E), NO
-// ENDPOINT -- this file is not wired to any app/api route. Nothing in this
-// file is reachable over the network today.
+// Phase A + B + C + D, per docs/HOMERATES_INTELLIGENCE_GATEWAY_V1_IMPLEMENTATION_PLAN.md.
+// NO LOGGING (Phase E), NO ENDPOINT -- this file is not wired to any app/api
+// route. Nothing in this file is reachable over the network today.
 //
-// Flow: authenticate (raw API-key header string in, trusted CallerContext out
-// -- see lib/gateway/auth.ts's branding note for why this can't be forged) ->
-// scope check -> normalize + resolve address -> properties.id -> the ONE
-// sanctioned call into existing intelligence (getPropertyIntelligenceCorpusOnly)
-// -> shape into Contract V1 -> validate -> return. Authentication happens
-// BEFORE any property lookup -- an unauthenticated or unauthorized caller
-// never causes a single row of property data to be read.
+// Required order of operations (LOCKED, architecture doc + Phase D spec):
+//   1. kill-switch / circuit-state check
+//   2. authentication
+//   3. scope authorization
+//   4. rate-limit / quota checks
+//   5. address validation
+//   6. property lookup
+//   7. corpus-only intelligence
+//   8. output shaping
+//   9. schema validation
+// No property work happens if any control/auth/limit step rejects the
+// request -- an unauthenticated, unauthorized, rate-limited, or globally-
+// disabled caller never causes a single row of property data to be read.
 //
-// The public function takes a raw apiKeyHeader string, never a pre-built
-// CallerContext -- there is deliberately no second "already-authenticated"
-// entry point a future adapter could call to skip authentication.
+// The public function takes raw trusted transport inputs only -- request,
+// apiKeyHeader, requestIp -- never a pre-built CallerContext. There is
+// deliberately no second "already-authenticated" or "already-limited" entry
+// point a future adapter could call to skip these checks. requestIp is
+// trusted Gateway transport metadata (see rateLimit.ts's own note); a future
+// adapter/transport layer must derive it from verified connection metadata,
+// never from client-supplied request JSON.
 
 import { getSupabase } from '../supabaseServer';
 import { getPropertyIntelligenceCorpusOnly } from './corpusOnlyIntelligence';
 import { shapeForExternalContract } from './outputShaping';
 import { ExternalPropertyIntelligenceV1Schema, type ExternalPropertyIntelligenceV1 } from './outputSchema';
 import { authenticateRequest, requireScope } from './auth';
+import { isCircuitOpen, isKillSwitchEnabled } from './circuitBreaker';
+import { checkAllLimits } from './rateLimit';
 
 export type GatewayResult =
   | { ok: true; data: ExternalPropertyIntelligenceV1 }
-  | { ok: false; error: 'UNAUTHORIZED' | 'FORBIDDEN' | 'INVALID_REQUEST' | 'INTERNAL_ERROR'; message: string };
+  | {
+      ok: false;
+      error: 'SERVICE_DISABLED' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'RATE_LIMITED' | 'INVALID_REQUEST' | 'INTERNAL_ERROR';
+      message: string;
+    };
 
 const MAX_ADDRESS_LENGTH = 300;
 
@@ -44,20 +59,41 @@ async function resolvePropertyId(address: string): Promise<string | null> {
   return match?.id ?? null;
 }
 
+const SERVICE_DISABLED_MESSAGE = 'The Gateway is temporarily unavailable.';
+const RATE_LIMITED_MESSAGE = 'Rate limit or quota exceeded.';
+
 export async function getPropertyIntelligence(
   request: { address: string },
   apiKeyHeader: string | null,
+  requestIp: string,
 ): Promise<GatewayResult> {
-  // Authentication and authorization happen first, before anything else --
-  // including before request validation -- so an invalid/unauthorized caller
-  // never learns whether their address input was even well-formed, and never
-  // causes a single Supabase read.
+  // 1. Kill-switch / circuit-state -- cheapest possible check, first, before
+  // even attempting authentication. A tripped breaker or an active kill
+  // switch rejects every request with zero further work, regardless of how
+  // valid the credential would otherwise be.
+  const [circuitOpen, killSwitchOn] = await Promise.all([isCircuitOpen(), isKillSwitchEnabled()]);
+  if (circuitOpen || killSwitchOn) {
+    return { ok: false, error: 'SERVICE_DISABLED', message: SERVICE_DISABLED_MESSAGE };
+  }
+
+  // 2/3. Authentication, then scope authorization -- before request
+  // validation, so an invalid/unauthorized caller never learns whether their
+  // address input was even well-formed, and never causes a single Supabase
+  // read beyond the credential lookup itself.
   const auth = await authenticateRequest(apiKeyHeader);
   if (!auth.ok) return auth;
 
   const scopeError = requireScope(auth.context, 'property_intelligence:read');
   if (scopeError) return scopeError;
 
+  // 4. Rate limit / quota -- only evaluated once identity is established,
+  // since every dimension is keyed by credential/partner/IP.
+  const limits = await checkAllLimits(auth.context, requestIp);
+  if (!limits.allowed) {
+    return { ok: false, error: 'RATE_LIMITED', message: RATE_LIMITED_MESSAGE };
+  }
+
+  // 5. Address validation.
   const address = request.address?.trim();
   if (!address || address.length === 0 || address.length > MAX_ADDRESS_LENGTH) {
     return { ok: false, error: 'INVALID_REQUEST', message: 'address is required and must be 1-300 characters.' };
