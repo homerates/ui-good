@@ -1,8 +1,9 @@
 "use client";
 // app/admin/gateway-partners/page.tsx
-// Admin: manage HomeRates Intelligence Gateway partners and credentials.
-// Phase C only -- no usage/analytics/rate-limit/quota-editing/kill-switch UI
-// here; those belong to Phases D/E.
+// Admin: manage HomeRates Intelligence Gateway partners and credentials
+// (Phase C), plus Phase E1 operational usage/recent-errors visibility and
+// the kill-switch control. Rate-limit/quota-tier editing UI still belongs
+// to a later phase -- not added here.
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -37,6 +38,18 @@ const STATUS_COLOR: Record<string, string> = {
   revoked: "#ff5a5a", disabled: "#8fa3b8",
 };
 
+const OUTCOME_COLOR: Record<string, string> = {
+  AVAILABLE: "#00e87a", PARTIAL: "#f0c040", NOT_AVAILABLE: "#8fa3b8", ERROR: "#ff5a5a",
+};
+
+interface UsageData {
+  sampledRows: number;
+  sampleCapped: boolean;
+  outcomeCounts: Record<string, number>;
+  byPartner: { partnerId: string | null; name: string; count: number; lastRequestAt: string }[];
+  recentErrors: { createdAt: string; partnerName: string | null; errorCode: string; latencyMs: number | null }[];
+}
+
 export default function GatewayPartnersAdminPage() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,13 +60,51 @@ export default function GatewayPartnersAdminPage() {
   const [justIssued, setJustIssued] = useState<{ partnerId: string; plaintextKey: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
+  const [usage, setUsage] = useState<UsageData | null>(null);
+  const [usageLoading, setUsageLoading] = useState(true);
+  const [killSwitchEnabled, setKillSwitchEnabled] = useState<boolean | null>(null);
+  const [circuitOpen, setCircuitOpen] = useState<boolean | null>(null);
+  const [togglingKillSwitch, setTogglingKillSwitch] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     const r = await fetch("/api/admin/gateway-partners");
     if (r.ok) { const d = await r.json(); setPartners(d.partners ?? []); }
     setLoading(false);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  const loadUsage = useCallback(async () => {
+    setUsageLoading(true);
+    const r = await fetch("/api/admin/gateway-usage");
+    if (r.ok) setUsage(await r.json());
+    setUsageLoading(false);
+  }, []);
+
+  const loadConfig = useCallback(async () => {
+    const r = await fetch("/api/admin/gateway-config");
+    if (r.ok) {
+      const d = await r.json();
+      setKillSwitchEnabled(d.killSwitchEnabled);
+      setCircuitOpen(d.circuitOpen);
+    }
+  }, []);
+
+  useEffect(() => { void load(); void loadUsage(); void loadConfig(); }, [load, loadUsage, loadConfig]);
+
+  async function toggleKillSwitch() {
+    if (killSwitchEnabled === null) return;
+    const next = !killSwitchEnabled;
+    if (next && !confirm("Enable the kill switch? This immediately blocks every Gateway request (SERVICE_DISABLED), for every partner, until disabled again.")) return;
+    setTogglingKillSwitch(true); setConfigError(null);
+    const r = await fetch("/api/admin/gateway-config", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: next }),
+    });
+    const d = await r.json();
+    setTogglingKillSwitch(false);
+    if (!r.ok) { setConfigError(d.error ?? "Failed to update kill switch."); return; }
+    setKillSwitchEnabled(d.killSwitchEnabled);
+  }
 
   async function createPartner() {
     if (!form.name.trim() || !form.contact_email.trim()) { setError("Name and contact email required."); return; }
@@ -125,6 +176,104 @@ export default function GatewayPartnersAdminPage() {
         </p>
 
         {error && <div style={{ ...cardStyle, borderColor: "rgba(255,90,90,0.4)", color: "#ff5a5a" }}>{error}</div>}
+
+        {/* Kill switch -- global, all-partners, server-side. Circuit state
+            shown read-only for context; not writable here (see the config
+            API route's own comment on why). */}
+        <div style={{ ...cardStyle, borderColor: killSwitchEnabled ? "rgba(255,90,90,0.4)" : undefined }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Gateway kill switch</div>
+          <p style={{ color: "#8fa3b8", fontSize: "0.8rem", margin: "0 0 12px" }}>
+            Enabling this blocks every Gateway request (SERVICE_DISABLED) for every partner immediately, server-side. Independent of any partner-level status.
+          </p>
+          {configError && <div style={{ color: "#ff5a5a", fontSize: "0.8rem", marginBottom: 10 }}>{configError}</div>}
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <span style={{ fontSize: "0.78rem", fontWeight: 700, color: killSwitchEnabled ? "#ff5a5a" : "#00e87a" }}>
+              {killSwitchEnabled === null ? "Loading…" : killSwitchEnabled ? "ENABLED — Gateway blocked" : "Disabled — Gateway live"}
+            </span>
+            <button
+              style={{ ...btnStyle, background: killSwitchEnabled ? "#ff5a5a" : "#00e87a" }}
+              disabled={killSwitchEnabled === null || togglingKillSwitch}
+              onClick={toggleKillSwitch}
+            >
+              {togglingKillSwitch ? "Updating…" : killSwitchEnabled ? "Disable kill switch" : "Enable kill switch"}
+            </button>
+            <span style={{ color: "#8fa3b8", fontSize: "0.75rem" }}>
+              Circuit state (read-only): {circuitOpen === null ? "…" : circuitOpen ? "open (blocking)" : "closed (normal)"}
+            </span>
+          </div>
+        </div>
+
+        {/* Usage + recent errors -- read-only operational visibility over
+            gateway_request_log (migration 084). No address/IP/key content
+            exists on that table to display, by construction. */}
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Usage &amp; recent errors</div>
+          <p style={{ color: "#8fa3b8", fontSize: "0.8rem", margin: "0 0 12px" }}>
+            Most recent {usage?.sampledRows ?? "…"} request{usage?.sampleCapped ? "+ (capped)" : ""} log entries.
+          </p>
+          {usageLoading ? <p style={{ color: "#8fa3b8" }}>Loading…</p> : !usage ? (
+            <p style={{ color: "#8fa3b8" }}>No usage data available.</p>
+          ) : (
+            <>
+              <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginBottom: 16 }}>
+                {Object.entries(usage.outcomeCounts).map(([outcome, count]) => (
+                  <div key={outcome} style={{ minWidth: 90 }}>
+                    <div style={{ fontSize: "1.3rem", fontWeight: 800, color: OUTCOME_COLOR[outcome] ?? "#f0f4ff" }}>{count}</div>
+                    <div style={{ fontSize: "0.7rem", color: "#8fa3b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>{outcome}</div>
+                  </div>
+                ))}
+                {Object.keys(usage.outcomeCounts).length === 0 && <span style={{ color: "#8fa3b8", fontSize: "0.85rem" }}>No requests logged yet.</span>}
+              </div>
+
+              {usage.byPartner.length > 0 && (
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", marginBottom: 16 }}>
+                  <thead>
+                    <tr style={{ color: "#8fa3b8", textAlign: "left" }}>
+                      <th style={{ padding: "4px 8px 4px 0" }}>Partner</th>
+                      <th style={{ padding: "4px 8px" }}>Requests</th>
+                      <th style={{ padding: "4px 8px" }}>Last request</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usage.byPartner.map((p) => (
+                      <tr key={p.partnerId ?? "unattributed"} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <td style={{ padding: "6px 8px 6px 0" }}>{p.name}</td>
+                        <td style={{ padding: "6px 8px" }}>{p.count}</td>
+                        <td style={{ padding: "6px 8px", color: "#8fa3b8" }}>{new Date(p.lastRequestAt).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              <div style={{ fontWeight: 700, fontSize: "0.85rem", marginBottom: 8 }}>Recent errors</div>
+              {usage.recentErrors.length === 0 ? (
+                <p style={{ color: "#8fa3b8", fontSize: "0.82rem" }}>No errors logged.</p>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
+                  <thead>
+                    <tr style={{ color: "#8fa3b8", textAlign: "left" }}>
+                      <th style={{ padding: "4px 8px 4px 0" }}>Time</th>
+                      <th style={{ padding: "4px 8px" }}>Partner</th>
+                      <th style={{ padding: "4px 8px" }}>Error</th>
+                      <th style={{ padding: "4px 8px" }}>Latency</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usage.recentErrors.map((e, i) => (
+                      <tr key={i} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <td style={{ padding: "6px 8px 6px 0", color: "#8fa3b8" }}>{new Date(e.createdAt).toLocaleString()}</td>
+                        <td style={{ padding: "6px 8px" }}>{e.partnerName ?? "(rejected before identity established)"}</td>
+                        <td style={{ padding: "6px 8px", color: "#ff5a5a", fontWeight: 700 }}>{e.errorCode}</td>
+                        <td style={{ padding: "6px 8px", color: "#8fa3b8" }}>{e.latencyMs != null ? `${e.latencyMs}ms` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
+          )}
+        </div>
 
         {/* Create partner */}
         <div style={cardStyle}>
