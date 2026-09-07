@@ -92,6 +92,11 @@ const isPublicRoute = createRouteMatcher([
   // every call before the route's own auth ever runs (same pattern as
   // /api/beta and /api/cron above).
   "/api/mcp/property-intelligence(.*)",
+  // Phase OA -- RFC 9728 OAuth Protected Resource Metadata (see
+  // next.config.mjs's rewrite + app/api/well-known/oauth-protected-resource).
+  // Must be public: an MCP client discovers this before it has any
+  // credential at all, let alone a Clerk session.
+  "/.well-known/oauth-protected-resource(.*)",
   // Deal room join — must be accessible before sign-in (token validates identity)
   "/deal-rooms/join(.*)",
   // HomeRates Lab — public scenario launcher

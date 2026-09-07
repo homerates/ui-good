@@ -39,9 +39,21 @@ function sha256Hex(input: string): string {
   return createHash('sha256').update(input, 'utf8').digest('hex');
 }
 
+export interface IssueCredentialOptions {
+  // Optional expiration for the issued credential. Omitted (the default)
+  // preserves exactly today's behavior -- expires_at stored as null,
+  // verifyCredential()'s existing expiry check (see below) never fires,
+  // and the credential never expires. Added for Phase OA to let a future
+  // OAuth token endpoint (Phase OB) mint a SHORT-LIVED credential as an
+  // OAuth access token, via this exact same function -- no parallel
+  // issuance path, no new credential format, no Gateway auth change.
+  expiresAt?: Date;
+}
+
 export async function issueCredential(
   partnerId: string,
   scopes: string[] = ['property_intelligence:read'],
+  options: IssueCredentialOptions = {},
 ): Promise<{ plaintextKey: string; prefix: string }> {
   if (scopes.length === 0) throw new Error('At least one scope is required.');
   const invalid = scopes.filter((s) => !(ALLOWED_GATEWAY_SCOPES as readonly string[]).includes(s));
@@ -71,6 +83,7 @@ export async function issueCredential(
     key_hash: keyHash,
     scopes,
     status: 'active',
+    expires_at: options.expiresAt ? options.expiresAt.toISOString() : null,
   });
   // key_prefix is UNIQUE at the DB level; a collision on 48 bits of random
   // prefix space for an admin-issued, small credential count is astronomically
