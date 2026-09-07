@@ -85,6 +85,13 @@ const isPublicRoute = createRouteMatcher([
   "/api/market-intelligence(.*)",
   // Beta test endpoints — guarded by BETA_ACCESS_KEY header check inside each route
   "/api/beta(.*)",
+  // HomeRates Intelligence Gateway V1 external adapter (Phase G, private pilot) —
+  // authenticated by its own Gateway partner-credential bearer check inside
+  // lib/gateway/intelligenceGateway.ts, not Clerk. An external AI platform has
+  // no Clerk session at all; without this entry, auth.protect() would reject
+  // every call before the route's own auth ever runs (same pattern as
+  // /api/beta and /api/cron above).
+  "/api/mcp/property-intelligence(.*)",
   // Deal room join — must be accessible before sign-in (token validates identity)
   "/deal-rooms/join(.*)",
   // HomeRates Lab — public scenario launcher
