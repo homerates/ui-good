@@ -22,6 +22,19 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  // Phase OA -- publishes /.well-known/oauth-protected-resource (RFC 9728)
+  // at a normal, unambiguous internal path rather than a literal dot-
+  // prefixed app/ folder, avoiding any framework/build-tool uncertainty
+  // around dotfile handling. See app/api/well-known/oauth-protected-resource/route.ts.
+  async rewrites() {
+    return [
+      {
+        source: "/.well-known/oauth-protected-resource",
+        destination: "/api/well-known/oauth-protected-resource",
+      },
+    ];
+  },
+
   async headers() {
     const noIndex = { key: "X-Robots-Tag", value: "noindex, nofollow" };
     return [
