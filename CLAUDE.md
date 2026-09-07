@@ -43,6 +43,16 @@
    repeating it. This was written after AD-11 Seam 1 was reported as "committed
    and pushed" when it was actually still untracked in the working tree.
 
+## Release Control
+
+- Development work is committed/pushed to `dev`.
+- Claude Code may create a `dev` → `main` PR only when explicitly instructed.
+- Creating a PR does NOT authorize merging it.
+- Claude Code must never run `gh pr merge`, enable auto-merge, or otherwise merge into `main` unless the user explicitly instructs it to merge a specific PR.
+- Production merge is a separate human-controlled release decision.
+- If merge authorization is ambiguous, stop and report.
+- Do not push directly to `main`.
+
 ## CRM Hard Rules
 
 **Applies to every migration, API route, TypeScript type, and prompt-construction function
