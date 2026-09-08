@@ -1,17 +1,19 @@
 // app/api/oauth/authorize/route.ts
 //
 // Phase OB -- OAuth 2.1 authorization endpoint. Visited by a real human
-// browser (redirected here by ChatGPT's OAuth flow), NOT by ChatGPT's
-// backend directly -- unlike /api/oauth/token and the metadata routes,
-// this route is deliberately NOT in middleware.ts's public allowlist. It
-// stays behind Clerk's default auth.protect(), then this handler's own
-// requireAdmin() check, exactly like the existing /api/admin/* routes
-// (lib/adminAuth.ts). An anonymous internet visitor cannot reach the
-// consent screen at all: Clerk's middleware redirects a signed-out browser
-// to sign-in first; requireAdmin() additionally rejects any signed-in
-// non-admin Clerk user. No new consumer identity system, no OIDC, no
+// browser (redirected here by ChatGPT's OAuth flow, typically a fresh,
+// sandboxed in-app browser with no pre-existing HomeRates session at all),
+// NOT by ChatGPT's backend directly. This route IS in middleware.ts's
+// public allowlist -- Clerk's own auth.protect() throws a raw
+// NEXT_HTTP_ERROR_FALLBACK;404 (not a redirect) for a Route Handler with no
+// session, proven live 2026-09-08, so it can't be the outer gate here.
+// GET does its own auth() check instead: no session -> redirectToSignIn()
+// (Clerk's own real sign-in flow, returning here after); session but not
+// admin -> flat 403, same shape as every other admin route
+// (lib/adminAuth.ts). No new consumer identity system, no OIDC, no
 // borrower-adjacent account linking -- the only "user" this endpoint knows
-// about is the existing HomeRates admin.
+// about is the existing HomeRates admin, and reaching the consent screen
+// still always requires a real admin sign-in.
 //
 // THIN ON PURPOSE -- all real validation/rendering logic lives in
 // lib/gateway/oauthAuthorize.ts, not here. Next.js's App Router strictly
@@ -33,7 +35,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '../../../../lib/adminAuth';
+import { auth } from '@clerk/nextjs/server';
+import { requireAdmin, isAdminId } from '../../../../lib/adminAuth';
 import { storeAuthorizationCode } from '../../../../lib/gateway/oauth';
 import { validate, redirectWithError, consentPage } from '../../../../lib/gateway/oauthAuthorize';
 
@@ -41,8 +44,26 @@ export async function GET(req: NextRequest) {
   const result = await validate(req.nextUrl.searchParams);
   if (!result.ok) return result.response;
 
-  const admin = await requireAdmin();
-  if (admin.error) return admin.error;
+  // GET-only: distinguish "no Clerk session at all" from "signed in but not
+  // admin" -- requireAdmin() bundles both into one flat 403, which broke
+  // every real ChatGPT connection attempt (proven live 2026-09-08):
+  // ChatGPT's OAuth step opens a fresh, sandboxed in-app browser with no
+  // pre-existing HomeRates session, and a flat 403 gave the pilot admin no
+  // way to establish one. auth()'s own redirectToSignIn({ returnBackUrl })
+  // is Clerk's first-class, documented mechanism for exactly this --
+  // req.url is the SAME request validate() already vetted above (client_id,
+  // redirect_uri, PKCE, scope, resource all checked), so the return
+  // destination is always same-origin and already-validated, never an
+  // open-redirect risk. POST is intentionally untouched: by the time a
+  // POST happens the admin already has a session from this GET round-trip,
+  // so requireAdmin() there works exactly as before.
+  const { userId, redirectToSignIn } = await auth();
+  if (!userId) {
+    return redirectToSignIn({ returnBackUrl: req.url });
+  }
+  if (!(await isAdminId(userId))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   return consentPage(result.value);
 }
