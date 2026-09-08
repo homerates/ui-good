@@ -141,6 +141,9 @@ const isPublicRoute = createRouteMatcher([
   "/track5-intelligence",
   "/ai-coach",
   "/property-intelligence",
+  // Property Intelligence Search — human-facing entry page (companion to
+  // the machine-facing /api/mcp/property-intelligence), public, no auth
+  "/property-intelligence-search",
   // Tools — public with client-side auth gating
   "/check-property(.*)",
   "/jumbo-calculator(.*)",
