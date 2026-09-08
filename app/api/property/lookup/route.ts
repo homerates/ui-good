@@ -17,6 +17,7 @@ import { isPlausibleSaleYear } from '../../../../lib/dateSanity';
 import { historicalRate, remainingBalance, monthsAgo, fhfaRate } from '../../../../lib/homeownerCalc';
 import { computeAvmTier } from '../../../../lib/propertyAvm';
 import { addressesMatchLoosely, addressPrefixTokens } from '../../../../lib/addressNormalize';
+import { validatePropertyIdentity, type CandidateAddressFields } from '../../../../lib/addressIdentity';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 
@@ -1179,20 +1180,40 @@ async function handleAddress(rawAddress: string) {
     if (redfinUrl) {
         console.log('[property/lookup] found Redfin URL via Tavily for', rawAddress);
         const result = await handleUrl(redfinUrl);
+        // Identity gate (2026-09-08): findRedfinUrl()'s own slugMatchesAddress()
+        // check is a fast pre-filter on the SEARCH RESULT URL, not a guarantee --
+        // it explicitly falls through to "allow" when a slug doesn't parse. This
+        // is the real, final gate on the EXTRACTED candidate before it can ever
+        // be persisted or shown as this address's result. See lib/addressIdentity.ts.
+        let identityFailed = false;
         try {
             const body = await result.clone().json();
             if (body?.ok && body?.data) {
-                void cachePropertyResult(rawAddress, body.data, body.data.source ?? 'redfin_via_tavily');
+                const identity = validatePropertyIdentity(rawAddress, body.data as CandidateAddressFields);
+                console.log('[address-identity]', { code: identity.code, branch: 'redfin_url' });
+                if (identity.ok) {
+                    void cachePropertyResult(rawAddress, body.data, body.data.source ?? 'redfin_via_tavily');
+                } else {
+                    identityFailed = true;
+                }
             }
         } catch (e: unknown) { log.warn('[PropertyLookup] Post-lookup cache write failed (non-blocking)', { error: (e as Error)?.message }); }
-        return result;
+        // A rejected candidate is never persisted AND never returned to any
+        // caller (internal or external) as this address's result -- fall
+        // through to broad search exactly as if this branch found nothing,
+        // rather than silently show the wrong property.
+        if (!identityFailed) return result;
     }
 
     console.log('[property/lookup] no Redfin URL found, trying broad search for', rawAddress);
     const broadData = await broadSearchFallback(rawAddress);
     if (broadData) {
-        void cachePropertyResult(rawAddress, broadData, 'web_search');
-        return NextResponse.json({ ok: true, data: broadData });
+        const identity = validatePropertyIdentity(rawAddress, broadData as CandidateAddressFields);
+        console.log('[address-identity]', { code: identity.code, branch: 'broad_search' });
+        if (identity.ok) {
+            void cachePropertyResult(rawAddress, broadData, 'web_search');
+            return NextResponse.json({ ok: true, data: broadData });
+        }
     }
 
     return NextResponse.json({
