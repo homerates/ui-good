@@ -108,6 +108,29 @@ function jsonRpcError(id: string | number | null | undefined, code: number, mess
   return NextResponse.json({ jsonrpc: '2.0', id: id ?? null, error: { code, message, ...(data !== undefined ? { data } : {}) } }, { status });
 }
 
+// TEMPORARY DIAGNOSTIC (added 2026-09-08, remove once the real ChatGPT
+// tools/call rejection cause is found) -- logs ONLY protocol-level
+// metadata: method name, whether the request is a notification, the three
+// MCP headers, and which _meta keys are present (never their values, since
+// clientCapabilities is caller-defined and could in principle carry
+// arbitrary caller data). Never logs Authorization, address, arguments,
+// or any Gateway/credential data.
+function logRejection(reason: string, req: NextRequest, body: Partial<JsonRpcRequest> | null) {
+  console.log('[mcp-diagnostic]', JSON.stringify({
+    reason,
+    method: body?.method ?? null,
+    hasId: !!(body && 'id' in body),
+    headers: {
+      'mcp-protocol-version': req.headers.get('mcp-protocol-version'),
+      'mcp-method': req.headers.get('mcp-method'),
+      'mcp-name': req.headers.get('mcp-name'),
+      'content-type': req.headers.get('content-type'),
+      'user-agent': req.headers.get('user-agent'),
+    },
+    metaKeysPresent: body?.params?._meta ? Object.keys(body.params._meta) : null,
+  }));
+}
+
 function extractBearerToken(req: NextRequest): string | null {
   const header = req.headers.get('authorization');
   if (!header) return null;
@@ -141,20 +164,25 @@ function validateModernRequest(req: NextRequest, body: JsonRpcRequest, requireNa
 
   // Required standard headers missing/malformed -> HeaderMismatch (-32020), 400.
   if (!headerProtocolVersion) {
+    logRejection('missing MCP-Protocol-Version header', req, body);
     return jsonRpcError(id, -32020, 'Missing required header: MCP-Protocol-Version', 400);
   }
   if (!headerMethod) {
+    logRejection('missing Mcp-Method header', req, body);
     return jsonRpcError(id, -32020, 'Missing required header: Mcp-Method', 400);
   }
   if (headerMethod !== method) {
+    logRejection('Mcp-Method header/body mismatch', req, body);
     return jsonRpcError(id, -32020, `Header mismatch: Mcp-Method header value '${headerMethod}' does not match body value '${method}'`, 400);
   }
   if (requireName) {
     const bodyName = params?.name;
     if (!headerName) {
+      logRejection('missing Mcp-Name header', req, body);
       return jsonRpcError(id, -32020, 'Missing required header: Mcp-Name', 400);
     }
     if (headerName !== bodyName) {
+      logRejection('Mcp-Name header/body mismatch', req, body);
       return jsonRpcError(id, -32020, `Header mismatch: Mcp-Name header value '${headerName}' does not match body value '${String(bodyName)}'`, 400);
     }
   }
@@ -163,20 +191,24 @@ function validateModernRequest(req: NextRequest, body: JsonRpcRequest, requireNa
   // a malformed request (-32602 Invalid params, 400), distinct from a
   // header/body mismatch.
   if (bodyProtocolVersion === undefined) {
+    logRejection('missing _meta.protocolVersion', req, body);
     return jsonRpcError(id, -32602, 'Missing required _meta field: io.modelcontextprotocol/protocolVersion', 400);
   }
   if (bodyClientCapabilities === undefined) {
+    logRejection('missing _meta.clientCapabilities', req, body);
     return jsonRpcError(id, -32602, 'Missing required _meta field: io.modelcontextprotocol/clientCapabilities', 400);
   }
 
   // Header must match body (source of truth is the body; the header is a
   // mirror an intermediary can inspect without parsing it).
   if (headerProtocolVersion !== bodyProtocolVersion) {
+    logRejection('MCP-Protocol-Version header/body mismatch', req, body);
     return jsonRpcError(id, -32020, `Header mismatch: MCP-Protocol-Version header value '${headerProtocolVersion}' does not match body value '${String(bodyProtocolVersion)}'`, 400);
   }
 
   // Unsupported version -- distinct error/code from a header/body mismatch.
   if (bodyProtocolVersion !== SUPPORTED_PROTOCOL_VERSION) {
+    logRejection('unsupported protocol version', req, body);
     return jsonRpcError(id, -32022, `Unsupported protocol version: ${String(bodyProtocolVersion)}`, 400, { supported: [SUPPORTED_PROTOCOL_VERSION] });
   }
 
@@ -208,10 +240,12 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
+    logRejection('JSON parse error', req, null);
     return jsonRpcError(null, -32700, 'Parse error', 400);
   }
 
   if (!body || body.jsonrpc !== '2.0' || typeof body.method !== 'string') {
+    logRejection('invalid top-level JSON-RPC shape (jsonrpc/method)', req, body);
     return jsonRpcError(body?.id, -32600, 'Invalid Request', 400);
   }
 
@@ -319,5 +353,6 @@ export async function POST(req: NextRequest) {
   // notification naming an unknown method still gets no body (202) per
   // JSON-RPC notification semantics, checked first.
   if (isNotification) return new NextResponse(null, { status: 202 });
+  logRejection('unknown method', req, body);
   return jsonRpcError(id, -32601, `Method not found: ${method}`, 404);
 }
