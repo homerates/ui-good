@@ -18,17 +18,26 @@
 // a single {address: string} input doesn't need, this route hand-implements
 // the MCP wire protocol directly. No new npm dependency was added.
 //
-// PROTOCOL REVISION -- 2026-07-28, verified directly against the
-// authoritative spec (modelcontextprotocol.io/specification/2026-07-28),
-// not assumed from memory. This revision removed the connection-scoped
-// `initialize` handshake and protocol-level sessions entirely: MCP is now
-// fully stateless, and every request carries its own protocol version and
-// client capabilities in the JSON-RPC body's `_meta` object, mirrored into
-// three HTTP headers (MCP-Protocol-Version, Mcp-Method, Mcp-Name) that
-// intermediaries can inspect without parsing the body. There is no
-// `server/discover` method in the real spec -- verified across the base
-// protocol, transports, and Streamable HTTP pages, none of which mention
-// it. Tool discovery is (and remains) `tools/list`.
+// PROTOCOL REVISION -- 2026-07-28 was verified directly against the
+// authoritative spec (modelcontextprotocol.io/specification/2026-07-28) as
+// the current documented revision during Phase G research, and that page
+// does describe a fully stateless model where every request carries its
+// own protocol version and client capabilities in the JSON-RPC body's
+// `_meta` object, mirrored into three HTTP headers (MCP-Protocol-Version,
+// Mcp-Method, Mcp-Name). RELAXED 2026-09-08 against real, direct production
+// evidence: ChatGPT's actual MCP client (`openai-mcp/1.0.0`) sends protocol
+// version 2025-11-25, only the MCP-Protocol-Version header (no Mcp-Method,
+// no Mcp-Name), and NO `_meta` object in the body at all -- confirmed via
+// temporary diagnostic logging on a real rejected tools/list call, not
+// speculation. Whatever the spec page says, no real client sends that
+// shape yet, so this adapter now validates leniently: Mcp-Method/Mcp-Name/
+// `_meta` are accepted and checked for header/body agreement WHEN present,
+// never required; protocol version is read from either the header or
+// `_meta` (whichever exists) and checked against a supported-versions list
+// that now includes both revisions. There is no `server/discover` method
+// in the real spec -- verified across the base protocol, transports, and
+// Streamable HTTP pages, none of which mention it. Tool discovery is (and
+// remains) `tools/list`.
 //
 // LEGACY HANDSHAKE -- kept as a narrow, clearly-isolated fallback, not the
 // primary flow. Real-world MCP client behavior as of this session could not
@@ -70,7 +79,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPropertyIntelligence } from '../../../../lib/gateway/intelligenceGateway';
 
 const TOOL_NAME = 'get_property_intelligence';
-const SUPPORTED_PROTOCOL_VERSION = '2026-07-28';
+// Both revisions accepted -- 2025-11-25 is what real production clients
+// (ChatGPT's openai-mcp/1.0.0) actually send for tools/list today; the
+// SAME client also sends a fully modern 2026-07-28 server/discover request
+// (confirmed live 2026-09-08) -- both are genuinely real traffic, not
+// speculative. See validateModernRequest()'s header comment for exactly
+// which validation applies to which.
+const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2026-07-28'];
+const LEGACY_LENIENT_PROTOCOL_VERSION = '2025-11-25';
 const SERVER_INFO = { name: 'homerates-property-intelligence', version: '1.0.0' };
 
 const TOOL_DESCRIPTION =
@@ -146,11 +162,28 @@ function extractRequestIp(req: NextRequest): string {
   return forwarded?.split(',')[0]?.trim() || '0.0.0.0';
 }
 
-// Modern per-request validation (spec section "Request Metadata" /
-// "Server Validation"). Returns an error Response to send, or null if the
-// request is valid and dispatch should proceed. `requireName`: whether
-// Mcp-Name / params.name agreement is required for this method (true for
-// tools/call, false for tools/list).
+// Modern per-request validation, VERSION-AWARE as of 2026-09-08 against
+// real production evidence from two distinct ChatGPT requests -- see the
+// file header's PROTOCOL REVISION note for the full story:
+//   - 2025-11-25 tools/list: only the MCP-Protocol-Version header, no
+//     Mcp-Method/Mcp-Name, no `_meta` at all.
+//   - 2026-07-28 server/discover: full modern shape -- MCP-Protocol-Version
+//     + Mcp-Method headers, `_meta` with protocolVersion/clientInfo/
+//     clientCapabilities.
+// The MCP-Protocol-Version header itself is the one thing BOTH real
+// requests always sent, so it stays unconditionally required regardless of
+// generation -- it's what selects which branch below even runs. Real
+// 2026-07-28 traffic sends the full modern shape, so that generation keeps
+// STRICT validation exactly as originally designed. Real 2025-11-25
+// traffic sends nothing else, so that generation is validated LENIENTLY:
+// Mcp-Method/Mcp-Name/`_meta` are never required, and the JSON-RPC body's
+// own `method`/`params.name` are authoritative (which the caller already
+// dispatches on regardless).
+// Returns an error Response to send, or null if the request is valid and
+// dispatch should proceed. `requireName`: whether Mcp-Name / params.name
+// agreement is required under the STRICT (2026-07-28) path -- true only
+// for tools/call; server/discover and tools/list need no principal name
+// (per the spec's own server/discover page, which requires no such field).
 function validateModernRequest(req: NextRequest, body: JsonRpcRequest, requireName: boolean): NextResponse | null {
   const { id, method, params } = body;
 
@@ -159,14 +192,27 @@ function validateModernRequest(req: NextRequest, body: JsonRpcRequest, requireNa
   const headerName = req.headers.get('mcp-name');
 
   const meta = params?._meta as Record<string, unknown> | undefined;
-  const bodyProtocolVersion = meta?.['io.modelcontextprotocol/protocolVersion'];
+  const bodyProtocolVersion = meta?.['io.modelcontextprotocol/protocolVersion'] as string | undefined;
   const bodyClientCapabilities = meta?.['io.modelcontextprotocol/clientCapabilities'];
 
-  // Required standard headers missing/malformed -> HeaderMismatch (-32020), 400.
   if (!headerProtocolVersion) {
     logRejection('missing MCP-Protocol-Version header', req, body);
     return jsonRpcError(id, -32020, 'Missing required header: MCP-Protocol-Version', 400);
   }
+  if (!SUPPORTED_PROTOCOL_VERSIONS.includes(headerProtocolVersion)) {
+    logRejection('unsupported protocol version', req, body);
+    return jsonRpcError(id, -32022, `Unsupported protocol version: ${headerProtocolVersion}`, 400, { supported: SUPPORTED_PROTOCOL_VERSIONS });
+  }
+
+  // LENIENT path -- real 2025-11-25 traffic sends nothing beyond the one
+  // header; body method/name are already authoritative for dispatch.
+  if (headerProtocolVersion === LEGACY_LENIENT_PROTOCOL_VERSION) {
+    return null;
+  }
+
+  // STRICT path (2026-07-28) -- full header/_meta validation, unchanged
+  // from the original design, since real traffic at this version sends
+  // the full shape.
   if (!headerMethod) {
     logRejection('missing Mcp-Method header', req, body);
     return jsonRpcError(id, -32020, 'Missing required header: Mcp-Method', 400);
@@ -186,10 +232,6 @@ function validateModernRequest(req: NextRequest, body: JsonRpcRequest, requireNa
       return jsonRpcError(id, -32020, `Header mismatch: Mcp-Name header value '${headerName}' does not match body value '${String(bodyName)}'`, 400);
     }
   }
-
-  // Required body _meta fields (per-request protocol fields) -- absence is
-  // a malformed request (-32602 Invalid params, 400), distinct from a
-  // header/body mismatch.
   if (bodyProtocolVersion === undefined) {
     logRejection('missing _meta.protocolVersion', req, body);
     return jsonRpcError(id, -32602, 'Missing required _meta field: io.modelcontextprotocol/protocolVersion', 400);
@@ -198,18 +240,9 @@ function validateModernRequest(req: NextRequest, body: JsonRpcRequest, requireNa
     logRejection('missing _meta.clientCapabilities', req, body);
     return jsonRpcError(id, -32602, 'Missing required _meta field: io.modelcontextprotocol/clientCapabilities', 400);
   }
-
-  // Header must match body (source of truth is the body; the header is a
-  // mirror an intermediary can inspect without parsing it).
-  if (headerProtocolVersion !== bodyProtocolVersion) {
+  if (headerProtocolVersion !== null && headerProtocolVersion !== bodyProtocolVersion) {
     logRejection('MCP-Protocol-Version header/body mismatch', req, body);
-    return jsonRpcError(id, -32020, `Header mismatch: MCP-Protocol-Version header value '${headerProtocolVersion}' does not match body value '${String(bodyProtocolVersion)}'`, 400);
-  }
-
-  // Unsupported version -- distinct error/code from a header/body mismatch.
-  if (bodyProtocolVersion !== SUPPORTED_PROTOCOL_VERSION) {
-    logRejection('unsupported protocol version', req, body);
-    return jsonRpcError(id, -32022, `Unsupported protocol version: ${String(bodyProtocolVersion)}`, 400, { supported: [SUPPORTED_PROTOCOL_VERSION] });
+    return jsonRpcError(id, -32020, `Header mismatch: MCP-Protocol-Version header value '${headerProtocolVersion}' does not match body value '${bodyProtocolVersion}'`, 400);
   }
 
   return null;
@@ -267,6 +300,26 @@ export async function POST(req: NextRequest) {
   }
 
   // ---- MODERN PROTOCOL (2026-07-28), stateless, per-request metadata ----
+
+  // server/discover -- confirmed as a real, MUST-implement 2026-07-28
+  // method via a direct fetch of modelcontextprotocol.io/specification/
+  // 2026-07-28/server/discover on 2026-09-08 (this page did not exist, or
+  // was not found, during Phase G's original spec research -- the spec has
+  // since been extended). Discovery only: no principal name needed (same
+  // as tools/list), no Gateway/property-lookup work, no auth. Advertises
+  // only the capabilities this server actually has -- `tools` alone, never
+  // resources/prompts/sampling/etc. -- and the exact supported-versions
+  // list this adapter really accepts.
+  if (method === 'server/discover') {
+    const invalid = validateModernRequest(req, body, false);
+    if (invalid) return invalid;
+    return jsonRpcResult(id, withServerMeta({
+      resultType: 'complete',
+      supportedVersions: SUPPORTED_PROTOCOL_VERSIONS,
+      capabilities: { tools: {} },
+    }));
+  }
+
   if (method === 'tools/list') {
     const invalid = validateModernRequest(req, body, false);
     if (invalid) return invalid;

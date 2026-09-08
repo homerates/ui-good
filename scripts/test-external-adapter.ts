@@ -320,6 +320,68 @@ async function main() {
       record('Conformance', 'unknown method -> HTTP 404 + JSON-RPC -32601', r.status === 404 && r.json?.error?.code === -32601 ? 'PASS' : 'FAIL', JSON.stringify(r.json));
     }
 
+    // ===== Version-aware validation (added 2026-09-08) -- reproduces the
+    // EXACT two real ChatGPT request shapes observed live in production:
+    // a 2025-11-25 tools/list with only the MCP-Protocol-Version header
+    // (no Mcp-Method/Mcp-Name/_meta at all), and a 2026-07-28
+    // server/discover with the full modern shape. See
+    // validateModernRequest()'s own header comment in route.ts for why
+    // these two generations are validated differently. =====
+
+    // Test A / F -- real 2025-11-25 tools/list shape: header only, no
+    // Mcp-Method, no Mcp-Name, no _meta. Must succeed, not be rejected
+    // merely because Mcp-Method is absent.
+    {
+      const body = { jsonrpc: '2.0', id: 100, method: 'tools/list' };
+      const r = await callAdapter(body, { 'mcp-protocol-version': '2025-11-25' });
+      const ok = r.status === 200 && Array.isArray(r.json?.result?.tools) && r.json.result.tools.length === 1 && r.json.result.tools[0].name === TOOL_NAME;
+      record('Version-aware', 'A/F: real 2025-11-25 tools/list (no Mcp-Method/Mcp-Name/_meta) -> 200, exactly one tool', ok ? 'PASS' : 'FAIL', JSON.stringify(r.json));
+    }
+
+    // Test B -- real 2026-07-28 server/discover shape: Mcp-Method header +
+    // full _meta (protocolVersion, clientInfo, clientCapabilities).
+    {
+      const body = {
+        jsonrpc: '2.0', id: 101, method: 'server/discover',
+        params: { _meta: { 'io.modelcontextprotocol/protocolVersion': PROTOCOL_VERSION, 'io.modelcontextprotocol/clientInfo': { name: 'test-client', version: '1.0.0' }, 'io.modelcontextprotocol/clientCapabilities': {} } },
+      };
+      const r = await callAdapter(body, { 'mcp-protocol-version': PROTOCOL_VERSION, 'mcp-method': 'server/discover' });
+      const ok = r.status === 200 && r.json?.result?.resultType === 'complete' && Array.isArray(r.json.result.supportedVersions) && r.json.result.supportedVersions.includes('2025-11-25') && r.json.result.supportedVersions.includes('2026-07-28') && JSON.stringify(r.json.result.capabilities) === JSON.stringify({ tools: {} });
+      record('Version-aware', 'B: real 2026-07-28 server/discover -> 200, correct capabilities/supportedVersions', ok ? 'PASS' : 'FAIL', JSON.stringify(r.json));
+      const noUnsupportedCapabilities = !/resources|prompts|sampling|elicitation|subscriptions|tasks/i.test(JSON.stringify(r.json?.result?.capabilities ?? {}));
+      record('Version-aware', 'B: server/discover advertises ONLY tools, no unsupported capabilities', noUnsupportedCapabilities ? 'PASS' : 'FAIL', JSON.stringify(r.json?.result?.capabilities));
+    }
+
+    // Test C -- 2026-07-28 tools/list with full modern headers (already
+    // covered by the earlier Conformance tests, re-asserted here for
+    // completeness alongside the other lettered cases).
+    {
+      const r = await callAdapter(toolsListBody(102), mcpHeaders('tools/list', null));
+      record('Version-aware', 'C: 2026-07-28 tools/list with modern headers -> 200', r.status === 200 && Array.isArray(r.json?.result?.tools) ? 'PASS' : 'FAIL', JSON.stringify(r.json).slice(0, 150));
+    }
+
+    // Test D -- 2026-07-28 tools/call, existing Gateway behavior unchanged.
+    if (availableAddress) {
+      const key = await freshCred();
+      const body = toolsCallBody(103, TOOL_NAME, { address: availableAddress });
+      const r = await callAdapter(body, { ...mcpHeaders('tools/call', TOOL_NAME), ...authHeaders(key, '203.0.113.90') });
+      const data = r.json?.result?.content?.[0]?.text ? JSON.parse(r.json.result.content[0].text) : null;
+      record('Version-aware', 'D: 2026-07-28 tools/call -> existing Gateway behavior unchanged (AVAILABLE)', r.status === 200 && data?.availability?.status === 'AVAILABLE' ? 'PASS' : 'FAIL', JSON.stringify(r.json).slice(0, 150));
+    }
+
+    // Test E -- 2026-07-28 header/body mismatch still rejected (strict
+    // path unweakened by the 2025-11-25 leniency).
+    {
+      const r = await callAdapter(toolsListBody(104), mcpHeaders('tools/call', null)); // header says tools/call, body says tools/list
+      record('Version-aware', 'E: 2026-07-28 header/body mismatch -> 400 protocol error', r.status === 400 && r.json?.error?.code === -32020 ? 'PASS' : 'FAIL', JSON.stringify(r.json));
+    }
+
+    // Unsupported/unknown protocol version entirely (neither generation).
+    {
+      const r = await callAdapter({ jsonrpc: '2.0', id: 105, method: 'tools/list' }, { 'mcp-protocol-version': '1999-01-01' });
+      record('Version-aware', 'unknown protocol version (neither supported generation) -> 400 -32022', r.status === 400 && r.json?.error?.code === -32022 ? 'PASS' : 'FAIL', JSON.stringify(r.json));
+    }
+
     // ===== §14-equivalent DIRECT ADAPTER TESTS, re-run against the modern protocol =====
     console.log('\n=== DIRECT ADAPTER TESTS (modern protocol) ===');
 
