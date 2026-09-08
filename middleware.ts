@@ -102,12 +102,27 @@ const isPublicRoute = createRouteMatcher([
   "/.well-known/oauth-authorization-server(.*)",
   // Phase OB -- OAuth token endpoint. Called directly by ChatGPT's backend
   // with client_id/client_secret in the request body -- no Clerk session at
-  // all, same pattern as /api/mcp/property-intelligence above. NOTE:
-  // /api/oauth/authorize is deliberately NOT listed here -- it is visited
-  // by a human browser (redirected there by ChatGPT) and must stay behind
-  // Clerk's default auth.protect() + this route's own requireAdmin() check,
-  // exactly like the existing /api/admin/* routes.
+  // all, same pattern as /api/mcp/property-intelligence above.
   "/api/oauth/token(.*)",
+  // Phase OB fix (proven live 2026-09-08 via a real ChatGPT connection
+  // attempt) -- /api/oauth/authorize was originally left OFF this list on
+  // the assumption that Clerk's auth.protect() would gracefully redirect a
+  // signed-out browser to sign-in, same as /api/admin/* pages. That
+  // assumption was wrong for this route: this codebase's /api/cron entry
+  // above already documents that auth.protect() throws a raw
+  // NEXT_HTTP_ERROR_FALLBACK;404 (not a redirect) for a Route Handler when
+  // no Clerk session is present -- /api/admin/* rarely hits that failure
+  // path in practice (Rayaan is normally already signed in), but a request
+  // arriving via a cross-site redirect from chatgpt.com hit it directly,
+  // and the resulting crash meant storeAuthorizationCode() was never even
+  // reached (confirmed: zero new rows in gateway_oauth_codes across the
+  // whole failed attempt). The real authorization decision was never
+  // Clerk's middleware gate -- it's requireAdmin() inside the route itself
+  // (same as every /api/admin/* route), which still fully rejects a
+  // non-admin or signed-out caller with a clean 403. Making this public
+  // only removes a redundant, fragile outer gate; it does not weaken who
+  // can approve an authorization request.
+  "/api/oauth/authorize(.*)",
   // Deal room join — must be accessible before sign-in (token validates identity)
   "/deal-rooms/join(.*)",
   // HomeRates Lab — public scenario launcher
