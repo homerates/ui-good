@@ -52,6 +52,8 @@ import { issueCredential, revokeCredential } from '../lib/gateway/credentials';
 import { getPropertyIntelligenceCorpusOnly } from '../lib/gateway/corpusOnlyIntelligence';
 import { getPropertyIntelligenceData } from '../lib/propertyIntelligence';
 import { ExternalPropertyIntelligenceV1Schema } from '../lib/gateway/outputSchema';
+import { shapeForExternalContract } from '../lib/gateway/outputShaping';
+import { resolvePropertyId } from '../lib/gateway/intelligenceGateway';
 import { POST } from '../app/api/mcp/property-intelligence/route';
 
 function sha256Hex(s: string) { return createHash('sha256').update(s, 'utf8').digest('hex'); }
@@ -69,6 +71,53 @@ function record(category: string, name: string, status: Status, evidence: string
 
 const ROUTE_URL = 'http://localhost/api/mcp/property-intelligence';
 const PROTOCOL_VERSION = '2026-07-28';
+
+// Phase 1 (2026-09-08, demand-driven external resolution) CHANGE: the route
+// now calls resolveExternalPropertyIntelligence() (lib/externalPropertyResolution.ts),
+// which -- ONLY on a NOT_AVAILABLE result -- makes one real self-fetch to the
+// live /api/property/lookup endpoint, which itself makes real paid Tavily/
+// GPT-4o calls. Every pre-existing test below that uses the sentinel
+// nonexistentAddr fixture for unrelated control-plane assertions (auth,
+// scope, rate-limit, circuit breaker, kill switch, leakage, adversarial) has
+// nothing to do with resolution behavior -- without this interception, every
+// run of this suite would burn real external-provider cost and real network
+// latency against a garbage address, dozens of times, and (confirmed live)
+// the added latency was enough to shift the rate-limit-burst test's timing
+// and break it. Intercepted by DEFAULT (canned NOT_AVAILABLE-preserving
+// response, zero real cost). The dedicated Resolution test block below
+// installs `resolutionFetchHandler` for its own scope only, then clears it
+// immediately after -- a fully controlled/mocked stand-in for
+// /api/property/lookup (never real Tavily/GPT-4o), so those tests exercise
+// lib/externalPropertyResolution.ts's real logic deterministically without
+// live-provider flakiness or cost. Phase 9 (separately) is where one real,
+// live address is used for genuine end-to-end validation on dev.
+let interceptResolutionFetch = true;
+let resolutionFetchCallCount = 0;
+// Held in a mutable ref object (not a bare `let`) so re-pointing `.handler`
+// from a later test block is unambiguous for both us and the type checker.
+type ResolutionMockHandler = (address: string) => Promise<{ status: number; body: unknown }>;
+const resolutionMock: { handler: ResolutionMockHandler | null } = { handler: null };
+const realFetch = globalThis.fetch;
+globalThis.fetch = (async (input: any, init?: any) => {
+  const url = typeof input === 'string' ? input : input?.url ?? String(input);
+  if (url.includes('/api/property/lookup')) {
+    if (resolutionMock.handler) {
+      resolutionFetchCallCount += 1;
+      let address = '';
+      try { address = JSON.parse(String(init?.body ?? '{}')).address ?? ''; } catch { /* noop */ }
+      const { status, body } = await resolutionMock.handler(address);
+      return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+    }
+    if (interceptResolutionFetch) {
+      resolutionFetchCallCount += 1;
+      return new Response(JSON.stringify({ ok: false, error: 'test-harness: resolution not attempted (intercepted)' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+  }
+  return realFetch(input, init);
+}) as typeof fetch;
 
 async function callAdapter(rpcBody: Record<string, unknown>, headers: Record<string, string> = {}) {
   const req = new NextRequest(ROUTE_URL, {
@@ -119,6 +168,7 @@ async function main() {
   if (!sb) throw new Error('Supabase not configured.');
 
   const partnerIds: string[] = [];
+  const resolutionTestPropertyIds: string[] = [];
 
   console.log('=== FIXTURE SETUP ===');
   const { data: partner } = await sb.from('gateway_partners').insert({ name: 'Phase G Adapter Test Partner', contact_email: 'gateway-validation@homerates.ai' }).select('*').single();
@@ -481,9 +531,25 @@ async function main() {
 
     // no paid/live provider path (structural)
     {
+      // Phase 1 CHANGE (2026-09-08): the route now imports
+      // lib/externalPropertyResolution.ts instead of the Gateway directly --
+      // that file's job is to call the UNCHANGED Gateway first and, only on
+      // NOT_AVAILABLE, self-fetch the existing first-party lookup route (the
+      // one deliberate, documented exception to "no live/paid provider
+      // reference" this task adds -- see that file's own header). Updated
+      // check has two parts: (1) the route itself references neither a
+      // provider name nor the Gateway directly -- it goes through the
+      // orchestrator only; (2) the orchestrator's own import list contains
+      // no direct Tavily/Grok/OpenAI/Redfin client import -- its only
+      // external contact is the one code-commented self-fetch by URL string.
       const routeSource = fs.readFileSync(path.resolve(process.cwd(), 'app/api/mcp/property-intelligence/route.ts'), 'utf8');
-      const onlyGatewayImport = routeSource.includes("from '../../../../lib/gateway/intelligenceGateway'") && !/propertyIntelligence['"]|grok|tavily|redfin/i.test(routeSource.replace(/\/\/.*$/gm, ''));
-      record('14.14', 'adapter route imports only the Gateway, no live/paid provider reference', onlyGatewayImport ? 'PASS' : 'FAIL', 'source-inspected, comments stripped before scanning');
+      const resolutionSource = fs.readFileSync(path.resolve(process.cwd(), 'lib/externalPropertyResolution.ts'), 'utf8');
+      const routeCodeOnly = routeSource.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+      const resolutionCodeOnly = resolutionSource.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+      const routeOnlyImportsResolution = routeSource.includes("from '../../../../lib/externalPropertyResolution'") && !/propertyIntelligence['"]|grok|tavily|redfin|openai/i.test(routeCodeOnly);
+      const resolutionNoDirectProviderImport = !/from ['"].*(grok|tavily|redfin|openai)/i.test(resolutionCodeOnly);
+      const ok = routeOnlyImportsResolution && resolutionNoDirectProviderImport;
+      record('14.14', 'adapter route imports only the orchestrator; orchestrator has no direct live/paid provider import', ok ? 'PASS' : 'FAIL', `route=${routeOnlyImportsResolution} resolution=${resolutionNoDirectProviderImport}`);
     }
 
     // first-party path unchanged
@@ -557,6 +623,181 @@ async function main() {
       record('15.6', 'no undocumented MCP surface (resources/prompts/completion/sampling)', allRejected.every(Boolean) ? 'PASS' : 'FAIL', JSON.stringify(allRejected));
     }
 
+    // ===== DEMAND-DRIVEN RESOLUTION (2026-09-08, Phase 8 A-J) =====
+    // resolutionMock.handler stands in for the real /api/property/lookup
+    // self-fetch for every test below -- deterministic, zero real Tavily/
+    // GPT-4o cost, exercising lib/externalPropertyResolution.ts's actual
+    // logic (not a copy of it). Phase 9 (separate, live, on dev) is where a
+    // single real address goes through the genuine self-fetch end to end.
+    console.log('\n=== DEMAND-DRIVEN RESOLUTION ===');
+
+    async function insertTestProperty(
+      addressFull: string,
+      opts: { avm?: number; hoaMonthly?: number } = {},
+    ): Promise<string> {
+      const now = new Date().toISOString();
+      const { data: prop } = await sb!
+        .from('properties')
+        .insert({
+          address_full: addressFull,
+          address_line: addressFull,
+          city: 'Testville',
+          state: 'ZZ',
+          zip: '00001',
+          beds: 3,
+          baths: 2,
+          sqft: 1500,
+          latest_listing_status: 'SOLD',
+          latest_value: opts.avm ?? null,
+          enriched_at: now,
+          enrichment_source: 'test_harness',
+          confidence: 0.65,
+          updated_at: now,
+        })
+        .select('id')
+        .single();
+      resolutionTestPropertyIds.push(prop!.id);
+      const snapshotData: Record<string, unknown> = { city: 'Testville', state: 'ZZ', estimatedValue: opts.avm ?? null };
+      if (opts.hoaMonthly !== undefined) snapshotData.hoaMonthly = opts.hoaMonthly;
+      await sb!.from('property_snapshots').insert({
+        property_id: prop!.id,
+        snapshot_type: 'full',
+        source: 'test_harness',
+        data: snapshotData,
+        fetched_at: now,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        confidence: 0.65,
+      });
+      return prop!.id as string;
+    }
+
+    function parseAdapterData(r: { json: any }): any {
+      const text = r.json?.result?.content?.[0]?.text;
+      return text ? JSON.parse(text) : null;
+    }
+
+    // R-A: existing property -- no resolution attempt at all.
+    if (availableAddress) {
+      const key = await freshCred();
+      const before = resolutionFetchCallCount;
+      const r = await callAdapter(toolsCallBody(700, TOOL_NAME, { address: availableAddress }), { ...mcpHeaders('tools/call', TOOL_NAME), ...authHeaders(key, '203.0.113.90') });
+      const data = parseAdapterData(r);
+      const ok = data?.availability?.status === 'AVAILABLE' && resolutionFetchCallCount === before;
+      record('Resolution', 'R-A existing property -- no resolution attempted', ok ? 'PASS' : 'FAIL', `status=${data?.availability?.status} fetchDelta=${resolutionFetchCallCount - before}`);
+    }
+
+    // R-B: valid unknown property -> resolves, persists, note present.
+    const dedupeAddr = `${Date.now()} Resolution Test Ave, Testville, ZZ 00001`;
+    {
+      resolutionMock.handler = async (addr) => {
+        await insertTestProperty(addr, { avm: 450000, hoaMonthly: 225 });
+        return { status: 200, body: { ok: true, data: { address: addr } } };
+      };
+      const key = await freshCred();
+      const before = resolutionFetchCallCount;
+      const r = await callAdapter(toolsCallBody(701, TOOL_NAME, { address: dedupeAddr }), { ...mcpHeaders('tools/call', TOOL_NAME), ...authHeaders(key, '203.0.113.91') });
+      resolutionMock.handler = null;
+      const data = parseAdapterData(r);
+      const attempted = resolutionFetchCallCount - before === 1;
+      const combinedText = `${data?.availability?.reason ?? ''} ${(data?.decision_intelligence?.limitations ?? []).join(' ')}`;
+      const notedAsNew = combinedText.includes('just been added');
+      const persisted = Boolean(await resolvePropertyId(dedupeAddr));
+      const ok = attempted && notedAsNew && persisted;
+      record('Resolution', 'R-B valid unknown property -- resolves, persists, note present', ok ? 'PASS' : 'FAIL', JSON.stringify({ attempted, notedAsNew, persisted, status: data?.availability?.status }));
+    }
+
+    // R-C: repeat request for the SAME now-persisted address -> no second
+    // resolution attempt (existing-hit path only), no "just added" note.
+    {
+      const key = await freshCred();
+      const before = resolutionFetchCallCount;
+      const r = await callAdapter(toolsCallBody(702, TOOL_NAME, { address: dedupeAddr }), { ...mcpHeaders('tools/call', TOOL_NAME), ...authHeaders(key, '203.0.113.92') });
+      const data = parseAdapterData(r);
+      const combinedText = `${data?.availability?.reason ?? ''} ${(data?.decision_intelligence?.limitations ?? []).join(' ')}`;
+      const ok = resolutionFetchCallCount === before && !combinedText.includes('just been added');
+      record('Resolution', 'R-C repeat address -- dedupe, no second resolution attempt', ok ? 'PASS' : 'FAIL', `fetchDelta=${resolutionFetchCallCount - before} notedAsNew=${combinedText.includes('just been added')}`);
+    }
+
+    // R-D: URL-shaped input -> never treated as a plain address, no resolution attempt.
+    {
+      const key = await freshCred();
+      const before = resolutionFetchCallCount;
+      const r = await callAdapter(toolsCallBody(703, TOOL_NAME, { address: 'https://www.redfin.com/CA/Somewhere/123-Fake-St' }), { ...mcpHeaders('tools/call', TOOL_NAME), ...authHeaders(key, '203.0.113.93') });
+      const data = parseAdapterData(r);
+      const ok = data?.availability?.status === 'NOT_AVAILABLE' && resolutionFetchCallCount === before;
+      record('Resolution', 'R-D URL-shaped input -- no resolution attempted', ok ? 'PASS' : 'FAIL', `status=${data?.availability?.status} fetchDelta=${resolutionFetchCallCount - before}`);
+    }
+
+    // R-E: resolution genuinely fails -> stays NOT_AVAILABLE, no property row created.
+    {
+      const failAddr = `${Date.now()} Doomed Resolution Ln, Nowhere, ZZ 00002`;
+      resolutionMock.handler = async () => ({ status: 200, body: { ok: false, error: 'Could not find property data for this address.' } });
+      const key = await freshCred();
+      const before = resolutionFetchCallCount;
+      const r = await callAdapter(toolsCallBody(704, TOOL_NAME, { address: failAddr }), { ...mcpHeaders('tools/call', TOOL_NAME), ...authHeaders(key, '203.0.113.94') });
+      resolutionMock.handler = null;
+      const data = parseAdapterData(r);
+      const attempted = resolutionFetchCallCount - before === 1;
+      const stillNotAvailable = data?.availability?.status === 'NOT_AVAILABLE';
+      const noRowCreated = !(await resolvePropertyId(failAddr));
+      record('Resolution', 'R-E resolution failure -- stays NOT_AVAILABLE, no row created', attempted && stillNotAvailable && noRowCreated ? 'PASS' : 'FAIL', JSON.stringify({ attempted, stillNotAvailable, noRowCreated }));
+    }
+
+    // R-F: HOA confirmed -- PITI excludes it, PITIA = PITI + HOA exactly.
+    {
+      const addr = `${Date.now()} HOA Confirmed Ct, Testville, ZZ 00001`;
+      const id = await insertTestProperty(addr, { avm: 500000, hoaMonthly: 300 });
+      const raw = await getPropertyIntelligenceCorpusOnly(id);
+      const shaped = shapeForExternalContract(addr, raw);
+      const oc = shaped.ownership_cost_intelligence;
+      const ok = oc?.hoa.value === 300 && oc?.estimated_piti.value != null && oc?.estimated_pitia.value === (oc!.estimated_piti.value as number) + 300;
+      record('Resolution', 'R-F HOA confirmed -- PITI excludes HOA, PITIA = PITI + HOA', ok ? 'PASS' : 'FAIL', JSON.stringify(oc));
+    }
+
+    // R-G: HOA unconfirmed -- never silently treated as zero; PITIA stays null.
+    {
+      const addr = `${Date.now()} HOA Unknown Way, Testville, ZZ 00001`;
+      const id = await insertTestProperty(addr, { avm: 500000 });
+      const raw = await getPropertyIntelligenceCorpusOnly(id);
+      const shaped = shapeForExternalContract(addr, raw);
+      const oc = shaped.ownership_cost_intelligence;
+      const ok = oc?.hoa.value === null && oc?.estimated_pitia.value === null && oc?.estimated_piti.value != null;
+      record('Resolution', 'R-G HOA unconfirmed -- never zero, PITIA stays null', ok ? 'PASS' : 'FAIL', JSON.stringify(oc));
+    }
+
+    // R-H: existing, real, previously-confirmed AVAILABLE address -- unchanged,
+    // no resolution attempted. Best-effort: only runs if present in this
+    // environment (same conditional-skip convention as availableAddress above).
+    {
+      const mataro = '1131 Mataro Ct, Pleasanton, CA 94566';
+      const mataroId = await resolvePropertyId(mataro);
+      if (mataroId) {
+        const key = await freshCred();
+        const before = resolutionFetchCallCount;
+        const r = await callAdapter(toolsCallBody(705, TOOL_NAME, { address: mataro }), { ...mcpHeaders('tools/call', TOOL_NAME), ...authHeaders(key, '203.0.113.95') });
+        const data = parseAdapterData(r);
+        const ok = data?.availability?.status === 'AVAILABLE' && resolutionFetchCallCount === before;
+        record('Resolution', 'R-H existing Mataro Ct regression -- unchanged, no resolution attempted', ok ? 'PASS' : 'FAIL', JSON.stringify({ status: data?.availability?.status, fetchDelta: resolutionFetchCallCount - before }));
+      }
+    }
+
+    // R-I: invalid credential rejected before any resolution attempt (no auth bypass via the new path).
+    {
+      const before = resolutionFetchCallCount;
+      const freshUnknownAddr = `${Date.now()} Security Bypass Test Rd, Testville, ZZ 00001`;
+      const r = await callAdapter(toolsCallBody(706, TOOL_NAME, { address: freshUnknownAddr }), { ...mcpHeaders('tools/call', TOOL_NAME), authorization: 'Bearer hrg_totally_invalid', 'x-forwarded-for': '203.0.113.96' });
+      const ok = r.status === 401 && resolutionFetchCallCount === before;
+      record('Resolution', 'R-I invalid credential rejected before any resolution attempt', ok ? 'PASS' : 'FAIL', `status=${r.status} fetchDelta=${resolutionFetchCallCount - before}`);
+    }
+
+    // R-J: newly-resolved property never synchronously triggers deep-enrichment/Grok.
+    {
+      const resolutionSource = fs.readFileSync(path.resolve(process.cwd(), 'lib/externalPropertyResolution.ts'), 'utf8');
+      const codeOnly = resolutionSource.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+      const noDeepEnrichReference = !/grok-property|deep-enrich|listDeepEnrichmentCandidates|deepEnrich/i.test(codeOnly);
+      record('Resolution', 'R-J newly-resolved property never synchronously triggers deep-enrichment/Grok', noDeepEnrichReference ? 'PASS' : 'FAIL', `code (comments stripped) references deep-enrichment machinery: ${!noDeepEnrichReference}`);
+    }
+
     console.log('\n=== FINAL RESULTS ===');
     console.table(results.map((r) => ({ category: r.category, name: r.name, status: r.status })));
     const pass = results.filter((r) => r.status === 'PASS').length;
@@ -564,6 +805,10 @@ async function main() {
     console.log(`\nPASS=${pass} FAIL=${fail} TOTAL=${results.length}`);
   } finally {
     console.log('\n=== CLEANUP ===');
+    if (resolutionTestPropertyIds.length) {
+      await sb.from('property_snapshots').delete().in('property_id', resolutionTestPropertyIds);
+      await sb.from('properties').delete().in('id', resolutionTestPropertyIds);
+    }
     await sb.from('gateway_credentials').update({ status: 'revoked', revoked_at: new Date().toISOString() }).in('partner_id', partnerIds).neq('status', 'revoked');
     await sb.from('gateway_partners').update({ status: 'cancelled' }).in('id', partnerIds);
     const { data: creds } = await sb.from('gateway_credentials').select('id').in('partner_id', partnerIds);

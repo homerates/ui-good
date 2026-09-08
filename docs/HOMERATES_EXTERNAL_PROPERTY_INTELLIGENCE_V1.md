@@ -472,6 +472,16 @@ the architecture requires is inherited automatically by calling this specific fu
 
 `contract_version: "property-intelligence-v1"` as a top-level response field (already shown in §7).
 
+**Applied 2026-09-08 — bumped to `property-intelligence-v1.1`.** The demand-driven
+external-resolution workstream found `estimated_piti` silently included HOA dues
+whenever HOA was known, contradicting its own name (PITI has no A). Per this exact
+versioning policy, that's a material shape/meaning change for external consumers, not
+a tunable internal detail — so it was fixed as a deliberate version bump rather than a
+silent redefinition: `estimated_piti` is now true Principal+Interest+Taxes+Insurance
+only, and a new `estimated_pitia` field (PITI + confirmed HOA, `null` — never silently
+zero — when HOA status is unconfirmed) carries the PITI+HOA figure. See
+`lib/gateway/outputSchema.ts`'s file header for the full rationale.
+
 Internal methodology version (`METHODOLOGY_VERSION`, currently `"Decision Score L1-L4 (locked
 2026-08-19)..."`) and external contract version are **explicitly separate** — the internal string must
 never appear in an external response at all (§5), so there is no risk of them being conflated in the

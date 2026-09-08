@@ -59,7 +59,7 @@ export function shapeForExternalContract(
 ): ExternalPropertyIntelligenceV1 {
   if (!raw) {
     return {
-      contract_version: 'property-intelligence-v1',
+      contract_version: 'property-intelligence-v1.1',
       query: { address_requested: addressRequested },
       availability: { status: 'NOT_AVAILABLE', reason: 'HomeRates does not currently have intelligence for this address.' },
       property: null,
@@ -110,6 +110,7 @@ export function shapeForExternalContract(
         insurance: labeled(raw.ownershipCost.monthlyInsurance.label, raw.ownershipCost.monthlyInsurance.value),
         hoa: labeled(raw.ownershipCost.monthlyHoa.label, raw.ownershipCost.monthlyHoa.value),
         estimated_piti: labeled(raw.ownershipCost.estimatedMonthlyPITI.label, raw.ownershipCost.estimatedMonthlyPITI.value),
+        estimated_pitia: labeled(raw.ownershipCost.estimatedMonthlyPITIA.label, raw.ownershipCost.estimatedMonthlyPITIA.value),
       }
     : null;
 
@@ -123,7 +124,7 @@ export function shapeForExternalContract(
     : null;
 
   return {
-    contract_version: 'property-intelligence-v1',
+    contract_version: 'property-intelligence-v1.1',
     query: { address_requested: addressRequested },
     availability,
     property: {
