@@ -274,9 +274,40 @@ export async function POST(req: NextRequest) {
         isError: false,
       }));
     }
-    // Every Gateway rejection (SERVICE_DISABLED/UNAUTHORIZED/FORBIDDEN/
-    // RATE_LIMITED/INVALID_REQUEST/INTERNAL_ERROR) maps uniformly -- no new
-    // business-status meaning invented, per instruction section 10.
+
+    // Phase OB -- UNAUTHORIZED/FORBIDDEN are the two Gateway rejections the
+    // MCP 2026-07-28 Authorization spec's "Error Handling" section actually
+    // governs ("Invalid or expired tokens MUST receive a HTTP 401
+    // response"; insufficient scope gets 403 + a WWW-Authenticate
+    // challenge) -- this is what lets an OAuth-aware client (ChatGPT)
+    // detect it needs to authorize at all and discover where. Every OTHER
+    // Gateway rejection (SERVICE_DISABLED/RATE_LIMITED/INVALID_REQUEST/
+    // INTERNAL_ERROR) is unchanged from Phase A-G: still a plain JSON-RPC
+    // 200 isError:true result, since those aren't authorization errors in
+    // the spec's sense and inventing a different HTTP status for them
+    // would be new behavior nothing asked for.
+    const resourceMetadataUrl = 'https://homerates.ai/.well-known/oauth-protected-resource';
+    if (result.error === 'UNAUTHORIZED') {
+      return NextResponse.json(
+        { error: 'invalid_token', error_description: result.message },
+        { status: 401, headers: { 'WWW-Authenticate': `Bearer resource_metadata="${resourceMetadataUrl}"` } },
+      );
+    }
+    if (result.error === 'FORBIDDEN') {
+      return NextResponse.json(
+        { error: 'insufficient_scope', error_description: result.message, scope: 'property_intelligence:read' },
+        {
+          status: 403,
+          headers: {
+            'WWW-Authenticate': `Bearer error="insufficient_scope", scope="property_intelligence:read", resource_metadata="${resourceMetadataUrl}"`,
+          },
+        },
+      );
+    }
+
+    // Every remaining Gateway rejection (SERVICE_DISABLED/RATE_LIMITED/
+    // INVALID_REQUEST/INTERNAL_ERROR) maps uniformly -- no new business-
+    // status meaning invented, unchanged from Phase G.
     return jsonRpcResult(id, withServerMeta({
       resultType: 'complete',
       content: [{ type: 'text', text: `${result.error}: ${result.message}` }],

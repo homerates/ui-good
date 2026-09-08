@@ -22,15 +22,19 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
-  // Phase OA -- publishes /.well-known/oauth-protected-resource (RFC 9728)
-  // at a normal, unambiguous internal path rather than a literal dot-
-  // prefixed app/ folder, avoiding any framework/build-tool uncertainty
-  // around dotfile handling. See app/api/well-known/oauth-protected-resource/route.ts.
+  // Phase OA/OB -- publishes /.well-known/oauth-* metadata (RFC 9728 + RFC
+  // 8414) at normal, unambiguous internal paths rather than literal dot-
+  // prefixed app/ folders, avoiding any framework/build-tool uncertainty
+  // around dotfile handling. See app/api/well-known/*/route.ts.
   async rewrites() {
     return [
       {
         source: "/.well-known/oauth-protected-resource",
         destination: "/api/well-known/oauth-protected-resource",
+      },
+      {
+        source: "/.well-known/oauth-authorization-server",
+        destination: "/api/well-known/oauth-authorization-server",
       },
     ];
   },

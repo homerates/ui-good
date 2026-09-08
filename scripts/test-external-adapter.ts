@@ -288,12 +288,20 @@ async function main() {
     {
       const body = toolsCallBody(14, TOOL_NAME, { address: nonexistentAddr });
       const r = await callAdapter(body, { ...mcpHeaders('tools/call', TOOL_NAME), authorization: 'Bearer hrg_garbage_notreal', 'x-forwarded-for': '203.0.113.65' });
-      record('Conformance', 'invalid credential still -> UNAUTHORIZED (modern path)', r.json?.result?.isError === true && r.json.result.content[0].text.startsWith('UNAUTHORIZED') ? 'PASS' : 'FAIL', JSON.stringify(r.json));
+      // Phase OB CHANGE: UNAUTHORIZED now maps to a real HTTP 401 +
+      // WWW-Authenticate challenge (MCP 2026-07-28 Authorization spec's
+      // "Invalid or expired tokens MUST receive a HTTP 401 response"),
+      // not a JSON-RPC 200 isError:true result. Updated from the pre-Phase-OB
+      // assertion, which checked r.json.result.isError/content[0].text.
+      record('Conformance', 'invalid credential still -> UNAUTHORIZED (modern path)', r.status === 401 && r.json?.error === 'invalid_token' ? 'PASS' : 'FAIL', JSON.stringify(r.json));
     }
     {
       const body = toolsCallBody(15, TOOL_NAME, { address: nonexistentAddr });
       const r = await callAdapter(body, { ...mcpHeaders('tools/call', TOOL_NAME), ...authHeaders(noScopePlain, '203.0.113.66') });
-      record('Conformance', 'missing scope still -> FORBIDDEN (modern path)', r.json?.result?.isError === true && r.json.result.content[0].text.startsWith('FORBIDDEN') ? 'PASS' : 'FAIL', JSON.stringify(r.json));
+      // Phase OB CHANGE: FORBIDDEN now maps to a real HTTP 403 +
+      // insufficient_scope WWW-Authenticate challenge, not a JSON-RPC 200
+      // isError:true result. Same reasoning as the UNAUTHORIZED case above.
+      record('Conformance', 'missing scope still -> FORBIDDEN (modern path)', r.status === 403 && r.json?.error === 'insufficient_scope' ? 'PASS' : 'FAIL', JSON.stringify(r.json));
     }
 
     // 12. Contract V1 unchanged
@@ -350,7 +358,8 @@ async function main() {
       await revokeCredential(row!.id);
       const body = toolsCallBody(23, TOOL_NAME, { address: nonexistentAddr });
       const r = await callAdapter(body, { ...mcpHeaders('tools/call', TOOL_NAME), ...authHeaders(revocable.plaintextKey, '203.0.113.71') });
-      record('14.6', 'revoked credential -> UNAUTHORIZED', r.json?.result?.isError === true && r.json.result.content[0].text.startsWith('UNAUTHORIZED') ? 'PASS' : 'FAIL', JSON.stringify(r.json));
+      // Phase OB CHANGE: see the two Conformance-section assertions above.
+      record('14.6', 'revoked credential -> UNAUTHORIZED', r.status === 401 && r.json?.error === 'invalid_token' ? 'PASS' : 'FAIL', JSON.stringify(r.json));
     }
 
     // rate-limited credential
@@ -445,7 +454,8 @@ async function main() {
     {
       const body = toolsCallBody(502, TOOL_NAME, { address: nonexistentAddr, credential: cred.plaintextKey, apiKey: cred.plaintextKey });
       const r = await callAdapter(body, mcpHeaders('tools/call', TOOL_NAME)); // no Authorization header
-      record('15.2', 'credential embedded in request body is never read as auth', r.json?.result?.isError === true && r.json.result.content[0].text.startsWith('UNAUTHORIZED') ? 'PASS' : 'FAIL', JSON.stringify(r.json));
+      // Phase OB CHANGE: see the two Conformance-section assertions above.
+      record('15.2', 'credential embedded in request body is never read as auth', r.status === 401 && r.json?.error === 'invalid_token' ? 'PASS' : 'FAIL', JSON.stringify(r.json));
     }
 
     {
