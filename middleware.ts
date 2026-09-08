@@ -97,6 +97,17 @@ const isPublicRoute = createRouteMatcher([
   // Must be public: an MCP client discovers this before it has any
   // credential at all, let alone a Clerk session.
   "/.well-known/oauth-protected-resource(.*)",
+  // Phase OB -- RFC 8414 OAuth Authorization Server Metadata. Same
+  // reasoning: discovered before any credential/session exists.
+  "/.well-known/oauth-authorization-server(.*)",
+  // Phase OB -- OAuth token endpoint. Called directly by ChatGPT's backend
+  // with client_id/client_secret in the request body -- no Clerk session at
+  // all, same pattern as /api/mcp/property-intelligence above. NOTE:
+  // /api/oauth/authorize is deliberately NOT listed here -- it is visited
+  // by a human browser (redirected there by ChatGPT) and must stay behind
+  // Clerk's default auth.protect() + this route's own requireAdmin() check,
+  // exactly like the existing /api/admin/* routes.
+  "/api/oauth/token(.*)",
   // Deal room join — must be accessible before sign-in (token validates identity)
   "/deal-rooms/join(.*)",
   // HomeRates Lab — public scenario launcher
