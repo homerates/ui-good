@@ -116,6 +116,15 @@ export async function validate(params: URLSearchParams): Promise<ValidateResult>
 export function consentPage(v: ValidatedAuthorizeRequest) {
   const hidden = (name: string, value: string) => `<input type="hidden" name="${name}" value="${value.replace(/"/g, '&quot;')}">`;
   const fields =
+    // response_type is REQUIRED by validate() on every call, including the
+    // POST this form submits -- omitting it here was a real bug (found
+    // live 2026-09-08): validate() always failed on POST with
+    // unsupported_response_type, redirecting to ChatGPT's own callback
+    // with ?error=unsupported_response_type instead of a real code. That
+    // redirect has the same HTTP status/host/path as the success path, so
+    // it was indistinguishable from a working flow in the Vercel request
+    // log -- only the absence of any new gateway_oauth_codes row exposed it.
+    hidden('response_type', 'code') +
     hidden('client_id', v.client.clientId) +
     hidden('redirect_uri', v.redirectUri) +
     hidden('scope', v.scope) +

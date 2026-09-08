@@ -56,7 +56,7 @@ import {
 } from '../lib/gateway/oauth';
 import { GET as protectedResourceMetadata } from '../app/api/well-known/oauth-protected-resource/route';
 import { GET as authServerMetadata } from '../app/api/well-known/oauth-authorization-server/route';
-import { validate as authorizeValidate } from '../lib/gateway/oauthAuthorize';
+import { validate as authorizeValidate, consentPage } from '../lib/gateway/oauthAuthorize';
 import { POST as tokenPost } from '../app/api/oauth/token/route';
 import { POST as mcpPost } from '../app/api/mcp/property-intelligence/route';
 
@@ -260,6 +260,33 @@ async function main() {
       record('3', 'admin-check logic: bootstrap admin ID recognized as admin (proxy for "authenticated admin can approve")', ok ? 'PASS' : 'FAIL', `isAdminId(bootstrap)=${ok}`);
     }
     record('3', 'authenticated admin can approve (full live Clerk session)', 'LIMITED', 'cannot simulate a real Clerk cookie session in-process; see file header. Proven at live HTTPS validation instead.');
+
+    // Regression test for a real production bug (found live 2026-09-08):
+    // consentPage()'s hidden fields omitted response_type, so validate()
+    // -- which requires it on every call -- always failed on the POST a
+    // real "Allow" click submits, even though the preceding GET succeeded.
+    // The resulting error-redirect has the same HTTP status/host/path as
+    // a real success redirect, so it was invisible in a request log; only
+    // the absence of a new gateway_oauth_codes row exposed it. This test
+    // renders the real consentPage() HTML, extracts every hidden field
+    // exactly as a browser form submission would, and re-validates them --
+    // proving the full render -> submit round-trip actually works, not
+    // just validate() in isolation.
+    {
+      const qs = authorizeQuery({ client_id: TEST_CLIENT_ID }, TEST_REDIRECT);
+      const getResult = await authorizeValidate(new URLSearchParams(qs));
+      if (!getResult.ok) throw new Error('fixture GET validate() unexpectedly failed');
+      const html = await consentPage(getResult.value).text();
+      const hiddenFieldRegex = /<input type="hidden" name="([^"]+)" value="([^"]*)">/g;
+      const extracted: Record<string, string> = {};
+      let hm: RegExpExecArray | null;
+      while ((hm = hiddenFieldRegex.exec(html))) extracted[hm[1]] = hm[2];
+      record('3', 'consentPage(): renders a response_type hidden field', extracted.response_type === 'code' ? 'PASS' : 'FAIL', JSON.stringify(extracted));
+
+      const postResult = await authorizeValidate(new URLSearchParams(extracted));
+      const postEvidence = postResult.ok ? 'validated' : await postResult.response.text();
+      record('3', 'consentPage() -> submit round-trip: the exact fields a real "Allow" click sends re-validate successfully', postResult.ok ? 'PASS' : 'FAIL', postEvidence);
+    }
 
     // ===== 4. Authorization code issuance via the real POST allow path is blocked pre-admin in-process (expected) --
     // exercise storeAuthorizationCode()/consumeAuthorizationCode() directly instead, exactly as Phase OA did, to
