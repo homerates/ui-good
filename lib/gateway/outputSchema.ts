@@ -1,11 +1,11 @@
 // lib/gateway/outputSchema.ts
 //
-// Runtime schema for the LOCKED External Property Intelligence Contract V1
-// (docs/HOMERATES_EXTERNAL_PROPERTY_INTELLIGENCE_V1.md, commit d63ffea8).
-// This schema is the second, independent line of defense behind
-// outputShaping.ts's allowlist construction (see that file's header) --
-// a shaped object that doesn't validate against this schema is never
-// returned to a caller, no matter how it failed to validate.
+// Runtime schema for the External Property Intelligence Contract, now
+// property-intelligence-v1.1 (bumped 2026-09-08 -- see below). This schema
+// is the second, independent line of defense behind outputShaping.ts's
+// allowlist construction (see that file's header) -- a shaped object that
+// doesn't validate against this schema is never returned to a caller, no
+// matter how it failed to validate.
 //
 // Every field here traces to an EXPOSE or TRANSFORM row in Contract V1
 // section 5's field classification matrix. Nothing here should ever be able
@@ -13,6 +13,19 @@
 // decisionIntelligence.source, raw provenance timestamps/pipeline names,
 // search_count, properties.id) -- if a future edit to this file adds a way to
 // represent one of those, that is itself a contract violation to catch in review.
+//
+// V1 -> V1.1 (deliberate, documented per the versioning policy in
+// docs/HOMERATES_EXTERNAL_PROPERTY_INTELLIGENCE_V1.md section 16): fixes a
+// real mislabeling bug -- estimated_piti previously silently included HOA
+// dues whenever HOA was known, contradicting its own name (PITI has no A).
+// estimated_piti is now corrected to true Principal+Interest+Taxes+
+// Insurance ONLY; a NEW estimated_pitia field (PITI + confirmed HOA, or
+// null when HOA status is unconfirmed -- never silently zero) carries the
+// PITI+HOA figure. This is a genuine behavior change for any property with
+// confirmed HOA dues (estimated_piti now returns a lower, correct number),
+// which is exactly the kind of material change this repo's own versioning
+// policy says must bump contract_version rather than redefine a field
+// silently under the same version string.
 
 import { z } from 'zod';
 
@@ -29,7 +42,7 @@ const LabeledNumber = z.object({ value: z.number().nullable(), claim_type: Claim
 const LabeledString = z.object({ value: z.string().nullable(), claim_type: ClaimType });
 
 export const ExternalPropertyIntelligenceV1Schema = z.object({
-  contract_version: z.literal('property-intelligence-v1'),
+  contract_version: z.literal('property-intelligence-v1.1'),
   query: z.object({ address_requested: z.string() }),
   availability: z.object({
     status: z.enum(['AVAILABLE', 'PARTIAL', 'NOT_AVAILABLE']),
@@ -82,6 +95,10 @@ export const ExternalPropertyIntelligenceV1Schema = z.object({
       insurance: LabeledNumber,
       hoa: LabeledNumber,
       estimated_piti: LabeledNumber,
+      // null when HOA status is unconfirmed -- never silently equals
+      // estimated_piti (that would be the same PITI/HOA conflation V1.1
+      // exists to fix). See file header.
+      estimated_pitia: LabeledNumber,
     })
     .nullable(),
   market_location_intelligence: z.object({

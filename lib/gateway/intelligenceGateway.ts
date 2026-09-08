@@ -55,7 +55,14 @@ export type GatewayResult =
 
 const MAX_ADDRESS_LENGTH = 300;
 
-async function resolvePropertyId(address: string): Promise<string | null> {
+// Exported (additive, 2026-09-08) so a demand-driven external-resolution
+// orchestrator (lib/externalPropertyResolution.ts, OUTSIDE lib/gateway/ --
+// see that file's own header for why) can re-check for a property it just
+// asked the existing first-party lookup pipeline to persist, WITHOUT
+// re-running auth/scope/rate-limit/kill-switch a second time. Behavior is
+// completely unchanged for the existing internal caller (getPropertyIntelligence
+// below) -- this is purely a visibility change, zero logic touched.
+export async function resolvePropertyId(address: string): Promise<string | null> {
   const sb = getSupabase();
   if (!sb) return null;
   const normalized = address.trim().toLowerCase();

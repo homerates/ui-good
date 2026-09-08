@@ -117,6 +117,8 @@ export interface PropertyIntelligenceData {
     monthlyInsurance: LabeledValue<number>;
     monthlyHoa: LabeledValue<number | null>;
     estimatedMonthlyPITI: LabeledValue<number>;
+    // null when HOA status is unconfirmed -- never silently equals PITI.
+    estimatedMonthlyPITIA: LabeledValue<number | null>;
   } | null;
 
   decisionIntelligence: {
@@ -571,7 +573,17 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
   const monthlyTax = realAnnualTax != null ? Math.round(realAnnualTax / 12) : (mortgage ? Math.round((price * taxInfo.rate) / 12) : 0);
   const monthlyInsurance = mortgage ? Math.round((price * 0.003) / 12) : 0;
   const hoaMonthly = parseNum(snapshot?.hoaMonthly);
-  const estimatedPITI = mortgage ? Math.round(mortgage.monthlyPI + monthlyTax + monthlyInsurance + (hoaMonthly ?? 0)) : 0;
+  // TRUE PITI -- Principal + Interest + Taxes + Insurance ONLY, never HOA.
+  // Corrected 2026-09-08 (Contract V1.1): this used to silently fold
+  // hoaMonthly into what it labeled "PITI" whenever HOA was known, which
+  // is exactly the PITI/PITIA conflation the product now explicitly
+  // forbids. PITIA (below) is the correct field for PITI+HOA.
+  const estimatedPITI = mortgage ? Math.round(mortgage.monthlyPI + monthlyTax + monthlyInsurance) : 0;
+  // PITIA -- PITI + Association/HOA dues, ONLY when HOA is a confirmed
+  // figure (including a confirmed $0 -- "no HOA applies" is itself a real
+  // confirmation). null means "cannot be fully determined yet", per the
+  // explicit rule: an unknown HOA is never silently treated as zero.
+  const estimatedPITIA = mortgage && hoaMonthly != null ? Math.round(estimatedPITI + hoaMonthly) : null;
   const marketRateSeriesLabel = loanType === 'jumbo'
     ? 'OBMMI Jumbo 30yr Fixed (estimated, credit/LTV-adjusted)'
     : obmmiSeriesId ? `OBMMI Conventional 30yr Fixed — FICO ${creditScore}, LTV ${ltv <= 80 ? '≤80' : '>80'}`
@@ -601,6 +613,7 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
       monthlyInsurance: { label: 'ESTIMATE', value: monthlyInsurance, source: 'HomeRates.ai default: 0.3% of price annually' },
       monthlyHoa: { label: 'PROPERTY FACT', value: hoaMonthly },
       estimatedMonthlyPITI: { label: 'DERIVED CALCULATION', value: estimatedPITI },
+      estimatedMonthlyPITIA: { label: 'DERIVED CALCULATION', value: estimatedPITIA },
     },
   };
 }

@@ -76,7 +76,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPropertyIntelligence } from '../../../../lib/gateway/intelligenceGateway';
+import { resolveExternalPropertyIntelligence } from '../../../../lib/externalPropertyResolution';
 
 const TOOL_NAME = 'get_property_intelligence';
 // Both revisions accepted -- 2025-11-25 is what real production clients
@@ -352,7 +352,13 @@ export async function POST(req: NextRequest) {
     const apiKeyHeader = extractBearerToken(req);
     const requestIp = extractRequestIp(req);
 
-    const result = await getPropertyIntelligence({ address }, apiKeyHeader, requestIp);
+    // resolveExternalPropertyIntelligence() (lib/externalPropertyResolution.ts,
+    // 2026-09-08) calls the UNCHANGED getPropertyIntelligence() Gateway
+    // pipeline first -- same auth/scope/rate-limit/kill-switch/validation --
+    // and only on a NOT_AVAILABLE result additionally attempts one
+    // demand-driven resolution via the existing first-party lookup pipeline.
+    // Same GatewayResult shape either way; nothing below this line changes.
+    const result = await resolveExternalPropertyIntelligence({ address }, apiKeyHeader, requestIp);
 
     if (result.ok) {
       return jsonRpcResult(id, withServerMeta({
