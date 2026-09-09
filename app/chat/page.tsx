@@ -462,6 +462,11 @@ type ApiResponse = {
         loanType: 'conventional' | 'fha' | 'va' | 'jumbo';
         price: number; downPct: number; rate: number; term: number;
         taxRate: number; insRate: number;
+        // Canonical HOA (undefined = not wired for this card instance, null =
+        // confirmed unconfirmed, number = confirmed amount) -- see
+        // AffordabilityPurchaseCard.tsx's AffordabilityPurchaseParams for the
+        // full contract.
+        hoaMonthly?: number | null;
         annualIncome?: number; monthlyDebt?: number; vaFundingFeePct?: number;
     } | null;
     conventionalAffordabilitySlider?: {
@@ -2642,32 +2647,63 @@ export default function Page() {
                     } else {
                     // ── FOR-SALE / PURCHASE path ───────────────────────────────────────
 
-                    // Compute estimated PITI (20% down, live rate, scraped taxes)
+                    // Canonical Property Intelligence Consistency Workstream, Stage E
+                    // (2026-09-08): fetch the SAME canonical valuation/financing/
+                    // ownership-cost figures the external Gateway already uses, instead
+                    // of this branch's own inline PITI math + hardcoded rate/insurance/
+                    // tax constants (the exact first-party/external drift the audit
+                    // found). /api/property/lookup's own cache write is fire-and-forget
+                    // (see that route's cachePropertyResult call), so the canonical row
+                    // may not exist yet by the time this fetch fires -- one short retry
+                    // covers that race (confirmed empirically: well under 1s in practice).
+                    // Never falls back to reimplementing the math locally: if canonical
+                    // is genuinely unavailable after the retry, the headline degrades to
+                    // the existing no-price copy below rather than showing a second,
+                    // independently-computed figure.
+                    let canonical: {
+                        valuation: { pointEstimate: number | null; asOf: string | null };
+                        financing: { propertyMarketRate: { rate: number; label: string }; principalInterestMonthly: number; loanAmount: number } | null;
+                        ownershipCosts: { monthlyTaxes: number; taxRateEffective: number; monthlyInsurance: number; insuranceAssumption: { annualRate: number; label: string }; hoaMonthly: number | null; hoaConfirmed: boolean; pitiMonthly: number; pitiaMonthly: number | null } | null;
+                    } | null = null;
+                    if (d.address) {
+                        for (let attempt = 0; attempt < 2 && !canonical; attempt++) {
+                            if (attempt > 0) await new Promise((res) => setTimeout(res, 1000));
+                            try {
+                                const cRes = await fetch(`/api/property/intelligence?address=${encodeURIComponent(d.address)}`);
+                                if (cRes.ok) {
+                                    const cJson = await cRes.json();
+                                    if (cJson.ok) canonical = cJson.data;
+                                }
+                            } catch { /* leave canonical null -- headline degrades gracefully below */ }
+                        }
+                    }
+
+                    // Headline PITI -- canonical only, never a second, independently-computed figure.
                     let pitiStr = '';
-                    if (d.price) {
-                        const principal = d.price * 0.80;
-                        const r = liveRate / 100 / 12;
-                        const n = 360;
-                        const pi = r > 0
-                            ? (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
-                            : principal / n;
-                        const monthlyTax = (d.annualTaxes ?? d.price * (d.taxRateEffective ?? 0.0076)) / 12;
-                        const monthlyIns = d.price * 0.005 / 12;
-                        const piti = Math.round(pi + monthlyTax + monthlyIns);
-                        pitiStr = `$${piti.toLocaleString()}/mo`;
+                    if (canonical?.ownershipCosts) {
+                        pitiStr = `$${Math.round(canonical.ownershipCosts.pitiMonthly).toLocaleString()}/mo`;
                     }
 
                     const priceStr = d.price ? `$${d.price.toLocaleString()}` : null;
                     const domNote  = d.daysOnMarket != null ? ` · ${d.daysOnMarket} days on market` : '';
 
+                    // Language rule (Rate Role Correction / Stage E): never call this "your
+                    // complete monthly payment" when HOA is unconfirmed -- HOA is genuinely
+                    // unknown, not zero, and PITI by definition excludes it.
+                    const hoaUnconfirmed = canonical?.ownershipCosts != null && canonical.ownershipCosts.hoaMonthly == null;
                     const headline = pitiStr
-                        ? `${pitiStr} estimated — that's your PITI on ${addressShort ?? locationStr}.`
+                        ? `${pitiStr} estimated PITI${hoaUnconfirmed ? ' (before any unconfirmed HOA)' : ''} on ${addressShort ?? locationStr}.`
                         : `${priceStr ?? 'Listing'} in ${locationStr}.`;
                     const subline = [priceStr, detailStr, locationStr + domNote].filter(Boolean).join(' · ');
-                    const rateLabel = liveRateIsLive ? `${liveRate.toFixed(2)}%` : `~${liveRate.toFixed(2)}% (est.)`;
+                    // Displayed rate always matches whatever actually drove pitiStr above --
+                    // canonical's neutral propertyMarketRate when available (identical
+                    // source to the ticker in practice, but this guarantees the label and
+                    // the number it describes can never drift apart), the ticker otherwise.
+                    const displayRate = canonical?.financing?.propertyMarketRate.rate ?? liveRate;
+                    const rateLabel = canonical?.financing ? `${displayRate.toFixed(2)}%` : liveRateIsLive ? `${liveRate.toFixed(2)}%` : `~${liveRate.toFixed(2)}% (est.)`;
                     const _siteName = d.source === 'redfin' ? 'Redfin' : d.source === 'zillow' ? 'Zillow' : 'The listing site';
                     const cta = d.price
-                        ? `Pre-loaded at today's ${rateLabel} with 20% down. Adjust the sliders to explore.`
+                        ? `Pre-loaded at today's illustrative market rate of ${rateLabel} with 20% down. Adjust the sliders to explore.`
                         : `${_siteName} blocked price data — enter the listing price below to run the numbers.`;
 
                     const friendly = [headline, subline, cta].filter(Boolean).join('\n');
@@ -2683,16 +2719,25 @@ export default function Page() {
                     const isJumboLoan  = !isFHACtx && !isVACtx && loanAmt > 832_750;
                     const sliderLoanType: 'conventional' | 'fha' | 'va' | 'jumbo' = isFHACtx ? 'fha' : isVACtx ? 'va' : isJumboLoan ? 'jumbo' : 'conventional';
 
-                    // Pre-filled AFFD-012 card using live rate + scraped tax rate
-                    const taxRate = d.taxRateEffective ?? 0.012;
+                    // Pre-filled AFFD-012 card -- canonical rate/tax/insurance/HOA when
+                    // available (same figures the external Gateway exposes), so this
+                    // card's INITIAL render (calcPI, its own existing live-recompute
+                    // primitive, over the SAME price/downPct/rate/term) exactly equals
+                    // canonical.financing.principalInterestMonthly. Falls back to the
+                    // ticker rate + the two legacy fallback constants ONLY when canonical
+                    // is genuinely unavailable (race/ineligible property) -- never a
+                    // silent, permanent second methodology.
+                    const taxRate = canonical?.ownershipCosts?.taxRateEffective ?? (d.taxRateEffective ?? 0.012);
+                    const insRate = canonical?.ownershipCosts?.insuranceAssumption.annualRate ?? 0.0050;
                     const affordabilityPurchaseCard = d.price ? {
                         loanType: sliderLoanType,
                         price: d.price,
                         downPct: defaultDown,
-                        rate: liveRate,
+                        rate: displayRate,
                         term: 30,
                         taxRate,
-                        insRate: 0.0050,
+                        insRate,
+                        hoaMonthly: canonical?.ownershipCosts ? canonical.ownershipCosts.hoaMonthly : undefined,
                     } : null;
 
                     // No chips for property_lookup — income analysis is shown inline via IncomeQualifySliderCard
@@ -2701,7 +2746,15 @@ export default function Page() {
                     // ── Autonomous Decision Score — L1 + L2 computed immediately ───────────
                     const { score: dsL1Score, summary: dsL1Summary } = scoreL1({ downPct: defaultDown, loanType: sliderLoanType });
 
-                    const dsAvm = d.estimatedValue ?? d.estimatedValueLow ?? null;
+                    // Fixed bug (Stage E, 2026-09-08): this used to fall back to
+                    // d.estimatedValueLow -- a valuation RANGE FLOOR, not a point
+                    // estimate -- whenever d.estimatedValue was null. canonical's own
+                    // pointEstimate is a genuine merged point-value AVM (never a range
+                    // boundary; see lib/canonicalPropertyIntelligence.ts's CanonicalValuation
+                    // header) and is used here exclusively, with no low/high/list-price
+                    // substitution of any kind. null flows straight through to scoreL2's
+                    // existing "AVM data unavailable" handling, unchanged.
+                    const dsAvm = canonical?.valuation.pointEstimate ?? null;
                     const dsL2Result = scoreL2({ listPrice: d.price, avm: dsAvm });
                     const dsL2Score = dsL2Result?.score ?? null;
                     const dsL2Summary = dsL2Result?.summary ?? 'AVM data unavailable';
