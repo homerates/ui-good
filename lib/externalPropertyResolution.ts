@@ -57,7 +57,7 @@
 // exact mistake previously caused a silent cron no-op -- ISSUE-038).
 
 import { getPropertyIntelligence, resolvePropertyId, type GatewayResult } from './gateway/intelligenceGateway';
-import { getPropertyIntelligenceCorpusOnly } from './gateway/corpusOnlyIntelligence';
+import { buildCanonicalPropertyIntelligence } from './canonicalPropertyIntelligence';
 import { shapeForExternalContract } from './gateway/outputShaping';
 import { ExternalPropertyIntelligenceV1Schema } from './gateway/outputSchema';
 
@@ -109,7 +109,7 @@ async function attemptResolution(address: string): Promise<boolean> {
 // ExternalPropertyIntelligenceV1Schema) -- never a bespoke second shaping
 // path that could drift from Contract V1.1.
 async function shapeResolvedProperty(address: string, propertyId: string): Promise<GatewayResult> {
-  const raw = await getPropertyIntelligenceCorpusOnly(propertyId);
+  const raw = await buildCanonicalPropertyIntelligence(propertyId);
   const shaped = shapeForExternalContract(address, raw);
   const parsed = ExternalPropertyIntelligenceV1Schema.safeParse(shaped);
   if (!parsed.success) {

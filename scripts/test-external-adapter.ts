@@ -50,6 +50,7 @@ import { NextRequest } from 'next/server';
 import { getSupabase } from '../lib/supabaseServer';
 import { issueCredential, revokeCredential } from '../lib/gateway/credentials';
 import { getPropertyIntelligenceCorpusOnly } from '../lib/gateway/corpusOnlyIntelligence';
+import { buildCanonicalPropertyIntelligence } from '../lib/canonicalPropertyIntelligence';
 import { getPropertyIntelligenceData } from '../lib/propertyIntelligence';
 import { ExternalPropertyIntelligenceV1Schema } from '../lib/gateway/outputSchema';
 import { shapeForExternalContract } from '../lib/gateway/outputShaping';
@@ -747,7 +748,7 @@ async function main() {
     {
       const addr = `${Date.now()} HOA Confirmed Ct, Testville, ZZ 00001`;
       const id = await insertTestProperty(addr, { avm: 500000, hoaMonthly: 300 });
-      const raw = await getPropertyIntelligenceCorpusOnly(id);
+      const raw = await buildCanonicalPropertyIntelligence(id);
       const shaped = shapeForExternalContract(addr, raw);
       const oc = shaped.ownership_cost_intelligence;
       const ok = oc?.hoa.value === 300 && oc?.estimated_piti.value != null && oc?.estimated_pitia.value === (oc!.estimated_piti.value as number) + 300;
@@ -758,7 +759,7 @@ async function main() {
     {
       const addr = `${Date.now()} HOA Unknown Way, Testville, ZZ 00001`;
       const id = await insertTestProperty(addr, { avm: 500000 });
-      const raw = await getPropertyIntelligenceCorpusOnly(id);
+      const raw = await buildCanonicalPropertyIntelligence(id);
       const shaped = shapeForExternalContract(addr, raw);
       const oc = shaped.ownership_cost_intelligence;
       const ok = oc?.hoa.value === null && oc?.estimated_pitia.value === null && oc?.estimated_piti.value != null;
