@@ -1192,7 +1192,17 @@ async function handleAddress(rawAddress: string) {
                 const identity = validatePropertyIdentity(rawAddress, body.data as CandidateAddressFields);
                 console.log('[address-identity]', { code: identity.code, branch: 'redfin_url' });
                 if (identity.ok) {
-                    void cachePropertyResult(rawAddress, body.data, body.data.source ?? 'redfin_via_tavily');
+                    // Awaited (2026-09-09): was fire-and-forget (`void cachePropertyResult(...)`),
+                    // which let this handler return its HTTP response before the Supabase write
+                    // committed. Proven via direct timing reproduction (not inferred) that the
+                    // demand-driven external resolver's own resolvePropertyId() re-check -- run
+                    // immediately after receiving this exact response -- can find nothing yet,
+                    // even though the write eventually lands under the correct address_full key
+                    // moments later. cachePropertyResult() already swallows all its own errors
+                    // internally and resolves to void, so awaiting it here cannot turn a
+                    // persistence failure into a request failure -- it only removes the false
+                    // "not found" window. See ARCHITECTURE_DECISIONS.md for the full writeup.
+                    await cachePropertyResult(rawAddress, body.data, body.data.source ?? 'redfin_via_tavily');
                 } else {
                     identityFailed = true;
                 }
@@ -1211,7 +1221,8 @@ async function handleAddress(rawAddress: string) {
         const identity = validatePropertyIdentity(rawAddress, broadData as CandidateAddressFields);
         console.log('[address-identity]', { code: identity.code, branch: 'broad_search' });
         if (identity.ok) {
-            void cachePropertyResult(rawAddress, broadData, 'web_search');
+            // Awaited -- see the identical note on the redfin_url branch above.
+            await cachePropertyResult(rawAddress, broadData, 'web_search');
             return NextResponse.json({ ok: true, data: broadData });
         }
     }
