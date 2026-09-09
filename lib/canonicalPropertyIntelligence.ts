@@ -1,6 +1,9 @@
 // lib/canonicalPropertyIntelligence.ts
 //
-// Canonical Property Intelligence Consistency Workstream, Stage A (2026-09-08).
+// Canonical Property Intelligence Consistency Workstream (2026-09-08).
+// Stage A built this file; the Rate Role Correction (same day, before Stage E
+// began) changed what its `financing` field means -- see the dated note on
+// CanonicalFinancing below before touching either rate field.
 //
 // WHY THIS EXISTS: a live-usage audit found the same property
 // (5845 Doverwood Dr #106, Culver City, CA 90230) producing materially
@@ -13,28 +16,37 @@
 // getPropertyIntelligenceData() -- a SEPARATE, already-more-correct engine
 // that neither surface's other computations reuse. This file does not
 // reimplement that engine -- it wraps and TYPES its existing output as one
-// explicit, testable canonical object, and adds only the two genuinely
-// missing pieces (a real marketReferenceRate-vs-illustrativeScenarioRate
-// split naming, and avmLow/avmHigh exposure) rather than recomputing
-// anything.
+// explicit, testable canonical object, computing nothing new EXCEPT the one
+// deliberate exception documented below (the neutral property-market-rate
+// payment recompute, added for the Rate Role Correction).
 //
-// STAGE A SCOPE: this file introduces the canonical object ALONGSIDE the
-// existing paths. It does not change first-party UI behavior (app/chat/page.tsx
-// is untouched) and, on its own, does not change external behavior either --
-// Stage D wires lib/gateway/outputShaping.ts to consume it.
+// SCOPE: this file introduces the canonical object ALONGSIDE the existing
+// paths. It does not change first-party UI behavior (app/chat/page.tsx is
+// untouched) -- Stage E (its migration, not yet started) is a separate,
+// explicitly-deferred approval.
 //
 // "Use existing authoritative modules, do not duplicate calculations": this
-// file's only external I/O is one call to getPropertyIntelligenceCorpusOnly()
-// (re-exported from lib/gateway/corpusOnlyIntelligence.ts, the Gateway's own
-// sole sanctioned entry point into lib/propertyIntelligence.ts) -- the SAME
-// call the Gateway itself already makes. No new query, no new AVM merge, no
-// new LLPA/OBMMI call, no new PITI formula. Living outside lib/gateway/ (not
-// inside it) keeps that module's "one entry point" invariant intact: this
-// file is a second CONSUMER of that entry point, not a second PATH into
-// lib/propertyIntelligence.ts -- the automated import-boundary check
-// (scripts/check-gateway-import-boundary.mjs) only scans files inside
-// lib/gateway/, so it is unaffected either way, but the intent matters more
-// than the letter of that check here.
+// file makes exactly two external I/O calls, both to already-existing,
+// already-safe server-side functions in lib/propertyIntelligence.ts --
+// (1) getPropertyIntelligenceCorpusOnly() (re-exported from
+// lib/gateway/corpusOnlyIntelligence.ts, the Gateway's own sole sanctioned
+// entry point into property-specific data) for the property/valuation/
+// ownership-cost assembly, and (2) getPropertyMarketReferenceRate() (a plain
+// market-data reader, no property-specific data, imported directly -- it
+// carries none of the property-corpus access-control concerns
+// corpusOnlyIntelligence.ts exists to gate, so it doesn't need routing
+// through that file) for the neutral rate. No new query beyond what each of
+// those already does internally, no new AVM merge, no new LLPA/OBMMI call.
+// The one genuinely new computation -- recomputing principalInterestMonthly
+// at the neutral rate via calculateMortgage(), the SAME existing, tested
+// mortgage-math primitive lib/propertyIntelligence.ts itself already uses,
+// just called again with a different rate input -- exists because Property
+// Intelligence and Rate Intelligence are now explicitly two different
+// products with two different rates (see CanonicalFinancing below); this is
+// not "recalculating the same value a second way," it's computing the ONE
+// value Property Intelligence was always supposed to expose and never had
+// a field for. Living outside lib/gateway/ keeps that module's "one entry
+// point" invariant intact regardless.
 
 import {
   getPropertyIntelligenceCorpusOnly,
@@ -42,6 +54,8 @@ import {
   CANONICAL_INSURANCE_ANNUAL_RATE,
   CANONICAL_INSURANCE_ASSUMPTION_LABEL,
 } from './gateway/corpusOnlyIntelligence';
+import { getPropertyMarketReferenceRate } from './propertyIntelligence';
+import { calculateMortgage } from './mortgageCalculator';
 
 export interface CanonicalPropertyFacts {
   address: string;
@@ -81,20 +95,45 @@ export interface CanonicalFinancing {
   loanAmount: number;
   ltv: number;
   conformingStatus: 'standard' | 'high_balance' | 'above_limit';
-  // The raw national/OBMMI par rate BEFORE lender pricing adjustments (LLPA)
-  // -- a general market reference point, NOT what drives the payment below.
-  // Corresponds to /api/ticker's role: a legitimate, separate concept from
-  // the scenario-specific rate, never meant to independently drive a
-  // property-specific payment.
-  marketReferenceRate: { value: number; seriesLabel: string; asOf: string | null };
-  // The LLPA-adjusted, credit/LTV-segment-specific rate. THIS is what
-  // principalInterestMonthly below is computed from, and what any canonical
-  // payment calculation must use -- never marketReferenceRate directly.
-  illustrativeScenarioRate: number;
+
+  // RATE ROLE CORRECTION (2026-09-08) -- two deliberately separate products:
+  //
+  // propertyMarketRate: PROPERTY INTELLIGENCE's rate. "What does financing
+  // this home look like against today's market?" -- neutral, no FICO, no LTV
+  // pricing tier, no LLPA, no borrower data at all. Same underlying source
+  // (FRED MORTGAGE30US via lib/market-data's getLatest()) as the first-party
+  // property-scenario ticker's "30Y FIXED" figure -- see
+  // getPropertyMarketReferenceRate()'s own header for the full trace. THIS
+  // drives principalInterestMonthly below, and therefore pitiMonthly/
+  // pitiaMonthly in CanonicalOwnershipCosts, and external Property
+  // Intelligence's illustrative financing. It requires nothing about the
+  // borrower.
+  propertyMarketRate: { rate: number; source: string; asOf: string | null; label: string };
+
+  // rateIntelligence: RATE INTELLIGENCE's own concept. "Where does this
+  // borrower/scenario rank given credit, LTV, and pricing mechanics?" --
+  // the existing OBMMI-segment-selected reference rate plus the LLPA-adjusted
+  // result, computed exactly as lib/propertyIntelligence.ts's financing
+  // engine always has, under its existing fixed illustrative assumptions
+  // (740 credit score, 20% down). UNCHANGED math, only relocated/renamed
+  // here so it's structurally impossible to confuse with propertyMarketRate.
+  // Must NEVER drive Property Intelligence payment math -- kept for future
+  // Rate Intelligence linkage only. Not read by lib/gateway/outputShaping.ts
+  // today (Property Intelligence's external contract has no Rate
+  // Intelligence surface yet); if one is ever added, it must read this
+  // sub-object explicitly, never propertyMarketRate.
+  rateIntelligence: {
+    marketSegmentRate: { value: number; seriesLabel: string; asOf: string | null };
+    llpaAdjustedRate: number;
+    assumedCreditScore: number;
+    assumedLtv: number;
+    totalLLPAPoints: number;
+    llpaDataSource: string;
+    llpaEffectiveDate: string;
+  };
+
+  // Computed at propertyMarketRate (see above) -- never at rateIntelligence.llpaAdjustedRate.
   principalInterestMonthly: number;
-  totalLLPAPoints: number;
-  llpaDataSource: string;
-  llpaEffectiveDate: string;
 }
 
 export interface CanonicalOwnershipCosts {
@@ -157,13 +196,21 @@ export interface CanonicalPropertyIntelligence {
   };
 }
 
-/** Stage A canonical builder. Wraps getPropertyIntelligenceCorpusOnly() --
- *  the SAME call the Gateway already makes -- and relabels its output into
- *  the explicit canonical shape above. Computes nothing new; the AVM merge,
- *  LLPA/OBMMI rate selection, tax lookup, and PITI/PITIA math all remain
- *  exactly lib/propertyIntelligence.ts's existing, unmodified logic. */
+/** Canonical builder. Wraps getPropertyIntelligenceCorpusOnly() -- the SAME
+ *  call the Gateway already makes -- and relabels its output into the
+ *  explicit canonical shape above. The AVM merge, OBMMI/LLPA rate selection,
+ *  and tax lookup all remain exactly lib/propertyIntelligence.ts's existing,
+ *  unmodified logic (preserved as `financing.rateIntelligence`). The one
+ *  deliberate exception (Rate Role Correction, 2026-09-08): P&I/PITI/PITIA
+ *  are recomputed at the neutral propertyMarketRate instead of trusting the
+ *  engine's own LLPA-adjusted monthlyPI/PITI/PITIA -- see CanonicalFinancing's
+ *  header for why this is Property Intelligence's own concept now, not a
+ *  second, competing calculation of the same thing. */
 export async function buildCanonicalPropertyIntelligence(propertyId: string): Promise<CanonicalPropertyIntelligence | null> {
-  const raw = await getPropertyIntelligenceCorpusOnly(propertyId);
+  const [raw, propertyMarketRate] = await Promise.all([
+    getPropertyIntelligenceCorpusOnly(propertyId),
+    getPropertyMarketReferenceRate(),
+  ]);
   if (!raw) return null;
 
   const property: CanonicalPropertyFacts = {
@@ -189,22 +236,46 @@ export async function buildCanonicalPropertyIntelligence(propertyId: string): Pr
     asOf: raw.valuation.freshness,
   };
 
+  // Same price derivation the financing engine itself uses internally
+  // (list price preferred, AVM as fallback) -- not a new selection rule.
+  const financingPrice = raw.valuation.listPrice.value ?? raw.valuation.avm.value ?? 0;
+
   const financing: CanonicalFinancing | null = raw.financing
     ? {
         scenario: raw.financing.scenario,
         loanAmount: raw.financing.loanAmount.value,
         ltv: raw.financing.ltv.value,
         conformingStatus: raw.financing.conformingStatus,
-        marketReferenceRate: {
-          value: raw.financing.marketRate.value.rate,
-          seriesLabel: raw.financing.marketRate.value.seriesLabel,
-          asOf: raw.financing.marketRate.value.observationDate,
+        propertyMarketRate: {
+          rate: propertyMarketRate.rate,
+          source: propertyMarketRate.source,
+          asOf: propertyMarketRate.asOf,
+          label: propertyMarketRate.label,
         },
-        illustrativeScenarioRate: raw.financing.lenderParRate.value,
-        principalInterestMonthly: raw.financing.monthlyPI.value,
-        totalLLPAPoints: raw.financing.totalLLPAPoints,
-        llpaDataSource: raw.financing.llpaDataSource,
-        llpaEffectiveDate: raw.financing.llpaEffectiveDate,
+        rateIntelligence: {
+          marketSegmentRate: {
+            value: raw.financing.marketRate.value.rate,
+            seriesLabel: raw.financing.marketRate.value.seriesLabel,
+            asOf: raw.financing.marketRate.value.observationDate,
+          },
+          llpaAdjustedRate: raw.financing.lenderParRate.value,
+          assumedCreditScore: raw.financing.scenario.creditScore,
+          assumedLtv: raw.financing.ltv.value,
+          totalLLPAPoints: raw.financing.totalLLPAPoints,
+          llpaDataSource: raw.financing.llpaDataSource,
+          llpaEffectiveDate: raw.financing.llpaEffectiveDate,
+        },
+        // Recomputed at propertyMarketRate via the SAME calculateMortgage()
+        // primitive the engine itself uses -- never raw.financing.monthlyPI
+        // (which is LLPA-adjusted, i.e. Rate Intelligence's number).
+        principalInterestMonthly: financingPrice > 0
+          ? Math.round(calculateMortgage({
+              price: financingPrice,
+              downPaymentPct: raw.financing.scenario.downPaymentPct,
+              rate: propertyMarketRate.rate,
+              termYears: raw.financing.scenario.termYears,
+            }).monthlyPI)
+          : 0,
       }
     : null;
 
@@ -220,8 +291,16 @@ export async function buildCanonicalPropertyIntelligence(propertyId: string): Pr
         },
         hoaMonthly: raw.ownershipCost.monthlyHoa.value,
         hoaConfirmed: raw.ownershipCost.monthlyHoa.value != null,
-        pitiMonthly: raw.ownershipCost.estimatedMonthlyPITI.value,
-        pitiaMonthly: raw.ownershipCost.estimatedMonthlyPITIA.value,
+        // Recomputed at propertyMarketRate's P&I (financing?.principalInterestMonthly
+        // above), not raw.ownershipCost.estimatedMonthlyPITI/PITIA (which are
+        // built from the engine's LLPA-adjusted P&I -- Rate Intelligence's
+        // number). Same PITI/PITIA formula lib/propertyIntelligence.ts itself
+        // uses (P&I + tax + insurance; + HOA only when confirmed), just with
+        // the neutral rate's P&I as input.
+        pitiMonthly: Math.round((financing?.principalInterestMonthly ?? 0) + raw.ownershipCost.monthlyTax.value + raw.ownershipCost.monthlyInsurance.value),
+        pitiaMonthly: raw.ownershipCost.monthlyHoa.value != null
+          ? Math.round((financing?.principalInterestMonthly ?? 0) + raw.ownershipCost.monthlyTax.value + raw.ownershipCost.monthlyInsurance.value + raw.ownershipCost.monthlyHoa.value)
+          : null,
       }
     : null;
 
