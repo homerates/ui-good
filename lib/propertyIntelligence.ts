@@ -183,6 +183,43 @@ const METHODOLOGY_VERSION = 'Decision Score L1-L4 (locked 2026-08-19), L2-L4 pro
 export const CANONICAL_INSURANCE_ANNUAL_RATE = 0.003;
 export const CANONICAL_INSURANCE_ASSUMPTION_LABEL = 'HomeRates.ai default: 0.3% of price annually';
 
+// Neutral HomeRates mortgage market-reference rate -- added 2026-09-08
+// (Rate Role Correction). PROPERTY INTELLIGENCE ("what does financing this
+// home look like against today's market?") must use this rate: no FICO, no
+// LTV pricing tier, no LLPA, no borrower data of any kind. This is the exact
+// same underlying value the first-party property-scenario ticker shows as
+// "30Y FIXED" -- confirmed by reading app/api/ticker/route.ts directly: that
+// route's entire "30Y FIXED" figure is `getSnapshot(['MORTGAGE30US', ...])
+// ['MORTGAGE30US'].value`, and getSnapshot() (lib/market-data/query.ts) is
+// itself just getLatest() per series -- the SAME getLatest('MORTGAGE30US')
+// call this file's own financing engine already makes below (as `parRateObs`).
+// No new query, no HTTP self-fetch to /api/ticker -- this calls the same
+// shared server-side data function the ticker route calls, directly.
+//
+// RATE INTELLIGENCE ("where does this borrower/scenario rank given credit,
+// LTV, and pricing mechanics?") is a SEPARATE, unchanged concept -- the
+// existing OBMMI/LLPA-segmented rate below (now named `rateIntelligence` in
+// PropertyIntelligenceData.financing) continues to exist for that purpose,
+// completely untouched by this function.
+export interface PropertyMarketReferenceRate {
+  rate: number;
+  source: string;
+  asOf: string | null;
+  label: string;
+}
+
+export async function getPropertyMarketReferenceRate(): Promise<PropertyMarketReferenceRate> {
+  const obs = await getLatest('MORTGAGE30US');
+  return {
+    // 6.82 matches this file's own existing parRate fallback constant
+    // (see the financing engine below) -- not a new invented default.
+    rate: obs?.value ?? 6.82,
+    source: 'FRED MORTGAGE30US',
+    asOf: obs?.observationDate ?? null,
+    label: 'HomeRates market reference rate (national 30yr fixed average, FRED)',
+  };
+}
+
 // Two different normalization conventions genuinely coexist in this codebase's
 // existing tables -- confirmed directly against real rows, not assumed:
 //   - featured_properties.address_norm: lower(trim(address)) -- punctuation

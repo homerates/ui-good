@@ -114,15 +114,18 @@ export function shapeForExternalContract(
           amount: labeled('DERIVED CALCULATION', raw.financing.loanAmount),
           monthly_pi: labeled('DERIVED CALCULATION', raw.financing.principalInterestMonthly),
         },
-        // Deliberately the raw market-reference rate (pre-LLPA), NOT
-        // illustrativeScenarioRate -- matches this field's existing external
-        // meaning ("a market rate reference"), while monthly_pi above is
-        // (and always was) computed from the LLPA-adjusted scenario rate.
-        // See lib/canonicalPropertyIntelligence.ts's header for the
-        // marketReferenceRate-vs-illustrativeScenarioRate distinction.
+        // Rate Role Correction (2026-09-08): Property Intelligence exposes
+        // ONLY the neutral propertyMarketRate here -- never
+        // rateIntelligence's OBMMI/LLPA-segmented figures, which assume a
+        // borrower profile (740 FICO, specific LTV) this anonymous contract
+        // never collects. monthly_pi above is (and now correctly is)
+        // computed from this SAME neutral rate -- see
+        // lib/canonicalPropertyIntelligence.ts's CanonicalFinancing header.
+        // series_label deliberately carries neutral "market reference"
+        // language, never an OBMMI/credit-tier description.
         market_rate: {
-          value: raw.financing.marketReferenceRate.value,
-          series_label: raw.financing.marketReferenceRate.seriesLabel,
+          value: raw.financing.propertyMarketRate.rate,
+          series_label: raw.financing.propertyMarketRate.label,
           claim_type: 'MARKET FACT' as const,
         },
       }

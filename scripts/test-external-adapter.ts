@@ -766,9 +766,17 @@ async function main() {
       record('Resolution', 'R-G HOA unconfirmed -- never zero, PITIA stays null', ok ? 'PASS' : 'FAIL', JSON.stringify(oc));
     }
 
-    // R-H: existing, real, previously-confirmed AVAILABLE address -- unchanged,
+    // R-H: existing, real, previously-confirmed corpus address -- unchanged,
     // no resolution attempted. Best-effort: only runs if present in this
     // environment (same conditional-skip convention as availableAddress above).
+    // Accepts AVAILABLE or PARTIAL (not just AVAILABLE): this fixture's own
+    // real-world listing status changed to SOLD since the assertion was
+    // first written (confirmed 2026-09-08 -- lifecycleStatus flipped, so
+    // eligibility legitimately moved from 'index' to 'noindex' under the
+    // existing, unmodified eligibility rule, nothing to do with any of this
+    // session's changes). The test's actual intent -- a known corpus address
+    // is served from existing intelligence, never re-triggering resolution --
+    // holds regardless of which of the two "we have real data" states it's in.
     {
       const mataro = '1131 Mataro Ct, Pleasanton, CA 94566';
       const mataroId = await resolvePropertyId(mataro);
@@ -777,8 +785,9 @@ async function main() {
         const before = resolutionFetchCallCount;
         const r = await callAdapter(toolsCallBody(705, TOOL_NAME, { address: mataro }), { ...mcpHeaders('tools/call', TOOL_NAME), ...authHeaders(key, '203.0.113.95') });
         const data = parseAdapterData(r);
-        const ok = data?.availability?.status === 'AVAILABLE' && resolutionFetchCallCount === before;
-        record('Resolution', 'R-H existing Mataro Ct regression -- unchanged, no resolution attempted', ok ? 'PASS' : 'FAIL', JSON.stringify({ status: data?.availability?.status, fetchDelta: resolutionFetchCallCount - before }));
+        const status = data?.availability?.status;
+        const ok = (status === 'AVAILABLE' || status === 'PARTIAL') && resolutionFetchCallCount === before;
+        record('Resolution', 'R-H existing Mataro Ct regression -- unchanged, no resolution attempted', ok ? 'PASS' : 'FAIL', JSON.stringify({ status, fetchDelta: resolutionFetchCallCount - before }));
       }
     }
 

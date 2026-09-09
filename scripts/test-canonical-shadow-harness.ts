@@ -132,8 +132,8 @@ async function shadowCompare(label: string, address: string) {
   row('baths', fp?.propertyCard?.baths ?? null, canonical?.property.baths);
   row('sqft', fp?.propertyCard?.sqft ?? null, canonical?.property.sqft);
   row('valuation (point)', fp?.replicated.decisionScoreAvm ?? null, canonical?.valuation.pointEstimate ?? null);
-  row('rate (ticker vs marketRef)', fp?.replicated.tickerRate ?? null, canonical?.financing?.marketReferenceRate.value ?? null);
-  row('rate (RIE vs illustrativeScenario)', fp?.replicated.rieScenarioRate ?? null, canonical?.financing?.illustrativeScenarioRate ?? null);
+  row('rate (ticker vs propertyMarketRate)', fp?.replicated.tickerRate ?? null, canonical?.financing?.propertyMarketRate.rate ?? null);
+  row('rate (RIE vs rateIntelligence.llpaAdjustedRate)', fp?.replicated.rieScenarioRate ?? null, canonical?.financing?.rateIntelligence.llpaAdjustedRate ?? null);
   row('loan amount', fp?.propertyCard?.price ? Math.round(fp.propertyCard.price * 0.8) : null, canonical?.financing?.loanAmount ?? null);
   row('P&I', null, canonical?.financing?.principalInterestMonthly ?? null);
   row('tax (monthly)', fp?.propertyCard ? Math.round((fp.propertyCard.annualTaxes ?? fp.propertyCard.price * (fp.propertyCard.taxRateEffective ?? 0.0076)) / 12) : null, canonical?.ownershipCosts?.monthlyTaxes ?? null);

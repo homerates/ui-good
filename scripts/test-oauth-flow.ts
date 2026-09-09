@@ -420,9 +420,16 @@ async function main() {
       record('6', 'missing scope: HTTP 403 + insufficient_scope WWW-Authenticate', r.status === 403 && www.includes('insufficient_scope') ? 'PASS' : 'FAIL', `status=${r.status} www=${www}`);
     }
     {
+      // Accepts AVAILABLE or PARTIAL: this fixture's own real-world listing
+      // status changed to SOLD since this assertion was first written
+      // (confirmed 2026-09-08), which legitimately moves its eligibility
+      // from 'index' to 'noindex' under the existing, unmodified rule --
+      // the actual thing under test (a valid OAuth token can call tools/call
+      // and get real intelligence back) holds regardless of which state.
       const r = await mcpCall(toolsCallBody(5, { address: '1131 Mataro Ct, Pleasanton, CA 94566' }), mcpHeaders(`Bearer ${oauthToken}`, '203.0.113.205'));
-      const ok = r.status === 200 && r.json?.result?.content?.[0]?.text?.includes('"status":"AVAILABLE"');
-      record('6', 'valid OAuth-minted token: tools/call succeeds, AVAILABLE', ok ? 'PASS' : 'FAIL', `status=${r.status}`);
+      const text = r.json?.result?.content?.[0]?.text ?? '';
+      const ok = r.status === 200 && (text.includes('"status":"AVAILABLE"') || text.includes('"status":"PARTIAL"'));
+      record('6', 'valid OAuth-minted token: tools/call succeeds, real intelligence returned', ok ? 'PASS' : 'FAIL', `status=${r.status}`);
     }
     {
       const r = await mcpCall(toolsCallBody(6, { address: '2201 N Hobart Blvd, Los Angeles, CA 90027' }), mcpHeaders(`Bearer ${oauthToken}`, '203.0.113.206'));
