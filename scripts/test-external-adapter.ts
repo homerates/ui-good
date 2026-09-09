@@ -94,6 +94,15 @@ const PROTOCOL_VERSION = '2026-07-28';
 // live address is used for genuine end-to-end validation on dev.
 let interceptResolutionFetch = true;
 let resolutionFetchCallCount = 0;
+// Progressive Intelligence (2026-09-09): resolveExternalPropertyIntelligence()
+// now also fires a fire-and-forget POST to /api/beta/grok-property (via
+// after(), falling back to an un-awaited call outside a real Next.js request
+// scope -- exactly this test harness's own calling convention, see
+// callAdapter() below). Intercepted the same way /api/property/lookup
+// already is -- a real, uncontrolled call here would hit live Grok/xAI
+// infrastructure on every NEWLY_RESOLVED/RESOLUTION_SKIPPED test in this
+// suite, which is neither cheap nor deterministic for a regression gate.
+let grokTriggerFetchCallCount = 0;
 // Held in a mutable ref object (not a bare `let`) so re-pointing `.handler`
 // from a later test block is unambiguous for both us and the type checker.
 type ResolutionMockHandler = (address: string) => Promise<{ status: number; body: unknown }>;
@@ -116,6 +125,10 @@ globalThis.fetch = (async (input: any, init?: any) => {
         headers: { 'content-type': 'application/json' },
       });
     }
+  }
+  if (url.includes('/api/beta/grok-property')) {
+    grokTriggerFetchCallCount += 1;
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } });
   }
   return realFetch(input, init);
 }) as typeof fetch;
@@ -696,7 +709,10 @@ async function main() {
       };
       const key = await freshCred();
       const before = resolutionFetchCallCount;
+      const grokBefore = grokTriggerFetchCallCount;
+      const t0 = Date.now();
       const r = await callAdapter(toolsCallBody(701, TOOL_NAME, { address: dedupeAddr }), { ...mcpHeaders('tools/call', TOOL_NAME), ...authHeaders(key, '203.0.113.91') });
+      const elapsedMs = Date.now() - t0;
       resolutionMock.handler = null;
       const data = parseAdapterData(r);
       const attempted = resolutionFetchCallCount - before === 1;
@@ -705,6 +721,15 @@ async function main() {
       const persisted = Boolean(await resolvePropertyId(dedupeAddr));
       const ok = attempted && notedAsNew && persisted;
       record('Resolution', 'R-B valid unknown property -- resolves, persists, note present', ok ? 'PASS' : 'FAIL', JSON.stringify({ attempted, notedAsNew, persisted, status: data?.availability?.status }));
+      // Progressive Intelligence: a newly-resolved property with no comps/
+      // location yet should fire exactly one Fast-Follow enrichment trigger,
+      // and the response must not have waited on it (elapsedMs stays in the
+      // same budget as before this feature existed, not anywhere near
+      // Grok's own 85-140s timeout -- see R-J below for the stronger,
+      // source-level non-blocking check).
+      const triggered = grokTriggerFetchCallCount - grokBefore === 1;
+      const progress = data?.intelligence_progress;
+      record('Resolution', 'R-K newly-resolved property fires exactly one Fast-Follow enrichment trigger', triggered && progress?.status === 'enriching' ? 'PASS' : 'FAIL', JSON.stringify({ triggered, progress, elapsedMs }));
     }
 
     // R-C: repeat request for the SAME now-persisted address -> no second
@@ -800,12 +825,31 @@ async function main() {
       record('Resolution', 'R-I invalid credential rejected before any resolution attempt', ok ? 'PASS' : 'FAIL', `status=${r.status} fetchDelta=${resolutionFetchCallCount - before}`);
     }
 
-    // R-J: newly-resolved property never synchronously triggers deep-enrichment/Grok.
+    // R-J: the Fast-Follow enrichment trigger (Progressive Intelligence,
+    // 2026-09-09) exists and references grok-property (R-K above proves it
+    // fires), but must NEVER be awaited on the response path -- source-level
+    // check that the call site doesn't block the function's return, since a
+    // real Grok call can take up to 140s (see app/api/beta/grok-property/route.ts),
+    // far past any acceptable synchronous tool-call latency. This replaces
+    // the old, now-obsolete invariant ("never reference Grok at all") --
+    // the correct invariant was always "never BLOCK on Grok," not "never
+    // trigger it."
     {
       const resolutionSource = fs.readFileSync(path.resolve(process.cwd(), 'lib/externalPropertyResolution.ts'), 'utf8');
       const codeOnly = resolutionSource.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
-      const noDeepEnrichReference = !/grok-property|deep-enrich|listDeepEnrichmentCandidates|deepEnrich/i.test(codeOnly);
-      record('Resolution', 'R-J newly-resolved property never synchronously triggers deep-enrichment/Grok', noDeepEnrichReference ? 'PASS' : 'FAIL', `code (comments stripped) references deep-enrichment machinery: ${!noDeepEnrichReference}`);
+      const referencesGrok = /grok-property/i.test(codeOnly);
+      // The only two call sites of triggerFastFollowEnrichmentIfNeeded must
+      // never be preceded by `await` -- it is a synchronous, fire-and-schedule
+      // function (schedules work via after(), or falls back to an un-awaited
+      // call), never one whose completion the response waits on.
+      const callSites = codeOnly.match(/[\w).]*\s*triggerFastFollowEnrichmentIfNeeded\(/g) ?? [];
+      const noneAwaited = callSites.length >= 3 && callSites.every((c) => !/await\s*$/.test(c.replace(/triggerFastFollowEnrichmentIfNeeded\($/, '')));
+      // The function's own internal fetch call is fire-and-schedule (after())
+      // or an un-awaited fallback -- never directly awaited inline in a way
+      // that would block resolveExternalPropertyIntelligence's own return.
+      const noInlineBlockingFetch = /after\(runTrigger\)/.test(codeOnly) && /void runTrigger\(\)/.test(codeOnly);
+      const ok = referencesGrok && noneAwaited && noInlineBlockingFetch;
+      record('Resolution', 'R-J Fast-Follow enrichment trigger exists but never blocks the response (after()/un-awaited, not inline await)', ok ? 'PASS' : 'FAIL', JSON.stringify({ referencesGrok, callSiteCount: callSites.length, noneAwaited, noInlineBlockingFetch }));
     }
 
     console.log('\n=== FINAL RESULTS ===');

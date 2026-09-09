@@ -35,6 +35,20 @@
 // string -- even though the only real consumer today (an LLM reading JSON
 // descriptively) is unambiguously better off without a misleading field.
 //
+// V1.3 -> V1.4 (Progressive Intelligence for External AI, 2026-09-09): the
+// first-party chat product has never waited for Grok comps/location before
+// showing a user something useful -- it renders immediately, then updates the
+// SAME card once deep analysis lands, via a client-side follow-up call an
+// external caller has no equivalent of. Two new fields close that gap:
+// intelligence_progress ('enriching' | 'enriched', per-layer completion,
+// follow_up_recommended) tells the caller whether to expect richer data on a
+// later call for the same address; deep_intelligence gives a property-specific
+// (never generic, never internal-id-keyed) destination for the full
+// interactive HomeRates experience. Both are purely derived from fields this
+// file already reads -- no new query, no new job/state table. Neither field
+// changes the meaning of `availability`, `financing_intelligence`, or any
+// other v1.3 field.
+//
 // V1.2 -> V1.3 (Demand-Triggered Intelligence, Fast Intelligence Tier,
 // 2026-09-09): financing_intelligence/ownership_cost_intelligence are no
 // longer forced to null whenever a property has no AVM/comps -- a real,
@@ -63,7 +77,7 @@ const LabeledNumber = z.object({ value: z.number().nullable(), claim_type: Claim
 const LabeledString = z.object({ value: z.string().nullable(), claim_type: ClaimType });
 
 export const ExternalPropertyIntelligenceV1Schema = z.object({
-  contract_version: z.literal('property-intelligence-v1.3'),
+  contract_version: z.literal('property-intelligence-v1.4'),
   query: z.object({ address_requested: z.string() }),
   availability: z.object({
     status: z.enum(['AVAILABLE', 'PARTIAL', 'NOT_AVAILABLE']),
@@ -143,6 +157,32 @@ export const ExternalPropertyIntelligenceV1Schema = z.object({
     .object({
       drivers: z.array(z.string()),
       limitations: z.array(z.string()),
+    })
+    .nullable(),
+  // Progressive Intelligence (v1.4): null exactly when `property` is null
+  // (no resolved property to report progress on). Purely derived from
+  // already-computed canonical fields -- never a new query, never a new
+  // state store.
+  intelligence_progress: z
+    .object({
+      status: z.enum(['enriching', 'enriched']),
+      layers: z.object({
+        financial: z.enum(['complete', 'pending']),
+        property: z.enum(['complete', 'partial', 'pending']),
+        market: z.enum(['complete', 'pending']),
+        location: z.enum(['complete', 'pending']),
+      }),
+      follow_up_recommended: z.boolean(),
+    })
+    .nullable(),
+  // Property-specific canonical destination for the full interactive
+  // HomeRates experience -- never a generic homepage, never keyed by an
+  // internal property id (see file header's INTERNAL ONLY list).
+  deep_intelligence: z
+    .object({
+      available: z.literal(true),
+      destination: z.string(),
+      capability_summary: z.string(),
     })
     .nullable(),
   freshness: z.object({

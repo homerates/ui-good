@@ -56,6 +56,7 @@
 // internal deployment hostname differs from the public custom domain (this
 // exact mistake previously caused a silent cron no-op -- ISSUE-038).
 
+import { after } from 'next/server';
 import { getPropertyIntelligence, resolvePropertyId, type GatewayResult } from './gateway/intelligenceGateway';
 import { buildCanonicalPropertyIntelligence } from './canonicalPropertyIntelligence';
 import { shapeForExternalContract } from './gateway/outputShaping';
@@ -63,6 +64,88 @@ import { ExternalPropertyIntelligenceV1Schema } from './gateway/outputSchema';
 
 const SELF_FETCH_BASE_URL = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
 const RESOLUTION_TIMEOUT_MS = 20_000;
+
+// Progressive Intelligence (2026-09-09): the first-party chat product never
+// waits for Grok comps/location before showing a user something useful --
+// app/chat/page.tsx renders the property/financing card immediately, then a
+// CLIENT-SIDE background call (the user's own open browser tab) hits the
+// exact same /api/beta/grok-property endpoint below and updates the same
+// message once deep analysis lands. An external caller has no browser tab to
+// do that follow-up itself, so the server does it here instead -- same
+// endpoint, same cache table (grok_property_cache), same deep-enrichment
+// lifecycle, not a second pipeline.
+//
+// Scheduled via Next's after() rather than a bare un-awaited promise: AD-18
+// (this same file's sibling workstream) proved a fire-and-forget call in a
+// route handler is not reliably guaranteed to run to completion once the
+// response has been sent -- after() is the platform-supported mechanism for
+// exactly "run this once the response is out, but guarantee it finishes."
+// Never awaited by the caller -- the external response returns immediately
+// regardless of how long this takes (Grok's own route times out at 140s for
+// deep mode, far past any acceptable synchronous tool-call latency).
+//
+// Fires at most once per returned result, only when intelligence_progress
+// says 'enriching' (comps and location narrative both still absent) --
+// skipped entirely once either exists, so a property that's already been
+// enriched (by this trigger, by the passive deep-enrichment cron, or by a
+// first-party chat session) never re-triggers. No new debounce/job-state
+// table: worst case, a very rapidly repeated request for the same
+// not-yet-enriched address can fire more than one of these before the first
+// completes and writes the cache -- bounded by the Gateway's own existing
+// per-credential/per-partner rate limits (10/min, 30/min), not a new limit.
+function triggerFastFollowEnrichmentIfNeeded(result: GatewayResult): void {
+  if (!result.ok) return;
+  const progress = result.data.intelligence_progress;
+  if (!progress || progress.status !== 'enriching') return;
+  const address = result.data.property?.address ?? result.data.query.address_requested;
+  if (!address) return;
+
+  const p = result.data.property;
+  const v = result.data.value_intelligence;
+  const oc = result.data.ownership_cost_intelligence;
+  const redfin = {
+    current_list_price: v?.list_price.value ?? undefined,
+    bedrooms: p?.beds ?? undefined,
+    bathrooms: p?.baths ?? undefined,
+    sqft: p?.sqft ?? undefined,
+    last_sold_price: v?.last_sale.price ?? undefined,
+    last_sold_date: v?.last_sale.date ?? undefined,
+    hoa_monthly: oc?.hoa.value ?? undefined,
+  };
+
+  const runTrigger = async () => {
+    try {
+      await fetch(`${SELF_FETCH_BASE_URL}/api/beta/grok-property`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, deep: true, redfin }),
+        signal: AbortSignal.timeout(145_000),
+      });
+    } catch {
+      // Best-effort. A failed trigger leaves the property exactly where it
+      // was -- still eligible for the passive deep-enrichment cron, and
+      // still returning its correct, unaffected Workstream 4 PARTIAL/
+      // NOT_AVAILABLE result on any request in the meantime. Never surfaced
+      // to the caller -- this is strictly additive.
+    }
+  };
+
+  try {
+    // after() throws when called outside a real Next.js request-handling
+    // context -- always true for a genuine deployed request (every real
+    // caller reaches this function through the MCP route's own POST
+    // handler), but NOT true for test harnesses that construct a
+    // NextRequest and call a route's exported POST directly as a plain
+    // function (scripts/test-external-adapter.ts, scripts/test-oauth-flow.ts
+    // do exactly this). Falling back to an un-awaited call in that case is
+    // the AD-18-proven-unreliable pattern, but only ever exercised outside
+    // real production, where it's harmless test-harness behavior, never a
+    // production correctness question.
+    after(runTrigger);
+  } catch {
+    void runTrigger();
+  }
+}
 
 // Same rejection the Gateway's own address validation already performs is
 // not enough here -- a syntactically valid but URL-shaped "address" (a
@@ -185,6 +268,7 @@ export async function resolveExternalPropertyIntelligence(
   const first = await getPropertyIntelligence(request, apiKeyHeader, requestIp);
   if (!first.ok || first.data.availability.status !== 'NOT_AVAILABLE') {
     if (first.ok) logResolutionOutcome('EXISTING_HIT', Date.now() - startedAt);
+    triggerFastFollowEnrichmentIfNeeded(first);
     return first;
   }
 
@@ -210,6 +294,11 @@ export async function resolveExternalPropertyIntelligence(
   const alreadyKnown = await resolvePropertyId(address);
   if (alreadyKnown) {
     logResolutionOutcome('RESOLUTION_SKIPPED', Date.now() - startedAt);
+    // KNOWN + INCOMPLETE (Phase 8): genuine external demand for a property
+    // we already have basic facts for, but haven't enriched, is exactly the
+    // case worth prioritizing over waiting for the passive cron -- unlike
+    // the malformed/URL-shaped skip above, which never reaches here.
+    triggerFastFollowEnrichmentIfNeeded(first);
     return first;
   }
 
@@ -238,5 +327,7 @@ export async function resolveExternalPropertyIntelligence(
 
   const second = await shapeResolvedProperty(address, propertyId);
   logResolutionOutcome(second.ok ? 'NEWLY_RESOLVED' : 'RESOLUTION_FAILED_SHAPING', Date.now() - startedAt);
-  return withResolvedNote(second);
+  const withNote = withResolvedNote(second);
+  triggerFastFollowEnrichmentIfNeeded(withNote);
+  return withNote;
 }

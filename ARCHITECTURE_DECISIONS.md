@@ -503,3 +503,79 @@ predating Address Identity Hardening; cleaned up, both suites then passed cleanl
 Validated live against 7 real properties spanning every documented case (Hobart-shaped
 KNOWN+INCOMPLETE with list price only, AVM-no-comps, AVM+comps AVAILABLE, jumbo,
 genuinely price-less). `tsc --noEmit` and full `next build` clean. Pushed to `dev`.
+
+---
+
+## AD-20 — Progressive Intelligence for External AI: Fast-Follow enrichment trigger + progress/CTA disclosure (SHIPPED)
+
+**Decision:** `lib/externalPropertyResolution.ts`'s `resolveExternalPropertyIntelligence()`
+now calls a new `triggerFastFollowEnrichmentIfNeeded()` at every return point. Whenever
+the response it's about to return has `intelligence_progress.status === 'enriching'`
+(comps and location narrative both still absent), it schedules — via Next.js's `after()`,
+never awaited, never blocking the response — a POST to the existing
+`/api/beta/grok-property` endpoint (`deep: true`), the exact same call app/chat/page.tsx's
+own background IIFE already makes after rendering a property card. This persists to the
+existing `grok_property_cache` table; the very next call to
+`buildCanonicalPropertyIntelligence()` for that property (a first-party page load, a
+follow-up external call, or the passive deep-enrichment cron) picks the new data up
+automatically — no new pipeline, no new cache, no new job/state table.
+
+Two new external-contract fields (`property-intelligence-v1.4`, see
+`docs/HOMERATES_EXTERNAL_PROPERTY_INTELLIGENCE_V1.md` §16) make this visible to a
+calling AI: `intelligence_progress` (`enriching`/`enriched`, per-layer completion,
+`follow_up_recommended`) and `deep_intelligence` (an address-keyed, never
+internal-id-keyed, destination — `https://chat.homerates.ai/property-intel?address=...`
+— plus a capability summary). Both fields are purely derived from already-computed
+canonical fields.
+
+**Reasoning:** Tracing the actual first-party product (not assuming from UI labels)
+found it already behaves progressively: `app/chat/page.tsx` renders the property/
+financing card immediately from L1 (financial) + whatever L2 (property/AVM) is on hand,
+then a `void (async () => {...})()` background IIFE checks `featured_properties` →
+`grok_property_cache` → falls back to a live POST to `/api/beta/grok-property`, and once
+that resolves, updates the SAME chat message's card via `setMessages` with L3 (market)/
+L4 (location). An external AI caller has no browser tab to run that follow-up itself —
+without this change, a demand-driven property either got its comps/location from the
+unrelated passive cron (unbounded wait) or never at all within any session a ChatGPT
+user would realistically continue. This closes that gap using only infrastructure that
+already existed (same endpoint, same cache, same downstream read), matching Workstream 5's
+finding that comps require Grok specifically, and Grok (85s/140s timeout) can never be
+part of the synchronous response itself.
+
+**What was NOT changed:** `availability`/`financing_intelligence`/`ownership_cost_intelligence`
+semantics (Workstream 4, AD-19) are untouched — this only adds two new fields alongside
+them. Eligibility, canonical methodology, identity validation, Rate Intelligence,
+Decision Score, and Gateway/OAuth/MCP architecture are all unchanged. No new provider —
+Grok is an existing, already-shipped enrichment primitive, now also invocable
+synchronously-triggered (never synchronously-awaited) from the external path.
+
+**Known, accepted, bounded characteristic:** there is no debounce/job-state table
+preventing a rapidly repeated request for the same not-yet-enriched address from firing
+more than one Fast-Follow trigger before the first completes and writes the cache —
+bounded by the Gateway's own existing per-credential/per-partner rate limits (10/min,
+30/min), not a new limit. Building a dedicated debounce mechanism was judged unnecessary
+complexity for a cost already bounded by existing infrastructure.
+
+**Status:** Built. Regression-verified: `test-response-semantics-cleanup.ts` (9/9),
+`test-intelligence-gateway.ts` (58/58 + 2 pre-existing LIMITED),
+`test-rate-role-correction.ts` (7/7), `test-first-party-canonical-consistency.ts`
+(10/10), `test-external-adapter.ts` (56/56 — R-J's old invariant, "never reference Grok
+at all," was itself obsoleted by this decision and rewritten to check the real
+invariant, "never block on Grok"; new R-K added to prove the trigger fires exactly once
+per newly-resolved property), `test-oauth-flow.ts` (44/45 + 2 pre-existing LIMITED — the
+one failure is the already-documented UTC-minute-boundary rate-limit test flakiness
+pattern from rapid repeated suite runs, reproduced by re-running the suite back-to-back
+several times in immediate succession; not a regression). Both test files gained a
+`/api/beta/grok-property` fetch intercept (matching the existing `/api/property/lookup`
+intercept pattern) so the regression suite never fires real Grok/xAI calls.
+
+Live-validated end to end against a real, corpus-absent property
+(`4048 Perlita Ave, Los Angeles, CA 90039`): first external call resolved and persisted
+the property in 8.8s, returned `PARTIAL` with financing intelligence and
+`intelligence_progress.status: 'enriching'`; the real Grok trigger landed 3 comparable
+sales in `grok_property_cache` within 15s (well under the 85-140s worst-case ceiling this
+run, though that ceiling is still what the design accounts for); a follow-up call for the
+same address reused the identical canonical property id and returned
+`intelligence_progress.status: 'enriched'` with the 3 comps and a location narrative,
+with zero new code needed for that retrieval path; the `deep_intelligence.destination`
+URL returned a real HTTP 200.

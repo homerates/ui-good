@@ -125,7 +125,6 @@ const TOOL_DESCRIPTION =
   'value_intelligence.avm field, not this one, is where a real valuation would ' +
   'appear, and it may be null even when financing figures are present. When ' +
   'ownership_cost_intelligence.hoa is null, present it only as an open question to research, never as a ' +
-  'is null, present it only as an open question to research, never as a ' +
   'reason payments will be higher. Comparable sales and the valuation ' +
   'estimate are factual reference points; do not assert unstated reasons ' +
   '(condition, upgrades, unit position, or similar) actually explain any ' +
@@ -134,7 +133,16 @@ const TOOL_DESCRIPTION =
   'items (HOA dues, master insurance, reserves, special assessments, ' +
   'litigation, project eligibility for condos) should be framed as routine ' +
   'recommended checks for this type of purchase, never as findings that ' +
-  'a specific problem exists.';
+  'a specific problem exists. intelligence_progress.status distinguishes ' +
+  '"enriching" (comparable sales and location context are still being ' +
+  'gathered) from "enriched" (they are present, if available at all) -- when ' +
+  '"enriching", tell the user HomeRates is still assembling deeper market and ' +
+  'location intelligence for this property and that calling again shortly may ' +
+  'return more; do not present the current response as final or complete. ' +
+  'deep_intelligence.destination is a property-specific HomeRates page with a ' +
+  'fuller interactive report (adjustable financing, live comparable sales, ' +
+  'location detail) -- offer it as a place to go for more depth, not as a ' +
+  'generic homepage link.';
 
 const INPUT_SCHEMA = {
   type: 'object',
