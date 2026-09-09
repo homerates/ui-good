@@ -78,7 +78,32 @@ function looksLikeUrl(value: string): boolean {
 
 // Privacy-safe outcome logging -- outcome + latency only, never the address,
 // matching the existing Gateway requestLog.ts discipline (see that file).
-function logResolutionOutcome(outcome: 'EXISTING_HIT' | 'NEWLY_RESOLVED' | 'RESOLUTION_FAILED' | 'RESOLUTION_SKIPPED', latencyMs: number) {
+//
+// RESOLUTION_FAILED_PROVIDER vs RESOLUTION_FAILED_POST_PERSISTENCE (added
+// 2026-09-09, North Star Workstream 2): a single 'RESOLUTION_FAILED' outcome
+// used to conflate two structurally different failure modes -- (1) the
+// self-fetch itself came back ok:false (Tavily/Redfin found nothing, or the
+// identity check in lib/addressIdentity.ts rejected every candidate -- no
+// persistence was ever attempted), and (2) the self-fetch reported ok:true
+// but the immediate resolvePropertyId() re-check still found nothing. Direct
+// timing reproduction proved (2) was a real, observable fire-and-forget
+// persistence race (see ARCHITECTURE_DECISIONS.md) -- now fixed by awaiting
+// cachePropertyResult() in app/api/property/lookup/route.ts, so this outcome
+// should be rare going forward, but is kept distinct rather than re-merged
+// into (1) so a recurrence is visible instead of silently reabsorbed into
+// "provider failure." The EXTERNAL contract's NOT_AVAILABLE reason text is
+// unchanged by this split -- it stays generic and privacy-safe either way;
+// this distinction is for internal observability only.
+function logResolutionOutcome(
+  outcome:
+    | 'EXISTING_HIT'
+    | 'NEWLY_RESOLVED'
+    | 'RESOLUTION_FAILED_PROVIDER'
+    | 'RESOLUTION_FAILED_POST_PERSISTENCE'
+    | 'RESOLUTION_FAILED_SHAPING'
+    | 'RESOLUTION_SKIPPED',
+  latencyMs: number,
+) {
   console.log('[external-resolution]', { outcome, latencyMs });
 }
 
@@ -188,19 +213,30 @@ export async function resolveExternalPropertyIntelligence(
     return first;
   }
 
+  // Provider/identity failure: the self-fetch's own response body said
+  // ok:false -- either Tavily/Redfin found nothing, or every candidate
+  // failed lib/addressIdentity.ts's identity check. cachePropertyResult()
+  // is never invoked in this case (see app/api/property/lookup/route.ts's
+  // handleAddress()), so there is no persisted row to race against.
   const resolved = await attemptResolution(address);
   if (!resolved) {
-    logResolutionOutcome('RESOLUTION_FAILED', Date.now() - startedAt);
+    logResolutionOutcome('RESOLUTION_FAILED_PROVIDER', Date.now() - startedAt);
     return first;
   }
 
+  // Post-persistence check: the self-fetch reported ok:true, meaning
+  // handleAddress() DID call (and, as of 2026-09-09, await) cachePropertyResult().
+  // A null result here immediately after a successful self-fetch would
+  // indicate the persistence-race class of failure proven and fixed by this
+  // workstream -- kept as its own outcome so a recurrence is visible rather
+  // than silently reabsorbed into RESOLUTION_FAILED_PROVIDER.
   const propertyId = await resolvePropertyId(address);
   if (!propertyId) {
-    logResolutionOutcome('RESOLUTION_FAILED', Date.now() - startedAt);
+    logResolutionOutcome('RESOLUTION_FAILED_POST_PERSISTENCE', Date.now() - startedAt);
     return first;
   }
 
   const second = await shapeResolvedProperty(address, propertyId);
-  logResolutionOutcome(second.ok ? 'NEWLY_RESOLVED' : 'RESOLUTION_FAILED', Date.now() - startedAt);
+  logResolutionOutcome(second.ok ? 'NEWLY_RESOLVED' : 'RESOLUTION_FAILED_SHAPING', Date.now() - startedAt);
   return withResolvedNote(second);
 }
