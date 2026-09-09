@@ -11,7 +11,7 @@
 // classification matrix: this function must never read (not "read and
 // discard" -- never reference at all) raw.decisionIntelligence.l2/l3/l4,
 // .methodologyVersion, .source, raw.provenance's individual pipeline-name
-// value, or raw.id, anywhere in this file.
+// value, or raw.propertyId, anywhere in this file.
 //
 // LOCKED (2026-09-02, Rayaan): Contract V1 section 10 originally assumed a
 // categorical "verdict" field would exist to expose for decision_intelligence.
@@ -23,8 +23,20 @@
 // own (architecture doc section 5) -- locked as a contract-reality correction,
 // not reopened. decision_intelligence below returns only drivers/limitations,
 // both already present as plain-language strings in the real internal object.
+//
+// CANONICAL MIGRATION (2026-09-08, Stage D): this file now shapes a
+// CanonicalPropertyIntelligence object (lib/canonicalPropertyIntelligence.ts)
+// instead of reading PropertyIntelligenceData directly. It recalculates
+// NOTHING -- every value below is an explicit-dotted-path read of a field
+// the canonical builder already computed (which itself only wraps
+// getPropertyIntelligenceCorpusOnly(), the same call this file always made).
+// This closes the "external Property Intelligence independently recomputes
+// figures" finding from the canonical-consistency audit: there is now
+// exactly one place (lib/propertyIntelligence.ts) that computes valuation/
+// rate/insurance/tax/PITI math, and this file only formats its output.
 
-import type { PropertyIntelligenceData, FactLabel } from './corpusOnlyIntelligence';
+import type { CanonicalPropertyIntelligence } from '../canonicalPropertyIntelligence';
+import type { FactLabel } from './corpusOnlyIntelligence';
 import type { ExternalPropertyIntelligenceV1 } from './outputSchema';
 import { EDUCATIONAL_DISCLAIMER } from '../disclosures';
 
@@ -35,7 +47,7 @@ import { EDUCATIONAL_DISCLAIMER } from '../disclosures';
 // not researched (architecture doc section 29, open question 4).
 const STALE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-function mapAvailability(raw: PropertyIntelligenceData): { status: 'AVAILABLE' | 'PARTIAL' | 'NOT_AVAILABLE'; reason: string | null } {
+function mapAvailability(raw: CanonicalPropertyIntelligence): { status: 'AVAILABLE' | 'PARTIAL' | 'NOT_AVAILABLE'; reason: string | null } {
   if (raw.eligibility === 'index') return { status: 'AVAILABLE', reason: null };
   if (raw.eligibility === 'noindex') {
     return { status: 'PARTIAL', reason: raw.ineligibleReasons[0] ?? 'This property does not yet meet HomeRates’ full data bar.' };
@@ -55,7 +67,7 @@ function labeled(label: FactLabel, value: number | null): { value: number | null
 
 export function shapeForExternalContract(
   addressRequested: string,
-  raw: PropertyIntelligenceData | null,
+  raw: CanonicalPropertyIntelligence | null,
 ): ExternalPropertyIntelligenceV1 {
   if (!raw) {
     return {
@@ -81,6 +93,12 @@ export function shapeForExternalContract(
 
   const sourceCategory = mapSourceCategory(raw.provenance.propertyEnrichmentSource);
 
+  // Every claim_type below is a FIXED constant per field (confirmed by
+  // re-auditing lib/propertyIntelligence.ts's own construction -- none of
+  // these ever varied at runtime), so this file supplies them directly
+  // rather than threading always-identical labels through the canonical
+  // object. The canonical object's own job is values, not presentation
+  // metadata for one specific external contract.
   const financing = raw.financing
     ? {
         assumption_profile: {
@@ -93,24 +111,30 @@ export function shapeForExternalContract(
           is_personalized: false as const,
         },
         loan: {
-          amount: labeled(raw.financing.loanAmount.label, raw.financing.loanAmount.value),
-          monthly_pi: labeled(raw.financing.monthlyPI.label, raw.financing.monthlyPI.value),
+          amount: labeled('DERIVED CALCULATION', raw.financing.loanAmount),
+          monthly_pi: labeled('DERIVED CALCULATION', raw.financing.principalInterestMonthly),
         },
+        // Deliberately the raw market-reference rate (pre-LLPA), NOT
+        // illustrativeScenarioRate -- matches this field's existing external
+        // meaning ("a market rate reference"), while monthly_pi above is
+        // (and always was) computed from the LLPA-adjusted scenario rate.
+        // See lib/canonicalPropertyIntelligence.ts's header for the
+        // marketReferenceRate-vs-illustrativeScenarioRate distinction.
         market_rate: {
-          value: raw.financing.marketRate.value.rate,
-          series_label: raw.financing.marketRate.value.seriesLabel,
-          claim_type: raw.financing.marketRate.label,
+          value: raw.financing.marketReferenceRate.value,
+          series_label: raw.financing.marketReferenceRate.seriesLabel,
+          claim_type: 'MARKET FACT' as const,
         },
       }
     : null;
 
-  const ownershipCost = raw.ownershipCost
+  const ownershipCost = raw.ownershipCosts
     ? {
-        tax: labeled(raw.ownershipCost.monthlyTax.label, raw.ownershipCost.monthlyTax.value),
-        insurance: labeled(raw.ownershipCost.monthlyInsurance.label, raw.ownershipCost.monthlyInsurance.value),
-        hoa: labeled(raw.ownershipCost.monthlyHoa.label, raw.ownershipCost.monthlyHoa.value),
-        estimated_piti: labeled(raw.ownershipCost.estimatedMonthlyPITI.label, raw.ownershipCost.estimatedMonthlyPITI.value),
-        estimated_pitia: labeled(raw.ownershipCost.estimatedMonthlyPITIA.label, raw.ownershipCost.estimatedMonthlyPITIA.value),
+        tax: labeled('DERIVED CALCULATION', raw.ownershipCosts.monthlyTaxes),
+        insurance: labeled('ESTIMATE', raw.ownershipCosts.monthlyInsurance),
+        hoa: labeled('PROPERTY FACT', raw.ownershipCosts.hoaMonthly),
+        estimated_piti: labeled('DERIVED CALCULATION', raw.ownershipCosts.pitiMonthly),
+        estimated_pitia: labeled('DERIVED CALCULATION', raw.ownershipCosts.pitiaMonthly),
       }
     : null;
 
@@ -128,20 +152,20 @@ export function shapeForExternalContract(
     query: { address_requested: addressRequested },
     availability,
     property: {
-      address: raw.address.value,
-      city: raw.city,
-      state: raw.state,
-      zip: raw.zip,
-      property_type: raw.propertyFacts.propertyType.value,
-      beds: raw.propertyFacts.beds.value,
-      baths: raw.propertyFacts.baths.value,
-      sqft: raw.propertyFacts.sqft.value,
+      address: raw.property.address,
+      city: raw.property.city,
+      state: raw.property.state,
+      zip: raw.property.zip,
+      property_type: raw.property.propertyType,
+      beds: raw.property.beds,
+      baths: raw.property.baths,
+      sqft: raw.property.sqft,
     },
     value_intelligence: {
-      avm: labeled(raw.valuation.avm.label, raw.valuation.avm.value),
-      list_price: labeled(raw.valuation.listPrice.label, raw.valuation.listPrice.value),
+      avm: labeled('ESTIMATE', raw.valuation.pointEstimate),
+      list_price: labeled('PROPERTY FACT', raw.valuation.listPrice),
       last_sale: { price: raw.valuation.lastSalePrice, date: raw.valuation.lastSaleDate },
-      comparables: raw.valuation.comparables.map((c) => ({
+      comparables: raw.comps.map((c) => ({
         address: c.address,
         sold_price: c.soldPrice,
         sold_date: c.soldDate,
@@ -151,16 +175,14 @@ export function shapeForExternalContract(
     ownership_cost_intelligence: ownershipCost,
     market_location_intelligence: {
       market: {
-        median_dom: labeled(raw.market.medianDom.label, raw.market.medianDom.value),
-        median_price: labeled(raw.market.medianPrice.label, raw.market.medianPrice.value),
-        sale_to_list_pct: labeled(raw.market.saleToListPct.label, raw.market.saleToListPct.value),
+        median_dom: labeled('MARKET FACT', raw.market.medianDom),
+        median_price: labeled('MARKET FACT', raw.market.medianPrice),
+        sale_to_list_pct: labeled('MARKET FACT', raw.market.saleToListPct),
       },
-      location: raw.locationIntelligence
+      location: raw.location
         ? {
-            narrative: raw.locationIntelligence.narrative
-              ? { value: raw.locationIntelligence.narrative.value, claim_type: raw.locationIntelligence.narrative.label }
-              : null,
-            sub_scores: raw.locationIntelligence.subScores,
+            narrative: raw.location.narrative != null ? { value: raw.location.narrative, claim_type: 'AI INTERPRETATION' as const } : null,
+            sub_scores: raw.location.subScores,
           }
         : null,
     },

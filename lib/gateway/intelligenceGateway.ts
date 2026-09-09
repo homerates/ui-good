@@ -36,7 +36,7 @@
 // never from client-supplied request JSON.
 
 import { getSupabase } from '../supabaseServer';
-import { getPropertyIntelligenceCorpusOnly } from './corpusOnlyIntelligence';
+import { buildCanonicalPropertyIntelligence } from '../canonicalPropertyIntelligence';
 import { shapeForExternalContract } from './outputShaping';
 import { ExternalPropertyIntelligenceV1Schema, type ExternalPropertyIntelligenceV1 } from './outputSchema';
 import { authenticateRequest, requireScope } from './auth';
@@ -148,8 +148,8 @@ export async function getPropertyIntelligence(
 
   try {
     const propertyId = await resolvePropertyId(address);
-    const raw = propertyId ? await getPropertyIntelligenceCorpusOnly(propertyId) : null;
-    const shaped = shapeForExternalContract(address, raw);
+    const canonical = propertyId ? await buildCanonicalPropertyIntelligence(propertyId) : null;
+    const shaped = shapeForExternalContract(address, canonical);
     const parsed = ExternalPropertyIntelligenceV1Schema.safeParse(shaped);
 
     if (!parsed.success) {

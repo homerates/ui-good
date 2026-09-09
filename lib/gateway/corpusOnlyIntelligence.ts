@@ -21,13 +21,22 @@
 // app/api/property/lookup, app/api/beta/grok-property, or any Tavily/Redfin
 // client module here or anywhere else under lib/gateway/.
 
-import { getPropertyIntelligenceData, type PropertyIntelligenceData, type FactLabel } from '../propertyIntelligence';
+import {
+  getPropertyIntelligenceData,
+  type PropertyIntelligenceData,
+  type FactLabel,
+  CANONICAL_INSURANCE_ANNUAL_RATE,
+  CANONICAL_INSURANCE_ASSUMPTION_LABEL,
+} from '../propertyIntelligence';
 
-// Re-exported so the rest of lib/gateway/ never needs its own reference to
-// '../propertyIntelligence' -- even a type-only one. This keeps the boundary
-// simple to state and check: exactly one file in this directory mentions
-// propertyIntelligence.ts, for any reason, at all.
+// Re-exported so the rest of lib/gateway/ -- and lib/canonicalPropertyIntelligence.ts,
+// which deliberately routes its one data call through this same file rather
+// than importing propertyIntelligence.ts a second time -- never needs its
+// own reference to '../propertyIntelligence', even a type/constant-only one.
+// This keeps the boundary simple to state and check: exactly one file in
+// this directory mentions propertyIntelligence.ts, for any reason, at all.
 export type { PropertyIntelligenceData, FactLabel };
+export { CANONICAL_INSURANCE_ANNUAL_RATE, CANONICAL_INSURANCE_ASSUMPTION_LABEL };
 
 export async function getPropertyIntelligenceCorpusOnly(
   propertyId: string,

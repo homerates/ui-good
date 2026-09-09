@@ -50,7 +50,7 @@ import { PILOT_LIMITS } from '../lib/gateway/limits';
 import { isCircuitOpen, isKillSwitchEnabled } from '../lib/gateway/circuitBreaker';
 import { utcWindowKey } from '../lib/gateway/windowKeys';
 import { getPropertyIntelligence } from '../lib/gateway/intelligenceGateway';
-import { getPropertyIntelligenceCorpusOnly } from '../lib/gateway/corpusOnlyIntelligence';
+import { buildCanonicalPropertyIntelligence } from '../lib/canonicalPropertyIntelligence';
 import { shapeForExternalContract } from '../lib/gateway/outputShaping';
 import { ExternalPropertyIntelligenceV1Schema } from '../lib/gateway/outputSchema';
 import { getPropertyIntelligenceData } from '../lib/propertyIntelligence';
@@ -359,7 +359,24 @@ function runCorpusOnlyBoundaryTest() {
   } catch (e: any) {
     record('K', 'import-boundary script', 'exit 0, no forbidden imports', `exit non-zero: ${e.stdout ?? e.message}`, 'FAIL', String(e.stdout ?? e.message));
   }
-  record('K', 'intelligenceGateway.ts calls only getPropertyIntelligenceCorpusOnly for intelligence', 'single call site, no Grok/OpenAI/Tavily/Redfin/enrichment/acquisition import', 'confirmed by source inspection (unchanged since Phase A)', 'PASS', 'lib/gateway/intelligenceGateway.ts imports only ./corpusOnlyIntelligence for property data');
+  // Stage D (2026-09-08, canonical-property-intelligence workstream):
+  // intelligenceGateway.ts now calls buildCanonicalPropertyIntelligence()
+  // instead of getPropertyIntelligenceCorpusOnly() directly -- that function
+  // itself calls ONLY getPropertyIntelligenceCorpusOnly (re-checked below),
+  // so the "one entry point into lib/propertyIntelligence.ts" invariant is
+  // preserved one level deeper, not broken. This replaces a PREVIOUSLY
+  // HARDCODED 'PASS' string (found stale during Stage D -- it never actually
+  // source-inspected anything) with a real check.
+  {
+    const gwSource = fs.readFileSync(path.resolve(process.cwd(), 'lib/gateway/intelligenceGateway.ts'), 'utf8');
+    const canonicalSource = fs.readFileSync(path.resolve(process.cwd(), 'lib/canonicalPropertyIntelligence.ts'), 'utf8');
+    const gwCodeOnly = gwSource.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    const canonicalCodeOnly = canonicalSource.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    const gwOnlyImportsCanonical = gwSource.includes("from '../canonicalPropertyIntelligence'") && !/from\s+['"][^'"]*((?<!canonical)propertyIntelligence|corpusOnlyIntelligence|grok|tavily|redfin)[^'"]*['"]/i.test(gwCodeOnly);
+    const canonicalOnlyImportsCorpusOnly = canonicalSource.includes("from './gateway/corpusOnlyIntelligence'") && !/from\s+['"][^'"]*(grok|tavily|redfin|openai)[^'"]*['"]/i.test(canonicalCodeOnly);
+    const ok = gwOnlyImportsCanonical && canonicalOnlyImportsCorpusOnly;
+    record('K', 'intelligenceGateway.ts -> canonical builder -> corpusOnlyIntelligence, single chain, no live/paid provider import', 'true', JSON.stringify({ gwOnlyImportsCanonical, canonicalOnlyImportsCorpusOnly }), ok ? 'PASS' : 'FAIL', ok ? 'confirmed by source inspection' : 'chain broken -- see booleans above');
+  }
 }
 
 async function findResponseFixtures(propRow: { id: string; address_full: string }) {
@@ -370,7 +387,7 @@ async function findResponseFixtures(propRow: { id: string; address_full: string 
   let partialFixtureRaw: any = null;
   let partialAddress: string | null = null;
   for (const c of candidates ?? []) {
-    const d = await getPropertyIntelligenceCorpusOnly(c.id);
+    const d = await buildCanonicalPropertyIntelligence(c.id);
     if (!d) continue;
     if (!availableRaw && d.eligibility === 'index') { availableAddress = c.address_full; availableRaw = d; }
     if (!partialFixtureRaw && d.eligibility === 'noindex') { partialFixtureRaw = d; partialAddress = c.address_full; }
@@ -429,9 +446,15 @@ async function runResponseCoverageAndContractTests(
 
 async function runOutputLeakageTest(propRow: { id: string; address_full: string }) {
   console.log('\n=== P. OUTPUT EXTRACTION RESISTANCE ===');
-  const raw: any = await getPropertyIntelligenceCorpusOnly(propRow.id);
+  // Stage D (2026-09-08): shapeForExternalContract() now reads a
+  // CanonicalPropertyIntelligence object, not raw PropertyIntelligenceData
+  // directly -- sentinels below are injected at the canonical shape's own
+  // paths (propertyId instead of id, valuation as a whole object instead of
+  // valuation.avm specifically, since pointEstimate is now a plain number
+  // rather than a LabeledValue object with room to spread extra keys onto).
+  const raw: any = await buildCanonicalPropertyIntelligence(propRow.id);
   if (!raw) { record('P', 'output leakage', 'tested', 'no raw fixture available', 'LIMITED', ''); return; }
-  raw.id = 'PHASEF_SECRET_INTERNAL_UUID_9182';
+  raw.propertyId = 'PHASEF_SECRET_INTERNAL_UUID_9182';
   raw.provenance = { ...raw.provenance, propertyEnrichmentSource: 'PHASEF_SECRET_SOURCE_TABLE_PATH' };
   raw.decisionIntelligence = {
     ...(raw.decisionIntelligence ?? {}),
@@ -443,7 +466,7 @@ async function runOutputLeakageTest(propRow: { id: string; address_full: string 
     methodologyVersion: 'PHASEF_SECRET_METHODOLOGY_V9',
     source: 'PHASEF_SECRET_PIPELINE',
   };
-  if (raw.valuation?.avm) raw.valuation.avm = { ...raw.valuation.avm, blendInternals: 'PHASEF_SECRET_AVM_BLEND', modelWeights: [0.1, 0.9] };
+  if (raw.valuation) raw.valuation = { ...raw.valuation, blendInternals: 'PHASEF_SECRET_AVM_BLEND', modelWeights: [0.1, 0.9] };
   raw.reasoning = 'PHASEF_SECRET_REASONING_TEXT';
   raw.prompt = 'PHASEF_SECRET_PROMPT_TEXT';
   raw.privateMetadata = { borrowerNote: 'PHASEF_SECRET_PRIVATE_METADATA' };

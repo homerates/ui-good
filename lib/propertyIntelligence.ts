@@ -89,6 +89,15 @@ export interface PropertyIntelligenceData {
   valuation: {
     avm: LabeledValue<number | null>;
     avmSources: string[];
+    // Range bounds -- separate from `avm` (the point estimate) by
+    // construction. Added 2026-09-08 for the canonical-property-intelligence
+    // workstream: `properties.latest_value_low`/`latest_value_high` were
+    // already selected by assembleRaw() below but never surfaced -- a range
+    // floor must never be substituted for a missing point AVM (that
+    // conflation is the exact bug found in app/chat/page.tsx's
+    // decisionScoreCard construction, first-party-only, not fixed here).
+    avmLow: number | null;
+    avmHigh: number | null;
     listPrice: LabeledValue<number | null>;
     lastSalePrice: number | null;
     lastSaleDate: string | null;
@@ -112,6 +121,10 @@ export interface PropertyIntelligenceData {
   } | null;
 
   ownershipCost: {
+    // The real, actual annual tax bill when known (null otherwise) -- added
+    // 2026-09-08 for the canonical-property-intelligence workstream so a
+    // consumer never has to reverse-engineer this from monthlyTax*12.
+    annualTaxes: number | null;
     taxRate: LabeledValue<{ rate: number; level: 'actual' | 'county' | 'state' | 'national' }>;
     monthlyTax: LabeledValue<number>;
     monthlyInsurance: LabeledValue<number>;
@@ -154,6 +167,21 @@ export interface PropertyIntelligenceData {
 }
 
 const METHODOLOGY_VERSION = 'Decision Score L1-L4 (locked 2026-08-19), L2-L4 property-centered subset';
+
+// Canonical illustrative homeowners-insurance assumption -- 0.3% of price
+// annually. Named and exported 2026-09-08 (canonical-property-intelligence
+// workstream) after an audit found app/chat/page.tsx's first-party
+// property-lookup surface using a DIFFERENT hardcoded constant (0.005) with
+// no shared source. 0.003 was chosen as canonical because it is already the
+// prevailing default across the majority of this repo's real, live DTI/
+// affordability calculations (FHA/VA/conventional/jumbo slider construction
+// in app/api/answers/route.ts) and was already this module's own value --
+// not a new number invented to make two sides agree. No state/property-type/
+// condo-specific insurance methodology exists anywhere in this repo today
+// (confirmed via audit: no HO-6, master-policy, or condo-insurance logic
+// found) -- this remains a single flat illustrative rate until one is built.
+export const CANONICAL_INSURANCE_ANNUAL_RATE = 0.003;
+export const CANONICAL_INSURANCE_ASSUMPTION_LABEL = 'HomeRates.ai default: 0.3% of price annually';
 
 // Two different normalization conventions genuinely coexist in this codebase's
 // existing tables -- confirmed directly against real rows, not assumed:
@@ -518,6 +546,8 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
     valuation: {
       avm: { label: 'ESTIMATE' as const, value: raw.avm, source: raw.avmSources.length ? raw.avmSources.join(' + averaged with ') : undefined, asOf: provenance.intelligenceComputedAt },
       avmSources: raw.avmSources,
+      avmLow: parseNum(prop.latest_value_low),
+      avmHigh: parseNum(prop.latest_value_high),
       listPrice: { label: 'PROPERTY FACT' as const, value: raw.listPrice },
       lastSalePrice: parseNum(snapshot?.lastSalePrice),
       lastSaleDate: typeof snapshot?.lastSaleDate === 'string' ? snapshot.lastSaleDate as string : null,
@@ -571,7 +601,7 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
   const realAnnualTax = parseNum(snapshot?.annualTaxes);
   const taxInfo = lookupTaxRate(raw.state ?? '', raw.city ?? null);
   const monthlyTax = realAnnualTax != null ? Math.round(realAnnualTax / 12) : (mortgage ? Math.round((price * taxInfo.rate) / 12) : 0);
-  const monthlyInsurance = mortgage ? Math.round((price * 0.003) / 12) : 0;
+  const monthlyInsurance = mortgage ? Math.round((price * CANONICAL_INSURANCE_ANNUAL_RATE) / 12) : 0;
   const hoaMonthly = parseNum(snapshot?.hoaMonthly);
   // TRUE PITI -- Principal + Interest + Taxes + Insurance ONLY, never HOA.
   // Corrected 2026-09-08 (Contract V1.1): this used to silently fold
@@ -606,11 +636,12 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
       llpaDisclaimer: LLPA_DISCLAIMER,
     },
     ownershipCost: {
+      annualTaxes: realAnnualTax,
       taxRate: realAnnualTax != null
         ? { label: 'PROPERTY FACT', value: { rate: price > 0 ? realAnnualTax / price : 0, level: 'actual' }, source: 'Actual tax bill (Redfin listing data)' }
         : { label: taxInfo.level === 'county' ? 'MARKET FACT' : 'ESTIMATE', value: { rate: taxInfo.rate, level: taxInfo.level }, source: taxInfo.level === 'state' ? `${raw.state} average effective property tax rate` : 'National average effective property tax rate' },
       monthlyTax: { label: realAnnualTax != null ? 'DERIVED CALCULATION' : 'DERIVED CALCULATION', value: monthlyTax },
-      monthlyInsurance: { label: 'ESTIMATE', value: monthlyInsurance, source: 'HomeRates.ai default: 0.3% of price annually' },
+      monthlyInsurance: { label: 'ESTIMATE', value: monthlyInsurance, source: CANONICAL_INSURANCE_ASSUMPTION_LABEL },
       monthlyHoa: { label: 'PROPERTY FACT', value: hoaMonthly },
       estimatedMonthlyPITI: { label: 'DERIVED CALCULATION', value: estimatedPITI },
       estimatedMonthlyPITIA: { label: 'DERIVED CALCULATION', value: estimatedPITIA },
