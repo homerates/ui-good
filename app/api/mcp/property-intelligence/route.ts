@@ -89,13 +89,38 @@ const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2026-07-28'];
 const LEGACY_LENIENT_PROTOCOL_VERSION = '2025-11-25';
 const SERVER_INFO = { name: 'homerates-property-intelligence', version: '1.0.0' };
 
+// Response Semantics Cleanup (2026-09-08): the claim-discipline paragraph
+// below was added after a live response over-interpreted this tool's own
+// correctly-labeled data -- describing an unconfirmed HOA as evidence the
+// payment "will be higher," and presenting a routine due-diligence
+// recommendation as if a specific project defect had been found.
 const TOOL_DESCRIPTION =
   "Use this tool when a user asks about a specific residential property and would benefit from current " +
   "HomeRates.ai intelligence about the property's value context, financing context, ownership costs, " +
   'market/location context, or property-centered decision drivers. Do not use it for generic mortgage ' +
   'education or general housing questions that do not involve a specific property. This tool does not ' +
   'provide underwriting approval, a mortgage offer, an appraisal, a guaranteed market value, or financial ' +
-  'advice -- all figures are educational estimates for one specific address.';
+  'advice -- all figures are educational estimates for one specific address. ' +
+  'Every value below carries a claim_type ' +
+  'describing what kind of statement it is: PROPERTY FACT, MARKET FACT, ' +
+  'ILLUSTRATIVE ASSUMPTION, DERIVED CALCULATION, ESTIMATE, or AI ' +
+  'INTERPRETATION. Treat these distinctions as load-bearing: a null value ' +
+  'means the fact is unconfirmed, never zero, negative, or unfavorable -- ' +
+  'do not state or imply what an unconfirmed value would turn out to be. ' +
+  'ILLUSTRATIVE ASSUMPTION fields (down payment, loan term, occupancy) ' +
+  'describe a generic illustrative scenario, not this specific person or ' +
+  'their credit profile -- this tool never collects or uses a credit score ' +
+  'for its market_rate or payment figures. When ownership_cost_intelligence.hoa ' +
+  'is null, present it only as an open question to research, never as a ' +
+  'reason payments will be higher. Comparable sales and the valuation ' +
+  'estimate are factual reference points; do not assert unstated reasons ' +
+  '(condition, upgrades, unit position, or similar) actually explain any ' +
+  'difference between them and the list price -- present those only as ' +
+  'possible factors a buyer should verify. Standard purchase due-diligence ' +
+  'items (HOA dues, master insurance, reserves, special assessments, ' +
+  'litigation, project eligibility for condos) should be framed as routine ' +
+  'recommended checks for this type of purchase, never as findings that ' +
+  'a specific problem exists.';
 
 const INPUT_SCHEMA = {
   type: 'object',
