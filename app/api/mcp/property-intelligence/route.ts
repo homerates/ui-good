@@ -94,6 +94,13 @@ const SERVER_INFO = { name: 'homerates-property-intelligence', version: '1.0.0' 
 // correctly-labeled data -- describing an unconfirmed HOA as evidence the
 // payment "will be higher," and presenting a routine due-diligence
 // recommendation as if a specific project defect had been found.
+//
+// Demand-Triggered Intelligence (2026-09-09): financing_intelligence can now
+// populate using a property's current asking price alone, with no separate
+// valuation on file (see purchase_price_basis). The added sentence below is
+// structural defense-in-depth on top of that field's own claim_type -- the
+// point is the same one this whole paragraph exists for: never let a model
+// read a populated block as more certainty than the labels actually claim.
 const TOOL_DESCRIPTION =
   "Use this tool when a user asks about a specific residential property and would benefit from current " +
   "HomeRates.ai intelligence about the property's value context, financing context, ownership costs, " +
@@ -110,7 +117,14 @@ const TOOL_DESCRIPTION =
   'ILLUSTRATIVE ASSUMPTION fields (down payment, loan term, occupancy) ' +
   'describe a generic illustrative scenario, not this specific person or ' +
   'their credit profile -- this tool never collects or uses a credit score ' +
-  'for its market_rate or payment figures. When ownership_cost_intelligence.hoa ' +
+  'for its market_rate or payment figures. financing_intelligence.purchase_price_basis ' +
+  'discloses whether the financing math used a real HomeRates valuation (AVM) ' +
+  "or the property's current asking price as an illustrative purchase-price " +
+  'assumption (CURRENT_ASKING_PRICE) -- when it is the asking price, never ' +
+  "describe that figure as HomeRates' estimate of the property's value; the " +
+  'value_intelligence.avm field, not this one, is where a real valuation would ' +
+  'appear, and it may be null even when financing figures are present. When ' +
+  'ownership_cost_intelligence.hoa is null, present it only as an open question to research, never as a ' +
   'is null, present it only as an open question to research, never as a ' +
   'reason payments will be higher. Comparable sales and the valuation ' +
   'estimate are factual reference points; do not assert unstated reasons ' +

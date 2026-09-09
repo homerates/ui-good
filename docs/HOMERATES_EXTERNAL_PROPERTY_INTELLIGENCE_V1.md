@@ -491,6 +491,25 @@ Intelligence has no borrower-credit input of any kind (Rate Intelligence's own
 assumed credit score is unaffected and stays internal-only). See
 `lib/gateway/outputSchema.ts`'s file header for the full rationale.
 
+**Applied 2026-09-09 — bumped to `property-intelligence-v1.3`.** Demand-Triggered
+Intelligence / Fast Intelligence Tier: `financing_intelligence` and
+`ownership_cost_intelligence` are no longer forced to `null` whenever a property has
+neither an AVM nor comparable sales — a real, verified current asking price (list
+price) is now enough, using the SAME price-selection rule (`listPrice ?? avm`) this
+engine's financing block already applied for eligible properties; nothing new was
+invented. This is a genuine external-shape change: a new required field,
+`financing_intelligence.purchase_price_basis` (`{value, source: 'CURRENT_ASKING_PRICE' |
+'AVM', claim_type}`), discloses which price basis the financing math actually used, so a
+calling AI can never mistake a populated financing block for a HomeRates valuation —
+`value_intelligence.avm` stays `null` exactly when no real AVM exists, completely
+independent of this field. `availability.status` can now report `PARTIAL` (instead of
+`NOT_AVAILABLE`) for a property with a list price but no AVM/comps — the `status` enum
+itself (`AVAILABLE`/`PARTIAL`/`NOT_AVAILABLE`) is unchanged; only which properties map
+to which value changed. A genuinely price-less property (no list price, no AVM) is
+unaffected and still reports `NOT_AVAILABLE` with both blocks `null`. See
+`lib/propertyIntelligence.ts`'s `purchasePriceBasis` note and
+`lib/gateway/outputShaping.ts`'s `mapAvailability()` for the full rationale.
+
 Internal methodology version (`METHODOLOGY_VERSION`, currently `"Decision Score L1-L4 (locked
 2026-08-19)..."`) and external contract version are **explicitly separate** — the internal string must
 never appear in an external response at all (§5), so there is no risk of them being conflated in the

@@ -436,3 +436,70 @@ this entry accompanies. No test file was added (see the limitation note — a re
 reliable regression test for this class of race needs server-side timing visibility this
 session could not establish; a naive test would either be flaky or would not actually
 exercise the timing window).
+
+**Addendum (2026-09-09, production verification):** the residual noted above did NOT
+reproduce against real production infrastructure — 9 real, corpus-absent addresses
+tested directly against `chat.homerates.ai` after this fix reached production (commit
+`aa63e170`) showed zero instances of the false-negative symptom (8/9 succeeded and were
+reported correctly on the first or an immediate retry; the one failure was genuine,
+transient provider variability, confirmed by a plain retry succeeding cleanly). The most
+evidence-consistent explanation: the local retest above ran on a Windows `next dev`
+server sharing CPU/event-loop with the diagnostic script itself — a materially different
+environment from Vercel's isolated serverless functions — not a persistent defect in the
+fix. Demand-driven resolution is considered sufficiently trustworthy as of this
+addendum; see the North Star Workstream 3 report for the full evidence.
+
+---
+
+## AD-19 — Demand-Triggered Intelligence: decouple financing/ownership-cost from AVM/comps, gate on price basis instead (SHIPPED)
+
+**Decision:** `lib/propertyIntelligence.ts`'s `getPropertyIntelligenceData()` no longer
+returns `financing: null, ownershipCost: null` whenever `eligibility === 'unavailable'`
+(no AVM AND no comps). It now gates on the actual dependency instead: a usable purchase
+price (`listPrice ?? avm`) — the SAME price-selection rule this engine's financing block
+already used internally for eligible properties, now just no longer blocked from running
+by a broader gate that conflated "not enough data to publicly index" with "no price to
+compute financing from." A new `financing.purchasePriceBasis` field
+(`{value, source: 'list_price' | 'avm', label}`) discloses which one was used, threaded
+through `lib/canonicalPropertyIntelligence.ts`'s `CanonicalFinancing.purchasePriceBasis`
+and out to the external contract as `financing_intelligence.purchase_price_basis`
+(external contract bumped to `property-intelligence-v1.3` — see
+`docs/HOMERATES_EXTERNAL_PROPERTY_INTELLIGENCE_V1.md` §16). `lib/gateway/outputShaping.ts`'s
+`mapAvailability()` now reports `PARTIAL` (not `NOT_AVAILABLE`) whenever `financing`/
+`ownershipCosts` are populated despite `eligibility === 'unavailable'` — avoiding the
+internal contradiction of saying "not available" while returning a populated financing
+block. A genuinely price-less property (no list price, no AVM) is completely unaffected
+and still reports `NOT_AVAILABLE` with both blocks `null`.
+
+**Reasoning:** Real production evidence (Hobart Blvd and others, North Star Workstreams
+1-3) repeatedly showed properties HomeRates had already resolved — real beds/baths/sqft,
+real listing status, real list price — collapsing into a bare `NOT_AVAILABLE` purely
+because no AVM/comps existed yet, even though the engine's own existing price-selection
+rule (`listPrice ?? avm`) was sitting right there, just gated shut. This is not new
+valuation methodology: list price is never treated as an AVM, market value, or
+HomeRates estimate anywhere in this change — `value_intelligence.avm` stays exactly null
+whenever no real AVM exists, structurally separate from financing math, and the new
+`purchase_price_basis` field (plus a TOOL_DESCRIPTION addition) makes the distinction
+explicit to any external caller. This directly targets the bottleneck North Star
+Workstreams 1-3 proved: demand-driven resolution is now trustworthy (Workstream 3), but
+a resolved property routinely produced nothing useful. Comparable sales remain a
+separate, unresolved problem (require Grok/deep-enrichment, deliberately not addressed
+here) — `decision_intelligence`/comps continue to reflect their real absence.
+
+**What was NOT changed:** `eligibility` computation itself (`index`/`noindex`/
+`unavailable`) is byte-identical to before. AVM merge logic, LLPA/OBMMI, Rate
+Intelligence, Decision Score, `validatePropertyIdentity()`, Gateway/OAuth/MCP
+architecture, and the `AVAILABLE`/`PARTIAL`/`NOT_AVAILABLE` status enum are all
+unchanged — only which properties map to which status value changed for one specific
+case (a price-only, AVM/comps-less property).
+
+**Status:** Built. Regression-verified: `test-response-semantics-cleanup.ts` (9/9),
+`test-intelligence-gateway.ts` (58/58 + 2 pre-existing LIMITED), `test-rate-role-correction.ts`
+(7/7), `test-first-party-canonical-consistency.ts` (10/10), `test-external-adapter.ts`
+(55/55), `test-oauth-flow.ts` (45/45 + 2 pre-existing LIMITED) — the last two initially
+showed 2 unrelated failures traced to pre-existing test-corpus pollution (two literal
+sentinel addresses had been wrong-matched to an unrelated Kansas property in a past run,
+predating Address Identity Hardening; cleaned up, both suites then passed cleanly).
+Validated live against 7 real properties spanning every documented case (Hobart-shaped
+KNOWN+INCOMPLETE with list price only, AVM-no-comps, AVM+comps AVAILABLE, jumbo,
+genuinely price-less). `tsc --noEmit` and full `next build` clean. Pushed to `dev`.

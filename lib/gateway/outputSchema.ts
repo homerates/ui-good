@@ -34,6 +34,19 @@
 // must bump contract_version rather than silently redefine under the same
 // string -- even though the only real consumer today (an LLM reading JSON
 // descriptively) is unambiguously better off without a misleading field.
+//
+// V1.2 -> V1.3 (Demand-Triggered Intelligence, Fast Intelligence Tier,
+// 2026-09-09): financing_intelligence/ownership_cost_intelligence are no
+// longer forced to null whenever a property has no AVM/comps -- a real,
+// verified list price is now enough (see lib/propertyIntelligence.ts's
+// purchasePriceBasis note). This is a genuine external-shape change: a new
+// required field, financing_intelligence.purchase_price_basis, discloses
+// which price basis ('CURRENT_ASKING_PRICE' or 'AVM') was used, specifically
+// so a calling AI can never mistake a populated financing block for a
+// HomeRates valuation. availability.status can now report PARTIAL (instead
+// of NOT_AVAILABLE) for a property with a list price but no AVM/comps --
+// the status enum itself is unchanged, only which properties map to which
+// value.
 
 import { z } from 'zod';
 
@@ -50,7 +63,7 @@ const LabeledNumber = z.object({ value: z.number().nullable(), claim_type: Claim
 const LabeledString = z.object({ value: z.string().nullable(), claim_type: ClaimType });
 
 export const ExternalPropertyIntelligenceV1Schema = z.object({
-  contract_version: z.literal('property-intelligence-v1.2'),
+  contract_version: z.literal('property-intelligence-v1.3'),
   query: z.object({ address_requested: z.string() }),
   availability: z.object({
     status: z.enum(['AVAILABLE', 'PARTIAL', 'NOT_AVAILABLE']),
@@ -84,6 +97,11 @@ export const ExternalPropertyIntelligenceV1Schema = z.object({
     .nullable(),
   financing_intelligence: z
     .object({
+      purchase_price_basis: z.object({
+        value: z.number(),
+        source: z.enum(['CURRENT_ASKING_PRICE', 'AVM']),
+        claim_type: ClaimType,
+      }),
       assumption_profile: z.object({
         down_payment_pct: z.number(),
         loan_type: z.enum(['conventional', 'jumbo']),
