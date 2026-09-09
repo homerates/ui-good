@@ -47,6 +47,12 @@ export interface AffordabilityPurchaseParams {
   term: number;
   taxRate: number;
   insRate: number;
+  /** Canonical HOA (lib/canonicalPropertyIntelligence.ts) -- omit entirely
+   *  (undefined) for callers that never had HOA data to begin with (no
+   *  change to their existing display); pass `null` when a real canonical
+   *  lookup explicitly found HOA unconfirmed (renders "Not confirmed", never
+   *  treated as zero); pass a number (including 0) when confirmed. */
+  hoaMonthly?: number | null;
   annualIncome?: number;
   monthlyDebt?: number;
   vaFundingFeePct?: number;
@@ -231,6 +237,14 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const piti    = pi + tax + ins + pmi + monthlyMIP;
   const totalMo = piti + monthlyDebt;
 
+  // PITIA -- PITI + confirmed HOA/association dues. undefined = this card
+  // instance was never wired to HOA data (existing callers, zero change).
+  // null = canonical lookup ran and explicitly found HOA unconfirmed -- never
+  // silently treated as zero. A real number (including a confirmed 0) is the
+  // only case PITIA actually computes.
+  const hoaKnown = props.hoaMonthly !== undefined;
+  const pitia    = hoaKnown ? (props.hoaMonthly != null ? piti + props.hoaMonthly : null) : undefined;
+
   const incomeToQualify = Math.ceil((totalMo / dtiThreshold) * 12 / 100) * 100;
   const backEndDTI      = annualIncome > 0 ? (totalMo / (annualIncome / 12)) * 100 : null;
 
@@ -379,6 +393,13 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
           {isFHA && ` · MIP ${fmt$(Math.round(monthlyMIP))}`}
           {!isFHA && !isVA && pmi > 0 && ` · PMI ${fmt$(Math.round(pmi))}`}
         </div>
+        {hoaKnown && (
+          <div className="apc-hero-breakdown" style={{ marginTop: 4 }}>
+            {props.hoaMonthly != null
+              ? <>{'HOA '}{fmt$(Math.round(props.hoaMonthly))}{' · PITIA '}{fmt$(Math.round(pitia as number))}{'/mo'}</>
+              : <>{'HOA not confirmed · PITIA not fully determined'}</>}
+          </div>
+        )}
       </div>
 
       {/* 3-tile row */}
