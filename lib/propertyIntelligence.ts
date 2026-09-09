@@ -107,6 +107,16 @@ export interface PropertyIntelligenceData {
 
   financing: {
     scenario: { creditScore: number; downPaymentPct: number; loanType: 'conventional' | 'jumbo'; occupancy: 'primary'; termYears: 30 };
+    // Which price the financing math below was actually computed from --
+    // added 2026-09-09 (Demand-Triggered Intelligence, Fast Intelligence
+    // Tier) alongside decoupling this whole `financing` block from requiring
+    // an AVM/comps. 'list_price' is the common freshly-resolved-property
+    // case (e.g. a FOR_SALE listing with no AVM yet) -- a real, scraped,
+    // PROPERTY FACT, never HomeRates' own valuation. 'avm' is the prior,
+    // unchanged behavior when a point AVM exists and no list price does
+    // (e.g. an OFF_MARKET/SOLD property). Never invents a value: this block
+    // (and the caller below) still returns null when neither exists.
+    purchasePriceBasis: { value: number; source: 'list_price' | 'avm'; label: FactLabel };
     loanAmount: LabeledValue<number>;
     ltv: LabeledValue<number>;
     conformingStatus: 'standard' | 'high_balance' | 'above_limit';
@@ -613,13 +623,31 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
     provenance,
   };
 
-  if (raw.eligibility === 'unavailable') {
+  // Financing/ownership-cost computation requires a purchase-price basis --
+  // NOT the broader 'index'/'noindex'/'unavailable' eligibility concept
+  // (that gates public indexing/searchability, a different question). Prior
+  // to 2026-09-09 this block was skipped entirely whenever eligibility was
+  // 'unavailable' (no AVM AND no comps), even for a FOR_SALE property with a
+  // real, verified list price -- collapsing a property HomeRates actually
+  // knows quite a lot about into a bare dead end. `raw.listPrice ?? raw.avm`
+  // was ALREADY this engine's own existing price-selection rule (list price
+  // preferred, AVM as fallback -- see the unchanged `price` line just below);
+  // the eligibility short-circuit was gating that existing rule shut before
+  // it ever got a chance to run, not gating on the absence of a price. Fixed
+  // by gating on the actual dependency (a usable price) instead. This never
+  // treats list price as an AVM/valuation -- see purchasePriceBasis above,
+  // which structurally discloses which one was used, and `valuation.avm`
+  // (unchanged, computed independently above) stays null exactly when there
+  // is no real AVM, regardless of what price basis financing used.
+  const priceBasis = raw.listPrice ?? raw.avm ?? null;
+  if (priceBasis == null) {
     return { ...base, financing: null, ownershipCost: null };
   }
+  const priceBasisSource: 'list_price' | 'avm' = raw.listPrice != null ? 'list_price' : 'avm';
 
   // ── Financing engine -- only ever runs for a property that already passed
   // the data-presence threshold, and only for one property per call. ──
-  const price = raw.listPrice ?? raw.avm ?? 0;
+  const price = priceBasis;
   const creditScore = 740;
   const downPaymentPct = 20;
   const stateLimitInfo = getStateLimitInfo(raw.state ?? '');
@@ -672,6 +700,11 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
     ...base,
     financing: {
       scenario: { creditScore, downPaymentPct, loanType, occupancy: 'primary', termYears: 30 },
+      purchasePriceBasis: {
+        value: priceBasis,
+        source: priceBasisSource,
+        label: priceBasisSource === 'list_price' ? 'PROPERTY FACT' : 'ESTIMATE',
+      },
       loanAmount: { label: 'DERIVED CALCULATION', value: provisionalLoanAmount },
       ltv: { label: 'ILLUSTRATIVE ASSUMPTION', value: ltv },
       conformingStatus,

@@ -92,6 +92,10 @@ export interface CanonicalValuation {
 
 export interface CanonicalFinancing {
   scenario: { creditScore: number; downPaymentPct: number; loanType: 'conventional' | 'jumbo'; occupancy: 'primary'; termYears: 30 };
+  // Passthrough of lib/propertyIntelligence.ts's own purchasePriceBasis --
+  // see that file's dated note. Never HomeRates' own valuation; 'list_price'
+  // is a scraped PROPERTY FACT, 'avm' is the existing point-estimate ESTIMATE.
+  purchasePriceBasis: { value: number; source: 'list_price' | 'avm' };
   loanAmount: number;
   ltv: number;
   conformingStatus: 'standard' | 'high_balance' | 'above_limit';
@@ -243,6 +247,7 @@ export async function buildCanonicalPropertyIntelligence(propertyId: string): Pr
   const financing: CanonicalFinancing | null = raw.financing
     ? {
         scenario: raw.financing.scenario,
+        purchasePriceBasis: { value: raw.financing.purchasePriceBasis.value, source: raw.financing.purchasePriceBasis.source },
         loanAmount: raw.financing.loanAmount.value,
         ltv: raw.financing.ltv.value,
         conformingStatus: raw.financing.conformingStatus,

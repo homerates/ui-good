@@ -52,6 +52,22 @@ function mapAvailability(raw: CanonicalPropertyIntelligence): { status: 'AVAILAB
   if (raw.eligibility === 'noindex') {
     return { status: 'PARTIAL', reason: raw.ineligibleReasons[0] ?? 'This property does not yet meet HomeRates’ full data bar.' };
   }
+  // Demand-Triggered Intelligence (2026-09-09): 'unavailable' eligibility
+  // (no AVM AND no comps) used to always mean NOT_AVAILABLE here, even for a
+  // property lib/propertyIntelligence.ts now happily computes illustrative
+  // financing/ownership-cost intelligence for (a verified list price is
+  // enough -- see purchasePriceBasis). Saying NOT_AVAILABLE while
+  // financing_intelligence/ownership_cost_intelligence are populated below
+  // would be a real internal contradiction, not a privacy concern -- so this
+  // reports PARTIAL, same as the 'noindex' branch, whenever that data
+  // actually exists. Only a genuinely price-less property (no list price,
+  // no AVM -- financing/ownershipCosts both still null) stays NOT_AVAILABLE.
+  if (raw.financing || raw.ownershipCosts) {
+    return {
+      status: 'PARTIAL',
+      reason: raw.ineligibleReasons[0] ?? 'Valuation and comparable sales are not yet available for this property.',
+    };
+  }
   return { status: 'NOT_AVAILABLE', reason: 'HomeRates has this address on record but does not yet have enough verified data to provide intelligence.' };
 }
 
@@ -71,7 +87,7 @@ export function shapeForExternalContract(
 ): ExternalPropertyIntelligenceV1 {
   if (!raw) {
     return {
-      contract_version: 'property-intelligence-v1.2',
+      contract_version: 'property-intelligence-v1.3',
       query: { address_requested: addressRequested },
       availability: { status: 'NOT_AVAILABLE', reason: 'HomeRates does not currently have intelligence for this address.' },
       property: null,
@@ -101,6 +117,21 @@ export function shapeForExternalContract(
   // metadata for one specific external contract.
   const financing = raw.financing
     ? {
+        // Demand-Triggered Intelligence (v1.3, 2026-09-09): discloses which
+        // price the financing math below was actually computed from.
+        // 'list_price' is a real, scraped PROPERTY FACT (the current asking
+        // price) -- NEVER HomeRates' own valuation, never conflated with
+        // value_intelligence.avm above (which stays null exactly when no
+        // real AVM exists, completely independent of this field). Exists so
+        // a calling AI cannot reasonably infer that a populated financing
+        // block means HomeRates estimated this property's value -- it may
+        // simply mean HomeRates used the current asking price as an
+        // explicit illustrative purchase-price assumption.
+        purchase_price_basis: {
+          value: raw.financing.purchasePriceBasis.value,
+          source: raw.financing.purchasePriceBasis.source === 'list_price' ? ('CURRENT_ASKING_PRICE' as const) : ('AVM' as const),
+          claim_type: raw.financing.purchasePriceBasis.source === 'list_price' ? ('PROPERTY FACT' as const) : ('ESTIMATE' as const),
+        },
         // credit_score deliberately OMITTED (v1.2, Response Semantics
         // Cleanup 2026-09-08) -- Property Intelligence's propertyMarketRate
         // has never used it (Rate Role Correction, same day); exposing it
@@ -159,7 +190,7 @@ export function shapeForExternalContract(
     : null;
 
   return {
-    contract_version: 'property-intelligence-v1.2',
+    contract_version: 'property-intelligence-v1.3',
     query: { address_requested: addressRequested },
     availability,
     property: {
