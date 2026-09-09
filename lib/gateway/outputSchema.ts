@@ -1,7 +1,7 @@
 // lib/gateway/outputSchema.ts
 //
 // Runtime schema for the External Property Intelligence Contract, now
-// property-intelligence-v1.1 (bumped 2026-09-08 -- see below). This schema
+// property-intelligence-v1.2 (bumped 2026-09-08 -- see below). This schema
 // is the second, independent line of defense behind outputShaping.ts's
 // allowlist construction (see that file's header) -- a shaped object that
 // doesn't validate against this schema is never returned to a caller, no
@@ -14,18 +14,26 @@
 // search_count, properties.id) -- if a future edit to this file adds a way to
 // represent one of those, that is itself a contract violation to catch in review.
 //
-// V1 -> V1.1 (deliberate, documented per the versioning policy in
-// docs/HOMERATES_EXTERNAL_PROPERTY_INTELLIGENCE_V1.md section 16): fixes a
+// V1 -> V1.1 (documented per the versioning policy in
+// docs/HOMERATES_EXTERNAL_PROPERTY_INTELLIGENCE_V1.md section 16): fixed a
 // real mislabeling bug -- estimated_piti previously silently included HOA
 // dues whenever HOA was known, contradicting its own name (PITI has no A).
-// estimated_piti is now corrected to true Principal+Interest+Taxes+
-// Insurance ONLY; a NEW estimated_pitia field (PITI + confirmed HOA, or
-// null when HOA status is unconfirmed -- never silently zero) carries the
-// PITI+HOA figure. This is a genuine behavior change for any property with
-// confirmed HOA dues (estimated_piti now returns a lower, correct number),
-// which is exactly the kind of material change this repo's own versioning
-// policy says must bump contract_version rather than redefine a field
-// silently under the same version string.
+// estimated_piti is now true Principal+Interest+Taxes+Insurance ONLY; a
+// estimated_pitia field (PITI + confirmed HOA, or null when unconfirmed --
+// never silently zero) carries the PITI+HOA figure.
+//
+// V1.1 -> V1.2 (Response Semantics Cleanup, same day): a live ChatGPT
+// response revealed financing_intelligence.assumption_profile.credit_score
+// (740, fixed, always present) was causing the model to describe Property
+// Intelligence's neutral market_rate as "740 credit" pricing -- false since
+// the Rate Role Correction (propertyMarketRate never uses credit score).
+// credit_score is removed from assumption_profile entirely; Property
+// Intelligence has no borrower-credit input of any kind. This is a genuine
+// external-shape change (a field disappears) for any consumer reading it,
+// which is exactly the kind of change this repo's versioning policy says
+// must bump contract_version rather than silently redefine under the same
+// string -- even though the only real consumer today (an LLM reading JSON
+// descriptively) is unambiguously better off without a misleading field.
 
 import { z } from 'zod';
 
@@ -42,7 +50,7 @@ const LabeledNumber = z.object({ value: z.number().nullable(), claim_type: Claim
 const LabeledString = z.object({ value: z.string().nullable(), claim_type: ClaimType });
 
 export const ExternalPropertyIntelligenceV1Schema = z.object({
-  contract_version: z.literal('property-intelligence-v1.1'),
+  contract_version: z.literal('property-intelligence-v1.2'),
   query: z.object({ address_requested: z.string() }),
   availability: z.object({
     status: z.enum(['AVAILABLE', 'PARTIAL', 'NOT_AVAILABLE']),
@@ -77,7 +85,6 @@ export const ExternalPropertyIntelligenceV1Schema = z.object({
   financing_intelligence: z
     .object({
       assumption_profile: z.object({
-        credit_score: z.number(),
         down_payment_pct: z.number(),
         loan_type: z.enum(['conventional', 'jumbo']),
         occupancy: z.literal('primary'),

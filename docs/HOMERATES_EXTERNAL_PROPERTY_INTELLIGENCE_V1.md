@@ -482,6 +482,15 @@ only, and a new `estimated_pitia` field (PITI + confirmed HOA, `null` — never 
 zero — when HOA status is unconfirmed) carries the PITI+HOA figure. See
 `lib/gateway/outputSchema.ts`'s file header for the full rationale.
 
+**Applied 2026-09-08 (same day) — bumped to `property-intelligence-v1.2`.** A live
+ChatGPT response revealed `financing_intelligence.assumption_profile.credit_score`
+(a fixed 740, always present) was causing the model to describe Property
+Intelligence's neutral market rate as "740 credit" pricing — false, since the rate
+never used it. `credit_score` is removed from `assumption_profile` entirely; Property
+Intelligence has no borrower-credit input of any kind (Rate Intelligence's own
+assumed credit score is unaffected and stays internal-only). See
+`lib/gateway/outputSchema.ts`'s file header for the full rationale.
+
 Internal methodology version (`METHODOLOGY_VERSION`, currently `"Decision Score L1-L4 (locked
 2026-08-19)..."`) and external contract version are **explicitly separate** — the internal string must
 never appear in an external response at all (§5), so there is no risk of them being conflated in the

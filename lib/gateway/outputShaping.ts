@@ -71,7 +71,7 @@ export function shapeForExternalContract(
 ): ExternalPropertyIntelligenceV1 {
   if (!raw) {
     return {
-      contract_version: 'property-intelligence-v1.1',
+      contract_version: 'property-intelligence-v1.2',
       query: { address_requested: addressRequested },
       availability: { status: 'NOT_AVAILABLE', reason: 'HomeRates does not currently have intelligence for this address.' },
       property: null,
@@ -101,8 +101,16 @@ export function shapeForExternalContract(
   // metadata for one specific external contract.
   const financing = raw.financing
     ? {
+        // credit_score deliberately OMITTED (v1.2, Response Semantics
+        // Cleanup 2026-09-08) -- Property Intelligence's propertyMarketRate
+        // has never used it (Rate Role Correction, same day); exposing it
+        // alongside the rate caused ChatGPT to describe the neutral market
+        // rate as "740 credit" pricing, which is false. Rate Intelligence's
+        // own assumedCreditScore (canonical.financing.rateIntelligence,
+        // internal-only, unchanged) remains exactly where FICO/LTV
+        // assumptions belong -- see this file's Rate Role Correction note
+        // just below.
         assumption_profile: {
-          credit_score: raw.financing.scenario.creditScore,
           down_payment_pct: raw.financing.scenario.downPaymentPct,
           loan_type: raw.financing.scenario.loanType,
           occupancy: raw.financing.scenario.occupancy,
@@ -151,7 +159,7 @@ export function shapeForExternalContract(
     : null;
 
   return {
-    contract_version: 'property-intelligence-v1.1',
+    contract_version: 'property-intelligence-v1.2',
     query: { address_requested: addressRequested },
     availability,
     property: {

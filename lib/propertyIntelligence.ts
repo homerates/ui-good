@@ -527,7 +527,19 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
   const missing: string[] = [];
   if (raw.avm == null) missing.push('No automated valuation estimate on record.');
   if (raw.comparables.length === 0) missing.push('No comparable sale on record.');
-  if (!snapshot?.hoaMonthly) missing.push('HOA fee not confirmed.');
+  // Response Semantics Cleanup (2026-09-08): two fixes together --
+  // (1) `== null` instead of a falsy check, so a CONFIRMED $0 HOA
+  // (snapshot.hoaMonthly === 0, a real, legitimate "no association dues"
+  // fact) no longer falsely triggers this "not confirmed" limitation --
+  // `!0` was `true`, incorrectly flagging a known zero as unknown.
+  // (2) reworded from a terse fragment ("HOA fee not confirmed.") to an
+  // unambiguous sentence -- a live ChatGPT response embellished the old
+  // fragment into "the actual total housing payment will be higher," which
+  // does not follow from "unconfirmed" (unconfirmed is not "definitely
+  // positive"). The new wording states the actual, narrower consequence
+  // (PITIA/complete obligation undetermined) so there's less room for an
+  // LLM reading this field to infer a conclusion HomeRates never asserted.
+  if (snapshot?.hoaMonthly == null) missing.push('HOA dues have not been confirmed, so PITIA and the complete monthly housing obligation cannot yet be determined.');
 
   // Decision Intelligence -- prefer featured_properties' pre-computed scores;
   // else compute live from the same merged inputs using the same pure functions.
