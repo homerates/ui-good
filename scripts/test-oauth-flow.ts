@@ -60,6 +60,23 @@ import { validate as authorizeValidate, consentPage } from '../lib/gateway/oauth
 import { POST as tokenPost } from '../app/api/oauth/token/route';
 import { POST as mcpPost } from '../app/api/mcp/property-intelligence/route';
 
+// Progressive Intelligence (2026-09-09): resolveExternalPropertyIntelligence()
+// now fires a fire-and-forget Fast-Follow enrichment trigger to
+// /api/beta/grok-property whenever a property's comps/location are still
+// missing (see lib/externalPropertyResolution.ts). This suite's tools/call
+// tests hit real corpus properties (Mataro Ct, Hobart Blvd) directly via the
+// route's exported POST, so without this intercept they would fire real,
+// live Grok/xAI calls on every run -- intercepted the same way
+// scripts/test-external-adapter.ts already guards this.
+const realFetch = globalThis.fetch;
+globalThis.fetch = (async (input: any, init?: any) => {
+  const url = typeof input === 'string' ? input : input?.url ?? String(input);
+  if (url.includes('/api/beta/grok-property')) {
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } });
+  }
+  return realFetch(input, init);
+}) as typeof fetch;
+
 type Status = 'PASS' | 'FAIL' | 'LIMITED';
 interface Result { category: string; name: string; status: Status; evidence: string }
 const results: Result[] = [];

@@ -81,13 +81,59 @@ function labeled(label: FactLabel, value: number | null): { value: number | null
   return { value, claim_type: label };
 }
 
+// Progressive Intelligence (2026-09-09, Demand-Triggered Intelligence /
+// Progressive Intelligence for External AI): the first-party chat product has
+// never waited for L3/L4 (Grok comps/location) before showing a user
+// something useful -- app/chat/page.tsx renders the property/financing card
+// immediately, then a background call updates the SAME message once deep
+// analysis lands. External callers have no browser tab to run that follow-up
+// call themselves, so this makes the SAME two facts (what's known now, what's
+// still being assembled) explicit in the response instead. Purely derived
+// from `raw` -- no new query, no new state table: "enriched" means
+// grok-sourced comps or location narrative are already present in the SAME
+// canonical object this file already reads everything else from.
+function computeIntelligenceProgress(raw: CanonicalPropertyIntelligence): ExternalPropertyIntelligenceV1['intelligence_progress'] {
+  const hasComps = raw.comps.length > 0;
+  const hasLocation = raw.location != null;
+  const enriched = hasComps || hasLocation;
+  return {
+    status: enriched ? 'enriched' : 'enriching',
+    layers: {
+      financial: raw.financing ? 'complete' : 'pending',
+      property: raw.valuation.pointEstimate != null ? 'complete' : raw.valuation.listPrice != null ? 'partial' : 'pending',
+      market: raw.market.medianDom != null || raw.market.medianPrice != null ? 'complete' : 'pending',
+      location: hasLocation ? 'complete' : 'pending',
+    },
+    follow_up_recommended: !enriched,
+  };
+}
+
+// Property-specific canonical destination -- never a generic homepage
+// redirect, and never keyed by raw.propertyId (that field must never cross
+// this boundary -- see file header). Address-keyed, matching how
+// app/property-intel/page.tsx itself reads its `address` query param.
+function computeDeepIntelligenceCta(
+  raw: CanonicalPropertyIntelligence,
+  addressRequested: string,
+): ExternalPropertyIntelligenceV1['deep_intelligence'] {
+  const url = new URL('https://chat.homerates.ai/property-intel');
+  url.searchParams.set('address', raw.property.address || addressRequested);
+  return {
+    available: true,
+    destination: url.toString(),
+    capability_summary:
+      'Interactive HomeRates Property Intelligence report: live comparable sales, market and ' +
+      'location context, and an adjustable financing scenario for this property.',
+  };
+}
+
 export function shapeForExternalContract(
   addressRequested: string,
   raw: CanonicalPropertyIntelligence | null,
 ): ExternalPropertyIntelligenceV1 {
   if (!raw) {
     return {
-      contract_version: 'property-intelligence-v1.3',
+      contract_version: 'property-intelligence-v1.4',
       query: { address_requested: addressRequested },
       availability: { status: 'NOT_AVAILABLE', reason: 'HomeRates does not currently have intelligence for this address.' },
       property: null,
@@ -96,6 +142,10 @@ export function shapeForExternalContract(
       ownership_cost_intelligence: null,
       market_location_intelligence: { market: { median_dom: labeled('MARKET FACT', null), median_price: labeled('MARKET FACT', null), sale_to_list_pct: labeled('MARKET FACT', null) }, location: null },
       decision_intelligence: null,
+      // No resolved property to report progress on or link to yet -- both
+      // null, distinct from the "resolved but still enriching" case below.
+      intelligence_progress: null,
+      deep_intelligence: null,
       freshness: { as_of: null, staleness: 'CURRENT' },
       provenance: { source_category: 'PUBLIC_LISTING_DATA', citation: 'No record on file' },
       disclaimer: EDUCATIONAL_DISCLAIMER,
@@ -190,7 +240,7 @@ export function shapeForExternalContract(
     : null;
 
   return {
-    contract_version: 'property-intelligence-v1.3',
+    contract_version: 'property-intelligence-v1.4',
     query: { address_requested: addressRequested },
     availability,
     property: {
@@ -229,6 +279,8 @@ export function shapeForExternalContract(
         : null,
     },
     decision_intelligence: decisionIntelligence,
+    intelligence_progress: computeIntelligenceProgress(raw),
+    deep_intelligence: computeDeepIntelligenceCta(raw, addressRequested),
     freshness: { as_of: asOf, staleness },
     provenance: { source_category: sourceCategory, citation: 'Public listing and market data' },
     disclaimer: EDUCATIONAL_DISCLAIMER,

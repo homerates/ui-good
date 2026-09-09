@@ -437,11 +437,12 @@ async function runResponseCoverageAndContractTests(
     record('M', 'PARTIAL schema behavior', 'validated', 'no fixture available at all (neither real nor derivable)', 'LIMITED', 'no AVAILABLE or NOT_AVAILABLE fixture existed to derive from either');
   }
 
-  // Currently property-intelligence-v1.3 (2026-09-09) -- a deliberate,
+  // Currently property-intelligence-v1.4 (2026-09-09) -- a deliberate,
   // documented version bump (see outputSchema.ts's file header), most
-  // recently adding purchase_price_basis (Demand-Triggered Intelligence),
-  // not an accidental drift. Update this literal alongside any future bump.
-  record('O', 'contract_version is the current deliberate version', 'property-intelligence-v1.3', rNa.ok ? rNa.data.contract_version : 'n/a', rNa.ok && rNa.data.contract_version === 'property-intelligence-v1.3' ? 'PASS' : 'FAIL', '');
+  // recently adding intelligence_progress/deep_intelligence (Progressive
+  // Intelligence for External AI), not an accidental drift. Update this
+  // literal alongside any future bump.
+  record('O', 'contract_version is the current deliberate version', 'property-intelligence-v1.4', rNa.ok ? rNa.data.contract_version : 'n/a', rNa.ok && rNa.data.contract_version === 'property-intelligence-v1.4' ? 'PASS' : 'FAIL', '');
   record('O', 'no verdict reintroduced', 'decision_intelligence has no verdict key', JSON.stringify(rNa.ok ? Object.keys(rNa.data.decision_intelligence ?? {}) : []), !rNa.ok || !('verdict' in (rNa.data.decision_intelligence ?? {})) ? 'PASS' : 'FAIL', '');
 }
 

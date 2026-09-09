@@ -510,6 +510,30 @@ unaffected and still reports `NOT_AVAILABLE` with both blocks `null`. See
 `lib/propertyIntelligence.ts`'s `purchasePriceBasis` note and
 `lib/gateway/outputShaping.ts`'s `mapAvailability()` for the full rationale.
 
+**Applied 2026-09-09 (same day) — bumped to `property-intelligence-v1.4`.** Progressive
+Intelligence for External AI: the first-party chat product has never waited for Grok
+comps/location before showing a user something useful — it renders a property/financing
+card immediately, then a client-side background call updates the SAME card once deep
+analysis lands. An external caller has no browser tab to run that follow-up call itself.
+Two new required fields close that gap, both purely derived from already-computed
+canonical fields (no new query, no new job/state table): `intelligence_progress`
+(`{status: 'enriching' | 'enriched', layers: {financial, property, market, location},
+follow_up_recommended}`) tells the caller whether richer data may appear on a later call
+for the same address; `deep_intelligence` (`{available, destination, capability_summary}`)
+gives a property-specific (address-keyed, never a generic homepage, never keyed by an
+internal property id) destination for the full interactive HomeRates experience. Neither
+field changes the meaning of `availability`, `financing_intelligence`, or any other v1.3
+field. Alongside this, `lib/externalPropertyResolution.ts` now fires a fire-and-forget
+"Fast-Follow" enrichment trigger — the exact same `/api/beta/grok-property` endpoint and
+`grok_property_cache` the first-party chat product already uses, scheduled via Next.js's
+`after()` so it's guaranteed to run to completion without ever blocking or delaying the
+external response — whenever a resolved property's comps/location are still missing.
+This is not a second enrichment pipeline: it reuses the exact same endpoint, cache table,
+and downstream read path (`buildCanonicalPropertyIntelligence()` already reads
+`grok_property_cache`) that already existed. See `lib/externalPropertyResolution.ts`'s
+`triggerFastFollowEnrichmentIfNeeded()` and `lib/gateway/outputShaping.ts`'s
+`computeIntelligenceProgress()`/`computeDeepIntelligenceCta()` for the full rationale.
+
 Internal methodology version (`METHODOLOGY_VERSION`, currently `"Decision Score L1-L4 (locked
 2026-08-19)..."`) and external contract version are **explicitly separate** — the internal string must
 never appear in an external response at all (§5), so there is no risk of them being conflated in the

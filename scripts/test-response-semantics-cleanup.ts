@@ -70,7 +70,7 @@ async function main() {
         const parsed = ExternalPropertyIntelligenceV1Schema.safeParse(shaped);
         const noCreditScore = shaped.financing_intelligence != null && !('credit_score' in shaped.financing_intelligence.assumption_profile);
         record('A. Doverwood: credit_score absent from assumption_profile', noCreditScore && parsed.success ? 'PASS' : 'FAIL', JSON.stringify(shaped.financing_intelligence?.assumption_profile));
-        record('A2. Doverwood: contract_version is current (v1.3)', shaped.contract_version === 'property-intelligence-v1.3' ? 'PASS' : 'FAIL', shaped.contract_version);
+        record('A2. Doverwood: contract_version is current (v1.4)', shaped.contract_version === 'property-intelligence-v1.4' ? 'PASS' : 'FAIL', shaped.contract_version);
       } else {
         console.log('  (Doverwood not in corpus in this environment -- A skipped)');
       }
