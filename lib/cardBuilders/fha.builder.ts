@@ -2,6 +2,7 @@ import { FHAResult, FHAvsConvResult } from '../calcEngine';
 import { FHANeedsInput } from '../calcDispatcher';
 import { f$, fK, fPct, fPct1 } from '../formatting';
 import { BuiltCard } from './types';
+import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from '../constants';
 
 export function buildFHACard(
     r: FHAResult,
@@ -180,8 +181,8 @@ ${dtiSection}${incomeSection}${compSection}
             downPct: r.downPaymentPct,
             rate: r.annualRatePct,
             term: r.termYears,
-            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
-            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
+            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : TAX_RATE_DEFAULT,
+            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : INS_RATE_DEFAULT,
             loanType: 'fha',
         },
         fhaSlider: {
@@ -189,8 +190,8 @@ ${dtiSection}${incomeSection}${compSection}
             downPct: r.downPaymentPct,
             rate: r.annualRatePct,
             term: r.termYears,
-            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
-            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
+            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : TAX_RATE_DEFAULT,
+            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : INS_RATE_DEFAULT,
         },
         lenderChecklist: {
             loanType: 'fha',
@@ -256,8 +257,8 @@ export function buildFHAEquityTimelineCard(
     const convTermMo = Math.max(360 - naturalMonths, 60);
     const mr = convRate / 100 / 12;
     const convPI = Math.round(target80 * (mr * Math.pow(1 + mr, convTermMo)) / (Math.pow(1 + mr, convTermMo) - 1));
-    const monthlyTax = Math.round(homePrice * 0.011 / 12);
-    const monthlyIns = 100;
+    const monthlyTax = Math.round(homePrice * TAX_RATE_DEFAULT / 12);
+    const monthlyIns = Math.round(homePrice * INS_RATE_DEFAULT / 12);
     const convPITI = convPI + monthlyTax + monthlyIns;
 
     const apprRows = apprScenarios.map(s =>

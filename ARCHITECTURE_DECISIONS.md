@@ -1254,3 +1254,81 @@ seen throughout this session, unrelated to this change). `tsc --noEmit`,
 full `next build`, and the build's own `[CalcEngine]`/`[AnswerFormat]`
 self-tests all clean. Pushed to `dev` only — NOT merged to `main`, no
 production push.
+
+---
+
+## AD-27 — Canonicalize known prebuilt scenario prompts and card entry points
+
+**Decision:** Audited the known, user-facing seeded entry points (rather than
+reopening the calculator search) — `app/lab/page.tsx`'s 9 scenario modules and
+6 program-specific SEO pages' (`fha-calculator`, `va-calculator`,
+`dscr-calculator`, `affordability-calculator`, `refinance-calculator`,
+`conventional-loan-calculator`) ~28 seed-chip links, ~37 known entry points in
+total covering all 9 real card families (Affordability, Conventional/Home
+Purchase, High Balance, FHA, VA, Jumbo, DSCR, Refinance, Buydown).
+
+**The prompts themselves were already clean.** Every seed string across all
+37 entry points is natural language with no embedded numeric tax/insurance/
+PMI/MIP assumption — confirmed by source-inspection regex across the Lab
+page and all 6 SEO pages. "At current rates" phrasing correctly defers to
+live FRED (`dispatch()`'s `fallbackRate`/`rateAssumption` mechanism, confirmed
+by running all 9 Lab seeds through the actual `dispatch()` function);
+`refinance-calculator`'s explicit demo rates (e.g. "7.25% → 6.5%") correctly
+stay explicit scenario inputs, never silently relabeled current. Running all
+9 Lab seeds through `dispatch()` confirmed every one routes to its intended
+card family at confidence ≥0.95, with no misrouting found.
+
+**The real drift was in the card-builder layer, not the prompts.** Every one
+of the 7 relevant card builders (`affordability`, `conventional`, `dscr`,
+`fha`, `jumbo`, `va`, `scenario`) had its own independently re-invented
+fallback tax rate (`0.011`/`0.012`) and insurance rate (`0.005`, the same
+stale `INS_RATE_HIGH` value the prior two workstreams already fixed
+elsewhere) instead of importing `lib/constants.ts`'s
+`TAX_RATE_DEFAULT`/`INS_RATE_DEFAULT` — ~16 occurrences across 7 files, all
+now fixed to import and use the named constants. Two were live, reachable
+defaults (not defensive-only): `lib/cardBuilders/scenario.builder.ts`'s
+buydown/seller-credit math (`?? purchasePrice * 0.005`, fires whenever a
+caller doesn't pre-supply insurance) and `lib/cardBuilders/fha.builder.ts`'s
+FHA→conventional switch-point calculator, which had a flat `$100/mo`
+insurance figure regardless of purchase price — the exact same
+non-price-scaling bug class already fixed in `app/api/beta/grok-property/
+route.ts` during the prior workstream, found independently here.
+
+**Confirmed, NOT fixed (documented per Phase 2's classification, out of this
+workstream's card-redesign boundary):** the Lab's "High Balance" module (m3)
+and "Home Purchase" module (m2) both route to `type: 'conventional'` and are
+built by the identical `buildConventionalCard()` — there is no
+loan-limit-aware or county-aware branching anywhere in the conventional path
+(`calcConventional()`'s own input type has no loan-limit field at all). The
+"High Balance" card's promised framing ("LA County · up to $1,249,125") is
+never actually reflected in the delivered card — it's numerically correct
+but visually indistinguishable from a plain conventional loan of the same
+size. Fixing this would mean adding new loan-limit-aware behavior to
+`calcConventional()`/`buildConventionalCard()`, which is card-capability work
+explicitly out of this workstream's "do not redesign the cards" boundary —
+classified AMBIGUOUS, documented, not touched.
+
+**What was NOT touched:** any calculator formula, any locked program
+methodology, LLPA, Rate Intelligence, Decision Score, MCP, Gateway
+architecture, the Lab page UI, any card's visual design, `app/api/answers/
+route.ts`'s dispatch grammar/detection logic (unrelated to this workstream —
+that's DEBT-04, routing-grammar duplication, separately catalogued and out
+of scope).
+
+**Status:** Built. New `scripts/test-seeded-scenario-canonicalization.ts`
+(31/31): all 9 Lab modules route to their intended card family, FHA/
+conventional seeds produce canonical-shaped params with no hard-coded PMI
+field, no seed string (Lab or SEO pages) embeds a numeric tax/insurance/PMI
+assumption, "current rate" seeds resolve via live FRED, explicit refi demo
+rates stay explicit, all 7 card builders now share the canonical constants
+with zero re-invented magic numbers, HOA renders only when confirmed
+nonzero, and both external contracts reverified unchanged. Full regression:
+`test-mortgage-math-integrity.ts` (42/42), `test-affordability-fha-mip-
+basis.ts` (11/11), `test-intelligence-gateway.ts` (58/58 + 2 pre-existing
+LIMITED), `test-external-adapter.ts` (56/56), `test-oauth-flow.ts` (45/45 + 2
+pre-existing LIMITED), `test-benchmark-rates-gateway.ts` (26/26),
+`test-deep-intelligence-parity.ts` (12/12),
+`test-first-party-canonical-consistency.ts` (10/10),
+`test-firstparty-valuation-integrity.ts` (29/29). `tsc --noEmit`, full `next
+build`, and the build's own `[CalcEngine]`/`[AnswerFormat]` self-tests all
+clean. Pushed to `dev` only — NOT merged to `main`, no production push.

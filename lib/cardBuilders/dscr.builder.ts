@@ -1,6 +1,7 @@
 import { DSCRResult } from '../calcEngine';
 import { f$, fK, fPct } from '../formatting';
 import { BuiltCard } from './types';
+import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from '../constants';
 
 export interface DSCRGeo {
     county_name: string | null;
@@ -180,8 +181,8 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
             downPct: r.downPaymentPct,
             rate: r.annualRatePct,
             vacancyRate: r.vacancyRate,
-            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.011,
-            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
+            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : TAX_RATE_DEFAULT,
+            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : INS_RATE_DEFAULT,
         },
         lenderChecklist: {
             loanType: 'dscr' as const,
@@ -195,8 +196,8 @@ ${r.dscr < 1.0 ? '- **Negative cash flow** — PITIA exceeds rent; reserves requ
             isInvestment: true,
             rent: r.grossMonthlyRent,
             vacancyRate: r.vacancyRate,
-            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.011,
-            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
+            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : TAX_RATE_DEFAULT,
+            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : INS_RATE_DEFAULT,
         },
     };
 }

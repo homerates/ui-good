@@ -1,6 +1,7 @@
 import { AffordabilityResult, AffordabilityScenario } from '../calcEngine';
 import { f$, fK, fPct, fPct1 } from '../formatting';
 import { BuiltCard } from './types';
+import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from '../constants';
 
 function scenarioTagline(s: AffordabilityScenario): string {
     if (s.isFHA) return '⭐ Lowest barrier to entry';
@@ -262,8 +263,8 @@ ${debtNote}${r.monthlyDebts === 0 ? `_Add your monthly debts (car, student loans
                 downPct: refSc.downPaymentPct ?? 20,
                 rate: r.rate,
                 term: 30,
-                taxRate: refPrice > 0 ? (refSc.monthlyTax * 12) / refPrice : 0.012,
-                insRate: refPrice > 0 ? (refSc.monthlyInsurance * 12) / refPrice : 0.005,
+                taxRate: refPrice > 0 ? (refSc.monthlyTax * 12) / refPrice : TAX_RATE_DEFAULT,
+                insRate: refPrice > 0 ? (refSc.monthlyInsurance * 12) / refPrice : INS_RATE_DEFAULT,
                 loanLimit: refSc.loanLimitForProgram ?? 832_750,
             };
         })(),
@@ -303,8 +304,8 @@ export function buildAffordabilityCardFHA(r: AffordabilityResult): BuiltCard {
             downPct: fhaSc.downPaymentPct ?? 3.5,
             rate: r.rate,
             term: 30,
-            taxRate: refPrice > 0 ? (fhaSc.monthlyTax * 12) / refPrice : 0.012,
-            insRate: refPrice > 0 ? (fhaSc.monthlyInsurance * 12) / refPrice : 0.005,
+            taxRate: refPrice > 0 ? (fhaSc.monthlyTax * 12) / refPrice : TAX_RATE_DEFAULT,
+            insRate: refPrice > 0 ? (fhaSc.monthlyInsurance * 12) / refPrice : INS_RATE_DEFAULT,
             loanLimit: fhaSc.loanLimitForProgram ?? 541_287,
         },
     };

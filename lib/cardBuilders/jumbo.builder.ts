@@ -1,6 +1,7 @@
 import { JumboResult } from '../calcEngine';
 import { f$, fK, fPct, fPct1 } from '../formatting';
 import { BuiltCard } from './types';
+import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from '../constants';
 
 export function buildJumboCard(
     r: JumboResult,
@@ -150,8 +151,8 @@ ${dtiSection}
             downPct: r.downPaymentPct,
             rate:    r.annualRatePct,
             term:    r.termYears,
-            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.011,
-            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
+            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : TAX_RATE_DEFAULT,
+            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : INS_RATE_DEFAULT,
         },
         lenderChecklist: {
             loanType: 'jumbo',
