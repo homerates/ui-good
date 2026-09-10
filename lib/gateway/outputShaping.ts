@@ -112,18 +112,46 @@ function computeIntelligenceProgress(raw: CanonicalPropertyIntelligence): Extern
 // redirect, and never keyed by raw.propertyId (that field must never cross
 // this boundary -- see file header). Address-keyed, matching how
 // app/property-intel/page.tsx itself reads its `address` query param.
+//
+// capability_summary is deliberately DYNAMIC (2026-09-10, North Star
+// Workstream 7), not a single static sentence -- a live ChatGPT response
+// observed relaying this field as a generic "view the property report,"
+// dropping its actual content description. Real evidence didn't show
+// whether a more specific static sentence would fix that on its own, but a
+// static sentence has a second, independent problem regardless: it would
+// describe comps/location as available even when intelligence_progress.status
+// is still 'enriching' and neither exists yet -- promising intelligence that
+// hasn't completed. Composed from the SAME raw.comps/raw.location fields
+// intelligence_progress itself reads, so the two can never disagree about
+// what's actually present.
 function computeDeepIntelligenceCta(
   raw: CanonicalPropertyIntelligence,
   addressRequested: string,
 ): ExternalPropertyIntelligenceV1['deep_intelligence'] {
   const url = new URL('https://chat.homerates.ai/property-intel');
   url.searchParams.set('address', raw.property.address || addressRequested);
+
+  const hasComps = raw.comps.length > 0;
+  const hasLocation = raw.location != null;
+  const available: string[] = ['an adjustable financing scenario'];
+  if (hasComps) available.push('comparable sales');
+  if (hasLocation) available.push('market and location context');
+  const pending: string[] = [];
+  if (!hasComps) pending.push('comparable sales');
+  if (!hasLocation) pending.push('market and location context');
+
+  const availableText = available.length > 1
+    ? `${available.slice(0, -1).join(', ')} and ${available[available.length - 1]}`
+    : available[0];
+  const capabilitySummary = pending.length === 0
+    ? `Interactive HomeRates Property Intelligence report for this property, including ${availableText}.`
+    : `Interactive HomeRates Property Intelligence report for this property, including ${availableText} now, ` +
+      `with ${pending.join(' and ')} added as HomeRates finishes gathering them.`;
+
   return {
     available: true,
     destination: url.toString(),
-    capability_summary:
-      'Interactive HomeRates Property Intelligence report: live comparable sales, market and ' +
-      'location context, and an adjustable financing scenario for this property.',
+    capability_summary: capabilitySummary,
   };
 }
 

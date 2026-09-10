@@ -579,3 +579,94 @@ same address reused the identical canonical property id and returned
 `intelligence_progress.status: 'enriched'` with the 3 comps and a location narrative,
 with zero new code needed for that retrieval path; the `deep_intelligence.destination`
 URL returned a real HTTP 200.
+
+---
+
+## AD-21 — ChatGPT Invocation Behavior: TOOL_DESCRIPTION refinement from real observed sessions (SHIPPED)
+
+**Decision:** `app/api/mcp/property-intelligence/route.ts`'s `TOOL_DESCRIPTION` was
+rewritten based on **real, manually-observed ChatGPT production sessions** (not
+simulated) against 4 real prompts on the live OAuth-connected MCP connection — the first
+time this repo has had actual third-party-model behavioral evidence to work from, as
+opposed to inferring model behavior from the contract alone. Three real, specific gaps
+were closed:
+1. **Follow-up offer.** ChatGPT correctly recognized `intelligence_progress.status:
+   'enriching'` and said so, but never offered to check again. Added an explicit
+   instruction to offer a follow-up when enriching, without implying guaranteed timing.
+2. **CTA genericization.** ChatGPT surfaced the correct property-specific
+   `deep_intelligence.destination` link but reduced its own `capability_summary` to "view
+   the property report," losing the actual content description. Added an instruction to
+   relay what `capability_summary` says, not genericize it — and made `capability_summary`
+   itself **dynamic** (`computeDeepIntelligenceCta()` in `lib/gateway/outputShaping.ts`),
+   composed from the same `raw.comps`/`raw.location` fields `intelligence_progress` reads,
+   so the two fields can never disagree about what's actually present, and never promise
+   comps/location before they exist.
+3. **Unsupported valuation-range synthesis.** ChatGPT correctly said no usable AVM
+   existed, then independently stated a specific "$840,000-$880,000 market-supported
+   zone" HomeRates never returned. Traced and confirmed (see below) this was ChatGPT's
+   own synthesis over the 5 real comparable sales HomeRates did supply (their average is
+   $847,600 ≈ $848K) — not a HomeRates field, not derived from a canonical range. Added an
+   explicit guardrail: HomeRates evidence may be interpreted ("above the comparable
+   median"), but a specific dollar figure or range must never be stated as a conclusion
+   unless `value_intelligence.avm` itself carries it.
+
+Invocation territory itself (when to call HomeRates at all) needed no change — real
+evidence showed `"Tell me about [address]"` (no "analyze" keyword, no explicit request)
+already correctly triggered the tool, and claim discipline for asking-price/AVM/HOA/
+due-diligence framing was already working. Per this workstream's own explicit principle,
+none of that was touched.
+
+**AVM discrepancy trace (the $848K question) — CLASSIFIED, NOT A METHODOLOGY BUG:**
+Test evidence separately surfaced a live first-party `featured_properties.l2_summary` of
+*"Listed +6.1% vs AVM $848K"* for the same property (16424 S Denker Ave, Gardena, CA
+90247) that the external contract correctly reported `value_intelligence.avm.value: null`
+for. Traced directly against real data:
+- `properties.latest_value`: null. Snapshot `estimatedValue`: null. `grok_property_cache`:
+  `zillow_estimate`/`redfin_estimate` both **undefined** (Grok did not return either for
+  this property) — only 5 real `comparable_sales` and a `market_median_price` came back.
+- `buildCanonicalPropertyIntelligence()` (the single source both first-party's
+  `/api/property/intelligence` and the external MCP contract read): `valuation.pointEstimate:
+  null`, `valuation.sources: []` — genuinely no AVM, confirmed correct on both surfaces.
+- The $848K figure is the **average of the 5 real comparable sales** ((760000+842000+
+  750000+935000+951000)/5 = 847,600) — traced to `app/chat/page.tsx`'s Decision Score L2
+  "deep" refresh (`const deepAvm = zillow_estimate ?? redfin_estimate ?? compsAvg; const
+  l2deep = scoreL2({listPrice, avm: deepAvm})`), a client-side-only computation that has
+  never been migrated onto the canonical builder (Stage E migrated the property_lookup
+  card's PITI/financing display, not this separate Decision Score L2 refresh path) and
+  independently blends comps into a value it then hands to `scoreL2()`, whose own summary
+  text unconditionally labels its second input "AVM" regardless of what produced it.
+
+**Classification: D — Source Semantics Divergence.** `L2` is legitimately using a value
+(a comps average, a defensible fallback heuristic on its own terms) that should not be
+*labeled* an AVM. This is confirmed from code and data, not assumed. Canonical
+methodology, `mergeAvm()`, eligibility, and `scoreL2()`'s scoring formula are all
+correctly unchanged and untouched by this decision — the external contract was already
+right; ChatGPT was already right to say no usable AVM existed. The bug is real but lives
+entirely in `app/chat/page.tsx`'s first-party Decision Score L2 label text, a different
+surface than this workstream's scope (MCP/external contract). **Recorded here as an OPEN
+TECHNICAL ISSUE, not fixed in this workstream:** `app/chat/page.tsx`'s deep-refresh L2
+summary should either use a real AVM source only, or explicitly label a comps-average
+fallback as such (e.g. "vs comp average $848K," not "vs AVM $848K") — a first-party UI
+text fix, out of this workstream's explicit scope, for a future task to pick up.
+
+**What was NOT changed:** canonical Property Intelligence, `mergeAvm()`, eligibility,
+`scoreL2()`, Rate Intelligence, Decision Score, resolution, enrichment providers, OAuth,
+Gateway security, identity validation. `contract_version` stays `property-intelligence-v1.4`
+— `capability_summary`'s value became more accurate/dynamic, but its field name, type,
+and meaning are unchanged, so this is not a shape/meaning change under this repo's own
+versioning policy.
+
+**Status:** Built. New `scripts/test-chatgpt-invocation-contract.ts` (7/7) proves the
+TOOL_DESCRIPTION text contains the three new guardrails and that `capability_summary`/
+`intelligence_progress` never disagree about what's actually present — explicitly a
+**contract test**, not a ChatGPT-behavior test; it cannot and does not prove ChatGPT
+actually follows this guidance, only that the guidance and derived fields exist and are
+internally consistent. That proof only comes from real, manually-run ChatGPT sessions, as
+this workstream's Phase 2 evidence was. Full regression: `test-response-semantics-cleanup.ts`
+(9/9), `test-intelligence-gateway.ts` (58/58 + 2 pre-existing LIMITED),
+`test-rate-role-correction.ts` (7/7), `test-first-party-canonical-consistency.ts` (10/10),
+`test-external-adapter.ts` (56/56), `test-oauth-flow.ts` (45/45 + 2 pre-existing LIMITED).
+`tsc --noEmit` and full `next build` clean. See
+`docs/HOMERATES_CHATGPT_SURFACE_DESIGN_SPEC.md` for the future (unimplemented) consumer
+invocation-territory/prompt-library specification this workstream's real evidence
+supports.
