@@ -49,6 +49,31 @@
 // changes the meaning of `availability`, `financing_intelligence`, or any
 // other v1.3 field.
 //
+// V1.4 -> V1.5 (Deep Intelligence Parity & External AI Utility, 2026-09-10):
+// a forensic audit of a real property (1123 Seaview Ave, Pacific Grove, CA)
+// found the first-party Deep Property Intelligence report rendering
+// HomeRates' own narrative synthesis over a property (grok_intelligence_summary,
+// key_highlights) that external Property Intelligence never received at all --
+// external AI got comps/market/location FIELDS but none of HomeRates' own
+// synthesis over them, leaving a real ChatGPT session unable to answer
+// "is the asking price supported?" with anything beyond raw numbers. New
+// required field `property_analysis` (`{narrative, highlights}`) closes that
+// gap, sourced from the exact same grok_property_cache row already read for
+// comps/market fields -- no new query, no new provider call. Deliberately
+// does NOT include that same audit's sibling field, grok.buyer_strategy --
+// a live example was found to contain a specific, ungrounded dollar figure
+// ("comps suggest potential for $1.3M+ value") that is Grok's own speculative
+// inference, not a HomeRates-computed conclusion; exposing it would
+// reintroduce, via HomeRates' own data, exactly the unsupported-valuation-
+// precision problem v1.4's TOOL_DESCRIPTION guardrail was built to stop
+// ChatGPT from inventing on its own. Separately, that same audit found a
+// REAL first-party-only bug (a "9840.0%" sale-to-list display, and a
+// "$1.15M AI Estimate" that is actually a silent list-price fallback,
+// mislabeled) in `app/property-report/page.tsx` -- confirmed NOT present in
+// canonical or external output (both correctly show the true, unit-correct
+// value / a null AVM), recorded in ARCHITECTURE_DECISIONS.md as an open
+// technical issue on that separate first-party surface, not fixed here.
+//
 // V1.2 -> V1.3 (Demand-Triggered Intelligence, Fast Intelligence Tier,
 // 2026-09-09): financing_intelligence/ownership_cost_intelligence are no
 // longer forced to null whenever a property has no AVM/comps -- a real,
@@ -77,7 +102,7 @@ const LabeledNumber = z.object({ value: z.number().nullable(), claim_type: Claim
 const LabeledString = z.object({ value: z.string().nullable(), claim_type: ClaimType });
 
 export const ExternalPropertyIntelligenceV1Schema = z.object({
-  contract_version: z.literal('property-intelligence-v1.4'),
+  contract_version: z.literal('property-intelligence-v1.5'),
   query: z.object({ address_requested: z.string() }),
   availability: z.object({
     status: z.enum(['AVAILABLE', 'PARTIAL', 'NOT_AVAILABLE']),
@@ -157,6 +182,20 @@ export const ExternalPropertyIntelligenceV1Schema = z.object({
     .object({
       drivers: z.array(z.string()),
       limitations: z.array(z.string()),
+    })
+    .nullable(),
+  // Deep Intelligence Parity (v1.5): HomeRates' own narrative synthesis over
+  // this property (market positioning, notable characteristics) -- distinct
+  // from decision_intelligence.drivers/limitations above (which are
+  // location-specific strengths/tradeoffs) and never a valuation conclusion.
+  // narrative carries a claim_type because it's free-form AI-generated text;
+  // highlights are short descriptive strings, not claims requiring individual
+  // labeling. null exactly when no Grok enrichment has produced this content
+  // yet (see intelligence_progress.status).
+  property_analysis: z
+    .object({
+      narrative: LabeledString.nullable(),
+      highlights: z.array(z.string()),
     })
     .nullable(),
   // Progressive Intelligence (v1.4): null exactly when `property` is null

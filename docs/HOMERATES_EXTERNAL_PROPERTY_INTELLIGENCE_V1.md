@@ -551,6 +551,33 @@ AD-21 for the full evidence trail, including a separately-traced, first-party-on
 Score summary never exposed externally) recorded there as an open technical issue, not
 fixed in this workstream.
 
+**Applied 2026-09-10 — bumped to `property-intelligence-v1.5`.** Deep Intelligence
+Parity & External AI Utility: a forensic audit of a real property (1123 Seaview Ave,
+Pacific Grove, CA 93950) found external Property Intelligence returning comps/market/
+location as bare fields with none of HomeRates' own narrative synthesis over them — a
+live ChatGPT session, given that response, concluded it could not judge whether a
+$1.15M asking price was supported, while HomeRates' own first-party Deep Property
+Intelligence report displayed exactly that synthesis reading the same underlying data.
+New required field `property_analysis` (`{narrative: LabeledString|null, highlights:
+string[]}`) closes that gap — HomeRates' own AI-generated positioning summary and
+notable-characteristics list, sourced from the same `grok_property_cache` row already
+read for comps/market fields (no new query). Deliberately excludes that same row's
+`buyer_strategy` field: audited live and found to contain an ungrounded specific dollar
+figure ("comps suggest potential for $1.3M+ value") that is Grok's own speculative
+inference, not a HomeRates conclusion — exposing it would reintroduce, via HomeRates'
+own data, the exact unsupported-valuation-precision problem v1.4's guardrail exists to
+stop the calling AI from inventing on its own. `ineligibleReasons`/`decision_intelligence.
+limitations` wording (e.g. "No usable AVM available") was also reworded to temporal
+phrasing ("...has not yet been retrieved from current sources...") — string-only, no
+logic change — reflecting that HomeRates assembles intelligence progressively and
+absence at one moment is not a permanent capability statement. See
+`ARCHITECTURE_DECISIONS.md` AD-22 for the full forensic trace, including two real,
+confirmed bugs found on a *different*, first-party-only surface
+(`app/property-report/page.tsx`) and NOT fixed in this workstream, and a documented
+"source-of-truth" finding: canonical is genuinely shared by first-party's
+`/api/property/intelligence` and the external Gateway, but at least two other
+first-party surfaces read `grok_property_cache` directly, bypassing canonical.
+
 Internal methodology version (`METHODOLOGY_VERSION`, currently `"Decision Score L1-L4 (locked
 2026-08-19)..."`) and external contract version are **explicitly separate** — the internal string must
 never appear in an external response at all (§5), so there is no risk of them being conflated in the

@@ -161,7 +161,7 @@ export function shapeForExternalContract(
 ): ExternalPropertyIntelligenceV1 {
   if (!raw) {
     return {
-      contract_version: 'property-intelligence-v1.4',
+      contract_version: 'property-intelligence-v1.5',
       query: { address_requested: addressRequested },
       availability: { status: 'NOT_AVAILABLE', reason: 'HomeRates does not currently have intelligence for this address.' },
       property: null,
@@ -170,6 +170,7 @@ export function shapeForExternalContract(
       ownership_cost_intelligence: null,
       market_location_intelligence: { market: { median_dom: labeled('MARKET FACT', null), median_price: labeled('MARKET FACT', null), sale_to_list_pct: labeled('MARKET FACT', null) }, location: null },
       decision_intelligence: null,
+      property_analysis: null,
       // No resolved property to report progress on or link to yet -- both
       // null, distinct from the "resolved but still enriching" case below.
       intelligence_progress: null,
@@ -267,8 +268,23 @@ export function shapeForExternalContract(
       }
     : null;
 
+  // property_analysis (v1.5, Workstream 8 -- Deep Intelligence Parity): a live
+  // audit found external Property Intelligence returning comps/market/location
+  // FIELDS but none of HomeRates' own narrative synthesis over them, while the
+  // first-party Deep Property Intelligence report renders that exact synthesis
+  // (grok_intelligence_summary/key_highlights) directly from the same
+  // grok_property_cache row. Deliberately excludes raw.propertyAnalysis's
+  // sibling field grok.buyer_strategy -- see lib/propertyIntelligence.ts's
+  // dated note on why that field is not even captured this far upstream.
+  const propertyAnalysis = raw.propertyAnalysis
+    ? {
+        narrative: raw.propertyAnalysis.narrative != null ? { value: raw.propertyAnalysis.narrative, claim_type: 'AI INTERPRETATION' as const } : null,
+        highlights: raw.propertyAnalysis.highlights,
+      }
+    : null;
+
   return {
-    contract_version: 'property-intelligence-v1.4',
+    contract_version: 'property-intelligence-v1.5',
     query: { address_requested: addressRequested },
     availability,
     property: {
@@ -307,6 +323,7 @@ export function shapeForExternalContract(
         : null,
     },
     decision_intelligence: decisionIntelligence,
+    property_analysis: propertyAnalysis,
     intelligence_progress: computeIntelligenceProgress(raw),
     deep_intelligence: computeDeepIntelligenceCta(raw, addressRequested),
     freshness: { as_of: asOf, staleness },

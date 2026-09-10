@@ -161,6 +161,25 @@ export interface PropertyIntelligenceData {
     subScores: { metric: string; rating: string; description: string }[];
   } | null;
 
+  // Property-level AI synthesis -- added 2026-09-10 (North Star Workstream 8,
+  // Deep Intelligence Parity). Sourced from the SAME grok_property_cache row
+  // this file already reads for comps/AVM/market fields -- no new query, no
+  // new provider call. Deliberately narrower than the full Grok payload:
+  // grok.buyer_strategy is NOT captured here -- a live audit of a real
+  // property found it can contain a specific, ungrounded dollar figure
+  // ("comps suggest potential for $1.3M+ value") that is Grok's own
+  // speculative inference, not a HomeRates-computed conclusion, and exposing
+  // it externally would reintroduce exactly the unsupported-valuation-
+  // precision problem Workstream 7's claim-discipline guardrail exists to
+  // prevent -- just sourced from HomeRates' own data instead of the calling
+  // AI's imagination. grok_intelligence_summary and key_highlights carry no
+  // such invented figures (audited directly) and are safe to expose,
+  // labeled AI INTERPRETATION like locationIntelligence.narrative above.
+  propertyAnalysis: {
+    narrative: LabeledValue<string> | null;
+    highlights: string[];
+  } | null;
+
   market: {
     medianDom: LabeledValue<number | null>;
     medianPrice: LabeledValue<number | null>;
@@ -357,11 +376,16 @@ async function assembleRaw(propertyId: string): Promise<RawMerge | null> {
 
   const enrichedAt = prop.enriched_at ?? snapshotFetchedAt ?? grokFetchedAt ?? fpRow?.score_computed_at ?? null;
 
+  // Staged-intelligence wording (2026-09-10, Workstream 8): reworded from
+  // absolute phrasing ("No usable AVM available") to reflect that HomeRates
+  // assembles intelligence progressively from multiple sources at different
+  // times -- absence now does not mean HomeRates can never provide it, and
+  // these strings should not be read as a permanent capability statement.
   const reasons: string[] = [];
-  if (!enrichedAt) reasons.push('No enrichment timestamp available.');
-  if (avm == null) reasons.push('No usable AVM available.');
-  if (comparables.length < 1) reasons.push('No comparable sale on record.');
-  if (!city || !state) reasons.push('Location (city/state) not resolved.');
+  if (!enrichedAt) reasons.push('No enrichment timestamp is available yet.');
+  if (avm == null) reasons.push('No usable AVM has been retrieved from current sources yet.');
+  if (comparables.length < 1) reasons.push('Comparable sales have not yet been retrieved.');
+  if (!city || !state) reasons.push('Location (city/state) has not yet been resolved.');
   // Sold/off-market/unknown properties are never actively indexed -- they may
   // still render (historical record) if they otherwise meet the bar.
   const meetsDataBar = reasons.length === 0;
@@ -532,11 +556,21 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
       }
     : null;
 
+  // Property-level AI synthesis -- see the PropertyIntelligenceData interface's
+  // dated note above for why grok.buyer_strategy is deliberately excluded.
+  const grokSummary = typeof grok?.grok_intelligence_summary === 'string' ? grok.grok_intelligence_summary : null;
+  const grokHighlights = Array.isArray(grok?.key_highlights) ? (grok!.key_highlights as unknown[]).filter((h): h is string => typeof h === 'string') : [];
+  const propertyAnalysis = (grokSummary != null || grokHighlights.length > 0)
+    ? { narrative: grokSummary != null ? { label: 'AI INTERPRETATION' as const, value: grokSummary } : null, highlights: grokHighlights }
+    : null;
+
   const strengths = Array.isArray(li?.strengths) ? (li!.strengths as string[]) : [];
   const tradeoffs = Array.isArray(li?.tradeoffs) ? (li!.tradeoffs as string[]) : [];
+  // Staged-intelligence wording (2026-09-10, Workstream 8) -- see the
+  // matching note on assembleRaw()'s `reasons` above.
   const missing: string[] = [];
-  if (raw.avm == null) missing.push('No automated valuation estimate on record.');
-  if (raw.comparables.length === 0) missing.push('No comparable sale on record.');
+  if (raw.avm == null) missing.push('No automated valuation estimate has been retrieved yet.');
+  if (raw.comparables.length === 0) missing.push('Comparable sales have not yet been retrieved.');
   // Response Semantics Cleanup (2026-09-08): two fixes together --
   // (1) `== null` instead of a falsy check, so a CONFIRMED $0 HOA
   // (snapshot.hoaMonthly === 0, a real, legitimate "no association dues"
@@ -615,6 +649,7 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
     },
     decisionIntelligence,
     locationIntelligence,
+    propertyAnalysis,
     market: {
       medianDom: { label: 'MARKET FACT' as const, value: parseNum(grok?.market_median_dom) },
       medianPrice: { label: 'MARKET FACT' as const, value: parseNum(grok?.market_median_price) },

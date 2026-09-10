@@ -182,6 +182,14 @@ export interface CanonicalPropertyIntelligence {
     narrative: string | null;
     subScores: { metric: string; rating: string; description: string }[];
   } | null;
+  // Property-level AI synthesis (Workstream 8, Deep Intelligence Parity) --
+  // see PropertyIntelligenceData.propertyAnalysis's dated note for why
+  // grok.buyer_strategy is deliberately excluded from this, and everywhere
+  // upstream of it.
+  propertyAnalysis: {
+    narrative: string | null;
+    highlights: string[];
+  } | null;
   // Kept in the SAME shape as PropertyIntelligenceData.decisionIntelligence
   // deliberately -- this canonical object is internal, so it may hold
   // internal-only fields (raw l2/l3/l4 scores, methodologyVersion, source)
@@ -327,6 +335,12 @@ export async function buildCanonicalPropertyIntelligence(propertyId: string): Pr
       ? {
           narrative: raw.locationIntelligence.narrative?.value ?? null,
           subScores: raw.locationIntelligence.subScores,
+        }
+      : null,
+    propertyAnalysis: raw.propertyAnalysis
+      ? {
+          narrative: raw.propertyAnalysis.narrative?.value ?? null,
+          highlights: raw.propertyAnalysis.highlights,
         }
       : null,
     decisionIntelligence: raw.decisionIntelligence,
