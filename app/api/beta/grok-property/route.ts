@@ -1,6 +1,7 @@
 // app/api/beta/grok-property/route.ts
 import { NextRequest } from 'next/server';
 import { getSupabase } from '../../../../lib/supabaseServer';
+import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from '../../../../lib/constants';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,11 +23,19 @@ async function getLiveRate(origin: string): Promise<number> {
   return 6.875;
 }
 
+// Defaults match lib/constants.ts's canonical TAX_RATE_DEFAULT/INS_RATE_DEFAULT
+// -- this function's own header comment claims "same logic as CalcEngine,"
+// which its prior 0.012/0.005 defaults did not actually match (0.011/0.003 is
+// the real calcEngine default). This estimated_piti figure unconditionally
+// overwrites Grok's own PITI guess in mergeResult() below and is cached/
+// displayed across every surface that reads this property's grok_result --
+// see Priority Corrective Workstream "Canonical Deterministic Mortgage Math
+// Integrity" (2026-09-10).
 function calcPITI(
   price: number,
   annualRate: number,
-  annualTaxRate = 0.012,
-  annualInsRate = 0.005,
+  annualTaxRate = TAX_RATE_DEFAULT,
+  annualInsRate = INS_RATE_DEFAULT,
   hoaMonthly    = 0,
 ): number {
   const principal = price * 0.80;
@@ -386,7 +395,7 @@ export async function POST(req: NextRequest) {
   const liveRate = await getLiveRate(origin);
   const price    = redfin?.current_list_price ?? null;
   const pitiCalc = price
-    ? calcPITI(price, liveRate, redfin?.tax_rate_effective ?? 0.012, 0.005, redfin?.hoa_monthly ?? 0)
+    ? calcPITI(price, liveRate, redfin?.tax_rate_effective ?? TAX_RATE_DEFAULT, INS_RATE_DEFAULT, redfin?.hoa_monthly ?? 0)
     : 0;
 
   const mapsKey    = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;
@@ -540,7 +549,7 @@ export async function POST(req: NextRequest) {
           if (deep) merged.deep_analysis = true;
           // If pitiCalc was 0 (redfin context missing) but we have the price, recalculate
           if ((merged.estimated_piti as number) === 0 && merged.current_list_price) {
-            merged.estimated_piti = calcPITI(merged.current_list_price as number, liveRate, 0.012, 0.005, 0);
+            merged.estimated_piti = calcPITI(merged.current_list_price as number, liveRate, TAX_RATE_DEFAULT, INS_RATE_DEFAULT, 0);
             merged.rate_used      = liveRate;
           }
           return merged;

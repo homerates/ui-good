@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import AdminCardBadge from './AdminCardBadge';
 import FredRateBadge from './FredRateBadge';
 import { COLORS } from '../../lib/tokens';
+import { monthlyPMI, fhaMIPRate } from '../../lib/calcEngine';
 
 // ── Math ──────────────────────────────────────────────────────────────────────
 
@@ -39,9 +40,13 @@ function calcProgram(
         const ltv = (bl / p) * 100;
         const tax = (p * taxRate) / 12;
         const ins = (p * insRate) / 12;
-        let mip = 0;
-        if (loanType === 'fha') mip = (ln * 0.0055) / 12;
-        else if (ltv > 80) mip = (bl * 0.008) / 12;
+        // MIP/PMI: same canonical rate tables as lib/calcEngine.ts (FHA MIP on
+        // the BASE loan, per HUD spec; conventional PMI LTV-tiered, zero at
+        // <=80% LTV) -- previously a flat 0.55%/0.8% regardless of LTV or
+        // base-vs-total-loan basis, confirmed drift vs calcEngine and
+        // lib/fhaCalculator.ts. See Priority Corrective Workstream "Canonical
+        // Deterministic Mortgage Math Integrity" (2026-09-10).
+        const mip = loanType === 'fha' ? fhaMIPRate(term, ltv / 100, bl) * bl / 12 : monthlyPMI(bl, ltv / 100);
         return calcPI(ln, rate, term) + tax + ins + mip;
     }
 
@@ -66,9 +71,7 @@ function calcProgram(
     const ltv = (baseLoan / maxPrice) * 100;
     const tax = (maxPrice * taxRate) / 12;
     const ins = (maxPrice * insRate) / 12;
-    let mip = 0;
-    if (loanType === 'fha') mip = (loan * 0.0055) / 12;
-    else if (ltv > 80) mip = (baseLoan * 0.008) / 12;
+    const mip = loanType === 'fha' ? fhaMIPRate(term, ltv / 100, baseLoan) * baseLoan / 12 : monthlyPMI(baseLoan, ltv / 100);
     const pi = calcPI(loan, rate, term);
     const piti = pi + tax + ins + mip;
     const closing = maxPrice * (loanType === 'fha' ? 0.03 : 0.025);

@@ -25,6 +25,14 @@ import {
     INS_RATE_DEFAULT,
 } from './constants';
 
+// FHA's own "higher-balance" MIP tier (HUD Mortgagee Letter 2023-05) applies
+// above the GSE's standard one-unit conforming loan limit for the current
+// year -- CONF_STANDARD (currently $832,750), not a frozen historical number.
+// Previously duplicated in lib/fhaCalculator.ts as a hardcoded $726,200
+// (2023's limit) -- see Priority Corrective Workstream "Canonical
+// Deterministic Mortgage Math Integrity" (2026-09-10) / DEBT-01.
+const FHA_MIP_HIGHER_BALANCE_THRESHOLD = CONF_STANDARD;
+
 // Re-export with the names callers expect (calcDispatcher.ts, route.ts, etc.)
 export {
     FHA_FLOOR_2026, FHA_CEILING_2026,
@@ -117,11 +125,22 @@ export function monthlyPMI(loanAmount: number, ltv: number): number {
 }
 
 /**
- * FHA MIP rate based on term and LTV — per HUD 2024 guidelines
+ * FHA annual MIP rate — per HUD Mortgagee Letter 2023-05, keyed on loan term,
+ * LTV, AND base loan amount (a "higher-balance" tier applies above the
+ * current-year GSE conforming limit -- HUD's real schedule is NOT flat by
+ * loan size, which this function's prior version incorrectly assumed).
+ * `baseLoanAmount` is optional ONLY for call-site backward compatibility;
+ * omitting it silently assumes the standard (non-higher-balance) tier, so
+ * every real caller should supply it.
  */
-export function fhaMIPRate(termYears: number, ltv: number): number {
-    if (termYears <= 15) return ltv <= 0.90 ? 0.0015 : 0.0040;
-    return ltv <= 0.90 ? FHA_MIP_RATE_LOW : FHA_MIP_RATE;
+export function fhaMIPRate(termYears: number, ltv: number, baseLoanAmount?: number): number {
+    const higherBalance = baseLoanAmount != null && baseLoanAmount > FHA_MIP_HIGHER_BALANCE_THRESHOLD;
+    if (termYears <= 15) {
+        if (!higherBalance) return ltv <= 0.90 ? 0.0015 : 0.0040;
+        return ltv <= 0.78 ? 0.0015 : ltv <= 0.90 ? 0.0040 : 0.0065;
+    }
+    if (!higherBalance) return ltv <= 0.90 ? FHA_MIP_RATE_LOW : FHA_MIP_RATE;
+    return ltv <= 0.95 ? 0.0070 : 0.0075; // higher-balance 30yr: 0.70% <=95% LTV, 0.75% above
 }
 
 /**
@@ -497,7 +516,7 @@ export function calcFHA(input: FHAInput): FHAResult {
     const mPI = monthlyPI(totalLoan, annualRatePct, termMo);
 
     // MIP on BASE loan — per HUD spec (NOT on total loan)
-    const mipRate = fhaMIPRate(termYears, ltv);
+    const mipRate = fhaMIPRate(termYears, ltv, baseLoanAmount);
     const mMIP = Math.round(baseLoanAmount * mipRate / 12);
     const mipDur = fhaMIPDuration(downPaymentPct);
     const mipMonths = mipDur === '11 years' ? 132 : termMo;
@@ -1008,11 +1027,21 @@ export function calcAffordabilityScenario(
 
     let homePrice = 0;
     for (let i = 0; i < 6; i++) {
-        const loan = maxPI * annuityFactor;
+        const loan = maxPI * annuityFactor; // total financed loan implied by this iteration's target P&I (P&I is always computed on the total financed loan, base+UFMIP for FHA -- unchanged)
         homePrice = loan / (1 - downPct / 100);
         const mTaxIns = (homePrice * (propertyTaxRate + 0.0035)) / 12;
+        // MIP on BASE loan -- per HUD spec, same basis as calcFHA() and this
+        // function's own post-loop mMI below. `loan` here is the TOTAL
+        // financed loan (base + UFMIP); back out the base-loan portion for
+        // the MIP estimate used during iteration, rather than applying the
+        // MIP rate to the total loan. Previously used `loan` directly, a
+        // confirmed defect (Priority Corrective Workstream "Canonical
+        // Deterministic Mortgage Math Integrity," 2026-09-10) -- the
+        // iteration's MIP estimate is now consistent with the final returned
+        // mMI, which was already correctly on the base loan.
+        const iterBaseLoan = program === 'FHA' ? loan / (1 + FHA_UFMIP_RATE) : loan;
         const mPMI = program === 'FHA'
-            ? (loan * FHA_MIP_RATE / 12)
+            ? (iterBaseLoan * FHA_MIP_RATE / 12)
             : (downPct < 20 ? loan * PMI_RATE_STD / 12 : 0);
         maxPI = (monthlyIncome * dtiTarget - monthlyDebts) - mTaxIns - mPMI;
         if (maxPI <= 0) { maxPI = (monthlyIncome * dtiTarget - monthlyDebts) * 0.5; break; }

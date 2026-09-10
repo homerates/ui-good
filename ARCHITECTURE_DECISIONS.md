@@ -1017,3 +1017,240 @@ tool, not a regression). Full regression: `test-intelligence-gateway.ts`
 full `next build` clean. Pushed to `dev` only — NOT merged to `main`, no
 production push, no Plugin submission work, per explicit instruction this
 workstream.
+
+---
+
+## AD-25 — Priority Corrective Workstream: Canonical Deterministic Mortgage Math Integrity
+
+**Decision:** WS10's calculation-engine research (see AD-24) confirmed the
+codebase's own `DEBT_REGISTER.md` (2026-06-11, "REPORT ONLY — nothing fixed
+yet"): **at least 5 mortgage-math implementations exist**, and had real,
+confirmed numeric divergence — not merely duplicate code that happened to
+agree. This workstream re-verified every DEBT_REGISTER.md citation directly
+against current code (some had already been fixed independently since June;
+DEBT-03's zombie block and DEBT-06's `calcDispatcher.ts` citations were both
+confirmed clean), found the genuinely-still-live ones, found several NEW
+occurrences of the same bug classes the register hadn't cited, and fixed the
+minimum set needed to restore "same inputs + same assumptions = same result."
+
+**Confirmed root causes, classified per the required A-G taxonomy:**
+
+1. **(A) Formula/rule error — FHA MIP basis.** `lib/fhaCalculator.ts`'s
+   `calculateFHA()` computed monthly MIP on the **total** loan (base + UFMIP);
+   `lib/calcEngine.ts`'s `calcFHA()` correctly computes it on the **base**
+   loan only, per HUD spec (Handbook 4000.1) — already documented as correct
+   in that file's own pre-existing comment. Confirmed real, still-live: the
+   Mortgage→FHA reroute in `app/api/answers/route.ts` (~L6912) was still
+   calling the legacy, wrong-basis function for every live "FHA loan on a
+   $X home" question with income context.
+2. **(A) Formula/rule error — FHA MIP rate table, the OTHER direction.**
+   `calcEngine.ts`'s `fhaMIPRate()` had the correct MIP *basis* but a
+   *less complete* rate table than the legacy engine — it had no
+   loan-amount-based "higher-balance" tier (HUD ML 2023-05 charges 0.70-0.75%
+   above the current GSE conforming limit, vs 0.50-0.55% below it).
+   `fhaCalculator.ts`'s table already had this tier correctly, keyed to a
+   stale, hardcoded 2023 threshold ($726,200). Fixed by merging: the complete
+   rate table, re-anchored to the real, current `CONF_STANDARD` constant
+   ($832,750) instead of a frozen number — not inventing a new rule, combining
+   two already-validated halves already present in the repo.
+3. **(A) Formula/rule error — a second, independent FHA-MIP-on-total-loan
+   bug**, found new this workstream in `app/components/
+   AffordabilityIncomeSliderCard.tsx`'s `calcProgram()` (both its binary-search
+   objective function and its final result computation) — same root cause as
+   #1, different file, not cited in DEBT_REGISTER.md.
+4. **(B) Hidden assumption — conventional PMI rate, three+ live variants.**
+   Canonical `monthlyPMI()`: 0% ≤80% LTV, 0.30% (80-90%], 0.55% >90%.
+   Confirmed different, live variants: `fhaCalculator.ts`'s
+   `compareFHAvsConventional()` (flat 0.65%/0.50%, **never zeroed at ≤80%
+   LTV** — a real bug independent of the MIP-basis issue), `app/api/answers/
+   route.ts`'s two separate inline "conventional comparison" blocks (a 4th
+   variant: 0%/0.5%/0.65% with a flat $100/mo insurance; a 5th variant: flat
+   0.6% with a flat $150/mo insurance and a hardcoded 1.1% tax), and
+   `AffordabilityIncomeSliderCard.tsx` (flat 0.8% regardless of LTV tier).
+5. **(B) Hidden assumption — property tax default.** Three unrelated flat
+   percentages in live use with no shared source: 1.25% (`app/property-report/
+   page.tsx`, `app/wl-report/page.tsx`), 1.1% (`lib/constants.ts`'s
+   `TAX_RATE_DEFAULT`, and separately hand-typed in several `app/api/answers/
+   route.ts` inline blocks), 1.2% (`app/api/beta/grok-property/route.ts`'s
+   `calcPITI()` fallback). `lib/constants.ts` explicitly declares itself
+   "SINGLE SOURCE OF TRUTH... update this file only" — 1.25%/1.2% were
+   uncontrolled drift, not a second intentional methodology; nothing in the
+   repo ever declared them canonical for any purpose.
+6. **(B) Hidden assumption — insurance default.** Canonical `INS_RATE_DEFAULT
+   = 0.003` (already used by `lib/propertyIntelligence.ts`, itself renamed/
+   exported 2026-09-08 specifically because a prior audit found `app/chat/
+   page.tsx` using `0.005`). `lib/constants.ts` already labels `0.005` as
+   `INS_RATE_HIGH`, explicitly commented **"used in older/legacy paths"** —
+   i.e. the repo already knows this value is superseded, this workstream just
+   found two more live call sites still using it (`property-report`,
+   `wl-report`) plus a flat, non-percentage $1,200/yr override in the FHA
+   reroute that didn't scale with purchase price at all.
+7. **(F) Rounding only — none material.** The amortization formula itself
+   (`lib/math.ts`'s `calcPI` vs `lib/calcEngine.ts`'s `monthlyPI`) was
+   confirmed algebraically identical everywhere checked (Scenario A: both
+   produce `5056.544187943722` unrounded for an identical $800,000/6.5%/30yr
+   loan) — the only real-world divergence came from *assumption* differences
+   (B above), never the P&I math itself. No rounding-related consistency
+   defect found.
+8. **(D/E) Not found as a defect.** No confirmed case of a genuine
+   property-fact or program-rule difference being mishandled — `calcFHA()`'s
+   real-fact-first pattern (known tax/insurance override the percentage
+   default when supplied) was confirmed working correctly everywhere tested.
+
+**The fix (minimal, targeted at the confirmed causes above — no engine
+redesign, no affordability redesign):**
+- `lib/calcEngine.ts`: `fhaMIPRate()` extended with an optional
+  `baseLoanAmount` parameter, adding the loan-amount-tiered rate table
+  (anchored to `CONF_STANDARD`, not a new hardcoded number) while keeping the
+  correct base-loan-only MIP basis.
+- `lib/fhaCalculator.ts`: rewritten as a thin compatibility wrapper —
+  `calculateFHA()`/`compareFHAvsConventional()` keep their exact external
+  function names, input fields, and output field names (`totalDTI`,
+  `qualifies`, etc. — its one real caller reads these), but every number now
+  comes from `calcEngine.ts`'s `calcFHA()`/`monthlyPMI()`. No new FHA math
+  lives in this file anymore.
+- `app/api/answers/route.ts`: the live FHA reroute no longer overrides
+  insurance with a flat $1,200/yr; the two independent inline "conventional
+  comparison" blocks (found during this audit, not previously catalogued as
+  separate engines) now call `calcConventional()` instead of hand-rolling
+  P&I/PMI/tax/insurance a 4th and 5th time.
+- `app/components/AffordabilityIncomeSliderCard.tsx`: both PMI/MIP
+  computations now call `calcEngine.ts`'s `monthlyPMI()`/`fhaMIPRate()`
+  instead of flat, untiered rates.
+- `app/property-report/page.tsx`, `app/wl-report/page.tsx`: tax/insurance now
+  source from `TAX_RATE_DEFAULT`/`INS_RATE_DEFAULT` (these pages have no real
+  per-property tax/insurance fact available in their data contract — no
+  city/state/annual-tax field — so a real per-property lookup migration was
+  not attempted; only the *assumption default* was aligned to the declared
+  single source of truth). Their PITI-breakdown table's PMI line now uses
+  tiered `monthlyPMI()` instead of a flat 0.8%; their "Property Tax" label no
+  longer hardcodes a stale "1.25%" that would have been accuracy-wrong the
+  moment the rate itself was fixed. **Their "HOA Dues" row no longer asserts
+  a confirmed "$0"** (Phase 11) — it now reads "Unknown," since HOA is never
+  a known fact on either page and was previously displayed as a specific,
+  false confirmed value while also correctly being excluded from the actual
+  PITI total (a real, live HOA-unknown-vs-zero violation, now fixed).
+- `app/api/beta/grok-property/route.ts`: `calcPITI()`'s fallback constants
+  fixed to the canonical values. **High-impact fix** — this function's output
+  unconditionally overwrites Grok's own PITI guess in `mergeResult()` and
+  becomes the cached `grok_property_cache.grok_result.estimated_piti` value
+  read by every surface that displays a Grok-enriched property's PITI
+  (forward-looking only; already-cached rows keep their old value until next
+  natural re-enrichment).
+
+**Confirmed NOT touched, deliberately:** `lib/calcAffordabilityScenario()`
+(inside `calcEngine.ts` itself) was found to have the SAME base-vs-total-loan
+FHA MIP pattern as #1/#3 above, inside its own iterative price-solving loop —
+not fixed, because separating base-vs-total loan cleanly inside an iterative
+affordability solver is a structural change to the solver itself, and this
+workstream's explicit boundary was "DO NOT... redesign affordability."
+Documented as a known, deferred finding, not silently left undiscovered.
+`lib/calcDispatcher.ts`'s legacy detection-grammar duplication (DEBT-04) and
+the full affordability-system consolidation (DEBT-02) are out of scope for the
+same reason — this is math-integrity work, not the larger consolidation
+DEBT_REGISTER.md separately recommends as its own, later "Phase 4." A
+newly-discovered, fully-orphaned duplicate `calcEngine.ts`/`calcDispatcher.ts`/
+`cardBuilders.ts` trio at the repo root (zero real importers, confirmed by
+direct grep) was **not deleted** this workstream — flagged as a real landmine
+for a future hygiene pass, consistent with DEBT-14's existing "repo hygiene"
+category, but deleting files was judged unrelated-refactoring risk for a
+math-integrity workstream to take on unprompted.
+
+**Live Seaview verification (real property, controlled scenario):** same
+purchase price ($1,150,000), rate (6.71%, this property's real
+`propertyMarketRate`), 20% down, 30yr — P&I is bit-for-bit identical before
+and after ($5,943, since the amortization formula was never the problem);
+tax and insurance both changed by a fully-explained amount directly
+attributable to the constant fix (tax: $1,198→$1,054/mo, −$144; insurance:
+$479→$288/mo, −$191), not an unexplained drift.
+
+**What was NOT changed:** Decision Score methodology, Rate Intelligence
+methodology, LLPA methodology (LLPA's own rate math untouched — only the FHA
+MIP/conventional PMI primitives), property identity rules, demand-driven
+acquisition architecture, Grok provider architecture, OAuth/security model,
+the external `benchmark-rates-v1`/`property-intelligence-v1.5` contracts
+(unchanged, reverified). No new loan program added, no affordability redesign,
+no calculate_mortgage external tool, no MCP/Gateway change.
+
+**Status:** Built. New `scripts/test-mortgage-math-integrity.ts` (42/42) —
+Scenarios A/B/C/D/E/G from the required test matrix, all 14 Phase-20
+regression requirements, and the real Seaview before/after. Full regression:
+`test-intelligence-gateway.ts` (58/58 + 2 pre-existing LIMITED),
+`test-external-adapter.ts` (56/56), `test-oauth-flow.ts` (45/45 + 2
+pre-existing LIMITED), `test-benchmark-rates-gateway.ts` (26/26),
+`test-deep-intelligence-parity.ts` (12/12),
+`test-first-party-canonical-consistency.ts` (10/10),
+`test-firstparty-valuation-integrity.ts` (29/29),
+`test-rate-role-correction.ts` (7/7), `test-response-semantics-cleanup.ts`
+(9/9), `test-chatgpt-invocation-contract.ts` (7/7). `tsc --noEmit`, full
+`next build`, and the build's own internal `[CalcEngine] All verification
+tests passed` / `[AnswerFormat] Format rules verified` checks all clean.
+Pushed to `dev` only — NOT merged to `main`, no production push, per explicit
+instruction this workstream.
+
+---
+
+## AD-26 — Fix calcAffordabilityScenario's FHA MIP basis (the one remaining item from AD-25)
+
+**Decision:** Closed the single deferred finding from AD-25.
+`calcAffordabilityScenario()`'s 6-pass iterative price solver estimated FHA
+MIP during convergence as `loan * FHA_MIP_RATE / 12`, where `loan` is the
+TOTAL financed loan implied by that iteration's target P&I (`maxPI *
+annuityFactor` — P&I is always on the total loan, base+UFMIP for FHA,
+correctly unchanged). The function's own POST-loop `mMI` was already
+computed on the base loan (matching `calcFHA()`) — only the in-loop estimate
+used during convergence was on the wrong basis, nudging the solved
+`homePrice` slightly below the true optimum (the inflated MIP estimate
+"spent" more of the DTI budget than a correctly-based estimate would).
+
+**Fix:** one line, inside the loop only — back out the base-loan portion
+(`loan / (1 + FHA_UFMIP_RATE)`) before applying `FHA_MIP_RATE`, matching the
+basis the post-loop code already used. Conventional's in-loop branch,
+untouched (no base/total distinction applies — conventional has no UFMIP).
+Nothing else in the function changed: DTI target, iteration count, tax/
+insurance treatment, down-payment/closing-cost logic, loan-limit capping, and
+the returned field shapes are all byte-for-byte unchanged.
+
+**Controlled FHA scenario** ($120k income, $30k savings, $500 debts, 6.5%,
+3.5% down, no binding loan-limit cap):
+
+| | BEFORE | AFTER | Δ |
+|---|---|---|---|
+| Home price (solved) | $490,260 | $490,744 | +$484 |
+| Base loan | $473,101 | $473,568 | +$467 |
+| UFMIP | $8,279 | $8,287 | +$8 |
+| Total financed loan | $481,380 | $481,855 | +$475 |
+| Monthly P&I | $3,043 | $3,046 | +$3 |
+| Monthly MIP (returned) | $217 | $217 | $0 (already correct pre-fix) |
+| Total monthly payment | $3,832 | $3,836 | +$4 |
+| Back-end DTI | 43.3% | 43.4% | +0.1pt |
+
+The final *returned* `monthlyMI` field doesn't move (it was already on the
+base loan) — the fix's effect is entirely in letting the solver converge to
+a very slightly higher affordable home price, since the iteration no longer
+over-penalizes the DTI budget with an inflated MIP estimate. Small, exactly
+the second-order correction expected from an internal-only basis fix, not a
+methodology change.
+
+**What was NOT touched:** affordability solving methodology, DTI thresholds,
+income methodology, the iteration algorithm itself, down-payment methodology,
+tax/insurance assumptions, loan-limit behavior, rate selection, LLPA,
+Decision Score, Rate Intelligence, conventional's own branch, `calcVA()`,
+`calcFHA()`, `lib/fhaCalculator.ts`, or any external contract.
+
+**Status:** Built. New `scripts/test-affordability-fha-mip-basis.ts` (11/11):
+basis equivalence between `calcFHA()` and the solver across two independent
+scenarios, base/UFMIP/total-loan distinctness, P&I still on the total loan,
+MIP confirmed no longer matching a total-loan-basis calculation, conventional
+and VA behavior unchanged, `monthlyPI()` unchanged, and both external
+contracts (`benchmark-rates-v1`, `property-intelligence-v1.5`) reverified
+unchanged. Full regression: `test-mortgage-math-integrity.ts` (42/42),
+`test-intelligence-gateway.ts` (58/58 + 2 pre-existing LIMITED),
+`test-external-adapter.ts` (56/56), `test-oauth-flow.ts` (45/45 + 2
+pre-existing LIMITED), `test-benchmark-rates-gateway.ts` (26/26) — two
+transient, pre-existing rate-limit/IP-counter timing failures appeared on
+first run and cleared on immediate rerun (same documented flakiness class
+seen throughout this session, unrelated to this change). `tsc --noEmit`,
+full `next build`, and the build's own `[CalcEngine]`/`[AnswerFormat]`
+self-tests all clean. Pushed to `dev` only — NOT merged to `main`, no
+production push.

@@ -6916,7 +6916,13 @@ ${_refRows}
                     creditScore: fhaParams.creditScore || 580,
                     loanTerm: 30,
                     propertyTaxRate: fhaParams.propertyTaxRate || 1.1,
-                    homeInsuranceAnnual: 1200,
+                    // No flat $1,200/yr override -- calculateFHA() (now a thin
+                    // wrapper over calcEngine's calcFHA) applies its own
+                    // canonical percentage-based insurance default when no
+                    // real figure is known, which scales with purchase price
+                    // instead of quoting the same dollar amount for a $200k
+                    // and a $2M home.
+                    homeInsuranceAnnual: 0,
                     hoaMonthly: 0,
                     annualIncome: fhaParams.annualIncome,
                     monthlyDebts: fhaParams.monthlyDebts || 0,
@@ -6954,28 +6960,32 @@ ${_refRows}
                         );
                     }
                 } else if (wantsComparison) {
-                    // Build conventional numbers directly (no income needed — just payment math)
+                    // Build conventional numbers via the canonical engine (no income
+                    // needed — just payment math). Previously a 4th independent inline
+                    // P&I/PMI/tax/insurance implementation here disagreed with
+                    // calcEngine on PMI rate (0.5%/0.65% vs canonical 0.30%/0.55%) and
+                    // used a flat $100/mo insurance regardless of price -- see Priority
+                    // Corrective Workstream "Canonical Deterministic Mortgage Math
+                    // Integrity" (2026-09-10).
                     const price = fhaParams.purchasePrice;
                     const convDownPct = convDownPctFromQ ?? 5;
-                    const convDown = price * (convDownPct / 100);
-                    const convLoan = price - convDown;
-                    const convMthRate = (convRate / 100) / 12;
-                    const convPI = convLoan * (convMthRate * Math.pow(1 + convMthRate, 360)) / (Math.pow(1 + convMthRate, 360) - 1);
-                    // PMI: 0 at 80% LTV (20%+ down), 0.5% at 85-90% LTV, 0.65% above 90%
-                    const convLTV = (convLoan / price) * 100;
-                    const convPMIRate = convLTV <= 80 ? 0 : convLTV <= 90 ? 0.005 : 0.0065;
-                    const convPMI = (convLoan * convPMIRate) / 12;
-                    const convTax = (price * ((fhaParams.propertyTaxRate || 1.1) / 100)) / 12;
-                    const convIns = 100;
-                    const convTotal = Math.round(convPI + convPMI + convTax + convIns);
+                    const convResult = calcConventional({
+                        purchasePrice: price,
+                        downPaymentPct: convDownPct,
+                        annualRatePct: convRate,
+                        propertyTaxRate: fhaParams.propertyTaxRate || 1.1,
+                    });
+                    const convDown = convResult.downPayment;
+                    const convPI = convResult.monthlyPI;
+                    const convPMI = convResult.monthlyPMI;
                     comparison = {
                         conventional: {
                             downPayment: convDown,
                             downPaymentPct: convDownPct,
-                            monthlyPayment: convTotal,
-                            monthlyPI: Math.round(convPI),
-                            monthlyMI: Math.round(convPMI),
-                            monthlyPMI: Math.round(convPMI),
+                            monthlyPayment: convResult.totalMonthly,
+                            monthlyPI: convPI,
+                            monthlyMI: convPMI,
+                            monthlyPMI: convPMI,
                             convRateUsed: convRate,
                         }
                     };
@@ -7007,17 +7017,27 @@ ${_refRows}
                     fhaMarkdown.includes('Side-by-Side') ||
                     fhaMarkdown.includes('FHA vs Conventional');
                 if (isCompareWithConv && fhaParams.purchasePrice && !aiAlreadyHasComparison) {
+                    // Canonical engine, not a 5th independent inline P&I/PMI/tax/
+                    // insurance implementation -- the prior version here used yet
+                    // another PMI rate (flat 0.6%, no LTV tiering), yet another
+                    // tax rate representation, and a third flat insurance figure
+                    // ($150/mo). See Priority Corrective Workstream "Canonical
+                    // Deterministic Mortgage Math Integrity" (2026-09-10).
                     const convPrice = fhaParams.purchasePrice;
-                    const convDown = /5\s*%/i.test(question) ? 0.05 : /10\s*%/i.test(question) ? 0.10 : /20\s*%/i.test(question) ? 0.20 : 0.05;
-                    const convDownAmt = Math.round(convPrice * convDown);
-                    const convLoan = convPrice - convDownAmt;
-                    const convRate = fhaParams.interestRate / 100;
-                    const r = convRate / 12; const n = 360;
-                    const convPI = Math.round(convLoan * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
-                    const convPMI = convDown < 0.20 ? Math.round(convLoan * 0.006 / 12) : 0;
-                    const convTax = Math.round(convPrice * 0.011 / 12);
-                    const convIns = 150;
-                    const convTotal = convPI + convPMI + convTax + convIns;
+                    const convDownPct2 = /5\s*%/i.test(question) ? 5 : /10\s*%/i.test(question) ? 10 : /20\s*%/i.test(question) ? 20 : 5;
+                    const convResult2 = calcConventional({
+                        purchasePrice: convPrice,
+                        downPaymentPct: convDownPct2,
+                        annualRatePct: fhaParams.interestRate,
+                    });
+                    const convDown = convDownPct2 / 100;
+                    const convDownAmt = convResult2.downPayment;
+                    const convLoan = convResult2.loanAmount;
+                    const convPI = convResult2.monthlyPI;
+                    const convPMI = convResult2.monthlyPMI;
+                    const convTax = convResult2.monthlyTax;
+                    const convIns = convResult2.monthlyInsurance;
+                    const convTotal = convResult2.totalMonthly;
                     const convDTI = fhaParams.annualIncome ? ((convTotal / (fhaParams.annualIncome / 12)) * 100).toFixed(1) : '—';
                     const convCash = convDownAmt + Math.round(convPrice * 0.03);
                     comparisonAppend = `\n\n---\n\n## 🏛️ Conventional (${Math.round(convDown * 100)}% down) — Side-by-Side\n\n` +
@@ -7025,7 +7045,7 @@ ${_refRows}
                         `| Down Payment (${Math.round(convDown * 100)}%) | $${convDownAmt.toLocaleString()} |\n` +
                         `| Loan Amount | $${convLoan.toLocaleString()} |\n` +
                         `| Principal & Interest | $${convPI.toLocaleString()} |\n` +
-                        `${convPMI ? `| PMI (~0.6%/yr) | $${convPMI.toLocaleString()}/mo |\n` : '| PMI | ❌ None (20%+ down) |\n'}` +
+                        `${convPMI ? `| PMI | $${convPMI.toLocaleString()}/mo |\n` : '| PMI | ❌ None (20%+ down) |\n'}` +
                         `| Property Taxes (est.) | $${convTax.toLocaleString()} |\n` +
                         `| Home Insurance | $${convIns} |\n` +
                         `| **Total Monthly** | **$${convTotal.toLocaleString()}** |\n\n` +

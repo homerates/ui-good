@@ -1,5 +1,27 @@
 // lib/fhaCalculator.ts
-// Official FHA MIP rates (as of 2024, per HUD ML 2023-05)
+//
+// LEGACY COMPATIBILITY WRAPPER -- as of the Priority Corrective Workstream
+// "Canonical Deterministic Mortgage Math Integrity" (2026-09-10), this file
+// no longer computes FHA math itself. It previously computed monthly MIP on
+// the TOTAL loan (base + UFMIP) instead of the base loan HUD's own spec
+// requires, used a stale 2024 national loan-limit floor, and its sibling
+// compareFHAvsConventional() never zeroed conventional PMI at <=80% LTV --
+// three confirmed, real numeric divergences from lib/calcEngine.ts's
+// calcFHA(), tracked as DEBT-01 in DEBT_REGISTER.md (2026-06-11) and
+// re-confirmed by this workstream's forensic audit.
+//
+// Per DEBT-01's own prescribed fix ("re-point ... at calcFHA() ... then
+// delete lib/fhaCalculator.ts") and this workstream's Phase 13 guidance
+// ("legacy wrappers may temporarily remain, but they should call canonical
+// primitives rather than independently calculate the same values"), this
+// file keeps its exact external function names/signatures/field names (its
+// one remaining live caller, app/api/answers/route.ts, reads fields like
+// `totalDTI` and `qualifies` that differ in name/meaning from calcEngine's
+// FHAResult) but every number now comes from calcEngine.ts's calcFHA() /
+// monthlyPMI(). Do not add new FHA math here -- extend lib/calcEngine.ts
+// instead, and this wrapper will pick it up automatically.
+
+import { calcFHA, monthlyPMI, FHA_FLOOR_2026 } from './calcEngine';
 
 export interface FHAInput {
     purchasePrice: number;
@@ -40,134 +62,46 @@ export interface FHAResult {
     meetsCreditRequirement: boolean;
 }
 
-/** 2024 FHA loan limit (national floor / ceiling varies by county) */
-const FHA_LOAN_LIMIT_2024 = 498_257; // national floor; high-cost up to 1,149,825
-
-/**
- * Get annual MIP rate based on loan term, LTV, and loan amount.
- * Source: HUD Mortgagee Letter 2023-05 (effective March 2023)
- */
-function getAnnualMIPRate(
-    loanTerm: number,
-    ltvPct: number,
-    loanAmount: number
-): number {
-    if (loanTerm > 15) {
-        // 30-year
-        if (loanAmount <= 726_200) {
-            if (ltvPct <= 90) return 0.50;
-            if (ltvPct <= 95) return 0.50;
-            return 0.55; // LTV > 95%
-        } else {
-            // Jumbo FHA
-            if (ltvPct <= 90) return 0.70;
-            if (ltvPct <= 95) return 0.70;
-            return 0.75;
-        }
-    } else {
-        // 15-year
-        if (loanAmount <= 726_200) {
-            if (ltvPct <= 90) return 0.15;
-            return 0.40;
-        } else {
-            if (ltvPct <= 78) return 0.15;
-            if (ltvPct <= 90) return 0.40;
-            return 0.65;
-        }
-    }
-}
-
-/**
- * MIP duration rules:
- * - 15-year: cancelled when LTV reaches 78% (regardless of when)
- * - 30-year with ≥10% down (LTV ≤ 90%): 11 years
- * - 30-year with <10% down (LTV > 90%): Life of loan
- */
-function getMIPDuration(loanTerm: number, downPaymentPct: number): string {
-    if (loanTerm <= 15) return "Cancelled at 78% LTV";
-    if (downPaymentPct >= 10) return "11 years";
-    return "Life of loan";
-}
-
-/** Monthly payment (P&I) */
-function monthlyPI(principal: number, annualRate: number, termYears: number): number {
-    const r = annualRate / 100 / 12;
-    const n = termYears * 12;
-    if (r === 0) return principal / n;
-    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-}
-
 export function calculateFHA(input: FHAInput): FHAResult {
-    const {
-        purchasePrice,
-        downPaymentPct,
-        interestRate,
-        creditScore,
-        loanTerm,
-        propertyTaxRate,
-        homeInsuranceAnnual,
-        hoaMonthly,
-        annualIncome,
-        monthlyDebts = 0,
-    } = input;
-
-    const downPayment = purchasePrice * (downPaymentPct / 100);
-    const baseLoanAmount = purchasePrice - downPayment;
-    const ltvPct = (baseLoanAmount / purchasePrice) * 100;
-
-    // UFMIP: 1.75% of base loan
-    const ufmip = baseLoanAmount * 0.0175;
-    const totalLoanAmount = baseLoanAmount + ufmip;
-
-    // Monthly MIP
-    const annualMIPRate = getAnnualMIPRate(loanTerm, ltvPct, baseLoanAmount);
-    const monthlyMIPValue = (totalLoanAmount * (annualMIPRate / 100)) / 12;
-    const mipDuration = getMIPDuration(loanTerm, downPaymentPct);
-
-    // Monthly P&I
-    const piPayment = monthlyPI(totalLoanAmount, interestRate, loanTerm);
-
-    // Monthly tax & insurance
-    const monthlyTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
-    const monthlyInsurance = homeInsuranceAnnual / 12;
-
-    const totalMonthly = piPayment + monthlyMIPValue + monthlyTax + monthlyInsurance + hoaMonthly;
-
-    // DTI
-    let frontEndDTI: number | undefined;
-    let totalDTI: number | undefined;
-    let qualifies: boolean | undefined;
-
-    if (annualIncome && annualIncome > 0) {
-        const monthlyIncome = annualIncome / 12;
-        frontEndDTI = Math.round((totalMonthly / monthlyIncome) * 1000) / 10;
-        totalDTI = Math.round(((totalMonthly + monthlyDebts) / monthlyIncome) * 1000) / 10;
-        // FHA: front ≤ 31%, back ≤ 43% (up to 50% with compensating factors)
-        qualifies = frontEndDTI <= 31 && totalDTI <= 43;
-    }
+    const r = calcFHA({
+        purchasePrice: input.purchasePrice,
+        downPaymentPct: input.downPaymentPct,
+        annualRatePct: input.interestRate,
+        termYears: input.loanTerm,
+        creditScore: input.creditScore,
+        propertyTaxRate: input.propertyTaxRate,
+        // Only pass a real annualInsurance override when the caller actually
+        // has one -- omitting it lets calcFHA apply its own canonical
+        // percentage-based default (INS_RATE_DEFAULT) rather than a flat
+        // dollar figure that doesn't scale with purchase price.
+        annualInsurance: input.homeInsuranceAnnual > 0 ? input.homeInsuranceAnnual : undefined,
+        hoaMonthly: input.hoaMonthly,
+        monthlyDebts: input.monthlyDebts,
+        annualIncome: input.annualIncome,
+    });
 
     return {
-        purchasePrice,
-        downPayment: Math.round(downPayment),
-        downPaymentPct,
-        baseLoanAmount: Math.round(baseLoanAmount),
-        ufmip: Math.round(ufmip),
-        totalLoanAmount: Math.round(totalLoanAmount),
-        annualMIPRate,
-        monthlyMIP: Math.round(monthlyMIPValue),
-        mipDuration,
-        monthlyPI: Math.round(piPayment),
-        monthlyTax: Math.round(monthlyTax),
-        monthlyInsurance: Math.round(monthlyInsurance),
-        monthlyHOA: hoaMonthly,
-        totalMonthly: Math.round(totalMonthly),
-        frontEndDTI,
-        totalDTI,
-        qualifies,
-        fhaLoanLimit: FHA_LOAN_LIMIT_2024,
-        withinLimits: baseLoanAmount <= FHA_LOAN_LIMIT_2024,
-        meetsDownPaymentRequirement: downPaymentPct >= (creditScore >= 580 ? 3.5 : 10),
-        meetsCreditRequirement: creditScore >= 500,
+        purchasePrice: r.purchasePrice,
+        downPayment: r.downPayment,
+        downPaymentPct: r.downPaymentPct,
+        baseLoanAmount: r.baseLoanAmount,
+        ufmip: r.ufmip,
+        totalLoanAmount: r.totalLoanAmount,
+        annualMIPRate: r.mipRate * 100,
+        monthlyMIP: r.monthlyMIP,
+        mipDuration: r.mipDuration,
+        monthlyPI: r.monthlyPI,
+        monthlyTax: r.monthlyTax,
+        monthlyInsurance: r.monthlyInsurance,
+        monthlyHOA: r.monthlyHOA,
+        totalMonthly: r.totalMonthly,
+        frontEndDTI: r.frontEndDTI ?? undefined,
+        totalDTI: r.backEndDTI ?? undefined,
+        qualifies: r.qualifies ?? undefined,
+        fhaLoanLimit: FHA_FLOOR_2026,
+        withinLimits: r.baseLoanAmount <= FHA_FLOOR_2026,
+        meetsDownPaymentRequirement: r.meetsDownPaymentRequirement,
+        meetsCreditRequirement: r.meetsCreditRequirement,
     };
 }
 
@@ -206,23 +140,30 @@ export function compareFHAvsConventional(
         creditScore: 640,
         loanTerm: 30,
         propertyTaxRate,
-        homeInsuranceAnnual: 1200,
+        homeInsuranceAnnual: 0, // let calcFHA apply its own canonical default
         hoaMonthly: 0,
         annualIncome,
         monthlyDebts,
     });
 
-    // Conventional: 5% down, no UFMIP, PMI ~0.5-1%
+    // Conventional: 5% down, no UFMIP. PMI now uses the SAME canonical,
+    // LTV-tiered rate table as lib/calcEngine.ts's monthlyPMI() -- the prior
+    // inline ladder here (0.65%/0.50%) never zeroed PMI at <=80% LTV, a
+    // confirmed divergence from every other conventional PMI calculation in
+    // the codebase.
     const convDownPct = 5;
     const convDown = purchasePrice * 0.05;
     const convLoan = purchasePrice - convDown;
-    const convLTV = (convLoan / purchasePrice) * 100;
-    const convPI = monthlyPI(convLoan, interestRate, 30);
+    const convLTV = convLoan / purchasePrice;
+    const convPI = (() => {
+        const monthlyRate = interestRate / 100 / 12;
+        const n = 360;
+        if (monthlyRate === 0) return convLoan / n;
+        return (convLoan * monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1);
+    })();
     const convTax = (purchasePrice * (propertyTaxRate / 100)) / 12;
-    const convInsurance = 1200 / 12;
-    // PMI: ~0.65% for 95% LTV, 640 credit
-    const convPMIRate = convLTV > 90 ? 0.0065 : 0.005;
-    const convPMI = Math.round((convLoan * convPMIRate) / 12);
+    const convInsurance = 1200 / 12; // matches calcEngine's INS_ANNUAL_DEFAULT legacy flat figure for this illustrative comparison
+    const convPMI = Math.round(monthlyPMI(convLoan, convLTV));
     const convTotal = Math.round(convPI + convPMI + convTax + convInsurance);
 
     return {
@@ -240,7 +181,7 @@ export function compareFHAvsConventional(
             downPaymentPct: convDownPct,
             monthlyPayment: convTotal,
             monthlyMI: convPMI,
-            miDuration: "Until 80% LTV (approx. 8-10 years)",
+            miDuration: convPMI > 0 ? "Until 80% LTV (approx. 8-10 years)" : "None (20%+ down)",
             fiveYearMI: convPMI * 60,
         },
     };

@@ -24,6 +24,20 @@ Engines 1, 2, 3 and 5 can each produce a monthly payment for the same question, 
 
 ### DEBT-01 — Legacy FHA calculator (2024 rules) still answers live questions
 **Severity: Critical** · **Causes runtime drift: YES, directly**
+**STATUS: FIXED 2026-09-10** (Priority Corrective Workstream "Canonical
+Deterministic Mortgage Math Integrity"). `lib/fhaCalculator.ts`'s
+`calculateFHA()`/`compareFHAvsConventional()` are now thin wrappers that call
+`calcEngine.ts`'s `calcFHA()`/`monthlyPMI()` internally, keeping their exact
+external signature/field names for `app/api/answers/route.ts`'s one remaining
+caller. `calcEngine.ts`'s `fhaMIPRate()` was also extended to be loan-amount-
+aware (merging the legacy engine's more complete HUD MIP-rate table, which
+correctly included a "higher-balance" tier calcEngine's own table had been
+missing) while keeping the correct base-loan MIP basis. The `app/api/answers/
+route.ts` FHA reroute no longer overrides insurance with a flat $1,200/yr
+regardless of price. Two more independent inline conventional-payment
+implementations in the same route (a 4th and 5th engine, found during this
+fix) were also replaced with `calcConventional()` calls. See
+`ARCHITECTURE_DECISIONS.md` AD-25 for full detail and regression evidence.
 
 - **Files:** [app/api/answers/route.ts](app/api/answers/route.ts) (Mortgage→FHA reroute ~L6699–6743, FHA block ~L6795–6900), [lib/fhaCalculator.ts](lib/fhaCalculator.ts)
 - **What:** The Mortgage→FHA reroute path (`mortgageRerouteToFHA`, fires when a "$X home" question has income context in history) calls legacy `calculateFHA()` and **its answer is kept** (only some later branches null `fhaAnswer`). The legacy engine disagrees with calcEngine on real numbers:
@@ -48,6 +62,12 @@ Engines 1, 2, 3 and 5 can each produce a monthly payment for the same question, 
 
 ### DEBT-03 — Zombie mortgage-calc block: executes fully, output discarded
 **Severity: High** · **Causes runtime drift: Indirect (trap + drift-prone context leak)**
+**STATUS: Confirmed already fixed as of 2026-09-10** — re-verified directly
+during the "Canonical Deterministic Mortgage Math Integrity" workstream:
+`mortgageAnswer = null` no longer exists anywhere in `app/api/answers/
+route.ts`, and `mortgageCalcContext` is now populated only by a
+homeowner-analysis-specific path (~L6283/L6318), not the zombie block
+described here. This entry predates that fix; not re-touched this pass.
 
 - **Files:** [app/api/answers/route.ts:5725-5856](app/api/answers/route.ts#L5725-L5856)
 - **What:** For every conventional-looking question, the route still runs legacy `calculateMortgage()` + `compareRates()`, builds a ~100-line markdown answer with **legacy assumptions** (PMI flat 0.6%, insurance flat $100/mo — both disagree with `lib/constants.ts`), then throws it away: `mortgageAnswer = null; // disabled` (L5847). What survives is `mortgageCalcContext` (L5850), which is injected into the Grok prompt (L7270) with "CRITICAL: Use these numbers EXACTLY" — so legacy-engine numbers can still steer Grok's prose answers on fallback paths.
@@ -75,6 +95,20 @@ Engines 1, 2, 3 and 5 can each produce a monthly payment for the same question, 
 
 ### DEBT-06 — Constants drift: "single source of truth" bypassed by magic numbers
 **Severity: High** · **Causes runtime drift: YES — cards disagree with each other**
+**STATUS: PARTIALLY FIXED 2026-09-10.** `lib/calcDispatcher.ts`'s specific
+citations below (buydown/seller-credit insurance, VA funding fee, jumbo
+threshold) were re-verified and are **already clean** — all now import from
+`lib/constants.ts`, fixed sometime between this register's original date and
+2026-09-10, independent of this workstream. Newly found and fixed this
+workstream, same root cause: `app/property-report/page.tsx` and `app/
+wl-report/page.tsx` (flat 1.25% tax / 0.5% insurance, matching no constant in
+the file at all) and `app/api/beta/grok-property/route.ts`'s `calcPITI()`
+(flat 0.012 tax fallback / 0.005 insurance despite a comment claiming "same
+logic as CalcEngine") — the latter is high-impact since its output
+unconditionally becomes the cached `estimated_piti` read by every surface
+that displays a property's Grok-enriched PITI. `detectLoanLimits()`'s
+mid-cost FHA value is not re-verified and remains open. See
+`ARCHITECTURE_DECISIONS.md` AD-25.
 
 - **Files:** [lib/calcDispatcher.ts](lib/calcDispatcher.ts) (L727, 739-740, 758, 771-772, 885, 892), [lib/constants.ts](lib/constants.ts), [app/api/answers/route.ts:5761-5763](app/api/answers/route.ts#L5761-L5763)
 - **What:** `lib/constants.ts` declares itself the single source, but:
