@@ -242,9 +242,13 @@ async function main() {
 
     // 1. valid current-protocol tools/list
     {
+      // WS10: this server now advertises 2 tools (get_property_intelligence,
+      // get_benchmark_rates) -- updated from the original "exactly one tool"
+      // assertion, which predates the second tool's addition.
       const r = await callAdapter(toolsListBody(2), mcpHeaders('tools/list', null));
-      const ok = r.status === 200 && r.json?.result?.resultType === 'complete' && r.json.result.tools?.length === 1 && r.json.result.tools[0].name === TOOL_NAME && r.json.result._meta?.['io.modelcontextprotocol/serverInfo'] !== undefined;
-      record('Conformance', 'valid current-protocol tools/list', ok ? 'PASS' : 'FAIL', JSON.stringify(r.json));
+      const toolNames = (r.json?.result?.tools ?? []).map((t: any) => t.name);
+      const ok = r.status === 200 && r.json?.result?.resultType === 'complete' && r.json.result.tools?.length === 2 && toolNames.includes(TOOL_NAME) && toolNames.includes('get_benchmark_rates') && r.json.result._meta?.['io.modelcontextprotocol/serverInfo'] !== undefined;
+      record('Conformance', 'valid current-protocol tools/list', ok ? 'PASS' : 'FAIL', JSON.stringify(toolNames));
     }
 
     // 2. valid current-protocol tools/call
@@ -398,8 +402,10 @@ async function main() {
     {
       const body = { jsonrpc: '2.0', id: 100, method: 'tools/list' };
       const r = await callAdapter(body, { 'mcp-protocol-version': '2025-11-25' });
-      const ok = r.status === 200 && Array.isArray(r.json?.result?.tools) && r.json.result.tools.length === 1 && r.json.result.tools[0].name === TOOL_NAME;
-      record('Version-aware', 'A/F: real 2025-11-25 tools/list (no Mcp-Method/Mcp-Name/_meta) -> 200, exactly one tool', ok ? 'PASS' : 'FAIL', JSON.stringify(r.json));
+      // WS10: 2 tools now (see the current-protocol conformance test above).
+      const toolNames = (r.json?.result?.tools ?? []).map((t: any) => t.name);
+      const ok = r.status === 200 && Array.isArray(r.json?.result?.tools) && r.json.result.tools.length === 2 && toolNames.includes(TOOL_NAME) && toolNames.includes('get_benchmark_rates');
+      record('Version-aware', 'A/F: real 2025-11-25 tools/list (no Mcp-Method/Mcp-Name/_meta) -> 200, two tools', ok ? 'PASS' : 'FAIL', JSON.stringify(toolNames));
     }
 
     // Test B -- real 2026-07-28 server/discover shape: Mcp-Method header +

@@ -889,3 +889,131 @@ exact property. Full regression: `test-chatgpt-invocation-contract.ts` (7/7),
 (10/10), `test-external-adapter.ts` (56/56), `test-oauth-flow.ts` (45/45 + 2
 pre-existing LIMITED). `tsc --noEmit` and full `next build` clean. Pushed to
 `dev` only — NOT merged to `main`, per explicit instruction this workstream.
+
+---
+
+## AD-24 — Intelligence Gateway Capability Architecture (WS10): full capability inventory; new `get_benchmark_rates` tool (benchmark-rates-v1)
+
+**Decision:** A full code-traced inventory (4 parallel research passes) of every
+HomeRates capability that could plausibly become a second external AI tool
+found exactly one candidate that is genuinely ready today: neutral, national
+FRED benchmark mortgage rates (30yr fixed / 15yr fixed / 5-1 ARM). Built and
+shipped `get_benchmark_rates` as a second tool on the existing MCP server
+(`app/api/mcp/property-intelligence/route.ts` — same URL, same OAuth resource,
+zero new endpoint). Every other evaluated candidate (deterministic PITI
+calculator, full affordability, program-rule engines) was found NOT ready and
+was deliberately NOT built — see the maturity findings below.
+
+**Why this is the right first addition:** the FRED/OBMMI market-data pipeline
+(`lib/market-data/*`, AD-11) is the single most mature, consolidated piece of
+infrastructure found in this entire audit — one real ingest path, daily sync,
+genuine per-observation `asOf` dates, and an already-hardened boundary
+(`lib/gateway/outputShaping.ts`'s existing Rate Role Correction) between the
+neutral national rate (safe to expose) and the OBMMI/LLPA-segmented,
+borrower-profile-assuming rate (never exposed, unchanged). The only real gap
+was that the *existing* external `market_rate` field carries no as-of/
+freshness metadata at all — `get_benchmark_rates` closes exactly that gap as
+its own dedicated capability, rather than retrofitting the property-
+intelligence contract.
+
+**What was built:**
+- `lib/market-data/benchmarkRates.ts` — pure read over `lib/market-data/query.ts`'s
+  `getLatest()` for `MORTGAGE30US`/`MORTGAGE15US`/`MORTGAGE5US`. Computes
+  `freshnessStatus` (`CURRENT`/`STALE`/`UNAVAILABLE`) from the real observation
+  date with a 10-day threshold (tuned for these series' actual weekly
+  publish cadence — a new, narrower threshold than outputShaping.ts's 30-day
+  property-enrichment staleness check, a different question).
+- `lib/gateway/benchmarkRatesSchema.ts` / `benchmarkRatesShaping.ts` — a second
+  versioned external contract (`benchmark-rates-v1`), same explicit-allow-list
+  shaping discipline as the existing contract, same `claim_type` pattern
+  (`MARKET FACT` throughout), same `EDUCATIONAL_DISCLAIMER` reuse (never a
+  hand-written duplicate string).
+- `lib/gateway/benchmarkRatesGateway.ts` — a second Gateway capability
+  function, `getBenchmarkRatesGated()`, following the IDENTICAL required
+  order of operations as `getPropertyIntelligence()` (kill-switch → auth →
+  scope → rate-limit → build → schema-validate → log), reusing every existing
+  building block (`authenticateRequest`, `checkAllLimits`, `isCircuitOpen`/
+  `isKillSwitchEnabled`, `logRequest`) verbatim. Zero changes to the existing
+  property-intelligence pipeline.
+- `lib/gateway/auth.ts` gained one additive export, `requireAnyScope()` (OR-
+  logic scope check) — does not change `requireScope()`'s existing single-
+  scope behavior at all.
+- `lib/gateway/credentials.ts`'s `ALLOWED_GATEWAY_SCOPES` gained
+  `'benchmark_rates:read'` (additive array extension only).
+- **OAuth/security model deliberately untouched, per explicit instruction.**
+  `get_benchmark_rates` accepts EITHER the existing `property_intelligence:read`
+  scope (so the live ChatGPT OAuth integration — locked to
+  `SUPPORTED_OAUTH_SCOPE = 'property_intelligence:read'`, unchanged — can call
+  the new tool immediately, with zero re-authorization) OR the new, narrower
+  `benchmark_rates:read` scope (for a future admin-issued partner credential
+  that should see rates but not property data). This is the reason a new
+  scope did not require any OAuth route/well-known/consent-screen change.
+- `app/api/mcp/property-intelligence/route.ts` — `tools/list` now advertises
+  both tools; `tools/call` dispatches by name to whichever Gateway function
+  applies. The shared UNAUTHORIZED/FORBIDDEN → HTTP mapping was extracted
+  into one `mapGatewayRejection()` helper (parameterized by which scope to
+  advertise in a 403) rather than duplicated a second time.
+
+**Full capability inventory (Phase 1-2 deliverable):**
+
+| Capability | Maturity | Classification |
+|---|---|---|
+| Property Intelligence (canonical) | Mature, single source of truth for its own path | READY (already exposed) |
+| FRED national benchmark rates (30yr/15yr/ARM) | Real ingest, daily sync, real `asOf`, hardened boundary vs. OBMMI/LLPA | **READY — built this workstream** |
+| OBMMI segmented rates / LLPA-adjusted rate | Real data, but borrower-profile-assuming; already deliberately never exposed | DO NOT EXPOSE (locked, unchanged) |
+| Deterministic PITI / mortgage calculator | 5+ independently-maintained engines with CONFIRMED real numeric divergence (tax 0.0125 vs 0.011 vs 0.012 vs real lookup; insurance 0.3% vs 0.5%; PMI rate 0.55% vs 0.8% in two "affordability" engines; FHA MIP computed on base loan in one engine, total loan in another) | DO NOT EXPOSE — needs canonicalization first |
+| Affordability (reverse PITI) | Two independently-maintained solvers, disagreeing PMI rate | NEEDS CANONICALIZATION FIRST |
+| Conforming/high-balance loan limits | Real, current (2026 FHFA/HUD), county-aware core engine (`lib/loanLimits2026.ts`/`loanLimitsNational2026.ts`/`lib/pricing/conforming-limits.ts`) — but two first-party pages (`property-report`, `wl-report`) bypass it with a stale hardcoded national threshold | NEAR READY (engine is solid; needs its own scoped follow-up before external exposure — zip/county input design not yet scoped) |
+| FHA program logic | MIP math real (HUD ML 2023-05); loan-limit check inside `lib/fhaCalculator.ts` uses a stale 2024 constant, conflicting with the current county table | INTERNAL ONLY — internal drift needs fixing first |
+| VA program logic | Real funding-fee table, correctly county-aware, no drift found — the most mature government-loan engine | NEAR READY (no external product built yet, but engine itself is solid) |
+| USDA | Not found anywhere in the codebase | DO NOT EXPOSE (does not exist) |
+| Jumbo | Anchor rate real-when-live, segment table clearly self-labeled estimated | INTERNAL ONLY |
+| DSCR ratio calculation | Real, deterministic (rent/PITIA); qualification thresholds are HomeRates' own approximation, not one published rule | INTERNAL ONLY |
+| AMI qualifier | Real, government-data-backed (FHFA/HUD), vintage-tracked; one flagged approximation (`ami50`) | NEAR READY (own product surface already; not evaluated as an external tool this workstream) |
+| DPA program matching | Real matching logic over vendor/lender-submitted (not government-registry) program data | INTERNAL ONLY |
+| Decision Score (L1-L4/composite) | Locked methodology; L1's per-program LTV curve is explicitly HomeRates' own heuristic, not an agency rule — risk of misrepresentation if ever exposed without that caveat | DO NOT EXPOSE (not evaluated for external exposure this workstream; locked methodology untouched) |
+| Rate Intelligence / Personal Fit | Locked, internal-only by design | DO NOT EXPOSE (unchanged) |
+
+**Current external surfaces (Phase 3):** exactly one MCP endpoint
+(`app/api/mcp/property-intelligence/route.ts`), now two tools. OAuth 2.1 flow
+(authorize/token/two well-known routes) unchanged. `/api/instant-score` (the
+pre-existing non-Gateway partner API) was found to have **zero
+authentication** despite its own `/developers` docs page implying an API key
+is required, and blocks synchronously on the full 85-140s deep-Grok call —
+flagged, not fixed this workstream (a different, pre-existing surface, its
+own confidence decision). No OpenAPI spec or MCP/OAuth-facing developer docs
+exist; `llms.txt` and a 14-AI-bot `robots.txt` allowlist do.
+
+**Property Intelligence scope check (Phase 4):** APPROPRIATE — not overloaded,
+not too narrow. It answers "tell me about this property"; the new tool
+answers a genuinely distinct intent ("what's a current rate") that a model
+can cleanly distinguish, per the Phase 4 test. Not split, not merged.
+
+**Confidence gate:**
+CAPABILITY INVENTORY 90% · CANONICAL MATURITY 65% · RATE-DATA 90% ·
+CALCULATION-ENGINE 25% (genuinely not ready — real, confirmed divergence) ·
+PROGRAM-RULE 60% · PROVENANCE 80% · LATENCY/DEPENDABILITY 90% ·
+INVOCATION-CLARITY 80% · TECHNICAL 85% · NORTH STAR 85% · **OVERALL: MEDIUM**
+(one capability clearly HIGH-confidence and shipped; the calculation engine
+specifically is LOW and was correctly not forced).
+
+**What was NOT changed:** Decision Score methodology, L1-L4 weights, Rate
+Intelligence methodology, LLPA methodology, property identity rules,
+demand-driven acquisition architecture, Grok provider architecture, OAuth/
+security model (the new scope is additive-only; `SUPPORTED_OAUTH_SCOPE` and
+every OAuth route are byte-for-byte unchanged), public Plugin visibility
+(still on hold).
+
+**Status:** Built. New `scripts/test-benchmark-rates-gateway.ts` (26/26).
+Updated `scripts/test-external-adapter.ts`'s two hardcoded "exactly one tool"
+assertions to expect both tools (a correct, expected update given the new
+tool, not a regression). Full regression: `test-intelligence-gateway.ts`
+(58/58 + 2 pre-existing LIMITED), `test-external-adapter.ts` (56/56),
+`test-oauth-flow.ts` (45/45 + 2 pre-existing LIMITED),
+`test-response-semantics-cleanup.ts` (9/9), `test-rate-role-correction.ts`
+(7/7), `test-first-party-canonical-consistency.ts` (10/10),
+`test-chatgpt-invocation-contract.ts` (7/7), `test-deep-intelligence-parity.ts`
+(12/12), `test-firstparty-valuation-integrity.ts` (29/29). `tsc --noEmit` and
+full `next build` clean. Pushed to `dev` only — NOT merged to `main`, no
+production push, no Plugin submission work, per explicit instruction this
+workstream.
