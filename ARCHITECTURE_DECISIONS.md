@@ -670,3 +670,108 @@ this workstream's Phase 2 evidence was. Full regression: `test-response-semantic
 `docs/HOMERATES_CHATGPT_SURFACE_DESIGN_SPEC.md` for the future (unimplemented) consumer
 invocation-territory/prompt-library specification this workstream's real evidence
 supports.
+
+---
+
+## AD-22 — Deep Intelligence Parity: expose HomeRates' own narrative synthesis (property_analysis, v1.5); source-of-truth audit
+
+**Decision:** `lib/propertyIntelligence.ts`'s `getPropertyIntelligenceData()` now also
+captures `grok_property_cache.grok_result.grok_intelligence_summary` and `.key_highlights`
+(the SAME row already read for comps/market/location fields — no new query, no new
+provider call) as a new `propertyAnalysis: {narrative, highlights}` field, threaded
+through `lib/canonicalPropertyIntelligence.ts` and out to the external contract as
+`property_analysis` (contract bumped to `property-intelligence-v1.5`). Deliberately
+**excludes** `grok_result.buyer_strategy` — see below. `TOOL_DESCRIPTION` gained a
+paragraph explaining `property_analysis` is HomeRates' synthesis over public information,
+not a valuation, and that any dollar figure inside it is subject to the same
+claim-discipline as anywhere else in the response.
+
+**Reasoning — the forensic trigger:** A real property (1123 Seaview Ave, Pacific Grove,
+CA 93950) was tested live: ChatGPT correctly received facts, financing, 5 real
+comparable sales, and market/location metrics, but concluded *"it is not yet enough to
+conclude that the $1.15 million asking price is supported"* — an artificially
+conservative answer, because the external contract gave it numbers with no HomeRates
+synthesis over them, while the first-party Deep Property Intelligence report displayed
+exactly that synthesis (a narrative, highlights, a buyer strategy) reading the identical
+`grok_property_cache` row directly. This is the actual root of the parity gap: **not**
+missing data, but missing synthesis over data both surfaces already had.
+
+**buyer_strategy is deliberately NOT exposed, and not even captured upstream of
+`property_analysis`.** The real Seaview data's `buyer_strategy` field read: *"Contact
+owner directly or local agents for off-market access; verify exact sqft and condition
+before pursuing, as comps suggest potential for $1.3M+ value."* That last clause is
+Grok's own speculative inference over the comps, not a HomeRates-computed conclusion —
+exposing it externally would reintroduce, via HomeRates' own data, exactly the
+unsupported-valuation-precision problem AD-21's guardrail exists to stop ChatGPT from
+inventing on its own. `grok_intelligence_summary`/`key_highlights` were audited directly
+(the real Seaview values, and the synthetic test fixtures in
+`scripts/test-deep-intelligence-parity.ts`) and contain no comparable invented figures —
+safe to expose as `AI INTERPRETATION`.
+
+**Two real, confirmed, first-party-only bugs found during this same audit — traced to
+exact code, NOT fixed here (different surface, out of this workstream's scope):**
+1. **`app/property-report/page.tsx:342`** — `const avm = resolveAvm(zillow_estimate,
+   redfin_estimate) ?? price;` silently falls back to the list price and labels it "AI
+   Estimate" whenever Grok returns no independent estimate (exactly the case for
+   Seaview) — the precise "list price becomes AVM" anti-pattern this whole session has
+   repeatedly forbidden, confirmed live on a surface the canonical-consistency work never
+   reached. The same file's L2 summary text (line 999) then says "List priced below AI
+   estimate — favorable entry" even when the two figures are identical by construction
+   (`avmDiff >= 0` is true at exactly 0). **Confirmed NOT present in canonical or
+   external** — both correctly report `avm: null` and `purchase_price_basis: {source:
+   'CURRENT_ASKING_PRICE'}` for this exact property (see
+   `scripts/test-deep-intelligence-parity.ts` tests A2/A3).
+2. **`app/property-report/page.tsx:620,1003`** — `${(data.market_sale_to_list *
+   100).toFixed(1)}%` re-multiplies a value that is already a percentage (98.4, not
+   0.984), producing a displayed "9840.0%". **Confirmed NOT present in canonical or
+   external** — both correctly report `98.4` (see test A5/D, regression-guarded going
+   forward).
+
+**Source-of-truth audit finding (investigated, not fixed — a real architectural fact to
+document, not a defect to silently patch):** `buildCanonicalPropertyIntelligence()` IS a
+genuine single source of truth for first-party's `/api/property/intelligence` route and
+the external Gateway/MCP path — confirmed by `test-first-party-canonical-consistency.ts`
+staying green across every workstream. It is **not** the only consumer of
+`grok_property_cache`, however: `app/chat/page.tsx`'s Decision Score L2 refresh (AD-21)
+and `app/property-report/page.tsx`'s AVM/L1-L4 computation (this entry) both read the
+same underlying Grok row **directly**, independently, bypassing canonical entirely —
+which is exactly why both diverge from canonical/external in ways this workstream's
+forensic audits found. This is a real, confirmed "duplicate truth path" pattern, not
+resolved by this decision (a full migration of those two first-party surfaces onto
+canonical is a separate, larger effort requiring its own confidence decision — first-party
+UI behavior, broader blast radius than the Gateway/external surface this session's
+authority has focused on).
+
+**Staged-intelligence wording:** `lib/propertyIntelligence.ts`'s `ineligibleReasons`/
+`missing` strings were reworded from absolute phrasing ("No usable AVM available", "No
+comparable sale on record") to temporal phrasing ("No usable AVM has been retrieved from
+current sources yet", "Comparable sales have not yet been retrieved") — HomeRates
+assembles intelligence progressively from multiple sources at different times; absence at
+one moment does not mean permanent absence. No logic changed, string-only.
+
+**Recommended next steps (documented, NOT implemented this workstream):**
+- Fix `app/property-report/page.tsx`'s AVM fallback and sale-to-list multiplication to
+  match canonical's already-correct behavior (a first-party UI change, own workstream).
+- Consider migrating `app/property-report/page.tsx` and `app/chat/page.tsx`'s Decision
+  Score L2 refresh onto `buildCanonicalPropertyIntelligence()` directly, closing the
+  duplicate-truth-path pattern at its root (a larger effort, its own confidence decision).
+- Consider whether `provenance.source_category` should distinguish "Grok-assisted
+  synthesis contributed" from pure `PUBLIC_LISTING_DATA` once `property_analysis`/comps/
+  location are present — not changed this workstream (would need its own audit of
+  `mapSourceCategory()`'s current, narrower meaning).
+- Consider first-party Deep Property Intelligence report disclosure language (multi-source
+  assembly, staged availability, AI-synthesis framing) — a first-party UI copy change, out
+  of this workstream's scope.
+
+**What was NOT changed:** Decision Score methodology, L1-L4 weights, L2 methodology, Rate
+Intelligence, LLPA, property identity rules, demand-driven acquisition architecture, Grok/
+Tavily/OpenAI provider architecture, OAuth, Gateway security, public Plugin visibility.
+
+**Status:** Built. New `scripts/test-deep-intelligence-parity.ts` (12/12), including
+direct assertions against the real, live Seaview property. Full regression:
+`test-chatgpt-invocation-contract.ts` (7/7), `test-response-semantics-cleanup.ts` (9/9),
+`test-intelligence-gateway.ts` (58/58 + 2 pre-existing LIMITED),
+`test-rate-role-correction.ts` (7/7), `test-first-party-canonical-consistency.ts` (10/10),
+`test-external-adapter.ts` (56/56), `test-oauth-flow.ts` (45/45 + 2 pre-existing LIMITED).
+`tsc --noEmit` and full `next build` clean. Pushed to `dev` only — NOT merged to `main`,
+per explicit instruction this workstream.

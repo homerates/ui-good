@@ -160,6 +160,18 @@ const TOOL_DESCRIPTION =
   'eligibility) are routine recommended checks, never findings that a specific problem ' +
   'exists.' +
   '\n\n' +
+  'property_analysis (when present) is HomeRates\' own synthesis, over publicly available ' +
+  'information, about this property -- market positioning and notable characteristics, in ' +
+  'HomeRates\' own words, not a valuation conclusion and not a claim that HomeRates ' +
+  'directly observed every detail itself. You may relay or summarize it. If it happens to ' +
+  'mention a dollar figure, treat that figure with the same discipline as any other claim ' +
+  "in this tool's response -- it is not automatically a HomeRates value estimate merely " +
+  'because it appears in HomeRates-sourced text; do not repeat it as a supported valuation ' +
+  'unless value_intelligence.avm independently confirms it. property_analysis is null when ' +
+  'HomeRates has not yet synthesized this for the property (its sources had not yet been ' +
+  'researched at the time of this response) -- absence is not a negative signal about the ' +
+  'property itself, and calling again later may return it.' +
+  '\n\n' +
   'intelligence_progress.status is "enriching" while comparable sales and location ' +
   'context are still being gathered, or "enriched" once they are present (if available ' +
   'at all). When "enriching": share the useful intelligence already available now, note ' +
