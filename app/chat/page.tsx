@@ -16,7 +16,7 @@ import { useAdminStatus } from '../hooks/useAdminStatus';
 import { useConsumerMode } from '@/useConsumerMode';
 import { NAV_ITEMS } from '@/nav-config';
 import { logAnswerToLibrary } from '../../lib/logAnswerToLibrary';
-import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict } from '../../lib/scoring/decisionScore';
+import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict, normalizeSaleToList } from '../../lib/scoring/decisionScore';
 import { resolveObmmiSeriesId } from '../../lib/pricing/llpa-engine';
 import { resolveJumboSegmentId } from '../../lib/pricing/jumboEstimate';
 import CompactRateChartCard from '../components/CompactRateChartCard';
@@ -2953,9 +2953,7 @@ export default function Page() {
 
                                 // Compute L3 — market conditions (median DOM + sale-to-list) + social proof
                                 const dom = deepResult.market_median_dom as number | null | undefined;
-                                const _stlRaw = deepResult.market_sale_to_list as number | null | undefined;
-                                // Grok sometimes returns percent (100.2) instead of ratio (1.002) — a real ratio is never > 2
-                                const stl = _stlRaw != null && _stlRaw > 2 ? _stlRaw / 100 : _stlRaw;
+                                const stl = normalizeSaleToList(deepResult.market_sale_to_list as number | null | undefined);
                                 const socialProofNotes: string[] = [];
                                 if (_dsZillowViews != null) socialProofNotes.push(`${_dsZillowViews.toLocaleString()} Zillow views`);
                                 if (_dsZillowSaves != null && _dsZillowSaves > 0) socialProofNotes.push(`${_dsZillowSaves} saves`);
@@ -3590,8 +3588,7 @@ export default function Page() {
                             // this deliberately changes scores vs. the old CMA-specific formula
                             // that used to live here (e.g. DOM=20 was 55, now scores 42).
                             const dom = deepResult.market_median_dom ?? null;
-                            const s2lRaw = deepResult.market_sale_to_list ?? null;
-                            const s2l = s2lRaw != null && s2lRaw > 2 ? s2lRaw / 100 : s2lRaw;
+                            const s2l = normalizeSaleToList(deepResult.market_sale_to_list ?? null);
                             const { score: dsL3Score, summary: dsL3Summary } = scoreL3({
                                 domMedian: dom,
                                 saleToList: s2l,
