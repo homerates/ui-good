@@ -1187,3 +1187,70 @@ pre-existing LIMITED), `test-benchmark-rates-gateway.ts` (26/26),
 tests passed` / `[AnswerFormat] Format rules verified` checks all clean.
 Pushed to `dev` only — NOT merged to `main`, no production push, per explicit
 instruction this workstream.
+
+---
+
+## AD-26 — Fix calcAffordabilityScenario's FHA MIP basis (the one remaining item from AD-25)
+
+**Decision:** Closed the single deferred finding from AD-25.
+`calcAffordabilityScenario()`'s 6-pass iterative price solver estimated FHA
+MIP during convergence as `loan * FHA_MIP_RATE / 12`, where `loan` is the
+TOTAL financed loan implied by that iteration's target P&I (`maxPI *
+annuityFactor` — P&I is always on the total loan, base+UFMIP for FHA,
+correctly unchanged). The function's own POST-loop `mMI` was already
+computed on the base loan (matching `calcFHA()`) — only the in-loop estimate
+used during convergence was on the wrong basis, nudging the solved
+`homePrice` slightly below the true optimum (the inflated MIP estimate
+"spent" more of the DTI budget than a correctly-based estimate would).
+
+**Fix:** one line, inside the loop only — back out the base-loan portion
+(`loan / (1 + FHA_UFMIP_RATE)`) before applying `FHA_MIP_RATE`, matching the
+basis the post-loop code already used. Conventional's in-loop branch,
+untouched (no base/total distinction applies — conventional has no UFMIP).
+Nothing else in the function changed: DTI target, iteration count, tax/
+insurance treatment, down-payment/closing-cost logic, loan-limit capping, and
+the returned field shapes are all byte-for-byte unchanged.
+
+**Controlled FHA scenario** ($120k income, $30k savings, $500 debts, 6.5%,
+3.5% down, no binding loan-limit cap):
+
+| | BEFORE | AFTER | Δ |
+|---|---|---|---|
+| Home price (solved) | $490,260 | $490,744 | +$484 |
+| Base loan | $473,101 | $473,568 | +$467 |
+| UFMIP | $8,279 | $8,287 | +$8 |
+| Total financed loan | $481,380 | $481,855 | +$475 |
+| Monthly P&I | $3,043 | $3,046 | +$3 |
+| Monthly MIP (returned) | $217 | $217 | $0 (already correct pre-fix) |
+| Total monthly payment | $3,832 | $3,836 | +$4 |
+| Back-end DTI | 43.3% | 43.4% | +0.1pt |
+
+The final *returned* `monthlyMI` field doesn't move (it was already on the
+base loan) — the fix's effect is entirely in letting the solver converge to
+a very slightly higher affordable home price, since the iteration no longer
+over-penalizes the DTI budget with an inflated MIP estimate. Small, exactly
+the second-order correction expected from an internal-only basis fix, not a
+methodology change.
+
+**What was NOT touched:** affordability solving methodology, DTI thresholds,
+income methodology, the iteration algorithm itself, down-payment methodology,
+tax/insurance assumptions, loan-limit behavior, rate selection, LLPA,
+Decision Score, Rate Intelligence, conventional's own branch, `calcVA()`,
+`calcFHA()`, `lib/fhaCalculator.ts`, or any external contract.
+
+**Status:** Built. New `scripts/test-affordability-fha-mip-basis.ts` (11/11):
+basis equivalence between `calcFHA()` and the solver across two independent
+scenarios, base/UFMIP/total-loan distinctness, P&I still on the total loan,
+MIP confirmed no longer matching a total-loan-basis calculation, conventional
+and VA behavior unchanged, `monthlyPI()` unchanged, and both external
+contracts (`benchmark-rates-v1`, `property-intelligence-v1.5`) reverified
+unchanged. Full regression: `test-mortgage-math-integrity.ts` (42/42),
+`test-intelligence-gateway.ts` (58/58 + 2 pre-existing LIMITED),
+`test-external-adapter.ts` (56/56), `test-oauth-flow.ts` (45/45 + 2
+pre-existing LIMITED), `test-benchmark-rates-gateway.ts` (26/26) — two
+transient, pre-existing rate-limit/IP-counter timing failures appeared on
+first run and cleared on immediate rerun (same documented flakiness class
+seen throughout this session, unrelated to this change). `tsc --noEmit`,
+full `next build`, and the build's own `[CalcEngine]`/`[AnswerFormat]`
+self-tests all clean. Pushed to `dev` only — NOT merged to `main`, no
+production push.

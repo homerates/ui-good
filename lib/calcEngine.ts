@@ -1027,11 +1027,21 @@ export function calcAffordabilityScenario(
 
     let homePrice = 0;
     for (let i = 0; i < 6; i++) {
-        const loan = maxPI * annuityFactor;
+        const loan = maxPI * annuityFactor; // total financed loan implied by this iteration's target P&I (P&I is always computed on the total financed loan, base+UFMIP for FHA -- unchanged)
         homePrice = loan / (1 - downPct / 100);
         const mTaxIns = (homePrice * (propertyTaxRate + 0.0035)) / 12;
+        // MIP on BASE loan -- per HUD spec, same basis as calcFHA() and this
+        // function's own post-loop mMI below. `loan` here is the TOTAL
+        // financed loan (base + UFMIP); back out the base-loan portion for
+        // the MIP estimate used during iteration, rather than applying the
+        // MIP rate to the total loan. Previously used `loan` directly, a
+        // confirmed defect (Priority Corrective Workstream "Canonical
+        // Deterministic Mortgage Math Integrity," 2026-09-10) -- the
+        // iteration's MIP estimate is now consistent with the final returned
+        // mMI, which was already correctly on the base loan.
+        const iterBaseLoan = program === 'FHA' ? loan / (1 + FHA_UFMIP_RATE) : loan;
         const mPMI = program === 'FHA'
-            ? (loan * FHA_MIP_RATE / 12)
+            ? (iterBaseLoan * FHA_MIP_RATE / 12)
             : (downPct < 20 ? loan * PMI_RATE_STD / 12 : 0);
         maxPI = (monthlyIncome * dtiTarget - monthlyDebts) - mTaxIns - mPMI;
         if (maxPI <= 0) { maxPI = (monthlyIncome * dtiTarget - monthlyDebts) * 0.5; break; }
