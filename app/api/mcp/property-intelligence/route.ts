@@ -101,48 +101,79 @@ const SERVER_INFO = { name: 'homerates-property-intelligence', version: '1.0.0' 
 // structural defense-in-depth on top of that field's own claim_type -- the
 // point is the same one this whole paragraph exists for: never let a model
 // read a populated block as more certainty than the labels actually claim.
+//
+// ChatGPT Invocation Behavior refactor (2026-09-10, North Star Workstream 7):
+// rewritten after real production ChatGPT sessions were manually observed
+// (not simulated) against 4 real prompts. Invocation territory, claim
+// discipline for null/asking-price/HOA, and due-diligence framing were all
+// already working correctly (kept, only tightened) -- three real, evidenced
+// gaps were fixed:
+//   1. Given a property still enriching, ChatGPT correctly recognized that
+//      state but never offered to check again -- added an explicit
+//      instruction to offer a follow-up, without implying guaranteed timing
+//      or making the user wait.
+//   2. Given a populated deep_intelligence, ChatGPT surfaced the correct
+//      property-specific link but reduced its own generated
+//      capability_summary to "view the property report," losing the actual
+//      content description -- added an explicit instruction to relay what
+//      capability_summary says, not genericize it.
+//   3. Given real comparable sales but a null AVM, ChatGPT stated (correctly)
+//      that no usable AVM existed, then independently invented a specific
+//      "$840,000-$880,000 market-supported zone" HomeRates never returned --
+//      traced and confirmed this number was ChatGPT's own synthesis over the
+//      comps HomeRates DID supply (their average), not a HomeRates field;
+//      added an explicit guardrail against stating a specific valuation
+//      figure or range as a conclusion unless HomeRates itself returned it.
 const TOOL_DESCRIPTION =
-  "Use this tool when a user asks about a specific residential property and would benefit from current " +
-  "HomeRates.ai intelligence about the property's value context, financing context, ownership costs, " +
-  'market/location context, or property-centered decision drivers. Do not use it for generic mortgage ' +
-  'education or general housing questions that do not involve a specific property. This tool does not ' +
-  'provide underwriting approval, a mortgage offer, an appraisal, a guaranteed market value, or financial ' +
-  'advice -- all figures are educational estimates for one specific address. ' +
-  'Every value below carries a claim_type ' +
-  'describing what kind of statement it is: PROPERTY FACT, MARKET FACT, ' +
-  'ILLUSTRATIVE ASSUMPTION, DERIVED CALCULATION, ESTIMATE, or AI ' +
-  'INTERPRETATION. Treat these distinctions as load-bearing: a null value ' +
-  'means the fact is unconfirmed, never zero, negative, or unfavorable -- ' +
-  'do not state or imply what an unconfirmed value would turn out to be. ' +
-  'ILLUSTRATIVE ASSUMPTION fields (down payment, loan term, occupancy) ' +
-  'describe a generic illustrative scenario, not this specific person or ' +
-  'their credit profile -- this tool never collects or uses a credit score ' +
-  'for its market_rate or payment figures. financing_intelligence.purchase_price_basis ' +
-  'discloses whether the financing math used a real HomeRates valuation (AVM) ' +
-  "or the property's current asking price as an illustrative purchase-price " +
-  'assumption (CURRENT_ASKING_PRICE) -- when it is the asking price, never ' +
-  "describe that figure as HomeRates' estimate of the property's value; the " +
-  'value_intelligence.avm field, not this one, is where a real valuation would ' +
-  'appear, and it may be null even when financing figures are present. When ' +
-  'ownership_cost_intelligence.hoa is null, present it only as an open question to research, never as a ' +
-  'reason payments will be higher. Comparable sales and the valuation ' +
-  'estimate are factual reference points; do not assert unstated reasons ' +
-  '(condition, upgrades, unit position, or similar) actually explain any ' +
-  'difference between them and the list price -- present those only as ' +
-  'possible factors a buyer should verify. Standard purchase due-diligence ' +
-  'items (HOA dues, master insurance, reserves, special assessments, ' +
-  'litigation, project eligibility for condos) should be framed as routine ' +
-  'recommended checks for this type of purchase, never as findings that ' +
-  'a specific problem exists. intelligence_progress.status distinguishes ' +
-  '"enriching" (comparable sales and location context are still being ' +
-  'gathered) from "enriched" (they are present, if available at all) -- when ' +
-  '"enriching", tell the user HomeRates is still assembling deeper market and ' +
-  'location intelligence for this property and that calling again shortly may ' +
-  'return more; do not present the current response as final or complete. ' +
-  'deep_intelligence.destination is a property-specific HomeRates page with a ' +
-  'fuller interactive report (adjustable financing, live comparable sales, ' +
-  'location detail) -- offer it as a place to go for more depth, not as a ' +
-  'generic homepage link.';
+  'Use this tool when a user asks about a specific residential property -- a direct ' +
+  'request to analyze it, a financing or monthly-cost question, an asking-price or ' +
+  'market question, or an open-ended "tell me about [address]" -- and would benefit ' +
+  "from current HomeRates.ai intelligence about the property's value context, financing, " +
+  'ownership costs, market/location context, or comparable sales. Do not use it for ' +
+  'generic mortgage education or housing questions with no specific property involved. ' +
+  'This tool provides educational estimates for one specific address only -- never ' +
+  'underwriting approval, a mortgage offer, an appraisal, or a guaranteed market value. ' +
+  'Every value carries a claim_type: PROPERTY FACT, MARKET FACT, ILLUSTRATIVE ASSUMPTION, ' +
+  'DERIVED CALCULATION, ESTIMATE, or AI INTERPRETATION. A null value means unconfirmed -- ' +
+  'never zero, negative, or unfavorable; never state or imply what an unconfirmed value ' +
+  'would turn out to be. ILLUSTRATIVE ASSUMPTION fields (down payment, loan term, ' +
+  'occupancy) describe a generic scenario, not this specific buyer -- this tool never ' +
+  'collects or uses a credit score for its market_rate or payment figures. ' +
+  'financing_intelligence.purchase_price_basis discloses whether the financing math used ' +
+  'a real HomeRates valuation (AVM) or the current asking price as an illustrative ' +
+  'assumption (CURRENT_ASKING_PRICE) -- when it is the asking price, never call that ' +
+  "figure HomeRates' estimate of value; value_intelligence.avm is the only field where a " +
+  'real valuation appears, and it may be null even when financing figures are present.' +
+  '\n\n' +
+  'Comparable sales and any AVM are factual reference points, not a computed opinion of ' +
+  'value for you to extend. You may describe how the asking price relates to them (e.g. ' +
+  '"above the comparable median" or "within the range of recent sales"), but never state ' +
+  'a specific dollar figure or range as a fair-value conclusion -- "$X-$Y is the ' +
+  'supported range," "worth approximately $X" -- unless HomeRates itself returned that ' +
+  'figure in value_intelligence.avm. If avm is null, say plainly that no usable automated ' +
+  "valuation exists; do not fill that gap with your own estimate presented as HomeRates' " +
+  'data. Do not assert unstated reasons (condition, upgrades, position) explain any ' +
+  'difference between comparables and the list price -- present those only as factors a ' +
+  'buyer should verify. When ownership_cost_intelligence.hoa is null, present it only as ' +
+  'an open question, never as a reason payments will be higher. Standard due-diligence ' +
+  'items (HOA, master insurance, reserves, assessments, litigation, condo project ' +
+  'eligibility) are routine recommended checks, never findings that a specific problem ' +
+  'exists.' +
+  '\n\n' +
+  'intelligence_progress.status is "enriching" while comparable sales and location ' +
+  'context are still being gathered, or "enriched" once they are present (if available ' +
+  'at all). When "enriching": share the useful intelligence already available now, note ' +
+  'briefly that HomeRates is still assembling deeper market and location intelligence, ' +
+  'and offer to check again shortly for more -- do not present the answer as final, do ' +
+  'not make the user wait, and do not imply a guaranteed completion time. When ' +
+  '"enriched" (follow_up_recommended false), do not suggest more intelligence is still ' +
+  'coming.' +
+  '\n\n' +
+  'deep_intelligence.destination is a property-specific HomeRates page -- never describe ' +
+  'it generically ("view the property report"). Relay what ' +
+  'deep_intelligence.capability_summary actually says is there, so the user understands ' +
+  "what's genuinely deeper there versus what you've already shared, and can decide " +
+  'whether to open it.';
 
 const INPUT_SCHEMA = {
   type: 'object',

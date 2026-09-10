@@ -534,6 +534,23 @@ and downstream read path (`buildCanonicalPropertyIntelligence()` already reads
 `triggerFastFollowEnrichmentIfNeeded()` and `lib/gateway/outputShaping.ts`'s
 `computeIntelligenceProgress()`/`computeDeepIntelligenceCta()` for the full rationale.
 
+**Refined 2026-09-10 (North Star Workstream 7, no version bump — same field, same
+meaning, more accurate value):** `deep_intelligence.capability_summary` is now composed
+dynamically from the same `comps`/`location` presence `intelligence_progress` itself
+reads, instead of one static sentence — it never claims comparable sales or location
+context are available before they actually are. Real, manually-observed ChatGPT sessions
+(not simulated) against the live MCP connection also drove a `TOOL_DESCRIPTION` rewrite
+(no schema change) closing three real, observed gaps: HomeRates was not being offered as
+a follow-up when `intelligence_progress.status` was `enriching`; `capability_summary`'s
+specific content was being relayed as a generic "view the property report"; and — most
+importantly — the model independently stated a specific dollar valuation range HomeRates
+never returned (traced and confirmed as the model's own synthesis over real comparable
+sales HomeRates did supply, not a HomeRates field). See `ARCHITECTURE_DECISIONS.md`
+AD-21 for the full evidence trail, including a separately-traced, first-party-only
+`app/chat/page.tsx` label bug (a comparable-sales average mislabeled "AVM" in a Decision
+Score summary never exposed externally) recorded there as an open technical issue, not
+fixed in this workstream.
+
 Internal methodology version (`METHODOLOGY_VERSION`, currently `"Decision Score L1-L4 (locked
 2026-08-19)..."`) and external contract version are **explicitly separate** — the internal string must
 never appear in an external response at all (§5), so there is no risk of them being conflated in the
