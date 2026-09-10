@@ -9,6 +9,8 @@ import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { EDUCATIONAL_DISCLAIMER, DATA_ATTRIBUTION } from '../../lib/disclosures';
 import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict, resolveAvm, normalizeSaleToList } from '../../lib/scoring/decisionScore';
+import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from '../../lib/constants';
+import { monthlyPMI } from '../../lib/calcEngine';
 
 // ── Types (mirrored from property-report) ─────────────────────────────────────
 interface Comp { address: string; sold_price: number; sold_date: string; sqft: number | null; price_per_sqft: number | null; days_on_market?: number | null; }
@@ -175,8 +177,11 @@ function WLReportInner() {
   const loanAmt  = price-downAmt;
   const ltv      = downPct<80 ? (100-downPct) : 80;
   const pi       = calcPI(loanAmt, rate);
-  const taxMo    = Math.round((price*0.0125)/12);
-  const insMo    = Math.round((price*0.005)/12);
+  // Canonical assumption rates (lib/constants.ts) -- see property-report's
+  // identical fix, Priority Corrective Workstream "Canonical Deterministic
+  // Mortgage Math Integrity" (2026-09-10) / DEBT-06.
+  const taxMo    = Math.round((price*TAX_RATE_DEFAULT)/12);
+  const insMo    = Math.round((price*INS_RATE_DEFAULT)/12);
   const totalPITI = pi+taxMo+insMo;
   const loanType = loanAmt>1_089_300 ? '30-Yr Jumbo Fixed' : '30-Yr Conventional Fixed';
   const scoringLoanType = loanAmt>1_089_300 ? 'jumbo' : 'conventional'; // no VA/FHA path collected on this page
@@ -370,7 +375,7 @@ function WLReportInner() {
                 <div><div className="rp-mono-label">Total Monthly PITI</div><div style={{fontSize:11,color:'#4b5c70'}}>P · I · Tax · Insurance</div></div>
                 <div style={{textAlign:'right'}}><div style={{fontSize:26,fontWeight:800,color:ac,letterSpacing:'-0.02em'}}>${fmt(totalPITI)}</div><div style={{fontSize:11,color:'#4b5c70'}}>/month</div></div>
               </div>
-              {[['Principal & Interest',`$${fmt(pi)}`],[`Property Tax (1.25%)`,`$${fmt(taxMo)}`],['Homeowners Insurance',`$${fmt(insMo)}`],['HOA Dues','$0'],['PMI',hasPMI?`$${fmt(Math.round(loanAmt*0.008/12))}`:'$0 · NONE']].map(([label,val])=>(
+              {[['Principal & Interest',`$${fmt(pi)}`],[`Property Tax (${(TAX_RATE_DEFAULT*100).toFixed(2)}%)`,`$${fmt(taxMo)}`],['Homeowners Insurance',`$${fmt(insMo)}`],['HOA Dues','Unknown'],['PMI',hasPMI?`$${fmt(Math.round(monthlyPMI(loanAmt, ltv/100)))}`:'$0 · NONE']].map(([label,val])=>(
                 <div key={label} className="rp-piti-line"><span style={{fontSize:12,color:'#8fa3b8'}}>{label}</span><span style={{fontFamily:'DM Mono,monospace',fontSize:13,color:label==='PMI'&&!hasPMI?ac:'#f0f4ff'}}>{val}</span></div>
               ))}
             </div>

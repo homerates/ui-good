@@ -4,6 +4,8 @@ import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { EDUCATIONAL_DISCLAIMER, DATA_ATTRIBUTION } from '../../lib/disclosures';
 import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict, resolveAvm, normalizeSaleToList } from '../../lib/scoring/decisionScore';
+import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from '../../lib/constants';
+import { monthlyPMI } from '../../lib/calcEngine';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Comp {
@@ -317,8 +319,15 @@ function ReportInner() {
   const loanAmt   = price - downAmt;
   const ltv       = downPct < 80 ? (100 - downPct) : 80;
   const pi        = calcPI(loanAmt, rate);
-  const taxMo     = Math.round((price * 0.0125) / 12);
-  const insMo     = Math.round((price * 0.005) / 12);
+  // Canonical assumption rates (lib/constants.ts) -- this page has no real
+  // per-property tax/insurance fact available to it (no city/state/annual-tax
+  // field in its data contract), so it uses the same illustrative national
+  // default as lib/propertyIntelligence.ts, instead of its own invented
+  // 1.25%/0.5% figures that matched no other engine in the codebase. See
+  // Priority Corrective Workstream "Canonical Deterministic Mortgage Math
+  // Integrity" (2026-09-10) / DEBT-06.
+  const taxMo     = Math.round((price * TAX_RATE_DEFAULT) / 12);
+  const insMo     = Math.round((price * INS_RATE_DEFAULT) / 12);
   const totalPITI = pi + taxMo + insMo;
   const loanType  = loanAmt > 1_089_300 ? '30-Yr Jumbo Fixed' : '30-Yr Conventional Fixed';
   const scoringLoanType = loanAmt > 1_089_300 ? 'jumbo' : 'conventional'; // no VA/FHA path collected on this page
@@ -759,10 +768,14 @@ function ReportInner() {
               </div>
               {[
                 ['Principal & Interest', `$${fmt(pi)}`],
-                [`Property Tax (1.25%)`, `$${fmt(taxMo)}`],
+                [`Property Tax (${(TAX_RATE_DEFAULT * 100).toFixed(2)}%)`, `$${fmt(taxMo)}`],
                 ['Homeowners Insurance', `$${fmt(insMo)}`],
-                ['HOA Dues', '$0'],
-                ['PMI', hasPMI ? `$${fmt(Math.round(loanAmt * 0.008 / 12))}` : '$0 · NONE'],
+                // HOA is never a known fact on this page (no hoaMonthly field
+                // in its data contract) -- "Unknown", not a confirmed "$0",
+                // per Phase 11's HOA-unknown-vs-zero invariant. Also excluded
+                // from totalPITI above, same as before.
+                ['HOA Dues', 'Unknown'],
+                ['PMI', hasPMI ? `$${fmt(Math.round(monthlyPMI(loanAmt, ltv / 100)))}` : '$0 · NONE'],
               ].map(([label, val]) => (
                 <div key={label} className="rp-piti-line">
                   <span style={{ fontSize: 12, color: '#8fa3b8' }}>{label}</span>
