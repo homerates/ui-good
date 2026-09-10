@@ -775,3 +775,117 @@ direct assertions against the real, live Seaview property. Full regression:
 `test-external-adapter.ts` (56/56), `test-oauth-flow.ts` (45/45 + 2 pre-existing LIMITED).
 `tsc --noEmit` and full `next build` clean. Pushed to `dev` only — NOT merged to `main`,
 per explicit instruction this workstream.
+
+---
+
+## AD-23 — Source-of-truth audit (WS9): asking-price-as-AVM and sale-to-list bugs found on 5 more surfaces than AD-22 knew about; fixed via one shared helper, NOT a canonical-convergence rewrite
+
+**Decision:** AD-22 traced exactly two known "duplicate truth path" bugs on
+`app/property-report/page.tsx` (list price silently presented as "AI
+Estimate"; `market_sale_to_list` re-multiplied into "9840.0%") and flagged,
+but did not fix, either. This workstream's mandate was to inventory *every*
+property-intelligence consumer by reading actual code, not filenames — that
+inventory (13 files matched a grep for the shared scoring primitives; a
+follow-up direct-code trace of all of them) found the identical bug class
+present on **four more surfaces** nobody had audited: `app/wl-report/page.tsx`
+(the exact same "AVM-as-price" + double-percentage pair), and a narrower
+sale-to-list-normalization-only gap in `app/property-intel/page.tsx` (two
+call sites) and `app/instant/page.tsx`. `app/chat/page.tsx`'s two Decision
+Score L2/L3 refresh sites and `app/api/instant-score/route.ts` already had the
+sale-to-list guard correctly in place (from AD-21/earlier work) and never had
+the AVM-as-price bug to begin with — they were the reference-correct
+implementation this fix brought the other five sites up to.
+
+**The fix, in full:**
+1. `resolveAvm(...)` call sites in `app/property-report/page.tsx` and
+   `app/wl-report/page.tsx` no longer fall back to `?? price` — `avm` stays
+   properly nullable, matching canonical's `purchase_price_basis` behavior.
+   Every avm-dependent display ("AI Estimate", "vs. List", the L2 decision-row
+   sub-text, the Track5 handoff URL's `l2_summary`) is now gated on
+   `avm != null`.
+2. When `avm` is null, both pages show `market_median_price` labeled "Market
+   Median" (with an explicit "no independent valuation estimate retrieved
+   yet" caption) instead of hiding the valuation section entirely — Phase 5's
+   "prefer showing valuation context over hiding intelligence."
+3. The "favorable entry" / "List priced below AI estimate" claim now requires
+   a strictly positive `avmDiff` (`> 0`), not `>= 0` — it no longer asserts a
+   favorable entry when list price and AVM are identical by construction (a
+   second bug AD-22 had already named but left unfixed on this same line).
+4. A new shared `normalizeSaleToList()` helper in
+   `lib/scoring/decisionScore.ts` (next to `resolveAvm`) replaces what turned
+   out to be **six inconsistent inline copies** of the same one-line ">2 ?
+   raw/100 : raw" guard (two of which — property-report, wl-report — were
+   simply missing, which is what produced "9840.0%"; two more —
+   property-intel, instant — were also missing it before this fix). All eight
+   call sites across the codebase that feed a Grok-sourced sale-to-list value
+   into `scoreL3()` (including the two that already had it right) now call
+   the one shared function. This is a formatting-helper consolidation, not a
+   new truth path — it removes duplicate logic rather than adding any.
+
+**What was deliberately NOT done, and why (the confidence-gate call for this
+workstream):** The same audit found **nine** total first-party/API surfaces
+that independently recompute some subset of AVM/L1-L4/composite from raw
+Grok/Redfin data rather than consuming `buildCanonicalPropertyIntelligence()`
+— five that recompute AVM+scores from scratch (`property-report`, `wl-report`,
+`property-intel`, `instant`, `instant-score` API) and four more that
+recompute only the composite from caller-supplied L1-L4 inputs
+(`featured-properties`, `buyer-sessions` list + `[id]`, `track5`). Converging
+all of these onto canonical output is the "large architectural rewrite" the
+user's own WS8 clarification explicitly said needs a separate confidence
+decision, not a byproduct of a bug-fix workstream — first-party UI blast
+radius, multiple independently-evolving product surfaces (partner API,
+consumer report pages, Track5 session flow), no canonical equivalent yet
+exists for several of these pages' exact inputs (e.g. `instant-score`'s
+partner contract shape). This workstream fixed the two specific,
+low-risk, high-confidence bug patterns it was chartered to fix — asking-
+price-as-AVM and the sale-to-list unit mismatch — everywhere that exact
+pattern was found, and stopped there. No Decision Score methodology, weight,
+or formula changed anywhere; `lib/scoring/decisionScore.ts`'s L1-L4/composite
+math is untouched except for the additive `normalizeSaleToList` export.
+
+**Full truth-path inventory (Phase 1 deliverable, for the next workstream that
+picks up convergence):**
+
+| Surface | Canonical used? | Duplicate logic? | Risk of contradiction |
+|---|---|---|---|
+| `lib/propertyIntelligence.ts` / `buildCanonicalPropertyIntelligence()` | — (the source) | — | — |
+| `app/api/property/intelligence/route.ts` | YES | NO | LOW |
+| Gateway `outputShaping.ts` / MCP route | YES | NO | LOW |
+| `app/property-report/page.tsx` | NO | YES (fixed this workstream) | was HIGH, now LOW |
+| `app/wl-report/page.tsx` | NO | YES (fixed this workstream) | was HIGH, now LOW |
+| `app/chat/page.tsx` (L2/L3 deep refresh) | NO | YES (pre-existing, already correct) | MEDIUM |
+| `app/property-intel/page.tsx` | NO | YES (sale-to-list fixed; AVM fallback chain has no price-fallback) | MEDIUM |
+| `app/instant/page.tsx` | NO | YES (sale-to-list fixed) | MEDIUM |
+| `app/api/instant-score/route.ts` | NO | YES (pre-existing, already correct; partner API contract) | MEDIUM |
+| `app/(consumer)/check-property/page.tsx` | NO | YES (L1/L2/PersonalFit; no AVM-as-price fallback found) | LOW-MEDIUM |
+| `app/api/featured-properties/route.ts`, `buyer-sessions[/[id]]/route.ts`, `track5/page.tsx` | NO | PARTIAL (composite recompute from caller-supplied L1-L4 only) | LOW |
+| `app/components/DecisionScoreCard.tsx` | N/A (pure display) | NO | LOW |
+| `app/api/beta/grok-property/route.ts` | N/A (upstream data source, peer to canonical, not a consumer) | NO | — |
+| `app/admin/blueprint/page.tsx`, `app/autonomous-intelligence/page.tsx` | N/A (docs/marketing, no data) | NO | — |
+| `app/api/investor-intel/route.ts` | N/A (distinct product domain — rental yield, not sale valuation/Decision Score) | NO | — |
+| `app/api/cron/property-intelligence-deep-enrich/route.ts`, `-publish/route.ts` | N/A (orchestration/corpus-anchoring, no scoring) | NO | — |
+
+**Live Seaview verification (real property, not synthetic):** confirmed the
+property-report/wl-report-equivalent AVM computation (`resolveAvm` on the real
+`grok_property_cache` row) stays `null` for this property — same truth state
+canonical already reports (`valuation.pointEstimate: null`) — and that the
+normalized sale-to-list is `0.984` (displays "98.4%"), matching canonical's
+`market.saleToListPct: 98.4` exactly.
+
+**What was NOT changed:** Decision Score methodology, L1-L4 weights, L2/L3/L4
+formulas themselves, Rate Intelligence, LLPA, property identity rules,
+demand-driven acquisition architecture, Grok/Tavily/OpenAI provider
+architecture, OAuth, Gateway security, public Plugin visibility, the external
+contract (still v1.5 — this workstream touched zero Gateway/MCP/schema
+files).
+
+**Status:** Built. New `scripts/test-firstparty-valuation-integrity.ts`
+(29/29), including live assertions against the real Seaview property proving
+first-party's fixed logic now agrees with canonical's truth state for this
+exact property. Full regression: `test-chatgpt-invocation-contract.ts` (7/7),
+`test-deep-intelligence-parity.ts` (12/12), `test-response-semantics-cleanup.ts`
+(9/9), `test-intelligence-gateway.ts` (58/58 + 2 pre-existing LIMITED),
+`test-rate-role-correction.ts` (7/7), `test-first-party-canonical-consistency.ts`
+(10/10), `test-external-adapter.ts` (56/56), `test-oauth-flow.ts` (45/45 + 2
+pre-existing LIMITED). `tsc --noEmit` and full `next build` clean. Pushed to
+`dev` only — NOT merged to `main`, per explicit instruction this workstream.

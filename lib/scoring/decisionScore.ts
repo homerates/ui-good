@@ -266,6 +266,20 @@ export function resolveAvm(zillowEstimate?: number | null, redfinEstimate?: numb
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }
 
+// ── Sale-to-list normalization helper (for scoreL3 callers) ─────────────────
+// Grok sometimes returns market_sale_to_list as a percent (98.4) instead of
+// the ratio (0.984) scoreL3 expects -- a real ratio is never > 2. Compute the
+// `saleToList` value passed into scoreL3 (and any percent display of it) with
+// this, rather than duplicating the >2 guard inline per call site -- found
+// duplicated ad hoc, inconsistently, across 6+ call sites during the WS9
+// source-of-truth audit (2026-09-10), two of which (app/property-report and
+// app/wl-report) had skipped the guard entirely, corrupting both the L3 score
+// and the displayed percentage (e.g. "9840.0%" instead of "98.4%").
+export function normalizeSaleToList(raw?: number | null): number | null {
+  if (raw == null) return null;
+  return raw > 2 ? raw / 100 : raw;
+}
+
 // ── Personal Fit — separate first-class output, NOT part of the composite ──
 // Answers a different question than L2: does THIS specific listing fit THIS
 // buyer's own stated budget, vs. L2's buyer-independent "is this priced

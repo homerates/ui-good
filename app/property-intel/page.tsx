@@ -8,7 +8,7 @@ import AppNav from '../components/AppNav';
 import { ShareAnswerButton } from '../components/ShareAnswerButton';
 import { AIDisclosureTag } from '../components/AIDisclosureTag';
 import { normalizeListingStatus } from '@/prefetchGrokProperty';
-import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite } from '../../lib/scoring/decisionScore';
+import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, normalizeSaleToList } from '../../lib/scoring/decisionScore';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Comp {
@@ -301,7 +301,7 @@ function PropertyIntelInner() {
       ? Math.round(compDoms.reduce((a: number, b: number) => a + b, 0) / compDoms.length)
       : null;
     const dom = d2.market_median_dom ?? compDomAvg ?? d2.days_on_market ?? null;
-    const stl = d2.market_sale_to_list;
+    const stl = normalizeSaleToList(d2.market_sale_to_list);
     const l3Result = dom != null || stl != null ? scoreL3({ domMedian: dom, saleToList: stl }) : null;
     const l3Score = l3Result?.score ?? null;
     let l3Summary = l3Result?.summary ?? null;
@@ -1331,7 +1331,7 @@ function PropertyIntelInner() {
 
                   // ── L3: Market Intelligence (DOM + sale-to-list) ────────
                   const dom = d.market_median_dom;
-                  const stl = d.market_sale_to_list;
+                  const stl = normalizeSaleToList(d.market_sale_to_list);
                   const l3Res    = dom != null || stl != null ? scoreL3({ domMedian: dom, saleToList: stl }) : null;
                   const l3Score  = l3Res?.score ?? null;
                   const l3Summary = l3Res ? `${l3Res.summary}.` : null;

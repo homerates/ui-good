@@ -5,7 +5,7 @@ import { SHORT_DISCLOSURE } from '../../lib/disclosures';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNav from '../components/AppNav';
-import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict } from '../../lib/scoring/decisionScore';
+import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict, normalizeSaleToList } from '../../lib/scoring/decisionScore';
 
 // L1-L4 scoring, composite, and verdict now come from the canonical engine
 // (lib/scoring/decisionScore.ts) instead of this page's own hand-copied
@@ -223,7 +223,7 @@ function InstantInner() {
 
       // ── L3 ────────────────────────────────────────────────────────────────
       const dom = (deepResult.market_median_dom  as number | null) ?? null;
-      const stl = (deepResult.market_sale_to_list as number | null) ?? null;
+      const stl = normalizeSaleToList((deepResult.market_sale_to_list as number | null) ?? null);
       const sub = (deepResult.days_on_market     as number | null) ?? (d.daysOnMarket as number | null) ?? null;
       const socialProofNotes: string[] = [];
       if (spViews != null) socialProofNotes.push(`${spViews.toLocaleString()} Zillow views`);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdictLabel } from '../../../lib/scoring/decisionScore';
+import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdictLabel, normalizeSaleToList } from '../../../lib/scoring/decisionScore';
 
 // ── POST /api/instant-score ────────────────────────────────────────────────────
 // Partner-facing API: one call, full 4-level Decision Score + report URL.
@@ -127,9 +127,7 @@ export async function POST(req: NextRequest) {
 
     // ── L3 ───────────────────────────────────────────────────────────────────
     const dom = (deepResult.market_median_dom   as number | null) ?? null;
-    const stlRaw = (deepResult.market_sale_to_list as number | null) ?? null;
-    // Grok sometimes returns percent (100.2) instead of ratio (1.002) — a real ratio is never > 2
-    const stl = stlRaw != null && stlRaw > 2 ? stlRaw / 100 : stlRaw;
+    const stl = normalizeSaleToList((deepResult.market_sale_to_list as number | null) ?? null);
     const sub = (deepResult.days_on_market      as number | null) ?? (d.daysOnMarket as number | null) ?? null;
     const spScore = (d.socialProofScore as number | null) ?? null;
     const spViews = (d.zillowViews     as number | null) ?? null;

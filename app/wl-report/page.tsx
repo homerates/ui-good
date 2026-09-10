@@ -8,7 +8,7 @@
 import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { EDUCATIONAL_DISCLAIMER, DATA_ATTRIBUTION } from '../../lib/disclosures';
-import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict, resolveAvm } from '../../lib/scoring/decisionScore';
+import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict, resolveAvm, normalizeSaleToList } from '../../lib/scoring/decisionScore';
 
 // ── Types (mirrored from property-report) ─────────────────────────────────────
 interface Comp { address: string; sold_price: number; sold_date: string; sqft: number | null; price_per_sqft: number | null; days_on_market?: number | null; }
@@ -184,8 +184,18 @@ function WLReportInner() {
   const pi15     = calcPI(loanAmt,rate-0.47,180);
   const piARM    = calcPI(loanAmt,rate-0.63);
   const pitiIncome = (totalPITI/0.35)*12;
-  const avm      = resolveAvm(data.zillow_estimate, data.redfin_estimate) ?? price;
-  const avmDiff  = avm>0 ? ((avm-price)/avm)*100 : 0;
+  // No silent list-price-as-AVM fallback -- when Grok returns no independent
+  // estimate, avm stays null (matches canonical's purchase_price_basis
+  // behavior) rather than presenting the asking price back labeled as an
+  // "AI Estimate".
+  const avm      = resolveAvm(data.zillow_estimate, data.redfin_estimate);
+  const avmDiff  = avm!=null && avm>0 ? ((avm-price)/avm)*100 : null;
+  // Sale-to-list normalization: Grok sometimes returns a percent (98.4)
+  // instead of a ratio (0.984) -- a real ratio is never > 2 (same guard as
+  // app/api/instant-score/route.ts). scoreL3 and this page's own display both
+  // expect a ratio; passing the raw percent through silently corrupted both
+  // the L3 score and the displayed "sale-to-list" percentage (e.g. "9840.0%").
+  const saleToListRatio = normalizeSaleToList(data.market_sale_to_list);
   // L1-L4 scored via the canonical engine (lib/scoring/decisionScore.ts)
   // instead of this page's own hand-copied formulas -- Decision Score
   // consolidation, 2026-08-19. No DTI is collected on this page, so L1
@@ -193,9 +203,9 @@ function WLReportInner() {
   // prior life_fit_score L4 fallback isn't part of the canonical formula
   // and is intentionally dropped here.
   const l1Score  = scoreL1({ downPct, loanType: scoringLoanType }).score;
-  const l2Score  = scoreL2({ listPrice: price, avm })?.score ?? null;
+  const l2Score  = avm!=null ? (scoreL2({ listPrice: price, avm })?.score ?? null) : null;
   const l3Score  = scoreL3({
-    domMedian: data.market_median_dom, saleToList: data.market_sale_to_list,
+    domMedian: data.market_median_dom, saleToList: saleToListRatio,
     subjectDom: data.days_on_market, socialProofScore: data.social_proof_score,
     interestLevel: data.interest_level,
   }).score;
@@ -298,8 +308,12 @@ function WLReportInner() {
             <div className="rp-avm-row">
               {data.zillow_estimate!=null&&<div className="rp-avm-item"><span className="rp-mono-label">Zillow Est.</span><span style={{fontSize:17,fontWeight:700,color:'#60a5fa'}}>{fmtK(data.zillow_estimate)}</span>{(data.zillow_saves!=null||data.zillow_views!=null)&&<span style={{fontSize:9,color:'#4b5c70',marginTop:2,display:'block'}}>{data.zillow_views!=null&&`${data.zillow_views.toLocaleString()} views`}{data.zillow_saves!=null&&data.zillow_views!=null&&' · '}{data.zillow_saves!=null&&data.zillow_saves>0&&`${data.zillow_saves} saves`}</span>}</div>}
               {data.redfin_estimate!=null&&<div className="rp-avm-item"><span className="rp-mono-label">Redfin Est.</span><span style={{fontSize:17,fontWeight:700,color:'#fb923c'}}>{fmtK(data.redfin_estimate)}</span></div>}
-              <div className="rp-avm-item"><span className="rp-mono-label">AI Estimate</span><span style={{fontSize:17,fontWeight:700,color:ac}}>{fmtK(avm)}</span></div>
-              <div className="rp-avm-item"><span className="rp-mono-label">vs. List</span><span style={{fontSize:17,fontWeight:700,color:avmDiff>=0?ac:'#f87171'}}>{avmDiff>=0?'+':''}{avmDiff.toFixed(1)}%</span></div>
+              {avm!=null ? (<>
+                <div className="rp-avm-item"><span className="rp-mono-label">AI Estimate</span><span style={{fontSize:17,fontWeight:700,color:ac}}>{fmtK(avm)}</span></div>
+                <div className="rp-avm-item"><span className="rp-mono-label">vs. List</span><span style={{fontSize:17,fontWeight:700,color:(avmDiff??0)>=0?ac:'#f87171'}}>{(avmDiff??0)>=0?'+':''}{(avmDiff??0).toFixed(1)}%</span></div>
+              </>) : data.market_median_price!=null ? (
+                <div className="rp-avm-item"><span className="rp-mono-label">Market Median</span><span style={{fontSize:17,fontWeight:700,color:'#8fa3b8'}}>{fmtK(data.market_median_price)}</span><span style={{fontSize:9,color:'#4b5c70',marginTop:2,display:'block'}}>No independent valuation estimate retrieved yet — area median shown instead</span></div>
+              ) : null}
             </div>
           </div>
           <div className="rp-col">
@@ -311,7 +325,7 @@ function WLReportInner() {
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
               <div className="rp-mkt-card"><div className="rp-mono-label">Area Avg DOM</div><div className="rp-mkt-val">{data.market_median_dom??'—'}<span style={{fontSize:11,color:'#4b5c70'}}>d</span></div></div>
-              <div className="rp-mkt-card"><div className="rp-mono-label">Sale / List</div><div className="rp-mkt-val">{data.market_sale_to_list!=null?`${(data.market_sale_to_list*100).toFixed(1)}%`:'—'}</div></div>
+              <div className="rp-mkt-card"><div className="rp-mono-label">Sale / List</div><div className="rp-mkt-val">{saleToListRatio!=null?`${(saleToListRatio*100).toFixed(1)}%`:'—'}</div></div>
               <div className="rp-mkt-card"><div className="rp-mono-label">Median Price</div><div className="rp-mkt-val" style={{fontSize:15}}>{fmtK(data.market_median_price)}</div></div>
             </div>
             {comps.length>0&&(
@@ -478,7 +492,7 @@ function WLReportInner() {
 
         <div className="rp-ds-levels">
           <div className="rp-mono-label" style={{marginBottom:6}}>4 Decision Levels</div>
-          {[{n:'L1',name:'Financial Readiness',weight:'35%',score:l1Score,sub:`${loanType} · ${downPct}% down · ${ltv.toFixed(1)}% LTV · ${rate}% rate${hasPMI?' · PMI applies':' · No PMI'}. Income threshold ~$${fmt(Math.round(pitiIncome))}/yr.`},{n:'L2',name:'Property Evaluation',weight:'25%',score:l2Score,sub:`PITI $${fmt(totalPITI)}/mo. AI value estimate ${fmtK(avm)} vs list ${fmtK(price)} (${avmDiff>=0?'+':''}${avmDiff.toFixed(1)}%). ${avmDiff>=0?'List priced below AI estimate.':'List above AI estimate — negotiate or appraise.'}`},{n:'L3',name:'Market Intelligence',weight:'25%',score:l3Score,sub:`Median DOM ${data.market_median_dom??'—'}d, sale-to-list ${data.market_sale_to_list!=null?`${(data.market_sale_to_list*100).toFixed(1)}%`:'—'}. Subject at ${data.days_on_market??'—'} DOM.`},...(l4Score!=null?[{n:'L4',name:'Location Intelligence',weight:'15%',score:l4Score,sub:data.location_intelligence?`${data.location_intelligence.sub_scores.slice(0,3).map(s=>`${s.metric}: ${s.rating} (${s.score})`).join('. ')}.`:`Overall location score: ${l4Score}/100.`}]:[])].map(lvl=>(
+          {[{n:'L1',name:'Financial Readiness',weight:'35%',score:l1Score,sub:`${loanType} · ${downPct}% down · ${ltv.toFixed(1)}% LTV · ${rate}% rate${hasPMI?' · PMI applies':' · No PMI'}. Income threshold ~$${fmt(Math.round(pitiIncome))}/yr.`},{n:'L2',name:'Property Evaluation',weight:'25%',score:l2Score,sub:avm!=null?`PITI $${fmt(totalPITI)}/mo. AI value estimate ${fmtK(avm)} vs list ${fmtK(price)} (${(avmDiff??0)>=0?'+':''}${(avmDiff??0).toFixed(1)}%). ${(avmDiff??0)>0?'List priced below AI estimate.':(avmDiff??0)<0?'List above AI estimate — negotiate or appraise.':'List priced at AI estimate.'}`:`PITI $${fmt(totalPITI)}/mo. No independent valuation estimate has been retrieved yet.${data.market_median_price!=null?` Area median price is ${fmtK(data.market_median_price)}.`:''}`},{n:'L3',name:'Market Intelligence',weight:'25%',score:l3Score,sub:`Median DOM ${data.market_median_dom??'—'}d, sale-to-list ${saleToListRatio!=null?`${(saleToListRatio*100).toFixed(1)}%`:'—'}. Subject at ${data.days_on_market??'—'} DOM.`},...(l4Score!=null?[{n:'L4',name:'Location Intelligence',weight:'15%',score:l4Score,sub:data.location_intelligence?`${data.location_intelligence.sub_scores.slice(0,3).map(s=>`${s.metric}: ${s.rating} (${s.score})`).join('. ')}.`:`Overall location score: ${l4Score}/100.`}]:[])].map(lvl=>(
             <div key={lvl.n} className="rp-ds-row">
               <div className="rp-ds-circle" style={{borderColor:scoreColor(lvl.score),color:scoreColor(lvl.score)}}>{lvl.score}</div>
               <div style={{flex:1}}>

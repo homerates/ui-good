@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { EDUCATIONAL_DISCLAIMER, DATA_ATTRIBUTION } from '../../lib/disclosures';
-import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict, resolveAvm } from '../../lib/scoring/decisionScore';
+import { scoreL1, scoreL2, scoreL3, scoreL4, computeComposite, verdict, resolveAvm, normalizeSaleToList } from '../../lib/scoring/decisionScore';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Comp {
@@ -338,14 +338,24 @@ function ReportInner() {
   const pitiIncome = (totalPITI / 0.35) * 12;  // annual income required at 35% DTI
   const l1Score    = scoreL1({ downPct, loanType: scoringLoanType }).score;
 
-  // L2: market position (AVM vs list)
-  const avm = resolveAvm(data.zillow_estimate, data.redfin_estimate) ?? price;
-  const avmDiff = avm > 0 ? ((avm - price) / avm) * 100 : 0;
-  const l2Score = scoreL2({ listPrice: price, avm })?.score ?? null;
+  // L2: market position (AVM vs list). No silent list-price-as-AVM fallback --
+  // when Grok returns no independent estimate, avm stays null (matches
+  // canonical's purchase_price_basis behavior) rather than presenting the
+  // asking price back to the user labeled as an "AI Estimate".
+  const avm = resolveAvm(data.zillow_estimate, data.redfin_estimate);
+  const avmDiff = avm != null && avm > 0 ? ((avm - price) / avm) * 100 : null;
+  const l2Score = avm != null ? (scoreL2({ listPrice: price, avm })?.score ?? null) : null;
+
+  // Sale-to-list normalization: Grok sometimes returns a percent (98.4)
+  // instead of a ratio (0.984) -- a real ratio is never > 2 (same guard as
+  // app/api/instant-score/route.ts). scoreL3 and this page's own display both
+  // expect a ratio; passing the raw percent through silently corrupted both
+  // the L3 score and the displayed "sale-to-list" percentage (e.g. "9840.0%").
+  const saleToListRatio = normalizeSaleToList(data.market_sale_to_list);
 
   // L3: market timing (DOM, sale-to-list)
   const l3Score = scoreL3({
-    domMedian: data.market_median_dom, saleToList: data.market_sale_to_list,
+    domMedian: data.market_median_dom, saleToList: saleToListRatio,
     subjectDom: data.days_on_market, socialProofScore: data.social_proof_score,
     interestLevel: data.interest_level,
   }).score;
@@ -370,7 +380,9 @@ function ReportInner() {
     p.set('l1_score',   String(l1Score));
     p.set('l1_summary', `${loanType} · ${downPct}% down · LTV ${ltv.toFixed(1)}% · ${rate}% rate`);
     p.set('l2_score',   String(l2Score));
-    p.set('l2_summary', `Listed ${avmDiff >= 0 ? '+' : ''}${avmDiff.toFixed(1)}% vs AVM ${fmtK(avm)}`);
+    p.set('l2_summary', avm != null
+      ? `Listed ${(avmDiff ?? 0) >= 0 ? '+' : ''}${(avmDiff ?? 0).toFixed(1)}% vs AVM ${fmtK(avm)}`
+      : `No independent valuation estimate available${data.market_median_price != null ? ` — area median ${fmtK(data.market_median_price)}` : ''}`);
     p.set('l3_score',   String(l3Score));
     p.set('l3_summary', `DOM ${data.days_on_market ?? '—'}d${data.market_median_dom ? `, area median ${data.market_median_dom}d` : ''}`);
     if (l4Score != null) {
@@ -550,16 +562,26 @@ function ReportInner() {
                   <span style={{ fontSize: 17, fontWeight: 700, color: '#fb923c' }}>{fmtK(data.redfin_estimate)}</span>
                 </div>
               )}
-              <div className="rp-avm-item">
-                <span className="rp-mono-label">AI Estimate</span>
-                <span style={{ fontSize: 17, fontWeight: 700, color: '#4ade80' }}>{fmtK(avm)}</span>
-              </div>
-              <div className="rp-avm-item">
-                <span className="rp-mono-label">vs. List</span>
-                <span style={{ fontSize: 17, fontWeight: 700, color: avmDiff >= 0 ? '#4ade80' : '#f87171' }}>
-                  {avmDiff >= 0 ? '+' : ''}{avmDiff.toFixed(1)}%
-                </span>
-              </div>
+              {avm != null ? (
+                <>
+                  <div className="rp-avm-item">
+                    <span className="rp-mono-label">AI Estimate</span>
+                    <span style={{ fontSize: 17, fontWeight: 700, color: '#4ade80' }}>{fmtK(avm)}</span>
+                  </div>
+                  <div className="rp-avm-item">
+                    <span className="rp-mono-label">vs. List</span>
+                    <span style={{ fontSize: 17, fontWeight: 700, color: (avmDiff ?? 0) >= 0 ? '#4ade80' : '#f87171' }}>
+                      {(avmDiff ?? 0) >= 0 ? '+' : ''}{(avmDiff ?? 0).toFixed(1)}%
+                    </span>
+                  </div>
+                </>
+              ) : data.market_median_price != null ? (
+                <div className="rp-avm-item">
+                  <span className="rp-mono-label">Market Median</span>
+                  <span style={{ fontSize: 17, fontWeight: 700, color: '#8fa3b8' }}>{fmtK(data.market_median_price)}</span>
+                  <span style={{ fontSize: 9, color: '#4b5c70', marginTop: 2, display: 'block' }}>No independent valuation estimate retrieved yet — area median shown instead</span>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -617,7 +639,7 @@ function ReportInner() {
               </div>
               <div className="rp-mkt-card">
                 <div className="rp-mono-label">Sale / List</div>
-                <div className="rp-mkt-val">{data.market_sale_to_list != null ? `${(data.market_sale_to_list * 100).toFixed(1)}%` : '—'}</div>
+                <div className="rp-mkt-val">{saleToListRatio != null ? `${(saleToListRatio * 100).toFixed(1)}%` : '—'}</div>
               </div>
               <div className="rp-mkt-card">
                 <div className="rp-mono-label">Median Price</div>
@@ -996,11 +1018,13 @@ function ReportInner() {
             },
             {
               n: 'L2', name: 'Property Evaluation', weight: '25%', score: l2Score,
-              sub: `${address} — PITI $${fmt(totalPITI)}/mo. AI value estimate ${fmtK(avm)} vs list ${fmtK(price)} (${avmDiff >= 0 ? '+' : ''}${avmDiff.toFixed(1)}%). ${avmDiff >= 0 ? 'List priced below AI estimate — favorable entry.' : 'List priced above AI estimate — negotiate or appraise.'}`,
+              sub: avm != null
+                ? `${address} — PITI $${fmt(totalPITI)}/mo. AI value estimate ${fmtK(avm)} vs list ${fmtK(price)} (${(avmDiff ?? 0) >= 0 ? '+' : ''}${(avmDiff ?? 0).toFixed(1)}%). ${(avmDiff ?? 0) > 0 ? 'List priced below AI estimate — favorable entry.' : (avmDiff ?? 0) < 0 ? 'List priced above AI estimate — negotiate or appraise.' : 'List priced at AI estimate — market-rate entry.'}`
+                : `${address} — PITI $${fmt(totalPITI)}/mo. No independent valuation estimate has been retrieved yet.${data.market_median_price != null ? ` Area median price is ${fmtK(data.market_median_price)}.` : ''}`,
             },
             {
               n: 'L3', name: 'Market Intelligence', weight: '25%', score: l3Score,
-              sub: `Median DOM ${data.market_median_dom ?? '—'}d, sale-to-list ${data.market_sale_to_list != null ? `${(data.market_sale_to_list * 100).toFixed(1)}%` : '—'}. Subject at ${data.days_on_market ?? '—'} DOM. ${(data.market_sale_to_list ?? 0) > 0.99 ? 'Sellers near full ask — limited negotiation room.' : 'Some negotiation room exists.'}`,
+              sub: `Median DOM ${data.market_median_dom ?? '—'}d, sale-to-list ${saleToListRatio != null ? `${(saleToListRatio * 100).toFixed(1)}%` : '—'}. Subject at ${data.days_on_market ?? '—'} DOM. ${saleToListRatio != null ? (saleToListRatio > 0.99 ? 'Sellers near full ask — limited negotiation room.' : 'Some negotiation room exists.') : ''}`,
             },
             ...(l4Score != null ? [{
               n: 'L4', name: 'Location Intelligence', weight: '15%', score: l4Score,
