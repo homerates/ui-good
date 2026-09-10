@@ -77,6 +77,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveExternalPropertyIntelligence } from '../../../../lib/externalPropertyResolution';
+import { getBenchmarkRatesGated } from '../../../../lib/gateway/benchmarkRatesGateway';
 
 const TOOL_NAME = 'get_property_intelligence';
 // Both revisions accepted -- 2025-11-25 is what real production clients
@@ -196,6 +197,37 @@ const INPUT_SCHEMA = {
     },
   },
   required: ['address'],
+  additionalProperties: false,
+} as const;
+
+// North Star Workstream 10 (2026-09-10) -- second tool on this same MCP
+// server. Deliberately address-independent and borrower-independent: it
+// answers "what's a current mortgage rate benchmark," not "what rate would
+// THIS buyer get" -- that second question is Rate Intelligence's own
+// OBMMI/LLPA-segmented territory, never exposed externally (see
+// lib/market-data/benchmarkRates.ts's header for the full boundary).
+const BENCHMARK_RATES_TOOL_NAME = 'get_benchmark_rates';
+const BENCHMARK_RATES_TOOL_DESCRIPTION =
+  'Use this tool when the user asks for a current mortgage rate, benchmark, or reference ' +
+  'rate -- "what are mortgage rates today," "what\'s a typical 30-year rate right now," or ' +
+  'a mortgage-related calculation that depends on a current market rate -- and no specific ' +
+  'property or borrower scenario is involved. Do not rely on model memory for a current ' +
+  'rate value when this tool is available; training data is never current for a rate that ' +
+  'moves weekly. Returns three neutral, national reference rates (30-year fixed, 15-year ' +
+  'fixed, 5/1 ARM), each sourced from Federal Reserve Economic Data (FRED) -- these are ' +
+  'published national averages, not a quote or offer to any individual borrower, and do ' +
+  'not reflect any specific credit score, down payment, or loan program. Each rate carries ' +
+  'its own as_of date (the date of the underlying data point, not when this tool was ' +
+  'called) and freshness_status: CURRENT (recently published), STALE (older than expected ' +
+  'for this weekly series -- treat with more caution but it is still the most recent value ' +
+  'HomeRates has), or UNAVAILABLE (no data on file -- value is null; never treat null as ' +
+  'zero or invent a figure). Always state the as_of date when citing a rate, and note that ' +
+  "these are national averages, not a specific quote -- an individual borrower's actual " +
+  'rate depends on their credit, down payment, and loan program, which this tool does not ' +
+  'ask for. This tool does not accept any input.';
+const BENCHMARK_RATES_INPUT_SCHEMA = {
+  type: 'object',
+  properties: {},
   additionalProperties: false,
 } as const;
 
@@ -342,6 +374,54 @@ function withServerMeta(result: Record<string, unknown>) {
   return { ...result, _meta: { 'io.modelcontextprotocol/serverInfo': SERVER_INFO } };
 }
 
+// Shared Gateway-rejection -> MCP/HTTP response mapping, used by both tools
+// on this server. Phase OB -- UNAUTHORIZED/FORBIDDEN are the two Gateway
+// rejections the MCP 2026-07-28 Authorization spec's "Error Handling"
+// section actually governs ("Invalid or expired tokens MUST receive a HTTP
+// 401 response"; insufficient scope gets 403 + a WWW-Authenticate
+// challenge) -- this is what lets an OAuth-aware client (ChatGPT) detect it
+// needs to authorize at all and discover where. Every OTHER Gateway
+// rejection (SERVICE_DISABLED/RATE_LIMITED/INVALID_REQUEST/INTERNAL_ERROR)
+// is unchanged from Phase A-G: still a plain JSON-RPC 200 isError:true
+// result, since those aren't authorization errors in the spec's sense.
+// `scopeForForbidden` names the scope this specific tool actually needs, so
+// a 403 for get_benchmark_rates correctly advertises benchmark_rates:read
+// rather than property_intelligence:read (even though either currently
+// grants access -- see lib/gateway/auth.ts's requireAnyScope()).
+function mapGatewayRejection(
+  id: string | number | null | undefined,
+  result: { error: string; message: string },
+  scopeForForbidden: string,
+) {
+  const resourceMetadataUrl = 'https://homerates.ai/.well-known/oauth-protected-resource';
+  if (result.error === 'UNAUTHORIZED') {
+    return NextResponse.json(
+      { error: 'invalid_token', error_description: result.message },
+      { status: 401, headers: { 'WWW-Authenticate': `Bearer resource_metadata="${resourceMetadataUrl}"` } },
+    );
+  }
+  if (result.error === 'FORBIDDEN') {
+    return NextResponse.json(
+      { error: 'insufficient_scope', error_description: result.message, scope: scopeForForbidden },
+      {
+        status: 403,
+        headers: {
+          'WWW-Authenticate': `Bearer error="insufficient_scope", scope="${scopeForForbidden}", resource_metadata="${resourceMetadataUrl}"`,
+        },
+      },
+    );
+  }
+
+  // Every remaining Gateway rejection (SERVICE_DISABLED/RATE_LIMITED/
+  // INVALID_REQUEST/INTERNAL_ERROR) maps uniformly -- no new business-status
+  // meaning invented, unchanged from Phase G.
+  return jsonRpcResult(id, withServerMeta({
+    resultType: 'complete',
+    content: [{ type: 'text', text: `${result.error}: ${result.message}` }],
+    isError: true,
+  }));
+}
+
 export async function POST(req: NextRequest) {
   // Origin validation (DNS-rebinding guard, spec "Security & Endpoint").
   // This deployment is a normal internet-facing HTTPS API (not a
@@ -415,7 +495,10 @@ export async function POST(req: NextRequest) {
     if (invalid) return invalid;
     return jsonRpcResult(id, withServerMeta({
       resultType: 'complete',
-      tools: [{ name: TOOL_NAME, description: TOOL_DESCRIPTION, inputSchema: INPUT_SCHEMA }],
+      tools: [
+        { name: TOOL_NAME, description: TOOL_DESCRIPTION, inputSchema: INPUT_SCHEMA },
+        { name: BENCHMARK_RATES_TOOL_NAME, description: BENCHMARK_RATES_TOOL_DESCRIPTION, inputSchema: BENCHMARK_RATES_INPUT_SCHEMA },
+      ],
     }));
   }
 
@@ -424,12 +507,28 @@ export async function POST(req: NextRequest) {
     if (invalid) return invalid;
 
     const toolName = params?.name;
-    if (toolName !== TOOL_NAME) {
+
+    if (toolName !== TOOL_NAME && toolName !== BENCHMARK_RATES_TOOL_NAME) {
       return jsonRpcResult(id, withServerMeta({
         resultType: 'complete',
         content: [{ type: 'text', text: `Unknown tool: ${String(toolName)}` }],
         isError: true,
       }));
+    }
+
+    const apiKeyHeader = extractBearerToken(req);
+    const requestIp = extractRequestIp(req);
+
+    if (toolName === BENCHMARK_RATES_TOOL_NAME) {
+      const result = await getBenchmarkRatesGated(apiKeyHeader, requestIp);
+      if (result.ok) {
+        return jsonRpcResult(id, withServerMeta({
+          resultType: 'complete',
+          content: [{ type: 'text', text: JSON.stringify(result.data) }],
+          isError: false,
+        }));
+      }
+      return mapGatewayRejection(id, result, 'benchmark_rates:read');
     }
 
     // No address validation here -- passed straight through unchanged.
@@ -438,9 +537,6 @@ export async function POST(req: NextRequest) {
     // validation the Gateway already owns.
     const args = params?.arguments as { address?: unknown } | undefined;
     const address = typeof args?.address === 'string' ? args.address : '';
-
-    const apiKeyHeader = extractBearerToken(req);
-    const requestIp = extractRequestIp(req);
 
     // resolveExternalPropertyIntelligence() (lib/externalPropertyResolution.ts,
     // 2026-09-08) calls the UNCHANGED getPropertyIntelligence() Gateway
@@ -457,45 +553,7 @@ export async function POST(req: NextRequest) {
         isError: false,
       }));
     }
-
-    // Phase OB -- UNAUTHORIZED/FORBIDDEN are the two Gateway rejections the
-    // MCP 2026-07-28 Authorization spec's "Error Handling" section actually
-    // governs ("Invalid or expired tokens MUST receive a HTTP 401
-    // response"; insufficient scope gets 403 + a WWW-Authenticate
-    // challenge) -- this is what lets an OAuth-aware client (ChatGPT)
-    // detect it needs to authorize at all and discover where. Every OTHER
-    // Gateway rejection (SERVICE_DISABLED/RATE_LIMITED/INVALID_REQUEST/
-    // INTERNAL_ERROR) is unchanged from Phase A-G: still a plain JSON-RPC
-    // 200 isError:true result, since those aren't authorization errors in
-    // the spec's sense and inventing a different HTTP status for them
-    // would be new behavior nothing asked for.
-    const resourceMetadataUrl = 'https://homerates.ai/.well-known/oauth-protected-resource';
-    if (result.error === 'UNAUTHORIZED') {
-      return NextResponse.json(
-        { error: 'invalid_token', error_description: result.message },
-        { status: 401, headers: { 'WWW-Authenticate': `Bearer resource_metadata="${resourceMetadataUrl}"` } },
-      );
-    }
-    if (result.error === 'FORBIDDEN') {
-      return NextResponse.json(
-        { error: 'insufficient_scope', error_description: result.message, scope: 'property_intelligence:read' },
-        {
-          status: 403,
-          headers: {
-            'WWW-Authenticate': `Bearer error="insufficient_scope", scope="property_intelligence:read", resource_metadata="${resourceMetadataUrl}"`,
-          },
-        },
-      );
-    }
-
-    // Every remaining Gateway rejection (SERVICE_DISABLED/RATE_LIMITED/
-    // INVALID_REQUEST/INTERNAL_ERROR) maps uniformly -- no new business-
-    // status meaning invented, unchanged from Phase G.
-    return jsonRpcResult(id, withServerMeta({
-      resultType: 'complete',
-      content: [{ type: 'text', text: `${result.error}: ${result.message}` }],
-      isError: true,
-    }));
+    return mapGatewayRejection(id, result, 'property_intelligence:read');
   }
 
   // Unknown method -- per spec, HTTP 404 (not 200) + JSON-RPC -32601. A

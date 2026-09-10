@@ -32,7 +32,11 @@ const SECRET_BYTES = 32; // -> 64 hex chars, 256 bits of real entropy. This part
 
 const KEY_FORMAT = new RegExp(`^${KEY_LABEL}_([0-9a-f]{${PREFIX_BYTES * 2}})_([0-9a-f]{${SECRET_BYTES * 2}})$`);
 
-export const ALLOWED_GATEWAY_SCOPES = ['property_intelligence:read'] as const;
+// benchmark_rates:read added 2026-09-10 (WS10) -- a narrower scope for a
+// future admin-issued partner credential that should see neutral benchmark
+// rates but not property data. Additive only: property_intelligence:read's
+// existing behavior, and every existing credential's scopes, are unchanged.
+export const ALLOWED_GATEWAY_SCOPES = ['property_intelligence:read', 'benchmark_rates:read'] as const;
 export type GatewayScope = (typeof ALLOWED_GATEWAY_SCOPES)[number];
 
 function sha256Hex(input: string): string {

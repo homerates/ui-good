@@ -76,3 +76,16 @@ export function requireScope(context: CallerContext, scope: string): GatewayAuth
   }
   return null;
 }
+
+// Additive (2026-09-10, WS10): OR-logic scope check for a capability that
+// accepts more than one home scope -- e.g. get_benchmark_rates accepts the
+// existing property_intelligence:read scope (the only scope the live OAuth/
+// ChatGPT integration can be issued -- see lib/gateway/oauth.ts's
+// SUPPORTED_OAUTH_SCOPE, deliberately unchanged) as well as a narrower,
+// dedicated benchmark_rates:read scope for a future admin-issued partner
+// credential that should see rates but not property data. Does not change
+// requireScope()'s existing single-scope behavior at all.
+export function requireAnyScope(context: CallerContext, scopes: string[]): GatewayAuthError | null {
+  if (scopes.some((s) => context.scopes.includes(s))) return null;
+  return { ok: false, error: 'FORBIDDEN', message: FORBIDDEN_MESSAGE };
+}
