@@ -3,9 +3,15 @@
 // Invocable-by-Design Contract Foundation (2026-09-10) -- platform-neutral
 // golden-prompt fixture. 10 representative prompts an AI agent (ChatGPT,
 // Claude, Grok, Gemini -- any MCP-compatible caller) might plausibly issue
-// against this server, 5 "positive" (a real, exposed tool should answer
-// correctly) and 5 "negative-guardrail" (the correct behavior is to NOT
-// fabricate a capability, tool, or claim that doesn't exist). Each prompt is
+// against this server, originally 5 "positive" (a real, exposed tool should
+// answer correctly) and 5 "negative-guardrail" (the correct behavior is to
+// NOT fabricate a capability, tool, or claim that doesn't exist). UPDATED
+// 2026-09-11 (Invocable Tool Workstream): P3 was a negative-guardrail
+// ("loan limit tool doesn't exist") when written -- now that
+// homerates_loan_limit_intelligence is real and exposed, asserting its
+// absence would itself be a false test, so P3 was reclassified to positive
+// (6 positive / 4 negative-guardrail now) and rewritten as a real
+// executable call against the tool, matching P8's style. Each prompt is
 // scored on the dimensions the brief specified: right-tool, right-claim-type,
 // source-as-of-correct, no-fabricated-precision, no-program-overclaim,
 // no-silent-assumptions -- via real, executable assertions against the
@@ -138,17 +144,19 @@ async function main() {
       record('P10', 'positive', 'Can I trust this as the actual rate a lender will quote me?', 'no-program-overclaim', ok, 'BENCHMARK_RATES_TOOL_DESCRIPTION explicitly disclaims individual-borrower dependency');
     }
 
-    // ── NEGATIVE-GUARDRAIL prompts: no exposed tool / no fabrication ──
-
-    // P3 -- "What's the 2026 conforming/FHA loan limit for this county?"
-    // homerates_loan_limit_intelligence is NOT exposed -- tools/list must
-    // show exactly the 2 real tools, nothing named for loan limits.
+    // P3 -- "What's the 2026 conforming loan limit for Ventura County, CA?"
+    // -- REAL executable call. right-tool: homerates_loan_limit_intelligence
+    // (exposed 2026-09-11). Verifies the real Ventura County high-balance
+    // limit comes back correctly classified, not a guessed/default figure.
     {
-      const r = await callAdapter({ jsonrpc: '2.0', id: 3001, method: 'tools/list', params: { _meta: meta() } }, mcpHeaders('tools/list', null));
-      const names: string[] = (r.json?.result?.tools ?? []).map((t: any) => t.name);
-      const ok = names.length === 2 && !names.some((n) => /loan_limit/i.test(n));
-      record('P3', 'negative-guardrail', "What's the 2026 conforming/FHA loan limit for this county?", 'no-silent-assumptions (tool honestly absent)', ok, JSON.stringify(names));
+      const body = { jsonrpc: '2.0', id: 3001, method: 'tools/call', params: { name: 'homerates_loan_limit_intelligence', arguments: { county: 'Ventura', state: 'CA', loan_amount: 1000000 }, _meta: meta() } };
+      const r = await callAdapter(body, { ...mcpHeaders('tools/call', 'homerates_loan_limit_intelligence'), ...authHeaders });
+      const data = r.json?.result?.content?.[0]?.text ? JSON.parse(r.json.result.content[0].text) : null;
+      const ok = r.status === 200 && data?.contract_version === 'loan-limit-intelligence-v1' && data?.county_conforming_limit?.is_high_balance === true && data?.classification?.conventional === 'HIGH_BALANCE';
+      record('P3', 'positive', "What's the 2026 conforming loan limit for Ventura County, CA?", 'right-tool / right-claim-type (real call)', ok, JSON.stringify(data));
     }
+
+    // ── NEGATIVE-GUARDRAIL prompts: no exposed tool / no fabrication ──
 
     // P4 -- "What's the maximum loan amount this borrower can qualify for
     // given their income and debts?" -- homerates_buyer_capacity_intelligence
@@ -156,7 +164,7 @@ async function main() {
     {
       const r = await callAdapter({ jsonrpc: '2.0', id: 4001, method: 'tools/list', params: { _meta: meta() } }, mcpHeaders('tools/list', null));
       const names: string[] = (r.json?.result?.tools ?? []).map((t: any) => t.name);
-      const ok = names.length === 2 && !names.some((n) => /buyer_capacity|qualif/i.test(n));
+      const ok = names.length === 3 && !names.some((n) => /buyer_capacity|qualif/i.test(n));
       record('P4', 'negative-guardrail', 'What is the maximum loan amount this borrower can qualify for?', 'no-silent-assumptions (tool honestly absent)', ok, JSON.stringify(names));
     }
 
@@ -165,7 +173,7 @@ async function main() {
     {
       const r = await callAdapter({ jsonrpc: '2.0', id: 5001, method: 'tools/list', params: { _meta: meta() } }, mcpHeaders('tools/list', null));
       const names: string[] = (r.json?.result?.tools ?? []).map((t: any) => t.name);
-      const ok = names.length === 2 && !names.some((n) => /scenario/i.test(n));
+      const ok = names.length === 3 && !names.some((n) => /scenario/i.test(n));
       record('P5', 'negative-guardrail', 'Run a full conventional-vs-FHA scenario comparison for me.', 'no-silent-assumptions (tool honestly absent)', ok, JSON.stringify(names));
     }
 

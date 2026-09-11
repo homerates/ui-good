@@ -1514,3 +1514,115 @@ visibility (still on hold). No true methodology conflict was found.
 `test-seeded-scenario-canonicalization.ts` (31/31),
 `test-conventional-classification.ts` (21/21). Pushed to `dev` only — NOT
 merged to `main`, no production push, no public directory submission.
+
+## AD-30 — homerates_loan_limit_intelligence (third exposed tool)
+
+**Decision:** Exposed the third of the locked 5 intents,
+`homerates_loan_limit_intelligence`, as a read-only external tool on the
+same MCP server. AD-29 explicitly left this intent unexposed pending its
+own readiness check ("closest to ready, but no external contract exists
+yet") — this workstream is that dedicated check, done properly rather than
+as a naming-exercise byproduct.
+
+**Reuses the existing engine verbatim, no duplicate tables:** the new
+`lib/pricing/loanLimitIntelligence.ts` calls AD-28's
+`classifyConventionalLoan()` (`lib/pricing/conforming-limits.ts`) directly
+for the conventional classification axis, and reads `CA_LOAN_LIMITS_2026`
+(`lib/loanLimits2026.ts`) / `HIGH_COST_COUNTIES` +
+`NATIONAL_CONFORMING_BASELINE` (`lib/loanLimitsNational2026.ts`) for every
+raw limit figure — no second loan-limit data table was authored. ZIP→county
+resolution reuses the identical `geo_crosswalk` + `hud_features` Supabase
+query pattern already proven live in `app/api/zip-county-lookup/route.ts`
+and `app/api/ami-qualifier/route.ts` (same tables, same null-county-name
+fallback), extracted into an importable function rather than copied a
+third time inline.
+
+**A real, honest data gap, not a stale constant:** FHA per-county limits
+are genuinely CA-only in this codebase — confirmed directly, not assumed.
+`CA_LOAN_LIMITS_2026` carries a real HUD FHA figure for every one of its 58
+counties, but `loanLimitsNational2026.ts`'s `HIGH_COST_COUNTIES` (every
+other state) has never carried FHA data, and FHA county limits are NOT a
+simple function of the GSE conforming limit — proof: Alpine, CA is
+GSE-standard (conforming = the $832,750 baseline, not high-balance) but its
+real FHA limit is $736,000, well above the $541,287 national FHA floor. No
+formula safely derives a non-CA county's FHA limit from data this codebase
+has, so the tool honestly reports `fha_county_limit.status: 'UNAVAILABLE'`
+for every non-CA county rather than fabricating a number or silently
+reusing the conforming figure. This is the direct, positive-side answer to
+the brief's "do not expose any stale 2024 FHA constant" instruction: no
+2024 constant of any kind exists anywhere in the new files (checked by a
+dedicated regression assertion), and no non-CA FHA figure is invented in
+its place.
+
+**Year semantics:** `CURRENT_LOAN_LIMIT_YEAR = 2026` is the only year this
+codebase has real data for. Requesting any other year still resolves the
+county (geography doesn't depend on year) but returns every limit and
+classification field as `UNAVAILABLE` rather than silently carrying over
+the 2026 figures under a different year label.
+
+**Input contract:** ZIP **or** county+state (never forces the model to
+infer a county when a ZIP is available — ZIP resolution is attempted
+first and is authoritative when present), `units` (1-4), optional `year`,
+optional `loan_amount`, optional `program` (`conventional`/`fha`/`both`,
+default `both`). The raw limit figures
+(`national_baseline_limit`/`county_conforming_limit`/`fha_county_limit`)
+are always returned regardless of `program` — only the *classification*
+step is scoped by it, since scoping a plain published fact to "what was
+asked" isn't a safety property, only classification (a computed judgment)
+meaningfully has a "which program" question to answer.
+
+**Classification enum** (shared across both the conventional and FHA axes):
+`CONFORMING | HIGH_BALANCE | ABOVE_CONFORMING_LIMIT | WITHIN_FHA_LIMIT |
+ABOVE_FHA_LIMIT | COUNTY_REQUIRED | UNAVAILABLE`, per the brief exactly.
+`COUNTY_REQUIRED` only fires when a county is genuinely needed and none
+resolved — a loan amount far enough above every possible ceiling classifies
+`ABOVE_CONFORMING_LIMIT` immediately without forcing a county search
+(reusing `classifyConventionalLoan()`'s existing short-circuit, computed
+here from the real tables at module load rather than a second hardcoded
+ceiling constant). Never recommends Conventional vs. jumbo, never states
+loan approval/eligibility, never touches pricing — the tool description
+explicitly disclaims all three, and no such field exists in the schema.
+
+**Scope:** new `loan_limit_intelligence:read`, additive to
+`ALLOWED_GATEWAY_SCOPES`, accepted via the same `requireAnyScope()`
+OR-logic as `benchmark_rates:read` — an existing
+`property_intelligence:read` credential (including the live OAuth/ChatGPT
+integration) can call this tool with zero re-onboarding.
+
+**Golden test matrix (`scripts/test-loan-limit-intelligence.ts`, 39/39),
+covering every case the brief named:** Ventura County, Los Angeles County,
+a non-high-cost county (Fresno), 1-unit and 2-unit, exact baseline, $1
+above baseline (proving the standard-county edge case: $1 above baseline in
+a county whose own ceiling equals the baseline is `ABOVE_CONFORMING_LIMIT`,
+never `HIGH_BALANCE` — there is no high-balance tier to fall into),
+exact county limit, $1 above county limit (both conventional and FHA
+axes), unknown ZIP/county, and wrong year — plus schema validation, scope
+tests (including the narrower-scope-is-genuinely-narrower check), request
+validation (`INVALID_REQUEST` for missing location/bad zip/bad units/bad
+program), a real end-to-end `tools/call` against the live route, and the
+no-stale-2024-constant regression check.
+
+**What was NOT changed:** `classifyConventionalLoan()`, the FHFA/HUD data
+tables, Decision Score, Rate Intelligence, LLPA methodology, the other two
+exposed tools' contracts, OAuth's `SUPPORTED_OAUTH_SCOPE`, Gateway security
+posture. `homerates_scenario_intelligence` and
+`homerates_buyer_capacity_intelligence` remain unexposed — neither has an
+external contract or readiness check done, and none was started here.
+
+**Status:** Built. `tsc --noEmit` clean. Full regression re-run, all green:
+`test-loan-limit-intelligence.ts` (39/39, new), `test-golden-prompts.ts`
+(10/10 -- P3 reclassified from negative-guardrail to positive now that the
+tool is real, rewritten as a live call), `test-benchmark-rates-gateway.ts`
+(28/28 -- E6 updated for 3 annotated tools), `test-external-adapter.ts`
+(58/58 -- tools/list assertions updated from 2 to 3 tools),
+`test-intelligence-gateway.ts`, `test-oauth-flow.ts`,
+`test-deep-intelligence-parity.ts`,
+`test-first-party-canonical-consistency.ts`,
+`test-firstparty-valuation-integrity.ts`,
+`test-response-semantics-cleanup.ts`, `test-rate-role-correction.ts`,
+`test-chatgpt-invocation-contract.ts`, `test-mortgage-math-integrity.ts`,
+`test-affordability-fha-mip-basis.ts`,
+`test-seeded-scenario-canonicalization.ts`,
+`test-conventional-classification.ts` all re-confirmed green. Pushed to
+`dev` only — NOT merged to `main`, no production push, no public directory
+submission.

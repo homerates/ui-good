@@ -36,7 +36,10 @@ const KEY_FORMAT = new RegExp(`^${KEY_LABEL}_([0-9a-f]{${PREFIX_BYTES * 2}})_([0
 // future admin-issued partner credential that should see neutral benchmark
 // rates but not property data. Additive only: property_intelligence:read's
 // existing behavior, and every existing credential's scopes, are unchanged.
-export const ALLOWED_GATEWAY_SCOPES = ['property_intelligence:read', 'benchmark_rates:read'] as const;
+// loan_limit_intelligence:read added 2026-09-11 (Invocable Tool Workstream)
+// -- same narrowing pattern, for a credential that should see loan-limit
+// data but not property or rate data. Additive only.
+export const ALLOWED_GATEWAY_SCOPES = ['property_intelligence:read', 'benchmark_rates:read', 'loan_limit_intelligence:read'] as const;
 export type GatewayScope = (typeof ALLOWED_GATEWAY_SCOPES)[number];
 
 function sha256Hex(input: string): string {
