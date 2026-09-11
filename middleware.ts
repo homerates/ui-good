@@ -123,6 +123,11 @@ const isPublicRoute = createRouteMatcher([
   // only removes a redundant, fragile outer gate; it does not weaken who
   // can approve an authorization request.
   "/api/oauth/authorize(.*)",
+  // Phase OC -- RFC 7591 Dynamic Client Registration. Called directly by a
+  // third-party MCP client's backend (e.g. Grok) with no Clerk session at
+  // all -- same reasoning as /api/oauth/token above. Grants nothing by
+  // itself; see the route's own header for the real access-control chain.
+  "/api/oauth/register(.*)",
   // Deal room join — must be accessible before sign-in (token validates identity)
   "/deal-rooms/join(.*)",
   // HomeRates Lab — public scenario launcher

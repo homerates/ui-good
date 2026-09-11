@@ -67,7 +67,10 @@ export interface OAuthClient {
   id: string;
   partnerId: string;
   clientId: string;
-  clientSecretHash: string;
+  // Phase OC: null for a 'none' (public, PKCE-only) client -- see
+  // registerOAuthClient() below. Never null for 'client_secret_post'/
+  // 'client_secret_basic' clients, including the existing ChatGPT pilot row.
+  clientSecretHash: string | null;
   redirectUri: string;
   tokenEndpointAuthMethod: string;
 }
@@ -102,6 +105,84 @@ export function hashClientSecret(plaintextSecret: string): string {
 
 export function verifyClientSecret(plaintextSecret: string, storedHash: string): boolean {
   return timingSafeEqualHex(sha256Hex(plaintextSecret), storedHash);
+}
+
+// ---- Dynamic Client Registration (RFC 7591, Phase OC) --------------------
+//
+// Lets a compliant third-party MCP client (e.g. Grok) self-register instead
+// of requiring a manually pre-created gateway_oauth_clients row (today's
+// only client, the ChatGPT pilot, was created directly in Supabase). This
+// function GRANTS NOTHING by itself -- see migration 086's own header for
+// the full security reasoning: the authorization endpoint's existing
+// admin-consent gate, and the auto-created partner's default 'pending'
+// status, are the real access-control boundary, unchanged by this file.
+
+const CLIENT_ID_BYTES = 16; // 128 bits -- a public identifier, not secret; no need to match credential-secret entropy
+const CLIENT_SECRET_BYTES = 32; // 256 bits, matching issueCredential()'s own secret entropy
+
+export type TokenEndpointAuthMethod = 'client_secret_post' | 'none';
+
+export interface RegisterOAuthClientInput {
+  clientName: string | null;
+  redirectUri: string;
+  tokenEndpointAuthMethod: TokenEndpointAuthMethod;
+}
+
+export interface RegisteredOAuthClient {
+  clientId: string;
+  clientSecret: string | null; // null for a 'none' (public) client
+  clientIdIssuedAt: number; // Unix seconds, per RFC 7591
+}
+
+// HTTPS-only, always -- this is a public production endpoint receiving
+// registrations from arbitrary internet callers, not a local-dev tool, so
+// no localhost/http exception is made (unlike some DCR implementations
+// that special-case loopback URIs for native-app testing).
+export function isValidRegistrationRedirectUri(uri: string): boolean {
+  try {
+    const parsed = new URL(uri);
+    return parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+export async function registerOAuthClient(input: RegisterOAuthClientInput): Promise<RegisteredOAuthClient> {
+  const sb = getSupabase();
+  if (!sb) throw new Error('Supabase unavailable.');
+
+  // Every self-registered client gets its OWN gateway_partner -- reusing
+  // the exact identity/rate-limit/revocation unit every other Gateway
+  // caller already uses, not a new concept. status defaults to 'pending'
+  // (the table's own existing default, migration 082) -- deliberately left
+  // there; Rayaan promotes it to 'active' on the existing Gateway Partners
+  // admin page once he recognizes/approves the integration, exactly as he
+  // already does for a manually-created partner.
+  const partnerName = input.clientName?.trim() || `Dynamic OAuth client (${new Date().toISOString().slice(0, 10)})`;
+  const { data: partner, error: partnerErr } = await sb
+    .from('gateway_partners')
+    .insert({ name: partnerName, contact_email: 'dynamic-oauth-registration@homerates.ai' })
+    .select('id')
+    .single();
+  if (partnerErr || !partner) throw new Error(`Failed to create partner for dynamic client: ${partnerErr?.message}`);
+
+  const clientId = `oc_${randomBytes(CLIENT_ID_BYTES).toString('hex')}`;
+  const isPublicClient = input.tokenEndpointAuthMethod === 'none';
+  const clientSecret = isPublicClient ? null : randomBytes(CLIENT_SECRET_BYTES).toString('hex');
+  const clientSecretHash = clientSecret ? hashClientSecret(clientSecret) : null;
+
+  const { error: clientErr } = await sb.from('gateway_oauth_clients').insert({
+    partner_id: partner.id,
+    client_id: clientId,
+    client_secret_hash: clientSecretHash,
+    redirect_uri: input.redirectUri,
+    token_endpoint_auth_method: input.tokenEndpointAuthMethod,
+    client_name: input.clientName,
+    registration_type: 'dynamic',
+  });
+  if (clientErr) throw new Error(`Failed to register OAuth client: ${clientErr.message}`);
+
+  return { clientId, clientSecret, clientIdIssuedAt: Math.floor(Date.now() / 1000) };
 }
 
 // ---- Redirect / resource / scope validation -----------------------------

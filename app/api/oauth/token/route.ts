@@ -68,17 +68,28 @@ export async function POST(req: NextRequest) {
   }
 
   const clientId = params.get('client_id');
-  const clientSecret = params.get('client_secret');
-  if (!clientId || !clientSecret) {
+  if (!clientId) {
     return oauthError('invalid_client', 'Client authentication failed.', 401);
   }
 
   const client = await lookupOAuthClient(clientId);
-  // Generic message either way -- never reveal whether the client_id itself
-  // was unknown vs. the secret was wrong (lib/gateway/auth.ts's existing
-  // "never leak why" posture, applied here too).
-  if (!client || !verifyClientSecret(clientSecret, client.clientSecretHash)) {
+  if (!client) {
     return oauthError('invalid_client', 'Client authentication failed.', 401);
+  }
+
+  // Phase OC: a 'none'-method client (dynamically registered, public/PKCE-
+  // only -- see lib/gateway/oauth.ts's registerOAuthClient()) has no secret
+  // to verify; PKCE below is its entire authentication. Every other method
+  // (today: only 'client_secret_post', the existing ChatGPT pilot path)
+  // keeps the EXACT original secret-required-and-verified behavior,
+  // including the same generic invalid_client message either way -- never
+  // reveal whether client_id itself was unknown vs. the secret was wrong
+  // (lib/gateway/auth.ts's existing "never leak why" posture, applied here too).
+  if (client.tokenEndpointAuthMethod !== 'none') {
+    const clientSecret = params.get('client_secret');
+    if (!clientSecret || !client.clientSecretHash || !verifyClientSecret(clientSecret, client.clientSecretHash)) {
+      return oauthError('invalid_client', 'Client authentication failed.', 401);
+    }
   }
 
   const code = params.get('code');
