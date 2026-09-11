@@ -1626,3 +1626,127 @@ tool is real, rewritten as a live call), `test-benchmark-rates-gateway.ts`
 `test-conventional-classification.ts` all re-confirmed green. Pushed to
 `dev` only — NOT merged to `main`, no production push, no public directory
 submission.
+
+## AD-31 — homerates_scenario_intelligence (fourth exposed tool)
+
+**Decision:** Exposed the fourth of the locked 5 intents,
+`homerates_scenario_intelligence` — deal/scenario math ("run my numbers"),
+not a bare payment calculator. Given a purchase scenario (price, program,
+down payment, rate, term, geography), it recomputes the FULL dependent
+chain (loan structure → monthly breakdown → loan-limit zone →
+qualification) fresh from `lib/calcEngine.ts` on every call — no partial
+input is ever accepted, so changing one input always recomputes everything
+downstream of it, by construction, not by special-cased logic.
+
+**A real methodology conflict was found and reported before implementing,
+per the standing "STOP and report" rule — not silently resolved.** The
+brief required both "call the same canonical engine the scenario cards
+use" AND "same scenario via UI card and tool → same result." Live
+verification found `AffordabilityPurchaseCard.tsx` (AFFD-012, the actual
+canonical scenario card) does NOT call `lib/calcEngine.ts` for its
+conventional PMI at all — its own inline formula
+(`ltv > 80 ? baseLoan * PMI_RATE_STD / 12 : 0`) never tiers
+`PMI_RATE_LOW`/`PMI_RATE_STD` by LTV the way `calcEngine.ts`'s
+`monthlyPMI()` correctly does. Confirmed empirically: an $800k/15%-down
+scenario shows PMI = $312/mo via the card's own math vs $170/mo via
+`calcEngine.ts` — a real $142/month gap, not rounding. Presented to Rayaan
+with the exact numbers; decision: **build the tool on `calcEngine.ts`**
+(the documented "single source of all mortgage math"), not on AFFD-012's
+own inline math, and report AFFD-012's gap rather than fix it in this
+workstream — the same class of pre-existing, unfixed drift as the
+already-reported `InteractiveSliderCard.tsx:283` issue (AD-28), now
+additionally confirmed to affect AFFD-012 itself, not just its legacy
+sibling. `scripts/test-scenario-intelligence.ts` A3 pins down the exact
+divergence magnitude as a visible regression marker (not a silently-ignored
+gap) so it's caught if AFFD-012 is ever fixed or further drifts.
+
+**Reuses canonical engines verbatim, nothing reproduced:**
+`calcConventional`/`calcFHA`/`calcVA`/`calcJumbo` (`lib/calcEngine.ts`) for
+all program math; `getLoanLimitIntelligence()`
+(`lib/pricing/loanLimitIntelligence.ts`, AD-30's own engine) for the
+loan-limit zone, byte-identical field shapes/claim_types (the shaping
+function literally calls
+`shapeLoanLimitIntelligenceForExternalContract()` and extracts the
+classification-relevant subset — no second copy); `getBenchmarkRates()`
+(`lib/market-data/benchmarkRates.ts`, AD-29's own engine) fetched exactly
+ONCE per call when `rate_pct` is omitted, with `BenchmarkRateSchema`
+exported from `benchmarkRatesSchema.ts` so `rate_benchmark` reuses the
+IDENTICAL rate-object shape `homerates_rate_oracle` returns — "shared
+engines own shared facts," not three private copies.
+
+**Input contract distinguishes exactly the 4 categories the brief named**
+(`USER_INPUT`/`CURRENT_BENCHMARK`/`EXPLICIT_ASSUMPTION`/`PROPERTY_FACT`),
+plus `UNKNOWN`/`UNAVAILABLE` where the existing codebase convention already
+requires a fifth state (an omitted HOA is `PROPERTY_FACT`-shaped when
+given, `UNKNOWN` when not — matching how HOA is already tagged everywhere
+else in this codebase; a rate whose fallback benchmark is itself
+`UNAVAILABLE` reports that honestly rather than forcing a fabricated
+number into one of the other 4 buckets). Rate is never silently invented:
+supplied → `USER_INPUT`; omitted → the current benchmark (30-year, or
+15-year when `term_years` ≤ 15) is fetched once and echoed in full via
+`rate_benchmark`; if that benchmark is itself `UNAVAILABLE`,
+`monthly_breakdown` is null (loan structure — down payment, base loan, LTV
+— is still returned; only payment math that would require a rate is
+withheld) rather than computed against a placeholder.
+
+**Geography does not currently refine tax/insurance** — confirmed no
+per-county tax/insurance table exists anywhere in this codebase (only loan
+limits have real per-county data) — so `property_tax_rate_pct`/
+`insurance_annual` are always the same national illustrative defaults
+(`TAX_RATE_DEFAULT`/`INS_RATE_DEFAULT`) regardless of ZIP/county/state,
+documented honestly in the tool description rather than implying geography
+changes them. Geography DOES refine `loan_limit_zone` (real per-county
+data via AD-30's engine).
+
+**Unknown HOA never becomes $0**, matching the property-intelligence
+contract's own convention: `calcConventional`/`calcFHA`/`calcVA`/
+`calcJumbo` all require an `hoaMonthly` parameter with no way to express
+"unknown," so the engine passes `0` into those calls *only* to keep PITI
+math correct, then separately computes `piti` (always HOA-excluded, `=
+totalMonthly − hoaForEngine`) and `pitia` (`= totalMonthly` only when HOA
+was actually confirmed, else `null`) at the orchestration layer — the one
+piece of composition calcEngine.ts's fixed signature can't express, not a
+reproduction of its PI/tax/insurance/PMI math.
+
+**Scope:** new `scenario_intelligence:read`, additive, OR-compatible with
+`property_intelligence:read` via the same `requireAnyScope()` pattern as
+the other two narrower scopes.
+
+**No external call to Grok or any live provider** — confirmed by a
+dedicated source-inspection test; the only I/O is the same Supabase reads
+the other three tools already perform (synced FRED rates, synced loan-limit
+tables). Fully synchronous, deterministic math otherwise. Buyer Capacity
+Intelligence remains unexposed, per explicit instruction — confirmed absent
+from `tools/list` by a dedicated test.
+
+**Test suite (`scripts/test-scenario-intelligence.ts`, 40/40):** parity
+against `calcEngine.ts` directly, the known-divergence regression marker,
+all mandatory recompute tests (price change, down-payment change, baseline
+crossing, county-limit crossing without auto-jumbo, rate +0.5%, unknown
+HOA, same-rate-object reuse — including a source-inspection check that
+`getBenchmarkRates()` is called at most once per engine run), program-
+specific spot checks (FHA UFMIP/MIP, VA funding fee/buydown, jumbo's
+enforced 20% minimum and its own `conformingLimit`/`loanExceedsConforming`
+fields), schema validation, scope tests, request validation (missing
+price/program, both down-payment forms given, invalid program, FHA-only/
+VA-only fields misapplied, county without state), and a real end-to-end
+`tools/call`. Existing cross-tool suites updated for the 4th tool:
+`test-external-adapter.ts` (58/58, tool-count 3→4),
+`test-benchmark-rates-gateway.ts` (28/28, annotation count 3→4),
+`test-golden-prompts.ts` (10/10 — P5 reclassified negative→positive now
+that the tool is real, rewritten as a live call; P9's guessed-tool-name
+guardrail repointed at the still-genuinely-unexposed
+`homerates_buyer_capacity_intelligence`), `test-loan-limit-intelligence.ts`
+(39/39, its own tool-count assertion loosened to "includes," since exact
+total count isn't that file's job).
+
+**What was NOT changed:** `AffordabilityPurchaseCard.tsx` (the PMI
+divergence is reported, not fixed — a future dedicated workstream's job),
+`lib/calcEngine.ts`, `lib/pricing/loanLimitIntelligence.ts`,
+`lib/market-data/benchmarkRates.ts`, the other 3 tools' contracts, OAuth's
+`SUPPORTED_OAUTH_SCOPE`, Gateway security posture, Decision Score, Rate
+Intelligence, LLPA methodology.
+
+**Status:** Built. `tsc --noEmit` clean. Full regression re-run, all green
+(see the final report for the complete list). Pushed to `dev` only — NOT
+merged to `main`, no production push, no public directory submission.

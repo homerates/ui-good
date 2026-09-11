@@ -16,7 +16,10 @@ import { z } from 'zod';
 
 const FreshnessStatus = z.enum(['CURRENT', 'STALE', 'UNAVAILABLE']);
 
-const BenchmarkRateSchema = z.object({
+// Exported (Invocable Tool Workstream, 2026-09-11) so homerates_scenario_intelligence
+// can reuse this EXACT shape for its rate_benchmark field -- shared engines own
+// shared facts; no second copy of this schema.
+export const BenchmarkRateSchema = z.object({
   value: z.number().nullable(),
   series_id: z.string(),
   series_label: z.string(),

@@ -199,8 +199,8 @@ async function main() {
       /LEGACY_BENCHMARK_RATES_TOOL_NAME = 'get_benchmark_rates'/.test(routeSrc) &&
       /isBenchmarkRates = toolName === BENCHMARK_RATES_TOOL_NAME \|\| toolName === LEGACY_BENCHMARK_RATES_TOOL_NAME/.test(routeSrc)
         ? 'PASS' : 'FAIL', 'source-inspected');
-    record('E6. All 3 tools/list entries carry read-only MCP annotations',
-      (routeSrc.match(/annotations: \{ readOnlyHint: true, destructiveHint: false, openWorldHint: false \}/g) ?? []).length === 3
+    record('E6. All 4 tools/list entries carry read-only MCP annotations',
+      (routeSrc.match(/annotations: \{ readOnlyHint: true, destructiveHint: false, openWorldHint: false \}/g) ?? []).length === 4
         ? 'PASS' : 'FAIL', 'source-inspected');
   }
 

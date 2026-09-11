@@ -268,8 +268,11 @@ async function main() {
 
   const toolsListResult = await callAdapter({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: { _meta: meta() } }, mcpHeaders('tools/list', null));
   const listedTools: { name: string; annotations?: Record<string, unknown> }[] = toolsListResult.json?.result?.tools ?? [];
-  record('E2. tools/list now advertises exactly 3 tools, including homerates_loan_limit_intelligence',
-    listedTools.length === 3 && listedTools.some((t) => t.name === 'homerates_loan_limit_intelligence') ? 'PASS' : 'FAIL',
+  // Exact total tool count is exhaustively tested by test-external-adapter.ts
+  // and test-scenario-intelligence.ts -- this file only asserts inclusion, so
+  // it doesn't need editing every time a later workstream adds another tool.
+  record('E2. tools/list includes homerates_loan_limit_intelligence',
+    listedTools.length >= 3 && listedTools.some((t) => t.name === 'homerates_loan_limit_intelligence') ? 'PASS' : 'FAIL',
     JSON.stringify(listedTools.map((t) => t.name)));
   const loanLimitListing = listedTools.find((t) => t.name === 'homerates_loan_limit_intelligence');
   record('E3. homerates_loan_limit_intelligence carries read-only MCP annotations',
