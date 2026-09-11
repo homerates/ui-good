@@ -1,5 +1,6 @@
 import { f$, fPct, fMo, fYr } from '../formatting';
 import { BuiltCard } from './types';
+import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from '../constants';
 
 export interface ScenarioComparisonCardInput {
     tool: 'down_payment' | 'seller_credit' | 'term' | 'rent_buy' | 'conv_vs_jumbo' | 'conv_vs_fha';
@@ -84,8 +85,8 @@ export function buildBuydownCard(
     };
 
     const piNote     = pi(loanAmount, annualRatePct);
-    const moTax      = (annualTax      ?? purchasePrice * 0.011) / 12;
-    const moIns      = (annualInsurance ?? purchasePrice * 0.005) / 12;
+    const moTax      = (annualTax      ?? purchasePrice * TAX_RATE_DEFAULT) / 12;
+    const moIns      = (annualInsurance ?? purchasePrice * INS_RATE_DEFAULT) / 12;
 
     interface BDRow { label: string; rate: number; pi: number; piti: number; subsidy: number; }
     const rows: BDRow[] = [];
@@ -208,8 +209,8 @@ ${schedTable}
             downPct:     downPaymentPct ?? 0,
             rate:        annualRatePct,
             term:        30,
-            taxRate:     annualTax     ? annualTax     / purchasePrice : 0.011,
-            insRate:     annualInsurance ? annualInsurance / purchasePrice : 0.005,
+            taxRate:     annualTax     ? annualTax     / purchasePrice : TAX_RATE_DEFAULT,
+            insRate:     annualInsurance ? annualInsurance / purchasePrice : INS_RATE_DEFAULT,
             loanType:    _effLoanType,
             ...(isVA ? { vaFundingFeePct: 0 } : {}),
             buydownType: buydownType,
@@ -240,8 +241,8 @@ export function buildSellerCreditCard(
     };
 
     const piNote  = pi(loanAmount, annualRatePct);
-    const moTax   = (annualTax      ?? purchasePrice * 0.011) / 12;
-    const moIns   = (annualInsurance ?? purchasePrice * 0.005) / 12;
+    const moTax   = (annualTax      ?? purchasePrice * TAX_RATE_DEFAULT) / 12;
+    const moIns   = (annualInsurance ?? purchasePrice * INS_RATE_DEFAULT) / 12;
     const pitiBase = Math.round(piNote + moTax + moIns);
 
     const pi21y1   = pi(loanAmount, annualRatePct - 2);

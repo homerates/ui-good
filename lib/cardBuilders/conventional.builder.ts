@@ -2,6 +2,7 @@ import { ConventionalResult } from '../calcEngine';
 import { NATIONAL_CONFORMING_BASELINE } from '../loanLimits2026';
 import { f$, fK, fPct, fPct1 } from '../formatting';
 import { BuiltCard } from './types';
+import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from '../constants';
 
 export function buildConventionalCard(
     r: ConventionalResult,
@@ -138,8 +139,8 @@ ${dtiSection}${incomeSection}
             downPct: r.downPaymentPct,
             rate: r.annualRatePct,
             term: r.termYears,
-            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : 0.012,
-            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : 0.005,
+            taxRate: r.purchasePrice > 0 ? (r.monthlyTax * 12) / r.purchasePrice : TAX_RATE_DEFAULT,
+            insRate: r.purchasePrice > 0 ? (r.monthlyInsurance * 12) / r.purchasePrice : INS_RATE_DEFAULT,
         },
         lenderChecklist: {
             loanType: 'conventional',
