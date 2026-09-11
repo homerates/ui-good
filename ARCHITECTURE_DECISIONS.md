@@ -1861,3 +1861,114 @@ Intelligence, LLPA methodology.
 green. Pushed to `dev` only — NOT merged to `main`, no production push, no
 public directory submission. This is the fifth and final tool in the
 locked architecture — no sixth tool is planned.
+
+## AD-33 — OAuth Dynamic Client Registration (Phase OC)
+
+**Decision:** Added RFC 7591 Dynamic Client Registration to the existing
+OAuth 2.1 server (Phase OA/OB), so a third-party MCP client can self-
+register instead of requiring a manually pre-created `gateway_oauth_clients`
+row — the gap that blocked Grok's connector from authenticating at all.
+
+**Real, live diagnosis before writing any code:** Rayaan connected
+HomeRates.ai to Grok as a "Custom" connector. It successfully discovered
+all 5 tools (`tools/list` never requires auth) and showed "Connected," but
+every real tool call failed. Confirmed directly against production:
+`gateway_credentials.last_used_at` for the credential Rayaan had manually
+issued was `null` — Grok never presented it — and `gateway_oauth_codes` had
+zero rows — Grok never completed even step 1 of the OAuth flow. Only one
+OAuth client existed at all: `homerates-chatgpt-pilot`, hardcoded for the
+real ChatGPT integration's own callback URL. Grok itself, when asked
+directly, independently confirmed the same diagnosis: its "Custom"
+connector UI has no field to accept a static API key at all, and named the
+fix as "make the MCP endpoint callable with the platform's stored
+connector auth (OAuth...)."
+
+**What was built, additive to the existing OAuth server, nothing removed:**
+- `lib/gateway/oauth.ts`: `registerOAuthClient()` — creates a new
+  `gateway_partners` row (status defaults to the table's own existing
+  `'pending'`, unchanged) and a new `gateway_oauth_clients` row
+  (`registration_type: 'dynamic'`, vs `'admin'` for the existing ChatGPT
+  row), supporting both a confidential client (`client_secret_post`, a real
+  generated secret) and a public client (`'none'`, no secret — the shape
+  Grok's connector appears to expect, based on it never asking for one).
+  `isValidRegistrationRedirectUri()` requires `https://` always, no
+  localhost exception (this is a public production endpoint).
+- `app/api/oauth/register/route.ts` (new, public, no Clerk session —
+  added to `middleware.ts`'s allowlist alongside `/api/oauth/token`) — the
+  RFC 7591 registration endpoint itself.
+- `app/api/oauth/token/route.ts` — extended (not rewritten) to accept a
+  `'none'`-method client with no `client_secret`, branching on the looked-
+  up client's own `tokenEndpointAuthMethod`; the existing
+  `client_secret_post` path (ChatGPT's real, live integration) keeps its
+  exact original required-and-verified behavior, unchanged.
+- `/.well-known/oauth-authorization-server` — now advertises
+  `registration_endpoint` and `'none'` alongside `'client_secret_post'` in
+  `token_endpoint_auth_methods_supported`.
+- `supabase/migrations/086_gateway_oauth_dynamic_registration.sql` —
+  widens `gateway_oauth_clients`'s `token_endpoint_auth_method` CHECK to
+  allow `'none'`, makes `client_secret_hash` nullable (for a public
+  client), and adds `client_name`/`registration_type` columns. Flagged
+  explicitly in the migration's own header as constraint-widening rather
+  than purely additive, per CLAUDE.md's guidance — neither change is
+  destructive; the existing ChatGPT row is unaffected either way. Applied
+  by Rayaan directly in the Supabase SQL Editor (confirmed live before any
+  of this was tested against the real schema), per this repo's standing
+  migration-ownership rule — not applied by this session.
+
+**Security posture — registration grants NOTHING by itself,** the same
+principle the migration's own header states in full: the authorization
+endpoint still requires a real HomeRates admin Clerk session and an
+explicit "Allow" click on the consent page (`isAdminId()`, completely
+unchanged) before any code — let alone a token — is ever issued; and even
+after a fully-completed OAuth dance, the resulting credential still fails
+`FORBIDDEN` at every real Gateway call until Rayaan manually promotes that
+client's auto-created partner from `'pending'` to `'active'` on the
+existing Gateway Partners admin page — no new approval mechanism was
+built, this reuses the exact gate that already existed for every partner.
+A dedicated per-IP rate limit on the registration endpoint itself was
+deliberately not added this phase (would need a new
+`gateway_usage_counters` `scope_type`) — worst-case abuse of an
+unauthenticated registration endpoint is unused DB rows, never real
+access, so the admin-consent gate above was judged sufficient for now;
+revisit only if real abuse is observed.
+
+**Verified as a real, live round-trip, not just unit-tested:**
+`scripts/test-oauth-dynamic-registration.ts` (20/20) proves the FULL flow
+end to end against the actually-migrated production schema: register a
+public (`'none'`) client → simulate the admin-approval step (the same
+`storeAuthorizationCode()` direct call the existing OAuth test suite
+already uses, since a real Clerk session can't be simulated in-process) →
+exchange the code at the real `/api/oauth/token` route with no client
+secret → confirm the minted token is `FORBIDDEN` against a real tool while
+the auto-created partner is still `'pending'` → flip it to `'active'` →
+confirm the SAME token now succeeds against a real Gateway tool call. Also
+proves the confidential (`client_secret_post`) dynamic-registration path
+end to end, and that a wrong secret / wrong PKCE verifier are still
+correctly rejected either way.
+
+**Existing ChatGPT OAuth path re-verified unaffected:**
+`test-oauth-flow.ts` (45/45 + 2 pre-existing LIMITED) and
+`test-oauth-foundation.ts` (37/37) both re-run clean; two of
+`test-oauth-flow.ts`'s own assertions were legitimately stale (asserted
+the metadata document's exact pre-Phase-OC shape) and were updated to
+reflect `registration_endpoint`/`'none'` as the real, intended additions
+they are — not a weakening of "only implemented capabilities advertised,"
+since both are now genuinely implemented.
+
+**What was NOT changed:** the existing ChatGPT `gateway_oauth_clients` row
+and its `client_secret_post` flow, `SUPPORTED_OAUTH_SCOPE` (still the one
+pilot scope, OR-compatible with all 5 tools via the existing
+`requireAnyScope()`), `/api/oauth/authorize`'s admin-consent logic, any of
+the 5 tools' own contracts, Gateway rate-limiting/kill-switch/circuit-
+breaker logic.
+
+**Status:** Built. Migration 086 applied live by Rayaan and confirmed
+directly (a pre-migration insert attempt failed with a real, verified
+schema error; the identical insert succeeded post-migration). `tsc
+--noEmit` clean, full `next build` clean, full regression re-run green
+(`test-oauth-dynamic-registration.ts` 20/20, `test-oauth-flow.ts` 45/45 + 2
+LIMITED, `test-oauth-foundation.ts` 37/37, `test-intelligence-gateway.ts`
+58/58 + 2 LIMITED, `test-external-adapter.ts` 58/58). Pushed to `dev` only
+— NOT merged to `main`, no production push initiated by this session
+(this repo's established pattern has main tracking dev closely after each
+push, but that merge is not this session's action to claim).

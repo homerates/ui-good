@@ -229,12 +229,17 @@ async function main() {
 
     await dbTest('7', 'client secret hashing/verification: correct secret verifies', async () => {
       if (!lookedUpClient) throw new Error('lookedUpClient not set (earlier test failed)');
+      // This fixture is always a client_secret_post client -- clientSecretHash
+      // is only nullable (Phase OC) for a 'none'-method dynamically
+      // registered client, which this test never creates.
+      if (!lookedUpClient.clientSecretHash) throw new Error('expected a real client_secret_hash for this client_secret_post fixture');
       const ok = verifyClientSecret(TEST_CLIENT_SECRET, lookedUpClient.clientSecretHash);
       return { pass: ok, evidence: 'correct secret verified true' };
     });
 
     await dbTest('7', 'client secret hashing/verification: wrong secret rejected', async () => {
       if (!lookedUpClient) throw new Error('lookedUpClient not set (earlier test failed)');
+      if (!lookedUpClient.clientSecretHash) throw new Error('expected a real client_secret_hash for this client_secret_post fixture');
       const ok = verifyClientSecret('totally-wrong-secret', lookedUpClient.clientSecretHash);
       return { pass: !ok, evidence: 'wrong secret verified false' };
     });

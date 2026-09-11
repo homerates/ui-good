@@ -181,20 +181,26 @@ async function main() {
     {
       const res = await authServerMetadata();
       const json = await res.json();
+      // Phase OC (2026-09-11): registration_endpoint and the 'none' auth
+      // method are now real, implemented capabilities (RFC 7591 Dynamic
+      // Client Registration, built to unblock Grok's connector, which had
+      // no way to present a static credential) -- both belong in the
+      // "correct shape" assertion now, not the "unimplemented" denylist below.
       const shapeOk =
         res.status === 200 &&
         json.issuer === 'https://homerates.ai' &&
         json.authorization_endpoint === 'https://homerates.ai/api/oauth/authorize' &&
         json.token_endpoint === 'https://homerates.ai/api/oauth/token' &&
+        json.registration_endpoint === 'https://homerates.ai/api/oauth/register' &&
         JSON.stringify(json.response_types_supported) === JSON.stringify(['code']) &&
         JSON.stringify(json.grant_types_supported) === JSON.stringify(['authorization_code']) &&
         JSON.stringify(json.code_challenge_methods_supported) === JSON.stringify(['S256']) &&
         JSON.stringify(json.scopes_supported) === JSON.stringify([SUPPORTED_OAUTH_SCOPE]) &&
-        JSON.stringify(json.token_endpoint_auth_methods_supported) === JSON.stringify(['client_secret_post']);
+        JSON.stringify(json.token_endpoint_auth_methods_supported) === JSON.stringify(['client_secret_post', 'none']);
       record('1', 'AS metadata: correct shape + values', shapeOk ? 'PASS' : 'FAIL', JSON.stringify(json));
 
       const raw = JSON.stringify(json);
-      const noUnimplemented = !/jwks_uri|registration_endpoint|revocation_endpoint|introspection_endpoint|refresh_token|client_credentials|implicit|device_code|userinfo_endpoint|id_token/i.test(raw);
+      const noUnimplemented = !/jwks_uri|revocation_endpoint|introspection_endpoint|refresh_token|client_credentials|implicit|device_code|userinfo_endpoint|id_token/i.test(raw);
       record('1', 'AS metadata: only implemented capabilities advertised', noUnimplemented ? 'PASS' : 'FAIL', raw);
     }
 
