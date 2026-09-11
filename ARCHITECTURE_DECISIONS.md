@@ -1332,3 +1332,100 @@ pre-existing LIMITED), `test-benchmark-rates-gateway.ts` (26/26),
 `test-firstparty-valuation-integrity.ts` (29/29). `tsc --noEmit`, full `next
 build`, and the build's own `[CalcEngine]`/`[AnswerFormat]` self-tests all
 clean. Pushed to `dev` only — NOT merged to `main`, no production push.
+
+---
+
+## AD-28 — Dynamic Conventional / High-Balance classification + Jumbo comparison CTA
+
+**Decision:** Implemented the evidence-backed recommendation from the
+Scenario Card Product + Technical Design Forensic Audit: the Conventional
+loanType inside `AffordabilityPurchaseCard.tsx` (AFFD-012) now classifies
+itself live — CONFORMING / HIGH_BALANCE / ABOVE_CONVENTIONAL_LIMIT /
+COUNTY_REQUIRED — recomputed from the current price/down-payment state on
+every render, exactly mirroring the existing `jumboZone`/`fhaLimitStatus`
+pattern already used by the Jumbo and FHA loanTypes in the same file. The
+Conventional card never mutates into a Jumbo card; crossing the applicable
+limit is stated as a classification fact, with a "Compare Jumbo Scenario"
+button that launches the existing, separate Jumbo dispatch path (`onRunScenario`
+with `loanType: 'jumbo'`) — restoring the comparison invitation the original
+High-Balance seed intended (per the audit's `61d6145f` finding) without
+reintroducing the free-text "Jumbo" keyword collision that broke it in 2026-05.
+
+**Classification logic — reused, not reinvented:** `lib/pricing/
+conforming-limits.ts`'s `getConformingStatus()` (already the LLPA engine's
+own standard/high_balance/above_limit determination) is now wrapped by a new
+`classifyConventionalLoan()`, adding exactly one new state
+(`COUNTY_REQUIRED`) that `getConformingStatus()` was never designed to
+answer — the case where the loan exceeds baseline but no county-specific
+ceiling has been resolved, where the honest answer is "we don't know yet,"
+not a guess. A loan that exceeds `CONF_HIGH_BALANCE` (the highest ceiling any
+U.S. county could have) is classified `ABOVE_CONVENTIONAL_LIMIT` immediately
+regardless of county resolution — no need to force a county search for an
+answer that can't change based on which county it turns out to be.
+
+**County resolution:** reuses the exact existing manual county-search
+pattern already live for FHA on this same card (same `CA_LOAN_LIMITS_2026`/
+`HIGH_COST_COUNTIES` data, same search-and-select UI shape) — built as a
+parallel, independent state block rather than merged into FHA's, so this
+addition carries zero regression risk to the working FHA path. No new
+geocoding, no ZIP→county automation added (matching the audit's own finding
+that this card has no address/zip input to automate from).
+
+**A real, minor bug found and fixed during implementation:** the Lab's
+"Home Purchase" seed (`$832,750` loan amount, 10% down) back-calculates
+purchase price as `loanAmount / (1 - down%)`, which round-trips to
+`$832,750.20` — $0.20 over the exact national baseline due to floating-point
+back-calculation, not a real classification difference. Without rounding,
+this misclassified the single most basic "plain conventional" Lab example as
+`COUNTY_REQUIRED`. Fixed by rounding to the nearest whole dollar inside
+`classifyConventionalLoan()` before comparing against the threshold — no
+real-world loan-limit distinction is ever meaningful below whole-dollar
+precision.
+
+**Verified (Phase 16/17 of the brief), via the classification function
+directly:** Lab "Home Purchase" ($832,750 loan) → CONFORMING. Lab "High
+Balance" ($935,000 loan, Los Angeles) → `COUNTY_REQUIRED` until the county is
+searched (the seed mentions "Los Angeles California" in text, but
+`calcDispatcher.ts`'s conventional branch has never parsed location from
+seed text — confirmed unchanged, not touched this workstream), then
+`HIGH_BALANCE` (limit $1,249,125) once "Los Angeles" is searched in the new
+county box. The `$3,000,000`/20%-down screenshot regression case ($2.4M
+loan) → `ABOVE_CONVENTIONAL_LIMIT` immediately (no county search needed,
+correctly exceeds the national maximum regardless of county), with the
+"Compare Jumbo Scenario" CTA now present — the card stays labeled
+"Conv," never relabels itself "Jumbo."
+
+**Similar dynamic-dependency gap observed, NOT fixed (reported per Phase 12):**
+`app/components/InteractiveSliderCard.tsx:283` — the legacy (backward-compat
+only, per AD-27's card-stack-registry evidence) conventional PMI calculation
+in this sibling component is still a flat, untiered `0.008` regardless of
+LTV, the same class of PMI drift the "Canonical Deterministic Mortgage Math
+Integrity" workstream fixed everywhere it found it in `lib/cardBuilders/*`
+and `calcEngine.ts` — but this specific occurrence is in a different,
+legacy-only file this workstream's scope never touched. Not fixed here: it's
+a pre-existing, unrelated file, and Phase 12 explicitly scoped this
+workstream to classification/CTA only.
+
+**What was NOT changed:** P&I math, tax/insurance math, PMI methodology
+(the pre-existing conventional PMI calculation in AFFD-012 itself is
+untouched), FHA MIP, VA calculations, Jumbo underwriting/pricing, Decision
+Score, Rate Intelligence, LLPA, MCP, Gateway architecture. AFFD-012 was not
+redesigned — no card was created, no existing card merged, no slider/layout/
+color scheme changed; only new classification state and its minimal visible
+consequence (an info box + one CTA button, using the exact same
+`.apc-jumbo-zone` visual language the Jumbo/FHA sections already use) were
+added.
+
+**Status:** Built. New `scripts/test-conventional-classification.ts`
+(21/21) — the full Phase 15 matrix (7 static classification cases, 4 dynamic
+slider-sequence cases, 1 down-payment-driven case), source-inspected CTA
+gating/wiring, source-inspected FHA/VA/Jumbo branch non-regression, and a
+bonus check that CONFORMING renders no UI clutter. Full regression:
+`test-mortgage-math-integrity.ts` (42/42), `test-affordability-fha-mip-
+basis.ts` (11/11), `test-seeded-scenario-canonicalization.ts` (31/31),
+`test-intelligence-gateway.ts` (58/58 + 2 pre-existing LIMITED),
+`test-external-adapter.ts` (56/56), `test-oauth-flow.ts` (45/45 + 2
+pre-existing LIMITED), `test-benchmark-rates-gateway.ts` (26/26),
+`test-deep-intelligence-parity.ts` (12/12). `tsc --noEmit`, full `next
+build`, and the build's own `[CalcEngine]`/`[AnswerFormat]` self-tests all
+clean. Pushed to `dev` only — NOT merged to `main`, no production push.

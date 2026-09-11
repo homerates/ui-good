@@ -38,6 +38,7 @@ import {
 } from '../../lib/constants';
 import { CA_LOAN_LIMITS_2026 } from '../../lib/loanLimits2026';
 import { HIGH_COST_COUNTIES, type NationalCountyLimits } from '../../lib/loanLimitsNational2026';
+import { classifyConventionalLoan } from '../../lib/pricing/conforming-limits';
 
 export interface AffordabilityPurchaseParams {
   loanType: 'conventional' | 'fha' | 'va' | 'jumbo';
@@ -108,7 +109,10 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const dtiScale     = isVA ? 50 : 55;
 
   const ltAccent = isFHA ? '#f59e0b' : isVA ? '#14b8a6' : isJumbo ? '#8b5cf6' : '#00e87a';
-  const ltLabel  = isFHA ? 'FHA' : isVA ? 'VA' : isJumbo ? 'Jumbo' : 'Conv/HB';
+  // Conventional's own label is resolved below (after baseLoan/classification
+  // are computed) since it now reflects live classification state rather than
+  // a static "Conv/HB" -- FHA/VA/Jumbo labels are unchanged.
+  const ltLabelBase = isFHA ? 'FHA' : isVA ? 'VA' : isJumbo ? 'Jumbo' : null;
 
   // ── Remount-safe cache plumbing ────────────────────────────────────────────
   // On remount (typingId animation or loading), useState re-initializes from props.
@@ -195,6 +199,29 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
     setFhaCountyResults(results.slice(0, 8));
   }
 
+  // Conventional/High-Balance county-aware loan limit -- same data source and
+  // search pattern as the FHA county search above (kept as a separate,
+  // parallel block rather than merged, so this new addition carries zero risk
+  // to the existing, working FHA path). Only conformingLimit is relevant here
+  // (never fhaLimit). See lib/pricing/conforming-limits.ts's
+  // classifyConventionalLoan() for the classification itself.
+  const [convCounty,               setConvCounty]               = useState<string | null>(null);
+  const [convCountyConformingLimit, setConvCountyConformingLimit] = useState<number | null>(null);
+  const [convCountyQuery,          setConvCountyQuery]          = useState('');
+  const [convCountyResults,        setConvCountyResults]        = useState<{label: string; state: string; conformingLimit: number}[]>([]);
+
+  function searchConvCounty(q: string) {
+    const upper = q.toUpperCase().trim();
+    if (upper.length < 2) { setConvCountyResults([]); return; }
+    const results: {label: string; state: string; conformingLimit: number}[] = [];
+    for (const c of CA_LOAN_LIMITS_2026)
+      if (c.county.includes(upper)) results.push({ label: c.county, state: 'CA', conformingLimit: c.conforming.units1 });
+    for (const [state, counties] of Object.entries(HIGH_COST_COUNTIES) as [string, NationalCountyLimits[]][])
+      for (const c of counties)
+        if (c.county.includes(upper)) results.push({ label: c.county, state, conformingLimit: c.conforming.units1 });
+    setConvCountyResults(results.slice(0, 8));
+  }
+
   const { userId } = useAuth();
 
   // ── Income interaction state (for transient helper line) ──────────────────
@@ -266,6 +293,24 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
   const fhaLimitStatus: 'unknown' | 'within' | 'exceeds' =
     fhaCountyFhaLimit == null ? 'unknown' : baseLoan <= fhaCountyFhaLimit ? 'within' : 'exceeds';
 
+  // Dynamic Conventional / High-Balance / Above-Limit classification --
+  // recomputed on every render from CURRENT baseLoan (itself derived from the
+  // current price/down-payment state above), never frozen from the original
+  // seeded scenario. Only meaningful for the plain conventional loanType --
+  // FHA/VA/Jumbo have their own dedicated program logic above/below.
+  const isConventional = !isFHA && !isVA && !isJumbo;
+  const conventionalZone = isConventional
+    ? classifyConventionalLoan(baseLoan, convCountyConformingLimit, CONF_HIGH_BALANCE)
+    : null;
+  const conventionalZoneColor = conventionalZone?.zone === 'HIGH_BALANCE' ? '#f59e0b'
+    : conventionalZone?.zone === 'ABOVE_CONVENTIONAL_LIMIT' ? '#ef4444'
+    : conventionalZone?.zone === 'COUNTY_REQUIRED' ? '#f59e0b'
+    : '#00e87a';
+  // "Conv/HB" only when the loan is ACTUALLY high-balance right now; plain
+  // "Conv" otherwise (conforming, above-limit, or county-required) -- the
+  // card never relabels itself "Jumbo".
+  const ltLabel = ltLabelBase ?? (conventionalZone?.zone === 'HIGH_BALANCE' ? 'Conv/HB' : 'Conv');
+
   // ── Commit handlers (called on blur / Enter) ──────────────────────────────
   function commitPrice(s: string) {
     const parsed = parseCurrency(s);
@@ -321,6 +366,29 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
     setDownDraft(null);
     setDownMode('pct');
     saveToCache({ downMode: 'pct' });
+  }
+
+  // Restores the original High-Balance-seed intent (documented in the audit:
+  // the seed used to say "...compare with Jumbo rates" until the word
+  // "Jumbo" hijacked isJumboQuestion() routing and broke the scenario --
+  // fixed 2026-05-16 by deleting the phrase, which also deleted the
+  // invitation). This CTA reaches the SAME existing, separate Jumbo dispatch
+  // path deliberately -- unlike the old free-text seed, here "jumbo" in the
+  // seed text is the correct, intended trigger (this action IS "run the
+  // jumbo scenario"), not an incidental keyword collision. Jumbo requires a
+  // minimum 20% down payment (lib/calcDispatcher.ts's jumbo branch); the
+  // comparison scenario respects that floor rather than carrying over a
+  // lower conventional down% that jumbo underwriting wouldn't accept.
+  function handleCompareJumbo() {
+    const jumboDownPct = Math.max(20, Math.round(effectiveDownPct * 10) / 10);
+    const seed = `Jumbo loan on a ${fmt$(Math.round(price))} home with ${jumboDownPct}% down at ${rate.toFixed(3)}%`;
+    props.onRunScenario?.(seed, {
+      purchasePrice:  Math.round(price),
+      downPaymentPct: jumboDownPct,
+      annualRatePct:  rate,
+      termYears:      termYrs,
+      loanType:       'jumbo',
+    });
   }
 
   function handleAddressSubmit(addr: string) {
@@ -542,6 +610,79 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
                     <span className="apc-fha-county-result-val">
                       {r.fhaLimit != null ? fmtK(r.fhaLimit) : 'verify at hud.gov'}
                     </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Conventional / High-Balance classification -- dynamic, recomputed
+          from the CURRENT loan amount on every render (see conventionalZone
+          above). Silent when CONFORMING, per Phase 5/Phase 3 of the
+          implementation brief: don't clutter the card with loan-limit UI
+          until the baseline is actually exceeded. */}
+      {isConventional && conventionalZone && conventionalZone.zone === 'HIGH_BALANCE' && (
+        <div className="apc-jumbo-zone" style={{ borderColor: `${conventionalZoneColor}28`, background: `${conventionalZoneColor}06` }}>
+          <span className="apc-jumbo-badge" style={{
+            color: conventionalZoneColor, background: `${conventionalZoneColor}18`, border: `1px solid ${conventionalZoneColor}35`,
+          }}>
+            High-Balance Conventional
+          </span>
+          <span className="apc-jumbo-note">
+            {convCounty} County — 2026 conventional limit {fmtK(conventionalZone.applicableCountyLimit!)}. Your loan {fmtK(Math.round(baseLoan))} is within the high-balance limit.
+          </span>
+        </div>
+      )}
+      {isConventional && conventionalZone && conventionalZone.zone === 'ABOVE_CONVENTIONAL_LIMIT' && (
+        <div className="apc-jumbo-zone" style={{ borderColor: `${conventionalZoneColor}28`, background: `${conventionalZoneColor}06`, flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <span className="apc-jumbo-badge" style={{
+              color: conventionalZoneColor, background: `${conventionalZoneColor}18`, border: `1px solid ${conventionalZoneColor}35`,
+            }}>
+              Above Conventional Limit
+            </span>
+            <span className="apc-jumbo-note">
+              {convCounty && conventionalZone.applicableCountyLimit != null
+                ? `Your loan ${fmtK(Math.round(baseLoan))} exceeds the applicable conventional limit for ${convCounty} County (${fmtK(conventionalZone.applicableCountyLimit)}).`
+                : `Your loan ${fmtK(Math.round(baseLoan))} exceeds the ${fmtK(CONF_HIGH_BALANCE)} maximum conventional limit anywhere in the U.S. — this is above the conventional limit regardless of county.`}
+              {' '}A conventional loan may still be an option depending on your down payment; Jumbo is a separate financing path worth comparing, not an automatic requirement.
+            </span>
+          </div>
+          <button type="button" className="apc-jumbo-cta" style={{ color: '#8b5cf6', borderColor: '#8b5cf655', background: '#8b5cf612' }} onClick={handleCompareJumbo}>
+            Compare Jumbo Scenario →
+          </button>
+        </div>
+      )}
+      {isConventional && conventionalZone && conventionalZone.zone === 'COUNTY_REQUIRED' && (
+        <div className="apc-jumbo-zone" style={{ position: 'relative', borderColor: `${conventionalZoneColor}28`, background: `${conventionalZoneColor}06` }}>
+          <div style={{ flex: 1 }}>
+            <span className="apc-jumbo-note" style={{ display: 'block', marginBottom: 6 }}>
+              Your loan {fmtK(Math.round(baseLoan))} exceeds the {fmtK(CONF_STANDARD)} national conforming baseline. Search your county to see if you qualify as High-Balance:
+            </span>
+            <input
+              type="text"
+              placeholder="e.g. San Diego or Los Angeles"
+              value={convCountyQuery}
+              onChange={e => { setConvCountyQuery(e.target.value); searchConvCounty(e.target.value); }}
+              className="apc-fha-county-input"
+            />
+            {convCountyResults.length > 0 && (
+              <div className="apc-fha-county-results">
+                {convCountyResults.map((r, i) => (
+                  <button key={i}
+                    type="button"
+                    onClick={() => {
+                      setConvCounty(r.label);
+                      setConvCountyConformingLimit(r.conformingLimit);
+                      setConvCountyQuery('');
+                      setConvCountyResults([]);
+                    }}
+                    className="apc-fha-county-result"
+                  >
+                    <span>{r.label}, {r.state}</span>
+                    <span className="apc-fha-county-result-val">{fmtK(r.conformingLimit)}</span>
                   </button>
                 ))}
               </div>
@@ -861,6 +1002,8 @@ export default function AffordabilityPurchaseCard(props: AffordabilityPurchasePa
         .apc-jumbo-zone { margin: 0 16px 10px; border: 1px solid; border-radius: 10px; padding: 10px 13px; display: flex; align-items: flex-start; gap: 10px; }
         .apc-jumbo-badge { font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 20px; flex-shrink: 0; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; margin-top: 1px; }
         .apc-jumbo-note { font-size: 11.5px; color: rgba(255,255,255,0.5); line-height: 1.45; }
+        .apc-jumbo-cta { align-self: flex-start; padding: 7px 14px; border-radius: 8px; border: 1px solid; font-size: 11.5px; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity 0.15s; }
+        .apc-jumbo-cta:hover { opacity: 0.85; }
 
         .apc-fha-county-input { width: 100%; padding: 7px 10px; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.12); font-size: 13px; outline: none; background: rgba(255,255,255,0.06); color: #c4cfe0; box-sizing: border-box; font-family: inherit; }
         .apc-fha-county-results { position: absolute; top: 100%; left: 16px; right: 16px; z-index: 30; background: #1a2035; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); margin-top: 4px; max-height: 220px; overflow-y: auto; }
