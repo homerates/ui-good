@@ -79,7 +79,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveExternalPropertyIntelligence } from '../../../../lib/externalPropertyResolution';
 import { getBenchmarkRatesGated } from '../../../../lib/gateway/benchmarkRatesGateway';
 
-const TOOL_NAME = 'get_property_intelligence';
+// "Invocable-by-Design Contract Foundation" (2026-09-10): canonical external
+// tool name, per the locked 5-intent naming architecture
+// (homerates_property_intelligence / homerates_rate_oracle /
+// homerates_scenario_intelligence / homerates_loan_limit_intelligence /
+// homerates_buyer_capacity_intelligence -- only the first two are built/
+// exposed; the other three remain unexposed until each independently passes
+// its own readiness check). LEGACY_TOOL_NAME keeps the original name callable
+// in tools/call (never advertised in tools/list) so an already-connected
+// caller is not silently broken by the rename -- "adapt carefully rather
+// than break," per this workstream's own instruction.
+const TOOL_NAME = 'homerates_property_intelligence';
+const LEGACY_TOOL_NAME = 'get_property_intelligence';
 // Both revisions accepted -- 2025-11-25 is what real production clients
 // (ChatGPT's openai-mcp/1.0.0) actually send for tools/list today; the
 // SAME client also sends a fully modern 2026-07-28 server/discover request
@@ -206,7 +217,8 @@ const INPUT_SCHEMA = {
 // THIS buyer get" -- that second question is Rate Intelligence's own
 // OBMMI/LLPA-segmented territory, never exposed externally (see
 // lib/market-data/benchmarkRates.ts's header for the full boundary).
-const BENCHMARK_RATES_TOOL_NAME = 'get_benchmark_rates';
+const BENCHMARK_RATES_TOOL_NAME = 'homerates_rate_oracle';
+const LEGACY_BENCHMARK_RATES_TOOL_NAME = 'get_benchmark_rates';
 const BENCHMARK_RATES_TOOL_DESCRIPTION =
   'Use this tool when the user asks for a current mortgage rate, benchmark, or reference ' +
   'rate -- "what are mortgage rates today," "what\'s a typical 30-year rate right now," or ' +
@@ -496,8 +508,14 @@ export async function POST(req: NextRequest) {
     return jsonRpcResult(id, withServerMeta({
       resultType: 'complete',
       tools: [
-        { name: TOOL_NAME, description: TOOL_DESCRIPTION, inputSchema: INPUT_SCHEMA },
-        { name: BENCHMARK_RATES_TOOL_NAME, description: BENCHMARK_RATES_TOOL_DESCRIPTION, inputSchema: BENCHMARK_RATES_INPUT_SCHEMA },
+        // Read-only intelligence tools -- neither writes, mutates, deletes,
+        // or performs any irreversible action; annotations advertise this
+        // per the MCP tool-annotation convention. openWorldHint: false for
+        // both -- each resolves a specific, bounded, well-defined entity
+        // (one named property; a fixed set of 3 national reference series),
+        // never an open-ended web/document search.
+        { name: TOOL_NAME, description: TOOL_DESCRIPTION, inputSchema: INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
+        { name: BENCHMARK_RATES_TOOL_NAME, description: BENCHMARK_RATES_TOOL_DESCRIPTION, inputSchema: BENCHMARK_RATES_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
       ],
     }));
   }
@@ -507,8 +525,13 @@ export async function POST(req: NextRequest) {
     if (invalid) return invalid;
 
     const toolName = params?.name;
+    // Legacy names accepted here (tools/call) but never advertised in
+    // tools/list -- an already-connected caller that cached the old name
+    // keeps working; every new discovery sees only the canonical name.
+    const isPropertyIntelligence = toolName === TOOL_NAME || toolName === LEGACY_TOOL_NAME;
+    const isBenchmarkRates = toolName === BENCHMARK_RATES_TOOL_NAME || toolName === LEGACY_BENCHMARK_RATES_TOOL_NAME;
 
-    if (toolName !== TOOL_NAME && toolName !== BENCHMARK_RATES_TOOL_NAME) {
+    if (!isPropertyIntelligence && !isBenchmarkRates) {
       return jsonRpcResult(id, withServerMeta({
         resultType: 'complete',
         content: [{ type: 'text', text: `Unknown tool: ${String(toolName)}` }],
@@ -519,7 +542,7 @@ export async function POST(req: NextRequest) {
     const apiKeyHeader = extractBearerToken(req);
     const requestIp = extractRequestIp(req);
 
-    if (toolName === BENCHMARK_RATES_TOOL_NAME) {
+    if (isBenchmarkRates) {
       const result = await getBenchmarkRatesGated(apiKeyHeader, requestIp);
       if (result.ok) {
         return jsonRpcResult(id, withServerMeta({

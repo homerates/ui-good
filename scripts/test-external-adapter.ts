@@ -175,7 +175,14 @@ function toolsCallBody(id: number, toolName: string, args: Record<string, unknow
   return { jsonrpc: '2.0', id, method: 'tools/call', params: { name: toolName, arguments: args, _meta: meta(metaOverrides) } };
 }
 
-const TOOL_NAME = 'get_property_intelligence';
+// Invocable-by-Design Contract Foundation (2026-09-10): canonical names.
+// TOOL_NAME/BENCHMARK_RATES_TOOL_NAME below are what tools/list now
+// advertises; the LEGACY_* constants are the pre-rename names, which
+// tools/call must still accept for already-connected callers.
+const TOOL_NAME = 'homerates_property_intelligence';
+const LEGACY_TOOL_NAME = 'get_property_intelligence';
+const BENCHMARK_RATES_TOOL_NAME = 'homerates_rate_oracle';
+const LEGACY_BENCHMARK_RATES_TOOL_NAME = 'get_benchmark_rates';
 
 async function main() {
   const sb = getSupabase();
@@ -242,13 +249,35 @@ async function main() {
 
     // 1. valid current-protocol tools/list
     {
-      // WS10: this server now advertises 2 tools (get_property_intelligence,
-      // get_benchmark_rates) -- updated from the original "exactly one tool"
-      // assertion, which predates the second tool's addition.
+      // WS10: this server now advertises 2 tools. Invocable-by-Design
+      // Contract Foundation (2026-09-10): those 2 tools are now advertised
+      // under their canonical names (TOOL_NAME/BENCHMARK_RATES_TOOL_NAME),
+      // never the legacy names -- tools/list must show ONLY the new names.
       const r = await callAdapter(toolsListBody(2), mcpHeaders('tools/list', null));
       const toolNames = (r.json?.result?.tools ?? []).map((t: any) => t.name);
-      const ok = r.status === 200 && r.json?.result?.resultType === 'complete' && r.json.result.tools?.length === 2 && toolNames.includes(TOOL_NAME) && toolNames.includes('get_benchmark_rates') && r.json.result._meta?.['io.modelcontextprotocol/serverInfo'] !== undefined;
+      const ok = r.status === 200 && r.json?.result?.resultType === 'complete' && r.json.result.tools?.length === 2 && toolNames.includes(TOOL_NAME) && toolNames.includes(BENCHMARK_RATES_TOOL_NAME) && !toolNames.includes(LEGACY_TOOL_NAME) && !toolNames.includes(LEGACY_BENCHMARK_RATES_TOOL_NAME) && r.json.result._meta?.['io.modelcontextprotocol/serverInfo'] !== undefined;
       record('Conformance', 'valid current-protocol tools/list', ok ? 'PASS' : 'FAIL', JSON.stringify(toolNames));
+    }
+
+    // 1b. Backward compatibility: a caller that cached the pre-rename tool
+    // names must still be able to invoke them via tools/call, even though
+    // tools/list no longer advertises them.
+    if (availableAddress) {
+      const key = await freshCred();
+      const body = toolsCallBody(2001, LEGACY_TOOL_NAME, { address: availableAddress });
+      const r = await callAdapter(body, { ...mcpHeaders('tools/call', LEGACY_TOOL_NAME), ...authHeaders(key, '203.0.113.201') });
+      const data = r.json?.result?.content?.[0]?.text ? JSON.parse(r.json.result.content[0].text) : null;
+      const ok = r.status === 200 && r.json?.result?.isError !== true && data != null;
+      record('Conformance', 'legacy tool name get_property_intelligence still callable via tools/call', ok ? 'PASS' : 'FAIL', JSON.stringify(r.json?.result?.isError ? r.json.result : { hasData: data != null }));
+    }
+    {
+      const body = toolsCallBody(2002, LEGACY_BENCHMARK_RATES_TOOL_NAME, {});
+      const r = await callAdapter(body, mcpHeaders('tools/call', LEGACY_BENCHMARK_RATES_TOOL_NAME));
+      // No credential attached -- expect a Gateway UNAUTHORIZED mapping (not
+      // "Unknown tool"), which proves the legacy name reached the benchmark
+      // dispatch branch rather than falling through to the unknown-tool guard.
+      const ok = r.json?.result?.content?.[0]?.text !== `Unknown tool: ${LEGACY_BENCHMARK_RATES_TOOL_NAME}`;
+      record('Conformance', 'legacy tool name get_benchmark_rates still recognized (not "Unknown tool") via tools/call', ok ? 'PASS' : 'FAIL', JSON.stringify(r.json?.result));
     }
 
     // 2. valid current-protocol tools/call
@@ -403,8 +432,9 @@ async function main() {
       const body = { jsonrpc: '2.0', id: 100, method: 'tools/list' };
       const r = await callAdapter(body, { 'mcp-protocol-version': '2025-11-25' });
       // WS10: 2 tools now (see the current-protocol conformance test above).
+      // Invocable-by-Design Contract Foundation: canonical names only.
       const toolNames = (r.json?.result?.tools ?? []).map((t: any) => t.name);
-      const ok = r.status === 200 && Array.isArray(r.json?.result?.tools) && r.json.result.tools.length === 2 && toolNames.includes(TOOL_NAME) && toolNames.includes('get_benchmark_rates');
+      const ok = r.status === 200 && Array.isArray(r.json?.result?.tools) && r.json.result.tools.length === 2 && toolNames.includes(TOOL_NAME) && toolNames.includes(BENCHMARK_RATES_TOOL_NAME);
       record('Version-aware', 'A/F: real 2025-11-25 tools/list (no Mcp-Method/Mcp-Name/_meta) -> 200, two tools', ok ? 'PASS' : 'FAIL', JSON.stringify(toolNames));
     }
 
