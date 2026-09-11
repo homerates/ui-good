@@ -56,3 +56,56 @@ export function getConformingStatus(loanAmount: number, ceiling: number): Confor
   if (loanAmount <= ceiling)                  return 'high_balance';
   return 'above_limit';
 }
+
+// ── Dynamic Conventional / High-Balance card classification ─────────────────
+// Added for the "Dynamic Conventional / High-Balance Classification + Jumbo
+// Comparison" workstream (2026-09-10). This is the SAME classification
+// getConformingStatus() already provides (reused, not reinvented) plus one
+// additional state getConformingStatus() was never designed to answer:
+// COUNTY_REQUIRED, for the case where the loan exceeds the national baseline
+// but no county-specific ceiling has been resolved yet -- we do not guess a
+// county's high-balance limit; we say plainly that county data is needed.
+//
+// nationalMaxPossibleLimit (CONF_HIGH_BALANCE) lets a loan that exceeds the
+// highest ceiling ANY U.S. county could have be classified ABOVE_CONVENTIONAL_LIMIT
+// immediately, without forcing a county search the answer doesn't actually
+// depend on -- e.g. a $2.4M loan is above every possible conventional limit
+// regardless of which county it's in.
+export type ConventionalZone = 'CONFORMING' | 'HIGH_BALANCE' | 'ABOVE_CONVENTIONAL_LIMIT' | 'COUNTY_REQUIRED';
+
+export interface ConventionalZoneResult {
+  zone: ConventionalZone;
+  baselineLimit: number;
+  /** The resolved county's own conforming ceiling, or null if not yet resolved / not applicable (CONFORMING). */
+  applicableCountyLimit: number | null;
+}
+
+export function classifyConventionalLoan(
+  rawLoanAmount: number,
+  countyConformingLimit: number | null,
+  nationalMaxPossibleLimit: number,
+): ConventionalZoneResult {
+  // Round to the nearest dollar before comparing against a hard threshold --
+  // a caller that back-calculates loan amount from a rounded purchase price
+  // (price/(1-down%)) can land a fraction of a dollar off an exact boundary
+  // (e.g. 832750.2 instead of 832750), which would otherwise misclassify an
+  // intentionally-at-baseline scenario as just-above-baseline. No real
+  // loan-limit distinction is ever meaningful below whole-dollar precision.
+  const loanAmount = Math.round(rawLoanAmount);
+  const baselineLimit = CONFORMING_BASELINE_2026;
+  if (loanAmount <= baselineLimit) {
+    return { zone: 'CONFORMING', baselineLimit, applicableCountyLimit: null };
+  }
+  if (loanAmount > nationalMaxPossibleLimit) {
+    return { zone: 'ABOVE_CONVENTIONAL_LIMIT', baselineLimit, applicableCountyLimit: countyConformingLimit };
+  }
+  if (countyConformingLimit == null) {
+    return { zone: 'COUNTY_REQUIRED', baselineLimit, applicableCountyLimit: null };
+  }
+  const status = getConformingStatus(loanAmount, countyConformingLimit);
+  return {
+    zone: status === 'high_balance' ? 'HIGH_BALANCE' : 'ABOVE_CONVENTIONAL_LIMIT',
+    baselineLimit,
+    applicableCountyLimit: countyConformingLimit,
+  };
+}
