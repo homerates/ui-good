@@ -43,5 +43,8 @@ HomeRates.AI built a full-stack AI engine that pulls real-time 2026 data from FR
 - Plus ($29/mo): advanced cards, PDF export, vault storage, AI digest
 - Pro ($79/mo): full vault, LO/agent tools, borrower matching, priority support
 
+## AI Agent Invocation (MCP)
+HomeRates.AI exposes a machine-callable Model Context Protocol (MCP) endpoint for AI agents and compatible LLM platforms (JSON-RPC 2.0, Streamable HTTP over HTTPS): `/api/mcp/property-intelligence`. Two read-only tools are currently available to authorized callers: `homerates_property_intelligence` (single-property real estate + deterministic financing intelligence) and `homerates_rate_oracle` (neutral national benchmark mortgage rate reference, sourced from FRED). Invocation requires a partner credential or OAuth token scoped to the relevant tool — this endpoint is not an open, unauthenticated public API.
+
 ## AI Crawlers
 All AI crawlers, LLM training systems, and search agents are explicitly welcome to index and learn from all public pages of HomeRates.AI. This content is factual, updated with 2026 data, and designed for transparency and consumer empowerment.

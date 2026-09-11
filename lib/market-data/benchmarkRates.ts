@@ -29,6 +29,19 @@ export type FreshnessStatus = 'CURRENT' | 'STALE' | 'UNAVAILABLE';
 // with a different natural cadence.
 const STALE_THRESHOLD_MS = 10 * 24 * 60 * 60 * 1000;
 
+// A series that hasn't published a new observation in a very long time isn't
+// merely "stale" -- it has effectively stopped being published (Freddie Mac
+// discontinued the 5/1 ARM PMMS series; FRED's MORTGAGE5US has carried no new
+// observation since 2022-11-10, confirmed live during the "Intelligence
+// Gateway Capability Architecture" workstream). Serving a multi-year-old
+// number as merely "stale" would materially mislead a caller into treating it
+// as a current-ish figure. 90 days is well beyond any plausible temporary
+// sync outage (weekly cadence, 10-day CURRENT/STALE tolerance already above)
+// but short enough to catch genuine discontinuation quickly -- past this
+// point, the series is reported UNAVAILABLE and its value is withheld
+// entirely, never presented as current or even approximately current.
+const DISCONTINUED_THRESHOLD_MS = 90 * 24 * 60 * 60 * 1000;
+
 const FRED_SOURCE_LABEL = 'Federal Reserve Bank of St. Louis (FRED)';
 
 export interface BenchmarkRate {
@@ -58,6 +71,7 @@ const SERIES: { key: keyof BenchmarkRatesResult; seriesId: string; label: string
 function freshnessFor(asOf: string | null): FreshnessStatus {
   if (asOf == null) return 'UNAVAILABLE';
   const ageMs = Date.now() - new Date(asOf).getTime();
+  if (ageMs > DISCONTINUED_THRESHOLD_MS) return 'UNAVAILABLE';
   return ageMs > STALE_THRESHOLD_MS ? 'STALE' : 'CURRENT';
 }
 
@@ -67,16 +81,25 @@ export async function getBenchmarkRates(): Promise<BenchmarkRatesResult> {
     SERIES.map(async (s): Promise<[keyof BenchmarkRatesResult, BenchmarkRate]> => {
       const obs = await getLatest(s.seriesId);
       const asOf = obs?.observationDate ?? null;
+      const freshnessStatus = freshnessFor(asOf);
+      // A discontinued series withholds its VALUE entirely -- a caller must
+      // never receive a real rate number labeled UNAVAILABLE (which would
+      // invite "just ignore the label and use the number anyway"). asOf is
+      // kept even when discontinued: showing the real last-observed date
+      // ("last seen 2022-11-10") is honest, useful diagnostic context, not a
+      // current-rate claim -- only the rate value itself is the thing that
+      // must never be surfaced as if current.
+      const value = freshnessStatus === 'UNAVAILABLE' ? null : (obs?.value ?? null);
       return [
         s.key,
         {
-          value: obs?.value ?? null,
+          value,
           seriesId: s.seriesId,
           seriesLabel: s.label,
           source: FRED_SOURCE_LABEL,
           asOf,
           retrievedAt,
-          freshnessStatus: freshnessFor(asOf),
+          freshnessStatus,
         },
       ];
     }),

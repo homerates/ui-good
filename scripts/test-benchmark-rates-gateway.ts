@@ -186,14 +186,22 @@ async function main() {
 
   {
     const routeSrc = fs.readFileSync(path.resolve(process.cwd(), 'app/api/mcp/property-intelligence/route.ts'), 'utf-8');
-    record('E1. MCP route registers get_benchmark_rates alongside get_property_intelligence in tools/list',
-      /tools:\s*\[\s*\{ name: TOOL_NAME[\s\S]*?BENCHMARK_RATES_TOOL_NAME/.test(routeSrc) ? 'PASS' : 'FAIL', 'source-inspected');
+    record('E1. MCP route registers BENCHMARK_RATES_TOOL_NAME alongside TOOL_NAME in tools/list',
+      /tools:\s*\[[\s\S]*?\{ name: TOOL_NAME[\s\S]*?BENCHMARK_RATES_TOOL_NAME/.test(routeSrc) ? 'PASS' : 'FAIL', 'source-inspected');
     record('E2. tools/call dispatches BENCHMARK_RATES_TOOL_NAME to getBenchmarkRatesGated',
       /toolName === BENCHMARK_RATES_TOOL_NAME/.test(routeSrc) && /getBenchmarkRatesGated\(apiKeyHeader, requestIp\)/.test(routeSrc) ? 'PASS' : 'FAIL', 'source-inspected');
-    record('E3. Unknown tool name (neither registered tool) still returns isError:true, not a crash',
-      /toolName !== TOOL_NAME && toolName !== BENCHMARK_RATES_TOOL_NAME/.test(routeSrc) ? 'PASS' : 'FAIL', 'source-inspected');
+    record('E3. Unknown tool name (neither registered tool, canonical or legacy) still returns isError:true, not a crash',
+      /!isPropertyIntelligence && !isBenchmarkRates/.test(routeSrc) ? 'PASS' : 'FAIL', 'source-inspected');
     record('E4. FORBIDDEN mapping advertises the tool-specific scope (benchmark_rates:read for the new tool)',
       /mapGatewayRejection\(id, result, 'benchmark_rates:read'\)/.test(routeSrc) ? 'PASS' : 'FAIL', 'source-inspected');
+    record('E5. Canonical name is homerates_rate_oracle; legacy get_benchmark_rates kept callable but not advertised',
+      /BENCHMARK_RATES_TOOL_NAME = 'homerates_rate_oracle'/.test(routeSrc) &&
+      /LEGACY_BENCHMARK_RATES_TOOL_NAME = 'get_benchmark_rates'/.test(routeSrc) &&
+      /isBenchmarkRates = toolName === BENCHMARK_RATES_TOOL_NAME \|\| toolName === LEGACY_BENCHMARK_RATES_TOOL_NAME/.test(routeSrc)
+        ? 'PASS' : 'FAIL', 'source-inspected');
+    record('E6. Both tools/list entries carry read-only MCP annotations',
+      (routeSrc.match(/annotations: \{ readOnlyHint: true, destructiveHint: false, openWorldHint: false \}/g) ?? []).length === 2
+        ? 'PASS' : 'FAIL', 'source-inspected');
   }
 
   const failed = results.filter(r => r.status === 'FAIL');

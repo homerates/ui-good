@@ -1429,3 +1429,88 @@ pre-existing LIMITED), `test-benchmark-rates-gateway.ts` (26/26),
 `test-deep-intelligence-parity.ts` (12/12). `tsc --noEmit`, full `next
 build`, and the build's own `[CalcEngine]`/`[AnswerFormat]` self-tests all
 clean. Pushed to `dev` only — NOT merged to `main`, no production push.
+
+## AD-29 — Invocable-by-Design Contract Foundation
+
+**Decision:** Defined the locked 5-intent external tool architecture
+(`homerates_property_intelligence`, `homerates_rate_oracle`,
+`homerates_scenario_intelligence`, `homerates_loan_limit_intelligence`,
+`homerates_buyer_capacity_intelligence`) and adapted the 2 tools that
+already existed into it. `tools/list` now advertises only the 2 canonical
+names; `tools/call` still accepts the pre-rename names
+(`get_property_intelligence`, `get_benchmark_rates`) so any already-
+connected caller keeps working. The other 3 intents remain genuinely
+unexposed — no stub, no partial contract, nothing registered anywhere —
+per the explicit instruction to leave a slot absent rather than publish a
+weak tool. Full reasoning, the common envelope/claim-type/status vocabulary
+mapping, the MCP transport and annotations audit, the latency-target audit,
+and the discovery-artifact audit are in `docs/
+HOMERATES_INVOCABLE_CONTRACT_FOUNDATION.md` — not duplicated here.
+
+**One real fix made along the way:** `lib/market-data/benchmarkRates.ts`
+gained a `DISCONTINUED_THRESHOLD_MS` (90 days). FRED's `MORTGAGE5US`
+(Freddie Mac's 5/1 ARM PMMS series, discontinued — no new observation since
+2022-11-10) now reports `freshness_status: 'UNAVAILABLE'` with `value:
+null` instead of being served as a merely-"STALE"-but-real 4-year-old
+number. `asOf` is kept (honest "last seen" context); only the value itself
+is withheld. Proven live (not just asserted) by a real executable call in
+the new golden-prompt fixture.
+
+**Both `tools/list` entries gained MCP tool annotations**
+(`readOnlyHint: true, destructiveHint: false, openWorldHint: false`) —
+documentation of already-true behavior, not a behavior change.
+
+**New test coverage:** `scripts/test-golden-prompts.ts` (10/10) — a
+platform-neutral fixture, 5 positive prompts (right-tool, right-claim-type,
+source-as-of-correct, no-fabricated-precision, no-program-overclaim, each
+scored against the REAL evaluated tool descriptions returned by a live
+`tools/list` call, not regex-scraped from source, after an initial version
+of this test made exactly that mistake and was corrected before being
+reported as passing) and 5 negative-guardrail prompts (the 3 unexposed
+intents are honestly absent from discovery; a plausible-but-unregistered
+tool name is rejected as `Unknown tool`, not silently handled by unrelated
+internal logic like `calcDispatcher.ts`'s scenario-comparison text
+matching; AI synthesis stays labeled, never silent fact).
+`scripts/test-external-adapter.ts` grew from 56 to 58 (2 new backward-
+compat checks proving the legacy tool names still work via `tools/call`
+even though `tools/list` no longer advertises them).
+`scripts/test-benchmark-rates-gateway.ts` grew from 26 to 28 (2 new checks:
+both tools carry read-only annotations; the canonical/legacy name pair is
+correct). Both existing files' source-inspection regexes (E1/E3) were
+updated to match the new `isPropertyIntelligence`/`isBenchmarkRates`
+dispatch structure — the underlying behavior they check (unknown tool names
+still error cleanly, both tools are registered) is unchanged.
+
+**Documentation-only, additive fix:** `public/llms.txt` had zero mention of
+the MCP endpoint, OAuth, or any external tool despite already existing and
+already inviting AI crawlers — a real gap for an "invocable" surface. Added
+one short, factual section naming the endpoint path and the 2 currently-
+exposed canonical tool names; says nothing about the 3 unexposed intents.
+`.well-known/mcp.json` was researched live (WebSearch) and confirmed still
+non-finalized at the spec level (MCP's Server Card Working Group) —
+classified LATER, not implemented. `/docs/agents` was not built — it would
+currently duplicate `llms.txt`'s new section with no independent content.
+
+**What was NOT changed:** `ExternalPropertyIntelligenceV1Schema` and
+`BenchmarkRatesV1Schema` (only tool names in `tools/list` + the one
+freshness-status value/status behavior changed, not either schema's
+shape), Decision Score, L1-L4 weights, Rate Intelligence, Personal Fit,
+LLPA methodology, property identity rules, demand-driven acquisition
+architecture, OAuth scope set, Gateway security posture, public Plugin
+visibility (still on hold). No true methodology conflict was found.
+
+**Status:** Built. `tsc --noEmit` clean. Full regression re-run, all green:
+`test-external-adapter.ts` (58/58), `test-benchmark-rates-gateway.ts`
+(28/28), `test-golden-prompts.ts` (10/10, new),
+`test-intelligence-gateway.ts` (58/58 + 2 pre-existing LIMITED),
+`test-oauth-flow.ts` (45/45 + 2 pre-existing LIMITED),
+`test-deep-intelligence-parity.ts` (12/12),
+`test-first-party-canonical-consistency.ts` (10/10),
+`test-firstparty-valuation-integrity.ts` (29/29),
+`test-response-semantics-cleanup.ts` (9/9), `test-rate-role-correction.ts`
+(7/7), `test-chatgpt-invocation-contract.ts` (7/7),
+`test-mortgage-math-integrity.ts` (42/42),
+`test-affordability-fha-mip-basis.ts` (11/11),
+`test-seeded-scenario-canonicalization.ts` (31/31),
+`test-conventional-classification.ts` (21/21). Pushed to `dev` only — NOT
+merged to `main`, no production push, no public directory submission.
