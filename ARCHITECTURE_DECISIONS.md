@@ -1750,3 +1750,114 @@ Intelligence, LLPA methodology.
 **Status:** Built. `tsc --noEmit` clean. Full regression re-run, all green
 (see the final report for the complete list). Pushed to `dev` only — NOT
 merged to `main`, no production push, no public directory submission.
+
+## AD-32 — homerates_buyer_capacity_intelligence (fifth and FINAL exposed tool)
+
+**Decision:** Exposed the fifth and final locked intent,
+`homerates_buyer_capacity_intelligence` — the inverse of
+`homerates_scenario_intelligence`: given income/debts/down-payment/rate/
+program, returns supportable purchase-price bands instead of taking a
+price as input. This completes the locked 5-intent architecture; no sixth
+tool exists or is planned.
+
+**Explicit gate check, done before writing any code, per this
+workstream's own instruction ("Do not expose if current affordability
+solver still has unresolved methodological divergence"):**
+`lib/calcEngine.ts`'s existing `calcAffordabilityScenario()` — the
+pre-existing "what can I afford" solver — was checked and DOES have
+unresolved divergence from `calcConventional()`/`calcFHA()` (the functions
+`homerates_scenario_intelligence` actually uses), confirmed empirically:
+its conventional MI is a flat `PMI_RATE_STD` regardless of LTV tier ($272/mo
+via the solver vs $149/mo via the real LTV-tiered `monthlyPMI()` at ~85%
+LTV); its FHA MIP uses a flat rate with no higher-balance tier at all
+($573/mo via the solver vs $781/mo via the real `fhaMIPRate()` for a
+$1,249,125 base loan). Same class of bug as AFFD-012's own PMI formula
+(AD-31), this time inside `calcEngine.ts` itself.
+
+**Presented to Rayaan with the exact numbers; decision: build via a fresh
+inversion of `getScenarioIntelligence()` itself, never calling
+`calcAffordabilityScenario()` at all** (confirmed absent from the new
+engine's imports by a dedicated test). Per the mandatory principle in the
+brief ("Buyer Capacity and Scenario Intelligence MUST consume the same...
+it may invert those engines, it may not duplicate them"), this is closer to
+definitional than a workaround: `lib/pricing/buyerCapacityIntelligence.ts`
+binary-searches over `price`, calling `getScenarioIntelligence()`
+(AD-31's own engine) at each candidate price and reading its
+`qualification.backEndDTI` straight back — never reimplementing PMI, MIP,
+tax, insurance, or DTI math itself. Each band's `scenario` field in the
+output IS a real `getScenarioIntelligence()` result computed at that
+band's resolved price, not a restated summary — the mandatory parity
+property ("feed the resulting price back into Scenario Intelligence") is
+therefore close to tautological by construction, and was still verified
+as a real, separate test (`scripts/test-buyer-capacity-intelligence.ts`
+section C): PITI/DTI reconciled EXACTLY (0 diff, not just within
+tolerance) across all 3 bands in the test scenario.
+
+**Multiple transparent DTI bands, not one false-precision maximum** — per
+the brief's own preference and confirmed safe by the engine's design
+(each band is just a separate binary search with a different target).
+Bands are drawn from real, pre-existing, already-canonical constants in
+`lib/constants.ts` (`DTI_CONSERVATIVE`, `DTI_STANDARD_MAX`,
+`DTI_CONVENTIONAL_MAX`, `DTI_VA_MAX`, `DTI_JUMBO_STD`, `DTI_JUMBO_MAX`) —
+none invented for this tool. Conventional/FHA: Conservative (0.36) /
+Standard (0.43) / Maximum-with-compensating-factors (0.50). VA:
+Conservative / VA Guideline (0.41). Jumbo: Conservative / Standard-jumbo
+(0.38) / Maximum-jumbo (0.43).
+
+**Cash constraint modeled as a genuine second binding constraint, not an
+afterthought:** for a fixed down-payment %, the cash-constrained max price
+(`availableCash / (downPct/100)`) is compared against the income-DTI-
+constrained max price found by the search; the LOWER one wins, and
+`bands[].constraint` honestly reports which one bound
+(`INCOME_DTI`/`CASH_AVAILABLE`/`NONE_AFFORDABLE` when debts alone exceed a
+band's target regardless of price — `price: 0`, `scenario: null`, never a
+fabricated negative or zero-but-computed figure).
+
+**Rate handling identical to Scenario Intelligence's own convention:**
+resolved once via `getBenchmarkRates()` (never re-fetched per search
+iteration — confirmed by a source-inspection test finding exactly one call
+site) and passed explicitly into every internal
+`getScenarioIntelligence()` call, so every band uses the identical rate,
+and a caller who omitted `rate_pct` sees it echoed consistently in both
+`inputs.rate_pct` and `rate_benchmark`.
+
+**No approval language, no lender-specific underwriting claims** — the
+tool description explicitly forbids "approved for"/"qualifies for"/
+"pre-qualified for" framing and instructs "supportable"/"estimated
+capacity" instead; verified by a dedicated source-inspection test. No
+`qualifies`-style boolean from `calcFHA()` is surfaced anywhere in this
+tool's output (Scenario Intelligence's own shaping already omits it).
+
+**Scope:** new `buyer_capacity_intelligence:read`, additive, OR-compatible
+with `property_intelligence:read`.
+
+**Golden test suite (`scripts/test-buyer-capacity-intelligence.ts`,
+36/36):** the gate-check divergence markers (A1-A4), multi-band/monotonic-
+price/DTI-accuracy checks, the mandatory parity test (section C, exact
+reconciliation), the cash-constraint and NONE_AFFORDABLE cases, program-
+specific sanity (FHA/VA/jumbo via Scenario Intelligence, not
+reimplemented), rate-handling and single-fetch verification, schema
+validation (including the nested `ScenarioIntelligenceV1Schema` reuse),
+no-approval-language verification, scope tests, request validation, and a
+real end-to-end `tools/call`. Existing cross-tool suites updated for the
+5th and final tool: `test-external-adapter.ts` (58/58, tool-count 4→5),
+`test-benchmark-rates-gateway.ts` (28/28, annotation count 4→5),
+`test-golden-prompts.ts` (10/10 — P4 reclassified negative→positive now
+that the tool is real, rewritten as a live call; P9's guessed-tool-name
+guardrail repointed at a wholly fictitious name since all 5 locked intents
+are now real; 8 positive / 2 negative-guardrail), `test-scenario-
+intelligence.ts` (40/40, its own tool-count/Buyer-Capacity-absence
+assertions loosened/corrected now that this tool is real).
+
+**What was NOT changed:** `calcAffordabilityScenario()` (the divergence is
+reported, not fixed — a future dedicated workstream's job, exactly
+mirroring AD-31's AFFD-012 disposition), `lib/calcEngine.ts`,
+`lib/pricing/scenarioIntelligence.ts`, `lib/pricing/loanLimitIntelligence.ts`,
+`lib/market-data/benchmarkRates.ts`, the other 4 tools' contracts, OAuth's
+`SUPPORTED_OAUTH_SCOPE`, Gateway security posture, Decision Score, Rate
+Intelligence, LLPA methodology.
+
+**Status:** Built. `tsc --noEmit` clean. Full regression re-run, all
+green. Pushed to `dev` only — NOT merged to `main`, no production push, no
+public directory submission. This is the fifth and final tool in the
+locked architecture — no sixth tool is planned.

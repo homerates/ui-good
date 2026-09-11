@@ -269,8 +269,12 @@ async function main() {
 
   const toolsListResult = await callAdapter({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: { _meta: meta() } }, mcpHeaders('tools/list', null));
   const listedTools: { name: string; annotations?: Record<string, unknown> }[] = toolsListResult.json?.result?.tools ?? [];
-  record('G2. tools/list now advertises exactly 4 tools, including homerates_scenario_intelligence',
-    listedTools.length === 4 && listedTools.some((t) => t.name === 'homerates_scenario_intelligence') ? 'PASS' : 'FAIL',
+  // Exact total tool count is exhaustively tested by test-external-adapter.ts
+  // and test-buyer-capacity-intelligence.ts -- this file only asserts
+  // inclusion, so it doesn't need editing every time a later workstream
+  // adds another tool (as happened here once already).
+  record('G2. tools/list includes homerates_scenario_intelligence',
+    listedTools.length >= 4 && listedTools.some((t) => t.name === 'homerates_scenario_intelligence') ? 'PASS' : 'FAIL',
     JSON.stringify(listedTools.map((t) => t.name)));
   const scenarioListing = listedTools.find((t) => t.name === 'homerates_scenario_intelligence');
   record('G3. homerates_scenario_intelligence carries read-only MCP annotations',
@@ -284,9 +288,14 @@ async function main() {
   record('G5. tools/call against homerates_scenario_intelligence with no credential -> 401 UNAUTHORIZED (not a silent success)',
     mcpCallNoAuth.status === 401 ? 'PASS' : 'FAIL', JSON.stringify(mcpCallNoAuth.json));
 
-  // Buyer Capacity Intelligence must still NOT be exposed by this workstream.
-  record('G6. Buyer Capacity Intelligence remains unexposed (explicit instruction: do not expose it in this workstream)',
-    !listedTools.some((t) => /buyer_capacity/i.test(t.name)) ? 'PASS' : 'FAIL', JSON.stringify(listedTools.map((t) => t.name)));
+  // Buyer Capacity Intelligence was NOT exposed by THIS workstream, per its
+  // own explicit instruction -- it shipped in the very next workstream
+  // (scripts/test-buyer-capacity-intelligence.ts is the authoritative test
+  // for its exposure). This just confirms tools/list still resolves fine
+  // whether or not that later tool is present, rather than asserting a
+  // fact this file's own workstream can no longer make about a later one.
+  record('G6. tools/list resolves without error (Buyer Capacity\'s later exposure, if present, is tested in its own suite)',
+    Array.isArray(listedTools) && listedTools.length >= 4 ? 'PASS' : 'FAIL', JSON.stringify(listedTools.map((t) => t.name)));
 
   console.log('\n=== FINAL RESULTS ===');
   console.table(results.map((r) => ({ name: r.name, status: r.status })));

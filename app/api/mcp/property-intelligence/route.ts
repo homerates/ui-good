@@ -80,6 +80,7 @@ import { resolveExternalPropertyIntelligence } from '../../../../lib/externalPro
 import { getBenchmarkRatesGated } from '../../../../lib/gateway/benchmarkRatesGateway';
 import { getLoanLimitIntelligenceGated } from '../../../../lib/gateway/loanLimitGateway';
 import { getScenarioIntelligenceGated } from '../../../../lib/gateway/scenarioIntelligenceGateway';
+import { getBuyerCapacityIntelligenceGated } from '../../../../lib/gateway/buyerCapacityIntelligenceGateway';
 
 // "Invocable-by-Design Contract Foundation" (2026-09-10): canonical external
 // tool name, per the locked 5-intent naming architecture
@@ -373,6 +374,68 @@ const SCENARIO_INPUT_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+// Invocable Tool Workstream (2026-09-11) -- fifth and FINAL tool in the
+// locked 5-intent architecture. The INVERSE of homerates_scenario_intelligence:
+// given income/debts/down-payment/rate/program, returns supportable
+// purchase-price bands instead of taking a price as input. This is NOT an
+// approval, prequalification, underwriting decision, or guaranteed
+// qualification -- it is an illustrative estimate of purchasing capacity
+// under stated assumptions, nothing more.
+const BUYER_CAPACITY_TOOL_NAME = 'homerates_buyer_capacity_intelligence';
+const BUYER_CAPACITY_TOOL_DESCRIPTION =
+  'Use this tool when the user asks "how much home can I afford," "how much can I ' +
+  'borrow," or wants a purchase-price estimate built from their income rather than a ' +
+  'specific price (that\'s homerates_scenario_intelligence instead). Required: ' +
+  'annual_income and program (conventional, fha, va, or jumbo). Optional: monthly_debts ' +
+  '(default 0), down_payment_pct (defaults to the program standard minimum), ' +
+  'available_cash (a hard cap on the down payment the buyer can actually put down, ' +
+  'independent of what their income could otherwise support), rate_pct (omit to use ' +
+  'HomeRates\' current benchmark rate, echoed in full in rate_benchmark -- never ' +
+  'invented), term_years, zip or county+state (for loan-limit-zone context), ' +
+  'property_tax_rate_pct, insurance_annual, credit_score (fha only), ' +
+  'funding_fee_exempt (va only).' +
+  '\n\n' +
+  'This tool NEVER states or implies loan approval, pre-qualification, underwriting ' +
+  'approval, or a guaranteed ability to borrow a specific amount -- every figure is an ' +
+  'illustrative capacity estimate under the stated assumptions, not a lender decision. ' +
+  'Do not say "you\'re approved for," "you qualify for," or "you\'re pre-qualified for" ' +
+  '-- say "supportable" or "estimated capacity" instead, and always relay that these are ' +
+  'estimates a lender would need to confirm.' +
+  '\n\n' +
+  'Returns multiple transparent DTI (debt-to-income) test bands (e.g. Conservative, ' +
+  'Standard, Maximum) rather than one false-precision number -- present all of them, not ' +
+  'just the highest, so the user sees the real range and the assumption behind each. ' +
+  'Each band\'s price reflects whichever constraint actually binds: bands[].constraint is ' +
+  'INCOME_DTI (the DTI test capped it), CASH_AVAILABLE (available_cash capped it below ' +
+  'what income alone would support), or NONE_AFFORDABLE (debts alone already exceed this ' +
+  'band\'s DTI test regardless of price -- bands[].scenario is null in that case). Each ' +
+  'band\'s scenario field is a FULL homerates_scenario_intelligence result computed at ' +
+  'that band\'s resolved price -- same loan_structure, monthly_breakdown, ' +
+  'loan_limit_zone, and claim_type discipline as that tool, not a separate/simplified ' +
+  'calculation. Never state a single number as "the" affordability figure when multiple ' +
+  'bands are present -- always frame it as a range across bands.';
+const BUYER_CAPACITY_INPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    annual_income: { type: 'number', description: 'Gross annual income in dollars. Required.' },
+    program: { type: 'string', enum: ['conventional', 'fha', 'va', 'jumbo'], description: 'Loan program. Required.' },
+    monthly_debts: { type: 'number', description: 'Monthly recurring debt payments in dollars. Defaults to 0.' },
+    down_payment_pct: { type: 'number', description: 'Down payment as a percent (e.g. 10 for 10%). Defaults to the program standard minimum.' },
+    available_cash: { type: 'number', description: 'Cash available for the down payment, in dollars -- caps the supportable price independent of income.' },
+    rate_pct: { type: 'number', description: 'Annual interest rate as a percent. Omit to use HomeRates\' current benchmark rate.' },
+    term_years: { type: 'number', description: 'Loan term in years. Defaults to 30.' },
+    zip: { type: 'string', description: 'A 5-digit US ZIP code, for loan-limit-zone context.' },
+    county: { type: 'string', description: 'A US county name. Requires state to also be set.' },
+    state: { type: 'string', description: 'A 2-letter US state code. Required if county is set.' },
+    property_tax_rate_pct: { type: 'number', description: 'Annual property tax rate as a percent of price. Omit for the illustrative national default.' },
+    insurance_annual: { type: 'number', description: 'Annual homeowners insurance in dollars. Omit for the illustrative national default.' },
+    credit_score: { type: 'number', description: 'Borrower credit score. FHA program only.' },
+    funding_fee_exempt: { type: 'boolean', description: 'True if the borrower is exempt from the VA funding fee (disability). VA program only.' },
+  },
+  required: ['annual_income', 'program'],
+  additionalProperties: false,
+} as const;
+
 interface JsonRpcRequest {
   jsonrpc: '2.0';
   id?: string | number | null;
@@ -648,6 +711,7 @@ export async function POST(req: NextRequest) {
         { name: BENCHMARK_RATES_TOOL_NAME, description: BENCHMARK_RATES_TOOL_DESCRIPTION, inputSchema: BENCHMARK_RATES_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
         { name: LOAN_LIMIT_TOOL_NAME, description: LOAN_LIMIT_TOOL_DESCRIPTION, inputSchema: LOAN_LIMIT_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
         { name: SCENARIO_TOOL_NAME, description: SCENARIO_TOOL_DESCRIPTION, inputSchema: SCENARIO_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
+        { name: BUYER_CAPACITY_TOOL_NAME, description: BUYER_CAPACITY_TOOL_DESCRIPTION, inputSchema: BUYER_CAPACITY_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
       ],
     }));
   }
@@ -664,8 +728,9 @@ export async function POST(req: NextRequest) {
     const isBenchmarkRates = toolName === BENCHMARK_RATES_TOOL_NAME || toolName === LEGACY_BENCHMARK_RATES_TOOL_NAME;
     const isLoanLimit = toolName === LOAN_LIMIT_TOOL_NAME;
     const isScenario = toolName === SCENARIO_TOOL_NAME;
+    const isBuyerCapacity = toolName === BUYER_CAPACITY_TOOL_NAME;
 
-    if (!isPropertyIntelligence && !isBenchmarkRates && !isLoanLimit && !isScenario) {
+    if (!isPropertyIntelligence && !isBenchmarkRates && !isLoanLimit && !isScenario && !isBuyerCapacity) {
       return jsonRpcResult(id, withServerMeta({
         resultType: 'complete',
         content: [{ type: 'text', text: `Unknown tool: ${String(toolName)}` }],
@@ -712,6 +777,19 @@ export async function POST(req: NextRequest) {
         }));
       }
       return mapGatewayRejection(id, result, 'scenario_intelligence:read');
+    }
+
+    if (isBuyerCapacity) {
+      const buyerCapacityArgs = (params?.arguments ?? {}) as Record<string, unknown>;
+      const result = await getBuyerCapacityIntelligenceGated(buyerCapacityArgs, apiKeyHeader, requestIp);
+      if (result.ok) {
+        return jsonRpcResult(id, withServerMeta({
+          resultType: 'complete',
+          content: [{ type: 'text', text: JSON.stringify(result.data) }],
+          isError: false,
+        }));
+      }
+      return mapGatewayRejection(id, result, 'buyer_capacity_intelligence:read');
     }
 
     // No address validation here -- passed straight through unchanged.
