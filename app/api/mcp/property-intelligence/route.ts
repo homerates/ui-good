@@ -78,6 +78,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveExternalPropertyIntelligence } from '../../../../lib/externalPropertyResolution';
 import { getBenchmarkRatesGated } from '../../../../lib/gateway/benchmarkRatesGateway';
+import { getLoanLimitIntelligenceGated } from '../../../../lib/gateway/loanLimitGateway';
 
 // "Invocable-by-Design Contract Foundation" (2026-09-10): canonical external
 // tool name, per the locked 5-intent naming architecture
@@ -240,6 +241,59 @@ const BENCHMARK_RATES_TOOL_DESCRIPTION =
 const BENCHMARK_RATES_INPUT_SCHEMA = {
   type: 'object',
   properties: {},
+  additionalProperties: false,
+} as const;
+
+// Invocable Tool Workstream (2026-09-11) -- third tool on this same MCP
+// server, the locked architecture's homerates_loan_limit_intelligence.
+// Address-independent (ZIP or county+state, never a full street address):
+// answers "what's the loan limit here," never "what can this borrower
+// afford" (that is Buyer Capacity Intelligence's territory, not yet
+// exposed) or "should they go Conventional or Jumbo" (a recommendation,
+// which this tool deliberately never makes).
+const LOAN_LIMIT_TOOL_NAME = 'homerates_loan_limit_intelligence';
+const LOAN_LIMIT_TOOL_DESCRIPTION =
+  'Use this tool when the user asks about conforming, high-balance, FHA, or jumbo loan ' +
+  'limits for a location -- "what\'s the loan limit in [ZIP/county]," "is this county high-' +
+  'balance," "does a $X loan exceed the conforming limit here," or "what\'s the FHA limit ' +
+  'for this county." Provide EITHER zip, OR both county and state -- do not guess or infer ' +
+  'a county from a city name yourself when a ZIP is available; pass the ZIP and let this ' +
+  'tool resolve it. units (1-4, default 1) selects the limit for a 1-4 unit property. year ' +
+  'defaults to the current data year (2026) -- HomeRates has real loan-limit data for that ' +
+  'year only; requesting any other year returns every limit/classification field as ' +
+  'UNAVAILABLE rather than a wrong or stale number. loan_amount is optional -- supply it to ' +
+  'get a classification; omit it to get limits only. program (conventional/fha/both, ' +
+  'default both) scopes which classification(s) are computed -- the raw limit figures ' +
+  '(national_baseline_limit, county_conforming_limit, fha_county_limit) are always returned ' +
+  'regardless of program.' +
+  '\n\n' +
+  'county_resolution.status is RESOLVED, UNRESOLVED (a ZIP was given but not found), or ' +
+  'NOT_PROVIDED (no ZIP or county/state given at all). Every limit/classification field has ' +
+  'its own status: AVAILABLE (a real figure), COUNTY_REQUIRED (a county is genuinely needed ' +
+  'to answer and none was resolved), or UNAVAILABLE (the county resolved but HomeRates does ' +
+  'not have this specific figure for it -- e.g. FHA county limits are a REAL, HONEST DATA ' +
+  'GAP outside California; HomeRates does not fabricate a non-California county\'s FHA limit ' +
+  'from its conforming limit, since the two are not reliably related). Never treat a null ' +
+  'value or UNAVAILABLE status as zero, or as "no limit applies."' +
+  '\n\n' +
+  'classification.conventional and classification.fha (each CONFORMING, HIGH_BALANCE, ' +
+  'ABOVE_CONFORMING_LIMIT, WITHIN_FHA_LIMIT, ABOVE_FHA_LIMIT, COUNTY_REQUIRED, or ' +
+  'UNAVAILABLE, or null if loan_amount was not supplied or that program was not requested) ' +
+  'are a factual classification only -- never state or imply that one classification is ' +
+  '"better" than another, never recommend Conventional vs. jumbo or FHA vs. conventional, ' +
+  'never state or imply loan approval, eligibility, or pricing/rate impact. Those are ' +
+  'separate questions this tool does not answer.';
+const LOAN_LIMIT_INPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    zip: { type: 'string', description: 'A 5-digit US ZIP code, e.g. "93001". Provide this OR county+state, not both required.' },
+    county: { type: 'string', description: 'A US county name, e.g. "Ventura" or "Los Angeles County". Requires state to also be set.' },
+    state: { type: 'string', description: 'A 2-letter US state code, e.g. "CA". Required if county is set.' },
+    year: { type: 'number', description: 'Loan-limit calendar year. Defaults to the current data year (2026).' },
+    units: { type: 'number', enum: [1, 2, 3, 4], description: 'Number of units on the property (1-4). Defaults to 1.' },
+    loan_amount: { type: 'number', description: 'Optional loan amount in dollars. When supplied, the response includes a classification.' },
+    program: { type: 'string', enum: ['conventional', 'fha', 'both'], description: 'Which program\'s classification to compute. Defaults to "both".' },
+  },
   additionalProperties: false,
 } as const;
 
@@ -516,6 +570,7 @@ export async function POST(req: NextRequest) {
         // never an open-ended web/document search.
         { name: TOOL_NAME, description: TOOL_DESCRIPTION, inputSchema: INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
         { name: BENCHMARK_RATES_TOOL_NAME, description: BENCHMARK_RATES_TOOL_DESCRIPTION, inputSchema: BENCHMARK_RATES_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
+        { name: LOAN_LIMIT_TOOL_NAME, description: LOAN_LIMIT_TOOL_DESCRIPTION, inputSchema: LOAN_LIMIT_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
       ],
     }));
   }
@@ -530,8 +585,9 @@ export async function POST(req: NextRequest) {
     // keeps working; every new discovery sees only the canonical name.
     const isPropertyIntelligence = toolName === TOOL_NAME || toolName === LEGACY_TOOL_NAME;
     const isBenchmarkRates = toolName === BENCHMARK_RATES_TOOL_NAME || toolName === LEGACY_BENCHMARK_RATES_TOOL_NAME;
+    const isLoanLimit = toolName === LOAN_LIMIT_TOOL_NAME;
 
-    if (!isPropertyIntelligence && !isBenchmarkRates) {
+    if (!isPropertyIntelligence && !isBenchmarkRates && !isLoanLimit) {
       return jsonRpcResult(id, withServerMeta({
         resultType: 'complete',
         content: [{ type: 'text', text: `Unknown tool: ${String(toolName)}` }],
@@ -552,6 +608,19 @@ export async function POST(req: NextRequest) {
         }));
       }
       return mapGatewayRejection(id, result, 'benchmark_rates:read');
+    }
+
+    if (isLoanLimit) {
+      const loanLimitArgs = (params?.arguments ?? {}) as Record<string, unknown>;
+      const result = await getLoanLimitIntelligenceGated(loanLimitArgs, apiKeyHeader, requestIp);
+      if (result.ok) {
+        return jsonRpcResult(id, withServerMeta({
+          resultType: 'complete',
+          content: [{ type: 'text', text: JSON.stringify(result.data) }],
+          isError: false,
+        }));
+      }
+      return mapGatewayRejection(id, result, 'loan_limit_intelligence:read');
     }
 
     // No address validation here -- passed straight through unchanged.
