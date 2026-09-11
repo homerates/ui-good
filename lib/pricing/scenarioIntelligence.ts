@@ -110,7 +110,11 @@ export interface ScenarioResult {
   assumptions: Array<{ field: string; value: unknown; reason: string }>;
 }
 
-const PROGRAM_MIN_DOWN: Record<ScenarioProgram, number> = {
+// Exported (Invocable Tool Workstream, 2026-09-11) so
+// homerates_buyer_capacity_intelligence can reuse the EXACT same
+// program-minimum defaults -- "Buyer Capacity and Scenario Intelligence
+// MUST consume the same... assumptions," not a second copy of this table.
+export const PROGRAM_MIN_DOWN: Record<ScenarioProgram, number> = {
   conventional: 20, // no-PMI standard default -- calcConventional has no internal default, unlike the other 3 programs
   fha: 3.5,         // matches calcFHA()'s own internal default
   va: 0,            // matches calcVA()'s own internal default

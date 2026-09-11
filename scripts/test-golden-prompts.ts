@@ -17,9 +17,18 @@
 // positive with a real call. P9's guessed-tool-name guardrail was pointed
 // at 'homerates_scenario_intelligence' as a plausible-but-unregistered
 // name -- now that it's real, P9 was repointed at
-// 'homerates_buyer_capacity_intelligence' (still genuinely unexposed),
-// which serves the identical guardrail purpose. 7 positive / 3
-// negative-guardrail now. Each prompt is
+// 'homerates_buyer_capacity_intelligence' (still genuinely unexposed at
+// the time). UPDATED A THIRD TIME 2026-09-11 (same day, Invocable Tool
+// Workstream, final tool): homerates_buyer_capacity_intelligence shipped
+// too -- the FULL locked 5-intent architecture is now exposed. P4
+// (originally "buyer capacity tool doesn't exist") gets the identical
+// reclassification treatment. P9's guessed-tool-name guardrail can no
+// longer point at any of the 5 locked intents (all are real now) -- it
+// now uses a plausible-but-entirely-fictitious name
+// ('homerates_refinance_intelligence') that was never part of this
+// architecture, which serves the identical guardrail purpose. 8 positive
+// / 2 negative-guardrail now (P6: claim-type labeling guardrail; P9:
+// guessed-name-rejected guardrail). Each prompt is
 // scored on the dimensions the brief specified: right-tool, right-claim-type,
 // source-as-of-correct, no-fabricated-precision, no-program-overclaim,
 // no-silent-assumptions -- via real, executable assertions against the
@@ -164,17 +173,20 @@ async function main() {
       record('P3', 'positive', "What's the 2026 conforming loan limit for Ventura County, CA?", 'right-tool / right-claim-type (real call)', ok, JSON.stringify(data));
     }
 
-    // ── NEGATIVE-GUARDRAIL prompts: no exposed tool / no fabrication ──
-
-    // P4 -- "What's the maximum loan amount this borrower can qualify for
-    // given their income and debts?" -- homerates_buyer_capacity_intelligence
-    // is NOT exposed.
+    // P4 -- "How much home can I afford on $150k income?" -- REAL
+    // executable call. right-tool: homerates_buyer_capacity_intelligence
+    // (exposed 2026-09-11, the 5th and final locked intent). Verifies
+    // multiple transparent DTI bands come back, and that no approval/
+    // pre-qualification language leaks into the response shape itself.
     {
-      const r = await callAdapter({ jsonrpc: '2.0', id: 4001, method: 'tools/list', params: { _meta: meta() } }, mcpHeaders('tools/list', null));
-      const names: string[] = (r.json?.result?.tools ?? []).map((t: any) => t.name);
-      const ok = names.length === 4 && !names.some((n) => /buyer_capacity|qualif/i.test(n));
-      record('P4', 'negative-guardrail', 'What is the maximum loan amount this borrower can qualify for?', 'no-silent-assumptions (tool honestly absent)', ok, JSON.stringify(names));
+      const body = { jsonrpc: '2.0', id: 4001, method: 'tools/call', params: { name: 'homerates_buyer_capacity_intelligence', arguments: { annual_income: 150000, program: 'conventional', rate_pct: 6.5 }, _meta: meta() } };
+      const r = await callAdapter(body, { ...mcpHeaders('tools/call', 'homerates_buyer_capacity_intelligence'), ...authHeaders });
+      const data = r.json?.result?.content?.[0]?.text ? JSON.parse(r.json.result.content[0].text) : null;
+      const ok = r.status === 200 && data?.contract_version === 'buyer-capacity-intelligence-v1' && Array.isArray(data?.bands) && data.bands.length >= 2;
+      record('P4', 'positive', 'How much home can I afford on $150k income? (real call)', 'right-tool / right-claim-type (real call)', ok, JSON.stringify(data?.bands?.map((b: any) => ({ label: b.label, price: b.price }))));
     }
+
+    // ── NEGATIVE-GUARDRAIL prompts: no exposed tool / no fabrication ──
 
     // P5 -- "Run the numbers on a $900k purchase, 10% down, conventional." --
     // REAL executable call. right-tool: homerates_scenario_intelligence
@@ -197,19 +209,20 @@ async function main() {
       record('P6', 'negative-guardrail', "Summarize this property's market outlook in your own words.", 'right-claim-type (synthesis must be labeled, not silent)', ok, 'TOOL_DESCRIPTION labels property_analysis as synthesis, not a valuation conclusion');
     }
 
-    // P9 -- "What's the most this borrower can afford?" issued directly as a
-    // tools/call for a plausible-but-unregistered buyer-capacity-tool name
-    // (homerates_scenario_intelligence no longer serves this purpose --
-    // it's real and exposed now; homerates_buyer_capacity_intelligence
-    // remains genuinely unexposed). Confirms no internal mechanism is
-    // accidentally reachable through MCP under a name an agent might guess.
+    // P9 -- "Should I refinance?" issued directly as a tools/call for a
+    // plausible-but-entirely-fictitious tool name. All 5 locked intents
+    // (property/rate/loan-limit/scenario/buyer-capacity) are real and
+    // exposed now, so the guardrail uses a name that was never part of
+    // this architecture at all -- confirms no internal mechanism (e.g. the
+    // real, live lib/calcEngine.ts calcRefi() function) is accidentally
+    // reachable through MCP under a name an agent might guess.
     {
-      const guessedName = 'homerates_buyer_capacity_intelligence';
+      const guessedName = 'homerates_refinance_intelligence';
       const body = { jsonrpc: '2.0', id: 9001, method: 'tools/call', params: { name: guessedName, arguments: {}, _meta: meta() } };
       const r = await callAdapter(body, { ...mcpHeaders('tools/call', guessedName), ...authHeaders });
       const text = r.json?.result?.content?.[0]?.text;
       const ok = r.json?.result?.isError === true && text === `Unknown tool: ${guessedName}`;
-      record('P9', 'negative-guardrail', 'What is the most this borrower can afford? (guessed buyer-capacity-tool name)', 'no-silent-assumptions (guessed tool name rejected, not silently handled)', ok, JSON.stringify(r.json?.result));
+      record('P9', 'negative-guardrail', 'Should I refinance? (guessed, entirely fictitious tool name)', 'no-silent-assumptions (guessed tool name rejected, not silently handled)', ok, JSON.stringify(r.json?.result));
     }
 
     console.log('\n=== FINAL RESULTS ===');
