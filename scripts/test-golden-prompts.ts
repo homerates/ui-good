@@ -10,8 +10,16 @@
 // ("loan limit tool doesn't exist") when written -- now that
 // homerates_loan_limit_intelligence is real and exposed, asserting its
 // absence would itself be a false test, so P3 was reclassified to positive
-// (6 positive / 4 negative-guardrail now) and rewritten as a real
-// executable call against the tool, matching P8's style. Each prompt is
+// and rewritten as a real executable call against the tool, matching P8's
+// style. UPDATED AGAIN 2026-09-11 (same day, Invocable Tool Workstream):
+// homerates_scenario_intelligence shipped next -- P5 (originally "scenario
+// tool doesn't exist") gets the identical treatment, reclassified to
+// positive with a real call. P9's guessed-tool-name guardrail was pointed
+// at 'homerates_scenario_intelligence' as a plausible-but-unregistered
+// name -- now that it's real, P9 was repointed at
+// 'homerates_buyer_capacity_intelligence' (still genuinely unexposed),
+// which serves the identical guardrail purpose. 7 positive / 3
+// negative-guardrail now. Each prompt is
 // scored on the dimensions the brief specified: right-tool, right-claim-type,
 // source-as-of-correct, no-fabricated-precision, no-program-overclaim,
 // no-silent-assumptions -- via real, executable assertions against the
@@ -164,17 +172,20 @@ async function main() {
     {
       const r = await callAdapter({ jsonrpc: '2.0', id: 4001, method: 'tools/list', params: { _meta: meta() } }, mcpHeaders('tools/list', null));
       const names: string[] = (r.json?.result?.tools ?? []).map((t: any) => t.name);
-      const ok = names.length === 3 && !names.some((n) => /buyer_capacity|qualif/i.test(n));
+      const ok = names.length === 4 && !names.some((n) => /buyer_capacity|qualif/i.test(n));
       record('P4', 'negative-guardrail', 'What is the maximum loan amount this borrower can qualify for?', 'no-silent-assumptions (tool honestly absent)', ok, JSON.stringify(names));
     }
 
-    // P5 -- "Run a full conventional-vs-FHA scenario comparison for me."
-    // homerates_scenario_intelligence is NOT exposed.
+    // P5 -- "Run the numbers on a $900k purchase, 10% down, conventional." --
+    // REAL executable call. right-tool: homerates_scenario_intelligence
+    // (exposed 2026-09-11). Verifies the deal math comes back computed via
+    // calcEngine.ts (correctly LTV-tiered PMI), not a guessed/default figure.
     {
-      const r = await callAdapter({ jsonrpc: '2.0', id: 5001, method: 'tools/list', params: { _meta: meta() } }, mcpHeaders('tools/list', null));
-      const names: string[] = (r.json?.result?.tools ?? []).map((t: any) => t.name);
-      const ok = names.length === 3 && !names.some((n) => /scenario/i.test(n));
-      record('P5', 'negative-guardrail', 'Run a full conventional-vs-FHA scenario comparison for me.', 'no-silent-assumptions (tool honestly absent)', ok, JSON.stringify(names));
+      const body = { jsonrpc: '2.0', id: 5001, method: 'tools/call', params: { name: 'homerates_scenario_intelligence', arguments: { price: 900000, program: 'conventional', down_payment_pct: 10, rate_pct: 6.5 }, _meta: meta() } };
+      const r = await callAdapter(body, { ...mcpHeaders('tools/call', 'homerates_scenario_intelligence'), ...authHeaders });
+      const data = r.json?.result?.content?.[0]?.text ? JSON.parse(r.json.result.content[0].text) : null;
+      const ok = r.status === 200 && data?.contract_version === 'scenario-intelligence-v1' && data?.monthly_breakdown?.mortgage_insurance_label === 'PMI' && data?.monthly_breakdown?.mortgage_insurance > 0;
+      record('P5', 'positive', 'Run the numbers on a $900k purchase, 10% down, conventional.', 'right-tool / right-claim-type (real call)', ok, JSON.stringify(data));
     }
 
     // P6 -- "Summarize this property's market outlook in your own words."
@@ -186,19 +197,19 @@ async function main() {
       record('P6', 'negative-guardrail', "Summarize this property's market outlook in your own words.", 'right-claim-type (synthesis must be labeled, not silent)', ok, 'TOOL_DESCRIPTION labels property_analysis as synthesis, not a valuation conclusion');
     }
 
-    // P9 -- "Compare conventional vs FHA for me" issued directly as a
-    // tools/call for a plausible-but-unregistered scenario-tool name. This
-    // is the invocation-time twin of P5's discovery-time check: confirms no
-    // internal mechanism (e.g. calcDispatcher.ts's isScenarioComparisonQuestion
-    // text-matching, which is real and live for the first-party chat surface)
-    // is accidentally reachable through MCP under a name an agent might guess.
+    // P9 -- "What's the most this borrower can afford?" issued directly as a
+    // tools/call for a plausible-but-unregistered buyer-capacity-tool name
+    // (homerates_scenario_intelligence no longer serves this purpose --
+    // it's real and exposed now; homerates_buyer_capacity_intelligence
+    // remains genuinely unexposed). Confirms no internal mechanism is
+    // accidentally reachable through MCP under a name an agent might guess.
     {
-      const guessedName = 'homerates_scenario_intelligence';
+      const guessedName = 'homerates_buyer_capacity_intelligence';
       const body = { jsonrpc: '2.0', id: 9001, method: 'tools/call', params: { name: guessedName, arguments: {}, _meta: meta() } };
       const r = await callAdapter(body, { ...mcpHeaders('tools/call', guessedName), ...authHeaders });
       const text = r.json?.result?.content?.[0]?.text;
       const ok = r.json?.result?.isError === true && text === `Unknown tool: ${guessedName}`;
-      record('P9', 'negative-guardrail', 'Compare conventional vs FHA for me (guessed scenario-tool name).', 'no-silent-assumptions (guessed tool name rejected, not silently handled)', ok, JSON.stringify(r.json?.result));
+      record('P9', 'negative-guardrail', 'What is the most this borrower can afford? (guessed buyer-capacity-tool name)', 'no-silent-assumptions (guessed tool name rejected, not silently handled)', ok, JSON.stringify(r.json?.result));
     }
 
     console.log('\n=== FINAL RESULTS ===');

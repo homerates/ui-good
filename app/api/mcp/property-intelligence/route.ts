@@ -79,6 +79,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveExternalPropertyIntelligence } from '../../../../lib/externalPropertyResolution';
 import { getBenchmarkRatesGated } from '../../../../lib/gateway/benchmarkRatesGateway';
 import { getLoanLimitIntelligenceGated } from '../../../../lib/gateway/loanLimitGateway';
+import { getScenarioIntelligenceGated } from '../../../../lib/gateway/scenarioIntelligenceGateway';
 
 // "Invocable-by-Design Contract Foundation" (2026-09-10): canonical external
 // tool name, per the locked 5-intent naming architecture
@@ -294,6 +295,81 @@ const LOAN_LIMIT_INPUT_SCHEMA = {
     loan_amount: { type: 'number', description: 'Optional loan amount in dollars. When supplied, the response includes a classification.' },
     program: { type: 'string', enum: ['conventional', 'fha', 'both'], description: 'Which program\'s classification to compute. Defaults to "both".' },
   },
+  additionalProperties: false,
+} as const;
+
+// Invocable Tool Workstream (2026-09-11) -- fourth tool on this same MCP
+// server, homerates_scenario_intelligence. This is deal/scenario math
+// ("run my numbers on this specific purchase"), not a bare payment
+// calculator -- every relevant input change (price, down payment, rate,
+// program, buydown) recomputes the FULL dependent chain (loan structure,
+// monthly breakdown, loan-limit zone, qualification) fresh from
+// lib/calcEngine.ts every call. Distinct from homerates_property_intelligence
+// (which answers "tell me about this address") and
+// homerates_loan_limit_intelligence (which answers "what's the limit
+// here" with no payment math at all).
+const SCENARIO_TOOL_NAME = 'homerates_scenario_intelligence';
+const SCENARIO_TOOL_DESCRIPTION =
+  'Use this tool when the user wants to "run the numbers" on a specific purchase scenario -- ' +
+  'a price with a down payment, a program choice (conventional/FHA/VA/jumbo), 10% vs 20% down, ' +
+  'a rate change, a buydown, or how a loan amount relates to conforming/high-balance/FHA loan ' +
+  'limits. Do not use this for a generic "what mortgage rates are available" question (use ' +
+  'homerates_rate_oracle) or a bare loan-limit lookup with no payment math (use ' +
+  'homerates_loan_limit_intelligence). Required: price and program (conventional, fha, va, or ' +
+  'jumbo). Optional: down_payment_pct OR down_payment_amount (not both; defaults to each ' +
+  "program's standard minimum if omitted), term_years (default 30), rate_pct, hoa_monthly, " +
+  'zip or county+state (for loan-limit-zone context), property_tax_rate_pct, ' +
+  'insurance_annual, credit_score (fha only), buydown_points and funding_fee_exempt (va only), ' +
+  'annual_income and monthly_debts (for a DTI qualification estimate). To compare two ' +
+  'scenarios (e.g. "conventional vs FHA," "10% vs 20% down," "rate +0.5%"), call this tool ' +
+  'once per scenario with the one input that differs and compare the two results -- every ' +
+  'other dependent value (loan amount, LTV, PMI/MIP, PITI, loan-limit zone) is recomputed ' +
+  'fresh each call, never carried over from a prior call.' +
+  '\n\n' +
+  'If rate_pct is omitted, this tool uses HomeRates\' own current benchmark rate (echoed in ' +
+  'full in rate_benchmark, with its own as_of date and freshness_status) -- it never invents ' +
+  'a rate. If that benchmark is itself UNAVAILABLE, rate_pct is null and monthly_breakdown is ' +
+  'null (loan_structure -- down payment, loan amount, LTV -- is still returned; payment math ' +
+  'is withheld rather than computed with a fabricated rate). Every input this tool actually ' +
+  'used is echoed in inputs, each tagged with a source: USER_INPUT (you supplied it), ' +
+  'CURRENT_BENCHMARK (HomeRates\' live rate was used), EXPLICIT_ASSUMPTION (a documented ' +
+  'default was applied -- also listed in assumptions[] with the reason), PROPERTY_FACT ' +
+  '(hoa_monthly, when supplied), or UNKNOWN/UNAVAILABLE. hoa_monthly is never defaulted to ' +
+  'zero when omitted -- monthly_breakdown.hoa and pitia stay null, while piti (which never ' +
+  'includes HOA) is still fully computed.' +
+  '\n\n' +
+  'loan_limit_zone.classification (CONFORMING, HIGH_BALANCE, ABOVE_CONFORMING_LIMIT, ' +
+  'WITHIN_FHA_LIMIT, ABOVE_FHA_LIMIT, COUNTY_REQUIRED, or UNAVAILABLE) reflects where the ' +
+  'CURRENT base loan amount actually sits -- recomputed from price and down payment on every ' +
+  'call, never a frozen label. Crossing the conforming baseline classifies HIGH_BALANCE, not ' +
+  'a jumbo recommendation; crossing the county limit classifies ABOVE_CONFORMING_LIMIT, not ' +
+  'an automatic switch to the jumbo program -- this tool never recommends one program over ' +
+  'another, it only classifies. property_tax_rate_pct and insurance_annual are illustrative ' +
+  'national assumptions when not overridden -- no per-county tax/insurance table exists in ' +
+  'HomeRates today, so geography does not currently refine these two figures (it does refine ' +
+  'loan_limit_zone, which has real per-county data).';
+const SCENARIO_INPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    price: { type: 'number', description: 'Purchase price in dollars. Required.' },
+    program: { type: 'string', enum: ['conventional', 'fha', 'va', 'jumbo'], description: 'Loan program. Required.' },
+    down_payment_pct: { type: 'number', description: 'Down payment as a percent (e.g. 10 for 10%). Provide this OR down_payment_amount.' },
+    down_payment_amount: { type: 'number', description: 'Down payment in dollars. Provide this OR down_payment_pct.' },
+    term_years: { type: 'number', description: 'Loan term in years. Defaults to 30.' },
+    rate_pct: { type: 'number', description: 'Annual interest rate as a percent (e.g. 6.5). Omit to use HomeRates\' current benchmark rate.' },
+    hoa_monthly: { type: 'number', description: 'Confirmed monthly HOA/association dues, if known. Omit if unknown -- never defaults to zero.' },
+    zip: { type: 'string', description: 'A 5-digit US ZIP code, for loan-limit-zone context.' },
+    county: { type: 'string', description: 'A US county name. Requires state to also be set.' },
+    state: { type: 'string', description: 'A 2-letter US state code. Required if county is set.' },
+    property_tax_rate_pct: { type: 'number', description: 'Annual property tax rate as a percent of price. Omit for the illustrative national default.' },
+    insurance_annual: { type: 'number', description: 'Annual homeowners insurance in dollars. Omit for the illustrative national default.' },
+    credit_score: { type: 'number', description: 'Borrower credit score. FHA program only.' },
+    buydown_points: { type: 'number', description: 'Seller-credit buydown points (each lowers the rate 0.25%). VA program only.' },
+    funding_fee_exempt: { type: 'boolean', description: 'True if the borrower is exempt from the VA funding fee (disability). VA program only.' },
+    annual_income: { type: 'number', description: 'Optional, for a DTI qualification estimate.' },
+    monthly_debts: { type: 'number', description: 'Optional, for a DTI qualification estimate.' },
+  },
+  required: ['price', 'program'],
   additionalProperties: false,
 } as const;
 
@@ -571,6 +647,7 @@ export async function POST(req: NextRequest) {
         { name: TOOL_NAME, description: TOOL_DESCRIPTION, inputSchema: INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
         { name: BENCHMARK_RATES_TOOL_NAME, description: BENCHMARK_RATES_TOOL_DESCRIPTION, inputSchema: BENCHMARK_RATES_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
         { name: LOAN_LIMIT_TOOL_NAME, description: LOAN_LIMIT_TOOL_DESCRIPTION, inputSchema: LOAN_LIMIT_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
+        { name: SCENARIO_TOOL_NAME, description: SCENARIO_TOOL_DESCRIPTION, inputSchema: SCENARIO_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
       ],
     }));
   }
@@ -586,8 +663,9 @@ export async function POST(req: NextRequest) {
     const isPropertyIntelligence = toolName === TOOL_NAME || toolName === LEGACY_TOOL_NAME;
     const isBenchmarkRates = toolName === BENCHMARK_RATES_TOOL_NAME || toolName === LEGACY_BENCHMARK_RATES_TOOL_NAME;
     const isLoanLimit = toolName === LOAN_LIMIT_TOOL_NAME;
+    const isScenario = toolName === SCENARIO_TOOL_NAME;
 
-    if (!isPropertyIntelligence && !isBenchmarkRates && !isLoanLimit) {
+    if (!isPropertyIntelligence && !isBenchmarkRates && !isLoanLimit && !isScenario) {
       return jsonRpcResult(id, withServerMeta({
         resultType: 'complete',
         content: [{ type: 'text', text: `Unknown tool: ${String(toolName)}` }],
@@ -621,6 +699,19 @@ export async function POST(req: NextRequest) {
         }));
       }
       return mapGatewayRejection(id, result, 'loan_limit_intelligence:read');
+    }
+
+    if (isScenario) {
+      const scenarioArgs = (params?.arguments ?? {}) as Record<string, unknown>;
+      const result = await getScenarioIntelligenceGated(scenarioArgs, apiKeyHeader, requestIp);
+      if (result.ok) {
+        return jsonRpcResult(id, withServerMeta({
+          resultType: 'complete',
+          content: [{ type: 'text', text: JSON.stringify(result.data) }],
+          isError: false,
+        }));
+      }
+      return mapGatewayRejection(id, result, 'scenario_intelligence:read');
     }
 
     // No address validation here -- passed straight through unchanged.

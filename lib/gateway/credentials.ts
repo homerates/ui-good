@@ -39,7 +39,10 @@ const KEY_FORMAT = new RegExp(`^${KEY_LABEL}_([0-9a-f]{${PREFIX_BYTES * 2}})_([0
 // loan_limit_intelligence:read added 2026-09-11 (Invocable Tool Workstream)
 // -- same narrowing pattern, for a credential that should see loan-limit
 // data but not property or rate data. Additive only.
-export const ALLOWED_GATEWAY_SCOPES = ['property_intelligence:read', 'benchmark_rates:read', 'loan_limit_intelligence:read'] as const;
+// scenario_intelligence:read added 2026-09-11 (Invocable Tool Workstream,
+// same day) -- same pattern, for a credential that should see deal/
+// scenario math but not property, rate, or loan-limit data. Additive only.
+export const ALLOWED_GATEWAY_SCOPES = ['property_intelligence:read', 'benchmark_rates:read', 'loan_limit_intelligence:read', 'scenario_intelligence:read'] as const;
 export type GatewayScope = (typeof ALLOWED_GATEWAY_SCOPES)[number];
 
 function sha256Hex(input: string): string {

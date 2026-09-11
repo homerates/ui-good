@@ -186,6 +186,8 @@ const LEGACY_BENCHMARK_RATES_TOOL_NAME = 'get_benchmark_rates';
 // Invocable Tool Workstream (2026-09-11): third tool on this server. No
 // legacy name -- it was never shipped under any other name.
 const LOAN_LIMIT_TOOL_NAME = 'homerates_loan_limit_intelligence';
+// Invocable Tool Workstream (2026-09-11, same day): fourth tool. No legacy name.
+const SCENARIO_TOOL_NAME = 'homerates_scenario_intelligence';
 
 async function main() {
   const sb = getSupabase();
@@ -258,7 +260,7 @@ async function main() {
       // never the legacy names -- tools/list must show ONLY the new names.
       const r = await callAdapter(toolsListBody(2), mcpHeaders('tools/list', null));
       const toolNames = (r.json?.result?.tools ?? []).map((t: any) => t.name);
-      const ok = r.status === 200 && r.json?.result?.resultType === 'complete' && r.json.result.tools?.length === 3 && toolNames.includes(TOOL_NAME) && toolNames.includes(BENCHMARK_RATES_TOOL_NAME) && toolNames.includes(LOAN_LIMIT_TOOL_NAME) && !toolNames.includes(LEGACY_TOOL_NAME) && !toolNames.includes(LEGACY_BENCHMARK_RATES_TOOL_NAME) && r.json.result._meta?.['io.modelcontextprotocol/serverInfo'] !== undefined;
+      const ok = r.status === 200 && r.json?.result?.resultType === 'complete' && r.json.result.tools?.length === 4 && toolNames.includes(TOOL_NAME) && toolNames.includes(BENCHMARK_RATES_TOOL_NAME) && toolNames.includes(LOAN_LIMIT_TOOL_NAME) && toolNames.includes(SCENARIO_TOOL_NAME) && !toolNames.includes(LEGACY_TOOL_NAME) && !toolNames.includes(LEGACY_BENCHMARK_RATES_TOOL_NAME) && r.json.result._meta?.['io.modelcontextprotocol/serverInfo'] !== undefined;
       record('Conformance', 'valid current-protocol tools/list', ok ? 'PASS' : 'FAIL', JSON.stringify(toolNames));
     }
 
@@ -437,7 +439,7 @@ async function main() {
       // WS10: 2 tools now (see the current-protocol conformance test above).
       // Invocable-by-Design Contract Foundation: canonical names only.
       const toolNames = (r.json?.result?.tools ?? []).map((t: any) => t.name);
-      const ok = r.status === 200 && Array.isArray(r.json?.result?.tools) && r.json.result.tools.length === 3 && toolNames.includes(TOOL_NAME) && toolNames.includes(BENCHMARK_RATES_TOOL_NAME) && toolNames.includes(LOAN_LIMIT_TOOL_NAME);
+      const ok = r.status === 200 && Array.isArray(r.json?.result?.tools) && r.json.result.tools.length === 4 && toolNames.includes(TOOL_NAME) && toolNames.includes(BENCHMARK_RATES_TOOL_NAME) && toolNames.includes(LOAN_LIMIT_TOOL_NAME) && toolNames.includes(SCENARIO_TOOL_NAME);
       record('Version-aware', 'A/F: real 2025-11-25 tools/list (no Mcp-Method/Mcp-Name/_meta) -> 200, two tools', ok ? 'PASS' : 'FAIL', JSON.stringify(toolNames));
     }
 
