@@ -311,6 +311,21 @@ async function main() {
       record('3', 'consentPage() -> submit round-trip: the exact fields a real "Allow" click sends re-validate successfully', postResult.ok ? 'PASS' : 'FAIL', postEvidence);
     }
 
+    // Added 2026-09-11 -- reproduces Claude's ACTUAL real captured authorize
+    // request verbatim (via its Vercel request log): response_type,
+    // client_id, redirect_uri, code_challenge, code_challenge_method,
+    // state, scope -- and deliberately NO `resource` param. This request
+    // was confirmed live to fail with invalid_target before the fix
+    // (RFC 8707 defines `resource` as OPTIONAL; this server had required
+    // it). Must now succeed, defaulting to CANONICAL_RESOURCE.
+    {
+      const qs = authorizeQuery({ client_id: TEST_CLIENT_ID, resource: undefined }, TEST_REDIRECT);
+      const result = await authorizeValidate(new URLSearchParams(qs));
+      record('3', 'REGRESSION (Claude\'s exact real request shape): resource OMITTED entirely still validates, defaulting to CANONICAL_RESOURCE',
+        result.ok && result.value.resource === CANONICAL_RESOURCE ? 'PASS' : 'FAIL',
+        result.ok ? JSON.stringify({ resource: result.value.resource }) : await result.response.text());
+    }
+
     // ===== 4. Authorization code issuance via the real POST allow path is blocked pre-admin in-process (expected) --
     // exercise storeAuthorizationCode()/consumeAuthorizationCode() directly instead, exactly as Phase OA did, to
     // re-confirm hash-at-rest / expiry / single-use / replay still hold unchanged after Phase OB's additions. =====
@@ -393,6 +408,31 @@ async function main() {
         const f = await freshCodeAndVerifier();
         const r = await validExchange({ resource: 'https://evil.example/x' }, f.code, f.verifier);
         record('5', 'wrong resource at token exchange: rejected (invalid_target, 400)', r.status === 400 && r.json?.error === 'invalid_target' ? 'PASS' : 'FAIL', JSON.stringify(r));
+      }
+      {
+        // REGRESSION (Claude's exact real scenario, end to end): a code
+        // issued with the DEFAULTED resource (matching what validate() now
+        // produces when a client omits it, per the fix above), then
+        // exchanged at the real token route ALSO omitting `resource`
+        // entirely -- confirmed live to fail before this fix; must now
+        // succeed with a real access token, since both steps consistently
+        // default to the same CANONICAL_RESOURCE.
+        const f = await freshCodeAndVerifier();
+        const body = new URLSearchParams({
+          grant_type: 'authorization_code', code: f.code, redirect_uri: TEST_REDIRECT,
+          client_id: TEST_CLIENT_ID, client_secret: TEST_CLIENT_SECRET, code_verifier: f.verifier,
+          // deliberately NO 'resource' key at all
+        });
+        const req = new NextRequest(TOKEN_URL, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body.toString() });
+        const res = await tokenPost(req);
+        const json = await res.json().catch(() => null);
+        record('5', 'REGRESSION (Claude\'s exact real scenario): resource OMITTED at token exchange still succeeds, returns a real access token',
+          res.status === 200 && typeof json?.access_token === 'string' ? 'PASS' : 'FAIL', JSON.stringify({ status: res.status, hasToken: !!json?.access_token }));
+        if (json?.access_token) {
+          const credRowId = sha256Hex(json.access_token);
+          const { data: credRow } = await sb.from('gateway_credentials').select('id').eq('key_hash', credRowId).single();
+          if (credRow) credentialIds.push(credRow.id);
+        }
       }
       record('5', 'scope escalation impossible: token endpoint never reads a scope param from the request', true ? 'PASS' : 'FAIL', 'route.ts always uses consumed.scope, ignoring any client-supplied scope field');
     }

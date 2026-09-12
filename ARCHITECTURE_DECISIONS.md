@@ -2069,3 +2069,76 @@ regression re-run green (`test-benchmark-rates-gateway.ts` 31/31,
 `test-buyer-capacity-intelligence.ts`/all other Gateway suites — all
 re-confirmed unaffected). Pushed to `dev` only — NOT merged to `main`, no
 production push initiated by this session.
+
+## AD-35 — OAuth `resource` parameter made optional (RFC 8707)
+
+**Decision:** `/api/oauth/authorize` and `/api/oauth/token` now treat the
+`resource` parameter as OPTIONAL — omitted defaults to `CANONICAL_RESOURCE`,
+the same "omit defaults to the one supported value, explicit-but-wrong is
+rejected" pattern `validateScope()` already used for `scope`. Previously,
+an absent `resource` parameter was an unconditional rejection
+(`invalid_target`) at both endpoints.
+
+**Real, live diagnosis, not a spec-reading guess:** with AD-33 (Dynamic
+Client Registration) live, Rayaan connected Claude as a second MCP client.
+Claude's DCR registration succeeded (confirmed: a real
+`gateway_oauth_clients` row, `client_name: "Claude"`,
+`redirect_uri: "https://claude.ai/api/mcp/auth_callback"`), but the
+connection still failed with "Authorization with HomeRates.ai failed"
+before any sign-in screen ever appeared. Vercel's request log showed
+`/api/oauth/authorize` returning 307/302 (a status code alone doesn't say
+*where* — could be the real sign-in redirect or an error bounced back to
+Claude). Rayaan opened the actual request's detail panel and shared the
+real `Search Params` HomeRates received: `response_type`, `client_id`,
+`redirect_uri`, `code_challenge`, `code_challenge_method`, `state`,
+`scope` — with **no `resource` key at all**. `validate()`
+(`lib/gateway/oauthAuthorize.ts`) required `resource` unconditionally,
+so this exact real request was rejected via `redirectWithError()` — sent
+straight back to Claude's own callback with `?error=invalid_target`,
+before ever reaching the Clerk sign-in redirect. RFC 8707 itself defines
+`resource` as OPTIONAL; this server had been silently requiring it since
+Phase OB, which happened to never matter until a second, differently-
+behaved real client (Claude) was connected.
+
+**An earlier hypothesis in this same investigation was wrong, and is
+recorded here rather than erased:** before capturing Claude's actual
+request, a domain mismatch (`homerates.ai` vs. `chat.homerates.ai`) was
+suspected and even reproduced with a hand-crafted request. The real
+captured request proved that guess incorrect — Claude does not send
+`resource` at all, on any domain. The domain-mismatch test is harmless
+(it exercised real, working validation logic) but was not the actual bug;
+recorded so a future reader doesn't rediscover the same dead end.
+
+**Fix, symmetric with the existing scope pattern:**
+`validateResource()`'s signature changed from `(resource: string):
+boolean` to `(requestedResource: string | undefined | null): string |
+null` — mirroring `validateScope()` exactly. Both call sites
+(`lib/gateway/oauthAuthorize.ts`'s `validate()` and
+`app/api/oauth/token/route.ts`) now use the returned value directly
+instead of a separate boolean check. An EXPLICITLY wrong resource
+(anything other than `CANONICAL_RESOURCE`) is still rejected exactly as
+before at both steps — this only changes the absent case.
+
+**Verified against Claude's exact real captured request, not a
+reconstruction:** the literal parameter set from the Vercel log detail
+panel (`client_id: oc_519290dbfeacf6e363e93ce627b846bf`,
+`redirect_uri: https://claude.ai/api/mcp/auth_callback`, real
+`code_challenge`/`state`/`scope` values, no `resource`) was replayed
+directly against `validate()` and now returns `ok: true` with
+`resource` correctly defaulted to `CANONICAL_RESOURCE`, where it
+previously rejected.
+
+**What was NOT changed:** `CANONICAL_RESOURCE`'s value itself (still the
+single `homerates.ai`-hosted identifier), `validateScope()`,
+`validateRedirectUri()`, PKCE verification, the authorization-code
+store/consume logic, the existing ChatGPT OAuth client/flow, AD-33's
+Dynamic Client Registration, AD-34's Public Authority Access tools.
+
+**Status:** Built. `tsc --noEmit` clean, full `next build` clean, full
+regression re-run green (`test-oauth-foundation.ts` 39/39 — 2 new unit
+assertions for the omitted-resource default, `test-oauth-flow.ts` 47/47 +
+2 LIMITED — 2 new regression tests reproducing Claude's exact real
+scenario at both the authorize and token steps, `test-oauth-dynamic-
+registration.ts` 20/20, `test-external-adapter.ts` 58/58). Pushed to `dev`
+only — NOT merged to `main`, no production push initiated by this
+session.
