@@ -1972,3 +1972,100 @@ LIMITED, `test-oauth-foundation.ts` 37/37, `test-intelligence-gateway.ts`
 — NOT merged to `main`, no production push initiated by this session
 (this repo's established pattern has main tracking dev closely after each
 push, but that merge is not this session's action to claim).
+
+## AD-34 — Public Authority Access: two tools no longer require a credential
+
+**Decision:** `homerates_rate_oracle` and `homerates_loan_limit_intelligence`
+now accept `tools/call` with NO credential at all — the first deliberate
+loosening of the Gateway's founding "every caller presents a valid partner
+credential" principle since Phase A. `homerates_property_intelligence`,
+`homerates_scenario_intelligence`, and `homerates_buyer_capacity_intelligence`
+are completely unchanged — still require a credential exactly as before.
+
+**Why, and why these two specifically — Rayaan's own reasoning, directly
+after AD-33's DCR work still didn't unblock Grok:** production logs showed
+Grok's connector (`grok-connectors-manager/0.1.0`) sending `tools/call`
+with no Authorization header, getting a 401, and simply stopping — no
+`/api/oauth/register` hit, no authorize redirect, no retry. AD-33's
+Dynamic Client Registration was real, correct, and verified end-to-end,
+but Grok's client never engages any OAuth mechanism at all; DCR alone
+could not unblock it. Rayaan's diagnosis: this is a policy mismatch, not
+just a client gap — `homerates_rate_oracle` (neutral FRED national
+averages, the same data anyone reads free from stlouisfed.org) and
+`homerates_loan_limit_intelligence` (public FHFA/HUD reference figures)
+have zero marginal per-call cost (pure Supabase reads of already-synced
+government data, never a live/paid provider call) and no borrower/property
+specificity to protect — unlike `homerates_property_intelligence`, whose
+NOT_AVAILABLE path can trigger a real, paid demand-driven resolution call,
+which is exactly why it keeps its credential requirement. Gating a public
+national average behind OAuth/API-key was blocking a real client from a
+tool that had nothing sensitive to gate in the first place. Both technical
+premises were verified directly against the code before implementing (not
+assumed): every `tools/call` gateway wrapper called `authenticateRequest()`
+unconditionally with no branch for an absent credential, and both tools'
+engines were confirmed to make zero external/paid calls.
+
+**Implementation — additive, not a rewrite:** both
+`lib/gateway/benchmarkRatesGateway.ts` and `lib/gateway/loanLimitGateway.ts`
+now branch at the very top: if `apiKeyHeader` is non-null, the EXACT
+original authenticated path runs unchanged (`authenticateRequest()` →
+`requireAnyScope()` → `checkAllLimits()`, full credential+partner+IP
+quota) — a presented credential (including every existing ChatGPT
+OAuth-minted token and every admin-issued Gateway credential) keeps
+working exactly as before, byte-for-byte. If `apiKeyHeader` is null
+(genuinely absent, not merely invalid), the request is treated as
+anonymous: no auth/scope check at all, rate-limited by IP alone via
+`checkAndIncrement('ip', requestIp, 'minute', PILOT_LIMITS.ipPerMinute)` —
+the identical underlying primitive and identical configured limit value
+`checkAllLimits()`'s own IP dimension already uses, not a new number or a
+new rate-limit concept. A credential that IS presented but invalid (e.g.
+garbage/expired) still correctly fails `UNAUTHORIZED` either way — the
+anonymous path is for a wholly absent header only, never a bad one
+(verified directly: a garbage Bearer token against both tools still
+401s). Kill-switch/circuit-breaker global controls still apply to
+anonymous callers exactly as to authenticated ones, unchanged.
+
+**Verified as a real, live fix, not just a policy statement:** each
+gateway function was called directly with `null` as the credential and
+succeeded; more importantly, a real `NextRequest` was constructed and
+POSTed through the actual MCP route handler with NO Authorization header
+at all — reproducing Grok's exact observed request shape (a valid
+`MCP-Protocol-Version` header, since Grok's real 401 proved it passes that
+check, but genuinely no `Authorization` header) — and it now returns a
+real `200` with `isError: false` and the correct contract payload for both
+tools, where it previously 401'd.
+
+**Two pre-existing test assertions were legitimately superseded, not
+silently deleted:** `test-benchmark-rates-gateway.ts`'s old D4 and
+`test-loan-limit-intelligence.ts`'s old E5 both asserted "missing
+credential → UNAUTHORIZED" for these exact two tools — precisely the
+behavior this decision intentionally reverses. Both were rewritten to
+assert the other, still-true half of the contract (a genuinely INVALID
+credential still 401s), with the policy change documented in their own
+comments; new tests (`F1-F3` / `G1-G2` in each file respectively) prove
+the new anonymous-success behavior directly, including the real MCP-route
+round-trip described above.
+
+**What was NOT changed:** `homerates_property_intelligence`,
+`homerates_scenario_intelligence`, `homerates_buyer_capacity_intelligence`
+— all three keep their exact original, unconditional credential
+requirement; `lib/gateway/auth.ts`, `lib/gateway/intelligenceGateway.ts`,
+`lib/gateway/scenarioIntelligenceGateway.ts`,
+`lib/gateway/buyerCapacityIntelligenceGateway.ts` (none of these files
+were touched); OAuth's `SUPPORTED_OAUTH_SCOPE`, AD-33's Dynamic Client
+Registration (kept, still useful for any future client that does speak
+OAuth, and for the 3 tools that still require a credential); the two
+tools' external contracts/schemas (unchanged shape — only who may call
+`tools/call` without a credential changed, not what the response contains);
+Gateway rate-limit dimension values (`PILOT_LIMITS`, unchanged, reused
+as-is for the new anonymous IP check).
+
+**Status:** Built. `tsc --noEmit` clean, full `next build` clean, full
+regression re-run green (`test-benchmark-rates-gateway.ts` 31/31,
+`test-loan-limit-intelligence.ts` 41/41, `test-external-adapter.ts` 58/58,
+`test-golden-prompts.ts` 10/10, plus the complete existing suite —
+`test-oauth-flow.ts`/`test-oauth-foundation.ts`/
+`test-oauth-dynamic-registration.ts`/`test-scenario-intelligence.ts`/
+`test-buyer-capacity-intelligence.ts`/all other Gateway suites — all
+re-confirmed unaffected). Pushed to `dev` only — NOT merged to `main`, no
+production push initiated by this session.

@@ -239,7 +239,8 @@ const BENCHMARK_RATES_TOOL_DESCRIPTION =
   'zero or invent a figure). Always state the as_of date when citing a rate, and note that ' +
   "these are national averages, not a specific quote -- an individual borrower's actual " +
   'rate depends on their credit, down payment, and loan program, which this tool does not ' +
-  'ask for. This tool does not accept any input.';
+  'ask for. This tool does not accept any input. No credential is required to call it -- it is a ' +
+  'public national reference rate with no borrower or property specificity to protect.';
 const BENCHMARK_RATES_INPUT_SCHEMA = {
   type: 'object',
   properties: {},
@@ -284,7 +285,8 @@ const LOAN_LIMIT_TOOL_DESCRIPTION =
   'are a factual classification only -- never state or imply that one classification is ' +
   '"better" than another, never recommend Conventional vs. jumbo or FHA vs. conventional, ' +
   'never state or imply loan approval, eligibility, or pricing/rate impact. Those are ' +
-  'separate questions this tool does not answer.';
+  'separate questions this tool does not answer. No credential is required to call it -- ' +
+  'these are public FHFA/HUD reference figures with no borrower or property specificity to protect.';
 const LOAN_LIMIT_INPUT_SCHEMA = {
   type: 'object',
   properties: {

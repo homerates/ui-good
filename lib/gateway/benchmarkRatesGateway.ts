@@ -20,10 +20,33 @@
 // by CallerContext + IP, not by capability) -- a deliberate, conservative
 // default: one shared budget per credential across both capabilities, not a
 // separate pool. No new limits config needed.
+//
+// PUBLIC AUTHORITY ACCESS (2026-09-11, explicit product decision): a
+// credential is now OPTIONAL for this specific tool. Rationale, stated
+// directly by Rayaan: these are neutral, national FRED reference rates --
+// the same public-authority data anyone can already read for free from
+// stlouisfed.org with no login -- with zero marginal per-call cost (a pure
+// Supabase read of already-synced data, never a live/paid provider call,
+// unlike homerates_property_intelligence's demand-driven resolution path,
+// which genuinely can trigger a paid external lookup and therefore keeps
+// its existing credential requirement unchanged). Gating a public national
+// average behind an API key/OAuth flow was blocking real MCP clients
+// (confirmed live: Grok's connector sends tools/call with no Authorization
+// header and gives up on 401, never attempting any auth negotiation) from
+// a tool that has no borrower/property specificity to protect in the first
+// place. A caller that DOES present a credential still gets the exact
+// original authenticated path below (scope-checked, credential+partner-
+// scoped quota) -- this is a new anonymous path ADDED alongside the
+// existing one, not a replacement; ChatGPT's OAuth-issued tokens and any
+// admin-issued Gateway credential keep working exactly as before. An
+// anonymous caller is rate-limited by IP only (checkAndIncrement() directly,
+// the same underlying primitive and the same configured ipPerMinute value
+// checkAllLimits() already uses for its IP dimension -- not a new number).
 
 import { authenticateRequest, requireAnyScope } from './auth';
 import { isCircuitOpen, isKillSwitchEnabled } from './circuitBreaker';
-import { checkAllLimits } from './rateLimit';
+import { checkAllLimits, checkAndIncrement } from './rateLimit';
+import { PILOT_LIMITS } from './limits';
 import { logRequest, type GatewayLogErrorCode, type GatewayLogOutcome } from './requestLog';
 import { getBenchmarkRates } from '../market-data/benchmarkRates';
 import { shapeBenchmarkRatesForExternalContract } from './benchmarkRatesShaping';
@@ -70,21 +93,38 @@ export async function getBenchmarkRatesGated(
     return finish({ ok: false, error: 'SERVICE_DISABLED', message: SERVICE_DISABLED_MESSAGE }, null, null);
   }
 
-  // 2/3. Authentication, then scope authorization.
-  const auth = await authenticateRequest(apiKeyHeader);
-  if (!auth.ok) return finish(auth, null, null);
+  // 2/3. Authentication + scope -- OPTIONAL for this tool (see header).
+  // A presented credential still goes through the exact original
+  // authenticated path unchanged; no credential at all is anonymous, not
+  // an error.
+  let partnerId: string | null = null;
+  let credentialId: string | null = null;
 
-  const scopeError = requireAnyScope(auth.context, [...BENCHMARK_RATES_SCOPES]);
-  if (scopeError) return finish(scopeError, auth.context.partnerId, auth.context.credentialId);
+  if (apiKeyHeader != null) {
+    const auth = await authenticateRequest(apiKeyHeader);
+    if (!auth.ok) return finish(auth, null, null);
 
-  // 4. Rate limit / quota.
-  const limits = await checkAllLimits(auth.context, requestIp);
-  if (!limits.allowed) {
-    return finish(
-      { ok: false, error: 'RATE_LIMITED', message: RATE_LIMITED_MESSAGE },
-      auth.context.partnerId,
-      auth.context.credentialId,
-    );
+    const scopeError = requireAnyScope(auth.context, [...BENCHMARK_RATES_SCOPES]);
+    if (scopeError) return finish(scopeError, auth.context.partnerId, auth.context.credentialId);
+
+    // 4. Rate limit / quota -- authenticated caller, full credential+partner+IP quota.
+    const limits = await checkAllLimits(auth.context, requestIp);
+    if (!limits.allowed) {
+      return finish(
+        { ok: false, error: 'RATE_LIMITED', message: RATE_LIMITED_MESSAGE },
+        auth.context.partnerId,
+        auth.context.credentialId,
+      );
+    }
+    partnerId = auth.context.partnerId;
+    credentialId = auth.context.credentialId;
+  } else {
+    // 4. Rate limit / quota -- anonymous caller, IP dimension only (no
+    // credential/partner identity exists to key a quota on).
+    const anonLimit = await checkAndIncrement('ip', requestIp, 'minute', PILOT_LIMITS.ipPerMinute);
+    if (!anonLimit.allowed) {
+      return finish({ ok: false, error: 'RATE_LIMITED', message: RATE_LIMITED_MESSAGE }, null, null);
+    }
   }
 
   // 5. Build result -- no address, no corpus lookup, pure DB read.
@@ -98,16 +138,16 @@ export async function getBenchmarkRatesGated(
       // an unvalidated object.
       return finish(
         { ok: false, error: 'INTERNAL_ERROR', message: 'Response failed contract validation.' },
-        auth.context.partnerId,
-        auth.context.credentialId,
+        partnerId,
+        credentialId,
       );
     }
-    return finish({ ok: true, data: parsed.data }, auth.context.partnerId, auth.context.credentialId);
+    return finish({ ok: true, data: parsed.data }, partnerId, credentialId);
   } catch {
     return finish(
       { ok: false, error: 'INTERNAL_ERROR', message: 'An internal error occurred.' },
-      auth.context.partnerId,
-      auth.context.credentialId,
+      partnerId,
+      credentialId,
     );
   }
 }

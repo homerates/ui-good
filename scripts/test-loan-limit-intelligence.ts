@@ -226,8 +226,13 @@ async function main() {
     record('C4. loan_limit_intelligence:read-only credential is FORBIDDEN from property_intelligence:read scope (genuinely narrower)',
       authLoanOnly.ok && scopeCheckForProperty?.error === 'FORBIDDEN' ? 'PASS' : 'FAIL', JSON.stringify(scopeCheckForProperty));
 
-    const resultNoAuth = await getLoanLimitIntelligenceGated({ county: 'Ventura', state: 'CA' }, null, '127.0.0.1');
-    record('C5. Missing credential -> UNAUTHORIZED', !resultNoAuth.ok && resultNoAuth.error === 'UNAUTHORIZED' ? 'PASS' : 'FAIL', JSON.stringify(resultNoAuth));
+    // C5: superseded 2026-09-11 (Public Authority Access) -- a wholly
+    // MISSING credential is no longer an error for this tool at all; see the
+    // new Public Authority section below for the real, live proof. This now
+    // covers the other half: a genuinely INVALID (garbage) credential must
+    // still fail, exactly as before.
+    const resultBadAuth = await getLoanLimitIntelligenceGated({ county: 'Ventura', state: 'CA' }, 'hrg_garbage_notreal', '127.0.0.1');
+    record('C5. Invalid (garbage, not merely absent) credential -> UNAUTHORIZED', !resultBadAuth.ok && resultBadAuth.error === 'UNAUTHORIZED' ? 'PASS' : 'FAIL', JSON.stringify(resultBadAuth));
 
     // ===== D. Request validation (INVALID_REQUEST) =====
 
@@ -279,12 +284,47 @@ async function main() {
     JSON.stringify(loanLimitListing?.annotations) === JSON.stringify({ readOnlyHint: true, destructiveHint: false, openWorldHint: false }) ? 'PASS' : 'FAIL',
     JSON.stringify(loanLimitListing?.annotations));
 
-  const mcpCallNoAuth = await callAdapter(
+  // E5: superseded 2026-09-11 (Public Authority Access) -- no credential at
+  // all is no longer an error for this tool; see section G below for the
+  // real, live proof. A genuinely INVALID credential must still 401.
+  const mcpCallBadAuth = await callAdapter(
     { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'homerates_loan_limit_intelligence', arguments: { county: 'Ventura', state: 'CA' }, _meta: meta() } },
-    mcpHeaders('tools/call', 'homerates_loan_limit_intelligence'),
+    { ...mcpHeaders('tools/call', 'homerates_loan_limit_intelligence'), authorization: 'Bearer hrg_garbage_notreal' },
   );
-  record('E5. tools/call against homerates_loan_limit_intelligence with no credential -> 401 UNAUTHORIZED (not a silent success)',
-    mcpCallNoAuth.status === 401 ? 'PASS' : 'FAIL', JSON.stringify(mcpCallNoAuth.json));
+  record('E5. tools/call against homerates_loan_limit_intelligence with an INVALID (garbage) credential -> 401 UNAUTHORIZED',
+    mcpCallBadAuth.status === 401 ? 'PASS' : 'FAIL', JSON.stringify(mcpCallBadAuth.json));
+
+  // ===== G. PUBLIC AUTHORITY ACCESS (2026-09-11): no credential required =====
+  // Built to unblock a real, live gap: Grok's MCP connector sends tools/call
+  // with NO Authorization header at all (confirmed via Vercel logs,
+  // User-Agent grok-connectors-manager/0.1.0) and never attempts any OAuth
+  // negotiation. This tool's raw FHFA/HUD reference figures have zero
+  // marginal per-call cost and no borrower/property specificity to protect,
+  // so a credential is now optional here -- a caller that DOES present one
+  // still gets the unchanged authenticated path (sections C/D above).
+  {
+    const resultNoHeaderAtAll = await getLoanLimitIntelligenceGated({ county: 'Ventura', state: 'CA' }, null, '203.0.113.160');
+    record('G1. getLoanLimitIntelligenceGated(..., null, ip) succeeds anonymously (no credential presented at all)',
+      resultNoHeaderAtAll.ok && resultNoHeaderAtAll.data.contract_version === 'loan-limit-intelligence-v1' ? 'PASS' : 'FAIL',
+      JSON.stringify(resultNoHeaderAtAll.ok ? { ok: true } : resultNoHeaderAtAll));
+
+    // Real, live proof against the actual MCP route -- the exact shape
+    // confirmed in production logs: a valid MCP-Protocol-Version header
+    // (Grok's real request passed that check, since it got a 401 from the
+    // Gateway rather than a 400 from the protocol-header check), but NO
+    // Authorization header whatsoever.
+    const req = new NextRequest('http://localhost/api/mcp/property-intelligence', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'mcp-protocol-version': '2025-11-25' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 998, method: 'tools/call', params: { name: 'homerates_loan_limit_intelligence', arguments: { county: 'Ventura', state: 'CA' } } }),
+    });
+    const res = await POST(req);
+    const json = await res.json().catch(() => null);
+    const data = json?.result?.content?.[0]?.text ? JSON.parse(json.result.content[0].text) : null;
+    record('G2. Real, live tools/call against the actual MCP route with NO Authorization header succeeds (matches Grok\'s exact real request shape -- no more 401)',
+      res.status === 200 && json?.result?.isError === false && data?.contract_version === 'loan-limit-intelligence-v1' ? 'PASS' : 'FAIL',
+      JSON.stringify({ status: res.status, isError: json?.result?.isError, contract_version: data?.contract_version }));
+  }
 
   // ===== F. No stale 2024 FHA constant anywhere in the new code =====
 
