@@ -187,6 +187,16 @@ function buildUserMessage(address: string, redfin?: RedfinFacts | null): string 
 
 function buildDeepUserMessage(address: string, redfin?: RedfinFacts | null, searchContext?: string): string {
   const knownFacts: string[] = [`Property: ${address.trim()}`];
+  // current_status MUST be included when known -- without it, the model has
+  // no authoritative ground truth for listing status and falls back to its
+  // own search/training judgment, which can disagree with the verified
+  // status mergeResult() later forces into the structured output (confirmed
+  // live 2026-09-12: 16424 S Denker Ave came back current_status=FOR_SALE in
+  // the structured field purely from mergeResult()'s override, while every
+  // free-text field independently concluded "off-market" because Grok was
+  // never told the real status up front -- the CONSISTENCY RULE below can't
+  // fix a fact the model was never given).
+  if (redfin?.current_status)     knownFacts.push(`Known status: ${redfin.current_status}`);
   if (redfin?.current_list_price) knownFacts.push(`Known list price: $${redfin.current_list_price.toLocaleString()}`);
   if (redfin?.bedrooms)           knownFacts.push(`Beds: ${redfin.bedrooms}`);
   if (redfin?.bathrooms)          knownFacts.push(`Baths: ${redfin.bathrooms}`);
@@ -194,9 +204,9 @@ function buildDeepUserMessage(address: string, redfin?: RedfinFacts | null, sear
   const factSection = knownFacts.join('\n');
 
   if (!searchContext) {
-    return `${factSection}\n\nReturn complete structured JSON using your best knowledge of this property.`;
+    return `${factSection}\n\nReturn complete structured JSON using your best knowledge of this property. Known status above, if present, is authoritative -- do not contradict it.`;
   }
-  return `LIVE WEB SEARCH RESULTS:\n\n${searchContext}\n\n---\n\nVERIFIED MLS FACTS:\n${factSection}\n\nExtract every available data point from the search results above. Prioritize days_on_market, year_built, lot_size_sqft, last_sold_date, last_sold_price, zillow_estimate, redfin_estimate, zillow_saves, market stats, and verified comparable sales. Return complete structured JSON.`;
+  return `LIVE WEB SEARCH RESULTS:\n\n${searchContext}\n\n---\n\nVERIFIED MLS FACTS:\n${factSection}\n\nExtract every available data point from the search results above. Prioritize days_on_market, year_built, lot_size_sqft, last_sold_date, last_sold_price, zillow_estimate, redfin_estimate, zillow_saves, market stats, and verified comparable sales. Return complete structured JSON. Known status above, if present, is authoritative -- do not contradict it in current_status or any free-text field.`;
 }
 
 // Run 4 parallel Tavily searches to gather live property data for deep mode
