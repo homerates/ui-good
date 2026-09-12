@@ -61,6 +61,7 @@ import { getPropertyIntelligence, resolvePropertyId, type GatewayResult } from '
 import { buildCanonicalPropertyIntelligence } from './canonicalPropertyIntelligence';
 import { shapeForExternalContract } from './gateway/outputShaping';
 import { ExternalPropertyIntelligenceV1Schema } from './gateway/outputSchema';
+import { getSupabase } from './supabaseServer';
 
 const SELF_FETCH_BASE_URL = process.env.NEXT_PUBLIC_APP_BASE_URL ?? 'https://chat.homerates.ai';
 const RESOLUTION_TIMEOUT_MS = 20_000;
@@ -93,6 +94,30 @@ const RESOLUTION_TIMEOUT_MS = 20_000;
 // not-yet-enriched address can fire more than one of these before the first
 // completes and writes the cache -- bounded by the Gateway's own existing
 // per-credential/per-partner rate limits (10/min, 30/min), not a new limit.
+// The EXTERNAL contract's `property` object deliberately carries no listing-
+// status field (see lib/gateway/outputSchema.ts) -- `availability.status`
+// (AVAILABLE/PARTIAL/NOT_AVAILABLE) is a data-completeness concept, not the
+// real-estate FOR_SALE/PENDING/SOLD/OFF_MARKET status. Without this, the
+// redfin object below had no way to tell the Grok deep call the property's
+// real, verified status, so Grok was left to guess it from its own search --
+// confirmed live 2026-09-12 (1123 Seaview Ave): properties.latest_listing_status
+// correctly said FOR_SALE, but the resulting grok_property_cache row said
+// "Off Market" in current_status AND every free-text field, because this
+// function's redfin object never included it. The consistency/HOA-rule
+// prompt fixes shipped earlier this session can only work when the caller
+// actually supplies the fact they're meant to stay consistent with -- this
+// is that missing supply, on the actual path every real external MCP call
+// (ChatGPT, Grok) goes through.
+async function resolveCurrentListingStatus(address: string): Promise<string | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const normalized = address.trim().toLowerCase();
+  const { data } = await sb.from('properties').select('address_full, latest_listing_status');
+  if (!data) return null;
+  const match = data.find((p) => p.address_full.trim().toLowerCase() === normalized);
+  return match?.latest_listing_status ?? null;
+}
+
 function triggerFastFollowEnrichmentIfNeeded(result: GatewayResult): void {
   if (!result.ok) return;
   const progress = result.data.intelligence_progress;
@@ -122,10 +147,12 @@ function triggerFastFollowEnrichmentIfNeeded(result: GatewayResult): void {
 
   const runTrigger = async () => {
     try {
+      const currentStatus = await resolveCurrentListingStatus(address);
+      const redfinWithStatus = currentStatus != null ? { ...redfin, current_status: currentStatus } : redfin;
       await fetch(`${SELF_FETCH_BASE_URL}/api/beta/grok-property`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, deep: true, redfin }),
+        body: JSON.stringify({ address, deep: true, redfin: redfinWithStatus }),
         signal: AbortSignal.timeout(145_000),
       });
     } catch {
