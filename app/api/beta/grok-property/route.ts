@@ -104,6 +104,8 @@ CRITICAL RULE: If you found a value during your web search, you MUST include it 
 
 CONSISTENCY RULE: key_highlights, grok_intelligence_summary, buyer_strategy, and location_intelligence.narrative must never contradict current_status, current_list_price, or sqft elsewhere in this same response. If the property is currently For Sale at a given price and size, do not describe it in any text field as off-market, sold, or a different size based on an older sale, a stale listing, or your own prior/training knowledge -- the current, verified facts govern every field, not just the structured ones. A past sale (last_sold_date/last_sold_price) is historical context only and must never be restated as the property's current status.
 
+HOA RULE: this JSON schema has no structured field for HOA dues -- HOA is confirmed ONLY from verified listing facts provided to you, never from your own web search, no matter how confident that search result looks. If you found an HOA figure while searching, you may mention it in key_highlights or buyer_strategy, but ONLY hedged as unverified (e.g. "listing mentions ~$X/mo HOA -- verify directly," matching the caution you'd give in buyer_strategy) -- never state it as a plain, confirmed fact ("Low $X/mo HOA"). Do not let one field hedge on HOA while another states it outright; the more cautious framing governs every field.
+
 REQUIRED searches:
 1. Find the exact Redfin listing — extract days_on_market, original_list_date, lot_size_sqft, year_built, HOA, MLS#, listing agent
 2. Find the Zillow listing — extract Zestimate, saves count, views count, last sold date + price
