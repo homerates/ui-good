@@ -65,6 +65,7 @@ CRITICAL REQUIREMENTS:
 - For life_fit_score: score 0-100 based on schools, neighborhood quality, commute access, walkability, and value vs comparable sales.
 - For comparable_sales: include 3-4 real recent sales within 0.5 miles from the past 18 months. Use real addresses.
 - grok_intelligence_summary: 2-3 high-quality sentences covering market context, positioning, and key buyer/seller considerations.
+- CONSISTENCY RULE: key_highlights, grok_intelligence_summary, and any other free-text field must never contradict current_status, current_list_price, or sqft in this same response. If verified listing facts say the property is currently For Sale at a given price and size, do not describe it elsewhere in the response as off-market, sold, or a different size based on an older sale or your own prior knowledge -- the authoritative facts govern every field, not just the structured ones.
 
 Return ONLY valid JSON — no markdown, no explanation, no extra text:
 {
@@ -98,6 +99,8 @@ Current date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'nu
 Search the web for the property address provided. Find its active listing on Redfin and Zillow, then extract every available data point.
 
 CRITICAL RULE: If you found a value during your web search, you MUST include it in the JSON. Return null ONLY if the field is genuinely unavailable — not if you are uncertain. A value you found is always better than null.
+
+CONSISTENCY RULE: key_highlights, grok_intelligence_summary, buyer_strategy, and location_intelligence.narrative must never contradict current_status, current_list_price, or sqft elsewhere in this same response. If the property is currently For Sale at a given price and size, do not describe it in any text field as off-market, sold, or a different size based on an older sale, a stale listing, or your own prior/training knowledge -- the current, verified facts govern every field, not just the structured ones. A past sale (last_sold_date/last_sold_price) is historical context only and must never be restated as the property's current status.
 
 REQUIRED searches:
 1. Find the exact Redfin listing — extract days_on_market, original_list_date, lot_size_sqft, year_built, HOA, MLS#, listing agent
