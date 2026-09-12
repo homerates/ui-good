@@ -65,10 +65,10 @@ function mapAvailability(raw: CanonicalPropertyIntelligence): { status: 'AVAILAB
   if (raw.financing || raw.ownershipCosts) {
     return {
       status: 'PARTIAL',
-      reason: raw.ineligibleReasons[0] ?? 'Valuation and comparable sales are not yet available for this property.',
+      reason: raw.ineligibleReasons[0] ?? 'Valuation and comparable sales are not yet available for this property. HomeRates is actively gathering them now -- call this same tool again with the same address in about a minute to get comparable sales and neighborhood context.',
     };
   }
-  return { status: 'NOT_AVAILABLE', reason: 'HomeRates has this address on record but does not yet have enough verified data to provide intelligence.' };
+  return { status: 'NOT_AVAILABLE', reason: 'HomeRates has this address on record but does not yet have enough verified data to provide intelligence. Call this same tool again with the same address in about a minute -- enrichment is running in the background.' };
 }
 
 function mapSourceCategory(rawSource: string | null): 'PUBLIC_LISTING_DATA' | 'AI_ASSISTED_ANALYSIS' | 'MARKET_DATA' {
@@ -146,7 +146,8 @@ function computeDeepIntelligenceCta(
   const capabilitySummary = pending.length === 0
     ? `Interactive HomeRates Property Intelligence report for this property, including ${availableText}.`
     : `Interactive HomeRates Property Intelligence report for this property, including ${availableText} now, ` +
-      `with ${pending.join(' and ')} added as HomeRates finishes gathering them.`;
+      `with ${pending.join(' and ')} added as HomeRates finishes gathering them -- call this same tool again ` +
+      `with the same address in about a minute to get ${pending.join(' and ')} directly in this conversation.`;
 
   return {
     available: true,

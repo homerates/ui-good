@@ -241,7 +241,9 @@ async function shapeResolvedProperty(address: string, propertyId: string): Promi
 // caller unable to tell "we just added this" apart from a bare unknown
 // address -- the one thing this whole feature exists to signal.
 const RESOLVED_NOTE =
-  'This property was not previously in our system and has just been added. Some intelligence layers may be limited until enrichment completes.';
+  'This property was not previously in our system and has just been added. Some intelligence layers may be ' +
+  'limited until enrichment completes -- call this same tool again with the same address in about a minute ' +
+  'to get comparable sales and neighborhood context directly in this conversation.';
 
 function withResolvedNote(result: GatewayResult): GatewayResult {
   if (!result.ok) return result;
