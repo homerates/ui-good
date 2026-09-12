@@ -108,8 +108,12 @@ export async function POST(req: NextRequest) {
     return oauthError('invalid_grant', 'PKCE verification failed.', 400);
   }
 
-  const resource = params.get('resource');
-  if (!resource || !validateResource(resource) || resource !== consumed.resource) {
+  // resource is OPTIONAL here too (RFC 8707), same treatment as the
+  // authorize step -- omitted defaults to CANONICAL_RESOURCE, so a client
+  // that omitted it at both steps still matches consumed.resource (which
+  // was stored as the SAME default when the authorization code was issued).
+  const resource = validateResource(params.get('resource'));
+  if (resource === null || resource !== consumed.resource) {
     return oauthError('invalid_target', 'The requested resource does not match the authorization request.', 400);
   }
 

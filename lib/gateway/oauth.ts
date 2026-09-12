@@ -195,8 +195,21 @@ export function validateRedirectUri(client: OAuthClient, redirectUri: string): b
   return client.redirectUri === redirectUri;
 }
 
-export function validateResource(resource: string): boolean {
-  return resource === CANONICAL_RESOURCE;
+// Returns the validated resource URI, or null if the request must be
+// rejected. Omitted resource defaults to CANONICAL_RESOURCE (this server
+// has exactly one protected resource, so there is nothing to disambiguate)
+// -- the same "omit defaults to the one supported value, explicit-but-wrong
+// is rejected" pattern validateScope() already uses. Added 2026-09-11 after
+// a real client (Claude's MCP connector) was confirmed, via its actual
+// captured request, to omit the `resource` parameter entirely -- RFC 8707
+// itself defines `resource` as OPTIONAL; this server had been treating its
+// absence as an automatic rejection, which silently broke authorization for
+// any client that (correctly, per the RFC) chose not to send it.
+export function validateResource(requestedResource: string | undefined | null): string | null {
+  if (requestedResource === undefined || requestedResource === null || requestedResource === '') {
+    return CANONICAL_RESOURCE;
+  }
+  return requestedResource === CANONICAL_RESOURCE ? CANONICAL_RESOURCE : null;
 }
 
 // Returns the validated scope string, or null if the request must be

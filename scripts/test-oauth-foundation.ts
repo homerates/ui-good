@@ -147,6 +147,13 @@ async function main() {
     record('2', 'validateResource: rejects trailing slash variant', !validateResource(CANONICAL_RESOURCE + '/') ? 'PASS' : 'FAIL', CANONICAL_RESOURCE + '/');
     record('2', 'validateResource: rejects different host', !validateResource('https://evil.example/api/mcp/property-intelligence') ? 'PASS' : 'FAIL', 'different host rejected');
     record('2', 'validateResource: rejects http scheme', !validateResource(CANONICAL_RESOURCE.replace('https', 'http')) ? 'PASS' : 'FAIL', 'http scheme rejected');
+    // Added 2026-09-11 -- a real client (Claude's MCP connector) was
+    // confirmed, via its actual captured authorize request, to omit
+    // `resource` entirely (RFC 8707 defines it as OPTIONAL). Omitted must
+    // default to CANONICAL_RESOURCE, not be rejected -- the same pattern
+    // validateScope() already uses for an omitted scope.
+    record('2', 'validateResource: omitted defaults to CANONICAL_RESOURCE (RFC 8707 -- resource is optional; a real client, Claude, omits it)', validateResource(undefined) === CANONICAL_RESOURCE ? 'PASS' : 'FAIL', 'undefined -> default');
+    record('2', 'validateResource: empty string also defaults (not treated as an explicit wrong value)', validateResource('') === CANONICAL_RESOURCE ? 'PASS' : 'FAIL', 'empty string -> default');
 
     // ===== 3. Scope validation (pure function) =====
     record('3', 'validateScope: exact supported scope', validateScope(SUPPORTED_OAUTH_SCOPE) === SUPPORTED_OAUTH_SCOPE ? 'PASS' : 'FAIL', SUPPORTED_OAUTH_SCOPE);

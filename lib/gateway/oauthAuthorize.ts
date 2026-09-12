@@ -96,8 +96,8 @@ export async function validate(params: URLSearchParams): Promise<ValidateResult>
     return { ok: false, response: redirectWithError(redirectUriParam, 'invalid_scope', 'The requested scope is not supported.', state) };
   }
 
-  const resourceParam = params.get('resource');
-  if (!resourceParam || !validateResource(resourceParam)) {
+  const resource = validateResource(params.get('resource'));
+  if (resource === null) {
     return { ok: false, response: redirectWithError(redirectUriParam, 'invalid_target', 'The requested resource is not this authorization server\'s protected resource.', state) };
   }
 
@@ -109,7 +109,7 @@ export async function validate(params: URLSearchParams): Promise<ValidateResult>
 
   return {
     ok: true,
-    value: { client, redirectUri: redirectUriParam, scope, resource: resourceParam, codeChallenge, codeChallengeMethod, state },
+    value: { client, redirectUri: redirectUriParam, scope, resource, codeChallenge, codeChallengeMethod, state },
   };
 }
 
