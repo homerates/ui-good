@@ -16,10 +16,22 @@
 // RATE LIMIT -- shares the same credential/partner/IP quota dimensions as
 // the other two capabilities (one shared budget per credential, not a
 // separate pool per tool).
+//
+// PUBLIC AUTHORITY ACCESS (2026-09-11, explicit product decision, same
+// reasoning and same day as benchmarkRatesGateway.ts's identical change --
+// see that file's header for the full rationale): a credential is now
+// OPTIONAL for this tool too. FHFA/HUD conforming and FHA loan limits are
+// public-authority reference data with zero marginal per-call cost (a
+// Supabase read of already-synced government tables, at most one more
+// Supabase read for ZIP resolution -- never a live/paid provider call). A
+// caller that DOES present a credential still gets the exact original
+// authenticated path unchanged; an anonymous caller is rate-limited by IP
+// only.
 
 import { authenticateRequest, requireAnyScope } from './auth';
 import { isCircuitOpen, isKillSwitchEnabled } from './circuitBreaker';
-import { checkAllLimits } from './rateLimit';
+import { checkAllLimits, checkAndIncrement } from './rateLimit';
+import { PILOT_LIMITS } from './limits';
 import { logRequest, type GatewayLogErrorCode, type GatewayLogOutcome } from './requestLog';
 import { getLoanLimitIntelligence, type Program, type Units } from '../pricing/loanLimitIntelligence';
 import { shapeLoanLimitIntelligenceForExternalContract } from './loanLimitShaping';
@@ -143,23 +155,39 @@ export async function getLoanLimitIntelligenceGated(
     return finish({ ok: false, error: 'SERVICE_DISABLED', message: SERVICE_DISABLED_MESSAGE }, null, null);
   }
 
-  // 2/3. Authentication, then scope authorization -- before request
-  // validation, same ordering rationale as the other two capabilities: an
-  // unauthorized caller never learns whether their input was well-formed.
-  const auth = await authenticateRequest(apiKeyHeader);
-  if (!auth.ok) return finish(auth, null, null);
+  // 2/3. Authentication + scope -- OPTIONAL for this tool (see header). A
+  // presented credential still goes through the exact original
+  // authenticated path, before request validation, same ordering rationale
+  // as the other capabilities: an unauthorized caller never learns whether
+  // their input was well-formed. No credential at all is anonymous, not an
+  // error.
+  let partnerId: string | null = null;
+  let credentialId: string | null = null;
 
-  const scopeError = requireAnyScope(auth.context, [...LOAN_LIMIT_SCOPES]);
-  if (scopeError) return finish(scopeError, auth.context.partnerId, auth.context.credentialId);
+  if (apiKeyHeader != null) {
+    const auth = await authenticateRequest(apiKeyHeader);
+    if (!auth.ok) return finish(auth, null, null);
 
-  // 4. Rate limit / quota.
-  const limits = await checkAllLimits(auth.context, requestIp);
-  if (!limits.allowed) {
-    return finish(
-      { ok: false, error: 'RATE_LIMITED', message: RATE_LIMITED_MESSAGE },
-      auth.context.partnerId,
-      auth.context.credentialId,
-    );
+    const scopeError = requireAnyScope(auth.context, [...LOAN_LIMIT_SCOPES]);
+    if (scopeError) return finish(scopeError, auth.context.partnerId, auth.context.credentialId);
+
+    // 4. Rate limit / quota -- authenticated caller, full credential+partner+IP quota.
+    const limits = await checkAllLimits(auth.context, requestIp);
+    if (!limits.allowed) {
+      return finish(
+        { ok: false, error: 'RATE_LIMITED', message: RATE_LIMITED_MESSAGE },
+        auth.context.partnerId,
+        auth.context.credentialId,
+      );
+    }
+    partnerId = auth.context.partnerId;
+    credentialId = auth.context.credentialId;
+  } else {
+    // 4. Rate limit / quota -- anonymous caller, IP dimension only.
+    const anonLimit = await checkAndIncrement('ip', requestIp, 'minute', PILOT_LIMITS.ipPerMinute);
+    if (!anonLimit.allowed) {
+      return finish({ ok: false, error: 'RATE_LIMITED', message: RATE_LIMITED_MESSAGE }, null, null);
+    }
   }
 
   // 5. Request validation.
@@ -167,8 +195,8 @@ export async function getLoanLimitIntelligenceGated(
   if (!validated.ok) {
     return finish(
       { ok: false, error: 'INVALID_REQUEST', message: validated.message },
-      auth.context.partnerId,
-      auth.context.credentialId,
+      partnerId,
+      credentialId,
     );
   }
 
@@ -183,16 +211,16 @@ export async function getLoanLimitIntelligenceGated(
       // return an unvalidated object.
       return finish(
         { ok: false, error: 'INTERNAL_ERROR', message: 'Response failed contract validation.' },
-        auth.context.partnerId,
-        auth.context.credentialId,
+        partnerId,
+        credentialId,
       );
     }
-    return finish({ ok: true, data: parsed.data }, auth.context.partnerId, auth.context.credentialId);
+    return finish({ ok: true, data: parsed.data }, partnerId, credentialId);
   } catch {
     return finish(
       { ok: false, error: 'INTERNAL_ERROR', message: 'An internal error occurred.' },
-      auth.context.partnerId,
-      auth.context.credentialId,
+      partnerId,
+      credentialId,
     );
   }
 }

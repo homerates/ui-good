@@ -24,6 +24,7 @@ if (fs.existsSync(envPath)) {
   }
 }
 
+import { NextRequest } from 'next/server';
 import { getSupabase } from '../lib/supabaseServer';
 import { getBenchmarkRates } from '../lib/market-data/benchmarkRates';
 import { shapeBenchmarkRatesForExternalContract } from '../lib/gateway/benchmarkRatesShaping';
@@ -31,6 +32,7 @@ import { BenchmarkRatesV1Schema } from '../lib/gateway/benchmarkRatesSchema';
 import { getBenchmarkRatesGated } from '../lib/gateway/benchmarkRatesGateway';
 import { issueCredential, revokeCredential, ALLOWED_GATEWAY_SCOPES } from '../lib/gateway/credentials';
 import { authenticateRequest, requireAnyScope, requireScope } from '../lib/gateway/auth';
+import { POST as mcpPost } from '../app/api/mcp/property-intelligence/route';
 
 type Status = 'PASS' | 'FAIL';
 interface Result { name: string; status: Status; evidence: string }
@@ -153,10 +155,16 @@ async function main() {
     record('D3. benchmark_rates:read-only credential is FORBIDDEN from property_intelligence:read (genuinely narrower scope)',
       authRateOnly.ok && scopeCheckForProperty?.error === 'FORBIDDEN' ? 'PASS' : 'FAIL', JSON.stringify(scopeCheckForProperty));
 
-    // D4: invalid/missing credential -> UNAUTHORIZED, same as property intelligence.
-    const resultNoAuth = await getBenchmarkRatesGated(null, '127.0.0.1');
-    record('D4. Missing credential -> UNAUTHORIZED',
-      !resultNoAuth.ok && resultNoAuth.error === 'UNAUTHORIZED' ? 'PASS' : 'FAIL', JSON.stringify(resultNoAuth));
+    // D4: a genuinely INVALID (garbage, not merely absent) credential still
+    // -> UNAUTHORIZED. Superseded 2026-09-11 (Public Authority Access): a
+    // wholly MISSING credential is no longer an error for this tool at all
+    // -- see section F below for the real, live proof of that intentional
+    // policy change. This assertion now covers the other half: presenting
+    // something that LOOKS like a credential but isn't must still fail,
+    // exactly as before.
+    const resultBadAuth = await getBenchmarkRatesGated('hrg_garbage_notreal', '127.0.0.1');
+    record('D4. Invalid (garbage, not merely absent) credential -> UNAUTHORIZED',
+      !resultBadAuth.ok && resultBadAuth.error === 'UNAUTHORIZED' ? 'PASS' : 'FAIL', JSON.stringify(resultBadAuth));
 
     // D5: a credential with neither scope -> FORBIDDEN. issueCredential
     // requires an ALLOWED scope, so simulate via a direct row edit (same
@@ -202,6 +210,42 @@ async function main() {
     record('E6. All 5 tools/list entries carry read-only MCP annotations',
       (routeSrc.match(/annotations: \{ readOnlyHint: true, destructiveHint: false, openWorldHint: false \}/g) ?? []).length === 5
         ? 'PASS' : 'FAIL', 'source-inspected');
+  }
+
+  // ===== F. PUBLIC AUTHORITY ACCESS (2026-09-11): no credential required =====
+  // Built to unblock a real, live gap: Grok's MCP connector sends tools/call
+  // with NO Authorization header at all (confirmed directly via Vercel logs,
+  // User-Agent grok-connectors-manager/0.1.0) and never attempts any OAuth
+  // negotiation. Rather than a 4th auth mechanism, this makes the credential
+  // OPTIONAL for exactly this tool (a public, zero-marginal-cost national
+  // reference rate) -- a caller that DOES present one still gets the
+  // unchanged authenticated path (see D1-D6 above, still passing).
+  {
+    const resultNoHeaderAtAll = await getBenchmarkRatesGated(null, '203.0.113.150');
+    record('F1. getBenchmarkRatesGated(null, ip) succeeds anonymously (no credential presented at all)',
+      resultNoHeaderAtAll.ok && resultNoHeaderAtAll.data.contract_version === 'benchmark-rates-v1' ? 'PASS' : 'FAIL',
+      JSON.stringify(resultNoHeaderAtAll.ok ? { ok: true } : resultNoHeaderAtAll));
+
+    const resultGarbageCred = await getBenchmarkRatesGated('hrg_garbage_notreal', '203.0.113.151');
+    record('F2. A PRESENTED but invalid credential still correctly fails UNAUTHORIZED (anonymous path is for an ABSENT header only, never a bad one)',
+      !resultGarbageCred.ok && resultGarbageCred.error === 'UNAUTHORIZED' ? 'PASS' : 'FAIL', JSON.stringify(resultGarbageCred));
+
+    // Real, live proof against the actual MCP route -- the exact shape
+    // confirmed in production logs: a valid MCP-Protocol-Version header
+    // (Grok's request passed that check, since it got a 401 from the
+    // Gateway rather than a 400 from the protocol-header check), but NO
+    // Authorization header whatsoever.
+    const req = new NextRequest('http://localhost/api/mcp/property-intelligence', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'mcp-protocol-version': '2025-11-25' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 999, method: 'tools/call', params: { name: 'homerates_rate_oracle', arguments: {} } }),
+    });
+    const res = await mcpPost(req);
+    const json = await res.json().catch(() => null);
+    const data = json?.result?.content?.[0]?.text ? JSON.parse(json.result.content[0].text) : null;
+    record('F3. Real, live tools/call against the actual MCP route with NO Authorization header succeeds (matches Grok\'s exact real request shape -- no more 401)',
+      res.status === 200 && json?.result?.isError === false && data?.contract_version === 'benchmark-rates-v1' ? 'PASS' : 'FAIL',
+      JSON.stringify({ status: res.status, isError: json?.result?.isError, contract_version: data?.contract_version }));
   }
 
   const failed = results.filter(r => r.status === 'FAIL');
