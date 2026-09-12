@@ -200,7 +200,13 @@ const TOOL_DESCRIPTION =
   'it generically ("view the property report"). Relay what ' +
   'deep_intelligence.capability_summary actually says is there, so the user understands ' +
   "what's genuinely deeper there versus what you've already shared, and can decide " +
-  'whether to open it.';
+  'whether to open it.' +
+  '\n\n' +
+  'Present the answer in a scannable format: lead with the key numeric facts (price, beds/' +
+  'baths/sqft, PITI, comparable sales) as short bullets or a compact list, not blended into ' +
+  'dense paragraphs. Keep caveats, limitations, and things still unconfirmed together in ' +
+  'their own clearly separated section at the end, rather than interleaving them ' +
+  'sentence-by-sentence with the facts.';
 
 const INPUT_SCHEMA = {
   type: 'object',
@@ -240,7 +246,10 @@ const BENCHMARK_RATES_TOOL_DESCRIPTION =
   "these are national averages, not a specific quote -- an individual borrower's actual " +
   'rate depends on their credit, down payment, and loan program, which this tool does not ' +
   'ask for. This tool does not accept any input. No credential is required to call it -- it is a ' +
-  'public national reference rate with no borrower or property specificity to protect.';
+  'public national reference rate with no borrower or property specificity to protect.' +
+  '\n\n' +
+  'Present the rates as a short, scannable list (one line per term), not blended into a ' +
+  'paragraph, with the as_of date and any caveat stated plainly alongside each.';
 const BENCHMARK_RATES_INPUT_SCHEMA = {
   type: 'object',
   properties: {},
@@ -286,7 +295,11 @@ const LOAN_LIMIT_TOOL_DESCRIPTION =
   '"better" than another, never recommend Conventional vs. jumbo or FHA vs. conventional, ' +
   'never state or imply loan approval, eligibility, or pricing/rate impact. Those are ' +
   'separate questions this tool does not answer. No credential is required to call it -- ' +
-  'these are public FHFA/HUD reference figures with no borrower or property specificity to protect.';
+  'these are public FHFA/HUD reference figures with no borrower or property specificity to protect.' +
+  '\n\n' +
+  'Present the limit figures as a short, scannable list, not blended into a paragraph -- ' +
+  'this is reference-lookup data, and a user asking for a loan limit wants the number(s) ' +
+  'immediately visible, not buried in prose.';
 const LOAN_LIMIT_INPUT_SCHEMA = {
   type: 'object',
   properties: {
@@ -350,7 +363,12 @@ const SCENARIO_TOOL_DESCRIPTION =
   'another, it only classifies. property_tax_rate_pct and insurance_annual are illustrative ' +
   'national assumptions when not overridden -- no per-county tax/insurance table exists in ' +
   'HomeRates today, so geography does not currently refine these two figures (it does refine ' +
-  'loan_limit_zone, which has real per-county data).';
+  'loan_limit_zone, which has real per-county data).' +
+  '\n\n' +
+  'Present the scenario as a scannable breakdown: loan structure and each monthly_breakdown ' +
+  'line item as short bullets or a compact list, not blended into paragraphs. When comparing ' +
+  'two scenarios, use a side-by-side or clearly labeled format so the difference is ' +
+  'immediately visible. Keep assumptions[] and any caveats in their own separated section.';
 const SCENARIO_INPUT_SCHEMA = {
   type: 'object',
   properties: {
@@ -415,7 +433,13 @@ const BUYER_CAPACITY_TOOL_DESCRIPTION =
   'that band\'s resolved price -- same loan_structure, monthly_breakdown, ' +
   'loan_limit_zone, and claim_type discipline as that tool, not a separate/simplified ' +
   'calculation. Never state a single number as "the" affordability figure when multiple ' +
-  'bands are present -- always frame it as a range across bands.';
+  'bands are present -- always frame it as a range across bands.' +
+  '\n\n' +
+  'Present the bands as a scannable table or one short bullet group per band (price, down ' +
+  'payment, monthly payment, constraint), not blended into paragraphs -- the whole point of ' +
+  'multiple bands is a fast side-by-side comparison, not prose the user has to parse. Keep ' +
+  'the not-an-approval caveat in its own clearly separated line, not interleaved with the ' +
+  'numbers.';
 const BUYER_CAPACITY_INPUT_SCHEMA = {
   type: 'object',
   properties: {
