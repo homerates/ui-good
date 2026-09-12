@@ -111,6 +111,13 @@ function triggerFastFollowEnrichmentIfNeeded(result: GatewayResult): void {
     last_sold_price: v?.last_sale.price ?? undefined,
     last_sold_date: v?.last_sale.date ?? undefined,
     hoa_monthly: oc?.hoa.value ?? undefined,
+    // 2026-09-12: state/zip added so the grok-property route can resolve a
+    // real state/county tax rate instead of its flat national default --
+    // this is the actual path every external MCP call (ChatGPT, Grok) goes
+    // through, so without this the tax-methodology fix would never reach
+    // real external traffic, only the first-party chat UI's own call sites.
+    state: p?.state ?? undefined,
+    zip: p?.zip ?? undefined,
   };
 
   const runTrigger = async () => {
