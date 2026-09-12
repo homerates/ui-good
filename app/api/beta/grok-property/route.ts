@@ -2,6 +2,8 @@
 import { NextRequest } from 'next/server';
 import { getSupabase } from '../../../../lib/supabaseServer';
 import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from '../../../../lib/constants';
+import { lookupTaxRate } from '../../../../lib/property/taxTable';
+import { resolveCountyByZip } from '../../../../lib/property/countyResolution';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -263,6 +265,8 @@ export interface RedfinFacts {
   tax_rate_effective?: number | null;
   hoa_monthly?:        number | null;
   photo_url?:          string | null; // Redfin CDN listing photo — persisted to Supabase cache
+  state?:              string | null; // Used to resolve a real state/county tax rate (see calcPITI call site) when tax_rate_effective is unknown
+  zip?:                string | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -407,8 +411,26 @@ export async function POST(req: NextRequest) {
   const origin   = req.nextUrl.origin;
   const liveRate = await getLiveRate(origin);
   const price    = redfin?.current_list_price ?? null;
+
+  // State/county-aware tax rate (2026-09-12) -- this used to always fall
+  // back to the flat national TAX_RATE_DEFAULT (1.10%) whenever the caller
+  // didn't already know a real tax bill, ignoring state/county entirely.
+  // That's a genuinely different methodology than lib/propertyIntelligence.ts's
+  // own financing calc (used by the homerates_property_intelligence MCP
+  // tool), which already looks up a state/county-specific rate -- the two
+  // surfaces could (and did, live: 129 Littlefield Rd / 2178 Shady Brook Dr)
+  // disagree on PITI for the identical scenario. Same lookupTaxRate() +
+  // resolveCountyByZip() call as that file now uses, so both surfaces
+  // converge on one shared tax-rate source instead of two.
+  let effectiveTaxRate = redfin?.tax_rate_effective ?? TAX_RATE_DEFAULT;
+  if (redfin?.tax_rate_effective == null && redfin?.state) {
+    const sbForTax = getSupabase();
+    const county = sbForTax ? await resolveCountyByZip(sbForTax, redfin.zip) : null;
+    effectiveTaxRate = lookupTaxRate(redfin.state, county).rate;
+  }
+
   const pitiCalc = price
-    ? calcPITI(price, liveRate, redfin?.tax_rate_effective ?? TAX_RATE_DEFAULT, INS_RATE_DEFAULT, redfin?.hoa_monthly ?? 0)
+    ? calcPITI(price, liveRate, effectiveTaxRate, INS_RATE_DEFAULT, redfin?.hoa_monthly ?? 0)
     : 0;
 
   const mapsKey    = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? null;

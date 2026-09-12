@@ -42,6 +42,7 @@ import { getStateLimitInfo, getConformingStatus } from './pricing/conforming-lim
 import { estimateJumboAnchor } from './pricing/jumboEstimate';
 import { calculateMortgage } from './mortgageCalculator';
 import { lookupTaxRate } from './property/taxTable';
+import { resolveCountyByZip } from './property/countyResolution';
 import { scoreL2, scoreL3, scoreL4, resolveAvm as resolveAvmPair } from './scoring/decisionScore';
 
 export type FactLabel =
@@ -308,6 +309,7 @@ interface RawMerge {
   listPrice: number | null;
   city: string | null;
   state: string | null;
+  county: string | null;
   lifecycleStatus: LifecycleStatus;
   eligibility: 'index' | 'noindex' | 'unavailable';
   ineligibleReasons: string[];
@@ -394,10 +396,16 @@ async function assembleRaw(propertyId: string): Promise<RawMerge | null> {
     : (avm != null || comparables.length > 0) ? 'noindex'
     : 'unavailable';
 
+  // County (not city -- see this function's own COUNTY_TAX_OVERRIDES bug
+  // fix note at the taxInfo call site below) resolved once here, alongside
+  // every other Supabase read this function already does, rather than a
+  // second lookup at every call site that needs it.
+  const county = await resolveCountyByZip(sb, prop.zip);
+
   return {
     prop, snapshot, snapshotFetchedAt, grok, grokFetchedAt,
     fp: fpRow ? { l2_score: fpRow.l2_score, l2_summary: fpRow.l2_summary, l3_score: fpRow.l3_score, l3_summary: fpRow.l3_summary, l4_score: fpRow.l4_score, l4_summary: fpRow.l4_summary, score_computed_at: fpRow.score_computed_at } : null,
-    avm, avmSources, comparables, listPrice, city, state, lifecycleStatus, eligibility, ineligibleReasons: reasons,
+    avm, avmSources, comparables, listPrice, city, state, county, lifecycleStatus, eligibility, ineligibleReasons: reasons,
   };
 }
 
@@ -711,7 +719,15 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
 
   const mortgage = price > 0 ? calculateMortgage({ price, downPaymentPct, rate: llpaResult.lenderParRate, termYears: 30 }) : null;
   const realAnnualTax = parseNum(snapshot?.annualTaxes);
-  const taxInfo = lookupTaxRate(raw.state ?? '', raw.city ?? null);
+  // Bug fixed 2026-09-12: this used to pass raw.city here, but
+  // lookupTaxRate()'s second parameter is COUNTY, not city -- for the vast
+  // majority of US addresses city != county (same mismatch class as the
+  // AMI qualifier's S0-S4 county resolution, see lib/CLAUDE.md), so the
+  // curated COUNTY_TAX_OVERRIDES table (real rates for Ventura, LA, Orange,
+  // etc.) was silently defeated on nearly every call, always falling back
+  // to the less-accurate state average instead. raw.county (resolved via
+  // ZIP -> geo_crosswalk in assembleRaw() above) is the real county.
+  const taxInfo = lookupTaxRate(raw.state ?? '', raw.county);
   const monthlyTax = realAnnualTax != null ? Math.round(realAnnualTax / 12) : (mortgage ? Math.round((price * taxInfo.rate) / 12) : 0);
   const monthlyInsurance = mortgage ? Math.round((price * CANONICAL_INSURANCE_ANNUAL_RATE) / 12) : 0;
   const hoaMonthly = parseNum(snapshot?.hoaMonthly);

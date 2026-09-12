@@ -2882,6 +2882,8 @@ export default function Page() {
                                                 tax_rate_effective: d.taxRateEffective    ?? undefined,
                                                 hoa_monthly:        d.hoaMonthly          ?? undefined,
                                                 photo_url:          d.photoUrl            ?? undefined,
+                                                state:              d.state               ?? undefined,
+                                                zip:                d.zip                 ?? undefined,
                                             },
                                         }),
                                     });
@@ -3537,7 +3539,18 @@ export default function Page() {
                             const deepResp = await fetch('/api/beta/grok-property', {
                                 method:  'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body:    JSON.stringify({ address: _dsAddress, price: _dsPrice, deep: true }),
+                                body:    JSON.stringify({
+                                    address: _dsAddress,
+                                    price: _dsPrice,
+                                    deep: true,
+                                    // Only state/zip added here (2026-09-12 tax-methodology fix) --
+                                    // current_list_price deliberately NOT added: the route handler
+                                    // only ever reads redfin.current_list_price (never top-level
+                                    // body.price), so this path's pitiCalc was already always 0
+                                    // before this change and stays that way -- a separate,
+                                    // pre-existing dead-parameter issue, out of scope here.
+                                    redfin: { state: _dsPropertyState, zip: _dsZip },
+                                }),
                             });
                             if (!deepResp.ok || !deepResp.body) return;
                             const reader = deepResp.body.getReader();
