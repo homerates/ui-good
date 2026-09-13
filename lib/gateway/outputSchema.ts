@@ -100,9 +100,12 @@ const ClaimType = z.enum([
 
 const LabeledNumber = z.object({ value: z.number().nullable(), claim_type: ClaimType });
 const LabeledString = z.object({ value: z.string().nullable(), claim_type: ClaimType });
+// value is null when Grok has not yet searched for this (not yet enriched);
+// [] means it searched and found none -- see sale_terms's own field comment.
+const LabeledStringArray = z.object({ value: z.array(z.string()).nullable(), claim_type: ClaimType });
 
 export const ExternalPropertyIntelligenceV1Schema = z.object({
-  contract_version: z.literal('property-intelligence-v1.5'),
+  contract_version: z.literal('property-intelligence-v1.6'),
   query: z.object({ address_requested: z.string() }),
   availability: z.object({
     status: z.enum(['AVAILABLE', 'PARTIAL', 'NOT_AVAILABLE']),
@@ -198,6 +201,20 @@ export const ExternalPropertyIntelligenceV1Schema = z.object({
       highlights: z.array(z.string()),
     })
     .nullable(),
+  // Sale terms / condition disclosures (v1.6, 2026-09-13) -- a real, live
+  // incident: HomeRates' own report characterized a property as "turnkey"
+  // and "modern appeal" with a 71/100 "Ready to Offer" Decision Score while
+  // the actual listing was cash-only, sold as-is, no warranties, a Trust
+  // sale (confirmed against the real MLS-sourced listing; two independent
+  // external AI tools surfaced this, HomeRates' own synthesis had simply
+  // never been asked to look for it). claim_type is AI INTERPRETATION --
+  // this is Grok's own reading of listing remarks, not a structurally-
+  // scraped fact, and must be presented with that same discipline. value
+  // null means Grok has not yet searched for this (not yet enriched, or an
+  // older cached row from before this field existed); [] means it searched
+  // and found no unusual terms. Never conflate the two -- null is
+  // "unchecked," not "clean."
+  sale_terms: LabeledStringArray,
   // Progressive Intelligence (v1.4): null exactly when `property` is null
   // (no resolved property to report progress on). Purely derived from
   // already-computed canonical fields -- never a new query, never a new

@@ -181,7 +181,7 @@ export function shapeForExternalContract(
 ): ExternalPropertyIntelligenceV1 {
   if (!raw) {
     return {
-      contract_version: 'property-intelligence-v1.5',
+      contract_version: 'property-intelligence-v1.6',
       query: { address_requested: addressRequested },
       availability: { status: 'NOT_AVAILABLE', reason: 'HomeRates does not currently have intelligence for this address.' },
       property: null,
@@ -191,6 +191,7 @@ export function shapeForExternalContract(
       market_location_intelligence: { market: { median_dom: labeled('MARKET FACT', null), median_price: labeled('MARKET FACT', null), sale_to_list_pct: labeled('MARKET FACT', null) }, location: null },
       decision_intelligence: null,
       property_analysis: null,
+      sale_terms: { value: null, claim_type: 'AI INTERPRETATION' },
       // No resolved property to report progress on or link to yet -- both
       // null, distinct from the "resolved but still enriching" case below.
       intelligence_progress: null,
@@ -304,7 +305,7 @@ export function shapeForExternalContract(
     : null;
 
   return {
-    contract_version: 'property-intelligence-v1.5',
+    contract_version: 'property-intelligence-v1.6',
     query: { address_requested: addressRequested },
     availability,
     property: {
@@ -344,6 +345,7 @@ export function shapeForExternalContract(
     },
     decision_intelligence: decisionIntelligence,
     property_analysis: propertyAnalysis,
+    sale_terms: { value: raw.saleTerms, claim_type: 'AI INTERPRETATION' as const },
     intelligence_progress: computeIntelligenceProgress(raw),
     deep_intelligence: computeDeepIntelligenceCta(raw, addressRequested),
     freshness: { as_of: asOf, staleness },

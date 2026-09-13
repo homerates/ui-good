@@ -190,6 +190,12 @@ export interface CanonicalPropertyIntelligence {
     narrative: string | null;
     highlights: string[];
   } | null;
+  // Sale terms / condition disclosures (2026-09-13) -- see
+  // PropertyIntelligenceData.saleTerms's dated comment for the real,
+  // live incident this closes. null means Grok has not yet searched for
+  // this (not yet enriched); [] means it searched and found no unusual
+  // terms. Never conflate the two.
+  saleTerms: string[] | null;
   // Kept in the SAME shape as PropertyIntelligenceData.decisionIntelligence
   // deliberately -- this canonical object is internal, so it may hold
   // internal-only fields (raw l2/l3/l4 scores, methodologyVersion, source)
@@ -343,6 +349,7 @@ export async function buildCanonicalPropertyIntelligence(propertyId: string): Pr
           highlights: raw.propertyAnalysis.highlights,
         }
       : null,
+    saleTerms: raw.saleTerms?.value ?? null,
     decisionIntelligence: raw.decisionIntelligence,
     provenance: {
       propertyEnrichedAt: raw.provenance.propertyEnrichedAt,
