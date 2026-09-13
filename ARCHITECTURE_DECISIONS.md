@@ -2240,3 +2240,88 @@ registration.ts` 20/20, `test-golden-prompts.ts` 10/10,
 58/58 — all green, all call sites of the changed
 `shapeBenchmarkRatesForExternalContract()`/`getBenchmarkRatesGated()`
 signatures updated across every test file that called them.
+
+## AD-37 — OAuth `refresh_token` grant (RFC 6749 §6)
+
+**Decision:** `/api/oauth/token` now supports `grant_type=refresh_token`
+alongside the existing `authorization_code` grant. Every token mint (both
+grants) issues a rotating, single-use refresh token
+(`gateway_oauth_refresh_tokens`, 30-day TTL) alongside the 1-hour access
+token — unchanged. A compliant OAuth client (ChatGPT, Claude, Grok) can
+now silently renew its access token indefinitely without a new consent
+screen, as long as it keeps redeeming its refresh token before the
+30-day window closes.
+
+**Real, live incident, not speculative:** confirmed directly via
+`gateway_request_log` and the ChatGPT pilot credential row — an access
+token minted at `02:52:16 UTC` on 2026-09-13 expired at `03:52:16 UTC`
+(the existing 1-hour TTL), and every subsequent ChatGPT connector call
+failed with a generic "Failed to connect to HomeRates.ai. Please try
+again later." for the following ~14.5 hours, with the kill switch and
+circuit breaker both off and the partner/credential both otherwise
+healthy. Zero request-log rows exist for that partner in the entire gap
+— the failure never even reached Gateway-level logging, consistent with
+ChatGPT's own OAuth layer failing to silently refresh (no refresh grant
+existed) rather than a Gateway rejection. The only recovery path was a
+full manual disconnect/reconnect of the connector. Rayaan explicitly
+authorized building refresh_token support to close this gap, having
+weighed it against the two lighter alternatives (just reconnect manually
+each time; just extend the TTL) and preferring the real fix.
+
+**Rotating and single-use, per OAuth 2.1 guidance** (this codebase
+already follows OAuth 2.1 conventions throughout — PKCE S256-only, no
+`plain`): each redemption immediately revokes the presented refresh token
+and issues a brand new one in the same response. A second presentation
+of an already-consumed token (e.g. after theft, or a buggy client retry)
+fails with `invalid_grant` — the same atomic "check-and-mark" pattern
+`consumeAuthorizationCode()` already uses for authorization codes
+(`revoked_at` here plays the role `used_at` plays there), so two
+concurrent redemption attempts for the same token can never both
+succeed.
+
+**Deliberately best-effort, not a hard dependency:** `mintTokens()`
+(the shared final step for both grants) issues the access token first,
+then attempts refresh-token storage in a try/catch — a storage failure
+(most concretely: this migration not yet applied in a given environment,
+since migrations here are drafted by Claude Code and applied manually by
+Rayaan, never automatically) degrades to "no `refresh_token` in the
+response," never breaks the access-token grant every live client already
+depends on. Verified directly: the full `authorization_code` grant
+regression (`test-oauth-flow.ts` sections 3-7, 50/56 passing) runs clean
+against production *before* migration 087 is applied — only the 4
+assertions that specifically require a real refresh token to exist
+correctly fail, nothing else regresses. This was a deliberate design
+choice made while building this feature, once it became clear the naive
+`Promise.all([issueCredential(...), storeRefreshToken(...)])` version
+would have made every OAuth login in production fail during the window
+between code deploy and migration application.
+
+**What was built:**
+- `supabase/migrations/087_gateway_oauth_refresh_tokens.sql` — new table,
+  RLS following the exact `085_gateway_oauth.sql` pattern (`service_role`
+  policy, secret-adjacent column so no bare-PUBLIC default). NOT YET
+  APPLIED — drafted only, per standing workflow.
+- `lib/gateway/oauth.ts` — `storeRefreshToken()`/`consumeRefreshToken()`,
+  mirroring `storeAuthorizationCode()`/`consumeAuthorizationCode()`'s
+  existing hash-at-rest, single-use, "never leak why" discipline exactly.
+- `app/api/oauth/token/route.ts` — `grant_type` now accepts
+  `authorization_code` OR `refresh_token`; both end at a shared
+  `mintTokens()` so the two grants can never drift into different
+  response shapes. Client authentication (secret check for non-`none`
+  methods) applies identically to both grants.
+- `app/api/well-known/oauth-authorization-server/route.ts` —
+  `grant_types_supported` now advertises `refresh_token`.
+- `scripts/test-oauth-flow.ts` — new section 5b (7 assertions): successful
+  refresh + rotation, the old token provably dead after use, the new
+  token itself usable, unknown/missing token rejected, wrong client
+  secret rejected without burning the token. Section 5's stale "no
+  refresh_token in response" assertion inverted to expect one present.
+
+**Status:** Built. `tsc --noEmit` clean, full `next build` clean.
+`test-oauth-foundation.ts` 39/39 unaffected. `test-oauth-dynamic-
+registration.ts` 20/20 unaffected. `test-oauth-flow.ts` 50/56 passing
+pre-migration (exactly the 4 refresh-token-specific assertions fail,
+confirming the best-effort degradation works as designed) — full 56/56
+expected once migration 087 is applied; re-verify then. Migration NOT
+yet applied — awaiting Rayaan's manual application in the Supabase SQL
+Editor, per standing workflow.
