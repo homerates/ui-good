@@ -6,7 +6,7 @@
 // BenchmarkRatesResult and written to a named path on the external contract.
 
 import { EDUCATIONAL_DISCLAIMER } from '../disclosures';
-import type { BenchmarkRate, BenchmarkRatesResult } from '../market-data/benchmarkRates';
+import type { BenchmarkRate, BenchmarkRatesResult, LlpaAdjustedRate } from '../market-data/benchmarkRates';
 import type { BenchmarkRatesV1 } from './benchmarkRatesSchema';
 
 function shapeRate(raw: BenchmarkRate) {
@@ -22,12 +22,31 @@ function shapeRate(raw: BenchmarkRate) {
   };
 }
 
-export function shapeBenchmarkRatesForExternalContract(raw: BenchmarkRatesResult): BenchmarkRatesV1 {
+function shapeLlpaAdjustedRate(raw: LlpaAdjustedRate) {
   return {
-    contract_version: 'benchmark-rates-v1',
+    value: raw.value,
+    series_id: raw.seriesId,
+    series_label: raw.seriesLabel,
+    source: raw.source,
+    as_of: raw.asOf,
+    retrieved_at: raw.retrievedAt,
+    freshness_status: raw.freshnessStatus,
+    assumed_profile: {
+      credit_score: raw.assumedProfile.creditScore,
+      ltv_pct: raw.assumedProfile.ltvPct,
+      is_default_profile: raw.assumedProfile.isDefaultProfile,
+    },
+    claim_type: 'MARKET FACT' as const,
+  };
+}
+
+export function shapeBenchmarkRatesForExternalContract(raw: BenchmarkRatesResult, llpa: LlpaAdjustedRate): BenchmarkRatesV1 {
+  return {
+    contract_version: 'benchmark-rates-v1.1',
     thirty_year_fixed: shapeRate(raw.thirtyYearFixed),
     fifteen_year_fixed: shapeRate(raw.fifteenYearFixed),
     five_one_arm: shapeRate(raw.fiveOneArm),
+    llpa_adjusted_rate: shapeLlpaAdjustedRate(llpa),
     disclaimer: EDUCATIONAL_DISCLAIMER,
   };
 }

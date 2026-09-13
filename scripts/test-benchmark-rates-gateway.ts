@@ -26,7 +26,8 @@ if (fs.existsSync(envPath)) {
 
 import { NextRequest } from 'next/server';
 import { getSupabase } from '../lib/supabaseServer';
-import { getBenchmarkRates } from '../lib/market-data/benchmarkRates';
+import { getBenchmarkRates, getLlpaAdjustedRate } from '../lib/market-data/benchmarkRates';
+import { resolveObmmiSeriesId } from '../lib/pricing/llpa-engine';
 import { shapeBenchmarkRatesForExternalContract } from '../lib/gateway/benchmarkRatesShaping';
 import { BenchmarkRatesV1Schema } from '../lib/gateway/benchmarkRatesSchema';
 import { getBenchmarkRatesGated } from '../lib/gateway/benchmarkRatesGateway';
@@ -72,24 +73,69 @@ async function main() {
 
   // ===== B. Shaping + schema =====
 
-  const shaped = shapeBenchmarkRatesForExternalContract(raw);
+  const llpaDefault = await getLlpaAdjustedRate();
+  const shaped = shapeBenchmarkRatesForExternalContract(raw, llpaDefault);
   const parsed = BenchmarkRatesV1Schema.safeParse(shaped);
   record('B1. Shaped output passes BenchmarkRatesV1Schema validation',
     parsed.success ? 'PASS' : 'FAIL', parsed.success ? 'valid' : JSON.stringify((parsed as any).error?.issues?.slice(0, 3)));
 
-  record('B2. contract_version is benchmark-rates-v1',
-    shaped.contract_version === 'benchmark-rates-v1' ? 'PASS' : 'FAIL', shaped.contract_version);
+  record('B2. contract_version is benchmark-rates-v1.1',
+    shaped.contract_version === 'benchmark-rates-v1.1' ? 'PASS' : 'FAIL', shaped.contract_version);
 
   record('B3. Every rate carries claim_type MARKET FACT',
-    shaped.thirty_year_fixed.claim_type === 'MARKET FACT' && shaped.fifteen_year_fixed.claim_type === 'MARKET FACT' && shaped.five_one_arm.claim_type === 'MARKET FACT'
-      ? 'PASS' : 'FAIL', 'checked all 3');
+    shaped.thirty_year_fixed.claim_type === 'MARKET FACT' && shaped.fifteen_year_fixed.claim_type === 'MARKET FACT' && shaped.five_one_arm.claim_type === 'MARKET FACT' && shaped.llpa_adjusted_rate.claim_type === 'MARKET FACT'
+      ? 'PASS' : 'FAIL', 'checked all 4');
 
   record('B4. disclaimer field present and non-empty (EDUCATIONAL_DISCLAIMER, not hand-written)',
     typeof shaped.disclaimer === 'string' && shaped.disclaimer.length > 0 ? 'PASS' : 'FAIL', shaped.disclaimer.slice(0, 40));
 
-  record('B5. No OBMMI/rateIntelligence/LLPA field anywhere in the shaped output (source-of-truth check)',
-    !JSON.stringify(shaped).match(/obmmi|llpa|rateIntelligence|credit_score|creditScore/i) ? 'PASS' : 'FAIL',
-    'grepped shaped JSON for forbidden substrings');
+  // Rate Role Correction boundary (2026-09-08) is scoped to the three
+  // NEUTRAL rates only -- llpa_adjusted_rate is the deliberate 2026-09-12
+  // widening, so this check now asserts the boundary holds where it still
+  // must (the three neutral fields never carry OBMMI/LLPA/credit-score
+  // language) rather than across the whole payload.
+  const neutralFieldsOnly = JSON.stringify({
+    thirty_year_fixed: shaped.thirty_year_fixed,
+    fifteen_year_fixed: shaped.fifteen_year_fixed,
+    five_one_arm: shaped.five_one_arm,
+  });
+  record('B5. No OBMMI/rateIntelligence/LLPA/credit_score field in the three NEUTRAL rate fields (Rate Role Correction boundary still holds there)',
+    !neutralFieldsOnly.match(/obmmi|llpa|rateIntelligence|credit_score|creditScore/i) ? 'PASS' : 'FAIL',
+    'grepped the 3 neutral fields only for forbidden substrings');
+
+  // ===== B6-B10. llpa_adjusted_rate widening (2026-09-12) =====
+
+  record('B6. Default profile (no args) resolves to 740/80 well-qualified, is_default_profile true',
+    shaped.llpa_adjusted_rate.assumed_profile.credit_score === 740 &&
+    shaped.llpa_adjusted_rate.assumed_profile.ltv_pct === 80 &&
+    shaped.llpa_adjusted_rate.assumed_profile.is_default_profile === true ? 'PASS' : 'FAIL',
+    JSON.stringify(shaped.llpa_adjusted_rate.assumed_profile));
+
+  record('B7. Default profile series_id matches resolveObmmiSeriesId("conventional", 740, 80) exactly',
+    shaped.llpa_adjusted_rate.series_id === resolveObmmiSeriesId('conventional', 740, 80) ? 'PASS' : 'FAIL',
+    JSON.stringify({ got: shaped.llpa_adjusted_rate.series_id, expected: resolveObmmiSeriesId('conventional', 740, 80) }));
+
+  const llpaCustom = await getLlpaAdjustedRate(700, 90);
+  const shapedCustom = shapeBenchmarkRatesForExternalContract(raw, llpaCustom);
+  record('B8. Custom credit_score/ltv_pct overrides the default profile, is_default_profile false',
+    shapedCustom.llpa_adjusted_rate.assumed_profile.credit_score === 700 &&
+    shapedCustom.llpa_adjusted_rate.assumed_profile.ltv_pct === 90 &&
+    shapedCustom.llpa_adjusted_rate.assumed_profile.is_default_profile === false &&
+    shapedCustom.llpa_adjusted_rate.series_id === resolveObmmiSeriesId('conventional', 700, 90)
+      ? 'PASS' : 'FAIL',
+    JSON.stringify(shapedCustom.llpa_adjusted_rate));
+
+  record('B9. Only ONE of credit_score/ltv_pct supplied still resolves is_default_profile false (any override counts)',
+    (await (async () => {
+      const partial = await getLlpaAdjustedRate(700, undefined);
+      return partial.assumedProfile.isDefaultProfile === false && partial.assumedProfile.ltvPct === 80;
+    })()) ? 'PASS' : 'FAIL', 'checked partial-override case');
+
+  record('B10. freshness_status is one of CURRENT/STALE/UNAVAILABLE, value null exactly when UNAVAILABLE',
+    ['CURRENT', 'STALE', 'UNAVAILABLE'].includes(shaped.llpa_adjusted_rate.freshness_status) &&
+    (shaped.llpa_adjusted_rate.freshness_status !== 'UNAVAILABLE' || shaped.llpa_adjusted_rate.value === null)
+      ? 'PASS' : 'FAIL',
+    JSON.stringify({ status: shaped.llpa_adjusted_rate.freshness_status, value: shaped.llpa_adjusted_rate.value }));
 
   // ===== C. Scope model =====
 
@@ -138,7 +184,7 @@ async function main() {
     // call get_benchmark_rates -- zero re-onboarding needed for existing
     // integrations.
     const credPropOnly = await issueCredential(partner.id, ['property_intelligence:read']);
-    const resultViaPropScope = await getBenchmarkRatesGated(credPropOnly.plaintextKey, '127.0.0.1');
+    const resultViaPropScope = await getBenchmarkRatesGated({}, credPropOnly.plaintextKey, '127.0.0.1');
     record('D1. Existing property_intelligence:read-only credential can call get_benchmark_rates',
       resultViaPropScope.ok ? 'PASS' : 'FAIL', JSON.stringify(resultViaPropScope));
 
@@ -146,7 +192,7 @@ async function main() {
     // but CANNOT call property intelligence (confirms the narrower scope is
     // genuinely narrower, not accidentally equivalent).
     const credRateOnly = await issueCredential(partner.id, ['benchmark_rates:read']);
-    const resultViaRateScope = await getBenchmarkRatesGated(credRateOnly.plaintextKey, '127.0.0.1');
+    const resultViaRateScope = await getBenchmarkRatesGated({}, credRateOnly.plaintextKey, '127.0.0.1');
     record('D2. benchmark_rates:read-only credential can call get_benchmark_rates',
       resultViaRateScope.ok ? 'PASS' : 'FAIL', JSON.stringify(resultViaRateScope));
 
@@ -162,7 +208,7 @@ async function main() {
     // policy change. This assertion now covers the other half: presenting
     // something that LOOKS like a credential but isn't must still fail,
     // exactly as before.
-    const resultBadAuth = await getBenchmarkRatesGated('hrg_garbage_notreal', '127.0.0.1');
+    const resultBadAuth = await getBenchmarkRatesGated({}, 'hrg_garbage_notreal', '127.0.0.1');
     record('D4. Invalid (garbage, not merely absent) credential -> UNAUTHORIZED',
       !resultBadAuth.ok && resultBadAuth.error === 'UNAUTHORIZED' ? 'PASS' : 'FAIL', JSON.stringify(resultBadAuth));
 
@@ -171,7 +217,7 @@ async function main() {
     // pattern test-oauth-flow.ts already uses for this exact situation).
     const credToStrip = await issueCredential(partner.id, ['property_intelligence:read']);
     await sb.from('gateway_credentials').update({ scopes: ['some_other_scope:read'] }).eq('key_prefix', credToStrip.prefix);
-    const resultWrongScope = await getBenchmarkRatesGated(credToStrip.plaintextKey, '127.0.0.1');
+    const resultWrongScope = await getBenchmarkRatesGated({}, credToStrip.plaintextKey, '127.0.0.1');
     record('D5. Credential with neither benchmark_rates:read nor property_intelligence:read -> FORBIDDEN',
       !resultWrongScope.ok && resultWrongScope.error === 'FORBIDDEN' ? 'PASS' : 'FAIL', JSON.stringify(resultWrongScope));
 
@@ -179,7 +225,7 @@ async function main() {
     const credToRevoke = await issueCredential(partner.id, ['benchmark_rates:read']);
     const authForRevoke = await authenticateRequest(credToRevoke.plaintextKey);
     if (authForRevoke.ok) await revokeCredential(authForRevoke.context.credentialId);
-    const resultRevoked = await getBenchmarkRatesGated(credToRevoke.plaintextKey, '127.0.0.1');
+    const resultRevoked = await getBenchmarkRatesGated({}, credToRevoke.plaintextKey, '127.0.0.1');
     record('D6. Revoked credential -> UNAUTHORIZED',
       !resultRevoked.ok && resultRevoked.error === 'UNAUTHORIZED' ? 'PASS' : 'FAIL', JSON.stringify(resultRevoked));
 
@@ -197,7 +243,7 @@ async function main() {
     record('E1. MCP route registers BENCHMARK_RATES_TOOL_NAME alongside TOOL_NAME in tools/list',
       /tools:\s*\[[\s\S]*?\{ name: TOOL_NAME[\s\S]*?BENCHMARK_RATES_TOOL_NAME/.test(routeSrc) ? 'PASS' : 'FAIL', 'source-inspected');
     record('E2. tools/call dispatches BENCHMARK_RATES_TOOL_NAME to getBenchmarkRatesGated',
-      /toolName === BENCHMARK_RATES_TOOL_NAME/.test(routeSrc) && /getBenchmarkRatesGated\(apiKeyHeader, requestIp\)/.test(routeSrc) ? 'PASS' : 'FAIL', 'source-inspected');
+      /toolName === BENCHMARK_RATES_TOOL_NAME/.test(routeSrc) && /getBenchmarkRatesGated\(benchmarkArgs, apiKeyHeader, requestIp\)/.test(routeSrc) ? 'PASS' : 'FAIL', 'source-inspected');
     record('E3. Unknown tool name (neither registered tool, canonical or legacy) still returns isError:true, not a crash',
       /!isPropertyIntelligence && !isBenchmarkRates/.test(routeSrc) ? 'PASS' : 'FAIL', 'source-inspected');
     record('E4. FORBIDDEN mapping advertises the tool-specific scope (benchmark_rates:read for the new tool)',
@@ -221,12 +267,12 @@ async function main() {
   // reference rate) -- a caller that DOES present one still gets the
   // unchanged authenticated path (see D1-D6 above, still passing).
   {
-    const resultNoHeaderAtAll = await getBenchmarkRatesGated(null, '203.0.113.150');
-    record('F1. getBenchmarkRatesGated(null, ip) succeeds anonymously (no credential presented at all)',
-      resultNoHeaderAtAll.ok && resultNoHeaderAtAll.data.contract_version === 'benchmark-rates-v1' ? 'PASS' : 'FAIL',
+    const resultNoHeaderAtAll = await getBenchmarkRatesGated({}, null, '203.0.113.150');
+    record('F1. getBenchmarkRatesGated({}, null, ip) succeeds anonymously (no credential presented at all)',
+      resultNoHeaderAtAll.ok && resultNoHeaderAtAll.data.contract_version === 'benchmark-rates-v1.1' ? 'PASS' : 'FAIL',
       JSON.stringify(resultNoHeaderAtAll.ok ? { ok: true } : resultNoHeaderAtAll));
 
-    const resultGarbageCred = await getBenchmarkRatesGated('hrg_garbage_notreal', '203.0.113.151');
+    const resultGarbageCred = await getBenchmarkRatesGated({}, 'hrg_garbage_notreal', '203.0.113.151');
     record('F2. A PRESENTED but invalid credential still correctly fails UNAUTHORIZED (anonymous path is for an ABSENT header only, never a bad one)',
       !resultGarbageCred.ok && resultGarbageCred.error === 'UNAUTHORIZED' ? 'PASS' : 'FAIL', JSON.stringify(resultGarbageCred));
 
@@ -244,7 +290,7 @@ async function main() {
     const json = await res.json().catch(() => null);
     const data = json?.result?.content?.[0]?.text ? JSON.parse(json.result.content[0].text) : null;
     record('F3. Real, live tools/call against the actual MCP route with NO Authorization header succeeds (matches Grok\'s exact real request shape -- no more 401)',
-      res.status === 200 && json?.result?.isError === false && data?.contract_version === 'benchmark-rates-v1' ? 'PASS' : 'FAIL',
+      res.status === 200 && json?.result?.isError === false && data?.contract_version === 'benchmark-rates-v1.1' ? 'PASS' : 'FAIL',
       JSON.stringify({ status: res.status, isError: json?.result?.isError, contract_version: data?.contract_version }));
   }
 

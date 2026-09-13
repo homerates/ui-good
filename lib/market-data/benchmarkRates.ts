@@ -1,22 +1,35 @@
 // lib/market-data/benchmarkRates.ts
 //
 // North Star Workstream 10 -- Intelligence Gateway Capability Architecture.
-// Address-independent, neutral national benchmark mortgage rates for the new
-// external get_benchmark_rates tool. Reads ONLY the already-synced FRED
+// Address-independent, neutral national benchmark mortgage rates for the
+// external homerates_rate_oracle tool. Reads ONLY the already-synced FRED
 // series via lib/market-data/query.ts -- never calls FRED directly, never
-// writes, never touches OBMMI/LLPA.
+// writes.
 //
-// Deliberately exposes ONLY the same neutral, national-average series family
-// already proven safe for external exposure as
-// lib/propertyIntelligence.ts's propertyMarketRate (which reads the
-// identical MORTGAGE30US series) -- never an OBMMI credit/LTV-segmented rate
-// or an LLPA-adjusted rate, both of which assume a specific borrower profile
-// this address-independent, borrower-independent tool never collects. This
-// is the same Rate Role Correction boundary already enforced in
-// lib/gateway/outputShaping.ts, applied to a second tool rather than
-// re-litigated -- see that file's own comments for the full history.
-
+// thirtyYearFixed/fifteenYearFixed/fiveOneArm stay exactly what they always
+// were -- the same neutral, national-average series family already proven
+// safe for external exposure as lib/propertyIntelligence.ts's
+// propertyMarketRate (identical MORTGAGE30US series), governed by the Rate
+// Role Correction boundary in lib/gateway/outputShaping.ts (still enforced,
+// still unchanged there): never state or imply that a neutral rate reflects
+// a specific credit score.
+//
+// llpaAdjustedRate (2026-09-12, deliberate widening) is the one departure
+// from "never expose a credit/LTV-segmented rate," decided explicitly by
+// Rayaan: Rate Oracle should be a genuinely more useful synthesizer than a
+// bare FRED survey average, not just a neutral-only tool -- LLPA/OBMMI
+// segmentation is itself PUBLIC Fannie Mae / Optimal Blue data, so surfacing
+// it is doing real, differentiated synthesis (the actual, live, correctly-
+// resolved segment rate), not exposing proprietary methodology (unlike the
+// Decision Score engine, which stays a locked trade secret and is
+// deliberately NOT part of this widening). This does not reopen the
+// original Rate Role Correction bug -- that bug was presenting a
+// credit-scored number AS IF it were the neutral rate; this field is always
+// returned alongside its own explicit assumedProfile, so it can never be
+// mistaken for the neutral figure.
 import { getLatest } from './query';
+import { resolveObmmiSeriesId } from '../pricing/llpa-engine';
+import { getSeriesDefinition, OBMMI_CITATION } from './registry';
 
 export type FreshnessStatus = 'CURRENT' | 'STALE' | 'UNAVAILABLE';
 
@@ -105,4 +118,88 @@ export async function getBenchmarkRates(): Promise<BenchmarkRatesResult> {
     }),
   );
   return Object.fromEntries(entries) as unknown as BenchmarkRatesResult;
+}
+
+// ─── LLPA-adjusted rate (2026-09-12 widening) ──────────────────────────────
+
+// OBMMI publishes daily (per lib/market-data/registry.ts's own series
+// metadata: frequency: 'daily') -- a much tighter cadence than the weekly
+// PMMS series above, so it gets its own, narrower thresholds. 3 days
+// tolerates a missed publish day or a weekend without misclassifying a
+// genuinely current daily value as stale. 30 days (vs the PMMS series'
+// 90-day DISCONTINUED_THRESHOLD_MS) reflects that a month with no new daily
+// observation at all is a much stronger discontinuation signal for a daily
+// series than it would be for a weekly one.
+const OBMMI_STALE_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
+const OBMMI_DISCONTINUED_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000;
+
+function obmmiFreshnessFor(asOf: string | null): FreshnessStatus {
+  if (asOf == null) return 'UNAVAILABLE';
+  const ageMs = Date.now() - new Date(asOf).getTime();
+  if (ageMs > OBMMI_DISCONTINUED_THRESHOLD_MS) return 'UNAVAILABLE';
+  return ageMs > OBMMI_STALE_THRESHOLD_MS ? 'STALE' : 'CURRENT';
+}
+
+// "Well-qualified" default profile -- the same 740 FICO / 80% LTV default
+// already used elsewhere in this codebase (lib/propertyIntelligence.ts's
+// financing engine) for consistency, not a newly-invented assumption.
+const DEFAULT_CREDIT_SCORE = 740;
+const DEFAULT_LTV_PCT = 80;
+
+export interface LlpaAdjustedRate {
+  value: number | null;
+  seriesId: string | null;
+  seriesLabel: string | null;
+  source: string;
+  asOf: string | null;
+  retrievedAt: string;
+  freshnessStatus: FreshnessStatus;
+  /**
+   * Always present, regardless of whether the caller supplied creditScore/
+   * ltvPct -- this is what keeps this field from repeating the original
+   * Rate Role Correction bug (a credit-scored number presented as if
+   * neutral). isDefaultProfile is true only when NEITHER input was supplied.
+   */
+  assumedProfile: {
+    creditScore: number;
+    ltvPct: number;
+    isDefaultProfile: boolean;
+  };
+}
+
+// Conventional only (v1) -- "LLPA" specifically refers to Fannie/Freddie's
+// price-adjustment grid, a conventional-financing concept; FHA/VA/jumbo have
+// their own OBMMI program series (already resolvable via
+// resolveObmmiSeriesId) but no LLPA grid of this kind, and are left for a
+// future widening rather than conflated with this one.
+export async function getLlpaAdjustedRate(creditScore?: number, ltvPct?: number): Promise<LlpaAdjustedRate> {
+  const retrievedAt = new Date().toISOString();
+  const isDefaultProfile = creditScore === undefined && ltvPct === undefined;
+  const resolvedCreditScore = creditScore ?? DEFAULT_CREDIT_SCORE;
+  const resolvedLtvPct = ltvPct ?? DEFAULT_LTV_PCT;
+
+  const seriesId = resolveObmmiSeriesId('conventional', resolvedCreditScore, resolvedLtvPct);
+  const seriesDef = seriesId ? getSeriesDefinition(seriesId) : undefined;
+  const obs = seriesId ? await getLatest(seriesId) : null;
+  const asOf = obs?.observationDate ?? null;
+  const freshnessStatus = obmmiFreshnessFor(asOf);
+  // Same discipline as getBenchmarkRates() above -- a discontinued/
+  // unavailable series withholds its value entirely, never surfaced
+  // alongside an UNAVAILABLE label as if usable.
+  const value = freshnessStatus === 'UNAVAILABLE' ? null : (obs?.value ?? null);
+
+  return {
+    value,
+    seriesId,
+    seriesLabel: seriesDef?.label ?? null,
+    source: OBMMI_CITATION,
+    asOf,
+    retrievedAt,
+    freshnessStatus,
+    assumedProfile: {
+      creditScore: resolvedCreditScore,
+      ltvPct: resolvedLtvPct,
+      isDefaultProfile,
+    },
+  };
 }

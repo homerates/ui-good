@@ -9,8 +9,13 @@
 // V1 (2026-09-10): initial version. Three neutral national reference rates
 // (30yr fixed, 15yr fixed, 5/1 ARM) -- the same MORTGAGE30US/15US/5US FRED
 // series family already exposed via property_intelligence's market_rate
-// field, never OBMMI segment rates or an LLPA-adjusted rate (see
-// lib/market-data/benchmarkRates.ts's header for why).
+// field.
+//
+// V1.1 (2026-09-12): adds llpa_adjusted_rate, a deliberate widening -- see
+// lib/market-data/benchmarkRates.ts's header for the full reasoning (LLPA/
+// OBMMI segmentation is public Fannie Mae / Optimal Blue data, not the
+// locked Decision Score trade secret; always paired with its own
+// assumed_profile so it can never be mistaken for the neutral rates above).
 
 import { z } from 'zod';
 
@@ -30,11 +35,28 @@ export const BenchmarkRateSchema = z.object({
   claim_type: z.literal('MARKET FACT'),
 });
 
+export const LlpaAdjustedRateSchema = z.object({
+  value: z.number().nullable(),
+  series_id: z.string().nullable(),
+  series_label: z.string().nullable(),
+  source: z.string(),
+  as_of: z.string().nullable(),
+  retrieved_at: z.string(),
+  freshness_status: FreshnessStatus,
+  assumed_profile: z.object({
+    credit_score: z.number(),
+    ltv_pct: z.number(),
+    is_default_profile: z.boolean(),
+  }),
+  claim_type: z.literal('MARKET FACT'),
+});
+
 export const BenchmarkRatesV1Schema = z.object({
-  contract_version: z.literal('benchmark-rates-v1'),
+  contract_version: z.literal('benchmark-rates-v1.1'),
   thirty_year_fixed: BenchmarkRateSchema,
   fifteen_year_fixed: BenchmarkRateSchema,
   five_one_arm: BenchmarkRateSchema,
+  llpa_adjusted_rate: LlpaAdjustedRateSchema,
   disclaimer: z.string(),
 });
 

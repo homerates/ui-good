@@ -152,11 +152,11 @@ async function main() {
       record('F1. Public (none) client token exchange succeeds with NO client_secret', tokenRes.status === 200 && typeof tokenRes.json?.access_token === 'string' ? 'PASS' : 'FAIL', JSON.stringify({ status: tokenRes.status, hasToken: !!tokenRes.json?.access_token }));
 
       if (tokenRes.json?.access_token) {
-        const resultWhilePending = await getBenchmarkRatesGated(tokenRes.json.access_token, '127.0.0.1');
+        const resultWhilePending = await getBenchmarkRatesGated({}, tokenRes.json.access_token, '127.0.0.1');
         record('F2. Minted token is FORBIDDEN against a real tool while the partner is still pending (real access-control gate confirmed, not just theoretical)', !resultWhilePending.ok && resultWhilePending.error === 'FORBIDDEN' ? 'PASS' : 'FAIL', JSON.stringify(resultWhilePending));
 
         await sb.from('gateway_partners').update({ status: 'active' }).eq('id', pubClientRow.partner_id);
-        const resultAfterApproval = await getBenchmarkRatesGated(tokenRes.json.access_token, '127.0.0.1');
+        const resultAfterApproval = await getBenchmarkRatesGated({}, tokenRes.json.access_token, '127.0.0.1');
         record('F3. Same token succeeds against a real tool once the partner is approved (active) -- full round-trip proven end to end', resultAfterApproval.ok === true ? 'PASS' : 'FAIL', JSON.stringify(resultAfterApproval.ok ? { ok: true } : resultAfterApproval));
       }
     }
