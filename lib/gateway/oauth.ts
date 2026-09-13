@@ -327,3 +327,91 @@ export async function consumeAuthorizationCode(
     scope: data.scope,
   };
 }
+
+// ---- Refresh tokens (RFC 6749 Section 6) ---------------------------------
+//
+// Added 2026-09-13 after a real, live incident: the 1-hour access-token TTL
+// with no refresh grant left ChatGPT's connector unable to recover on its
+// own once its token expired -- every call failed with a generic "Failed to
+// connect" error until the user manually disconnected and reconnected the
+// connector (a full re-authorization). This closes that gap.
+//
+// ROTATING, single-use, per OAuth 2.1 guidance (this file already follows
+// OAuth 2.1 conventions throughout -- PKCE S256-only, no `plain`): each
+// redemption revokes the presented token and issues a brand new one in the
+// same call. A second presentation of an already-consumed token fails
+// outright, the same "atomic check-and-mark" pattern consumeAuthorizationCode
+// above already uses (revoked_at here plays the same role used_at plays
+// there).
+
+const REFRESH_TOKEN_BYTES = 32; // 256 bits, matching authorization-code/credential-secret entropy
+const REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days -- independent of the 1-hour access-token TTL
+
+export interface StoreRefreshTokenInput {
+  oauthClientId: string;
+  partnerId: string;
+  scope: string;
+  resource: string;
+}
+
+// Returns the plaintext token exactly once, mirroring storeAuthorizationCode()'s
+// existing plaintext-secret discipline -- only its SHA-256 hash is ever persisted.
+export async function storeRefreshToken(input: StoreRefreshTokenInput): Promise<string> {
+  const sb = getSupabase();
+  if (!sb) throw new Error('Supabase unavailable.');
+
+  const token = randomBytes(REFRESH_TOKEN_BYTES).toString('hex');
+  const tokenHash = sha256Hex(token);
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000).toISOString();
+
+  const { error } = await sb.from('gateway_oauth_refresh_tokens').insert({
+    token_hash: tokenHash,
+    oauth_client_id: input.oauthClientId,
+    partner_id: input.partnerId,
+    scope: input.scope,
+    resource: input.resource,
+    expires_at: expiresAt,
+  });
+  if (error) throw new Error(`Failed to store refresh token: ${error.message}`);
+
+  return token;
+}
+
+export interface ConsumedRefreshToken {
+  oauthClientId: string;
+  partnerId: string;
+  scope: string;
+  resource: string;
+}
+
+// Single-use, atomic consumption -- identical shape to consumeAuthorizationCode():
+// the UPDATE only matches a row that is both unexpired and not yet revoked,
+// so two concurrent redemption attempts for the same token can never both
+// succeed. Returns null on ANY failure (unknown hash, already revoked,
+// expired) -- callers get no signal distinguishing these cases, matching
+// the Gateway's existing "never leak why" posture.
+export async function consumeRefreshToken(plaintextToken: string): Promise<ConsumedRefreshToken | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+
+  const tokenHash = sha256Hex(plaintextToken);
+  const nowIso = new Date().toISOString();
+
+  const { data, error } = await sb
+    .from('gateway_oauth_refresh_tokens')
+    .update({ revoked_at: nowIso })
+    .eq('token_hash', tokenHash)
+    .is('revoked_at', null)
+    .gt('expires_at', nowIso)
+    .select('oauth_client_id, partner_id, scope, resource')
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return {
+    oauthClientId: data.oauth_client_id,
+    partnerId: data.partner_id,
+    scope: data.scope,
+    resource: data.resource,
+  };
+}

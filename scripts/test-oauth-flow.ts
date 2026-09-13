@@ -193,14 +193,17 @@ async function main() {
         json.token_endpoint === 'https://homerates.ai/api/oauth/token' &&
         json.registration_endpoint === 'https://homerates.ai/api/oauth/register' &&
         JSON.stringify(json.response_types_supported) === JSON.stringify(['code']) &&
-        JSON.stringify(json.grant_types_supported) === JSON.stringify(['authorization_code']) &&
+        JSON.stringify(json.grant_types_supported) === JSON.stringify(['authorization_code', 'refresh_token']) &&
         JSON.stringify(json.code_challenge_methods_supported) === JSON.stringify(['S256']) &&
         JSON.stringify(json.scopes_supported) === JSON.stringify([SUPPORTED_OAUTH_SCOPE]) &&
         JSON.stringify(json.token_endpoint_auth_methods_supported) === JSON.stringify(['client_secret_post', 'none']);
       record('1', 'AS metadata: correct shape + values', shapeOk ? 'PASS' : 'FAIL', JSON.stringify(json));
 
       const raw = JSON.stringify(json);
-      const noUnimplemented = !/jwks_uri|revocation_endpoint|introspection_endpoint|refresh_token|client_credentials|implicit|device_code|userinfo_endpoint|id_token/i.test(raw);
+      // refresh_token removed from this forbidden list 2026-09-13 -- now a
+      // real, implemented capability (see grant_types_supported above), not
+      // an over-claim.
+      const noUnimplemented = !/jwks_uri|revocation_endpoint|introspection_endpoint|client_credentials|implicit|device_code|userinfo_endpoint|id_token/i.test(raw);
       record('1', 'AS metadata: only implemented capabilities advertised', noUnimplemented ? 'PASS' : 'FAIL', raw);
     }
 
@@ -366,7 +369,7 @@ async function main() {
           const verified = await verifyCredential(r.json.access_token);
           record('5', 'issued token: verifies successfully via the UNCHANGED verifyCredential()', verified !== null ? 'PASS' : 'FAIL', 'verifyCredential() succeeded');
           record('5', 'no partner/credential ID exposed in token response', !JSON.stringify(r.json).includes(partner.id) && !JSON.stringify(r.json).includes(credRow?.id ?? '\0') ? 'PASS' : 'FAIL', 'response body clean');
-          record('5', 'no refresh_token in response', !('refresh_token' in (r.json ?? {})) ? 'PASS' : 'FAIL', JSON.stringify(Object.keys(r.json ?? {})));
+          record('5', 'refresh_token present in response (2026-09-13 widening)', typeof r.json?.refresh_token === 'string' && r.json.refresh_token.length > 0 ? 'PASS' : 'FAIL', JSON.stringify(Object.keys(r.json ?? {})));
         }
       }
       record('5', 'replay: reusing the already-consumed code fails', (await validExchange()).status !== 200 ? 'PASS' : 'FAIL', 'second exchange of the same code rejected');
@@ -435,6 +438,87 @@ async function main() {
         }
       }
       record('5', 'scope escalation impossible: token endpoint never reads a scope param from the request', true ? 'PASS' : 'FAIL', 'route.ts always uses consumed.scope, ignoring any client-supplied scope field');
+    }
+
+    // ===== 5b. Refresh token grant (2026-09-13) =====
+    // Real, live-incident-driven addition: ChatGPT's 1-hour access token
+    // expired with no recovery path short of a full reconnect. This section
+    // proves the new grant_type=refresh_token path end to end: a fresh
+    // authorization_code exchange's refresh_token can mint a new access
+    // token, the redeemed refresh_token is immediately rotated (the old one
+    // can never be reused), and client-binding/secret checks still apply.
+    {
+      const refreshExchange = async (overrides: Record<string, string> = {}) => {
+        const body = new URLSearchParams({
+          grant_type: 'refresh_token', client_id: TEST_CLIENT_ID, client_secret: TEST_CLIENT_SECRET,
+          ...overrides,
+        });
+        const req = new NextRequest(TOKEN_URL, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body.toString() });
+        const res = await tokenPost(req);
+        let json: any = null; try { json = await res.json(); } catch { /* ignore */ }
+        return { status: res.status, json };
+      };
+
+      async function freshAccessAndRefreshToken() {
+        const v = randomBytes(32).toString('base64url');
+        const c = b64url(createHash('sha256').update(v, 'utf8').digest());
+        const codeForRefresh = await storeAuthorizationCode({ oauthClientId: clientRow.id, redirectUri: TEST_REDIRECT, codeChallenge: c, codeChallengeMethod: 'S256', resource: CANONICAL_RESOURCE, scope: SUPPORTED_OAUTH_SCOPE });
+        const body = new URLSearchParams({ grant_type: 'authorization_code', code: codeForRefresh, redirect_uri: TEST_REDIRECT, client_id: TEST_CLIENT_ID, client_secret: TEST_CLIENT_SECRET, code_verifier: v, resource: CANONICAL_RESOURCE });
+        const req = new NextRequest(TOKEN_URL, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: body.toString() });
+        const res = await tokenPost(req);
+        const json = await res.json();
+        if (json?.access_token) {
+          const { data: credRow } = await sb!.from('gateway_credentials').select('id').eq('key_hash', sha256Hex(json.access_token)).single();
+          if (credRow) credentialIds.push(credRow.id);
+        }
+        return json.refresh_token as string;
+      }
+
+      {
+        const refreshToken = await freshAccessAndRefreshToken();
+        const r = await refreshExchange({ refresh_token: refreshToken });
+        const ok = r.status === 200 && typeof r.json?.access_token === 'string' && r.json.access_token.startsWith('hrg_')
+          && r.json.token_type === 'Bearer' && r.json.expires_in === 3600 && r.json.scope === SUPPORTED_OAUTH_SCOPE
+          && typeof r.json.refresh_token === 'string' && r.json.refresh_token !== refreshToken;
+        record('5b', 'refresh_token grant: succeeds, returns a new access token + a NEW (rotated) refresh token', ok ? 'PASS' : 'FAIL', JSON.stringify(r));
+        if (r.json?.access_token) {
+          const { data: credRow } = await sb.from('gateway_credentials').select('id').eq('key_hash', sha256Hex(r.json.access_token)).single();
+          if (credRow) credentialIds.push(credRow.id);
+        }
+
+        // Rotation: the ORIGINAL refresh token must now be dead -- a second
+        // presentation (e.g. after theft, or a buggy client retry) fails.
+        const replay = await refreshExchange({ refresh_token: refreshToken });
+        record('5b', 'refresh_token rotation: the original (already-redeemed) refresh token cannot be reused', replay.status === 400 && replay.json?.error === 'invalid_grant' ? 'PASS' : 'FAIL', JSON.stringify(replay));
+
+        // The NEW refresh token from the first redemption should itself work.
+        const secondRefresh = await refreshExchange({ refresh_token: r.json.refresh_token });
+        record('5b', 'rotated refresh token: the newly-issued one works for a second refresh', secondRefresh.status === 200 && typeof secondRefresh.json?.access_token === 'string' ? 'PASS' : 'FAIL', JSON.stringify(secondRefresh));
+        if (secondRefresh.json?.access_token) {
+          const { data: credRow } = await sb.from('gateway_credentials').select('id').eq('key_hash', sha256Hex(secondRefresh.json.access_token)).single();
+          if (credRow) credentialIds.push(credRow.id);
+        }
+      }
+      {
+        const r = await refreshExchange({ refresh_token: 'not-a-real-refresh-token' });
+        record('5b', 'unknown refresh token: rejected (invalid_grant, 400)', r.status === 400 && r.json?.error === 'invalid_grant' ? 'PASS' : 'FAIL', JSON.stringify(r));
+      }
+      {
+        const r = await refreshExchange({});
+        record('5b', 'missing refresh_token param: rejected (invalid_request, 400)', r.status === 400 && r.json?.error === 'invalid_request' ? 'PASS' : 'FAIL', JSON.stringify(r));
+      }
+      {
+        const refreshToken = await freshAccessAndRefreshToken();
+        const r = await refreshExchange({ refresh_token: refreshToken, client_secret: 'totally-wrong-secret' });
+        record('5b', 'refresh_token grant with wrong client secret: rejected (invalid_client, 401), token NOT consumed', r.status === 401 && r.json?.error === 'invalid_client' ? 'PASS' : 'FAIL', JSON.stringify(r));
+        // Confirm that wrong-secret attempt did NOT burn the token -- the real secret should still work.
+        const retry = await refreshExchange({ refresh_token: refreshToken });
+        record('5b', 'after a wrong-secret attempt, the refresh token is still valid (secret check happens before consumption)', retry.status === 200 ? 'PASS' : 'FAIL', JSON.stringify(retry));
+        if (retry.json?.access_token) {
+          const { data: credRow } = await sb.from('gateway_credentials').select('id').eq('key_hash', sha256Hex(retry.json.access_token)).single();
+          if (credRow) credentialIds.push(credRow.id);
+        }
+      }
     }
 
     // ===== 6. MCP adapter -- 401/403 behavior =====

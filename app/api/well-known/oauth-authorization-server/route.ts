@@ -11,12 +11,12 @@
 // proven in Phase OA for the protected-resource metadata route, avoiding
 // any framework/build-tool ambiguity around dot-prefixed folder names.
 //
-// Advertises what is actually implemented: authorization_code grant, S256
-// PKCE, two token-endpoint auth methods (client_secret_post and, as of
-// Phase OC, none for public/PKCE-only clients), and a registration_endpoint
-// (Phase OC, RFC 7591 Dynamic Client Registration). No OIDC field, no
-// jwks_uri, no revocation_endpoint, no introspection_endpoint, no
-// refresh_token in grant_types_supported (still never issued).
+// Advertises what is actually implemented: authorization_code AND (as of
+// 2026-09-13) refresh_token grants, S256 PKCE, two token-endpoint auth
+// methods (client_secret_post and, as of Phase OC, none for public/PKCE-only
+// clients), and a registration_endpoint (Phase OC, RFC 7591 Dynamic Client
+// Registration). No OIDC field, no jwks_uri, no revocation_endpoint, no
+// introspection_endpoint.
 //
 // Static, no DB read, no partner/credential/client ID, no implementation detail.
 
@@ -35,7 +35,7 @@ export async function GET() {
     token_endpoint: `${ISSUER}/api/oauth/token`,
     registration_endpoint: `${ISSUER}/api/oauth/register`,
     response_types_supported: ['code'],
-    grant_types_supported: ['authorization_code'],
+    grant_types_supported: ['authorization_code', 'refresh_token'],
     code_challenge_methods_supported: ['S256'],
     scopes_supported: [SUPPORTED_OAUTH_SCOPE],
     token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
