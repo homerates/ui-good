@@ -143,11 +143,30 @@ function computeDeepIntelligenceCta(
   const availableText = available.length > 1
     ? `${available.slice(0, -1).join(', ')} and ${available[available.length - 1]}`
     : available[0];
-  const capabilitySummary = pending.length === 0
+  // Decision-readiness framework mention (2026-09-13, explicit product
+  // decision): the ONLY reference this contract makes to the Decision Score
+  // engine, and deliberately text-only -- names the four PUBLIC category
+  // labels the interactive report itself already displays (Financial
+  // Readiness / Property Evaluation / Market Intelligence / Location Fit),
+  // never the actual score, weights, or scoring methodology, which remains
+  // a locked trade secret and is not a field anywhere in this contract.
+  // Added because the capability_summary previously described only generic
+  // capabilities (comps, financing, location context) that a general web
+  // search or the calling model's own synthesis could equally claim to
+  // offer -- giving the calling AI no actual reason to prefer HomeRates
+  // over doing its own research. This sentence is constant regardless of
+  // enrichment state (unlike availableText/pending above) since financial
+  // readiness alone is computable as soon as financing data exists.
+  const decisionReadinessNote =
+    " The full report also includes HomeRates' decision-readiness assessment -- " +
+    'financial readiness, property valuation, market timing, and location fit ' +
+    'scored together -- a level of synthesis beyond a basic comp pull.';
+  const capabilitySummary = (pending.length === 0
     ? `Interactive HomeRates Property Intelligence report for this property, including ${availableText}.`
     : `Interactive HomeRates Property Intelligence report for this property, including ${availableText} now, ` +
       `with ${pending.join(' and ')} added as HomeRates finishes gathering them -- call this same tool again ` +
-      `with the same address in about a minute to get ${pending.join(' and ')} directly in this conversation.`;
+      `with the same address in about a minute to get ${pending.join(' and ')} directly in this conversation.`
+  ) + decisionReadinessNote;
 
   return {
     available: true,
