@@ -48,7 +48,7 @@ import { isCircuitOpen, isKillSwitchEnabled } from './circuitBreaker';
 import { checkAllLimits, checkAndIncrement } from './rateLimit';
 import { PILOT_LIMITS } from './limits';
 import { logRequest, type GatewayLogErrorCode, type GatewayLogOutcome } from './requestLog';
-import { getBenchmarkRates } from '../market-data/benchmarkRates';
+import { getBenchmarkRates, getLlpaAdjustedRate } from '../market-data/benchmarkRates';
 import { shapeBenchmarkRatesForExternalContract } from './benchmarkRatesShaping';
 import { BenchmarkRatesV1Schema, type BenchmarkRatesV1 } from './benchmarkRatesSchema';
 import { performance } from 'perf_hooks';
@@ -57,7 +57,7 @@ export type BenchmarkRatesGatewayResult =
   | { ok: true; data: BenchmarkRatesV1 }
   | {
       ok: false;
-      error: 'SERVICE_DISABLED' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'RATE_LIMITED' | 'INTERNAL_ERROR';
+      error: 'SERVICE_DISABLED' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'RATE_LIMITED' | 'INVALID_REQUEST' | 'INTERNAL_ERROR';
       message: string;
     };
 
@@ -67,7 +67,34 @@ const SERVICE_DISABLED_MESSAGE = 'The Gateway is temporarily unavailable.';
 const RATE_LIMITED_MESSAGE = 'Rate limit or quota exceeded.';
 const FORBIDDEN_MESSAGE = 'This credential is not authorized for this operation.';
 
+// credit_score/ltv_pct (2026-09-12 widening) -- both optional, both
+// validated the same way scenarioIntelligenceGateway.ts's positiveNumber()
+// validates its own credit_score field, kept local here rather than shared
+// since it's the only numeric input this gateway has.
+function validateBenchmarkRatesArgs(
+  args: Record<string, unknown>,
+): { ok: true; creditScore?: number; ltvPct?: number } | { ok: false; message: string } {
+  let creditScore: number | undefined;
+  if (args.credit_score !== undefined) {
+    const n = Number(args.credit_score);
+    if (!Number.isFinite(n) || n <= 0 || n > 850) {
+      return { ok: false, message: 'credit_score must be a positive number no greater than 850.' };
+    }
+    creditScore = n;
+  }
+  let ltvPct: number | undefined;
+  if (args.ltv_pct !== undefined) {
+    const n = Number(args.ltv_pct);
+    if (!Number.isFinite(n) || n <= 0 || n > 100) {
+      return { ok: false, message: 'ltv_pct must be a positive number no greater than 100.' };
+    }
+    ltvPct = n;
+  }
+  return { ok: true, creditScore, ltvPct };
+}
+
 export async function getBenchmarkRatesGated(
+  args: Record<string, unknown>,
   apiKeyHeader: string | null,
   requestIp: string,
 ): Promise<BenchmarkRatesGatewayResult> {
@@ -127,10 +154,20 @@ export async function getBenchmarkRatesGated(
     }
   }
 
-  // 5. Build result -- no address, no corpus lookup, pure DB read.
+  // 5. Request validation -- both credit_score/ltv_pct are optional, for
+  // both the authenticated and anonymous caller.
+  const validated = validateBenchmarkRatesArgs(args);
+  if (!validated.ok) {
+    return finish({ ok: false, error: 'INVALID_REQUEST', message: validated.message }, partnerId, credentialId);
+  }
+
+  // 6. Build result -- no address, no corpus lookup, pure DB read.
   try {
-    const raw = await getBenchmarkRates();
-    const shaped = shapeBenchmarkRatesForExternalContract(raw);
+    const [raw, llpa] = await Promise.all([
+      getBenchmarkRates(),
+      getLlpaAdjustedRate(validated.creditScore, validated.ltvPct),
+    ]);
+    const shaped = shapeBenchmarkRatesForExternalContract(raw, llpa);
     const parsed = BenchmarkRatesV1Schema.safeParse(shaped);
 
     if (!parsed.success) {

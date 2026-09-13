@@ -2142,3 +2142,101 @@ scenario at both the authorize and token steps, `test-oauth-dynamic-
 registration.ts` 20/20, `test-external-adapter.ts` 58/58). Pushed to `dev`
 only — NOT merged to `main`, no production push initiated by this
 session.
+
+## AD-36 — `homerates_rate_oracle` widened: `llpa_adjusted_rate` (deliberate Rate Role Correction exception)
+
+**Decision:** `homerates_rate_oracle` (`benchmark-rates-v1` → `v1.1`) now
+returns a fourth field, `llpa_adjusted_rate`, alongside the three existing
+neutral national rates. It resolves the real, live OBMMI-observed 30-year
+conventional rate for a stated credit-score/LTV profile — optional
+`credit_score` (300–850) and `ltv_pct` (1–100) inputs select the profile;
+omitting either or both defaults to a "well-qualified" reference profile
+(740 FICO, 80% LTV — the same default already used elsewhere in this
+codebase, e.g. `lib/propertyIntelligence.ts`'s financing engine). The
+field always carries its own `assumed_profile` object stating exactly
+which credit score/LTV was used and whether it was the default.
+
+**Why this is a deliberate, explicit exception to Rate Role Correction,
+not a reopening of the bug it fixed:** the original Rate Role Correction
+(2026-09-08) fixed a real bug where a credit-scored number was presented
+*as if* it were the neutral market rate (a live ChatGPT response
+described a neutral figure as "740 credit pricing," which was false —
+the credit score was an internal default, never disclosed). That bug was
+about a MISLABELED figure, not about the mere existence of a credit/LTV-
+segmented rate. `llpa_adjusted_rate` cannot repeat that failure mode
+because it is never presented as neutral — it always ships with its own
+explicit `assumed_profile`, and the tool description explicitly
+instructs never describing it as "the" market rate the way the three
+FRED rates are described. The three existing neutral fields
+(`thirty_year_fixed`/`fifteen_year_fixed`/`five_one_arm`) are completely
+unchanged and still carry zero credit/LTV information — verified by
+`test-benchmark-rates-gateway.ts`'s B5 (rewritten to check the boundary
+holds for those three fields specifically, not the whole payload, which
+is what the original Rate Role Correction guardrail actually needs to
+mean now).
+
+**Explicitly, permanently out of scope for this or any future widening:**
+the Decision Score (Autonomous DSC) engine's L1-L4 breakdown and
+methodology stay a locked trade secret — a direct instruction from
+Rayaan when scoping this work, distinct from the rate-segmentation
+question. LLPA/OBMMI data is public Fannie Mae / Optimal Blue
+information; Decision Score's weighting and scoring methodology is not,
+and this decision does not touch it.
+
+**Why this is genuinely useful, not just "more data":** OBMMI segment
+rates are real, live, credit/LTV-priced market data (Fannie Mae's public
+LLPA grid, distributed via FRED release 473) — closer to what a
+well-qualified borrower would actually be quoted than a flat national
+survey average blending every credit tier together. Motivated directly
+by Rayaan's framing: Rate Oracle should be "a much more useful tool than
+the industry currently allows," something an AI finds genuinely worth
+invoking, not just a bare rate lookup any model could approximate from
+training data.
+
+**What was built:**
+- `lib/market-data/benchmarkRates.ts` — new `getLlpaAdjustedRate(creditScore?,
+  ltvPct?)`, reusing `resolveObmmiSeriesId()` (`lib/pricing/llpa-engine.ts`,
+  unchanged) and `getSeriesDefinition()`/`OBMMI_CITATION`
+  (`lib/market-data/registry.ts`, unchanged) — no new pricing logic, pure
+  reuse of the existing LLPA/OBMMI engine already proven in
+  `homerates_scenario_intelligence`. Its own freshness thresholds (3-day
+  STALE / 30-day UNAVAILABLE) reflect OBMMI's real daily publish cadence,
+  narrower than the weekly-PMMS thresholds `getBenchmarkRates()` already used
+  for the three neutral rates.
+- `lib/gateway/benchmarkRatesSchema.ts` / `benchmarkRatesShaping.ts` —
+  additive `llpa_adjusted_rate` field + `assumed_profile` sub-object, same
+  explicit-allow-list shaping discipline, `contract_version` bumped to
+  `benchmark-rates-v1.1` (additive-minor-version convention, matching
+  `property-intelligence-v1.5`'s own history).
+- `lib/gateway/benchmarkRatesGateway.ts` — `getBenchmarkRatesGated()` now
+  takes a request-args parameter (previously took none), validates optional
+  `credit_score`/`ltv_pct` (new `INVALID_REQUEST` error case, following the
+  exact `positiveNumber()`-style pattern `scenarioIntelligenceGateway.ts`
+  already established), inserted at the same "5. Request validation" pipeline
+  step every other gated capability uses. The existing Public Authority
+  Access (AD-34) anonymous/authenticated branching is completely unchanged.
+- `app/api/mcp/property-intelligence/route.ts` — `BENCHMARK_RATES_INPUT_SCHEMA`
+  gains the two optional inputs; tool description rewritten to introduce
+  `llpa_adjusted_rate`, its assumed-profile disclosure requirement, and the
+  explicit instruction never to describe it as neutral.
+
+**Verified live, not just schema-valid:** real calls confirm
+`resolveObmmiSeriesId('conventional', 740, 80)` → `OBMMIC30YFLVLE80FGE740`
+resolves to a real synced FRED observation; a custom `(700, 90)` profile
+resolves to the correct different segment (`OBMMIC30YFLVGT80FB700A719`)
+with `is_default_profile: false`; a partial override (only one of the two
+inputs) still correctly reports `is_default_profile: false`.
+
+**Status:** Built. `tsc --noEmit` clean, full `next build` clean.
+Regression: `test-benchmark-rates-gateway.ts` 36/36 (5 new B6-B10
+assertions for the new field, B5 rewritten to scope the Rate Role
+Correction check correctly, E2 updated for the new call signature),
+`test-rate-role-correction.ts` 7/7 unchanged (proves
+`homerates_property_intelligence`'s own neutral rate is completely
+untouched), `test-affordability-fha-mip-basis.ts` 11/11,
+`test-seeded-scenario-canonicalization.ts` 31/31, `test-oauth-dynamic-
+registration.ts` 20/20, `test-golden-prompts.ts` 10/10,
+`test-chatgpt-invocation-contract.ts` 7/7, `test-external-adapter.ts`
+58/58 — all green, all call sites of the changed
+`shapeBenchmarkRatesForExternalContract()`/`getBenchmarkRatesGated()`
+signatures updated across every test file that called them.

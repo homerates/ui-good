@@ -221,38 +221,63 @@ const INPUT_SCHEMA = {
 } as const;
 
 // North Star Workstream 10 (2026-09-10) -- second tool on this same MCP
-// server. Deliberately address-independent and borrower-independent: it
-// answers "what's a current mortgage rate benchmark," not "what rate would
-// THIS buyer get" -- that second question is Rate Intelligence's own
-// OBMMI/LLPA-segmented territory, never exposed externally (see
-// lib/market-data/benchmarkRates.ts's header for the full boundary).
+// server. Address-independent: no property, no full loan scenario. Its
+// thirty_year_fixed/fifteen_year_fixed/five_one_arm fields stay neutral and
+// borrower-independent, per the Rate Role Correction boundary (see
+// lib/gateway/outputShaping.ts) -- that boundary is still fully enforced.
+//
+// llpa_adjusted_rate (2026-09-12 widening, explicit product decision): the
+// ONE deliberate exception. Rate Oracle is meant to be a genuinely more
+// useful synthesizer than a bare rate survey, not merely neutral -- this
+// field surfaces the real, live OBMMI-observed rate for a stated credit-
+// score/LTV profile (public Fannie Mae/Optimal Blue data, not the locked
+// Decision Score trade secret, which stays untouched). credit_score/ltv_pct
+// are both optional; omitting either defaults to a "well-qualified"
+// reference profile (740 FICO, 80% LTV) -- always disclosed via
+// assumed_profile so this can never be mistaken for a neutral rate, the
+// exact failure mode the original Rate Role Correction fixed.
 const BENCHMARK_RATES_TOOL_NAME = 'homerates_rate_oracle';
 const LEGACY_BENCHMARK_RATES_TOOL_NAME = 'get_benchmark_rates';
 const BENCHMARK_RATES_TOOL_DESCRIPTION =
   'Use this tool when the user asks for a current mortgage rate, benchmark, or reference ' +
-  'rate -- "what are mortgage rates today," "what\'s a typical 30-year rate right now," or ' +
-  'a mortgage-related calculation that depends on a current market rate -- and no specific ' +
-  'property or borrower scenario is involved. Do not rely on model memory for a current ' +
-  'rate value when this tool is available; training data is never current for a rate that ' +
-  'moves weekly. Returns three neutral, national reference rates (30-year fixed, 15-year ' +
-  'fixed, 5/1 ARM), each sourced from Federal Reserve Economic Data (FRED) -- these are ' +
-  'published national averages, not a quote or offer to any individual borrower, and do ' +
-  'not reflect any specific credit score, down payment, or loan program. Each rate carries ' +
-  'its own as_of date (the date of the underlying data point, not when this tool was ' +
-  'called) and freshness_status: CURRENT (recently published), STALE (older than expected ' +
-  'for this weekly series -- treat with more caution but it is still the most recent value ' +
+  'rate -- "what are mortgage rates today," "what\'s a typical 30-year rate right now," ' +
+  '"what rate would a well-qualified buyer actually get," or a mortgage-related calculation ' +
+  'that depends on a current market rate -- and no specific property is involved. Do not ' +
+  'rely on model memory for a current rate value when this tool is available; training ' +
+  'data is never current for a rate that moves weekly (or daily, for llpa_adjusted_rate). ' +
+  'Returns three neutral, national reference rates (30-year fixed, 15-year fixed, 5/1 ARM), ' +
+  'each sourced from Federal Reserve Economic Data (FRED) -- these are published national ' +
+  'averages, not a quote or offer to any individual borrower, and do not reflect any ' +
+  'specific credit score, down payment, or loan program. It ALSO returns ' +
+  'llpa_adjusted_rate: the real, live 30-year conventional rate for a stated credit-score/ ' +
+  'LTV profile, resolved from Optimal Blue Mortgage Market Indices (OBMMI) -- a genuinely ' +
+  'more useful figure than the neutral survey average for "what would I actually pay" ' +
+  'questions, since it reflects real credit/LTV-based pricing rather than a flat national ' +
+  'blend. Optional inputs credit_score (300-850) and ltv_pct (1-100) select the profile; ' +
+  'omit either or both to use the "well-qualified" reference profile (740 credit score, 80% ' +
+  'LTV) -- llpa_adjusted_rate.assumed_profile always states exactly which profile was used ' +
+  '(and whether it was the default), so never describe this figure as neutral or as "the" ' +
+  "market rate the way the three FRED rates above are -- it is always a specific profile's " +
+  'rate, state that profile when citing it. Each rate (all four fields) carries its own ' +
+  'as_of date (the date of the underlying data point, not when this tool was called) and ' +
+  'freshness_status: CURRENT (recently published), STALE (older than expected for that ' +
+  "series' publish cadence -- treat with more caution but it is still the most recent value " +
   'HomeRates has), or UNAVAILABLE (no data on file -- value is null; never treat null as ' +
-  'zero or invent a figure). Always state the as_of date when citing a rate, and note that ' +
-  "these are national averages, not a specific quote -- an individual borrower's actual " +
-  'rate depends on their credit, down payment, and loan program, which this tool does not ' +
-  'ask for. This tool does not accept any input. No credential is required to call it -- it is a ' +
-  'public national reference rate with no borrower or property specificity to protect.' +
+  'zero or invent a figure). Always state the as_of date when citing a rate, and for the ' +
+  "three neutral rates, note that an individual borrower's actual rate depends on their " +
+  'credit, down payment, and loan program. No credential is required to call this tool -- ' +
+  'it is public reference data (FRED national averages, and OBMMI/Fannie Mae LLPA pricing, ' +
+  'both publicly available) with no borrower or property specificity to protect.' +
   '\n\n' +
   'Present the rates as a short, scannable list (one line per term), not blended into a ' +
-  'paragraph, with the as_of date and any caveat stated plainly alongside each.';
+  'paragraph, with the as_of date and any caveat stated plainly alongside each. State ' +
+  "llpa_adjusted_rate's assumed profile explicitly wherever you cite it.";
 const BENCHMARK_RATES_INPUT_SCHEMA = {
   type: 'object',
-  properties: {},
+  properties: {
+    credit_score: { type: 'number', description: 'Optional. Credit score (300-850) for llpa_adjusted_rate\'s profile. Omit to use the "well-qualified" default (740).' },
+    ltv_pct: { type: 'number', description: 'Optional. Loan-to-value percent (1-100) for llpa_adjusted_rate\'s profile. Omit to use the "well-qualified" default (80).' },
+  },
   additionalProperties: false,
 } as const;
 
@@ -768,7 +793,8 @@ export async function POST(req: NextRequest) {
     const requestIp = extractRequestIp(req);
 
     if (isBenchmarkRates) {
-      const result = await getBenchmarkRatesGated(apiKeyHeader, requestIp);
+      const benchmarkArgs = (params?.arguments ?? {}) as Record<string, unknown>;
+      const result = await getBenchmarkRatesGated(benchmarkArgs, apiKeyHeader, requestIp);
       if (result.ok) {
         return jsonRpcResult(id, withServerMeta({
           resultType: 'complete',

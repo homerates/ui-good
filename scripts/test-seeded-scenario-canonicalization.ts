@@ -152,14 +152,15 @@ async function main() {
 
   // ===== 11. External contracts remain unchanged =====
   const { getSupabase } = await import('../lib/supabaseServer');
-  const { getBenchmarkRates } = await import('../lib/market-data/benchmarkRates');
+  const { getBenchmarkRates, getLlpaAdjustedRate } = await import('../lib/market-data/benchmarkRates');
   const { shapeBenchmarkRatesForExternalContract } = await import('../lib/gateway/benchmarkRatesShaping');
   const { BenchmarkRatesV1Schema } = await import('../lib/gateway/benchmarkRatesSchema');
   const raw = await getBenchmarkRates();
-  const shaped = shapeBenchmarkRatesForExternalContract(raw);
+  const llpa = await getLlpaAdjustedRate();
+  const shaped = shapeBenchmarkRatesForExternalContract(raw, llpa);
   const parsed = BenchmarkRatesV1Schema.safeParse(shaped);
-  record('11. benchmark-rates-v1 external contract unchanged, still validates',
-    parsed.success && shaped.contract_version === 'benchmark-rates-v1' ? 'PASS' : 'FAIL', parsed.success ? 'valid' : 'invalid');
+  record('11. benchmark-rates-v1.1 external contract unchanged, still validates',
+    parsed.success && shaped.contract_version === 'benchmark-rates-v1.1' ? 'PASS' : 'FAIL', parsed.success ? 'valid' : 'invalid');
 
   const sb = getSupabase();
   if (sb) {

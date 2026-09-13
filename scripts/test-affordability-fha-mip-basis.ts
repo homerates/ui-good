@@ -140,7 +140,7 @@ record('3. Base loan, UFMIP, and total financed loan are three distinct, correct
 
 async function checkExternalContractsUnchanged() {
   const { getSupabase } = await import('../lib/supabaseServer');
-  const { getBenchmarkRates } = await import('../lib/market-data/benchmarkRates');
+  const { getBenchmarkRates, getLlpaAdjustedRate } = await import('../lib/market-data/benchmarkRates');
   const { shapeBenchmarkRatesForExternalContract } = await import('../lib/gateway/benchmarkRatesShaping');
   const { BenchmarkRatesV1Schema } = await import('../lib/gateway/benchmarkRatesSchema');
   const { resolvePropertyId } = await import('../lib/gateway/intelligenceGateway');
@@ -150,10 +150,11 @@ async function checkExternalContractsUnchanged() {
 
   // 9. Existing benchmark-rates contract is unchanged
   const raw = await getBenchmarkRates();
-  const shaped = shapeBenchmarkRatesForExternalContract(raw);
+  const llpa = await getLlpaAdjustedRate();
+  const shaped = shapeBenchmarkRatesForExternalContract(raw, llpa);
   const parsed = BenchmarkRatesV1Schema.safeParse(shaped);
-  record('9. benchmark-rates-v1 contract still validates, unaffected by this fix',
-    parsed.success && shaped.contract_version === 'benchmark-rates-v1' ? 'PASS' : 'FAIL', parsed.success ? 'valid' : JSON.stringify((parsed as any).error?.issues?.slice(0, 2)));
+  record('9. benchmark-rates-v1.1 contract still validates, unaffected by this fix',
+    parsed.success && shaped.contract_version === 'benchmark-rates-v1.1' ? 'PASS' : 'FAIL', parsed.success ? 'valid' : JSON.stringify((parsed as any).error?.issues?.slice(0, 2)));
 
   // 10. Existing property-intelligence contract is unchanged
   const sb = getSupabase();

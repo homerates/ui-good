@@ -969,7 +969,17 @@ function PropertyIntelInner() {
                     <div className="fi" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                       {[
                         { val: d.market_median_dom,   fmt: (v: number) => `${v}d`,              color: '#94a3b8', label: 'Area Avg DOM' },
-                        { val: d.market_sale_to_list, fmt: (v: number) => `${v}%`,              color: '#94a3b8', label: 'Sale/List' },
+                        // Bug fixed 2026-09-13: this used to display d.market_sale_to_list
+                        // raw, with no normalization -- Grok sometimes returns this value
+                        // already as a percent (98.4) rather than a ratio (0.984), the exact
+                        // ambiguity normalizeSaleToList() exists to resolve (see its own
+                        // header comment: this same bug class, "9840.0%" instead of "98.4%",
+                        // was already found and fixed at 6+ OTHER call sites during the WS9
+                        // audit -- this badge was a call site that audit missed). The L3
+                        // narrative text just below (scoreL3's own summary) already
+                        // normalizes correctly, which is why this raw badge could show a
+                        // wrong value while the surrounding narrative showed the right one.
+                        { val: d.market_sale_to_list != null ? (normalizeSaleToList(d.market_sale_to_list) ?? 0) * 100 : null, fmt: (v: number) => `${v.toFixed(1)}%`, color: '#94a3b8', label: 'Sale/List' },
                         { val: d.market_median_price, fmt: (v: number) => fmt$(v),              color: '#94a3b8', label: 'Median Price' },
                       ].map(({ val, fmt: fmtFn, color, label }, i) => val != null ? (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
