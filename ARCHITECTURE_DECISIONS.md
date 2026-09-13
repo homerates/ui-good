@@ -2325,3 +2325,81 @@ confirming the best-effort degradation works as designed) — full 56/56
 expected once migration 087 is applied; re-verify then. Migration NOT
 yet applied — awaiting Rayaan's manual application in the Supabase SQL
 Editor, per standing workflow.
+
+## AD-38 — `sale_terms`: sale condition disclosures (v1.6)
+
+**Decision:** New field `sale_terms: string[] | null` added across the
+full pipeline (Grok deep-search prompt → `grok_property_cache` →
+`PropertyIntelligenceData` → `CanonicalPropertyIntelligence` → external
+MCP contract v1.6 → `TOOL_DESCRIPTION` → `/property-intel`'s first-party
+UI). Discloses unusual sale conditions found in the listing: cash-only,
+sold as-is, no warranties, short sale, trust/estate/probate sale,
+"fixer"/"handyman special" language. `null` means Grok has not yet
+searched (not yet enriched); `[]` means it searched and found none --
+never conflate the two, the same discipline already established for
+every other progressive-enrichment field in this contract.
+
+**Real, live incident, not speculative:** HomeRates' own report for
+8 Woodfall, Irvine (generated 2026-09-13, live production data)
+characterized the property as offering "turnkey family living" and
+"modern appeal," with a 71/100 "Ready to Offer" Decision Score and a
+full 30-year jumbo financing scenario -- while the real listing (per
+two independent external AI tools, Perplexity and a DuckDuckGo-branded
+search AI, both citing the actual Zillow/Redfin/Coldwell Banker MLS
+listing directly) is explicitly cash-only, sold as-is, no warranties,
+and a Trust sale, marketed as a fixer. This is not a missing nice-to-
+have detail -- it is a materially misleading characterization of a
+real, live property, confirmed by cross-referencing our own stored
+`grok_property_cache` row and the actual rendered 4-page interactive
+report PDF for this exact address.
+
+**Root cause:** `DEEP_SYSTEM_PROMPT`'s "REQUIRED searches" list never
+asked Grok to look for sale terms/condition disclosures at all --
+Grok was filling in a plausible, neighborhood-typical "turnkey family
+home" narrative rather than reporting this specific listing's actual
+disclosed terms, because nothing in the prompt told it this was a fact
+to actively find.
+
+**Fix, two parts:**
+1. New REQUIRED search + explicit "SALE TERMS RULE" in
+   `DEEP_SYSTEM_PROMPT` (`app/api/beta/grok-property/route.ts`): find and
+   populate `sale_terms` from listing remarks, and -- critically --
+   never describe a property as "turnkey," "move-in ready," or with
+   "modern appeal" when sale_terms indicates otherwise. Scoped to deep
+   mode only (the non-deep `SYSTEM_PROMPT` has no live web search, so it
+   has no way to discover this either way).
+2. Structured field, not just prose: `sale_terms` now exists as a real,
+   always-checked field at every layer, labeled `AI INTERPRETATION`
+   throughout (this is Grok's own reading of listing remarks, not a
+   structurally-scraped fact) -- `TOOL_DESCRIPTION` explicitly instructs
+   the calling AI to check and prominently mention it before using any
+   positive characterization, and `/property-intel`'s own UI renders a
+   dedicated amber warning banner whenever it's non-empty.
+
+**Verified live, and the result is a genuinely mixed, honestly-reported
+finding, not a clean win:** two independent fresh deep Grok calls for
+the exact same address both returned `sale_terms: []` -- Grok's own web
+search did not surface the cash-only/as-is/Trust-sale terms Perplexity
+found, even with the explicit new instruction to look for them. This
+appears to be a real limitation of Grok's search tool's thoroughness for
+this class of fact, not a prompt-wording problem. However, the
+consistency-rule half of the fix DID work on both runs: the narrative no
+longer states "turnkey" or "modern appeal" at all, and buyer_strategy/
+location_intelligence.recommendation now correctly hedge ("verify all
+details directly," "confirm HOA and condition details with the agent")
+instead of asserting a false positive. The structural safety net
+(a populated, reliable sale_terms fact) is not yet fully working for
+every property; the narrative-level guardrail against overclaiming is.
+
+**Status:** Built. `tsc --noEmit` clean, full `next build` clean.
+Full regression: `test-deep-intelligence-parity.ts` (12/12),
+`test-response-semantics-cleanup.ts` (9/9), `test-intelligence-gateway.ts`
+(58/60, 2 environment-LIMITED as already established),
+`test-affordability-fha-mip-basis.ts` (11/11),
+`test-seeded-scenario-canonicalization.ts` (31/31),
+`test-external-adapter.ts` (58/58), `test-golden-prompts.ts` (10/10),
+`test-chatgpt-invocation-contract.ts` (7/7),
+`test-mortgage-math-integrity.ts` (42/42) -- all green, every stale
+`property-intelligence-v1.5` assertion across the test suite updated to
+v1.6. The Grok search-thoroughness gap is a real, open, honestly-flagged
+limitation -- not something this decision claims to have solved.

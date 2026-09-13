@@ -181,6 +181,19 @@ export interface PropertyIntelligenceData {
     highlights: string[];
   } | null;
 
+  // Sale terms / condition disclosures -- added 2026-09-13 after a real,
+  // live failure: HomeRates' own report characterized a property as
+  // "turnkey" and "modern appeal" with a 71/100 "Ready to Offer" Decision
+  // Score while the actual listing was cash-only, sold as-is, no
+  // warranties, a Trust sale -- confirmed against the real MLS-sourced
+  // listing (two independent external AI tools surfaced this; HomeRates'
+  // own Grok synthesis had simply never been asked to look for it). null
+  // means Grok has not yet searched for this (not yet enriched, or an
+  // older cached row from before this field existed) -- distinct from an
+  // empty array, which means Grok searched and found no unusual terms.
+  // Never conflate the two: null is not "clean," it's "unchecked."
+  saleTerms: LabeledValue<string[]> | null;
+
   market: {
     medianDom: LabeledValue<number | null>;
     medianPrice: LabeledValue<number | null>;
@@ -571,6 +584,12 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
   const propertyAnalysis = (grokSummary != null || grokHighlights.length > 0)
     ? { narrative: grokSummary != null ? { label: 'AI INTERPRETATION' as const, value: grokSummary } : null, highlights: grokHighlights }
     : null;
+  // null (field genuinely absent -- Grok hasn't searched yet) vs [] (Grok
+  // searched, found no unusual terms) are structurally distinct -- see the
+  // PropertyIntelligenceData interface's own comment on saleTerms above.
+  const saleTerms = Array.isArray(grok?.sale_terms)
+    ? { label: 'AI INTERPRETATION' as const, value: (grok!.sale_terms as unknown[]).filter((s): s is string => typeof s === 'string') }
+    : null;
 
   const strengths = Array.isArray(li?.strengths) ? (li!.strengths as string[]) : [];
   const tradeoffs = Array.isArray(li?.tradeoffs) ? (li!.tradeoffs as string[]) : [];
@@ -658,6 +677,7 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
     decisionIntelligence,
     locationIntelligence,
     propertyAnalysis,
+    saleTerms,
     market: {
       medianDom: { label: 'MARKET FACT' as const, value: parseNum(grok?.market_median_dom) },
       medianPrice: { label: 'MARKET FACT' as const, value: parseNum(grok?.market_median_price) },

@@ -194,6 +194,17 @@ const TOOL_DESCRIPTION =
   'researched at the time of this response) -- absence is not a negative signal about the ' +
   'property itself, and calling again later may return it.' +
   '\n\n' +
+  'sale_terms.value (critical -- check and mention this before describing a property as ' +
+  '"turnkey," "move-in ready," or in generally positive terms) discloses unusual sale ' +
+  'conditions found in the listing: cash-only, sold as-is, no warranties, short sale, ' +
+  'trust/estate/probate sale, "fixer"/"handyman special" language. A non-empty array means ' +
+  'real disclosed terms exist -- state them prominently and do not describe the property in ' +
+  'move-in-ready or turnkey language when they are present. An empty array [] means HomeRates ' +
+  'checked and found no unusual terms -- a real, meaningful finding, not an absence of data. ' +
+  'null (distinct from both) means HomeRates has not checked yet for this property (same ' +
+  'enrichment timing as property_analysis above) -- do not assume a standard sale in that ' +
+  'case; note that sale terms are not yet confirmed.' +
+  '\n\n' +
   'intelligence_progress.status is "enriching" while comparable sales and location ' +
   'context are still being gathered, or "enriched" once they are present (if available ' +
   'at all). When "enriching": share the useful intelligence already available now, note ' +

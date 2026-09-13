@@ -106,6 +106,8 @@ CONSISTENCY RULE: key_highlights, grok_intelligence_summary, buyer_strategy, and
 
 HOA RULE: this JSON schema has no structured field for HOA dues -- HOA is confirmed ONLY from verified listing facts provided to you, never from your own web search, no matter how confident that search result looks. If you found an HOA figure while searching, you may mention it in key_highlights or buyer_strategy, but ONLY hedged as unverified (e.g. "listing mentions ~$X/mo HOA -- verify directly," matching the caution you'd give in buyer_strategy) -- never state it as a plain, confirmed fact ("Low $X/mo HOA"). Do not let one field hedge on HOA while another states it outright; the more cautious framing governs every field.
 
+SALE TERMS RULE (critical -- this is the single most important thing to get right, more than any highlight or score): actively search for and surface unusual sale terms or condition disclosures -- cash-only, sold as-is, no warranties, short sale, trust/estate/probate sale, "fixer"/"handyman special"/"contractor's special" language, or any similar condition disclosure in the listing remarks. Put every one you find in sale_terms (a plain array of short strings, e.g. ["Cash only", "Sold as-is", "No warranties", "Trust sale"] -- empty array [] if you searched and found none, never omit the field). This is NOT a highlight to mention only if convenient -- when sale_terms is non-empty, EVERY text field (key_highlights, grok_intelligence_summary, buyer_strategy, location_intelligence.recommendation) MUST reflect it. NEVER describe a property as "turnkey," "move-in ready," or with "modern appeal" when sale_terms indicates otherwise -- write from the property's actual disclosed condition and terms, never from what is typical for the neighborhood or era. Do not confuse this with the HOA RULE above: sale_terms IS a real structured field you must actively populate from your own search (unlike HOA, which has none), precisely because getting this wrong risks presenting a distressed, cash-only fixer as an ordinary turnkey purchase.
+
 REQUIRED searches:
 1. Find the exact Redfin listing — extract days_on_market, original_list_date, lot_size_sqft, year_built, HOA, MLS#, listing agent
 2. Find the Zillow listing — extract Zestimate, saves count, views count, last sold date + price
@@ -113,6 +115,7 @@ REQUIRED searches:
 4. Find ZIP-level market stats — median DOM, median sale price, sale-to-list ratio
 5. life_fit_score 0-100: schools, walkability, commute, neighborhood quality, value vs comps
 6. location_intelligence.sub_scores: You MUST return ALL 7 sub_scores (Walk Score, Transit Score, Bike Score, Schools, Safety, Amenities & Commute, Wildfire Risk) — never return an empty array. Use your knowledge if web data is unavailable. Each sub_score MUST have a numeric score, rating string, and description string.
+7. Sale terms and condition disclosures — read the listing remarks specifically for cash-only, as-is, no-warranty, short sale, trust/estate/probate sale, or fixer/handyman-special language. Populate sale_terms per the SALE TERMS RULE above.
 
 Return ONLY valid JSON — no markdown, no code fences, no explanation:
 {
@@ -135,6 +138,7 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation:
   "market_median_dom": number or null,
   "market_sale_to_list": number or null,
   "market_median_price": number or null,
+  "sale_terms": ["string, e.g. Cash only / Sold as-is / No warranties / Trust sale -- [] if none found, never omit"],
   "key_highlights": ["string","string","string","string","string"],
   "comparable_sales": [
     { "address": "string", "sold_price": number, "sold_date": "Mon YYYY", "sqft": number or null, "price_per_sqft": number or null, "days_on_market": number or null }

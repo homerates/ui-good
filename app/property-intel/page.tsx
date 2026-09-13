@@ -57,6 +57,7 @@ interface PropResult {
   rate_used:                 number | null;
   life_fit_score:            number | null;
   key_highlights:            string[] | null;
+  sale_terms:                string[] | null;
   comparable_sales:          Comp[]   | null;
   grok_intelligence_summary: string   | null;
   buyer_strategy:            string   | null;
@@ -892,6 +893,34 @@ function PropertyIntelInner() {
 
                 {/* Left — Intelligence + Highlights */}
                 <div style={{ padding: 24, borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
+
+                  {/* Sale Terms / condition disclosures -- added 2026-09-13 after a
+                      real, live incident: this report characterized a property as
+                      "turnkey" and "modern appeal" while the actual listing was
+                      cash-only, sold as-is, no warranties, a Trust sale. Rendered
+                      ONLY when sale_terms is a non-empty array (Grok found real
+                      disclosed terms) -- an empty array or null renders nothing
+                      here, matching the MCP contract's own null-vs-[] discipline;
+                      absence of this banner is never itself a "clean" signal. */}
+                  {d.sale_terms != null && d.sale_terms.length > 0 && (
+                    <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 14, padding: 20 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                        <i className="fa-solid fa-triangle-exclamation" style={{ color: '#f59e0b', fontSize: '1.05rem' }} />
+                        <span style={{ fontWeight: 700, fontSize: '0.93rem', color: '#f59e0b' }}>Sale Terms &amp; Condition Disclosures</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {d.sale_terms.map((t, i) => (
+                          <div key={i} className="fi" style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                            <span style={{ color: '#f59e0b', marginTop: 3, fontSize: '0.55rem', flexShrink: 0 }}>●</span>
+                            <span style={{ fontSize: '0.81rem', color: '#fde68a', lineHeight: 1.55, fontWeight: 600 }}>{t}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p style={{ fontSize: '0.72rem', color: '#cbd5e1', marginTop: 12, marginBottom: 0, lineHeight: 1.5 }}>
+                        Found in the listing -- verify directly with the listing agent before relying on any financing scenario or condition assumption elsewhere in this report.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Grok Intelligence */}
                   <div style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.18)', borderRadius: 14, padding: 20 }}>

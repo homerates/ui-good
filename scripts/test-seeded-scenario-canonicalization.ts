@@ -174,8 +174,8 @@ async function main() {
       const canonical = await buildCanonicalPropertyIntelligence(id);
       const shapedProp = shapeForExternalContract(address, canonical);
       const parsedProp = ExternalPropertyIntelligenceV1Schema.safeParse(shapedProp);
-      record('11b. property-intelligence-v1.5 external contract unchanged, still validates',
-        parsedProp.success && shapedProp.contract_version === 'property-intelligence-v1.5' ? 'PASS' : 'FAIL', parsedProp.success ? 'valid' : 'invalid');
+      record('11b. property-intelligence-v1.6 external contract unchanged, still validates',
+        parsedProp.success && shapedProp.contract_version === 'property-intelligence-v1.6' ? 'PASS' : 'FAIL', parsedProp.success ? 'valid' : 'invalid');
     }
   }
 
