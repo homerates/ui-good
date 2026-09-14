@@ -317,7 +317,7 @@ function lifecycleFromStatus(status: string | null | undefined): LifecycleStatus
 // No engine/network calls -- pure data assembly, cheap enough for a bulk pass.
 
 interface RawMerge {
-  prop: { id: string; address_full: string; address_line: string | null; city: string | null; state: string | null; zip: string | null; beds: number | null; baths: number | null; sqft: number | null; property_type: string | null; enriched_at: string | null; enrichment_source: string | null; latest_value: number | null; latest_value_low: number | null; latest_value_high: number | null; latest_listing_status: string | null };
+  prop: { id: string; address_full: string; address_line: string | null; city: string | null; state: string | null; zip: string | null; beds: number | null; baths: number | null; sqft: number | null; property_type: string | null; enriched_at: string | null; enrichment_source: string | null; latest_value: number | null; latest_value_low: number | null; latest_value_high: number | null; latest_listing_status: string | null; confidence: number | null };
   snapshot: Record<string, unknown> | null;
   snapshotFetchedAt: string | null;
   grok: Record<string, unknown> | null;
@@ -341,7 +341,7 @@ async function assembleRaw(propertyId: string): Promise<RawMerge | null> {
 
   const { data: prop } = await sb
     .from('properties')
-    .select('id, address_full, address_line, city, state, zip, beds, baths, sqft, property_type, enriched_at, enrichment_source, latest_value, latest_value_low, latest_value_high, latest_listing_status')
+    .select('id, address_full, address_line, city, state, zip, beds, baths, sqft, property_type, enriched_at, enrichment_source, latest_value, latest_value_low, latest_value_high, latest_listing_status, confidence')
     .eq('id', propertyId)
     .maybeSingle();
   if (!prop) return null;
@@ -670,6 +670,23 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
     grokCacheFetchedAt: raw.grokFetchedAt,
   };
 
+  // Confidence-aware PROPERTY FACT labeling (2026-09-14) -- a real, live
+  // incident: "41 Shepherds Knls, Pebble Beach" is a multi-unit condo
+  // building where app/api/property/lookup/route.ts's broadSearchFallback()
+  // (a generic, non-address-targeted multi-domain web search, confidence
+  // 0.65) landed on a DIFFERENT unit than the one asked about, and its price/
+  // beds/baths/sqft were then labeled 'PROPERTY FACT' -- presented as
+  // verified when they were, at best, an unconfirmed guess about which
+  // listing was even found. That specific persistence path is now refused
+  // outright (see the route's own comment), but `properties.confidence`
+  // already existed and was never read here -- so any OTHER path that can
+  // still produce a sub-0.90 confidence row (a direct but non-Redfin listing
+  // page; older rows persisted before this fix) stays silently mislabeled
+  // without this. Only the true direct-Redfin-scrape tier (0.90) keeps
+  // PROPERTY FACT; anything lower (or a legacy row with no confidence value
+  // at all is left alone -- there's no evidence it was low-confidence).
+  const factLabel = (raw.prop.confidence != null && raw.prop.confidence < 0.9) ? ('ESTIMATE' as const) : ('PROPERTY FACT' as const);
+
   const base = {
     id: prop.id,
     eligibility: raw.eligibility,
@@ -680,17 +697,17 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
     state: raw.state,
     zip: prop.zip,
     propertyFacts: {
-      propertyType: { label: 'PROPERTY FACT' as const, value: prop.property_type },
-      beds: { label: 'PROPERTY FACT' as const, value: prop.beds ?? parseNum(snapshot?.beds) },
-      baths: { label: 'PROPERTY FACT' as const, value: prop.baths ?? parseNum(snapshot?.baths) },
-      sqft: { label: 'PROPERTY FACT' as const, value: prop.sqft ?? parseNum(snapshot?.sqft) },
+      propertyType: { label: factLabel, value: prop.property_type },
+      beds: { label: factLabel, value: prop.beds ?? parseNum(snapshot?.beds) },
+      baths: { label: factLabel, value: prop.baths ?? parseNum(snapshot?.baths) },
+      sqft: { label: factLabel, value: prop.sqft ?? parseNum(snapshot?.sqft) },
     },
     valuation: {
       avm: { label: 'ESTIMATE' as const, value: raw.avm, source: raw.avmSources.length ? raw.avmSources.join(' + averaged with ') : undefined, asOf: provenance.intelligenceComputedAt },
       avmSources: raw.avmSources,
       avmLow: parseNum(prop.latest_value_low),
       avmHigh: parseNum(prop.latest_value_high),
-      listPrice: { label: 'PROPERTY FACT' as const, value: raw.listPrice },
+      listPrice: { label: factLabel, value: raw.listPrice },
       lastSalePrice: parseNum(snapshot?.lastSalePrice),
       lastSaleDate: typeof snapshot?.lastSaleDate === 'string' ? snapshot.lastSaleDate as string : null,
       comparables: raw.comparables,

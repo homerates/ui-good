@@ -2551,3 +2551,95 @@ this change), `test-loan-limit-intelligence.ts` (41/41),
 (10/10), `test-chatgpt-invocation-contract.ts` (7/7),
 `test-intelligence-gateway.ts` (58/60, 2 environment-LIMITED as already
 established) -- all green.
+
+## AD-41 — Wrong-unit property resolution refused; confidence drives claim_type
+
+**Decision, two parts, one root cause:**
+
+1. `app/api/property/lookup/route.ts`'s address→property resolution no
+   longer trusts a match it cannot confirm is the SPECIFIC unit the caller
+   meant. Its `broadSearchFallback()` branch (a generic, non-address-
+   targeted multi-domain web search) now NEVER persists or returns a match
+   as resolved, even when `validatePropertyIdentity()` passes -- that check
+   only ever compared house number/street/city/state/zip (see
+   `lib/addressIdentity.ts`'s own header), which a multi-unit condo
+   building's OTHER units also satisfy. Separately, a new
+   `candidateIsUnconfirmedUnit()` (`lib/addressIdentity.ts`) gate also
+   applies to the "trusted" direct-Redfin-URL branch: when the resolved
+   listing's own URL signals a specific sub-unit (Redfin's own `/unit-41/`
+   path convention) that the caller's address string never mentioned, that
+   match is refused too, exactly like a failed identity check -- fall
+   through to the honest `{ok: false, error: 'Could not find property
+   data...'}` response instead of guessing.
+2. `properties.confidence` (already computed and stored at write time --
+   0.90 for a direct Redfin scrape, 0.65 for anything else -- but never
+   read anywhere downstream) now drives external `claim_type` labeling.
+   `lib/propertyIntelligence.ts` labels `listPrice`/`beds`/`baths`/`sqft`/
+   `propertyType` as `'ESTIMATE'` instead of `'PROPERTY FACT'` whenever the
+   underlying row's confidence is below 0.90 -- a legacy row with no stored
+   confidence value is left alone (no evidence it was low-confidence).
+
+**Real, live incident, found via this session's standing 3-way comparison
+method (HomeRates vs. ChatGPT vs. an independent AI) on a genuinely new
+address:** ChatGPT reported "no property record" for "41 Shepherd's Knl,
+Pebble Beach, CA 93953" (an honest, correct NOT_AVAILABLE at that moment).
+Reproducing the exact same call minutes later succeeded -- but resolved a
+DIFFERENT, wrong unit at the same street address: 2bd/2ba/1,528 sqft/
+$1.15M/PENDING (Redfin's own "unit-41" listing), when the actual property
+everyone had been discussing was 3bd/3ba/2,241 sqft/$1.595M/FOR_SALE ("41
+Shepherds Knls" is a multi-unit condo complex -- confirmed directly by
+inspecting the persisted row and its `property_snapshots` data, which
+carried the real, live Redfin URL down to the specific wrong unit id).
+That wrong match was labeled `"claim_type": "PROPERTY FACT"` -- presented
+as verified, not a guess -- and would have been served to every future
+caller of this exact address until manually corrected. Re-reproducing a
+second time (to test the first, narrower fix) landed on the SAME wrong
+unit again, this time via the OTHER ("trusted," 0.90-confidence)
+resolution branch -- proving the bug was never specific to the low-
+confidence fallback path, only more easily triggered by it.
+
+**Root cause:** neither resolution branch, nor the one identity gate that
+exists (`validatePropertyIdentity()`), has ever had any concept of a "unit"
+within a street address. Both a targeted Tavily address search (the
+"trusted" branch) and a generic multi-domain web search (the fallback
+branch) can non-deterministically return any one of several different
+physical units sharing one street address, and the identity check --
+built in an earlier incident to catch wrong-street/wrong-house-number
+matches, not wrong-unit-within-the-right-building matches -- has no way to
+reject that.
+
+**Verified live, in-process, directly against the actual shipped route
+code (not the deployed one)** -- important nuance surfaced during this
+work: `resolveExternalPropertyIntelligence()`'s `attemptResolution()` self-
+fetches the PUBLIC deployed URL (`NEXT_PUBLIC_APP_BASE_URL`, by design --
+see that file's own header), so testing through it only ever exercises
+whatever is currently live on `dev`/production, never local uncommitted
+edits to this route. Verified the actual fix by calling
+`app/api/property/lookup/route.ts`'s exported `POST` directly, in-process,
+with the real incident's exact address: both branches now correctly
+refuse, and zero property rows are created across repeated attempts. A
+full round-trip re-check through the real MCP path is still owed once this
+ships to `dev` (self-fetch will then hit the fixed code).
+
+**Deliberate coverage/precision tradeoff, accepted per product decision:**
+some genuinely correct, unambiguous single-family-home matches that the
+broad-search branch would previously have found (and would have been
+right about) are now reported as NOT_AVAILABLE instead of being persisted
+-- accepted because a wrong match silently presented as fact is worse than
+an honest "couldn't confirm, paste the listing link" for an address that
+turns out to be ambiguous.
+
+**Status:** Built. New regression test `scripts/test-address-identity-
+integration.ts` test L reproduces the exact live incident deterministically
+(a mocked direct-Redfin-URL match with a `/unit-N/` path, no unit specified
+in the request) -- refused, zero rows persisted. Tests I and J in the same
+file, which previously asserted a broad-search match SHOULD persist,
+updated to assert the new, deliberate refusal instead (not weakened to
+work around a real behavior change). `tsc --noEmit` clean, full `next
+build` clean. Full regression: `test-address-identity.ts` (12/12),
+`test-address-identity-integration.ts` (4/4), `test-deep-intelligence-
+parity.ts` (12/12), `test-intelligence-gateway.ts` (58/60, 2 environment-
+LIMITED as already established), `test-response-semantics-cleanup.ts`
+(9/9), `test-external-adapter.ts` (58/58, one flaky timing-dependent
+Fast-Follow-trigger re-run against a fully mocked resolution path --
+confirmed unrelated, not exercising this fix at all) -- all green.
