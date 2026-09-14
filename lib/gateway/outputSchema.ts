@@ -87,6 +87,24 @@
 // the status enum itself is unchanged, only which properties map to which
 // value.
 
+// V1.5 -> V1.6 (Sale Terms / Condition Disclosures, 2026-09-13): a real, live
+// incident -- HomeRates' own report characterized a property as "turnkey"
+// and "modern appeal" with a 71/100 "Ready to Offer" Decision Score while the
+// actual listing was cash-only, sold as-is, no warranties, a Trust sale.
+// New required field `sale_terms` (a labeled string array; null = not yet
+// checked, [] = checked, none found) closes that gap.
+//
+// V1.6 -> V1.7 (Price History Grounding, 2026-09-14): another real, live
+// incident on a different property -- key_highlights asserted "Significant
+// price reduction from original asking price" while original_list_date,
+// last_sold_date, and last_sold_price were ALL null and days_on_market was
+// only 5, an unverifiable claim with zero structured data behind it. A
+// prompt-only fix was insufficient: re-tested live, Grok simply upgraded the
+// same unverifiable claim to a specific-sounding dollar figure with still no
+// structured field to check it against. New required field
+// `original_list_price` (LabeledNumber, AI INTERPRETATION) closes that gap --
+// a calling AI can now tell whether a price-change narrative is backed by an
+// actual number HomeRates found, or should be treated as unsupported.
 import { z } from 'zod';
 
 const ClaimType = z.enum([
@@ -105,7 +123,7 @@ const LabeledString = z.object({ value: z.string().nullable(), claim_type: Claim
 const LabeledStringArray = z.object({ value: z.array(z.string()).nullable(), claim_type: ClaimType });
 
 export const ExternalPropertyIntelligenceV1Schema = z.object({
-  contract_version: z.literal('property-intelligence-v1.6'),
+  contract_version: z.literal('property-intelligence-v1.7'),
   query: z.object({ address_requested: z.string() }),
   availability: z.object({
     status: z.enum(['AVAILABLE', 'PARTIAL', 'NOT_AVAILABLE']),
@@ -215,6 +233,20 @@ export const ExternalPropertyIntelligenceV1Schema = z.object({
   // and found no unusual terms. Never conflate the two -- null is
   // "unchecked," not "clean."
   sale_terms: LabeledStringArray,
+  // Original list price (v1.7, 2026-09-14) -- a real, live incident: a
+  // property's key_highlights asserted "Significant price reduction from
+  // original asking price" while every structured price-history field
+  // (original_list_date, last_sold_date, last_sold_price) was null and
+  // days_on_market was 5 -- an unverifiable claim with no structured
+  // number behind it. Re-tested after a prompt-only fix: Grok simply
+  // upgraded the same unverifiable claim to a specific-sounding dollar
+  // figure with still nothing to check it against. claim_type is AI
+  // INTERPRETATION (Grok's own search result, not a structurally-scraped
+  // fact) -- same provenance tier as sale_terms. A calling AI should treat
+  // any price-reduction/increase language in property_analysis or
+  // grok_intelligence_summary as unsupported unless this field is
+  // populated and differs from value_intelligence.list_price.
+  original_list_price: LabeledNumber,
   // Progressive Intelligence (v1.4): null exactly when `property` is null
   // (no resolved property to report progress on). Purely derived from
   // already-computed canonical fields -- never a new query, never a new

@@ -194,6 +194,13 @@ export interface PropertyIntelligenceData {
   // Never conflate the two: null is not "clean," it's "unchecked."
   saleTerms: LabeledValue<string[]> | null;
 
+  // Original list price -- added 2026-09-14, same real-incident/AI
+  // INTERPRETATION provenance as saleTerms above (see extraction site for
+  // the full note). null means Grok found no distinct original asking
+  // price -- a text field may describe a price reduction/increase ONLY
+  // when this is populated and differs from the current list price.
+  originalListPrice: LabeledValue<number> | null;
+
   market: {
     medianDom: LabeledValue<number | null>;
     medianPrice: LabeledValue<number | null>;
@@ -590,6 +597,21 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
   const saleTerms = Array.isArray(grok?.sale_terms)
     ? { label: 'AI INTERPRETATION' as const, value: (grok!.sale_terms as unknown[]).filter((s): s is string => typeof s === 'string') }
     : null;
+  // Original list price -- added 2026-09-14 after a real, live failure: a
+  // property's key_highlights asserted "Significant price reduction from
+  // original asking price" while original_list_date, last_sold_date, and
+  // last_sold_price were ALL null and days_on_market was 5 -- an
+  // unverifiable claim with zero structured data behind it (confirmed
+  // directly against the grok_property_cache row). A prompt-only fix wasn't
+  // enough: re-tested live, Grok simply upgraded the same unverifiable claim
+  // to a specific-sounding dollar figure ("$3.89M original ask") with still
+  // no structured field to check it against. AI INTERPRETATION (not PROPERTY
+  // FACT/MARKET FACT) because this is Grok's own search result, not a
+  // structurally-scraped Redfin fact like listPrice above -- same
+  // provenance tier as saleTerms.
+  const originalListPrice = typeof grok?.original_list_price === 'number'
+    ? { label: 'AI INTERPRETATION' as const, value: grok.original_list_price as number }
+    : null;
 
   const strengths = Array.isArray(li?.strengths) ? (li!.strengths as string[]) : [];
   const tradeoffs = Array.isArray(li?.tradeoffs) ? (li!.tradeoffs as string[]) : [];
@@ -678,6 +700,7 @@ export async function getPropertyIntelligenceData(propertyId: string): Promise<P
     locationIntelligence,
     propertyAnalysis,
     saleTerms,
+    originalListPrice,
     market: {
       medianDom: { label: 'MARKET FACT' as const, value: parseNum(grok?.market_median_dom) },
       medianPrice: { label: 'MARKET FACT' as const, value: parseNum(grok?.market_median_price) },
