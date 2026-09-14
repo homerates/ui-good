@@ -2476,3 +2476,78 @@ environment-LIMITED as already established),
 `test-mortgage-math-integrity.ts` (42/42) -- all green, every stale
 `property-intelligence-v1.6` assertion across the test suite updated to
 v1.7.
+
+## AD-40 — MCP `outputSchema` + `structuredContent` declared for all 5 tools
+
+**Decision:** Every tool this server advertises in `tools/list` now carries
+an `outputSchema` (JSON Schema), and every successful `tools/call` response
+now carries `structuredContent` (the actual parsed object) alongside the
+existing `content: [{type: 'text', ...}]` text block -- both per the MCP
+spec (protocol revisions 2025-11-25 / 2026-07-28, both already supported
+here). `outputSchema` is derived directly from each tool's existing,
+already-canonical Zod contract (`ExternalPropertyIntelligenceV1Schema`,
+`BenchmarkRatesV1Schema`, `LoanLimitIntelligenceV1Schema`,
+`ScenarioIntelligenceV1Schema`, `BuyerCapacityIntelligenceV1Schema`) via
+`zodToJsonSchema()` at module load -- never hand-duplicated, so it cannot
+drift from the schema that already validates every response.
+
+**Real, live evidence, not speculative:** ChatGPT's own connector settings
+UI was observed flagging every one of these tools "OUTPUT SCHEMA
+RECOMMENDED." Separately, a live 3-way comparison (HomeRates' own rendered
+report vs. the identical property rendered by ChatGPT via this MCP
+connector) showed ChatGPT's answer as flat, unstructured prose paragraphs
+despite the tool returning richly labeled, structured JSON -- consistent
+with a client that has no declared output schema to hold onto falling back
+to having the model paraphrase an opaque text blob into free-form prose.
+
+**Deliberately a different lever than the one already tried and dropped:**
+earlier this session, tool-description prose formatting hints were tried
+and found not to move ChatGPT's rendering at all (see
+`feedback_tool_description_formatting_ceiling.md`) -- that approach tried
+to influence ChatGPT's freeform synthesis via instructions in
+descriptive text. This is a protocol-level declaration of each tool's REAL
+output shape, a mechanism ChatGPT's own connector UI explicitly asked for
+by name, not a prose-wording tweak.
+
+**One new, narrowly-scoped dependency:** `zod-to-json-schema`, pinned to
+`3.23.5` (peer range `^3.23.3`, verified compatible with this repo's
+`zod@3.23.8` -- does NOT force the zod-v4 bump the full
+`@modelcontextprotocol/sdk` would have required, which is the exact reason
+this route hand-rolls the wire protocol instead of using that SDK; see this
+file's own TRANSPORT header note). A pure, side-effect-free JSON Schema
+converter, not the protocol SDK.
+
+**Verified live, in-process, with a real issued credential (not just
+source-inspected):** a forced `tools/list` call confirms all 5 tools now
+carry a populated `outputSchema`; a forced, authenticated `tools/call`
+against both `homerates_property_intelligence` and `homerates_rate_oracle`
+confirms `structuredContent` is present, matches `content[0].text`
+byte-for-byte when parsed, and its `contract_version` is the current one
+(`property-intelligence-v1.7`, `benchmark-rates-v1.1`).
+
+**Incidental fix caught by this work:** the edit session left this file's
+working-tree line endings converted to CRLF (root cause not fully
+isolated; the last committed version and every sibling file touched in the
+same session stayed LF) -- this silently broke `test-buyer-capacity-
+intelligence.ts`'s H4 assertion, which regex-matches raw source text
+assuming LF. Normalized back to LF before committing; H4 (and the rest of
+that suite) passes clean again.
+
+**What this does NOT verify:** this repo cannot observe ChatGPT's own
+client-side rendering behavior directly -- only that the server now emits
+protocol-correct `outputSchema`/`structuredContent`. Whether ChatGPT's
+connector UI actually renders more structured output as a result requires
+a fresh live test in a real ChatGPT session against a new address, the
+same "verify live, don't assume" discipline every other fix this session
+has followed.
+
+**Status:** Built. `tsc --noEmit` clean, full `next build` clean. Full
+regression: `test-external-adapter.ts` (58/58, one flaky
+provider/timing-dependent Fast-Follow-trigger re-run, known class, not
+this change), `test-loan-limit-intelligence.ts` (41/41),
+`test-scenario-intelligence.ts` (40/40),
+`test-buyer-capacity-intelligence.ts` (36/36, after the CRLF fix above),
+`test-benchmark-rates-gateway.ts` (36/36), `test-golden-prompts.ts`
+(10/10), `test-chatgpt-invocation-contract.ts` (7/7),
+`test-intelligence-gateway.ts` (58/60, 2 environment-LIMITED as already
+established) -- all green.
