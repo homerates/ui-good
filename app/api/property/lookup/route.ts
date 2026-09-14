@@ -17,7 +17,7 @@ import { isPlausibleSaleYear } from '../../../../lib/dateSanity';
 import { historicalRate, remainingBalance, monthsAgo, fhfaRate } from '../../../../lib/homeownerCalc';
 import { computeAvmTier } from '../../../../lib/propertyAvm';
 import { addressesMatchLoosely, addressPrefixTokens } from '../../../../lib/addressNormalize';
-import { validatePropertyIdentity, type CandidateAddressFields } from '../../../../lib/addressIdentity';
+import { validatePropertyIdentity, candidateIsUnconfirmedUnit, type CandidateAddressFields } from '../../../../lib/addressIdentity';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 
@@ -1191,7 +1191,22 @@ async function handleAddress(rawAddress: string) {
             if (body?.ok && body?.data) {
                 const identity = validatePropertyIdentity(rawAddress, body.data as CandidateAddressFields);
                 console.log('[address-identity]', { code: identity.code, branch: 'redfin_url' });
-                if (identity.ok) {
+                // Unit-ambiguity gate (2026-09-14) -- validatePropertyIdentity()
+                // passing only confirms street/city/state/zip agree, which a
+                // multi-unit condo building's OTHER units also satisfy. Real,
+                // live incident: this exact branch (a direct Redfin URL found
+                // via Tavily's own targeted address search, confidence 0.90)
+                // resolved "41 Shepherds Knls, Pebble Beach" to Redfin's
+                // "unit-41" listing when the caller asked about a different,
+                // unrelated unit at the same street address. See
+                // lib/addressIdentity.ts's candidateIsUnconfirmedUnit() for
+                // the full incident note -- this is the SAME gate the broad-
+                // search branch below is refused for entirely, applied here
+                // only when the resolved listing's own URL signals a specific
+                // sub-unit the caller never asked for.
+                const unitUnconfirmed = identity.ok && candidateIsUnconfirmedUnit(rawAddress, (body.data as { url?: string }).url ?? redfinUrl);
+                if (unitUnconfirmed) console.log('[address-identity]', { code: 'CANDIDATE_ADDRESS_REJECTED', branch: 'redfin_url', reason: 'unconfirmed_unit' });
+                if (identity.ok && !unitUnconfirmed) {
                     // Awaited (2026-09-09): was fire-and-forget (`void cachePropertyResult(...)`),
                     // which let this handler return its HTTP response before the Supabase write
                     // committed. Proven via direct timing reproduction (not inferred) that the
@@ -1220,10 +1235,33 @@ async function handleAddress(rawAddress: string) {
     if (broadData) {
         const identity = validatePropertyIdentity(rawAddress, broadData as CandidateAddressFields);
         console.log('[address-identity]', { code: identity.code, branch: 'broad_search' });
+        // Never persisted or returned as a resolved match, even when identity
+        // validation passes -- real, live incident (2026-09-14): "41 Shepherds
+        // Knls, Pebble Beach" is a multi-unit condo building where several
+        // physically different units share the exact same house
+        // number/street/city/state/zip. validatePropertyIdentity() only
+        // compares those components (see lib/addressIdentity.ts's own header
+        // -- deliberately no unit-number concept, since neither the requested
+        // address nor most listing pages carry one), so it has no way to
+        // detect that this branch's generic multi-domain web search landed on
+        // a different unit (2bd/2ba/$1.15M/PENDING, Redfin "unit-41") than the
+        // one actually being asked about (3bd/3ba/$1.595M/FOR_SALE) -- both
+        // sharing "41 Shepherds Knls." That wrong match then gets persisted to
+        // `properties` and labeled a verified PROPERTY FACT downstream,
+        // exactly the class of unsupported claim this codebase's claim-type
+        // discipline exists to prevent. Unlike the redfinUrl/handleUrl branch
+        // above (a targeted address search landing on ONE specific listing
+        // page -- source 'redfin', confidence 0.90), this branch's own
+        // confidence was already scored 0.65 specifically because it cannot
+        // confirm it found the right listing, only a plausible one -- that
+        // was always too low to safely persist as fact, not just too low to
+        // label as one. Deliberate coverage/precision tradeoff: some genuinely
+        // correct single-family-home matches this branch would have found are
+        // now reported as not-found instead -- accepted per product decision,
+        // since a wrong match silently shown as fact is worse than an honest
+        // "couldn't confirm, paste the listing link" for an ambiguous address.
         if (identity.ok) {
-            // Awaited -- see the identical note on the redfin_url branch above.
-            await cachePropertyResult(rawAddress, broadData, 'web_search');
-            return NextResponse.json({ ok: true, data: broadData });
+            log.warn('[PropertyLookup] broad_search found a plausible match but it is no longer trusted for persistence', { code: identity.code });
         }
     }
 

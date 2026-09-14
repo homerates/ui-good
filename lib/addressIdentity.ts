@@ -224,3 +224,32 @@ export function validatePropertyIdentity(
 
   return { ok: true, code: 'CANDIDATE_ADDRESS_MATCH', detail: 'Requested and candidate addresses agree on all verifiable components.' };
 }
+
+// Unit-level ambiguity check (2026-09-14) -- validatePropertyIdentity() above
+// is deliberately house-number/street/city/state/zip only (see its own
+// header), which cannot catch a genuinely different failure mode: a
+// MULTI-UNIT building where several physically different units share every
+// one of those components. Real, live incident: "41 Shepherds Knls, Pebble
+// Beach" resolved -- via BOTH the direct-Redfin-URL branch (confidence 0.90)
+// and the broad-web-search fallback branch (confidence 0.65) on separate
+// attempts -- to Redfin's "unit-41" listing (2bd/2ba/$1.15M/PENDING) when the
+// caller was asking about a different, unrelated unit at the same address
+// (3bd/3ba/$1.595M/FOR_SALE). validatePropertyIdentity() passed both times,
+// since street/city/state/zip genuinely matched. This is a narrow, separate
+// signal, not folded into that function: it only fires when the RESOLVED
+// candidate's own URL positively signals a specific sub-unit (Redfin's own
+// "/unit-41/" path convention) that the ORIGINAL caller never asked for --
+// never a rejection of a legitimate, explicitly unit-qualified request.
+const URL_UNIT_PATTERN = /\/unit-[a-z0-9]+\//i;
+const REQUESTED_UNIT_PATTERN = /\b(?:unit|apt|apartment|ste|suite|#)\s*[a-z0-9-]+/i;
+
+/** True when `candidateUrl` resolves to a specific sub-unit (per its own URL
+ *  shape) that `requestedAddress` never mentioned -- meaning there is no way
+ *  to confirm this is the unit the caller actually meant, only that it is
+ *  SOME unit at the right street address. Callers should treat a true result
+ *  the same as a failed validatePropertyIdentity() check: never persist or
+ *  return this candidate as the resolved answer for the requested address. */
+export function candidateIsUnconfirmedUnit(requestedAddress: string, candidateUrl: string | null | undefined): boolean {
+  if (!candidateUrl || !URL_UNIT_PATTERN.test(candidateUrl)) return false;
+  return !REQUESTED_UNIT_PATTERN.test(requestedAddress);
+}

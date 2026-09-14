@@ -8,9 +8,14 @@
 // tests are deterministic and free of real external cost, while exercising
 // the actual shipped route code, not a copy of it.
 //
-// Covers Phase 6 test cases I (repeated valid property -> same canonical
-// row, no duplicate), J (valid unknown property -> identity passes ->
-// persisted), and K (failed identity -> NOT_AVAILABLE, zero rows created).
+// Covers Phase 6 test cases I (repeated address resolved only via
+// broad_search -> still never persisted, not a dedup concern), J (valid
+// unknown property found ONLY via broad_search -> refused, never
+// persisted -- see the route's own 2026-09-14 comment: this branch cannot
+// confirm it found the right listing at all, only a plausible one, which
+// live incident evidence showed can silently be the WRONG UNIT at a
+// multi-unit address even when validatePropertyIdentity() passes), and K
+// (failed identity -> NOT_AVAILABLE, zero rows created).
 //
 // Run with: npx tsx scripts/test-address-identity-integration.ts
 
@@ -90,7 +95,19 @@ async function main() {
 
   const noRedfinResults = () => [];
 
-  // ===== J: valid unknown property -- identity passes -> persisted =====
+  // ===== J: valid unknown property found ONLY via broad_search -- refused, never persisted =====
+  // Behavior changed 2026-09-14 (see app/api/property/lookup/route.ts's own
+  // comment on the broad_search branch): this branch's own confidence
+  // (0.65) was always scored specifically because it cannot confirm it
+  // found the right listing, only a plausible one. Real, live incident:
+  // a real multi-unit address ("41 Shepherds Knls, Pebble Beach") resolved
+  // via this exact branch to a DIFFERENT unit than the one asked about,
+  // even though validatePropertyIdentity() passed (it has no unit concept
+  // -- see lib/addressIdentity.ts). This single-family test fixture is
+  // itself unambiguous and would have matched correctly, but the route no
+  // longer has a way to distinguish "unambiguous single-family broad-search
+  // match" from "ambiguous multi-unit broad-search match" -- so it now
+  // refuses BOTH, a deliberate precision-over-coverage tradeoff, not a bug.
   const matchAddr = `4210 Test Harness Ln, Rivertown, TX 75001`;
   {
     tavilySearchHandler = (query: string) => {
@@ -107,24 +124,28 @@ async function main() {
     const beforeCount = before.data?.length ?? 0;
 
     const r = await callLookup(matchAddr);
-    // Give the fire-and-forget cachePropertyResult() write time to land.
+    // No persistence write to wait for any more -- this branch never calls
+    // cachePropertyResult() now, but the pause is kept so a regression that
+    // reintroduced the write would still have time to land before we check.
     await new Promise((res) => setTimeout(res, 800));
 
     const after = await sb.from('properties').select('id').ilike('address_full', '%4210 Test Harness Ln%');
     const afterCount = after.data?.length ?? 0;
 
-    const ok = r.json?.ok === true && beforeCount === 0 && afterCount === 1;
-    record('J. valid unknown property -- identity matches, persisted exactly once', ok ? 'PASS' : 'FAIL', JSON.stringify({ status: r.status, ok: r.json?.ok, beforeCount, afterCount }));
+    const ok = r.json?.ok === false && beforeCount === 0 && afterCount === 0;
+    record('J. valid unknown property found only via broad_search -- refused, never persisted', ok ? 'PASS' : 'FAIL', JSON.stringify({ status: r.status, ok: r.json?.ok, beforeCount, afterCount }));
   }
 
-  // ===== I: repeated valid property -- same canonical row, no duplicate =====
+  // ===== I: repeated address, still only resolvable via broad_search -- still never persisted =====
+  // Not a dedup concern any more (nothing is ever written the first time),
+  // but worth keeping as its own case: confirms the refusal is stable and
+  // idempotent across repeat calls, not a one-time fluke.
   {
     const r2 = await callLookup(matchAddr);
     await new Promise((res) => setTimeout(res, 800));
     const after = await sb.from('properties').select('id').ilike('address_full', '%4210 Test Harness Ln%');
     const rowCount = after.data?.length ?? 0;
-    const sameId = rowCount === 1;
-    record('I. repeated valid property -- same canonical row, no duplicate', r2.json?.ok === true && sameId ? 'PASS' : 'FAIL', JSON.stringify({ rowCount, ids: after.data }));
+    record('I. repeated broad_search-only address -- still refused, still zero rows', r2.json?.ok === false && rowCount === 0 ? 'PASS' : 'FAIL', JSON.stringify({ rowCount, ids: after.data }));
   }
 
   // ===== K: failed identity -- valid-looking but wrong candidate =====
@@ -155,6 +176,48 @@ async function main() {
     record('K. failed identity -- NOT_AVAILABLE, zero property rows created', ok ? 'PASS' : 'FAIL', JSON.stringify({ status: r.status, ok: r.json?.ok, error: r.json?.error, noPersistence }));
   }
 
+  // ===== L: multi-unit building -- direct Redfin URL match on the RIGHT street
+  // but an UNCONFIRMED specific unit -- refused, never persisted =====
+  // Regression test for the real, live incident this whole session's fix
+  // responds to: "41 Shepherds Knls, Pebble Beach" resolved via a DIRECT
+  // Redfin URL (found by findRedfinUrl()'s own targeted address search,
+  // confidence 0.90 -- the "trusted" branch) to Redfin's own "unit-41"
+  // listing, a different, unrelated unit than the one the caller actually
+  // meant. validatePropertyIdentity() passes (street/city/state/zip all
+  // genuinely agree -- it has no unit concept at all), so
+  // candidateIsUnconfirmedUnit() (lib/addressIdentity.ts) is the only thing
+  // that can catch this: the resolved URL's own "/unit-41/" path signals a
+  // specific sub-unit the caller's address string never mentioned.
+  // A synthetic, clearly-fake URL/home id (never a real listing) -- keeps
+  // this test deterministic and isolated from real network reachability,
+  // same as J/K's fixtures above, while preserving the one thing that
+  // matters: a "/unit-N/" path segment on the right street.
+  const unitAddr = `9100 Fictional Knls, Pebble Beach, CA 93953`;
+  {
+    tavilySearchHandler = (query: string) => {
+      if (query.includes('site:redfin.com')) {
+        return [{ url: 'https://www.redfin.com/CA/Pebble-Beach/9100-Fictional-Knls-93953/unit-41/home/9999999' }];
+      }
+      return noRedfinResults();
+    };
+    tavilyExtractHandler = () => ({
+      raw_content: padText('9100 Fictional Knls, Pebble Beach, CA 93953\n$1,150,000\n2 bed 2 bath 1528 sqft'),
+      images: [],
+    });
+
+    const before = await sb.from('properties').select('id').ilike('address_full', '%9100 Fictional Knls%');
+    const beforeCount = before.data?.length ?? 0;
+
+    const r = await callLookup(unitAddr);
+    await new Promise((res) => setTimeout(res, 800));
+
+    const after = await sb.from('properties').select('id').ilike('address_full', '%9100 Fictional Knls%');
+    const afterCount = after.data?.length ?? 0;
+
+    const ok = r.json?.ok === false && beforeCount === 0 && afterCount === 0;
+    record('L. multi-unit building, direct Redfin URL match but unconfirmed unit -- refused, never persisted', ok ? 'PASS' : 'FAIL', JSON.stringify({ status: r.status, ok: r.json?.ok, beforeCount, afterCount }));
+  }
+
   console.log('\n=== CLEANUP ===');
   const del1 = await sb.from('properties').select('id').ilike('address_full', '%4210 Test Harness Ln%');
   const ids1 = (del1.data ?? []).map((r: any) => r.id);
@@ -168,7 +231,13 @@ async function main() {
     await sb.from('property_snapshots').delete().in('property_id', ids2);
     await sb.from('properties').delete().in('id', ids2);
   }
-  console.log('deleted test property ids:', [...ids1, ...ids2]);
+  const del3 = await sb.from('properties').select('id').ilike('address_full', '%9100 Fictional Knls%');
+  const ids3 = (del3.data ?? []).map((r: any) => r.id);
+  if (ids3.length) {
+    await sb.from('property_snapshots').delete().in('property_id', ids3);
+    await sb.from('properties').delete().in('id', ids3);
+  }
+  console.log('deleted test property ids:', [...ids1, ...ids2, ...ids3]);
 
   console.log('\n=== FINAL RESULTS ===');
   console.table(results.map((r) => ({ name: r.name, status: r.status })));
