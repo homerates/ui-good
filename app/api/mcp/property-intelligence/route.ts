@@ -16,7 +16,29 @@
 // repo-wide zod major-version upgrade -- or run two incompatible zod majors
 // side by side -- purely to satisfy an OPTIONAL SDK convenience feature that
 // a single {address: string} input doesn't need, this route hand-implements
-// the MCP wire protocol directly. No new npm dependency was added.
+// the MCP wire protocol directly. The full protocol SDK is still not used.
+//
+// OUTPUT SCHEMA (2026-09-14) -- one new, narrowly-scoped dependency WAS
+// added: zod-to-json-schema, pinned to 3.23.5 (peer range ^3.23.3, verified
+// compatible with this repo's zod@3.23.8 -- does NOT force the zod-v4 bump
+// the full SDK would have required, so it doesn't reopen the concern above).
+// Added after ChatGPT's own connector settings UI was observed flagging
+// every one of these tools "OUTPUT SCHEMA RECOMMENDED," and a live 3-way
+// comparison (HomeRates' own report vs. the identical property rendered by
+// ChatGPT) showed ChatGPT's answer as flat, unstructured prose despite the
+// tool returning richly labeled, structured JSON -- consistent with a
+// client that has no declared schema to hold onto falling back to having
+// the model paraphrase an opaque text blob. This is a different, protocol-
+// level lever than the tool-description prose wording tried and dropped
+// earlier (see feedback_tool_description_formatting_ceiling.md) -- that
+// approach tried to influence ChatGPT's freeform synthesis via instructions
+// in prose; this declares each tool's REAL output shape per the MCP spec
+// (outputSchema in tools/list, structuredContent in tools/call), which is a
+// mechanism ChatGPT's own UI explicitly asked for. Each outputSchema below
+// is derived DIRECTLY from this repo's existing canonical Zod contract via
+// zodToJsonSchema() at the call site -- never hand-duplicated -- so it is
+// structurally impossible for the declared MCP outputSchema to drift from
+// the same Zod schema that already governs runtime validation.
 //
 // PROTOCOL REVISION -- 2026-07-28 was verified directly against the
 // authoritative spec (modelcontextprotocol.io/specification/2026-07-28) as
@@ -76,11 +98,36 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import { resolveExternalPropertyIntelligence } from '../../../../lib/externalPropertyResolution';
 import { getBenchmarkRatesGated } from '../../../../lib/gateway/benchmarkRatesGateway';
 import { getLoanLimitIntelligenceGated } from '../../../../lib/gateway/loanLimitGateway';
 import { getScenarioIntelligenceGated } from '../../../../lib/gateway/scenarioIntelligenceGateway';
 import { getBuyerCapacityIntelligenceGated } from '../../../../lib/gateway/buyerCapacityIntelligenceGateway';
+import { ExternalPropertyIntelligenceV1Schema } from '../../../../lib/gateway/outputSchema';
+import { BenchmarkRatesV1Schema } from '../../../../lib/gateway/benchmarkRatesSchema';
+import { LoanLimitIntelligenceV1Schema } from '../../../../lib/gateway/loanLimitSchema';
+import { ScenarioIntelligenceV1Schema } from '../../../../lib/gateway/scenarioIntelligenceSchema';
+import { BuyerCapacityIntelligenceV1Schema } from '../../../../lib/gateway/buyerCapacityIntelligenceSchema';
+
+// MCP `outputSchema` (tools/list) is JSON Schema, not Zod -- these convert
+// each tool's existing, already-canonical Zod contract once at module load,
+// so the declared shape can never drift from the schema that actually
+// validates responses (see this file's OUTPUT SCHEMA header note).
+// zod-to-json-schema maps a plain (non-`.passthrough()`) `z.object()` to
+// `additionalProperties: false` by default -- an accurate description here,
+// not an extra constraint being introduced: every one of these Zod schemas
+// already strips/rejects unlisted keys at `.parse()` time upstream (see
+// outputShaping.ts's file header), so the response genuinely never contains
+// a key outside this list.
+// No `name` argument -- that would wrap the result in a $ref/definitions
+// envelope instead of the plain `{type: 'object', properties: {...}}` shape
+// MCP's outputSchema expects at the top level.
+const PROPERTY_INTELLIGENCE_OUTPUT_SCHEMA = zodToJsonSchema(ExternalPropertyIntelligenceV1Schema);
+const BENCHMARK_RATES_OUTPUT_SCHEMA = zodToJsonSchema(BenchmarkRatesV1Schema);
+const LOAN_LIMIT_OUTPUT_SCHEMA = zodToJsonSchema(LoanLimitIntelligenceV1Schema);
+const SCENARIO_OUTPUT_SCHEMA = zodToJsonSchema(ScenarioIntelligenceV1Schema);
+const BUYER_CAPACITY_OUTPUT_SCHEMA = zodToJsonSchema(BuyerCapacityIntelligenceV1Schema);
 
 // "Invocable-by-Design Contract Foundation" (2026-09-10): canonical external
 // tool name, per the locked 5-intent naming architecture
@@ -784,11 +831,11 @@ export async function POST(req: NextRequest) {
         // both -- each resolves a specific, bounded, well-defined entity
         // (one named property; a fixed set of 3 national reference series),
         // never an open-ended web/document search.
-        { name: TOOL_NAME, description: TOOL_DESCRIPTION, inputSchema: INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
-        { name: BENCHMARK_RATES_TOOL_NAME, description: BENCHMARK_RATES_TOOL_DESCRIPTION, inputSchema: BENCHMARK_RATES_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
-        { name: LOAN_LIMIT_TOOL_NAME, description: LOAN_LIMIT_TOOL_DESCRIPTION, inputSchema: LOAN_LIMIT_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
-        { name: SCENARIO_TOOL_NAME, description: SCENARIO_TOOL_DESCRIPTION, inputSchema: SCENARIO_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
-        { name: BUYER_CAPACITY_TOOL_NAME, description: BUYER_CAPACITY_TOOL_DESCRIPTION, inputSchema: BUYER_CAPACITY_INPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
+        { name: TOOL_NAME, description: TOOL_DESCRIPTION, inputSchema: INPUT_SCHEMA, outputSchema: PROPERTY_INTELLIGENCE_OUTPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
+        { name: BENCHMARK_RATES_TOOL_NAME, description: BENCHMARK_RATES_TOOL_DESCRIPTION, inputSchema: BENCHMARK_RATES_INPUT_SCHEMA, outputSchema: BENCHMARK_RATES_OUTPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
+        { name: LOAN_LIMIT_TOOL_NAME, description: LOAN_LIMIT_TOOL_DESCRIPTION, inputSchema: LOAN_LIMIT_INPUT_SCHEMA, outputSchema: LOAN_LIMIT_OUTPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
+        { name: SCENARIO_TOOL_NAME, description: SCENARIO_TOOL_DESCRIPTION, inputSchema: SCENARIO_INPUT_SCHEMA, outputSchema: SCENARIO_OUTPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
+        { name: BUYER_CAPACITY_TOOL_NAME, description: BUYER_CAPACITY_TOOL_DESCRIPTION, inputSchema: BUYER_CAPACITY_INPUT_SCHEMA, outputSchema: BUYER_CAPACITY_OUTPUT_SCHEMA, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } },
       ],
     }));
   }
@@ -825,6 +872,7 @@ export async function POST(req: NextRequest) {
         return jsonRpcResult(id, withServerMeta({
           resultType: 'complete',
           content: [{ type: 'text', text: JSON.stringify(result.data) }],
+          structuredContent: result.data,
           isError: false,
         }));
       }
@@ -838,6 +886,7 @@ export async function POST(req: NextRequest) {
         return jsonRpcResult(id, withServerMeta({
           resultType: 'complete',
           content: [{ type: 'text', text: JSON.stringify(result.data) }],
+          structuredContent: result.data,
           isError: false,
         }));
       }
@@ -851,6 +900,7 @@ export async function POST(req: NextRequest) {
         return jsonRpcResult(id, withServerMeta({
           resultType: 'complete',
           content: [{ type: 'text', text: JSON.stringify(result.data) }],
+          structuredContent: result.data,
           isError: false,
         }));
       }
@@ -864,6 +914,7 @@ export async function POST(req: NextRequest) {
         return jsonRpcResult(id, withServerMeta({
           resultType: 'complete',
           content: [{ type: 'text', text: JSON.stringify(result.data) }],
+          structuredContent: result.data,
           isError: false,
         }));
       }
@@ -889,6 +940,7 @@ export async function POST(req: NextRequest) {
       return jsonRpcResult(id, withServerMeta({
         resultType: 'complete',
         content: [{ type: 'text', text: JSON.stringify(result.data) }],
+        structuredContent: result.data,
         isError: false,
       }));
     }
