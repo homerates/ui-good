@@ -205,6 +205,14 @@ const TOOL_DESCRIPTION =
   'enrichment timing as property_analysis above) -- do not assume a standard sale in that ' +
   'case; note that sale terms are not yet confirmed.' +
   '\n\n' +
+  'original_list_price.value discloses the property\'s original asking price ONLY when ' +
+  'HomeRates actually found one that differs from value_intelligence.list_price -- treat ' +
+  'this as the sole basis for ever describing a "price reduction," "price cut," or similar ' +
+  'change from asking price. If original_list_price.value is null, do not state or imply a ' +
+  'price change occurred, even if property_analysis or the summary text seems to suggest ' +
+  'one -- a claim about a price change with no number behind it is unverified and must not ' +
+  'be repeated as fact.' +
+  '\n\n' +
   'intelligence_progress.status is "enriching" while comparable sales and location ' +
   'context are still being gathered, or "enriched" once they are present (if available ' +
   'at all). When "enriching": share the useful intelligence already available now, note ' +

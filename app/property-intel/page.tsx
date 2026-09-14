@@ -53,6 +53,7 @@ interface PropResult {
   last_sold_price:           number | null;
   last_sold_date:            string | null;
   original_list_date:        string | null;
+  original_list_price:       number | null;
   estimated_piti:            number | null;
   rate_used:                 number | null;
   life_fit_score:            number | null;
@@ -976,7 +977,7 @@ function PropertyIntelInner() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {[
                       { val: d.life_fit_score,  fmt: (v: number) => String(v),  color: '#4ade80', label: 'Life-Fit Score', sub: null },
-                      { val: d.days_on_market,  fmt: (v: number) => v === 0 ? 'New' : `${v}d`, color: '#f1f5f9', label: 'Days on Market', sub: d.original_list_date ?? null },
+                      { val: d.days_on_market,  fmt: (v: number) => v === 0 ? 'New' : `${v}d`, color: '#f1f5f9', label: 'Days on Market', sub: [d.original_list_date, d.original_list_price != null ? `orig. ${fmt$(d.original_list_price)}` : null].filter(Boolean).join(' · ') || null },
                       { val: d.price_per_sqft,  fmt: (v: number) => `$${v}`,    color: '#f1f5f9', label: 'Price / SqFt',  sub: null },
                       { val: d.last_sold_price, fmt: (v: number) => fmt$(v),    color: '#fbbf24', label: 'Last Sold',      sub: d.last_sold_date },
                     ].map(({ val, fmt: fmtFn, color, label, sub }, i) => (

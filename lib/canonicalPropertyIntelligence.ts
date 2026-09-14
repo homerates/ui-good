@@ -196,6 +196,12 @@ export interface CanonicalPropertyIntelligence {
   // this (not yet enriched); [] means it searched and found no unusual
   // terms. Never conflate the two.
   saleTerms: string[] | null;
+  // Original list price (2026-09-14) -- see
+  // PropertyIntelligenceData.originalListPrice's dated comment for the
+  // real, live incident this closes (an unverifiable "significant price
+  // reduction" claim with no structured price behind it). null means Grok
+  // found no distinct original asking price for this property.
+  originalListPrice: number | null;
   // Kept in the SAME shape as PropertyIntelligenceData.decisionIntelligence
   // deliberately -- this canonical object is internal, so it may hold
   // internal-only fields (raw l2/l3/l4 scores, methodologyVersion, source)
@@ -350,6 +356,7 @@ export async function buildCanonicalPropertyIntelligence(propertyId: string): Pr
         }
       : null,
     saleTerms: raw.saleTerms?.value ?? null,
+    originalListPrice: raw.originalListPrice?.value ?? null,
     decisionIntelligence: raw.decisionIntelligence,
     provenance: {
       propertyEnrichedAt: raw.provenance.propertyEnrichedAt,

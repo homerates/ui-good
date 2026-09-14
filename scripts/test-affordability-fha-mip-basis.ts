@@ -165,13 +165,13 @@ async function checkExternalContractsUnchanged() {
       const canonical = await buildCanonicalPropertyIntelligence(id);
       const shapedProp = shapeForExternalContract(address, canonical);
       const parsedProp = ExternalPropertyIntelligenceV1Schema.safeParse(shapedProp);
-      record('10. property-intelligence-v1.6 contract still validates, unaffected by this fix',
-        parsedProp.success && shapedProp.contract_version === 'property-intelligence-v1.6' ? 'PASS' : 'FAIL', parsedProp.success ? 'valid' : JSON.stringify((parsedProp as any).error?.issues?.slice(0, 2)));
+      record('10. property-intelligence-v1.7 contract still validates, unaffected by this fix',
+        parsedProp.success && shapedProp.contract_version === 'property-intelligence-v1.7' ? 'PASS' : 'FAIL', parsedProp.success ? 'valid' : JSON.stringify((parsedProp as any).error?.issues?.slice(0, 2)));
     } else {
-      record('10. property-intelligence-v1.6 contract still validates', 'FAIL', 'Seaview property not found');
+      record('10. property-intelligence-v1.7 contract still validates', 'FAIL', 'Seaview property not found');
     }
   } else {
-    record('10. property-intelligence-v1.6 contract still validates', 'FAIL', 'Supabase not configured');
+    record('10. property-intelligence-v1.7 contract still validates', 'FAIL', 'Supabase not configured');
   }
 }
 

@@ -107,7 +107,7 @@ async function main() {
         const canonical = await buildCanonicalPropertyIntelligence(id);
         const shaped = shapeForExternalContract(address, canonical);
         const parsed = ExternalPropertyIntelligenceV1Schema.safeParse(shaped);
-        record('A1. Seaview: schema valid, contract_version v1.6', parsed.success && shaped.contract_version === 'property-intelligence-v1.6' ? 'PASS' : 'FAIL', JSON.stringify(parsed.success ? 'valid' : (parsed as any).error?.issues?.slice(0, 3)));
+        record('A1. Seaview: schema valid, contract_version v1.7', parsed.success && shaped.contract_version === 'property-intelligence-v1.7' ? 'PASS' : 'FAIL', JSON.stringify(parsed.success ? 'valid' : (parsed as any).error?.issues?.slice(0, 3)));
 
         // Mandatory case: AVM unavailable, but valuation context (property_analysis) exists.
         const avmNull = shaped.value_intelligence?.avm.value === null;

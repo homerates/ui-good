@@ -2403,3 +2403,76 @@ Full regression: `test-deep-intelligence-parity.ts` (12/12),
 `property-intelligence-v1.5` assertion across the test suite updated to
 v1.6. The Grok search-thoroughness gap is a real, open, honestly-flagged
 limitation -- not something this decision claims to have solved.
+
+## AD-39 — `original_list_price`: price-history claim grounding (v1.7)
+
+**Decision:** New field `original_list_price: number | null` added across
+the same full pipeline AD-38's `sale_terms` uses (Grok deep-search prompt
+→ `grok_property_cache` → `PropertyIntelligenceData` →
+`CanonicalPropertyIntelligence` → external MCP contract v1.7 →
+`TOOL_DESCRIPTION` → `/property-intel`'s first-party UI, appended to the
+existing Days-on-Market stat's sub-label). `null` means Grok found no
+distinct original asking price for this property; a populated value that
+differs from `current_list_price`/`value_intelligence.list_price` is the
+ONLY basis on which any text field may describe a price reduction,
+price cut, or price increase. `claim_type` is `AI INTERPRETATION`
+throughout -- this is Grok's own search result, not a structurally-
+scraped Redfin fact like `list_price`.
+
+**Real, live incident, found while comparing HomeRates against an
+independent AI's own research on the same property (21431 Stans Ln,
+Laguna Beach, CA, 2026-09-14):** `key_highlights` asserted "Significant
+price reduction from original asking price" while `original_list_date`,
+`last_sold_date`, and `last_sold_price` were ALL `null` in the very same
+`grok_property_cache` row, and `days_on_market` was only 5 -- a specific,
+falsifiable claim with zero supporting data anywhere in the record, and
+internally self-contradicting (a 5-day-old listing cannot have had a
+"significant" price cut).
+
+**Root cause:** the JSON schema had no `original_list_price` field at
+all -- only `original_list_date`. Even when Grok's own search genuinely
+turned up a price-history fact, it had nowhere authoritative to commit
+that number, so it could only ever land in free text, where it can
+never be checked against anything.
+
+**First fix attempt was insufficient, caught by live re-verification
+before shipping:** a prompt-only "PRICE HISTORY RULE" (forbidding
+reduction/increase language without evidence) was added first and
+tested live against this exact address (forced-fresh POST, the
+established deliberate exception to the fresh-address testing rule).
+Grok did not stop -- it upgraded the same unverifiable claim to a more
+convincing, specific-sounding one: "$2.9M after multiple price
+reductions from an original $3.89M ask," with `original_list_date` still
+`null` in the structured output. A prompt instruction alone cannot fix a
+claim-grounding problem when there is no structured field forcing the
+model to commit to, and be checked against, a real data point -- same
+lesson AD-38 already drew for `sale_terms`.
+
+**Full fix:** added the missing `original_list_price` structured field
+(mirroring how `current_list_price` already works) and strengthened the
+rule so text-field price-change language is permitted ONLY when this
+field is populated and differs from the current price -- otherwise
+every text field must omit price history entirely.
+
+**Verified live, and this time it held:** re-tested against the same
+exact address after the full fix. Grok now returns
+`original_list_price: 3890000` and `original_list_date: "2025-12-20"` --
+a real, structured, checkable number and date, internally consistent
+with `days_on_market: 6` (a recent re-list following an original listing
+roughly 9 months prior). `key_highlights` and
+`grok_intelligence_summary` still describe the reduction, but the claim
+is now backed by an actual structured data point instead of floating
+free text with nothing behind it.
+
+**Status:** Built. `tsc --noEmit` clean, full `next build` clean.
+Full regression: `test-intelligence-gateway.ts` (58/60, 2
+environment-LIMITED as already established),
+`test-deep-intelligence-parity.ts` (12/12),
+`test-affordability-fha-mip-basis.ts` (11/11),
+`test-response-semantics-cleanup.ts` (9/9),
+`test-seeded-scenario-canonicalization.ts` (31/31),
+`test-external-adapter.ts` (58/58), `test-golden-prompts.ts` (10/10),
+`test-chatgpt-invocation-contract.ts` (7/7),
+`test-mortgage-math-integrity.ts` (42/42) -- all green, every stale
+`property-intelligence-v1.6` assertion across the test suite updated to
+v1.7.
