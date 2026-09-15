@@ -31,6 +31,13 @@ interface PropData {
   life_fit_score: number | null; school_score: number | null; walk_score: number | null;
   neighborhood_appreciation_3yr_pct: number | null; location_intelligence: LocIntel | null;
   photoUrl?: string | null;
+  // Ported 2026-09-14 from app/property-intel/page.tsx (AD-38/AD-39) and
+  // app/api/beta/grok-property/route.ts's own tax-rate exposure -- see
+  // property-report/page.tsx's matching, fuller comment for the real,
+  // live incidents each of these three fields closes.
+  sale_terms: string[] | null;
+  original_list_price: number | null;
+  tax_rate_effective: number | null;
 }
 interface WLPartner { slug: string; name: string; logo_url: string | null; tagline: string | null; accent_color: string; contact_email: string | null; }
 
@@ -150,7 +157,7 @@ function WLReportInner() {
           .then(r=>r.ok?r.json():Promise.reject())
           .then(lj=>{
             const d=lj?.data??{};
-            setData({ current_status:(d.listingStatus as string)??null, current_list_price:(d.price as number)??null, bedrooms:(d.beds as number)??null, bathrooms:(d.baths as number)??null, sqft:(d.sqft as number)??null, year_built:(d.yearBuilt as number)??null, lot_size_sqft:(d.lotSqft as number)??null, days_on_market:(d.daysOnMarket as number)??null, price_per_sqft:(d.price&&d.sqft)?Math.round((d.price as number)/(d.sqft as number)):null, last_sold_price:(d.lastSalePrice as number)??null, last_sold_date:(d.lastSaleDate as string)??null, estimated_piti:null, rate_used:rateOver>0?rateOver:null, key_highlights:null, comparable_sales:null, grok_intelligence_summary:null, buyer_strategy:null, zillow_estimate:(d.estimatedValue as number)??null, redfin_estimate:null, zillow_saves:(d.zillowSaves as number)??null, zillow_views:(d.zillowViews as number)??null, redfin_views:(d.redfinViews as string)??null, social_proof_score:(d.socialProofScore as number)??null, interest_level:(d.interestLevel as string)??null, market_median_dom:null, market_sale_to_list:null, market_median_price:null, life_fit_score:null, school_score:null, walk_score:null, neighborhood_appreciation_3yr_pct:null, location_intelligence:null, photoUrl:photoParam??(d.photoUrl as string)??null });
+            setData({ current_status:(d.listingStatus as string)??null, current_list_price:(d.price as number)??null, bedrooms:(d.beds as number)??null, bathrooms:(d.baths as number)??null, sqft:(d.sqft as number)??null, year_built:(d.yearBuilt as number)??null, lot_size_sqft:(d.lotSqft as number)??null, days_on_market:(d.daysOnMarket as number)??null, price_per_sqft:(d.price&&d.sqft)?Math.round((d.price as number)/(d.sqft as number)):null, last_sold_price:(d.lastSalePrice as number)??null, last_sold_date:(d.lastSaleDate as string)??null, estimated_piti:null, rate_used:rateOver>0?rateOver:null, key_highlights:null, comparable_sales:null, grok_intelligence_summary:null, buyer_strategy:null, zillow_estimate:(d.estimatedValue as number)??null, redfin_estimate:null, zillow_saves:(d.zillowSaves as number)??null, zillow_views:(d.zillowViews as number)??null, redfin_views:(d.redfinViews as string)??null, social_proof_score:(d.socialProofScore as number)??null, interest_level:(d.interestLevel as string)??null, market_median_dom:null, market_sale_to_list:null, market_median_price:null, life_fit_score:null, school_score:null, walk_score:null, neighborhood_appreciation_3yr_pct:null, location_intelligence:null, photoUrl:photoParam??(d.photoUrl as string)??null, sale_terms:null, original_list_price:null, tax_rate_effective:null });
             if(!photoParam&&d.photoUrl)setHeroPhoto(d.photoUrl as string);
             setLoading(false);
           });
@@ -177,10 +184,13 @@ function WLReportInner() {
   const loanAmt  = price-downAmt;
   const ltv      = downPct<80 ? (100-downPct) : 80;
   const pi       = calcPI(loanAmt, rate);
-  // Canonical assumption rates (lib/constants.ts) -- see property-report's
-  // identical fix, Priority Corrective Workstream "Canonical Deterministic
-  // Mortgage Math Integrity" (2026-09-10) / DEBT-06.
-  const taxMo    = Math.round((price*TAX_RATE_DEFAULT)/12);
+  // Real per-property tax rate when known, falling back to the canonical
+  // national default otherwise -- see property-report's identical,
+  // more fully-commented fix (same real, live 870 Doud St discrepancy).
+  // Priority Corrective Workstream "Canonical Deterministic Mortgage Math
+  // Integrity" (2026-09-10) / DEBT-06.
+  const effectiveTaxRate = data.tax_rate_effective ?? TAX_RATE_DEFAULT;
+  const taxMo    = Math.round((price*effectiveTaxRate)/12);
   const insMo    = Math.round((price*INS_RATE_DEFAULT)/12);
   const totalPITI = pi+taxMo+insMo;
   const loanType = loanAmt>1_089_300 ? '30-Yr Jumbo Fixed' : '30-Yr Conventional Fixed';
@@ -300,6 +310,25 @@ function WLReportInner() {
 
         <div className="rp-grid-2col" style={{padding:'14px 36px 0'}}>
           <div className="rp-col">
+            {data.sale_terms!=null&&data.sale_terms.length>0&&(
+              <div className="rp-card" style={{background:'rgba(245,158,11,0.08)',border:'1px solid rgba(245,158,11,0.3)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+                  <i className="fa-solid fa-triangle-exclamation" style={{color:'#f59e0b',fontSize:'1.05rem'}} />
+                  <span style={{fontWeight:700,fontSize:'0.93rem',color:'#f59e0b'}}>Sale Terms &amp; Condition Disclosures</span>
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                  {data.sale_terms.map((t,i)=>(
+                    <div key={i} style={{display:'flex',gap:9,alignItems:'flex-start'}}>
+                      <span style={{color:'#f59e0b',marginTop:3,fontSize:'0.55rem',flexShrink:0}}>●</span>
+                      <span style={{fontSize:'0.81rem',color:'#fde68a',lineHeight:1.55,fontWeight:600}}>{t}</span>
+                    </div>
+                  ))}
+                </div>
+                <p style={{fontSize:'0.72rem',color:'#cbd5e1',marginTop:12,marginBottom:0,lineHeight:1.5}}>
+                  Found in the listing -- verify directly with the listing agent before relying on any financing scenario or condition assumption elsewhere in this report.
+                </p>
+              </div>
+            )}
             <div className="rp-card">
               <div className="rp-card-title">Intelligence Summary</div>
               <div className="rp-body-text">{data.grok_intelligence_summary??'Analysis not available.'}</div>
@@ -324,7 +353,7 @@ function WLReportInner() {
           <div className="rp-col">
             <div className="rp-grid-2col" style={{gap:8}}>
               {data.life_fit_score!=null&&<div className="rp-stat-card"><span className="rp-mono-label">Life-Fit Score</span><span className="rp-stat-val" style={{color:scoreColor(data.life_fit_score)}}>{data.life_fit_score}</span></div>}
-              <div className="rp-stat-card"><span className="rp-mono-label">Days on Market</span><span className="rp-stat-val">{data.days_on_market??'—'}<span style={{fontSize:13,color:'#4b5c70',fontWeight:400}}>d</span></span><span className="rp-stat-sub">Median: {data.market_median_dom??'—'}d area avg</span></div>
+              <div className="rp-stat-card"><span className="rp-mono-label">Days on Market</span><span className="rp-stat-val">{data.days_on_market??'—'}<span style={{fontSize:13,color:'#4b5c70',fontWeight:400}}>d</span></span><span className="rp-stat-sub">Median: {data.market_median_dom??'—'}d area avg{data.original_list_price!=null&&` · orig. ${fmtK(data.original_list_price)}`}</span></div>
               <div className="rp-stat-card"><span className="rp-mono-label">Price / Sqft</span><span className="rp-stat-val">${fmt(data.price_per_sqft)}</span></div>
               <div className="rp-stat-card"><span className="rp-mono-label">Last Sold</span><span className="rp-stat-val" style={{fontSize:18,color:'#fbbf24'}}>{fmtK(data.last_sold_price)}</span><span className="rp-stat-sub" style={{fontFamily:'DM Mono,monospace',fontSize:9}}>{data.last_sold_date??''}</span></div>
             </div>
@@ -375,7 +404,7 @@ function WLReportInner() {
                 <div><div className="rp-mono-label">Total Monthly PITI</div><div style={{fontSize:11,color:'#4b5c70'}}>P · I · Tax · Insurance</div></div>
                 <div style={{textAlign:'right'}}><div style={{fontSize:26,fontWeight:800,color:ac,letterSpacing:'-0.02em'}}>${fmt(totalPITI)}</div><div style={{fontSize:11,color:'#4b5c70'}}>/month</div></div>
               </div>
-              {[['Principal & Interest',`$${fmt(pi)}`],[`Property Tax (${(TAX_RATE_DEFAULT*100).toFixed(2)}%)`,`$${fmt(taxMo)}`],['Homeowners Insurance',`$${fmt(insMo)}`],['HOA Dues','Unknown'],['PMI',hasPMI?`$${fmt(Math.round(monthlyPMI(loanAmt, ltv/100)))}`:'$0 · NONE']].map(([label,val])=>(
+              {[['Principal & Interest',`$${fmt(pi)}`],[`Property Tax (${(effectiveTaxRate*100).toFixed(2)}%)`,`$${fmt(taxMo)}`],['Homeowners Insurance',`$${fmt(insMo)}`],['HOA Dues','Unknown'],['PMI',hasPMI?`$${fmt(Math.round(monthlyPMI(loanAmt, ltv/100)))}`:'$0 · NONE']].map(([label,val])=>(
                 <div key={label} className="rp-piti-line"><span style={{fontSize:12,color:'#8fa3b8'}}>{label}</span><span style={{fontFamily:'DM Mono,monospace',fontSize:13,color:label==='PMI'&&!hasPMI?ac:'#f0f4ff'}}>{val}</span></div>
               ))}
             </div>

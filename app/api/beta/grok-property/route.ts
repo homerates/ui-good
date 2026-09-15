@@ -306,12 +306,26 @@ function mergeResult(
   redfin: RedfinFacts | null,
   pitiCalc: number,
   liveRate: number,
+  effectiveTaxRate: number,
 ): Record<string, unknown> {
   const base: Record<string, unknown> = { ...grok };
 
   // Always use our deterministic PITI + live rate
   base.estimated_piti = pitiCalc;
   base.rate_used      = liveRate;
+  // Real per-property tax rate actually used for estimated_piti above --
+  // added 2026-09-14 after a real, live discrepancy: this route's own PITI
+  // calc already prefers a real, county-resolved rate (redfin.tax_rate_effective,
+  // or lookupTaxRate() when only state/zip is known) over the flat national
+  // TAX_RATE_DEFAULT, but that rate was never exposed in the response --
+  // every downstream page (app/property-report/page.tsx,
+  // app/wl-report/page.tsx) had no way to know it and displayed a hardcoded
+  // TAX_RATE_DEFAULT-based "Property Tax (1.10%)" line instead, even when
+  // this route's own estimated_piti had already used a different, more
+  // accurate rate (confirmed live: 870 Doud St, Monterey -- estimated_piti
+  // correctly used 0.76%, the displayed report showed 1.10%, a ~$400/mo
+  // discrepancy on the exact same property in the exact same report).
+  base.tax_rate_effective = effectiveTaxRate;
 
   // Redfin facts override Grok on every factual field where we have data
   if (redfin) {
@@ -591,12 +605,16 @@ export async function POST(req: NextRequest) {
       const finalizeResult = (raw: string): Record<string, unknown> | null => {
         try {
           const grok   = JSON.parse(raw);
-          const merged = mergeResult(grok, redfin, pitiCalc, liveRate);
+          const merged = mergeResult(grok, redfin, pitiCalc, liveRate, effectiveTaxRate);
           if (deep) merged.deep_analysis = true;
           // If pitiCalc was 0 (redfin context missing) but we have the price, recalculate
           if ((merged.estimated_piti as number) === 0 && merged.current_list_price) {
             merged.estimated_piti = calcPITI(merged.current_list_price as number, liveRate, TAX_RATE_DEFAULT, INS_RATE_DEFAULT, 0);
             merged.rate_used      = liveRate;
+            // Recalculated using TAX_RATE_DEFAULT above (no redfin context to
+            // do better) -- keep the exposed rate consistent with what was
+            // actually used, not the earlier (possibly different) value.
+            merged.tax_rate_effective = TAX_RATE_DEFAULT;
           }
           return merged;
         } catch { return null; }

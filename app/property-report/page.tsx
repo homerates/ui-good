@@ -70,6 +70,23 @@ interface PropData {
   neighborhood_appreciation_3yr_pct: number | null;
   location_intelligence: LocIntel | null;
   photoUrl?: string | null;
+  // Sale terms / condition disclosures + original list price -- ported
+  // 2026-09-14 from app/property-intel/page.tsx (AD-38/AD-39). This report
+  // page and app/property-intel/page.tsx both render the SAME underlying
+  // grok_result/PropResult data (see the localStorage-cache and grok-property
+  // GET branches below, both of which already carry these two fields
+  // untouched) -- they had simply never been added to this page's own type
+  // or JSX, so a real cash-only/as-is property, or an unsupported price-
+  // reduction claim, could reach this exact PDF-exportable report with
+  // neither warning visible, even though /property-intel already had both.
+  sale_terms: string[] | null;
+  original_list_price: number | null;
+  // Real, per-property effective tax rate actually used for estimated_piti
+  // upstream (app/api/beta/grok-property/route.ts's mergeResult(), added
+  // 2026-09-14) -- null when genuinely unknown (e.g. the bare
+  // /api/property/lookup fallback branch below, or an older cached
+  // grok_result from before this field existed).
+  tax_rate_effective: number | null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -259,6 +276,14 @@ function ReportInner() {
               comparable_sales:   null,
               grok_intelligence_summary: null,
               buyer_strategy:     null,
+              // No Grok deep-analysis data in this bare-lookup fallback branch
+              // (same reason key_highlights/grok_intelligence_summary are
+              // null above) -- null, not [], matching the same "not yet
+              // checked" vs "checked, found none" discipline as everywhere
+              // else these fields appear.
+              sale_terms:         null,
+              original_list_price: null,
+              tax_rate_effective: null,
               zillow_estimate:    (d.estimatedValue as number) ?? null,
               redfin_estimate:    null,
               zillow_saves:       (d.zillowSaves as number) ?? null,
@@ -319,14 +344,20 @@ function ReportInner() {
   const loanAmt   = price - downAmt;
   const ltv       = downPct < 80 ? (100 - downPct) : 80;
   const pi        = calcPI(loanAmt, rate);
-  // Canonical assumption rates (lib/constants.ts) -- this page has no real
-  // per-property tax/insurance fact available to it (no city/state/annual-tax
-  // field in its data contract), so it uses the same illustrative national
-  // default as lib/propertyIntelligence.ts, instead of its own invented
-  // 1.25%/0.5% figures that matched no other engine in the codebase. See
-  // Priority Corrective Workstream "Canonical Deterministic Mortgage Math
-  // Integrity" (2026-09-10) / DEBT-06.
-  const taxMo     = Math.round((price * TAX_RATE_DEFAULT) / 12);
+  // Real per-property tax rate when known (data.tax_rate_effective, sourced
+  // from app/api/beta/grok-property/route.ts's own PITI calc -- the same
+  // county-resolved rate that already, correctly, drives estimated_piti
+  // upstream), falling back to the canonical national default only when
+  // genuinely unknown. Real, live discrepancy this replaces (2026-09-14):
+  // 870 Doud St, Monterey -- estimated_piti upstream correctly used 0.76%,
+  // this page's hardcoded TAX_RATE_DEFAULT showed "Property Tax (1.10%)" =
+  // ~$400/mo more, on the SAME property in the SAME report. Insurance still
+  // has no real per-property fact available anywhere in this pipeline, so
+  // it keeps the illustrative national default -- see Priority Corrective
+  // Workstream "Canonical Deterministic Mortgage Math Integrity"
+  // (2026-09-10) / DEBT-06.
+  const effectiveTaxRate = data.tax_rate_effective ?? TAX_RATE_DEFAULT;
+  const taxMo     = Math.round((price * effectiveTaxRate) / 12);
   const insMo     = Math.round((price * INS_RATE_DEFAULT) / 12);
   const totalPITI = pi + taxMo + insMo;
   const loanType  = loanAmt > 1_089_300 ? '30-Yr Jumbo Fixed' : '30-Yr Conventional Fixed';
@@ -532,6 +563,32 @@ function ReportInner() {
 
           {/* LEFT */}
           <div className="rp-col">
+            {/* Sale Terms / condition disclosures -- ported 2026-09-14 from
+                app/property-intel/page.tsx (AD-38). Rendered ONLY when
+                sale_terms is a non-empty array (Grok found real disclosed
+                terms) -- an empty array or null renders nothing, matching
+                the MCP contract's own null-vs-[] discipline; absence of
+                this banner is never itself a "clean" signal. */}
+            {data.sale_terms != null && data.sale_terms.length > 0 && (
+              <div className="rp-card" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <i className="fa-solid fa-triangle-exclamation" style={{ color: '#f59e0b', fontSize: '1.05rem' }} />
+                  <span style={{ fontWeight: 700, fontSize: '0.93rem', color: '#f59e0b' }}>Sale Terms &amp; Condition Disclosures</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {data.sale_terms.map((t, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                      <span style={{ color: '#f59e0b', marginTop: 3, fontSize: '0.55rem', flexShrink: 0 }}>●</span>
+                      <span style={{ fontSize: '0.81rem', color: '#fde68a', lineHeight: 1.55, fontWeight: 600 }}>{t}</span>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: '0.72rem', color: '#cbd5e1', marginTop: 12, marginBottom: 0, lineHeight: 1.5 }}>
+                  Found in the listing -- verify directly with the listing agent before relying on any financing scenario or condition assumption elsewhere in this report.
+                </p>
+              </div>
+            )}
+
             {/* Grok intel */}
             <div className="rp-card">
               <div className="rp-card-title">Grok Intelligence</div>
@@ -627,7 +684,10 @@ function ReportInner() {
               <div className="rp-stat-card">
                 <span className="rp-mono-label">Days on Market</span>
                 <span className="rp-stat-val">{data.days_on_market ?? '—'}<span style={{ fontSize: 13, color: '#4b5c70', fontWeight: 400 }}>d</span></span>
-                <span className="rp-stat-sub">Median: {data.market_median_dom ?? '—'}d area avg</span>
+                <span className="rp-stat-sub">
+                  Median: {data.market_median_dom ?? '—'}d area avg
+                  {data.original_list_price != null && ` · orig. ${fmtK(data.original_list_price)}`}
+                </span>
               </div>
               <div className="rp-stat-card">
                 <span className="rp-mono-label">Price / Sqft</span>
@@ -768,7 +828,7 @@ function ReportInner() {
               </div>
               {[
                 ['Principal & Interest', `$${fmt(pi)}`],
-                [`Property Tax (${(TAX_RATE_DEFAULT * 100).toFixed(2)}%)`, `$${fmt(taxMo)}`],
+                [`Property Tax (${(effectiveTaxRate * 100).toFixed(2)}%)`, `$${fmt(taxMo)}`],
                 ['Homeowners Insurance', `$${fmt(insMo)}`],
                 // HOA is never a known fact on this page (no hoaMonthly field
                 // in its data contract) -- "Unknown", not a confirmed "$0",
