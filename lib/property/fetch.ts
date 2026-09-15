@@ -221,6 +221,34 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
     if (source === 'zillow')  siteData = parseZillow(html);
     if (source === 'redfin')  siteData = parseRedfin(html, cleanUrl);
 
+    // 4b. One retry when the page loaded fine (we have a real price) but the
+    // Redfin Estimate section specifically came back empty -- added
+    // 2026-09-15 after a real, live incident (870 Doud St, Monterey):
+    // confirmed live on Redfin's own page that a real estimate ($1,492,578)
+    // existed, confirmed extractRedfinEstimate()'s own regex correctly
+    // extracts it when given the full page, yet fetchPropertyData() still
+    // returned no estimate for this exact listing -- Redfin's bot-mitigation
+    // appears to intermittently serve a page with basic JSON-LD/price data
+    // intact but the heavier, more dynamic estimate widget omitted, distinct
+    // from a full block (which fails the price/address check below entirely
+    // and is not retried here). A single retry after a short delay costs one
+    // extra fetch only in this specific, otherwise-silent failure case --
+    // never on a full block, never when an estimate genuinely doesn't exist
+    // and the first attempt already returned null cleanly on a retry too.
+    if (source === 'redfin' && siteData?.price != null && siteData?.estimatedValue == null) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        try {
+            const retryFetched = await fetchHtml(cleanUrl);
+            const retryData = parseRedfin(retryFetched.html, cleanUrl);
+            if (retryData?.estimatedValue != null) {
+                siteData = { ...siteData, estimatedValue: retryData.estimatedValue };
+            }
+        } catch {
+            // Retry failed outright -- keep the original (no-estimate) siteData;
+            // never let a retry error turn an otherwise-successful fetch into a failure.
+        }
+    }
+
     // 5. Merge — og:image always overwrites photo
     const m = merge(siteData, ogPartial);
     m.url    = cleanUrl;
@@ -254,6 +282,22 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
         parsedBy:         m.parsedBy     ?? 'partial',
         parseWarnings:    m.parseWarnings ?? [],
         price:            m.price        ?? null,
+        // Real, live incident (2026-09-15): 870 Doud St, Monterey -- Redfin's
+        // own live page has a real Redfin Estimate ($1,492,578), and
+        // parseRedfin()/merge() upstream both correctly compute it into `m`,
+        // but this final object construction never included these three
+        // fields at all (a manually-enumerated field list, not a spread of
+        // `m` -- they were added to PropertyData/parseRedfin later and never
+        // added here), so EVERY caller of fetchPropertyData() -- not just
+        // this property -- silently lost the current-value AVM and
+        // historical sale data on every direct-Redfin-scrape, regardless of
+        // whether Redfin's page actually had it. Confirmed by direct testing:
+        // parseRedfin() alone correctly returns estimatedValue given the
+        // exact same HTML that fetchPropertyData() as a whole was dropping it
+        // from.
+        estimatedValue:   m.estimatedValue  ?? null,
+        lastSaleDate:     m.lastSaleDate    ?? null,
+        lastSalePrice:    m.lastSalePrice   ?? null,
         address:          m.address      ?? null,
         city:             m.city         ?? null,
         state:            m.state        ?? null,
