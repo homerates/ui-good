@@ -2702,3 +2702,69 @@ this same edit session again silently converted one touched file
 committing, same as AD-40's finding on a different file; root cause still
 not isolated, worth watching for on any future edit to a `.tsx` file in
 this environment.
+
+## AD-43 — Redfin's own AVM ("Redfin Estimate") was never reaching any caller
+
+**Decision:** `lib/property/fetch.ts`'s `fetchPropertyData()` -- the shared
+function every direct-Redfin-scrape caller in this codebase goes through --
+never included `estimatedValue`, `lastSaleDate`, or `lastSalePrice` in its
+own final return object. All three are correctly computed upstream by
+`lib/property/parse/redfin.ts`'s `parseRedfin()` and survive `merge()`
+unchanged, but the final `data: PropertyData` object at the end of
+`fetchPropertyData()` is a manually-enumerated field list, not a spread of
+the merged object, and these three (added to the schema and to
+`parseRedfin()` later, on 2026-08-11, per that file's own dated comments)
+were never added here. Every caller -- not just one property -- silently
+lost Redfin's own current-value AVM and historical sale data on every
+direct-Redfin-scrape, discovering nothing had gone wrong because a missing
+field just reads as "no estimate available," indistinguishable from a
+property that genuinely has none.
+
+**Real, live incident that surfaced it:** a live 3-way comparison flagged
+that ChatGPT reported "HomeRates has not retrieved a usable AVM" for 870
+Doud St, Monterey -- and directly browsing Redfin's own live listing page
+confirmed a real, current Redfin Estimate ($1,492,578, "3% over list
+price," cited against 6 recent nearby sales). Called
+`lib/property/parse/redfin.ts`'s `extractRedfinEstimate()` directly against
+the real page's HTML: correctly extracted `1492578`. Called the full
+`fetchPropertyData()` against the identical URL: `estimatedValue` came
+back entirely absent from the result -- not null-because-genuinely-
+unknown, missing because the return object never carried it. This is a
+correctness bug HomeRates has been shipping for every Redfin-sourced AVM
+since 2026-08-11, not specific to this property.
+
+**Fix:** added the three missing fields to `fetchPropertyData()`'s return
+object.
+
+**Second, independent finding from the same investigation, also fixed:**
+repeated live testing during this investigation showed Redfin's own bot-
+mitigation can still intermittently serve a degraded response -- basic
+JSON-LD/price data intact, the heavier, more dynamic Redfin Estimate
+widget specifically omitted -- distinct from an outright block (which
+already fails cleanly via the existing price/address check). Added one
+retry in `fetchPropertyData()`, gated narrowly: fires ONLY when a real
+listing was parsed (a price exists) but `estimatedValue` came back null;
+never fires on a genuine full block; a retry that itself fails or still
+finds no estimate leaves the original (successful, no-AVM) result
+untouched rather than turning it into an error.
+
+**Clarifying point from the same conversation, not a code change:**
+relaying Redfin's own published estimate is not HomeRates claiming an
+independent valuation -- it's already labeled `ESTIMATE` (not `PROPERTY
+FACT`) throughout this contract, sourced from a named third party. Making
+it reliably reach callers is a completeness fix, not a change to what
+HomeRates claims to know on its own.
+
+**Verified live, end-to-end, with a real network call (not just the
+mocked test suite):** `fetchPropertyData()` against the real 870 Doud St
+URL now returns `estimatedValue: 1492578`.
+
+**Status:** Built. New regression suite
+`scripts/test-redfin-estimate-retry.ts` (4/4, fully mocked -- no real
+network calls) covers: estimate recovered via retry, both attempts still
+missing (stays null, still `ok:true`), estimate present on the first
+attempt (no retry fires, exactly one fetch), and a retry that itself
+throws (original successful result preserved). `tsc --noEmit` clean, full
+`next build` clean. `test-address-identity-integration.ts` (4/4) and
+`test-external-adapter.ts` (58/58) re-run clean, confirming the change
+doesn't interact with either surface's own fake-URL-based fetch mocking.
