@@ -2909,7 +2909,6 @@ explicitly protected files (`src/lib/fred.ts`, `app/api/ticker/route.ts`,
 `app/api/fred/route.ts`) were read for diagnosis but not modified -- no
 defect was found in any of them; both fixes are entirely in the two
 consuming landing pages, which are not on the protected list.
-
 ## AD-47 — Automatic staleness detection + regression guard, locking in AD-46
 
 Confirmed live in production with correct numbers (2026-09-15), the user's
