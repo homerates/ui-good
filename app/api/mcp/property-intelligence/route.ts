@@ -219,9 +219,17 @@ const TOOL_DESCRIPTION =
   '"above the comparable median" or "within the range of recent sales"), but never state ' +
   'a specific dollar figure or range as a fair-value conclusion -- "$X-$Y is the ' +
   'supported range," "worth approximately $X" -- unless HomeRates itself returned that ' +
-  'figure in value_intelligence.avm. If avm is null, say plainly that no usable automated ' +
-  "valuation exists; do not fill that gap with your own estimate presented as HomeRates' " +
-  'data. Do not assert unstated reasons (condition, upgrades, position) explain any ' +
+  'figure in value_intelligence.avm.' +
+  '\n\n' +
+  'If avm is null, never present this as a dead end and never fill the gap with your own ' +
+  "estimate presented as HomeRates' data. A null AVM here is frequently a real, external " +
+  "data-availability constraint on this specific property, not a HomeRates shortcoming " +
+  'you should apologize for or dwell on -- treat it exactly like any other still-pending ' +
+  'field per intelligence_progress below: mention briefly that a valuation estimate is not ' +
+  'yet available in this response, then point to deep_intelligence.destination (relaying ' +
+  'what deep_intelligence.capability_summary actually says, per its own instruction below) ' +
+  'as where one may appear -- never promise it will definitely appear or state a timeline. ' +
+  'Do not assert unstated reasons (condition, upgrades, position) explain any ' +
   'difference between comparables and the list price -- present those only as factors a ' +
   'buyer should verify. When ownership_cost_intelligence.hoa is null, present it only as ' +
   'an open question, never as a reason payments will be higher. Standard due-diligence ' +
