@@ -2643,3 +2643,62 @@ LIMITED as already established), `test-response-semantics-cleanup.ts`
 (9/9), `test-external-adapter.ts` (58/58, one flaky timing-dependent
 Fast-Follow-trigger re-run against a fully mocked resolution path --
 confirmed unrelated, not exercising this fix at all) -- all green.
+
+## AD-42 — sale_terms/original_list_price ported to the actual PDF surface; real tax rate replaces hardcoded default
+
+**Decision, two parts, one discovery:** a live 3-way comparison on 870 Doud
+St, Monterey found the PDF report the user actually generates and shares
+(via `/property-intel`'s own "Build Report ↗" button) is `/property-report`
+-- a SEPARATE, parallel page from `/property-intel`, not the same page
+rendered differently. `app/wl-report/page.tsx` is a third, near-identical
+white-label twin. Neither `sale_terms` (AD-38) nor `original_list_price`
+(AD-39) -- both shipped earlier today -- had ever been added to either
+page; both were only ever visible on `/property-intel`'s own interactive
+view. A property with real cash-only/as-is/Trust-sale terms, or an
+unsupported price-reduction claim, could reach the exact PDF most likely
+to be printed and handed to a buyer with neither warning present.
+
+1. Ported `sale_terms` (the amber "Sale Terms & Condition Disclosures"
+   banner) and `original_list_price` (appended to the existing Days-on-
+   Market stat's sub-label) to both `app/property-report/page.tsx` and
+   `app/wl-report/page.tsx`, matching `/property-intel`'s exact rendering
+   rules (null vs `[]` discipline preserved; banner renders only on a
+   real, non-empty array).
+2. Separately found, same investigation: both report pages hardcode
+   `TAX_RATE_DEFAULT` (1.10%, the flat national default) for the
+   displayed "Property Tax (X%)" line and total PITI -- unconditionally,
+   even when a real, more accurate, already-known per-property rate
+   exists. Confirmed live on this exact property:
+   `app/api/beta/grok-property/route.ts`'s own `estimated_piti` already
+   correctly used the real, county-table-resolved rate (0.76%, Monterey),
+   but that rate was never exposed in the response, so
+   `/property-report`/`/wl-report` had no way to know it and displayed a
+   hardcoded 1.10%-based figure instead -- a ~$400/month, ~$4,900/year
+   overstatement on the SAME property in the SAME report, using two
+   different tax rates for two halves of one document.
+
+**Fix:** `mergeResult()` (`app/api/beta/grok-property/route.ts`) now
+exposes the real `effectiveTaxRate` it already computes internally as a
+new `tax_rate_effective` field on every response (persisted to
+`grok_property_cache` for future reads too). Both report pages now use
+`data.tax_rate_effective ?? TAX_RATE_DEFAULT` -- the real rate when known,
+the canonical default only when genuinely unknown -- instead of the flat
+default unconditionally.
+
+**Verified live, in-process:** forced a fresh deep call for this exact
+address; the SSE result now carries `tax_rate_effective: 0.0076` alongside
+a consistent `estimated_piti`, confirmed via direct inspection (not
+inferred from the UI).
+
+**Status:** Built. `tsc --noEmit` clean, full `next build` clean. Full
+regression: `test-mortgage-math-integrity.ts` (42/42),
+`test-firstparty-valuation-integrity.ts` (27/29 -- the 2 failures are
+pre-existing live-data drift on an unrelated reference property's cached
+`market_sale_to_list`, confirmed via direct query showing that field is
+null in the corpus as of a 2026-09-12 refresh, two days before this
+session and untouched by this diff; not a regression). Incidental catch:
+this same edit session again silently converted one touched file
+(`app/wl-report/page.tsx`) to CRLF -- normalized back to LF before
+committing, same as AD-40's finding on a different file; root cause still
+not isolated, worth watching for on any future edit to a `.tsx` file in
+this environment.
