@@ -2818,3 +2818,34 @@ out to the interactive report. This is a real product-shape question
 (how much of the report to expose inline, what a "discovery" turn
 concretely looks like) deserving its own scoping pass, not folded into
 this narrower messaging fix.
+
+## AD-45 — the report teaser names categories to create pull, never values
+
+**Decision:** resolves AD-44's open question with an explicit product
+answer: the calling AI should never get the underlying report's actual
+numbers poured into the conversation as a substitute for opening it --
+the teaser's whole job is to make the report worth opening, not to make
+opening it unnecessary.
+
+`computeDeepIntelligenceCta()`'s constant `decisionReadinessNote`
+(`lib/gateway/outputShaping.ts`) now names more of what the interactive
+report actually contains -- a check for unusual sale terms or condition
+disclosures, a complete location breakdown (schools, safety,
+walkability, wildfire risk), decision-readiness scored across all four
+categories -- entirely in category language, never a number: no score,
+no rating, no dollar figure, same discipline the four-category mention
+already followed since 2026-09-13. `TOOL_DESCRIPTION`
+(`app/api/mcp/property-intelligence/route.ts`) now explicitly instructs
+the calling AI to frame `deep_intelligence` as a genuine, specific
+reason to open the report -- not a closing formality -- and never to
+invent, guess, or restate a value for anything `capability_summary`
+only names as a category; the report is where the user sees the actual
+figures, not this response.
+
+**Status:** Built. `tsc --noEmit` clean, full `next build` clean.
+`test-chatgpt-invocation-contract.ts` (7/7), `test-deep-intelligence-
+parity.ts` (12/12), `test-intelligence-gateway.ts` (58/60, 2
+environment-LIMITED as already established), `test-golden-prompts.ts`
+(10/10), `test-external-adapter.ts` (58/58) -- all green, no test
+needed updating since the change is prose-only within an already-
+category-based (never-numeric) field.

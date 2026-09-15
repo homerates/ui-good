@@ -170,10 +170,21 @@ function computeDeepIntelligenceCta(
   // over doing its own research. This sentence is constant regardless of
   // enrichment state (unlike availableText/pending above) since financial
   // readiness alone is computable as soon as financing data exists.
+  // Rewritten 2026-09-15 (explicit product decision) to name MORE of what
+  // the interactive report actually contains -- condition/sale-terms
+  // disclosure checking, a full location breakdown (schools, safety,
+  // walkability, wildfire risk), decision-readiness across the four
+  // categories -- while still naming categories only, never a number: no
+  // score, no rating, no dollar figure. The goal is a compelling reason to
+  // open the report, not a substitute for opening it -- this sentence must
+  // never contain enough for the calling AI to answer as if it had already
+  // seen the report's actual content.
   const decisionReadinessNote =
-    " The full report also includes HomeRates' decision-readiness assessment -- " +
-    'financial readiness, property valuation, market timing, and location fit ' +
-    'scored together -- a level of synthesis beyond a basic comp pull.';
+    ' The full interactive report goes further than what\'s returned here: a check for ' +
+    'unusual sale terms or condition disclosures, a complete location breakdown (schools, ' +
+    'safety, walkability, and wildfire risk), and HomeRates\' decision-readiness assessment -- ' +
+    'financial readiness, property valuation, market intelligence, and location fit scored ' +
+    'together -- a level of synthesis beyond a basic comp pull.';
   const capabilitySummary = (pending.length === 0
     ? `Interactive HomeRates Property Intelligence report for this property, including ${availableText}.`
     : `Interactive HomeRates Property Intelligence report for this property, including ${availableText} now, ` +
