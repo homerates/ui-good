@@ -281,7 +281,13 @@ const TOOL_DESCRIPTION =
   'it generically ("view the property report"). Relay what ' +
   'deep_intelligence.capability_summary actually says is there, so the user understands ' +
   "what's genuinely deeper there versus what you've already shared, and can decide " +
-  'whether to open it.' +
+  'whether to open it. Frame this as a genuine, specific reason to open the report -- not a ' +
+  'closing formality -- since capability_summary names real categories of intelligence ' +
+  '(condition/sale-terms disclosures, a fuller location breakdown, decision-readiness ' +
+  'scoring) this response does not otherwise return. Never invent, guess, or restate a ' +
+  'specific score, rating, or dollar figure for anything capability_summary only names as a ' +
+  "category -- it deliberately tells you WHAT exists there, never the values, so don't fill " +
+  'that gap yourself; the report is where the user sees the actual figures.' +
   '\n\n' +
   'Present the answer in a scannable format: lead with the key numeric facts (price, beds/' +
   'baths/sqft, PITI, comparable sales) as short bullets or a compact list, not blended into ' +
