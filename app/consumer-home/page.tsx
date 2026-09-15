@@ -42,28 +42,36 @@ export default function ConsumerHomePage() {
   }
 
   useEffect(() => {
-    // TICKER
-    const tickerData = [
-      { label: '30Y FIXED', val: '6.38%', chg: '+0.04%', dir: 'up' },
-      { label: 'FED FUNDS', val: '5.25%', chg: '—', dir: 'neu' },
-      { label: '10Y TREASURY', val: '4.21%', chg: '-0.03%', dir: 'dn' },
-      { label: 'INFLATION (CPI)', val: '3.2%', chg: '-0.1%', dir: 'dn' },
-      { label: '15Y FIXED', val: '5.87%', chg: '+0.02%', dir: 'up' },
-      { label: 'MEDIAN HOME PRICE', val: '$420,800', chg: '+2.1% YoY', dir: 'up' },
-      { label: '5/1 ARM', val: '6.01%', chg: '+0.06%', dir: 'up' },
-      { label: 'UNEMPLOYMENT', val: '3.7%', chg: '—', dir: 'neu' },
-    ];
-    const track = document.getElementById('ch-ticker-track');
-    if (track) {
-      const html = tickerData.map(d =>
-        `<div class="ch-ticker-item">
-          <span class="ch-ticker-label">${d.label}</span>
-          <span class="ch-ticker-val">${d.val}</span>
-          <span class="ch-ticker-chg ch-ticker-${d.dir}">${d.chg}</span>
-        </div>`
-      ).join('');
-      track.innerHTML = html + html;
-    }
+    // TICKER — real, live FRED-backed data only (fetches the SAME /api/ticker
+    // endpoint WelcomeScreen.tsx already uses correctly). This block previously
+    // hardcoded 8 frozen values (confirmed live 2026-09-15: a real user was
+    // still seeing "30Y FIXED 6.38% / FED FUNDS 5.25%" -- pre-February-2026
+    // numbers -- no amount of cache-clearing could ever fix it, since this
+    // page never fetched live data at all). Several of the removed items
+    // (inflation CPI, median home price, 5/1 ARM, unemployment) have no live
+    // series wired up anywhere in this codebase's FRED/market-data pipeline --
+    // per the FRED data-integrity hard rule, an untracked series is omitted
+    // entirely, never approximated or invented, so this ticker now shows only
+    // the same 4 real items /api/ticker already serves.
+    let cancelled = false;
+    fetch('/api/ticker', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled) return;
+        const track = document.getElementById('ch-ticker-track');
+        if (!track) return;
+        const items: { label: string; value: string; sub: string }[] = data?.items ?? [];
+        if (items.length === 0) return;
+        const html = items.map(d =>
+          `<div class="ch-ticker-item">
+            <span class="ch-ticker-label">${d.label}</span>
+            <span class="ch-ticker-val">${d.value}</span>
+            <span class="ch-ticker-chg ch-ticker-neu">${d.sub}</span>
+          </div>`
+        ).join('');
+        track.innerHTML = html + html;
+      })
+      .catch(() => { /* leave the ticker empty rather than show a fabricated number */ });
 
     // TYPING PLACEHOLDER
     const phrases = [
@@ -91,7 +99,7 @@ export default function ConsumerHomePage() {
       timer = setTimeout(typeLoop, deleting ? 28 : 52);
     }
     timer = setTimeout(typeLoop, 800);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, []);
 
   return (

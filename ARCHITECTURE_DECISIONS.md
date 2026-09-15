@@ -2849,3 +2849,63 @@ environment-LIMITED as already established), `test-golden-prompts.ts`
 (10/10), `test-external-adapter.ts` (58/58) -- all green, no test
 needed updating since the change is prose-only within an already-
 category-based (never-numeric) field.
+
+## AD-46 — Two marketing landing pages had a fully hardcoded, frozen FRED ticker (real, live incident)
+
+**Decision:** `app/page.tsx` (the main landing page) and
+`app/consumer-home/page.tsx` (the `homerates.ai` bare-domain rewrite target
+-- confirmed NOT a DNS redirect, a real, independent Vercel-served route,
+per direct `curl` evidence) both rendered their "LIVE" ticker bar from a
+fully hardcoded, 8-item JavaScript array -- never calling `/api/ticker` or
+any FRED-backed source at all. `app/page.tsx` additionally had the exact
+same frozen rate baked into a "Rate alert: 30Y fixed is at 6.38% this
+week" banner, complete with two specific, never-updating dollar-savings
+claims computed once against that same frozen rate.
+
+**Real, live incident, not speculative:** a real user, on a real device,
+reported seeing "30Y FIXED 6.38%" and "FED FUNDS 5.25%" -- pre-February-
+2026 figures, described as "a big credibility issue" against this
+codebase's own standing FRED data-integrity hard rule. Direct verification
+(not assumption) ruled out every other candidate cause first, in order:
+(1) `getFredSnapshot()`/`getSnapshot()` -- both return fresh, correct data
+(30Y 6.76%, Fed Funds 3.63%, both <5 days old); (2) `main` vs `dev` code
+for the actual FRED pipeline files -- byte-identical, zero diff; (3) the
+LIVE production `/api/ticker` endpoint itself, hit directly --
+`X-Vercel-Cache: MISS`, `Age: 0`, returned the correct 6.76%/3.63% right
+now; (4) browser/CDN caching -- ruled out by the user directly (cleared
+cache on multiple browsers, same stale numbers persisted). Only then was
+the actual cause found: these two pages never fetched live data in the
+first place, so no cache-clearing on any device could ever have fixed it.
+
+**Fix:** both ticker `useEffect` blocks now `fetch('/api/ticker', {cache:
+'no-store'})` -- the exact same call `app/components/WelcomeScreen.tsx`
+already made correctly -- and render only the 4 real items that endpoint
+returns. Four of the eight hardcoded items (inflation CPI, median home
+price, 5/1 ARM, unemployment) have no live series anywhere in this
+codebase's FRED/market-data pipeline; per the hard rule ("never publish
+outdated information," and the existing "show `—`, never a stale number"
+principle), these are omitted entirely rather than approximated or
+invented. `app/page.tsx`'s "Rate alert" banner now shows the same live
+rate via a shared `liveRate30y` state populated from the identical fetch,
+with the two frozen, no-longer-verifiable dollar-savings claims removed
+rather than left stale.
+
+**Deliberately NOT touched:** a separate illustrative chat-demo mockup
+further down `app/page.tsx` (`"$550k home, 20% down..."`, `$2,749/mo`,
+`30yr fixed · 6.38%`) is a self-consistent, fixed hypothetical example
+of the product's chat UI, not a live-data claim -- its dependent figures
+(loan amount, total interest, PMI) were computed specifically for that
+one assumed rate; swapping in a live rate there without recomputing every
+dependent number would make the example internally inconsistent, which is
+worse than a clearly-illustrative fixed example. Left as-is.
+
+**Status:** Built. `tsc --noEmit` clean, full `next build` clean.
+Verified live in a local production build (not just source-read): both
+pages now render the real 6.76%/3.63% ticker, the typing-placeholder
+animation (which shares one `useEffect` with the ticker fetch in both
+files) still runs correctly, and the two untouched illustrative-demo
+lines are unchanged. Per the FRED data-integrity hard lock, the three
+explicitly protected files (`src/lib/fred.ts`, `app/api/ticker/route.ts`,
+`app/api/fred/route.ts`) were read for diagnosis but not modified -- no
+defect was found in any of them; both fixes are entirely in the two
+consuming landing pages, which are not on the protected list.
