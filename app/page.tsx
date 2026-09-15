@@ -12,6 +12,12 @@ export default function LandingPage() {
   const [cmdInput, setCmdInput] = useState('');
   const [propInput, setPropInput] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Live 30Y-fixed rate, shared by the ticker fetch below -- also drives the
+  // "Rate alert" banner and the two pricing-card sub-labels further down,
+  // which previously had this same rate hardcoded (see the ticker useEffect's
+  // own note on the real incident this closes). null until the first fetch
+  // resolves; every consumer below must render "—" for null, never a guess.
+  const [liveRate30y, setLiveRate30y] = useState<string | null>(null);
   const cmdRef = useRef<HTMLInputElement>(null);
 
   function goChat(q: string) {
@@ -35,29 +41,38 @@ export default function LandingPage() {
     goChat(propInput);
   }
   useEffect(() => {
-    // TICKER
-    const tickerData = [
-      { label: '30Y FIXED', val: '6.38%', chg: '+0.04%', dir: 'up' },
-      { label: 'FED FUNDS', val: '5.25%', chg: '—', dir: 'neu' },
-      { label: '10Y TREASURY', val: '4.21%', chg: '-0.03%', dir: 'dn' },
-      { label: 'INFLATION (CPI)', val: '3.2%', chg: '-0.1%', dir: 'dn' },
-      { label: '15Y FIXED', val: '5.87%', chg: '+0.02%', dir: 'up' },
-      { label: 'MEDIAN HOME PRICE', val: '$420,800', chg: '+2.1% YoY', dir: 'up' },
-      { label: '5/1 ARM', val: '6.01%', chg: '+0.06%', dir: 'up' },
-      { label: 'UNEMPLOYMENT', val: '3.7%', chg: '—', dir: 'neu' },
-    ];
-
-    const track = document.getElementById('ticker-track');
-    if (track) {
-      const html = tickerData.map(d =>
-        `<div class="lp-ticker-item">
-          <span class="lp-ticker-label">${d.label}</span>
-          <span class="lp-ticker-val">${d.val}</span>
-          <span class="lp-ticker-chg lp-ticker-${d.dir}">${d.chg}</span>
-        </div>`
-      ).join('');
-      track.innerHTML = html + html;
-    }
+    // TICKER — real, live FRED-backed data only (fetches the SAME /api/ticker
+    // endpoint WelcomeScreen.tsx already uses correctly). This block previously
+    // hardcoded 8 frozen values (confirmed live 2026-09-15: a real user was
+    // still seeing "30Y FIXED 6.38% / FED FUNDS 5.25%" -- pre-February-2026
+    // numbers -- no amount of cache-clearing could ever fix it, since this
+    // page never fetched live data at all; the identical bug was found and
+    // fixed the same way in app/consumer-home/page.tsx). Several of the
+    // removed items (inflation CPI, median home price, 5/1 ARM, unemployment)
+    // have no live series wired up anywhere in this codebase's FRED/market-
+    // data pipeline -- per the FRED data-integrity hard rule, an untracked
+    // series is omitted entirely, never approximated or invented, so this
+    // ticker now shows only the same 4 real items /api/ticker already serves.
+    let cancelled = false;
+    fetch('/api/ticker', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled) return;
+        const items: { label: string; value: string; sub: string }[] = data?.items ?? [];
+        const mort30 = items.find(d => d.label === '30Y FIXED');
+        if (mort30?.value) setLiveRate30y(mort30.value);
+        const track = document.getElementById('ticker-track');
+        if (!track || items.length === 0) return;
+        const html = items.map(d =>
+          `<div class="lp-ticker-item">
+            <span class="lp-ticker-label">${d.label}</span>
+            <span class="lp-ticker-val">${d.value}</span>
+            <span class="lp-ticker-chg lp-ticker-neu">${d.sub}</span>
+          </div>`
+        ).join('');
+        track.innerHTML = html + html;
+      })
+      .catch(() => { /* leave the ticker empty rather than show a fabricated number */ });
 
     // TYPING PLACEHOLDER
     const phrases = [
@@ -97,7 +112,7 @@ export default function LandingPage() {
     }
 
     timer = setTimeout(typeLoop, 800);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, []);
 
   return (
@@ -1040,7 +1055,7 @@ export default function LandingPage() {
           <div className="lp-insight">
             <div className="lp-insight-dot" />
             <div className="lp-insight-text">
-              <strong>Rate alert:</strong> 30Y fixed is at 6.38% this week — that&apos;s <strong>$47/mo higher</strong> than 6 months ago on a $500k loan. A 1% rate drop saves you <strong>$297/mo</strong>.
+              <strong>Rate alert:</strong> 30Y fixed is at <strong>{liveRate30y ?? '—'}</strong> this week. Run your own numbers to see your exact payment.
             </div>
           </div>
 
