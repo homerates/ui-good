@@ -1,5 +1,14 @@
 # HomeRates Intelligence Gateway — External Property Intelligence Contract V1
 
+**Current implementation status (2026-09-15): live on `dev` at `contract_version:
+"property-intelligence-v1.7"`.** §16 below is the complete, dated version history from
+v1 through v1.7 — read it for what changed and why at each bump; `lib/gateway/
+outputSchema.ts`'s own file header is the equivalent, code-adjacent version of the same
+history. As of this writing, v1.6 and v1.7 (§16) exist only on `dev`, not `main`. Sections
+1-15 below are the *original* pre-implementation contract design and are left as first
+written; the version history in §16 is where implementation reality is tracked forward
+from that baseline.
+
 **Status: LOCKED V1 (2026-09-02, Rayaan).** This contract is the approved baseline for all Gateway,
 auth, cost-control, and platform-adapter design that follows. Nothing in this document has been
 implemented — no endpoint, no Gateway, no MCP integration exists yet. Locking the contract means the
@@ -577,6 +586,35 @@ confirmed bugs found on a *different*, first-party-only surface
 "source-of-truth" finding: canonical is genuinely shared by first-party's
 `/api/property/intelligence` and the external Gateway, but at least two other
 first-party surfaces read `grok_property_cache` directly, bypassing canonical.
+
+**Applied 2026-09-13 — bumped to `property-intelligence-v1.6`.** A real, live incident
+(8 Woodfall, Irvine): HomeRates' own report characterized a property as "turnkey" and
+"modern appeal" with a 71/100 "Ready to Offer" Decision Score while the actual listing was
+cash-only, sold as-is, no warranties, a Trust sale — surfaced by two independent external
+AI tools citing the real MLS-sourced listing directly, not by HomeRates' own synthesis.
+New required field `sale_terms` (`LabeledStringArray`) discloses unusual sale conditions
+found in the listing (cash-only, sold as-is, no warranties, short sale, trust/estate/
+probate sale, fixer/handyman-special language). `null` means Grok has not yet searched for
+this; `[]` means it searched and found none — never conflate the two, same null-vs-empty
+discipline as every other progressive-enrichment field in this contract. See
+`ARCHITECTURE_DECISIONS.md` AD-38 for the full incident trace, including the honestly-
+reported finding that a prompt-only instruction alone could not make Grok's own web search
+reliably find these terms even once told to look — the narrative-consistency guardrail
+(never say "turnkey" when `sale_terms` is non-empty) worked; the underlying search
+thoroughness did not, on every property, and that gap remains open.
+
+**Applied 2026-09-15 — bumped to `property-intelligence-v1.7`.** A second real, live
+incident (21431 Stans Ln, Laguna Beach, then reproduced again on 870 Doud St, Monterey):
+`key_highlights`/`grok_intelligence_summary` asserted a "significant price reduction from
+original asking price" with zero supporting data anywhere in the record
+(`original_list_date`, `last_sold_date`, `last_sold_price` all `null`, days-on-market in
+the single digits — internally self-contradicting). New required field
+`original_list_price` (`LabeledNumber`) discloses the property's original asking price
+only when Grok actually found one that differs from `value_intelligence.list_price` — the
+sole basis on which any text field may ever describe a price change. A prompt-only fix was
+tried first and proven insufficient by live re-testing: without the structured field, Grok
+simply upgraded the same unverifiable claim to a specific, more convincing dollar figure
+with nothing to check it against. See `ARCHITECTURE_DECISIONS.md` AD-39 for the full trace.
 
 Internal methodology version (`METHODOLOGY_VERSION`, currently `"Decision Score L1-L4 (locked
 2026-08-19)..."`) and external contract version are **explicitly separate** — the internal string must

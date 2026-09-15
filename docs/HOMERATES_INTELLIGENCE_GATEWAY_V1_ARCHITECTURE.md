@@ -1,11 +1,24 @@
 # HomeRates Intelligence Gateway V1 — Architecture
 
-**Status: LOCKED (2026-09-02, Rayaan).** This is the architectural baseline for Gateway V1. No Gateway
-code, routes, migrations, credentials, rate limiting, admin UI, or platform adapter has been implemented —
-locking this document fixes the *decisions* below for implementation planning; it does not authorize
-building anything. This document turns the LOCKED `docs/HOMERATES_EXTERNAL_PROPERTY_INTELLIGENCE_V1.md`
-(commit `d63ffea8`) into a concrete, buildable architecture and must not modify that contract's semantics —
-it doesn't, and isn't touched by this lock.
+**Status: IMPLEMENTED (updated 2026-09-15; previously updated 2026-09-09; originally
+LOCKED 2026-09-02, Rayaan).** The architecture below (Phases A-F: auth, rate limiting,
+quotas, circuit breaker, kill switch, corpus-only guarantee, output shaping, schema
+validation) is built and live on `dev`, with OAuth (Phase OA/OB, incl. the refresh_token
+grant added 2026-09-14), the MCP adapter (Phase G, now covering all 5 externally exposed
+tools, all 5 declaring an `outputSchema`), and a substantial body of post-launch hardening
+and consistency work on top of it — see **§31, Post-Launch Additions** (through §31.17) at
+the end of this document for everything built since this original lock, and
+`docs/HOMERATES_STRATEGIC_OBJECTIVE.md` (§4a, §4b) for why. **As of this writing, §31.10
+through §31.17 exist only on `dev` — none has been merged to `main`.** The sections below
+(1-30) are the *original* architecture-planning document and are left substantially as
+first written — they describe decisions that held, not a plan still awaiting
+implementation. Read §31 first if you want current state; read 1-30 for the original
+reasoning behind it.
+
+This document turns the LOCKED `docs/HOMERATES_EXTERNAL_PROPERTY_INTELLIGENCE_V1.md`
+(commit `d63ffea8`, now at contract version v1.7 — see that doc and §31 below) into a
+concrete, buildable architecture and must not modify that contract's semantics — it
+doesn't, and isn't touched by this lock.
 
 **Decisions preserved as LOCKED by this status:**
 - Same Next.js/Vercel application for V1 (§25).
@@ -758,4 +771,345 @@ as silent gaps: the open questions in §29 should get real answers (not necessar
 but before Phase C/D where credentials and quotas become load-bearing); and per the standing governance
 decision, implementation may proceed in parallel with, not blocked by, the Legal/IP review.
 
-**LEGAL/IP REVIEW STATUS: REQUIRED — PARALLEL — NOT COMPLETED.**
+**LEGAL/IP REVIEW STATUS: REQUIRED — PARALLEL — NOT COMPLETED.** (Unchanged since original
+lock — see `docs/MCP_Legal_IP_Checkpoint_Brief.md`. Patent filing status is explicitly
+unknown/unconfirmed there; do not describe patents as filed anywhere without repository
+evidence.)
+
+---
+
+## 31. Post-Launch Additions (2026-09-08/09)
+
+Everything below was built after this document's original §1-30 lock, on `dev`, via a
+sequence of same-day workstreams. None of it changes the architecture in §1-30 — Gateway
+auth (§7/§8), scopes (§9), rate limiting/quotas (§10/§11), the circuit breaker (§12), the
+corpus-only guarantee (§13), output shaping (§14), schema validation (§15), or the kill
+switch (§19) are all confirmed unchanged by full regression after every commit listed here.
+See `docs/HOMERATES_STRATEGIC_OBJECTIVE.md` for why this sequence of work happened (it's
+literal execution of that document's near-term strategy, step 1-2: fix demand-driven
+resolution, then test real ChatGPT behavior).
+
+### 31.1 OAuth (Phase OA/OB)
+
+`lib/gateway/oauth.ts`, `app/api/oauth/authorize/route.ts`, `app/api/oauth/token/route.ts`,
+RFC 8414/9728 metadata at `/.well-known/oauth-authorization-server` and
+`/.well-known/oauth-protected-resource`. PKCE S256 only, no DCR/OIDC/JWKS. Reuses the
+existing pilot partner/credential model (§8) — `issueCredential()` gained an optional
+`expiresAt` for OAuth-minted tokens, otherwise unchanged. **Confirmed working live in
+ChatGPT** — connection, authorization, and tool invocation all succeed end to end.
+
+### 31.2 MCP protocol adapter (Phase G)
+
+`app/api/mcp/property-intelligence/route.ts` — a thin JSON-RPC 2.0/MCP envelope around the
+unchanged `getPropertyIntelligence()` Gateway call (later `resolveExternalPropertyIntelligence()`,
+see §31.4). Supports both the 2025-11-25 (lenient, no `_meta`) and 2026-07-28 (strict,
+full `_meta`) protocol generations, confirmed via real production traffic from ChatGPT's
+actual MCP client. Implements `server/discover` per the live 2026-07-28 spec.
+`get_property_intelligence` was, at the time of this section's original writing, the only
+externally exposed tool. **Superseded (2026-09-15, see §31.14) — all 5 tools in the locked
+5-intent naming architecture are now live in `tools/list`:**
+`homerates_property_intelligence`, `homerates_rate_oracle`,
+`homerates_loan_limit_intelligence`, `homerates_scenario_intelligence`,
+`homerates_buyer_capacity_intelligence`. This broadening predates §31.10-31.17 below and
+was not itself decided within this document's own retrospective — noted in
+`docs/HOMERATES_STRATEGIC_OBJECTIVE.md` §4b as a fact worth an explicit after-the-fact
+Objective Check. Public Plugin-directory listing has still not been pursued (see the
+strategic-objective doc, §2) — this remains a private, OAuth-gated connection tested
+directly by Rayaan in his own ChatGPT session, not a publicly discoverable plugin.
+
+### 31.3 Address Identity Hardening
+
+`lib/addressIdentity.ts` — `validatePropertyIdentity()`. A live-usage audit found
+`broadSearchFallback()` (in `app/api/property/lookup/route.ts`, the pre-existing first-party
+lookup pipeline this Gateway reuses per §13/§31.4) could accept the first Tavily result
+matching any recognized real-estate domain, with no check that the candidate was actually
+the requested property — a real data-integrity risk once an external caller could trigger
+this path on demand (see §31.4). Deterministic, non-fuzzy, non-LLM component comparison
+(house number/state/ZIP hard-fail on mismatch; street tolerates only a fixed documented
+list of abbreviation synonyms; city requires exact match). Wired in as a fail-closed gate
+before either of `handleAddress()`'s two persistence points — a rejected candidate is never
+persisted and never returned to any caller (internal or external) as that address's
+result. **Does not change** `getPropertyIntelligence()`, OAuth, or MCP.
+
+### 31.4 Demand-driven external property resolution
+
+`lib/externalPropertyResolution.ts` — `resolveExternalPropertyIntelligence()`, now the
+MCP route's actual entry point in place of a direct `getPropertyIntelligence()` call. Calls
+the **unchanged** Gateway pipeline first (all of §7-§12 still gate every request); only on a
+genuinely-never-seen-before `NOT_AVAILABLE` (distinguished from "known but data-incomplete"
+via the now-exported `resolvePropertyId()`) does it self-fetch the existing, unmodified
+`/api/property/lookup` route exactly once — the same first-party pipeline chat and
+`/check-property` already used — to resolve and persist a new property record, gated by
+§31.3's identity check before anything is written. No new acquisition mechanism, no second
+queue: a freshly-resolved property becomes eligible for the existing deep-enrichment cron
+(`lib/propertyIntelligence.ts`'s `listDeepEnrichmentCandidates()`) automatically, with zero
+new flag. Existing Gateway rate limits (§10/§11) are the accepted bound on worst-case cost
+exposure — a deliberate decision, not an oversight (see below, "Property Acquisition").
+
+**Known, real limitation surfaced by this work, not yet resolved:** `broadSearchFallback()`'s
+underlying Tavily search is non-deterministic — the identical requested address produced
+one `RESOLUTION_FAILED` and, on immediate retry, one successful resolution via a different
+search result. §31.3's identity check makes a *wrong* match fail closed instead of
+persisting, but does not make the search itself deterministic. A real address can
+legitimately still come back `NOT_AVAILABLE` on one attempt and resolve on the next.
+
+**Unresolved diagnostic (do not treat as solved until proven with evidence):**
+`2030 N Hobart Blvd, Los Angeles, CA 90027` returned `NOT_AVAILABLE` via a live ChatGPT
+call. Per the strategic-objective doc's near-term sequence step 2 ("systematically test
+what ChatGPT sees, invokes, and does"), this is the concrete next diagnostic to run — with
+real evidence (DB state, a direct `/api/property/lookup` call, Tavily/scrape behavior for
+that specific address), not speculation about which of the known failure modes above (or
+something else entirely) is the cause.
+
+### 31.5 Canonical Property Intelligence (Stages A-D) + Rate Role Correction + Stage E
+
+`lib/canonicalPropertyIntelligence.ts` — `buildCanonicalPropertyIntelligence(propertyId)`.
+A live-usage audit found the same property producing materially different rate/insurance/
+valuation/PITI figures between the first-party chat property-lookup card and the external
+MCP contract — not a Gateway bug, but the first-party surface (`app/chat/page.tsx`)
+client-assembling its own answer from three independent backend calls plus inline math
+(ticker rate, hardcoded 0.005 insurance, an 0.0076/0.012 tax fallback split across two call
+sites) that never went through the Gateway's own, already-correct financing engine at all.
+
+The canonical builder wraps the Gateway's existing `getPropertyIntelligenceCorpusOnly()`
+call (no new query, no new AVM merge) and exposes one explicit, typed object BOTH the
+external contract and (as of Stage E) first-party now consume — no more independent
+recalculation on either side. Current canonical roles, deliberately kept separate:
+
+- **Property Intelligence** ("what does financing this home look like against today's
+  market?"): `CanonicalFinancing.propertyMarketRate` — the neutral national 30yr-fixed
+  rate, sourced from FRED `MORTGAGE30US` via the same shared `lib/market-data`
+  `getLatest()` path `/api/ticker` itself reads (`lib/propertyIntelligence.ts`'s
+  `getPropertyMarketReferenceRate()`). No FICO, no LTV pricing tier, no LLPA, no borrower
+  data of any kind. Drives `principalInterestMonthly`, and therefore
+  `CanonicalOwnershipCosts.pitiMonthly`/`pitiaMonthly`, and external Property
+  Intelligence's illustrative financing.
+- **Rate Intelligence** ("where does this borrower/scenario rank given credit, LTV, and
+  pricing mechanics?"): `CanonicalFinancing.rateIntelligence` — the pre-existing OBMMI-
+  segment-selected reference rate plus LLPA-adjusted result, computed exactly as this
+  file's own §7-derived financing engine always has (740 credit score / 20% down
+  illustrative assumptions, unchanged), just relocated to its own clearly-separated
+  sub-object so it is structurally impossible to confuse with `propertyMarketRate`.
+  Still backs `app/property-intelligence/[id]/page.tsx`'s "Market rate anchor"/
+  "Illustrative rate (after LLPA)" display, `/rate-intelligence-engine`, and "Where Your
+  Rate Ranks" — all completely unchanged.
+
+These are intentionally different products, allowed and expected to show different rate
+values for the same property at the same moment — do not collapse them into one concept in
+future work.
+
+**Canonical payment rules** (`CanonicalOwnershipCosts`):
+- Valuation: `pointEstimate` is a real, merged point-value AVM, structurally separate from
+  `low`/`high` — a range floor/ceiling can never stand in for a missing point estimate.
+  (First-party's own prior bug did exactly that — `d.estimatedValue ?? d.estimatedValueLow`
+  in `app/chat/page.tsx`'s Decision Score L2 input — now fixed to read
+  `canonical.valuation.pointEstimate` exclusively.)
+- Tax: real `annualTaxes` when known, else the existing `lookupTaxRate()` table lookup —
+  never a flat guessed constant.
+- Insurance: `CANONICAL_INSURANCE_ANNUAL_RATE = 0.003` (0.3%/yr), a single flat illustrative
+  assumption — this repo has no state/property-type/condo-specific insurance methodology
+  today (confirmed via audit: no HO-6/master-policy/condo logic exists anywhere). Chosen
+  because it was already this engine's own value and the prevailing default across the
+  majority of this repo's real DTI calculations, not invented to force agreement with the
+  first-party surface's old, different 0.005 constant (now removed from that surface).
+- HOA: `hoaMonthly` — `null` means unknown, **never** coerced to zero; a confirmed `0` (no
+  association obligation) is distinct from unconfirmed and stays exactly `0`.
+- PITI excludes HOA (P&I + tax + insurance only). PITIA = PITI + confirmed HOA, or `null`
+  when HOA is unconfirmed — never silently equal to PITI, never silently zero.
+
+**Stage E (first-party migration):** `app/api/property/intelligence/route.ts` — a new,
+narrow, first-party-only, read-only, address-keyed (`resolvePropertyId()`, no second ID
+invented) endpoint exposing a curated subset of the canonical object. `app/chat/page.tsx`'s
+property_lookup branch now reads this instead of its own inline PITI math/hardcoded
+constants; `AffordabilityPurchaseCard.tsx` gained an optional `hoaMonthly` prop (backward
+compatible — `undefined` for every other existing caller) and derived PITIA display. Rate
+Intelligence (`fetchCompactRateChart`, `/api/rate-intelligence-engine`, "Where Your Rate
+Ranks", Decision Score L5) is completely untouched. Live-verified end to end (browser
+screenshot + 10/10 automated cross-surface consistency assertions): first-party, canonical,
+and external now return byte-identical `propertyMarketRate`/PITI/HOA/point-valuation for
+the same property at the same moment.
+
+### 31.6 External Contract v1.1 → v1.2
+
+`lib/gateway/outputSchema.ts` / `outputShaping.ts` now emit **v1.2** (see
+`docs/HOMERATES_EXTERNAL_PROPERTY_INTELLIGENCE_V1.md` §16 for the full versioning history).
+v1.1 corrected `estimated_piti` to exclude HOA and added `estimated_pitia`. v1.2 removed
+`financing_intelligence.assumption_profile.credit_score` entirely, after a live ChatGPT
+response revealed the model describing Property Intelligence's neutral rate as "740 credit"
+pricing — false, since the rate has never used it (§31.5). Rate Intelligence's own
+`assumedCreditScore` is unaffected and was never externally exposed.
+
+**Claim discipline, preserved and reinforced:** every value in the external contract
+carries a `claim_type` — `PROPERTY FACT`, `MARKET FACT`, `ILLUSTRATIVE ASSUMPTION`,
+`DERIVED CALCULATION`, `ESTIMATE`, `AI INTERPRETATION`. A live response revealed the model
+turning an unconfirmed HOA into "the payment will be higher" (UNKNOWN → NEGATIVE) and a
+routine condo due-diligence recommendation into "condominium project health is the biggest
+missing factor" (DUE DILIGENCE ITEM → PROPERTY DEFECT) — the latter traced to **no
+HomeRates string at all** (confirmed via repo-wide grep: zero matches for "condo project
+health" anywhere in this codebase before or after) — pure LLM synthesis over correctly-shaped
+data, not a HomeRates-authored sentence. Fixed the two traceable causes at the data layer
+(the `credit_score` removal above, and reworded `lib/propertyIntelligence.ts`'s
+HOA-unconfirmed limitations string to state only the true, narrower consequence — also
+fixed an adjacent real bug found while touching that line: a confirmed `$0` HOA was
+incorrectly flagged as "unconfirmed" by a falsy check instead of a null check). Addressed
+the untraceable "condo project health" issue the only available non-brittle way: added a
+claim-discipline paragraph to the MCP tool's own `TOOL_DESCRIPTION` (read by the model as
+tool metadata, not a contract field) instructing it never to assert what a null value would
+turn out to be and to frame comparable-sale differences and due-diligence items as open
+questions, not confirmed findings. **This cannot be verified by an automated test** — only
+by observing a future live response.
+
+### 31.7 Property acquisition and deep enrichment — unchanged, for the record
+
+Manual spreadsheet acquisition remains the primary operational acquisition method. Automated
+Tavily/web acquisition (§31.4's demand-driven resolution) is now live but strictly
+narrow-scope: exactly one resolution attempt per never-seen address, gated by identity
+validation, bounded by the existing Gateway rate limits — not a general-purpose crawler and
+not authorization for a broader automated-acquisition cron. Deep enrichment (Grok +
+web-search, on its existing daily cron cadence via
+`listDeepEnrichmentCandidates()`/`app/api/cron/property-intelligence-deep-enrich/route.ts`)
+is unchanged and remains asynchronous — a demand-driven property gets basic, reliable
+intelligence immediately from the existing first-party lookup pipeline, and becomes
+eligible for deep enrichment on the next cron cycle with zero new flag or queue. Do not add
+a new automated-acquisition cron without explicit authorization.
+
+### 31.8 Decision Score — unchanged, for the record
+
+Composite Decision Score remains L1-L4 only (35/25/25/15). Rate Intelligence and Personal
+Fit are both separate and do not contribute to the composite. §31.5's Decision Score L2 fix
+(canonical point valuation, never a range floor) changes L2's *input source*, not the
+scoring formula, weights, or methodology itself.
+
+### 31.9 External privacy boundary — unchanged, for the record
+
+External Property Intelligence remains property-centered. It has never carried, and this
+workstream did not add, borrower identity, income/debt/assets, Discover findings, LO
+conversation content, Personal Fit, Decision Score history, internal score mechanics/
+weights/traces, prompts, routing logic, or reasoning traces — confirmed by the same
+adversarial sentinel-injection regression test (`scripts/test-intelligence-gateway.ts`,
+category P) run after every commit in this workstream.
+
+---
+
+## §31.10-31.17 — Real-AI-Behavior Testing Cycle (2026-09-13/15)
+
+Everything below (AD-36 through AD-45 in `ARCHITECTURE_DECISIONS.md` — read that file for
+full incident-level detail; this is the summary ledger) was built via the same method: a
+real property address run through ChatGPT's live MCP connection, compared against
+HomeRates' own first-party report and, for several properties, an independent AI's own
+research — never a synthetic test case. See `docs/HOMERATES_STRATEGIC_OBJECTIVE.md` §4b for
+the full Objective/Completion Check. **As of this writing, none of §31.10-31.17 has been
+merged to `main` — all of it exists only on `dev`.**
+
+### 31.10 OAuth `refresh_token` grant (AD-37)
+
+`lib/gateway/oauth.ts` gained `storeRefreshToken()`/`consumeRefreshToken()` (rotating,
+single-use, 30-day TTL); `app/api/oauth/token/route.ts`'s shared `mintTokens()` issues one
+alongside every `authorization_code` grant, best-effort (a missing table never breaks the
+existing grant — deliberately defensive during the gap between code deploy and migration
+apply). `grant_types_supported` in the AS metadata now includes `refresh_token`. Migration
+087 (`gateway_oauth_refresh_tokens`) applied. Does not change §7/§8's auth model otherwise.
+
+### 31.11 Rate Oracle `llpa_adjusted_rate` (AD-36)
+
+`homerates_rate_oracle` widened with an optional, explicitly-labeled
+`llpa_adjusted_rate` (credit-score/LTV-segmented, via the existing LLPA engine) alongside
+the neutral national rate it already returned — a deliberate, narrow exception to the
+Rate Role Correction boundary, confined to this one tool. **Locked, separately reaffirmed
+during this window:** the *default* (no rate profile supplied) scenario math must always
+use the same flat neutral FRED rate across every loan type, never a jumbo-specific LLPA
+rate as the default, even for large loans where the gap to a "more realistic" jumbo rate
+grows. Contract bumped to `benchmark-rates-v1.1`.
+
+### 31.12 `sale_terms` and `original_list_price` (AD-38, AD-39)
+
+Two new fields, same full-pipeline pattern each time (Grok deep-search prompt →
+`grok_property_cache` → `PropertyIntelligenceData` → `CanonicalPropertyIntelligence` →
+external contract → `TOOL_DESCRIPTION` → first-party UI), both following the
+null-vs-`[]`/null-vs-value discipline already established elsewhere in this contract (null
+= not yet checked, a real value = checked and found). `sale_terms` (contract v1.6) closes a
+real incident where a cash-only/as-is/Trust-sale property was described as "turnkey."
+`original_list_price` (contract v1.7) closes a real incident where an unsupported price-
+reduction claim was made with zero structured data behind it — a prompt-only attempt at
+this same fix was proven insufficient (verified live: the model just upgraded the same
+unverifiable claim to a more convincing but still-unchecked dollar figure) before the
+structured field made the claim checkable.
+
+### 31.13 Report-surface parity (AD-42)
+
+Discovered mid-session: `/property-intel` (this document's Property Intelligence UI) and
+the PDF report users actually generate and share (`/property-report`, reached via
+`/property-intel`'s own "Build Report" button, plus a white-label twin at `/wl-report`) are
+separate, non-shared implementations. §31.12's two fields had never reached either report
+page. Ported both. Same investigation surfaced an independent bug: both report pages
+hardcoded the flat national `TAX_RATE_DEFAULT` for the displayed tax line and PITI total,
+even when a real, more accurate per-property rate was already known elsewhere in the same
+response — fixed to prefer the real rate, falling back to the default only when genuinely
+unknown.
+
+### 31.14 MCP `outputSchema` + `structuredContent`, all 5 tools now live (AD-40)
+
+ChatGPT's own connector settings UI was observed flagging every HomeRates tool "OUTPUT
+SCHEMA RECOMMENDED." `tools/list` now declares an `outputSchema` (JSON Schema) for all 5
+tools, and every successful `tools/call` response now carries `structuredContent` alongside
+the existing text `content` block — both derived directly from each tool's existing
+canonical Zod contract via `zod-to-json-schema` (pinned to a version compatible with this
+repo's `zod@3.23.8`, so the full `@modelcontextprotocol/sdk`'s zod-v4 requirement — the
+original reason this route hand-rolls the wire protocol, §31.2 note above — is still never
+triggered). Confirms, as a side effect of this work, that §31.2's "only one tool exposed"
+statement is no longer current — see that section's own updated note.
+
+### 31.15 Wrong-unit property resolution refused; confidence drives claim_type (AD-41)
+
+A real, live, twice-reproduced incident: a multi-unit condo address (a street address
+shared by several physically different units) resolved to the WRONG unit's price/beds/
+baths — first via the low-confidence broad-web-search fallback branch, then, after a first
+narrower fix, via the "trusted" direct-listing-URL branch too — because
+`validatePropertyIdentity()` (§31.3) checks only house-number/street/city/state/zip, never
+a unit number. Fixed on both branches: the broad-search fallback never persists a match
+now regardless of identity checks passing; a new `candidateIsUnconfirmedUnit()` gate
+refuses the direct-URL branch too when the resolved listing's own URL signals a specific
+sub-unit the caller's address never mentioned. Separately, `properties.confidence`
+(already computed at write time, never read downstream) now drives `claim_type`: a
+sub-0.90-confidence row labels price/beds/baths/sqft/property_type as `ESTIMATE`, not
+`PROPERTY FACT`. **Deliberate coverage/precision tradeoff, explicitly accepted:** some
+genuinely correct single-family-home matches the broad-search branch previously found are
+now reported `NOT_AVAILABLE` instead, since that branch can no longer distinguish "correct,
+unambiguous" from "wrong unit" — see `docs/HOMERATES_STRATEGIC_OBJECTIVE.md` §4b for the
+open question this raises about resolution coverage at real volume.
+
+### 31.16 Redfin's own AVM was never reaching any caller (AD-43)
+
+Traced "HomeRates has not retrieved a usable AVM" to a real, 100%-reproducible defect, not
+a data gap: `lib/property/fetch.ts`'s `fetchPropertyData()` — the shared function every
+direct-Redfin-scrape caller in this codebase goes through — never included
+`estimatedValue`, `lastSaleDate`, or `lastSalePrice` in its own final return object,
+despite both being correctly computed upstream by `parseRedfin()` and surviving `merge()`
+unchanged. Added to the schema and parser on 2026-08-11; never added to this function's
+manually-enumerated return-object field list. Every caller has been silently losing
+Redfin's own AVM and sale-history data since. Fixed. Separately, repeated live testing
+during this investigation confirmed a real, distinct issue: the source site's own
+bot-mitigation can intermittently serve a degraded response (basic listing data intact,
+the heavier AVM widget specifically missing) — verified via a proper multi-request probe
+(reusing this repo's own `tools/redfin-probe.mjs` methodology: same headers, real delays
+between repeat requests, not a single anecdotal call). Added one narrowly-gated retry
+(fires only when a real listing parsed but the estimate came back null; never on an
+outright block). **Per explicit product decision, chasing this further via more scraping
+infrastructure (proxy rotation, alternative paid AVM sources) is out of scope — already
+evaluated and declined previously.**
+
+### 31.17 Null AVM reframed as pending intelligence, report teaser names categories not values (AD-44, AD-45)
+
+Direct consequence of §31.16's finding that a null AVM is frequently real and external, not
+a HomeRates gap a retry can promise to fix: `TOOL_DESCRIPTION` no longer instructs the
+calling AI to state a null AVM as a flat conclusion. `computeDeepIntelligenceCta()`
+(`lib/gateway/outputShaping.ts`) now tracks a valuation estimate as its own available/
+pending item (same mechanism as comps/location), and its constant teaser sentence now
+names more of the interactive report's actual content — sale-terms/condition-disclosure
+checking, a full location breakdown, decision-readiness scoring — in category language
+only, explicitly never a number. Per explicit product decision: the teaser's job is to
+make the report worth opening, never to substitute for opening it. A related, larger idea
+(giving the calling AI more direct access to Grok-sourced synthesis for its own follow-up
+"discovery" conversation) was raised and deliberately NOT built this round — flagged as an
+open product-shape question in `docs/HOMERATES_STRATEGIC_OBJECTIVE.md` §4b, not folded into
+this narrower messaging fix.
