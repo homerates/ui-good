@@ -2909,3 +2909,76 @@ explicitly protected files (`src/lib/fred.ts`, `app/api/ticker/route.ts`,
 `app/api/fred/route.ts`) were read for diagnosis but not modified -- no
 defect was found in any of them; both fixes are entirely in the two
 consuming landing pages, which are not on the protected list.
+
+## AD-47 — Automatic staleness detection + regression guard, locking in AD-46
+
+Confirmed live in production with correct numbers (2026-09-15), the user's
+explicit next instruction was to "lock in" the AD-46 fix and "ensure it's
+automatically detected when data is not Live or up to date" -- i.e. close
+both the regression risk (this exact bug class shipping again unnoticed)
+and the detection gap (a *different* staleness mode AD-46 didn't touch: the
+sync pipeline itself silently going stale while still reporting success).
+Two independent pieces, since they guard against two different failure
+modes.
+
+**Piece 1 -- regression guard (`scripts/test-no-hardcoded-ticker-data.ts`):**
+a pure source-inspection script (no network, no Supabase; walks `app/**/*.tsx`)
+with three checks: (A) the exact frozen literal values from the real
+incident (`6.38%`, `5.25%`, `4.21%`, `5.87%`) never reappear anywhere in
+`app/`; (B) every file rendering a `*-ticker-track` element also contains a
+live-data call (`fetch('/api/ticker'|'/api/fred')`, `getFredSnapshot()`, or
+`getSnapshot()`) in the same file -- generalized past the two files fixed
+today, so a future page copying this ticker pattern is covered
+automatically, not just re-litigated by name; (C) `app/page.tsx` and
+`app/consumer-home/page.tsx` explicitly, by name, as belt-and-suspenders on
+top of (B). `app/knowledge-hub/page.tsx` reuses the same `kh-ticker-track`
+CSS naming convention for an unrelated static "TOPICS" article marquee
+(confirmed by direct inspection -- `marqueeItems`/`topics`, never rate or
+FRED data) and is excluded by explicit path rather than content-sniffing,
+which would be far more fragile. `app/market-news/page.tsx` was also
+checked directly and found already correct: its first four ticker items
+are genuinely computed from a real `getFredSnapshot({ timeoutMs: 6000 })`
+call, and its remaining static items carry an honest in-code comment
+("static items for metrics FRED doesn't provide") rather than silently
+posing as live data -- no fix needed there.
+
+**Piece 2 -- sync-pipeline staleness alert (`app/api/cron/market-data-sync/route.ts`):**
+the existing daily cron already had `alertAdmin()`, which fires only on an
+outright fetch/write *error* -- exactly the failure mode its own email
+copy admits it can't catch: the sync can keep reporting `ok: true` (FRED
+responds, a row gets written) while the real-world observation date
+silently stops advancing (a discontinued/renamed FRED series_id, an
+unusually long market-holiday gap, or FRED serving a cached value on their
+end). This is the failure mode AD-46 itself was *not* an instance of --
+that bug was entirely in the two consuming pages, never in this pipeline
+-- but it's the one still-open detection gap for the pipeline itself.
+Added `alertStaleData()` (same Resend-to-admin pattern as `alertAdmin()`)
+plus a check in `POST()` that runs unconditionally after every sync: pulls
+`getSnapshot()` for the three core series the public ticker actually reads
+(`MORTGAGE30US`, `DGS10`, `EFFR`), computes each one's age from its
+`observationDate`, and emails admin if any exceeds `STALE_THRESHOLD_DAYS`
+(10). Deliberately scoped to the three *public-facing* core series, not
+every registered FRED series -- this alert exists because of a
+public-credibility incident, not as a general pipeline-health dashboard
+(`/api/health` already reports FRED cache age separately, without judging
+staleness; left as a possible future improvement, not acted on here since
+it wasn't what was asked).
+
+**Not built:** end-to-end firing of the actual alert email (e.g. by
+temporarily lowering the threshold or mocking Resend) -- verified instead
+by (1) `tsc --noEmit` clean after fixing one type-predicate error
+(`CORE_SERIES` needed `: string[]`, not `as const`, or the filter
+predicate's type didn't match), and (2) a temporary isolated script
+confirming the age-computation logic itself is correct against today's
+real data (MORTGAGE30US/DGS10/EFFR all 4-5 days old, correctly computed as
+`wouldAlert: false` under the 10-day threshold). No false positive would
+fire right now; the alert path itself will only be proven by a real stale
+event or a deliberate future drill.
+
+**Status:** Built, type-checked, logic-verified in isolation. Both pieces
+committed together (this commit) since they're one user instruction ("lock
+in and ensure it's automatically detected"), but are independent guards
+against two different failure modes -- Piece 1 guards the AD-46 bug class
+(a page never wiring up to live data), Piece 2 guards a pipeline-level
+staleness mode AD-46 was never an instance of. Not yet pushed as of this
+entry; not yet run against a real Vercel cron trigger.

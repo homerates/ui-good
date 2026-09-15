@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { runSync } from "../../../../lib/market-data";
+import { runSync, getSnapshot } from "../../../../lib/market-data";
 
 function isAuthorized(req: NextRequest): boolean {
     const secret = process.env.CRON_SECRET;
@@ -30,6 +30,52 @@ function isAuthorized(req: NextRequest): boolean {
 const APP_URL = process.env.NEXT_PUBLIC_APP_BASE_URL ?? "https://chat.homerates.ai";
 // Matches the alertAdmin() convention in app/api/content/cron/route.ts.
 const ADMIN_EMAIL = "legatum2005@gmail.com";
+
+// Staleness alert (2026-09-16) -- separate from alertAdmin() above, and for
+// a deliberately different failure mode. A real, live incident showed the
+// gap this closes: two marketing pages had a fully hardcoded, months-stale
+// ticker that no sync failure here would ever have caught (this cron's own
+// data was fine the whole time -- the bug was entirely in the consuming
+// pages, never calling any live endpoint at all; see ARCHITECTURE_DECISIONS.md
+// AD-46). This check exists for the OTHER way staleness can happen: this
+// sync job itself keeps reporting `ok: true` every day (FRED responds, a row
+// gets written) while the underlying observation date silently stops
+// advancing -- FRED discontinues/renames a series, a market holiday gap
+// exceeds what's normal, or FRED serves a cached/stale value on their end.
+// alertAdmin() above only fires on an outright fetch/write error, which is
+// exactly the failure mode its own email text says this does NOT catch
+// ("no user-facing error, so this won't otherwise be noticed").
+const CORE_SERIES: string[] = ["MORTGAGE30US", "DGS10", "EFFR"];
+const STALE_THRESHOLD_DAYS = 10;
+
+async function alertStaleData(stale: { seriesId: string; observationDate: string; ageDays: number }[]) {
+    const key = process.env.RESEND_API_KEY;
+    if (!key) return;
+    const from = process.env.RESEND_FROM_EMAIL ?? "digest@mail.homerates.ai";
+    const dateStr = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+    try {
+        const resend = new Resend(key);
+        await resend.emails.send({
+            from,
+            to: ADMIN_EMAIL,
+            subject: `⚠️ Market data STALE: ${stale.length} core series over ${STALE_THRESHOLD_DAYS} days old — ${dateStr}`,
+            html: `<p>Today's market-data sync ran without a reported error, but ${stale.length} core series
+(the ones the public ticker and rate displays actually read) haven't produced a new observation
+in over ${STALE_THRESHOLD_DAYS} days:</p>
+<ul>
+${stale.map(s => `  <li>${s.seriesId}: last observation ${s.observationDate} (${s.ageDays} days old)</li>`).join("\n")}
+</ul>
+<p>This is the failure mode a per-run sync-error alert can't catch: the sync itself keeps
+"succeeding" (FRED responds, a row gets written) while the actual observation date stops
+advancing. Common causes: FRED discontinued/renamed a series_id, an unusually long market
+holiday gap, or FRED is serving a cached value on their end. Check
+lib/market-data/registry.ts's series_id for each series above against FRED's own site.</p>`,
+        });
+    } catch (e) {
+        console.error("[market-data-sync] stale-data alert email failed:", e instanceof Error ? e.message : String(e));
+    }
+}
 
 async function alertAdmin(failed: { seriesId: string; error?: string }[], totalCount: number) {
     const key = process.env.RESEND_API_KEY;
@@ -73,7 +119,27 @@ export async function POST(req: NextRequest) {
         await alertAdmin(failed, result.results.length);
     }
 
-    return NextResponse.json({ ok: failed.length === 0, ...result });
+    // Staleness check -- runs regardless of whether the sync itself reported
+    // failures, since this catches a different problem (see alertStaleData's
+    // own header note): a series can keep syncing "successfully" while its
+    // real-world observation date silently stops advancing.
+    const now = Date.now();
+    const snapshot = await getSnapshot([...CORE_SERIES]);
+    const stale = CORE_SERIES
+        .map((seriesId) => {
+            const obs = snapshot[seriesId];
+            if (!obs?.observationDate) return null;
+            const ageDays = Math.floor((now - new Date(obs.observationDate).getTime()) / 86_400_000);
+            return ageDays > STALE_THRESHOLD_DAYS ? { seriesId, observationDate: obs.observationDate, ageDays } : null;
+        })
+        .filter((s): s is { seriesId: string; observationDate: string; ageDays: number } => s !== null);
+
+    if (stale.length > 0) {
+        console.warn(`[market-data-sync] STALE: ${stale.map(s => `${s.seriesId} (${s.ageDays}d old)`).join('; ')}`);
+        await alertStaleData(stale);
+    }
+
+    return NextResponse.json({ ok: failed.length === 0 && stale.length === 0, ...result, stale });
 }
 
 // Vercel sends GET for scheduled cron triggers.
