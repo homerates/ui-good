@@ -38,7 +38,7 @@ function record(name: string, status: Status, evidence: string) {
   console.log(`[${status}] ${name} -- ${evidence}`);
 }
 
-async function insertTestProperty(sb: any, addressFull: string, opts: { withComps?: boolean; withLocation?: boolean } = {}): Promise<{ id: string; grokKey: string | null }> {
+async function insertTestProperty(sb: any, addressFull: string, opts: { withComps?: boolean; withLocation?: boolean; withAvm?: boolean } = {}): Promise<{ id: string; grokKey: string | null }> {
   const now = new Date().toISOString();
   const { data: prop } = await sb.from('properties').insert({
     address_full: addressFull, address_line: addressFull, city: 'Testville', state: 'ZZ', zip: '00001',
@@ -51,7 +51,7 @@ async function insertTestProperty(sb: any, addressFull: string, opts: { withComp
     fetched_at: now, expires_at: new Date(Date.now() + 86_400_000).toISOString(), confidence: 0.65,
   });
   let grokKey: string | null = null;
-  if (opts.withComps || opts.withLocation) {
+  if (opts.withComps || opts.withLocation || opts.withAvm) {
     grokKey = addressFull.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
     const { error: grokErr } = await sb.from('grok_property_cache').upsert({
       address_normalized: grokKey,
@@ -59,6 +59,7 @@ async function insertTestProperty(sb: any, addressFull: string, opts: { withComp
       grok_result: {
         comparable_sales: opts.withComps ? [{ address: '1 Comp St, Testville, ZZ', sold_price: 495_000, sold_date: 'Jan 2026' }] : [],
         location_intelligence: opts.withLocation ? { narrative: 'Quiet, walkable area near good schools.', sub_scores: [] } : undefined,
+        zillow_estimate: opts.withAvm ? 510_000 : undefined,
       },
       fetched_at: now,
       expires_at: new Date(Date.now() + 86_400_000).toISOString(),
@@ -101,8 +102,15 @@ async function main() {
         && parsedEnriching.success;
       record('B1. Enriching property: progress=enriching, follow_up_recommended, summary does not claim comps/location', enrichingOk ? 'PASS' : 'FAIL', JSON.stringify({ progress: shapedEnriching.intelligence_progress, summary: shapedEnriching.deep_intelligence?.capability_summary }));
 
+      // withAvm: true added 2026-09-15 alongside the AVM-aware capability_summary
+      // change (a valuation estimate is now tracked as its own available/pending
+      // item, same as comps/location) -- without a real AVM, this fixture would
+      // always show "a property valuation estimate" as pending, which is the
+      // correct NEW behavior but would make this specific "everything available,
+      // nothing pending" test case impossible to construct. Genuinely fully
+      // enriched now means comps + location + AVM all present.
       const richAddr = `${Date.now()} Enriched Test Ave, Testville, ZZ 00001`;
-      const rich = await insertTestProperty(sb, richAddr, { withComps: true, withLocation: true });
+      const rich = await insertTestProperty(sb, richAddr, { withComps: true, withLocation: true, withAvm: true });
       testIds.push(rich.id);
       if (rich.grokKey) testGrokKeys.push(rich.grokKey);
       const canonicalRich = await buildCanonicalPropertyIntelligence(rich.id);
@@ -111,11 +119,12 @@ async function main() {
       const richSummary = shapedRich.deep_intelligence?.capability_summary ?? '';
       const richOk = shapedRich.intelligence_progress?.status === 'enriched'
         && shapedRich.intelligence_progress?.follow_up_recommended === false
+        && /valuation estimate/i.test(richSummary)
         && /comparable sales/i.test(richSummary)
         && /market and location context/i.test(richSummary)
         && !/finishes gathering/i.test(richSummary)
         && parsedRich.success;
-      record('B2. Enriched property: progress=enriched, follow_up_recommended false, summary claims comps+location', richOk ? 'PASS' : 'FAIL', JSON.stringify({ progress: shapedRich.intelligence_progress, summary: richSummary }));
+      record('B2. Enriched property (incl. AVM): progress=enriched, follow_up_recommended false, summary claims valuation+comps+location', richOk ? 'PASS' : 'FAIL', JSON.stringify({ progress: shapedRich.intelligence_progress, summary: richSummary }));
 
       const partialAddr = `${Date.now()} Partial Enrich Rd, Testville, ZZ 00001`;
       const partial = await insertTestProperty(sb, partialAddr, { withComps: true, withLocation: false });

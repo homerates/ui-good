@@ -2768,3 +2768,53 @@ throws (original successful result preserved). `tsc --noEmit` clean, full
 `next build` clean. `test-address-identity-integration.ts` (4/4) and
 `test-external-adapter.ts` (58/58) re-run clean, confirming the change
 doesn't interact with either surface's own fake-URL-based fetch mocking.
+
+## AD-44 — null AVM reframed as pending intelligence, never a dead end
+
+**Decision:** a null `value_intelligence.avm` no longer reads as HomeRates'
+own shortcoming or a conversational dead end. `computeDeepIntelligenceCta()`
+(`lib/gateway/outputShaping.ts`) now tracks "a property valuation estimate"
+as its own available/pending item -- same mechanism already used for
+comps and location context -- so `deep_intelligence.capability_summary`
+explicitly names it as pending (not silently omitted) whenever
+`value_intelligence.avm` is null. `TOOL_DESCRIPTION`
+(`app/api/mcp/property-intelligence/route.ts`) now instructs the calling
+AI, when avm is null, to mention briefly that a valuation estimate isn't
+in this response and point to `deep_intelligence.destination` (relaying
+what `capability_summary` says, per the existing instruction just below
+it) -- never to state the absence as a flat conclusion, and never to
+promise a specific timeline.
+
+**Why this is the right lever, not the AVM pipeline itself:** a real,
+direct investigation this session (AD-43, plus live, repeated probing
+using this repo's own `tools/redfin-probe.mjs` methodology) confirmed a
+null AVM is frequently a genuine, external constraint -- the source
+site's own bot-mitigation intermittently serves a degraded response,
+confirmed via 3 repeat requests to the same URL where the 2nd and 3rd
+came back HTTP 202 with a 2KB stub, even 4 seconds apart. Per explicit
+product decision (2026-09-15, reaffirming an evaluation already made
+previously), the fix is not more scraping infrastructure (proxy
+rotation, alternative paid AVM sources) -- it's making the ABSENCE read
+correctly: not a HomeRates gap to apologize for, and not something a
+retry can reliably promise to fix, but a pointer toward the Property
+Intelligence report where a valuation may become available as
+enrichment continues.
+
+**Status:** Built. `test-chatgpt-invocation-contract.ts` updated (a new
+`withAvm` option on its test-property fixture; the "fully enriched,
+nothing pending" B2 case now includes a real AVM, since a valuation
+estimate is now correctly tracked as its own pending/available item
+even independent of comps/location enrichment) -- 7/7, all green.
+`tsc --noEmit` clean, full `next build` clean. `test-deep-intelligence-
+parity.ts` (12/12), `test-intelligence-gateway.ts` (58/60, 2
+environment-LIMITED as already established), `test-golden-prompts.ts`
+(10/10) re-run clean.
+
+**Open, explicitly bigger idea from the same conversation, not built
+this round:** give the calling AI more direct access to HomeRates' own
+Grok-sourced synthesis so it can run its own follow-up "discovery"
+conversation (further questions, next steps) rather than only linking
+out to the interactive report. This is a real product-shape question
+(how much of the report to expose inline, what a "discovery" turn
+concretely looks like) deserving its own scoping pass, not folded into
+this narrower messaging fix.

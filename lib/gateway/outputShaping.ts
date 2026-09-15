@@ -133,10 +133,23 @@ function computeDeepIntelligenceCta(
 
   const hasComps = raw.comps.length > 0;
   const hasLocation = raw.location != null;
+  const hasAvm = raw.valuation.pointEstimate != null;
   const available: string[] = ['an adjustable financing scenario'];
+  if (hasAvm) available.push('a property valuation estimate');
   if (hasComps) available.push('comparable sales');
   if (hasLocation) available.push('market and location context');
   const pending: string[] = [];
+  // A valuation estimate is deliberately listed as PENDING (not "unavailable")
+  // when null -- added 2026-09-15 after a real, live incident: ChatGPT told a
+  // user "HomeRates has not retrieved a usable AVM" as a flat dead end, which
+  // reads worse than the truth. A null AVM here is frequently a real, external
+  // scraping constraint (the source site's own bot-mitigation, confirmed live
+  // via repeated direct probing -- not a HomeRates data gap the tool can
+  // promise to fill on a plain retry), so this never claims a specific
+  // timeline -- it only gives the calling AI language that points to the
+  // report as where a valuation MAY appear, instead of stating its absence
+  // as a conclusion.
+  if (!hasAvm) pending.push('a property valuation estimate');
   if (!hasComps) pending.push('comparable sales');
   if (!hasLocation) pending.push('market and location context');
 
