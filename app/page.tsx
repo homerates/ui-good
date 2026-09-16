@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
 import AddressAutocomplete from './components/AddressAutocomplete';
+import { FactLabelBadge } from './components/FactLabelBadge';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -627,6 +628,136 @@ export default function LandingPage() {
         .lp-card-red .lp-card-insight { color: var(--red); }
         .lp-card-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 
+        /* RESULT PREVIEW — shows a real example of the intelligence HomeRates
+           produces, directly after the hero and before the feature section.
+           Content is a static snapshot of an already-published, real
+           HomeRates.ai Property Intelligence record (see the section's own
+           "See the live, current version" link) — not fetched on page load,
+           so it can never add a live property-data request to the homepage. */
+        .lp-preview { max-width: 1200px; margin: 0 auto 100px; padding: 0 40px; }
+        .lp-preview-eyebrow {
+          font-family: 'DM Mono', monospace;
+          font-size: 11px;
+          font-weight: 500;
+          color: var(--green);
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          margin-bottom: 16px;
+        }
+        .lp-preview-heading {
+          font-family: 'DM Sans', sans-serif;
+          font-size: clamp(28px, 3.5vw, 44px);
+          font-weight: 800;
+          line-height: 1.1;
+          letter-spacing: -0.02em;
+          margin-bottom: 16px;
+          max-width: 640px;
+        }
+        .lp-preview-sub {
+          font-size: 15px;
+          color: var(--text-muted);
+          line-height: 1.7;
+          max-width: 600px;
+          margin-bottom: 36px;
+        }
+        .lp-preview-card {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          padding: 28px 32px;
+        }
+        .lp-preview-card-head {
+          display: flex;
+          align-items: baseline;
+          flex-wrap: wrap;
+          gap: 8px 14px;
+          margin-bottom: 20px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid var(--border);
+        }
+        .lp-preview-card-eyebrow {
+          font-family: 'DM Mono', monospace;
+          font-size: 10px;
+          font-weight: 500;
+          color: var(--green);
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .lp-preview-card-address {
+          font-size: 15px;
+          font-weight: 600;
+          color: var(--text);
+        }
+        .lp-preview-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px 32px;
+          margin-bottom: 24px;
+        }
+        .lp-preview-row-label {
+          font-size: 12px;
+          color: var(--text-muted);
+          margin-bottom: 4px;
+        }
+        .lp-preview-row-value {
+          font-size: 17px;
+          font-weight: 700;
+          color: var(--text);
+        }
+        .lp-preview-row-detail {
+          font-size: 11.5px;
+          color: rgba(143,163,184,0.7);
+          margin-top: 3px;
+          line-height: 1.5;
+        }
+        .lp-preview-unknowns, .lp-preview-next {
+          border-top: 1px solid var(--border);
+          padding-top: 18px;
+          margin-top: 4px;
+        }
+        .lp-preview-unknowns-label, .lp-preview-next-label {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text);
+          margin-bottom: 8px;
+        }
+        .lp-preview-unknowns ul {
+          margin: 0;
+          padding-left: 18px;
+          color: var(--text-muted);
+          font-size: 13px;
+          line-height: 1.8;
+        }
+        .lp-preview-next p {
+          margin: 0;
+          color: var(--text-muted);
+          font-size: 13.5px;
+          line-height: 1.7;
+        }
+        .lp-preview-source {
+          margin-top: 20px;
+          padding-top: 16px;
+          border-top: 1px solid var(--border);
+          font-size: 11.5px;
+          color: rgba(143,163,184,0.6);
+          line-height: 1.6;
+        }
+        .lp-preview-source a { color: var(--green); text-decoration: none; }
+        .lp-preview-source a:hover { text-decoration: underline; }
+        .lp-preview-cta {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-top: 28px;
+          flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+          .lp-preview { padding: 0 20px; margin-bottom: 60px; }
+          .lp-preview-card { padding: 22px 20px; }
+          .lp-preview-grid { grid-template-columns: 1fr; gap: 18px; }
+        }
+
         /* INTELLIGENCE SECTION */
         .lp-intel { max-width: 1200px; margin: 0 auto 100px; padding: 0 40px; }
         .lp-intel-grid {
@@ -1130,6 +1261,74 @@ export default function LandingPage() {
               <div className="lp-card-insight">20% down · ~$8,900/mo</div>
               <div className="lp-card-desc">Reserves &amp; qualification guide</div>
             </button>
+          </div>
+        </section>
+
+        {/* RESULT PREVIEW — a real example of what HomeRates finds, shown
+            before any form is submitted. Static snapshot of an already-
+            published HomeRates.ai Property Intelligence record (see the
+            source link inside), not a live fetch — see the CSS comment
+            above this section's styles for why. */}
+        <section className="lp-preview" aria-labelledby="lp-preview-heading">
+          <div className="lp-preview-eyebrow">SEE WHAT HOMERATES FINDS</div>
+          <h2 id="lp-preview-heading" className="lp-preview-heading">From a property address to a clearer decision.</h2>
+          <p className="lp-preview-sub">
+            HomeRates brings the property, financing, monthly cost, market evidence, and important unknowns into one place—before you commit.
+          </p>
+
+          <div className="lp-preview-card">
+            <div className="lp-preview-card-head">
+              <span className="lp-preview-card-eyebrow">Real HomeRates.ai example</span>
+              <span className="lp-preview-card-address">107 Oxford #34 · Irvine, CA 92612</span>
+            </div>
+
+            <div className="lp-preview-grid">
+              <div>
+                <div className="lp-preview-row-label">Property snapshot</div>
+                <div className="lp-preview-row-value">2 bd / 2.5 ba · 1,134 sqft<FactLabelBadge label="PROPERTY FACT" /></div>
+                <div className="lp-preview-row-detail">Property type not yet resolved for this record</div>
+              </div>
+              <div>
+                <div className="lp-preview-row-label">Property-value context</div>
+                <div className="lp-preview-row-value">$929,702<FactLabelBadge label="ESTIMATE" /></div>
+                <div className="lp-preview-row-detail">Automated valuation, averaged from Redfin and Zillow estimates</div>
+              </div>
+              <div>
+                <div className="lp-preview-row-label">Estimated monthly cost (PITI)</div>
+                <div className="lp-preview-row-value">$5,648/mo<FactLabelBadge label="DERIVED CALCULATION" /></div>
+                <div className="lp-preview-row-detail">20% down, conventional, 30yr fixed, ~6.881% rate</div>
+              </div>
+              <div>
+                <div className="lp-preview-row-label">Market evidence</div>
+                <div className="lp-preview-row-value">48 days on market · 99.0% sale-to-list<FactLabelBadge label="MARKET FACT" /></div>
+                <div className="lp-preview-row-detail">Area median, from recent comparable sales</div>
+              </div>
+            </div>
+
+            <div className="lp-preview-unknowns">
+              <div className="lp-preview-unknowns-label">
+                Important unknowns<FactLabelBadge label="UNAVAILABLE" />
+              </div>
+              <ul>
+                <li>Current list price — not available for this record</li>
+                <li>HOA dues — not yet confirmed</li>
+              </ul>
+            </div>
+
+            <div className="lp-preview-next">
+              <div className="lp-preview-next-label">Before making an offer</div>
+              <p>Confirm HOA dues and current listing status, and get a personalized rate quote from a licensed lender.</p>
+            </div>
+
+            <div className="lp-preview-source">
+              Real, published HomeRates.ai record — snapshot captured 2026-09-15.{' '}
+              <Link href="/property-intelligence/09ae496e-14be-4b74-b680-65e2b6b9c94d">See the live, current version →</Link>
+            </div>
+          </div>
+
+          <div className="lp-preview-cta">
+            <Link href="/property-intel" className="lp-btn-primary">Analyze a property</Link>
+            <Link href="/property-intelligence" className="lp-btn-ghost">See how the analysis works</Link>
           </div>
         </section>
 
