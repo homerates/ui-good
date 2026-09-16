@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Location Intelligence — Property Intel Prototype</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #050812; color: #f1f5f9; font-family: 'DM Sans', system-ui, sans-serif; padding: 32px 16px 80px; }
+
+  .card { background: #0f172a; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.07); max-width: 920px; margin: 0 auto; }
+
+  /* ── Section header ── */
+  .section-header {
+    padding: 20px 28px 14px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    background: rgba(20,184,166,0.03);
+    display: flex; align-items: center; justify-content: space-between; gap: 16;
+  }
+  .section-label {
+    display: flex; align-items: center; gap: 10;
+  }
+  .section-label .icon { font-size: 1.05rem; color: #2dd4bf; }
+  .section-label .title { font-weight: 700; font-size: 0.93rem; color: #e2e8f0; }
+  .section-label .badge {
+    font-size: 0.58rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+    background: rgba(20,184,166,0.1); color: #2dd4bf;
+    border: 1px solid rgba(20,184,166,0.25); border-radius: 4; padding: 2px 7px;
+  }
+
+  /* ── Overall score ring ── */
+  .overall-score {
+    display: flex; align-items: center; gap: 14;
+    background: rgba(255,255,255,0.025);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12; padding: 14px 18px;
+    margin: 0 28px 20px;
+  }
+  .score-ring-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+  .score-ring-wrap svg { position: absolute; inset: 0; }
+  .score-number {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.15rem; font-weight: 900; color: #fbbf24;
+  }
+  .overall-meta { flex: 1; min-width: 0; }
+  .overall-label { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #4b6080; margin-bottom: 4; }
+  .overall-verdict { font-size: 1rem; font-weight: 700; color: #fbbf24; margin-bottom: 3; }
+  .overall-narrative { font-size: 0.78rem; color: #94a3b8; line-height: 1.6; }
+  .overall-weight {
+    flex-shrink: 0; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4; padding: 3px 8px; color: #4b6080;
+  }
+
+  /* ── Sub-score grid ── */
+  .sub-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 0 28px 20px;
+  }
+  @media (max-width: 640px) { .sub-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 400px) { .sub-grid { grid-template-columns: 1fr; } }
+
+  .sub-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12; padding: 14px;
+    display: flex; flex-direction: column; gap: 6;
+    position: relative; overflow: hidden;
+  }
+  .sub-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--accent);
+  }
+
+  .sub-metric { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #4b6080; }
+  .sub-score-row { display: flex; align-items: baseline; gap: 8; }
+  .sub-score-num { font-size: 1.6rem; font-weight: 900; line-height: 1; color: var(--accent); }
+  .sub-score-max { font-size: 0.62rem; color: #4b6080; }
+  .sub-rating { font-size: 0.68rem; font-weight: 700; color: var(--accent); }
+  .sub-bar { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2; overflow: hidden; }
+  .sub-bar-fill { height: 100%; border-radius: 2; background: var(--accent); }
+  .sub-desc { font-size: 0.72rem; color: #64748b; line-height: 1.5; }
+
+  /* wildfire special styling */
+  .sub-card.danger { border-color: rgba(248,113,113,0.2); background: rgba(248,113,113,0.03); }
+  .sub-card.danger::before { background: #f87171; }
+
+  /* ── Strengths / Tradeoffs ── */
+  .str-tradeoff-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12;
+    padding: 0 28px 20px;
+  }
+  @media (max-width: 560px) { .str-tradeoff-grid { grid-template-columns: 1fr; } }
+
+  .str-box, .trade-box {
+    border-radius: 12; padding: 16px;
+    display: flex; flex-direction: column; gap: 10;
+  }
+  .str-box { background: rgba(74,222,128,0.04); border: 1px solid rgba(74,222,128,0.15); }
+  .trade-box { background: rgba(248,113,113,0.04); border: 1px solid rgba(248,113,113,0.15); }
+
+  .str-title { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #4ade80; margin-bottom: 2; }
+  .trade-title { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #f87171; margin-bottom: 2; }
+
+  .str-item, .trade-item {
+    display: flex; gap: 8; align-items: flex-start;
+    font-size: 0.78rem; line-height: 1.5;
+  }
+  .str-item { color: #86efac; }
+  .trade-item { color: #fca5a5; }
+  .str-item .dot { color: #4ade80; font-size: 0.5rem; margin-top: 5; flex-shrink: 0; }
+  .trade-item .dot { color: #f87171; font-size: 0.5rem; margin-top: 5; flex-shrink: 0; }
+
+  /* ── Recommendation ── */
+  .recommendation {
+    margin: 0 28px 24px;
+    background: rgba(251,191,36,0.05);
+    border: 1px solid rgba(251,191,36,0.18);
+    border-radius: 12; padding: 16px 18px;
+    display: flex; gap: 12; align-items: flex-start;
+  }
+  .rec-icon { font-size: 1rem; margin-top: 1; flex-shrink: 0; }
+  .rec-content { flex: 1; }
+  .rec-label { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #fbbf24; margin-bottom: 6; }
+  .rec-text { font-size: 0.82rem; color: #fde68a; line-height: 1.65; }
+
+  /* ── Demo label ── */
+  .demo-note { text-align: center; color: #4b6080; font-size: 0.75rem; margin-bottom: 20; }
+</style>
+</head>
+<body>
+
+<p class="demo-note">↓ New Location Intelligence section — appears after Deep Analysis completes ↓</p>
+
+<div class="card">
+
+  <!-- ── Section header ── -->
+  <div class="section-header">
+    <div class="section-label">
+      <span class="icon">📍</span>
+      <span class="title">Location Intelligence</span>
+      <span class="badge">L4 · Deep Analysis</span>
+    </div>
+  </div>
+
+  <!-- ── Overall score ── -->
+  <div class="overall-score">
+    <!-- Score ring (SVG) -->
+    <div class="score-ring-wrap">
+      <svg width="64" height="64" viewBox="0 0 64 64">
+        <!-- track -->
+        <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="5"/>
+        <!-- fill: score=58, circ=2π×26≈163.4, fill=163.4×0.58≈94.8 -->
+        <circle cx="32" cy="32" r="26" fill="none" stroke="#fbbf24" stroke-width="5"
+          stroke-dasharray="94.8 163.4" stroke-linecap="round"
+          transform="rotate(-90 32 32)"/>
+      </svg>
+      <div class="score-number">58</div>
+    </div>
+    <div class="overall-meta">
+      <div class="overall-label">Location Score</div>
+      <div class="overall-verdict">Buy with Caution</div>
+      <div class="overall-narrative">
+        Family-friendly, low-crime suburb with strong schools — but high wildfire risk and car-dependency are material trade-offs.
+      </div>
+    </div>
+    <div class="overall-weight">15% of index</div>
+  </div>
+
+  <!-- ── Sub-score grid ── -->
+  <div class="sub-grid">
+
+    <!-- Walk Score -->
+    <div class="sub-card" style="--accent:#60a5fa">
+      <div class="sub-metric">Walk Score</div>
+      <div class="sub-score-row">
+        <span class="sub-score-num">24</span>
+        <span class="sub-score-max">/100</span>
+      </div>
+      <div class="sub-rating">Car-Dependent</div>
+      <div class="sub-bar"><div class="sub-bar-fill" style="width:24%"></div></div>
+      <div class="sub-desc">Most daily errands require a car. Typical for suburban Simi Valley.</div>
+    </div>
+
+    <!-- Transit Score -->
+    <div class="sub-card" style="--accent:#818cf8">
+      <div class="sub-metric">Transit Score</div>
+      <div class="sub-score-row">
+        <span class="sub-score-num">28</span>
+        <span class="sub-score-max">/100</span>
+      </div>
+      <div class="sub-rating">Minimal Transit</div>
+      <div class="sub-bar"><div class="sub-bar-fill" style="width:28%"></div></div>
+      <div class="sub-desc">Limited bus service. Metrolink several miles away for LA commutes.</div>
+    </div>
+
+    <!-- Bike Score -->
+    <div class="sub-card" style="--accent:#34d399">
+      <div class="sub-metric">Bike Score</div>
+      <div class="sub-score-row">
+        <span class="sub-score-num">45</span>
+        <span class="sub-score-max">/100</span>
+      </div>
+      <div class="sub-rating">Somewhat Bikeable</div>
+      <div class="sub-bar"><div class="sub-bar-fill" style="width:45%"></div></div>
+      <div class="sub-desc">Arroyo Simi Bike Path for recreation; limited for daily commuting.</div>
+    </div>
+
+    <!-- Schools -->
+    <div class="sub-card" style="--accent:#4ade80">
+      <div class="sub-metric">Schools</div>
+      <div class="sub-score-row">
+        <span class="sub-score-num">78</span>
+        <span class="sub-score-max">/100</span>
+      </div>
+      <div class="sub-rating">Above Average</div>
+      <div class="sub-bar"><div class="sub-bar-fill" style="width:78%"></div></div>
+      <div class="sub-desc">Simi Valley Unified rates well — many elementaries 7–9/10 on GreatSchools.</div>
+    </div>
+
+    <!-- Safety -->
+    <div class="sub-card" style="--accent:#4ade80">
+      <div class="sub-metric">Safety</div>
+      <div class="sub-score-row">
+        <span class="sub-score-num">82</span>
+        <span class="sub-score-max">/100</span>
+      </div>
+      <div class="sub-rating">Low Crime</div>
+      <div class="sub-bar"><div class="sub-bar-fill" style="width:82%"></div></div>
+      <div class="sub-desc">Consistently one of the safer cities in Ventura County.</div>
+    </div>
+
+    <!-- Amenities & Commute -->
+    <div class="sub-card" style="--accent:#fbbf24">
+      <div class="sub-metric">Amenities &amp; Commute</div>
+      <div class="sub-score-row">
+        <span class="sub-score-num">65</span>
+        <span class="sub-score-max">/100</span>
+      </div>
+      <div class="sub-rating">Good Suburban Access</div>
+      <div class="sub-bar"><div class="sub-bar-fill" style="width:65%"></div></div>
+      <div class="sub-desc">Excellent parks and grocery access. 35–50 min to LA job centers.</div>
+    </div>
+
+    <!-- Wildfire Risk — spans 2 columns on desktop for emphasis -->
+    <div class="sub-card danger" style="--accent:#f87171; grid-column: 1 / -1;">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px">
+        <div>
+          <div class="sub-metric" style="color:#f87171">⚠ Wildfire Risk</div>
+          <div class="sub-score-row" style="margin-top:4px">
+            <span class="sub-score-num" style="font-size:1.3rem">35</span>
+            <span class="sub-score-max">/100</span>
+            <span style="font-size:0.72rem; font-weight:700; color:#f87171; margin-left:6px">HIGH</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <div style="background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.25); border-radius:6px; padding:5px 10px; text-align:center">
+            <div style="font-size:0.7rem; font-weight:800; color:#f87171">7/10</div>
+            <div style="font-size:0.56rem; color:#4b6080; letter-spacing:0.05em; text-transform:uppercase">Fire Factor</div>
+          </div>
+          <div style="background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.25); border-radius:6px; padding:5px 10px; text-align:center">
+            <div style="font-size:0.7rem; font-weight:800; color:#f87171">15%</div>
+            <div style="font-size:0.56rem; color:#4b6080; letter-spacing:0.05em; text-transform:uppercase">30-yr Risk</div>
+          </div>
+          <div style="background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.25); border-radius:6px; padding:5px 10px; text-align:center">
+            <div style="font-size:0.7rem; font-weight:800; color:#f87171">Top 4%</div>
+            <div style="font-size:0.56rem; color:#4b6080; letter-spacing:0.05em; text-transform:uppercase">US Risk</div>
+          </div>
+        </div>
+      </div>
+      <div class="sub-bar" style="margin-top:8px"><div class="sub-bar-fill" style="width:35%; background:#f87171"></div></div>
+      <div class="sub-desc" style="color:#fca5a5">
+        Redfin Fire Factor 7/10 (First Street data). 15% probability of wildfire impact in next 30 years. Area recently affected by Sandy Fire (May 2026). Risk higher than 96% of U.S. communities — insurance availability and cost may be significantly impacted.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Strengths / Tradeoffs ── -->
+  <div class="str-tradeoff-grid">
+    <div class="str-box">
+      <div class="str-title">✓ Strengths</div>
+      <div class="str-item"><span class="dot">●</span>Strong schools and safety — ideal for families</div>
+      <div class="str-item"><span class="dot">●</span>Access to parks, trails, and open space</div>
+      <div class="str-item"><span class="dot">●</span>Spacious lots and suburban community feel</div>
+    </div>
+    <div class="trade-box">
+      <div class="trade-title">⚠ Trade-offs</div>
+      <div class="trade-item"><span class="dot">●</span>Car-dependent — low walk and transit scores</div>
+      <div class="trade-item"><span class="dot">●</span>High wildfire risk — insurance costs may spike</div>
+      <div class="trade-item"><span class="dot">●</span>Sandy Fire activity in immediate area (May 2026)</div>
+    </div>
+  </div>
+
+  <!-- ── Recommendation ── -->
+  <div class="recommendation">
+    <span class="rec-icon">💡</span>
+    <div class="rec-content">
+      <div class="rec-label">Location Recommendation</div>
+      <div class="rec-text">
+        Best suited for families prioritizing schools, safety, and space — and who are comfortable with wildfire mitigation (defensible space, insurance planning, evacuation readiness). Less ideal for urban walkers or buyers sensitive to fire and insurance volatility.
+      </div>
+    </div>
+  </div>
+
+</div><!-- /card -->
+
+</body>
+</html>

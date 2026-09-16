@@ -1,0 +1,6 @@
+# Sensitive files — excluded from Claude Code grep/read/glob
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development

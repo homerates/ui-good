@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rate Engine × DSC — Prototype v3</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080c12; font-family: 'DM Sans', system-ui, sans-serif; color: #f0f4ff; padding: 32px 20px 80px; }
+  .label { font-size: 0.68rem; font-weight: 700; color: rgba(185,208,192,0.35); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px; }
+  .wrap { max-width: 480px; margin: 0 auto; }
+  .gap { height: 64px; }
+  hr { border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 48px auto; max-width: 480px; }
+
+  /* ─── DSC card ─── */
+  .dsc { background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.18); border-radius: 16px; overflow: hidden; }
+  .dsc-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 12px; border-bottom:1px solid rgba(255,255,255,0.05); }
+  .dsc-hl { display:flex; align-items:center; gap:14px; }
+  .ring { position:relative; width:60px; height:60px; flex-shrink:0; }
+  .ring svg { transform:rotate(-90deg); }
+  .ring-n { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.15rem; font-weight:900; color:#4ade80; }
+  .dsc-tag { display:inline-flex; align-items:center; gap:5px; background:rgba(74,222,128,0.1); border:1px solid rgba(74,222,128,0.22); border-radius:20px; padding:4px 12px; font-size:0.68rem; font-weight:700; color:#4ade80; }
+  .bars { padding:13px 20px; display:flex; flex-direction:column; gap:9px; }
+  .bar-row { display:flex; align-items:center; gap:10px; }
+  .bar-lbl { display:flex; align-items:baseline; gap:4px; width:148px; flex-shrink:0; }
+  .bL { font-size:0.61rem; font-weight:800; color:#00e87a; text-transform:uppercase; letter-spacing:0.08em; }
+  .bN { font-size:0.75rem; color:rgba(185,208,192,0.7); }
+  .bW { font-size:0.61rem; color:rgba(185,208,192,0.22); margin-left:auto; }
+  .bar-tr { flex:1; height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; }
+  .bar-fi { height:100%; border-radius:3px; background:#4ade80; }
+  .bar-sc { font-size:0.79rem; font-weight:700; color:#f0f4ff; width:30px; text-align:right; flex-shrink:0; }
+
+  /* ── DSC footer: minimal addition ── */
+  .dsc-footer {
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding: 12px 20px 15px;
+  }
+  .dsc-footer-row { display:flex; gap:8px; }
+  .btn-full {
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,232,122,0.07); border:1px solid rgba(0,232,122,0.2);
+    color:#00e87a; font-weight:700; font-size:0.77rem;
+    border-radius:10px; padding:10px 14px; text-decoration:none;
+    font-family:inherit; cursor:pointer; white-space:nowrap;
+  }
+  .btn-rate {
+    flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+    background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3);
+    color:#c4b5fd; font-weight:700; font-size:0.82rem;
+    border-radius:10px; padding:10px 16px;
+    font-family:inherit; cursor:pointer;
+  }
+  .dsc-footer-note {
+    font-size:0.65rem; color:rgba(185,208,192,0.28); margin-top:8px; line-height:1.5;
+  }
+
+  /* ─── Rate Engine page ─── */
+  .origin-bar {
+    display:flex; align-items:center; gap:8px;
+    background:rgba(0,232,122,0.04); border:1px solid rgba(0,232,122,0.15);
+    border-radius:9px; padding:9px 13px; margin-bottom:20px;
+    font-size:0.79rem; color:rgba(185,208,192,0.6); line-height:1.4;
+  }
+  .origin-bar strong { color:#00e87a; }
+
+  .rie-h1 { font-size:1.45rem; font-weight:800; margin-bottom:3px; }
+  .rie-p  { font-size:0.88rem; color:rgba(185,208,192,0.5); margin-bottom:22px; }
+
+  /* form card */
+  .fc { background:#0e1420; border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:18px; margin-bottom:12px; }
+  .fc-title { font-size:0.68rem; font-weight:700; color:rgba(185,208,192,0.4); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:14px; }
+
+  .field { display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
+  .field:last-child { margin-bottom:0; }
+  .field-label { font-size:0.78rem; color:rgba(185,208,192,0.55); display:flex; justify-content:space-between; }
+  .field-tag-green { font-size:0.62rem; color:rgba(0,232,122,0.55); }
+  .field-tag-amber { font-size:0.62rem; color:rgba(251,191,36,0.65); }
+
+  .inp {
+    padding:10px 13px; border-radius:9px; font-size:0.92rem; font-family:inherit;
+    color:#f0f4ff; outline:none; width:100%; border:1px solid rgba(255,255,255,0.08);
+    background:rgba(255,255,255,0.04);
+  }
+  .inp.green { border-color:rgba(0,232,122,0.28); background:rgba(0,232,122,0.04); color:#4ade80; font-weight:600; }
+  .inp.amber { border-color:rgba(251,191,36,0.3); background:rgba(251,191,36,0.04); font-size:1rem; font-weight:700; }
+  .inp.amber::placeholder { color:rgba(251,191,36,0.35); font-weight:400; font-size:0.88rem; }
+
+  .sel { padding:10px 13px; border-radius:9px; font-size:0.88rem; font-family:inherit; color:#4ade80; font-weight:600; outline:none; width:100%; border:1px solid rgba(0,232,122,0.28); background:rgba(0,232,122,0.04); cursor:pointer; }
+  .sel.plain { color:#f0f4ff; font-weight:400; border-color:rgba(255,255,255,0.08); background:rgba(255,255,255,0.04); }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  /* credit score bands */
+  .bands { display:flex; gap:5px; margin-top:6px; }
+  .band {
+    flex:1; padding:6px 2px; border-radius:6px; text-align:center;
+    font-size:0.66rem; font-weight:700; cursor:pointer; border:1px solid;
+  }
+  .band-r { background:rgba(248,113,113,0.08); border-color:rgba(248,113,113,0.2); color:rgba(248,113,113,0.8); }
+  .band-y { background:rgba(251,191,36,0.08);  border-color:rgba(251,191,36,0.2);  color:rgba(251,191,36,0.8); }
+  .band-g { background:rgba(74,222,128,0.08);  border-color:rgba(74,222,128,0.2);  color:#4ade80; }
+  .band-b { background:rgba(74,222,128,0.14);  border-color:rgba(74,222,128,0.35); color:#4ade80; font-weight:800; }
+
+  /* slider */
+  .slider { width:100%; accent-color:#00e87a; }
+
+  /* CTA */
+  .btn-decode {
+    width:100%; padding:15px;
+    background:#8b5cf6; border:none; border-radius:12px;
+    color:#fff; font-weight:800; font-size:1rem;
+    font-family:inherit; cursor:pointer; margin-bottom:10px;
+  }
+  .cta-note { font-size:0.7rem; color:rgba(185,208,192,0.28); text-align:center; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- 1. DSC card — minimal CTA addition to the footer  -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="wrap" style="margin-bottom:16px;">
+  <div class="label">Decision Score card — existing card, one line added to footer</div>
+</div>
+
+<div class="wrap">
+<div class="dsc">
+
+  <div class="dsc-header">
+    <div class="dsc-hl">
+      <div class="ring">
+        <svg width="60" height="60" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="5"/>
+          <circle cx="32" cy="32" r="26" fill="none" stroke="#4ade80" stroke-width="5" stroke-linecap="round" stroke-dasharray="163" stroke-dashoffset="49"/>
+        </svg>
+        <div class="ring-n">72</div>
+      </div>
+      <div>
+        <div style="font-size:0.6rem;font-weight:700;color:#00e87a;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px;">Track 5 · Decision Score</div>
+        <div style="font-size:1rem;font-weight:800;color:#f0f4ff;">Ready to Offer</div>
+        <div style="font-size:0.73rem;color:rgba(185,208,192,0.48);margin-top:2px;">123 Maple St, Los Angeles, CA</div>
+      </div>
+    </div>
+    <div class="dsc-tag"><div style="width:5px;height:5px;border-radius:50%;background:currentColor;"></div>Ready</div>
+  </div>
+
+  <div class="bars">
+    <div class="bar-row">
+      <div class="bar-lbl"><span class="bL">L1</span><span class="bN">Financial</span><span class="bW">35%</span></div>
+      <div class="bar-tr"><div class="bar-fi" style="width:78%"></div></div>
+      <div class="bar-sc">78</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-lbl"><span class="bL">L2</span><span class="bN">Property</span><span class="bW">25%</span></div>
+      <div class="bar-tr"><div class="bar-fi" style="width:69%"></div></div>
+      <div class="bar-sc">69</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-lbl"><span class="bL">L3</span><span class="bN">Market</span><span class="bW">25%</span></div>
+      <div class="bar-tr"><div class="bar-fi" style="width:74%"></div></div>
+      <div class="bar-sc">74</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-lbl"><span class="bL">L4</span><span class="bN">Location</span><span class="bW">15%</span></div>
+      <div class="bar-tr"><div class="bar-fi" style="width:65%"></div></div>
+      <div class="bar-sc">65</div>
+    </div>
+  </div>
+
+  <!-- footer — existing + new button -->
+  <div class="dsc-footer">
+    <div class="dsc-footer-row">
+      <a href="#" class="btn-full">Full Analysis ↗</a>
+      <button class="btn-rate">🔬 Run Rate Intelligence</button>
+    </div>
+    <div class="dsc-footer-note">
+      Decode the exact Fannie Mae pricing lenders apply to your loan — the step before any rate is quoted.
+    </div>
+  </div>
+
+</div>
+</div>
+
+<hr />
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- 2. Rate Intelligence Engine — launched from DSC   -->
+<!--    Full form, fields pre-filled from scenario     -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="wrap" style="margin-bottom:16px;">
+  <div class="label">Rate Intelligence Engine — full form, pre-filled from scenario</div>
+</div>
+
+<div class="wrap">
+
+  <div class="origin-bar">
+    ✓ <span><strong>Loan details pre-filled from your scenario.</strong> Enter your credit score to run the pricing engine.</span>
+  </div>
+
+  <div class="rie-h1">Rate Intelligence Engine</div>
+  <div class="rie-p">The Fannie Mae LLPA matrix — exact pricing adjustments lenders run before quoting your rate.</div>
+
+  <!-- ── Loan scenario (pre-filled from chat) ── -->
+  <div class="fc">
+    <div class="fc-title">Loan scenario</div>
+
+    <div class="grid2">
+      <div class="field">
+        <div class="field-label">Home price <span class="field-tag-green">✓ from scenario</span></div>
+        <input class="inp green" value="$477,500" readonly />
+      </div>
+      <div class="field">
+        <div class="field-label">Down payment <span class="field-tag-green">✓ from scenario</span></div>
+        <input class="inp green" value="$95,500 (20%)" readonly />
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="field">
+        <div class="field-label">Loan amount <span class="field-tag-green">✓ from scenario</span></div>
+        <input class="inp green" value="$382,000" readonly />
+      </div>
+      <div class="field">
+        <div class="field-label">LTV <span class="field-tag-green">✓ from scenario</span></div>
+        <input class="inp green" value="80%" readonly />
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Pricing factors (editable — defaults sensible) ── -->
+  <div class="fc">
+    <div class="fc-title">Pricing factors — adjust if needed</div>
+
+    <div class="field">
+      <div class="field-label">Loan purpose <span class="field-tag-green">✓ from scenario</span></div>
+      <select class="sel">
+        <option selected>Purchase</option>
+        <option>Rate / Term Refinance</option>
+        <option>Cash-Out Refinance</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <div class="field-label">Occupancy <span class="field-tag-green">✓ from scenario</span></div>
+      <select class="sel">
+        <option selected>Primary residence</option>
+        <option>Second home</option>
+        <option>Investment property</option>
+      </select>
+    </div>
+
+    <div class="grid2">
+      <div class="field">
+        <div class="field-label">Property type</div>
+        <select class="sel plain">
+          <option selected>Single family (SFR)</option>
+          <option>Condo</option>
+          <option>2-Unit</option>
+          <option>3–4 Unit</option>
+          <option>Manufactured</option>
+        </select>
+      </div>
+      <div class="field">
+        <div class="field-label">Rate lock</div>
+        <select class="sel plain">
+          <option>15 days</option>
+          <option selected>30 days</option>
+          <option>45 days</option>
+          <option>60 days</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Credit score — the one missing piece ── -->
+  <div class="fc" style="border-color:rgba(139,92,246,0.25);background:linear-gradient(135deg,rgba(139,92,246,0.07),rgba(139,92,246,0.03));">
+    <div class="fc-title" style="color:rgba(167,139,250,0.7);">Credit score (FICO)</div>
+
+    <div class="field">
+      <div class="field-label" style="color:rgba(185,208,192,0.55);">
+        Your FICO score
+        <span class="field-tag-amber">⚡ Required — biggest pricing factor</span>
+      </div>
+      <input class="inp amber" type="number" min="580" max="850" placeholder="Enter your FICO (580–850)" />
+    </div>
+
+    <div class="bands">
+      <div class="band band-r">620–639</div>
+      <div class="band band-y">660–679</div>
+      <div class="band band-y">700–719</div>
+      <div class="band band-g">720–739</div>
+      <div class="band band-b">760+</div>
+    </div>
+
+    <div style="font-size:0.72rem;color:rgba(185,208,192,0.32);margin-top:10px;line-height:1.5;">
+      A 760+ score earns the best LLPA tier. A 680 score on an 80% LTV can add 1.375 points (~0.34%) to your rate.
+    </div>
+  </div>
+
+  <button class="btn-decode">Decode my rate →</button>
+  <div class="cta-note">Fannie Mae LLPA matrix · Live FRED par rate · Rate curve + negotiation brief · No login</div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buyer Journey Sidebar — Prototype</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #060d18;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  color: #e2e8f0;
+  height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ══════════════════════════════════════
+   LEFT — CHAT AREA
+══════════════════════════════════════ */
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid #131f30;
+}
+
+.chat-topbar {
+  height: 52px;
+  border-bottom: 1px solid #131f30;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.chat-topbar-logo {
+  font-size: 13px;
+  font-weight: 800;
+  color: #00e87a;
+  letter-spacing: -.02em;
+}
+.chat-topbar-thread {
+  font-size: 11.5px;
+  color: #3a5070;
+}
+
+.chat-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Chat messages */
+.msg-user {
+  align-self: flex-end;
+  max-width: 72%;
+  background: #0f2030;
+  border: 1px solid #1e3450;
+  border-radius: 16px 16px 4px 16px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #c8d8e8;
+}
+
+.msg-ai {
+  align-self: flex-start;
+  max-width: 84%;
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.55;
+}
+.msg-ai strong { color: #c8d8e8; }
+
+/* Mini card in chat — ISC result */
+.chat-card {
+  background: #0b1221;
+  border: 1px solid #1e2d45;
+  border-radius: 14px;
+  overflow: hidden;
+  width: 100%;
+  max-width: 480px;
+  align-self: flex-start;
+}
+.chat-card-topbar {
+  display: flex; align-items: center; gap: 7px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #131f30;
+}
+.chat-card-dot { width: 7px; height: 7px; border-radius: 50%; background: #00e87a; }
+.chat-card-label { font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #00e87a; }
+.chat-card-body { padding: 12px 14px; }
+.chat-card-hero { font-size: 24px; font-weight: 800; color: #00e87a; margin-bottom: 2px; }
+.chat-card-sub { font-size: 11px; color: #4a6080; margin-bottom: 10px; }
+.chat-card-row {
+  display: flex; gap: 8px;
+}
+.chat-card-chip {
+  flex: 1;
+  background: #0a1624;
+  border: 1px solid #1a2a40;
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+.chat-card-chip-l { font-size: 9px; color: #4a6080; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+.chat-card-chip-v { font-size: 13px; font-weight: 700; color: #c8d8e8; }
+
+.chat-input-bar {
+  height: 60px;
+  border-top: 1px solid #131f30;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.chat-input {
+  flex: 1;
+  background: #0d1928;
+  border: 1px solid #1e2d45;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #64748b;
+  outline: none;
+}
+.chat-send {
+  width: 34px; height: 34px;
+  background: #00e87a;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════
+   RIGHT — JOURNEY SIDEBAR
+══════════════════════════════════════ */
+.journey-sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #080f1c;
+}
+
+.sidebar-topbar {
+  height: 52px;
+  border-bottom: 1px solid #131f30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+.sidebar-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+  color: #4a6080;
+}
+.sidebar-add {
+  width: 26px; height: 26px;
+  background: #0f2030;
+  border: 1px solid #1e3450;
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: #00aaff;
+  font-size: 16px;
+  line-height: 1;
+  transition: background .15s;
+}
+.sidebar-add:hover { background: #1a3050; }
+
+.sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ══════════════════════════════════════
+   JOURNEY THUMBNAIL CARD
+══════════════════════════════════════ */
+.jcard {
+  background: #0b1221;
+  border: 1px solid #1e2d45;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color .15s, transform .12s;
+}
+.jcard:hover { border-color: #2a4060; transform: translateY(-1px); }
+.jcard.active-card { border-color: #00aaff44; }
+
+/* Property photo strip */
+.jcard-photo {
+  width: 100%;
+  height: 90px;
+  object-fit: cover;
+  display: block;
+  position: relative;
+}
+.jcard-photo-wrap {
+  position: relative;
+  height: 90px;
+  overflow: hidden;
+}
+.jcard-photo-wrap img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.jcard-photo-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 30%, #0b1221 100%);
+}
+.jcard-photo-addr {
+  position: absolute;
+  bottom: 8px; left: 10px; right: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #e2e8f0;
+  text-shadow: 0 1px 4px #000a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* No-photo address bar */
+.jcard-addr-bar {
+  padding: 10px 12px 6px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.jcard-addr-icon { color: #3a5070; margin-top: 1px; flex-shrink: 0; }
+.jcard-addr-text { font-size: 11.5px; font-weight: 700; color: #94a3b8; line-height: 1.3; }
+.jcard-addr-sub { font-size: 10px; color: #4a6080; margin-top: 1px; }
+
+/* Score row */
+.jcard-score-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 6px;
+}
+
+.score-ring-sm {
+  position: relative;
+  flex-shrink: 0;
+}
+.score-ring-sm svg { display: block; }
+.score-ring-sm .ring-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.jcard-score-meta { flex: 1; min-width: 0; }
+.jcard-track-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+  color: #3a5070;
+  margin-bottom: 2px;
+}
+.jcard-verdict {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #c8d8e8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-pill {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 9.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pill-ready   { background: #0f2918; color: #00e87a; border: 1px solid #00e87a33; }
+.pill-progress { background: #001828; color: #00aaff; border: 1px solid #00aaff33; }
+.pill-new     { background: #1a1200; color: #f5a623; border: 1px solid #f5a62333; }
+.pill-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+/* Level bars */
+.jcard-bars {
+  padding: 4px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.bar-label {
+  font-size: 9.5px;
+  color: #4a6080;
+  font-weight: 600;
+  width: 36px;
+  flex-shrink: 0;
+}
+.bar-pct {
+  font-size: 8.5px;
+  color: #2a3d55;
+  width: 22px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.bar-track {
+  flex: 1;
+  height: 4px;
+  background: #1a2740;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 1s cubic-bezier(0.16,1,0.3,1);
+}
+.bar-fill-green  { background: #00e87a; }
+.bar-fill-yellow { background: #f5c518; }
+.bar-fill-blue   { background: #00aaff; }
+.bar-fill-empty  { background: #1a2740; width: 0 !important; }
+
+.bar-score {
+  font-size: 10px;
+  font-weight: 700;
+  width: 20px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.bar-score.green  { color: #00e87a; }
+.bar-score.yellow { color: #f5c518; }
+.bar-score.empty  { color: #2a3d55; }
+
+/* Active indicator on left */
+.jcard.active-card .jcard-score-row::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: #00aaff;
+  border-radius: 2px;
+}
+
+/* Resume / Start CTA */
+.jcard-cta {
+  margin: 0 10px 10px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.cta-resume { background: #00aaff14; color: #00aaff; border: 1px solid #00aaff2a; }
+.cta-start  { background: #f5a62314; color: #f5a623; border: 1px solid #f5a6232a; }
+.cta-view   { background: #00e87a10; color: #00e87a; border: 1px solid #00e87a22; }
+
+/* Sidebar footer */
+.sidebar-footer {
+  border-top: 1px solid #131f30;
+  padding: 12px 14px;
+  font-size: 10px;
+  color: #2a3d55;
+  text-align: center;
+}
+
+/* ══════════════════════════════════════
+   HELPERS
+══════════════════════════════════════ */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1e2d45; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ════ CHAT ════ -->
+<div class="chat-area">
+  <div class="chat-topbar">
+    <span class="chat-topbar-logo">HomeRates</span>
+    <span style="color:#1e2d45">·</span>
+    <span class="chat-topbar-thread">Buyer Journey — Pasadena properties</span>
+  </div>
+
+  <div class="chat-scroll">
+    <!-- User message -->
+    <div class="msg-user">What's the payment on 4521 Maple Ave, Pasadena CA if I put 20% down?</div>
+
+    <!-- AI response + ISC card -->
+    <div class="msg-ai">Based on 20% down on a $649,000 purchase, here's your full payment breakdown.</div>
+
+    <div class="chat-card">
+      <div class="chat-card-topbar">
+        <div class="chat-card-dot"></div>
+        <span class="chat-card-label">AI Analysis · Conventional 30yr</span>
+      </div>
+      <div class="chat-card-body">
+        <div class="chat-card-hero">$3,240 / mo</div>
+        <div class="chat-card-sub">PITI · 4521 Maple Ave, Pasadena CA</div>
+        <div class="chat-card-row">
+          <div class="chat-card-chip">
+            <div class="chat-card-chip-l">Principal & Interest</div>
+            <div class="chat-card-chip-v">$2,734</div>
+          </div>
+          <div class="chat-card-chip">
+            <div class="chat-card-chip-l">Rate</div>
+            <div class="chat-card-chip-v" style="color:#00aaff">6.75%</div>
+          </div>
+          <div class="chat-card-chip">
+            <div class="chat-card-chip-l">Loan</div>
+            <div class="chat-card-chip-v">$519,200</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- L1 complete nudge -->
+    <div class="msg-ai">
+      <strong>L1 Financial Readiness — complete ✓</strong><br>
+      Your journey card has been updated. DTI is 42% on this scenario — within range. Ready to run the property evaluation for L2?
+    </div>
+
+    <div class="msg-user">Yes — what does the AVM say, is it priced right?</div>
+
+    <div class="msg-ai">Running property analysis now…</div>
+  </div>
+
+  <div class="chat-input-bar">
+    <input class="chat-input" placeholder="Ask anything about this property…" readonly />
+    <div class="chat-send">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#060d18" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </div>
+  </div>
+</div>
+
+<!-- ════ JOURNEY SIDEBAR ════ -->
+<div class="journey-sidebar">
+  <div class="sidebar-topbar">
+    <span class="sidebar-title">My Journeys</span>
+    <div class="sidebar-add" title="New journey">+</div>
+  </div>
+
+  <div class="sidebar-scroll">
+
+    <!-- ── JOURNEY 1: Active (L1 done, L2 in progress) WITH PHOTO ── -->
+    <div class="jcard active-card">
+      <!-- Property photo -->
+      <div class="jcard-photo-wrap">
+        <!-- Using a placeholder gradient to simulate a property photo -->
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a2a18 0%,#2a3a20 40%,#1a2a18 100%);display:flex;align-items:center;justify-content:center;">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3a5030" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M9 21V9"/>
+            <circle cx="6" cy="6" r="1" fill="#3a5030"/>
+          </svg>
+        </div>
+        <div class="jcard-photo-overlay"></div>
+        <div class="jcard-photo-addr">4521 Maple Ave, Pasadena CA</div>
+      </div>
+
+      <!-- Score row -->
+      <div class="jcard-score-row">
+        <div class="score-ring-sm">
+          <svg width="40" height="40" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#1a2740" stroke-width="3"/>
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#00aaff" stroke-width="3"
+              stroke-dasharray="100.5" stroke-dashoffset="65"
+              stroke-linecap="round"
+              transform="rotate(-90 20 20)"/>
+          </svg>
+          <div class="ring-num" style="color:#00aaff">35</div>
+        </div>
+        <div class="jcard-score-meta">
+          <div class="jcard-track-label">Track 5 · Decision Score</div>
+          <div class="jcard-verdict">L1 Complete</div>
+        </div>
+        <div class="status-pill pill-progress">
+          <span class="pill-dot"></span>Active
+        </div>
+      </div>
+
+      <!-- Level bars -->
+      <div class="jcard-bars">
+        <div class="bar-row">
+          <span class="bar-label">L1</span>
+          <span class="bar-pct">35%</span>
+          <div class="bar-track"><div class="bar-fill bar-fill-yellow" style="width:60%"></div></div>
+          <span class="bar-score yellow">60</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label" style="color:#2a3d55">L2</span>
+          <span class="bar-pct">25%</span>
+          <div class="bar-track"><div class="bar-fill bar-fill-empty"></div></div>
+          <span class="bar-score empty">—</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label" style="color:#2a3d55">L3</span>
+          <span class="bar-pct">25%</span>
+          <div class="bar-track"><div class="bar-fill bar-fill-empty"></div></div>
+          <span class="bar-score empty">—</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label" style="color:#2a3d55">L4</span>
+          <span class="bar-pct">15%</span>
+          <div class="bar-track"><div class="bar-fill bar-fill-empty"></div></div>
+          <span class="bar-score empty">—</span>
+        </div>
+      </div>
+
+      <div class="jcard-cta cta-resume">Continue — Run L2 Property Analysis →</div>
+    </div>
+
+    <!-- ── JOURNEY 2: Complete (all 4 levels) WITH PHOTO ── -->
+    <div class="jcard">
+      <div class="jcard-photo-wrap">
+        <div style="width:100%;height:90px;background:linear-gradient(135deg,#0a1a2a 0%,#1a2a3a 50%,#0a1a2a 100%);display:flex;align-items:center;justify-content:center;">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2a4050" stroke-width="1.5">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </div>
+        <div class="jcard-photo-overlay"></div>
+        <div class="jcard-photo-addr">3 Alessandria, Newport Coast</div>
+      </div>
+
+      <div class="jcard-score-row">
+        <div class="score-ring-sm">
+          <svg width="40" height="40" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#1a2740" stroke-width="3"/>
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#00e87a" stroke-width="3"
+              stroke-dasharray="100.5" stroke-dashoffset="28.6"
+              stroke-linecap="round"
+              transform="rotate(-90 20 20)"/>
+          </svg>
+          <div class="ring-num" style="color:#00e87a">71</div>
+        </div>
+        <div class="jcard-score-meta">
+          <div class="jcard-track-label">Track 5 · Decision Score</div>
+          <div class="jcard-verdict">Ready to Offer</div>
+        </div>
+        <div class="status-pill pill-ready">
+          <span class="pill-dot"></span>Ready
+        </div>
+      </div>
+
+      <div class="jcard-bars">
+        <div class="bar-row">
+          <span class="bar-label">L1</span>
+          <span class="bar-pct">35%</span>
+          <div class="bar-track"><div class="bar-fill bar-fill-yellow" style="width:60%"></div></div>
+          <span class="bar-score yellow">60</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">L2</span>
+          <span class="bar-pct">25%</span>
+          <div class="bar-track"><div class="bar-fill bar-fill-green" style="width:92%"></div></div>
+          <span class="bar-score green">92</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">L3</span>
+          <span class="bar-pct">25%</span>
+          <div class="bar-track"><div class="bar-fill bar-fill-yellow" style="width:55%"></div></div>
+          <span class="bar-score yellow">55</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">L4</span>
+          <span class="bar-pct">15%</span>
+          <div class="bar-track"><div class="bar-fill bar-fill-green" style="width:85%"></div></div>
+          <span class="bar-score green">85</span>
+        </div>
+      </div>
+
+      <div class="jcard-cta cta-view">View Full Decision Score →</div>
+    </div>
+
+    <!-- ── JOURNEY 3: No photo, fresh (L1 only started) ── -->
+    <div class="jcard">
+      <!-- No photo — address bar instead -->
+      <div class="jcard-addr-bar">
+        <div class="jcard-addr-icon">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>
+        <div>
+          <div class="jcard-addr-text">2211 Oak Canyon Rd</div>
+          <div class="jcard-addr-sub">Altadena, CA · $875,000</div>
+        </div>
+      </div>
+
+      <div class="jcard-score-row">
+        <div class="score-ring-sm">
+          <svg width="40" height="40" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#1a2740" stroke-width="3"/>
+          </svg>
+          <div class="ring-num" style="color:#2a3d55">—</div>
+        </div>
+        <div class="jcard-score-meta">
+          <div class="jcard-track-label">Track 5 · Decision Score</div>
+          <div class="jcard-verdict" style="color:#4a6080">Not started</div>
+        </div>
+        <div class="status-pill pill-new">
+          <span class="pill-dot"></span>New
+        </div>
+      </div>
+
+      <div class="jcard-bars" style="opacity:.4">
+        <div class="bar-row">
+          <span class="bar-label" style="color:#2a3d55">L1</span>
+          <span class="bar-pct">35%</span>
+          <div class="bar-track"><div class="bar-fill bar-fill-empty"></div></div>
+          <span class="bar-score empty">—</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label" style="color:#2a3d55">L2</span>
+          <span class="bar-pct">25%</span>
+          <div class="bar-track"><div class="bar-fill bar-fill-empty"></div></div>
+          <span class="bar-score empty">—</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label" style="color:#2a3d55">L3</span>
+          <span class="bar-pct">25%</span>
+          <div class="bar-track"><div class="bar-fill bar-fill-empty"></div></div>
+          <span class="bar-score empty">—</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label" style="color:#2a3d55">L4</span>
+          <span class="bar-pct">15%</span>
+          <div class="bar-track"><div class="bar-fill bar-fill-empty"></div></div>
+          <span class="bar-score empty">—</span>
+        </div>
+      </div>
+
+      <div class="jcard-cta cta-start">Start L1 Financial Analysis →</div>
+    </div>
+
+  </div>
+
+  <div class="sidebar-footer">
+    Journeys save automatically · Tap to resume any property
+  </div>
+</div>
+
+</body>
+</html>

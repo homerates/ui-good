@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Discover + Rate Intelligence Integration — Prototype</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080c12; font-family: 'DM Sans', system-ui, sans-serif; color: #f0f4ff; padding: 32px 20px 100px; }
+  .wrap { max-width: 600px; margin: 0 auto; }
+
+  .section-label {
+    font-size: 0.63rem; font-weight: 700; color: rgba(185,208,192,0.22);
+    text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 14px;
+  }
+  hr { border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 48px 0; }
+
+  /* ════════════════════════════════════
+     GET MATCHED CTA — enriched with L5
+  ════════════════════════════════════ */
+  .match-card {
+    background: #0e1420;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px; overflow: hidden;
+  }
+  .match-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .match-avatar {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.2);
+    display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+  }
+  .match-eyebrow { font-size: 0.6rem; font-weight: 700; color: rgba(0,232,122,0.5); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
+  .match-title { font-size: 0.95rem; font-weight: 800; color: #f0f4ff; }
+  .match-sub { font-size: 0.73rem; color: rgba(185,208,192,0.38); margin-top: 2px; line-height: 1.45; }
+
+  /* L5 context strip — new addition when rate is decoded */
+  .l5-context-strip {
+    padding: 10px 20px;
+    background: rgba(139,92,246,0.04); border-bottom: 1px solid rgba(139,92,246,0.12);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .l5-strip-label { font-size: 0.63rem; color: rgba(167,139,250,0.45); white-space: nowrap; }
+  .l5-strip-chip {
+    font-size: 0.7rem; font-weight: 700; color: rgba(167,139,250,0.8);
+    background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25);
+    border-radius: 6px; padding: 3px 10px;
+  }
+  .l5-strip-note { font-size: 0.63rem; color: rgba(185,208,192,0.28); flex: 1; }
+
+  .match-body { padding: 14px 20px; }
+  .match-what-shared {
+    font-size: 0.73rem; color: rgba(185,208,192,0.38); margin-bottom: 12px; line-height: 1.55;
+  }
+  .match-what-shared strong { color: rgba(185,208,192,0.6); }
+  .shared-items { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .shared-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 12px; background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;
+    font-size: 0.73rem;
+  }
+  .si-label { color: rgba(185,208,192,0.38); }
+  .si-val { color: rgba(185,208,192,0.65); font-weight: 600; }
+  .si-val.green { color: #4ade80; }
+  .si-val.purple { color: #a78bfa; }
+  .si-val.lock { color: #fbbf24; }
+
+  .match-btn {
+    width: 100%; padding: 13px;
+    background: #4ade80; border: none;
+    border-radius: 10px; color: #080c12; font-weight: 800; font-size: 0.92rem;
+    font-family: inherit; cursor: pointer; transition: background 0.15s;
+  }
+  .match-btn:hover { background: #6ee7b7; }
+  .match-privacy { font-size: 0.63rem; color: rgba(185,208,192,0.22); text-align: center; margin-top: 8px; line-height: 1.5; }
+
+
+  /* ════════════════════════════════════
+     DISCOVER THREAD
+  ════════════════════════════════════ */
+  .thread-card {
+    background: #0e1420;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px; overflow: hidden;
+  }
+
+  /* Thread header */
+  .thread-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .th-left { display: flex; align-items: center; gap: 10px; }
+  .th-avatar {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+  }
+  .th-name { font-size: 0.88rem; font-weight: 700; color: rgba(185,208,192,0.8); }
+  .th-status { font-size: 0.65rem; color: rgba(185,208,192,0.32); margin-top: 1px; display: flex; align-items: center; gap: 4px; }
+  .th-dot { width: 5px; height: 5px; border-radius: 50%; background: #4ade80; }
+  .th-scenario {
+    font-size: 0.68rem; color: rgba(185,208,192,0.35); text-align: right;
+    line-height: 1.45;
+  }
+
+  /* L5 reference bar — visible throughout the thread */
+  .thread-l5-bar {
+    padding: 8px 20px;
+    background: rgba(139,92,246,0.03); border-bottom: 1px solid rgba(139,92,246,0.1);
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .tl5-label { font-size: 0.6rem; color: rgba(167,139,250,0.4); }
+  .tl5-chip {
+    font-size: 0.65rem; font-weight: 700; color: rgba(167,139,250,0.7);
+    background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.2);
+    border-radius: 5px; padding: 2px 8px;
+  }
+  .tl5-note { font-size: 0.6rem; color: rgba(185,208,192,0.22); }
+
+  /* Chip cards */
+  .chips-section { padding: 14px 20px 0; }
+  .chips-label { font-size: 0.6rem; font-weight: 700; color: rgba(185,208,192,0.25); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 10px; }
+  .chips-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+
+  .chip-card {
+    border-radius: 10px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.02);
+    transition: border-color 0.15s;
+  }
+  .chip-card.sent { border-color: rgba(0,232,122,0.2); background: rgba(0,232,122,0.02); }
+  .chip-card.replied { border-color: rgba(0,232,122,0.25); }
+  .chip-card.next { border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); }
+  .chip-card.idle { opacity: 0.45; }
+
+  .chip-inner {
+    padding: 11px 14px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .chip-left { display: flex; align-items: center; gap: 9px; flex: 1; }
+  .chip-icon { font-size: 1rem; flex-shrink: 0; }
+  .chip-text {}
+  .chip-title { font-size: 0.82rem; font-weight: 700; color: rgba(185,208,192,0.75); }
+  .chip-sub { font-size: 0.65rem; color: rgba(185,208,192,0.32); margin-top: 1px; }
+  .chip-sub.l5armed { color: rgba(167,139,250,0.55); }
+  .chip-status {
+    flex-shrink: 0; font-size: 0.63rem; font-weight: 700;
+    border-radius: 5px; padding: 2px 8px; white-space: nowrap;
+  }
+  .chip-status.replied { color: #4ade80; background: rgba(0,232,122,0.08); border: 1px solid rgba(0,232,122,0.18); }
+  .chip-status.next { color: rgba(185,208,192,0.55); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); cursor: pointer; }
+  .chip-status.next:hover { background: rgba(255,255,255,0.08); }
+  .chip-status.idle { color: rgba(185,208,192,0.2); background: none; border: 1px solid rgba(255,255,255,0.05); }
+
+  /* L5 badge on rate chip */
+  .chip-l5-badge {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 14px;
+    background: rgba(139,92,246,0.06); border-top: 1px solid rgba(139,92,246,0.1);
+    font-size: 0.63rem; color: rgba(167,139,250,0.5);
+  }
+  .chip-l5-badge strong { color: rgba(167,139,250,0.75); }
+
+  /* Messages */
+  .messages-section { padding: 4px 20px 14px; }
+
+  .msg-row { display: flex; flex-direction: column; margin-bottom: 12px; }
+  .msg-row.user { align-items: flex-end; }
+  .msg-row.pro { align-items: flex-start; }
+  .msg-row.sys { align-items: center; }
+
+  .msg-sender { font-size: 0.6rem; color: rgba(185,208,192,0.28); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; }
+
+  .msg-bubble {
+    max-width: 88%; padding: 11px 14px; line-height: 1.6;
+    font-size: 0.82rem; border-radius: 4px 12px 12px 12px;
+    color: rgba(185,208,192,0.72);
+  }
+  .msg-bubble.pro { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); }
+  .msg-bubble.user {
+    background: rgba(0,232,122,0.06); border: 1px solid rgba(0,232,122,0.13);
+    border-radius: 12px 4px 12px 12px; color: rgba(185,208,192,0.78);
+  }
+  .msg-bubble.sys {
+    background: none; border: none; font-size: 0.7rem; color: rgba(185,208,192,0.22);
+    font-style: italic; text-align: center; padding: 4px;
+  }
+  .msg-bubble strong { color: rgba(185,208,192,0.9); }
+
+  /* Chip message badge — shows on the discover chip message */
+  .msg-chip-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-bottom: 8px; padding: 3px 9px;
+    background: rgba(0,232,122,0.07); border: 1px solid rgba(0,232,122,0.15);
+    border-radius: 5px; font-size: 0.63rem; font-weight: 700; color: rgba(0,232,122,0.6);
+  }
+  /* L5 context shown inline in the chip message */
+  .msg-l5-context {
+    margin-top: 10px; padding: 8px 10px;
+    background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.18);
+    border-radius: 7px; font-size: 0.72rem; color: rgba(167,139,250,0.6); line-height: 1.5;
+  }
+  .msg-l5-context strong { color: rgba(167,139,250,0.85); }
+
+  /* Compliance footer on chip message */
+  .msg-compliance {
+    margin-top: 8px; font-size: 0.65rem; color: rgba(185,208,192,0.28);
+    font-style: italic; line-height: 1.5; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;
+  }
+
+  /* LO reply with comparison strip */
+  .lo-reply-wrap {}
+  .comparison-strip {
+    margin-top: 8px; padding: 10px 14px;
+    background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.13);
+    border-radius: 9px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  }
+  .cs-item {}
+  .cs-label { font-size: 0.57rem; color: rgba(185,208,192,0.25); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; }
+  .cs-val { font-size: 0.82rem; font-weight: 700; }
+  .cs-val.lo { color: rgba(185,208,192,0.65); }
+  .cs-val.par { color: #a78bfa; }
+  .cs-val.delta-above { color: #fbbf24; }
+  .cs-val.delta-ok { color: #4ade80; }
+  .cs-note { font-size: 0.6rem; color: rgba(185,208,192,0.25); margin-top: 1px; }
+
+  /* Input row */
+  .thread-input-row {
+    padding: 12px 20px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    display: flex; gap: 8px;
+  }
+  .thread-input {
+    flex: 1; padding: 10px 13px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 9px; color: #f0f4ff; font-size: 0.84rem; font-family: inherit; outline: none;
+    transition: border-color 0.15s;
+  }
+  .thread-input:focus { border-color: rgba(0,232,122,0.3); }
+  .thread-send {
+    padding: 10px 16px; background: rgba(0,232,122,0.1);
+    border: 1px solid rgba(0,232,122,0.25); border-radius: 9px;
+    color: #4ade80; font-weight: 700; font-size: 0.82rem; font-family: inherit; cursor: pointer;
+  }
+  .thread-send:hover { background: rgba(0,232,122,0.18); }
+
+  /* ════════════════════════════════════
+     ANNOTATION CALLOUTS
+  ════════════════════════════════════ */
+  .callout {
+    display: flex; gap: 10px; align-items: flex-start;
+    margin: 12px 0 0;
+    padding: 10px 14px;
+    background: rgba(251,191,36,0.04); border: 1px solid rgba(251,191,36,0.15);
+    border-left: 2px solid rgba(251,191,36,0.4);
+    border-radius: 8px;
+    font-size: 0.72rem; color: rgba(185,208,192,0.45); line-height: 1.55;
+  }
+  .callout strong { color: rgba(251,191,36,0.7); }
+  .callout-icon { font-size: 0.85rem; flex-shrink: 0; margin-top: 1px; }
+
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  .fadein { animation: fadeIn 0.3s ease; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ══════════════════════════════════════════════════════════
+       STEP 1: Enriched "Get Matched" CTA — L5 context attached
+  ══════════════════════════════════════════════════════════ -->
+  <div class="section-label">Step 1 — Get Matched CTA · enriched when L5 is decoded</div>
+
+  <div class="match-card">
+    <div class="match-header">
+      <div class="match-avatar">🎯</div>
+      <div>
+        <div class="match-eyebrow">Homeowner Journey</div>
+        <div class="match-title">Share with a Local Expert</div>
+        <div class="match-sub">Your Decision Score + Rate Intelligence is ready to share. LOs see your scenario — not your identity.</div>
+      </div>
+    </div>
+
+    <!-- L5 strip — only appears when rate is decoded -->
+    <div class="l5-context-strip">
+      <span class="l5-strip-label">🔬 Rate Intelligence attached:</span>
+      <span class="l5-strip-chip">Fair par 6.750%</span>
+      <span class="l5-strip-chip">LLPA −0.125%</span>
+      <span class="l5-strip-chip">HB conforming ✓</span>
+      <span class="l5-strip-note">LOs will see your decoded rate — they know you know the math</span>
+    </div>
+
+    <div class="match-body">
+      <div class="match-what-shared">What LOs receive when you match:</div>
+      <div class="shared-items">
+        <div class="shared-item">
+          <span class="si-label">Decision Score</span>
+          <span class="si-val green">81 / 100 · Ready to Offer</span>
+        </div>
+        <div class="shared-item">
+          <span class="si-label">Scenario</span>
+          <span class="si-val">$792k · 80% LTV · Conventional · Purchase</span>
+        </div>
+        <div class="shared-item">
+          <span class="si-label">Property area</span>
+          <span class="si-val">ZIP 91362 · Ventura County</span>
+        </div>
+        <div class="shared-item">
+          <span class="si-label">Rate Intelligence</span>
+          <span class="si-val purple">6.750% fair par · L5 verified</span>
+        </div>
+        <div class="shared-item">
+          <span class="si-label">Your identity</span>
+          <span class="si-val lock">🔒 Still private — shared only when you accept</span>
+        </div>
+      </div>
+      <button class="match-btn">Share my score with local LOs →</button>
+      <div class="match-privacy">LOs in your area are notified. Your name and contact info stay private until you accept a response.</div>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-bottom:0;margin-top:14px">
+    <span class="callout-icon">💡</span>
+    <span><strong>New vs before:</strong> Previously only the Decision Score and ZIP were shared. Now LOs also receive the decoded fair par rate — they know the borrower has done the LLPA math, which changes how they respond.</span>
+  </div>
+
+
+  <hr />
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       STEP 2: Discover thread — LO responded, thread opens
+       Same existing format. Rate chip is enriched with L5.
+  ══════════════════════════════════════════════════════════ -->
+  <div class="section-label">Step 2 — Discover thread opens · Rate chip pre-armed with L5 data</div>
+
+  <div class="thread-card">
+
+    <!-- Thread header -->
+    <div class="thread-header">
+      <div class="th-left">
+        <div class="th-avatar">👤</div>
+        <div>
+          <div class="th-name">Loan Officer</div>
+          <div class="th-status"><span class="th-dot"></span> Responded to your scenario</div>
+        </div>
+      </div>
+      <div class="th-scenario">
+        $792k · 80% LTV · 740 FICO<br/>Conventional · Purchase · Ventura Co.
+      </div>
+    </div>
+
+    <!-- L5 reference bar — persistent throughout thread -->
+    <div class="thread-l5-bar">
+      <span class="tl5-label">🔬 Your decoded fair par:</span>
+      <span class="tl5-chip">6.750%</span>
+      <span class="tl5-note">Use this as your reference point when reading the LO's rate response</span>
+    </div>
+
+    <!-- Chip cards — existing 4-chip format, Rate chip enriched -->
+    <div class="chips-section">
+      <div class="chips-label">Discover questions</div>
+      <div class="chips-grid">
+
+        <!-- Rate chip — sent + replied, shows L5 badge -->
+        <div class="chip-card replied">
+          <div class="chip-inner">
+            <div class="chip-left">
+              <div class="chip-icon">📊</div>
+              <div class="chip-text">
+                <div class="chip-title">Rate, APR & Program</div>
+                <div class="chip-sub l5armed">Armed with L5 · fair par 6.750% included in question</div>
+              </div>
+            </div>
+            <div class="chip-status replied">✓ Replied</div>
+          </div>
+          <div class="chip-l5-badge">
+            🔬 <strong>6.750% fair par</strong> was included in this question · LO knows you've decoded the LLPA
+          </div>
+        </div>
+
+        <!-- Costs chip — next -->
+        <div class="chip-card next">
+          <div class="chip-inner">
+            <div class="chip-left">
+              <div class="chip-icon">💰</div>
+              <div class="chip-text">
+                <div class="chip-title">Costs & Cash to Close</div>
+                <div class="chip-sub">Origination fee, title, prepaids, escrow</div>
+              </div>
+            </div>
+            <div class="chip-status next" onclick="sendCostChip()">Send →</div>
+          </div>
+        </div>
+
+        <!-- Process chip — idle -->
+        <div class="chip-card idle">
+          <div class="chip-inner">
+            <div class="chip-left">
+              <div class="chip-icon">🗓</div>
+              <div class="chip-text">
+                <div class="chip-title">Process & Timeline</div>
+                <div class="chip-sub">Days to close, appraisal, underwriting</div>
+              </div>
+            </div>
+            <div class="chip-status idle">Send</div>
+          </div>
+        </div>
+
+        <!-- After close chip — idle -->
+        <div class="chip-card idle">
+          <div class="chip-inner">
+            <div class="chip-left">
+              <div class="chip-icon">🔄</div>
+              <div class="chip-text">
+                <div class="chip-title">After Close & Future Rate</div>
+                <div class="chip-sub">Servicing, refi options, rate watch</div>
+              </div>
+            </div>
+            <div class="chip-status idle">Send</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="messages-section" id="messagesArea">
+
+      <!-- LO opening message -->
+      <div class="msg-row pro">
+        <div class="msg-sender">Loan Officer</div>
+        <div class="msg-bubble pro">Happy to help with your scenario. I can see your decision score and that you've already run the LLPA analysis — let me give you a real number.</div>
+      </div>
+
+      <!-- Rate chip message — borrower, enriched with L5 context -->
+      <div class="msg-row user">
+        <div class="msg-sender">You · via Discover</div>
+        <div class="msg-bubble user">
+          <div class="msg-chip-badge">📊 Rate, APR & Program</div>
+          What is your rate on a <strong>$792,000 conventional purchase</strong> at 20% down in Ventura County? Is this fixed or ARM? What rate lock periods do you offer and what does a lock extension cost? Are any discount points required to achieve your quoted rate?
+          <div class="msg-l5-context">
+            🔬 <strong>Rate Intelligence context:</strong> My LLPA analysis shows a fair par rate of <strong>6.750%</strong> for this scenario (740 FICO, 80% LTV, high-balance conforming, 30-day lock). I'm using this as my reference point.
+          </div>
+          <div class="msg-compliance">📋 HomeRates Discover — pre-application education inquiry. No application submitted, no credit pulled, no Loan Estimate obligation created by responding.</div>
+        </div>
+      </div>
+
+      <!-- LO rate reply + comparison strip -->
+      <div class="msg-row pro" id="loRateReply">
+        <div class="msg-sender">Loan Officer</div>
+        <div class="lo-reply-wrap">
+          <div class="msg-bubble pro">
+            <strong>6.875%</strong> / APR 6.991% / 30-year fixed / 30-day lock at no cost, 45-day at 0.125 pts / no discount points required at this rate.<br/><br/>
+            <em style="font-size:0.75rem;color:rgba(185,208,192,0.38)">Rate indication only — not a Loan Estimate or commitment to lend. Rates subject to change based on credit, property, and market conditions.</em>
+          </div>
+          <!-- Comparison strip — new, powered by L5 -->
+          <div class="comparison-strip">
+            <div class="cs-item">
+              <div class="cs-label">LO offered</div>
+              <div class="cs-val lo">6.875%</div>
+              <div class="cs-note">30-yr fixed · par</div>
+            </div>
+            <div class="cs-item">
+              <div class="cs-label">Your fair par</div>
+              <div class="cs-val par">6.750%</div>
+              <div class="cs-note">L5 decoded</div>
+            </div>
+            <div class="cs-item">
+              <div class="cs-label">Delta</div>
+              <div class="cs-val delta-above">+0.125%</div>
+              <div class="cs-note">above fair par</div>
+            </div>
+            <div class="cs-item">
+              <div class="cs-label">Monthly diff</div>
+              <div class="cs-val delta-above">+$57/mo</div>
+              <div class="cs-note">$20,520 / 30yr</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Costs chip message — hidden until user taps Send -->
+      <div class="msg-row user" id="costChipMsg" style="display:none">
+        <div class="msg-sender">You · via Discover</div>
+        <div class="msg-bubble user fadein">
+          <div class="msg-chip-badge">💰 Costs & Cash to Close</div>
+          What is your origination fee on this $792,000 loan — flat fee or percentage? Are there discount points? What is my estimated total cash to close including all lender fees, title, prepaids, and escrow?
+          <div class="msg-compliance">📋 HomeRates Discover — pre-application education inquiry. No application submitted, no credit pulled.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Thread input -->
+    <div class="thread-input-row">
+      <input class="thread-input" placeholder="Add a follow-up question…" />
+      <button class="thread-send">Send →</button>
+    </div>
+
+  </div>
+
+  <div class="callout" style="margin-top:14px">
+    <span class="callout-icon">💡</span>
+    <span><strong>What's new:</strong> (1) The Rate chip message now embeds the L5 decoded fair par so the LO knows the borrower has done the math. (2) After the LO replies, the comparison strip immediately shows the delta — LO's rate vs decoded fair par, in dollars per month. (3) The purple L5 reference bar stays visible throughout the thread as a persistent anchor.</span>
+  </div>
+
+
+  <hr />
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       STEP 3: Rate Marketplace path → same Discover thread
+       Explore → on a lender opens this same thread format
+  ══════════════════════════════════════════════════════════ -->
+  <div class="section-label">Step 3 — Rate Marketplace path · Explore → opens same Discover thread format</div>
+
+  <div class="thread-card">
+
+    <div class="thread-header">
+      <div class="th-left">
+        <div class="th-avatar" style="background:rgba(0,232,122,0.08);border-color:rgba(0,232,122,0.18);">⭐</div>
+        <div>
+          <div class="th-name">Lender A <span style="font-size:0.62rem;color:#4ade80;background:rgba(0,232,122,0.08);border:1px solid rgba(0,232,122,0.18);border-radius:4px;padding:1px 6px;margin-left:5px;font-weight:800;">Best APR</span></div>
+          <div class="th-status"><span class="th-dot"></span> Eligible for your scenario · 6.750% offered</div>
+        </div>
+      </div>
+      <div class="th-scenario">
+        From rate table<br/>
+        <span style="color:rgba(0,232,122,0.5);font-weight:700;">= fair par ✓</span>
+      </div>
+    </div>
+
+    <!-- Same L5 reference bar -->
+    <div class="thread-l5-bar">
+      <span class="tl5-label">🔬 Your decoded fair par:</span>
+      <span class="tl5-chip">6.750%</span>
+      <span class="tl5-note">Lender A's offer matches your fair par exactly</span>
+    </div>
+
+    <!-- Same 4-chip format — identical model regardless of entry path -->
+    <div class="chips-section">
+      <div class="chips-label">Discover questions — same journey, different starting point</div>
+      <div class="chips-grid">
+        <div class="chip-card next">
+          <div class="chip-inner">
+            <div class="chip-left">
+              <div class="chip-icon">📊</div>
+              <div class="chip-text">
+                <div class="chip-title">Rate, APR & Program</div>
+                <div class="chip-sub l5armed">L5 Armed · 6.750% fair par · at par = no margin</div>
+              </div>
+            </div>
+            <div class="chip-status next">Send →</div>
+          </div>
+          <div class="chip-l5-badge">
+            🔬 <strong>6.750% fair par</strong> will be included · this lender is already at par — verify with LE
+          </div>
+        </div>
+        <div class="chip-card idle">
+          <div class="chip-inner">
+            <div class="chip-left"><div class="chip-icon">💰</div><div class="chip-text"><div class="chip-title">Costs & Cash to Close</div><div class="chip-sub">Origination, title, prepaids</div></div></div>
+            <div class="chip-status idle">Send</div>
+          </div>
+        </div>
+        <div class="chip-card idle">
+          <div class="chip-inner">
+            <div class="chip-left"><div class="chip-icon">🗓</div><div class="chip-text"><div class="chip-title">Process & Timeline</div><div class="chip-sub">Days to close, underwriting</div></div></div>
+            <div class="chip-status idle">Send</div>
+          </div>
+        </div>
+        <div class="chip-card idle">
+          <div class="chip-inner">
+            <div class="chip-left"><div class="chip-icon">🔄</div><div class="chip-text"><div class="chip-title">After Close & Future Rate</div><div class="chip-sub">Servicing, refi options</div></div></div>
+            <div class="chip-status idle">Send</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="thread-input-row">
+      <input class="thread-input" placeholder="Or type your own question first…" />
+      <button class="thread-send">Send →</button>
+    </div>
+
+  </div>
+
+  <div class="callout" style="margin-top:14px">
+    <span class="callout-icon">💡</span>
+    <span><strong>One model, two entry points:</strong> Whether the borrower came through AI Discovery (LO responded to match) or Rate Marketplace (borrower tapped Explore on a lender), they land in the same Discover thread format. The chips, the compliance footer, the L5 reference bar — all identical. No parallel UI to maintain.</span>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+  function sendCostChip() {
+    const msg = document.getElementById('costChipMsg');
+    msg.style.display = 'flex';
+    const btn = document.querySelector('.chip-card.next .chip-status.next');
+    if (btn) {
+      btn.textContent = '✓ Sent';
+      btn.className = 'chip-status replied';
+      btn.parentElement.parentElement.parentElement.className = 'chip-card sent';
+    }
+    setTimeout(() => msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  }
+</script>
+</body>
+</html>

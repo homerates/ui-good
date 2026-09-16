@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track 5 · Get Matched Prototype</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #080c12;
+    color: #f1f5f9;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── Nav stub ── */
+  .nav {
+    height: 52px;
+    background: rgba(8,12,18,0.92);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .nav-logo {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #00e87a;
+    letter-spacing: -0.02em;
+  }
+
+  /* ── Page shell ── */
+  .page {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 8rem;
+  }
+
+  /* ── Page title ── */
+  .page-title { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; color: #f1f5f9; margin-bottom: 4px; }
+  .page-sub   { font-size: 0.8rem; color: #94a3b8; line-height: 1.6; margin-bottom: 20px; }
+
+  /* ── Scenario context bar ── */
+  .ctx-bar {
+    background: rgba(126,244,244,0.04);
+    border: 1px solid rgba(126,244,244,0.18);
+    border-radius: 10px;
+    padding: 10px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .ctx-label { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: #7ef4f4; }
+  .ctx-val   { font-size: 0.82rem; font-weight: 700; color: #c4cfe0; }
+
+  /* ── Saved badge ── */
+  .saved-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(74,222,128,0.06);
+    border: 1px solid rgba(74,222,128,0.22);
+    border-radius: 8px;
+    padding: 9px 14px;
+    margin-bottom: 16px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #4ade80;
+  }
+
+  /* ── Decision index card ── */
+  .index-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    padding: 24px 28px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    margin-bottom: 8px;
+  }
+
+  /* SVG gauge */
+  .gauge-wrap { position: relative; width: 108px; height: 108px; flex-shrink: 0; }
+  .gauge-val {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .gauge-num  { font-size: 2.1rem; font-weight: 900; line-height: 1; letter-spacing: -0.04em; color: #4ade80; }
+  .gauge-den  { font-size: 0.65rem; color: #94a3b8; margin-top: 2px; }
+  .verdict    { font-size: 1.35rem; font-weight: 800; color: #4ade80; letter-spacing: -0.02em; margin-bottom: 5px; }
+  .verdict-sub { font-size: 0.82rem; color: #94a3b8; line-height: 1.65; margin-bottom: 12px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    font-size: 0.65rem; font-weight: 600;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 6px;
+    padding: 3px 8px;
+    color: #94a3b8;
+  }
+  .chip strong { color: #f1f5f9; font-weight: 700; }
+
+  /* ── Weight bar ── */
+  .wbar-row  { display:flex; align-items:center; gap:6px; margin: 12px 0 20px; }
+  .wbar-track { flex:1; height:3px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
+  .wbar-fill  { height:100%; width:100%; border-radius:2px; background:rgba(74,222,128,0.3); }
+  .wbar-label { font-size:0.6rem; color:#94a3b8; white-space:nowrap; }
+
+  /* ── Section label ── */
+  .section-label { font-size:0.62rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#4b6080; margin-bottom:12px; }
+
+  /* ── Level cards ── */
+  .level-card {
+    background: #0d1117;
+    border: 1px solid rgba(74,222,128,0.18);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: stretch;
+  }
+  .level-stripe { width: 3px; flex-shrink: 0; background: #4ade80; }
+  .level-score-col {
+    flex-shrink: 0; width: 72px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 16px 0;
+    border-right: 1px solid rgba(255,255,255,0.05);
+  }
+  .level-num { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 8px; }
+  .level-ring { position: relative; width: 48px; height: 48px; }
+  .level-ring-num {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 800;
+  }
+  .level-body { flex: 1; min-width: 0; padding: 16px 18px; }
+  .level-title { font-size: 0.88rem; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .level-wt { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 2px 6px; color: #94a3b8; }
+  .level-summary { font-size: 0.78rem; line-height: 1.65; color: #94a3b8; }
+  .level-bar-row { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+  .level-bar-track { flex: 1; height: 2px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .level-bar-fill  { height: 100%; border-radius: 2px; }
+  .level-bar-val   { font-size: 0.62rem; color: #94a3b8; white-space: nowrap; }
+  .level-cta-col { flex-shrink: 0; display: flex; align-items: center; padding: 16px 18px 16px 0; }
+  .level-cta {
+    display: inline-block; padding: 8px 14px; border-radius: 8px;
+    font-size: 0.72rem; font-weight: 700; text-decoration: none; white-space: nowrap;
+    background: rgba(255,255,255,0.04); color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .level-card.amber .level-stripe  { background: #fbbf24; }
+  .level-card.amber .level-ring-num { color: #fbbf24; }
+  .level-card.amber { border-color: rgba(251,191,36,0.18); }
+
+  /* ── Homeowner journey grid ── */
+  .journey-card {
+    margin-top: 24px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .journey-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .journey-item {
+    background: #0d1117;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 9px;
+    padding: 12px;
+    text-decoration: none;
+  }
+  .journey-item-lbl { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #4b6080; margin-bottom: 5px; }
+  .journey-item-val { font-size: 0.78rem; font-weight: 700; color: #c4cfe0; line-height: 1.4; margin-bottom: 3px; }
+  .journey-item-sub { font-size: 0.67rem; color: #4b6080; }
+  .journey-item-back { font-size: 0.67rem; color: #4b6080; margin-top: 6px; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     ── NEW: Get Matched section ──
+     This is what we're prototyping. Everything above is existing.
+  ═══════════════════════════════════════════════════════════════ */
+
+  .match-section {
+    margin-top: 28px;
+    background: rgba(0,232,122,0.03);
+    border: 1px solid rgba(0,232,122,0.15);
+    border-radius: 14px;
+    padding: 24px 24px 22px;
+  }
+
+  .match-section-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  .match-icon {
+    width: 44px; height: 44px;
+    background: rgba(0,232,122,0.1);
+    border: 1px solid rgba(0,232,122,0.22);
+    border-radius: 12px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+
+  .match-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #f1f5f9;
+    margin-bottom: 4px;
+    letter-spacing: -0.02em;
+  }
+  .match-sub {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    line-height: 1.55;
+  }
+
+  /* What gets shared preview */
+  .share-preview {
+    background: #0d1117;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .share-preview-head {
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #4b6080;
+  }
+
+  .share-rows { padding: 4px 0; }
+  .share-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .share-row:last-child { border-bottom: none; }
+
+  .share-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .share-dot.green  { background: #4ade80; }
+  .share-dot.amber  { background: #fbbf24; }
+  .share-dot.red    { background: #f87171; }
+
+  .share-row-label { font-size: 0.75rem; color: #94a3b8; flex: 1; }
+  .share-row-val   { font-size: 0.75rem; font-weight: 700; color: #e2e8f0; }
+  .share-row-hidden {
+    font-size: 0.75rem; font-weight: 700;
+    color: #4b6080;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .share-row-hidden .lock { font-size: 0.65rem; }
+
+  /* Matched badge note */
+  .match-privacy-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: rgba(126,244,244,0.04);
+    border: 1px solid rgba(126,244,244,0.12);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    font-size: 0.73rem;
+    color: #94a3b8;
+    line-height: 1.55;
+  }
+  .match-privacy-note .icon { font-size: 0.85rem; flex-shrink: 0; margin-top: 1px; }
+
+  /* CTA button */
+  .match-cta-btn {
+    width: 100%;
+    background: #00e87a;
+    color: #060d08;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: -0.01em;
+    transition: opacity 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .match-cta-btn:hover { opacity: 0.88; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     ── Consent Modal ──
+  ═══════════════════════════════════════════════════════════════ */
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.72);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    background: #0d1117;
+    border: 1px solid rgba(0,232,122,0.2);
+    border-radius: 18px;
+    width: 100%;
+    max-width: 460px;
+    overflow: hidden;
+    transform: translateY(12px) scale(0.98);
+    transition: transform 0.22s cubic-bezier(0.34,1.2,0.64,1);
+  }
+  .modal-overlay.open .modal {
+    transform: translateY(0) scale(1);
+  }
+
+  /* Modal states */
+  .modal-state { display: none; }
+  .modal-state.active { display: block; }
+
+  /* ─ State 1: Consent gate ─ */
+  .modal-header {
+    padding: 22px 24px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .modal-eyebrow {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #00e87a;
+    margin-bottom: 6px;
+  }
+  .modal-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #f1f5f9;
+    letter-spacing: -0.02em;
+    margin-bottom: 5px;
+  }
+  .modal-sub {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    line-height: 1.55;
+  }
+
+  .modal-body { padding: 18px 24px; }
+
+  /* Score summary strip inside modal */
+  .modal-score-strip {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(0,232,122,0.05);
+    border: 1px solid rgba(0,232,122,0.15);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+  }
+  .modal-score-ring { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
+  .modal-score-num {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.05rem; font-weight: 900; color: #4ade80;
+  }
+  .modal-score-right {}
+  .modal-score-verdict { font-size: 0.92rem; font-weight: 800; color: #4ade80; margin-bottom: 2px; }
+  .modal-score-addr    { font-size: 0.72rem; color: #94a3b8; }
+
+  /* Sharing table in modal */
+  .modal-share-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #4b6080;
+    margin-bottom: 8px;
+  }
+  .modal-share-rows { margin-bottom: 18px; }
+  .modal-share-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .modal-share-row:last-child { border-bottom: none; }
+  .modal-share-icon { font-size: 0.85rem; flex-shrink: 0; width: 20px; text-align: center; }
+  .modal-share-lbl  { font-size: 0.75rem; color: #94a3b8; flex: 1; }
+  .modal-share-val  { font-size: 0.75rem; font-weight: 700; color: #e2e8f0; }
+  .modal-share-hidden { font-size: 0.75rem; font-weight: 600; color: #4b6080; }
+
+  /* Reveal timeline */
+  .modal-reveal-box {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+  }
+  .modal-reveal-title {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #4b6080;
+    margin-bottom: 10px;
+  }
+  .reveal-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .reveal-step:last-child { margin-bottom: 0; }
+  .reveal-step-num {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: rgba(0,232,122,0.1);
+    border: 1px solid rgba(0,232,122,0.22);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; font-weight: 800; color: #00e87a;
+  }
+  .reveal-step-text  { font-size: 0.75rem; color: #94a3b8; line-height: 1.5; padding-top: 1px; }
+  .reveal-step-text strong { color: #e2e8f0; }
+
+  /* Consent checkbox */
+  .consent-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.02);
+    border: 1.5px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    margin-bottom: 18px;
+    user-select: none;
+  }
+  .consent-row.checked {
+    border-color: rgba(0,232,122,0.3);
+    background: rgba(0,232,122,0.04);
+  }
+  .consent-checkbox {
+    width: 18px; height: 18px;
+    border-radius: 5px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: transparent;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    margin-top: 1px;
+  }
+  .consent-row.checked .consent-checkbox {
+    background: #00e87a;
+    border-color: #00e87a;
+  }
+  .consent-check-mark { font-size: 0.65rem; color: #060d08; font-weight: 900; display: none; }
+  .consent-row.checked .consent-check-mark { display: block; }
+  .consent-text { font-size: 0.75rem; color: #94a3b8; line-height: 1.55; }
+  .consent-text strong { color: #e2e8f0; }
+
+  /* Modal footer buttons */
+  .modal-footer {
+    padding: 0 24px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .modal-confirm-btn {
+    width: 100%;
+    background: #00e87a;
+    color: #060d08;
+    border: none;
+    border-radius: 10px;
+    padding: 13px 20px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: -0.01em;
+    opacity: 0.4;
+    transition: opacity 0.15s;
+  }
+  .modal-confirm-btn.ready { opacity: 1; cursor: pointer; }
+  .modal-confirm-btn.ready:hover { opacity: 0.88; }
+  .modal-cancel-btn {
+    width: 100%;
+    background: transparent;
+    color: #94a3b8;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 0.83rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .modal-cancel-btn:hover { border-color: rgba(255,255,255,0.18); color: #c4cfe0; }
+
+  /* ─ State 2: Sending ─ */
+  .sending-state { padding: 48px 24px; text-align: center; }
+  .sending-spinner {
+    width: 44px; height: 44px;
+    border: 3px solid rgba(0,232,122,0.15);
+    border-top-color: #00e87a;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .sending-label { font-size: 0.9rem; font-weight: 700; color: #e2e8f0; margin-bottom: 5px; }
+  .sending-sub   { font-size: 0.75rem; color: #94a3b8; }
+
+  /* ─ State 3: Confirmed ─ */
+  .confirmed-state { padding: 40px 24px 32px; text-align: center; }
+  .confirmed-icon {
+    width: 60px; height: 60px;
+    background: rgba(0,232,122,0.1);
+    border: 2px solid rgba(0,232,122,0.3);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 18px;
+    font-size: 1.6rem;
+  }
+  .confirmed-title { font-size: 1.1rem; font-weight: 800; color: #f1f5f9; margin-bottom: 6px; letter-spacing: -0.02em; }
+  .confirmed-sub   { font-size: 0.78rem; color: #94a3b8; line-height: 1.6; margin-bottom: 20px; }
+  .confirmed-detail {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 12px 14px;
+    text-align: left;
+    margin-bottom: 20px;
+  }
+  .confirmed-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 0.75rem;
+  }
+  .confirmed-detail-row:last-child { border-bottom: none; }
+  .confirmed-detail-k { color: #94a3b8; }
+  .confirmed-detail-v { font-weight: 700; color: #e2e8f0; }
+  .confirmed-detail-v.green { color: #4ade80; }
+  .confirmed-close-btn {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 11px 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .confirmed-close-btn:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.2); }
+
+  /* ── Section: already matched state ── */
+  .matched-badge {
+    margin-top: 28px;
+    background: rgba(0,232,122,0.04);
+    border: 1px solid rgba(0,232,122,0.18);
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .matched-badge-icon { font-size: 1.4rem; flex-shrink: 0; }
+  .matched-badge-title { font-size: 0.88rem; font-weight: 700; color: #4ade80; margin-bottom: 3px; }
+  .matched-badge-sub   { font-size: 0.75rem; color: #94a3b8; line-height: 1.5; }
+  .matched-badge-link  {
+    margin-left: auto;
+    flex-shrink: 0;
+    background: rgba(0,232,122,0.08);
+    border: 1px solid rgba(0,232,122,0.22);
+    color: #00e87a;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    font-family: inherit;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav class="nav">
+  <span class="nav-logo">HomeRates</span>
+</nav>
+
+<!-- ── Page ── -->
+<div class="page">
+
+  <h1 class="page-title">Your Buying Decision Score</h1>
+  <p class="page-sub">Four independent analyses. One clear verdict. Run each tool — your score updates automatically.</p>
+
+  <!-- Scenario context bar -->
+  <div class="ctx-bar">
+    <span class="ctx-label">Scenario</span>
+    <span class="ctx-val">$875K · Conv. · 10% down · 6.75% rate · $5,840/mo PITI</span>
+  </div>
+
+  <!-- Saved badge -->
+  <div class="saved-badge">✓ Evaluation saved · <a href="#" style="color:#4ade80;text-decoration:underline;text-underline-offset:2px;">View My Evaluations →</a></div>
+
+  <!-- Decision Index -->
+  <div class="index-card">
+    <div class="gauge-wrap">
+      <svg width="108" height="108" viewBox="0 0 108 108">
+        <circle cx="54" cy="54" r="43" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="7"/>
+        <circle cx="54" cy="54" r="43" fill="none" stroke="#4ade80" stroke-width="7"
+          stroke-dasharray="194 270" stroke-linecap="round" transform="rotate(-135 54 54)"/>
+      </svg>
+      <div class="gauge-val">
+        <span class="gauge-num">78</span>
+        <span class="gauge-den">/100</span>
+      </div>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div class="verdict">Ready to Offer</div>
+      <div class="verdict-sub">Based on 4 of 4 levels. All levels scored.</div>
+      <div class="chips">
+        <div class="chip"><strong>4</strong> of 4 levels scored</div>
+        <div class="chip"><strong>100%</strong> of index weight</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wbar-row">
+    <div class="wbar-track"><div class="wbar-fill"></div></div>
+    <span class="wbar-label">100% of index scored</span>
+  </div>
+
+  <!-- Level cards -->
+  <div class="section-label">4 Decision Levels</div>
+
+  <!-- L1 -->
+  <div class="level-card" style="border-color:rgba(74,222,128,0.18)">
+    <div class="level-stripe" style="background:#4ade80"></div>
+    <div class="level-score-col">
+      <div class="level-num">L1</div>
+      <div class="level-ring">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <circle cx="24" cy="24" r="19.2" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3.1"/>
+          <circle cx="24" cy="24" r="19.2" fill="none" stroke="#4ade80" stroke-width="3.1"
+            stroke-dasharray="105 120.6" stroke-linecap="round" transform="rotate(-90 24 24)"/>
+        </svg>
+        <div class="level-ring-num" style="color:#4ade80">85</div>
+      </div>
+    </div>
+    <div class="level-body">
+      <div class="level-title">Financial Readiness <span class="level-wt">35%</span></div>
+      <div class="level-summary">Conv. 10% down · 90% LTV · 6.75% rate — strong conventional profile with solid down payment</div>
+      <div class="level-bar-row">
+        <div class="level-bar-track"><div class="level-bar-fill" style="width:85%;background:#4ade80"></div></div>
+        <span class="level-bar-val">85 / 100</span>
+      </div>
+    </div>
+    <div class="level-cta-col"><a href="#" class="level-cta">Re-run ↗</a></div>
+  </div>
+
+  <!-- L2 -->
+  <div class="level-card" style="border-color:rgba(251,191,36,0.18)">
+    <div class="level-stripe" style="background:#fbbf24"></div>
+    <div class="level-score-col">
+      <div class="level-num">L2</div>
+      <div class="level-ring">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <circle cx="24" cy="24" r="19.2" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3.1"/>
+          <circle cx="24" cy="24" r="19.2" fill="none" stroke="#fbbf24" stroke-width="3.1"
+            stroke-dasharray="84 120.6" stroke-linecap="round" transform="rotate(-90 24 24)"/>
+        </svg>
+        <div class="level-ring-num" style="color:#fbbf24">68</div>
+      </div>
+    </div>
+    <div class="level-body">
+      <div class="level-title">Property Evaluation <span class="level-wt">25%</span></div>
+      <div class="level-summary">6203 Verda Ln, San Diego — list price $12K above AVM, 9 DOM, PITI within budget range</div>
+      <div class="level-bar-row">
+        <div class="level-bar-track"><div class="level-bar-fill" style="width:68%;background:#fbbf24"></div></div>
+        <span class="level-bar-val">68 / 100</span>
+      </div>
+    </div>
+    <div class="level-cta-col"><a href="#" class="level-cta">Re-run ↗</a></div>
+  </div>
+
+  <!-- L3 -->
+  <div class="level-card" style="border-color:rgba(251,191,36,0.18)">
+    <div class="level-stripe" style="background:#fbbf24"></div>
+    <div class="level-score-col">
+      <div class="level-num">L3</div>
+      <div class="level-ring">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <circle cx="24" cy="24" r="19.2" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3.1"/>
+          <circle cx="24" cy="24" r="19.2" fill="none" stroke="#fbbf24" stroke-width="3.1"
+            stroke-dasharray="86 120.6" stroke-linecap="round" transform="rotate(-90 24 24)"/>
+        </svg>
+        <div class="level-ring-num" style="color:#fbbf24">71</div>
+      </div>
+    </div>
+    <div class="level-body">
+      <div class="level-title">Market Intelligence <span class="level-wt">25%</span></div>
+      <div class="level-summary">San Diego 92130 — competitive market, median 14 DOM, sale-to-list 101%, inventory tightening</div>
+      <div class="level-bar-row">
+        <div class="level-bar-track"><div class="level-bar-fill" style="width:71%;background:#fbbf24"></div></div>
+        <span class="level-bar-val">71 / 100</span>
+      </div>
+    </div>
+    <div class="level-cta-col"><a href="#" class="level-cta">Re-run ↗</a></div>
+  </div>
+
+  <!-- L4 -->
+  <div class="level-card" style="border-color:rgba(74,222,128,0.18)">
+    <div class="level-stripe" style="background:#4ade80"></div>
+    <div class="level-score-col">
+      <div class="level-num">L4</div>
+      <div class="level-ring">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <circle cx="24" cy="24" r="19.2" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3.1"/>
+          <circle cx="24" cy="24" r="19.2" fill="none" stroke="#4ade80" stroke-width="3.1"
+            stroke-dasharray="98 120.6" stroke-linecap="round" transform="rotate(-90 24 24)"/>
+        </svg>
+        <div class="level-ring-num" style="color:#4ade80">80</div>
+      </div>
+    </div>
+    <div class="level-body">
+      <div class="level-title">Location Intelligence <span class="level-wt">15%</span></div>
+      <div class="level-summary">Carmel Valley · Walk 42 · Schools 8/10 · Low wildfire risk · 22min to downtown · strong amenities</div>
+      <div class="level-bar-row">
+        <div class="level-bar-track"><div class="level-bar-fill" style="width:80%;background:#4ade80"></div></div>
+        <span class="level-bar-val">80 / 100</span>
+      </div>
+    </div>
+    <div class="level-cta-col"><a href="#" class="level-cta">Re-run ↗</a></div>
+  </div>
+
+  <!-- Homeowner journey grid -->
+  <div class="journey-card">
+    <div class="section-label" style="margin-bottom:12px">Homeowner Journey</div>
+    <div class="journey-grid">
+      <a href="#" class="journey-item">
+        <div class="journey-item-lbl">Scenario</div>
+        <div class="journey-item-val">Conv. $875K</div>
+        <div class="journey-item-sub">10% down · 6.75%</div>
+        <div class="journey-item-back">← Back to scenario</div>
+      </a>
+      <a href="#" class="journey-item">
+        <div class="journey-item-lbl">Property Evaluation</div>
+        <div class="journey-item-val">6203 Verda Ln</div>
+        <div class="journey-item-sub">San Diego, CA 92130</div>
+        <div class="journey-item-back">← Back to property</div>
+      </a>
+      <a href="#" class="journey-item">
+        <div class="journey-item-lbl">Property Intel</div>
+        <div class="journey-item-val">Full Analysis</div>
+        <div class="journey-item-sub">Grok 4 · comps · deep data</div>
+        <div class="journey-item-back">← Back to intel</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       NEW: Get Matched section — the piece being prototyped
+       Toggle between: default (show button) ↔ already matched
+  ══════════════════════════════════════════════════════════════ -->
+
+  <!-- View A: Default — not yet matched -->
+  <div class="match-section" id="matchSection">
+    <div class="match-section-header">
+      <div class="match-icon">🎯</div>
+      <div>
+        <div class="match-title">Get Matched with a Local Expert</div>
+        <div class="match-sub">
+          Share your Decision Score with vetted loan officers in your area.
+          Your name and address stay private — only your score and ZIP code are shared at first.
+        </div>
+      </div>
+    </div>
+
+    <!-- What gets shared -->
+    <div class="share-preview">
+      <div class="share-preview-head">What professionals will see at match time</div>
+      <div class="share-rows">
+        <div class="share-row">
+          <div class="share-dot green"></div>
+          <span class="share-row-label">Decision Score</span>
+          <span class="share-row-val">78 · Ready to Offer</span>
+        </div>
+        <div class="share-row">
+          <div class="share-dot green"></div>
+          <span class="share-row-label">ZIP Code</span>
+          <span class="share-row-val">92130</span>
+        </div>
+        <div class="share-row">
+          <div class="share-dot green"></div>
+          <span class="share-row-label">Loan scenario</span>
+          <span class="share-row-val">Conv. $875K · 10% down · 6.75%</span>
+        </div>
+        <div class="share-row">
+          <div class="share-dot red"></div>
+          <span class="share-row-label">Full address</span>
+          <span class="share-row-hidden"><span class="lock">🔒</span> Hidden until you accept</span>
+        </div>
+        <div class="share-row">
+          <div class="share-dot red"></div>
+          <span class="share-row-label">Your name &amp; contact</span>
+          <span class="share-row-hidden"><span class="lock">🔒</span> Hidden until you accept</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="match-privacy-note">
+      <span class="icon">🛡️</span>
+      <span>Professionals respond to your score — you stay anonymous. Only after <strong>you choose to connect</strong> does your full information get shared. You control the reveal.</span>
+    </div>
+
+    <button class="match-cta-btn" onclick="openModal()">
+      <span>Get Matched →</span>
+    </button>
+  </div>
+
+  <!-- View B: Already matched (hidden by default, shown post-confirm) -->
+  <div class="matched-badge" id="matchedBadge" style="display:none">
+    <div class="matched-badge-icon">✅</div>
+    <div>
+      <div class="matched-badge-title">Match request sent</div>
+      <div class="matched-badge-sub">Loan officers in <strong>ZIP 92130</strong> have been notified. You'll hear back via your HomeRates inbox.</div>
+    </div>
+    <button class="matched-badge-link" onclick="openMessages()">View Inbox →</button>
+  </div>
+
+</div><!-- end .page -->
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     CONSENT MODAL
+══════════════════════════════════════════════════════════════ -->
+
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+
+    <!-- STATE 1: Consent gate -->
+    <div class="modal-state active" id="stateConsent">
+      <div class="modal-header">
+        <div class="modal-eyebrow">Track 5 · Matching</div>
+        <div class="modal-title">Connect with a local loan officer</div>
+        <div class="modal-sub">Review exactly what gets shared. Your address and identity stay private until you choose to reveal them.</div>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- Score summary -->
+        <div class="modal-score-strip">
+          <div class="modal-score-ring">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle cx="26" cy="26" r="20.8" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3.4"/>
+              <circle cx="26" cy="26" r="20.8" fill="none" stroke="#4ade80" stroke-width="3.4"
+                stroke-dasharray="101.7 130.7" stroke-linecap="round" transform="rotate(-90 26 26)"/>
+            </svg>
+            <div class="modal-score-num">78</div>
+          </div>
+          <div class="modal-score-right">
+            <div class="modal-score-verdict">Ready to Offer</div>
+            <div class="modal-score-addr">6203 Verda Ln · ZIP 92130</div>
+          </div>
+        </div>
+
+        <!-- Sharing table -->
+        <div class="modal-share-label">Shared with matched professionals now</div>
+        <div class="modal-share-rows">
+          <div class="modal-share-row">
+            <span class="modal-share-icon">📊</span>
+            <span class="modal-share-lbl">Decision Score + level breakdown</span>
+            <span class="modal-share-val">78 / Ready to Offer</span>
+          </div>
+          <div class="modal-share-row">
+            <span class="modal-share-icon">📍</span>
+            <span class="modal-share-lbl">ZIP code</span>
+            <span class="modal-share-val">92130</span>
+          </div>
+          <div class="modal-share-row">
+            <span class="modal-share-icon">🏠</span>
+            <span class="modal-share-lbl">Loan scenario</span>
+            <span class="modal-share-val">Conv. · $875K · 10% dn · 6.75%</span>
+          </div>
+          <div class="modal-share-row">
+            <span class="modal-share-icon">🔒</span>
+            <span class="modal-share-lbl">Full property address</span>
+            <span class="modal-share-hidden">Hidden — revealed only if you accept</span>
+          </div>
+          <div class="modal-share-row">
+            <span class="modal-share-icon">🔒</span>
+            <span class="modal-share-lbl">Your name &amp; contact info</span>
+            <span class="modal-share-hidden">Hidden — revealed only if you accept</span>
+          </div>
+        </div>
+
+        <!-- Reveal timeline -->
+        <div class="modal-reveal-box">
+          <div class="modal-reveal-title">How the reveal works</div>
+          <div class="reveal-step">
+            <div class="reveal-step-num">1</div>
+            <div class="reveal-step-text"><strong>Now:</strong> ZIP + score + scenario shared. Pro sees your readiness, not who you are.</div>
+          </div>
+          <div class="reveal-step">
+            <div class="reveal-step-num">2</div>
+            <div class="reveal-step-text"><strong>Pro responds:</strong> You get a message in your HomeRates inbox. Still anonymous.</div>
+          </div>
+          <div class="reveal-step">
+            <div class="reveal-step-num">3</div>
+            <div class="reveal-step-text"><strong>You accept:</strong> Full address + contact shared. You stay in control the whole time.</div>
+          </div>
+        </div>
+
+        <!-- Consent checkbox -->
+        <div class="consent-row" id="consentRow" onclick="toggleConsent()">
+          <div class="consent-checkbox" id="consentBox">
+            <span class="consent-check-mark">✓</span>
+          </div>
+          <div class="consent-text">
+            I understand that my <strong>ZIP code, Decision Score, and loan scenario</strong> will be shared with matched professionals. My name, address, and contact info remain private until I choose to connect.
+          </div>
+        </div>
+
+      </div><!-- end modal-body -->
+
+      <div class="modal-footer">
+        <button class="modal-confirm-btn" id="confirmBtn" onclick="handleConfirm()">
+          Send Match Request →
+        </button>
+        <button class="modal-cancel-btn" onclick="closeModal()">Cancel</button>
+      </div>
+    </div><!-- end stateConsent -->
+
+    <!-- STATE 2: Sending -->
+    <div class="modal-state" id="stateSending">
+      <div class="sending-state">
+        <div class="sending-spinner"></div>
+        <div class="sending-label">Sending your match request…</div>
+        <div class="sending-sub">Finding loan officers in ZIP 92130</div>
+      </div>
+    </div>
+
+    <!-- STATE 3: Confirmed -->
+    <div class="modal-state" id="stateConfirmed">
+      <div class="confirmed-state">
+        <div class="confirmed-icon">✅</div>
+        <div class="confirmed-title">Match request sent</div>
+        <div class="confirmed-sub">
+          Loan officers serving <strong>ZIP 92130</strong> have been notified with your score summary.
+          You'll receive their responses in your HomeRates inbox — you're still anonymous until you accept.
+        </div>
+        <div class="confirmed-detail">
+          <div class="confirmed-detail-row">
+            <span class="confirmed-detail-k">Shared with pros</span>
+            <span class="confirmed-detail-v green">ZIP 92130 · Score 78</span>
+          </div>
+          <div class="confirmed-detail-row">
+            <span class="confirmed-detail-k">Your identity</span>
+            <span class="confirmed-detail-v">🔒 Still private</span>
+          </div>
+          <div class="confirmed-detail-row">
+            <span class="confirmed-detail-k">Next step</span>
+            <span class="confirmed-detail-v">Check your inbox for responses</span>
+          </div>
+        </div>
+        <button class="confirmed-close-btn" onclick="handleDone()">Done — back to my score</button>
+      </div>
+    </div>
+
+  </div><!-- end .modal -->
+</div><!-- end modal-overlay -->
+
+
+<script>
+  let consentChecked = false;
+
+  function openModal() {
+    document.getElementById('modalOverlay').classList.add('open');
+    // Reset to consent state
+    showState('stateConsent');
+    consentChecked = false;
+    document.getElementById('consentRow').classList.remove('checked');
+    document.getElementById('confirmBtn').classList.remove('ready');
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  }
+
+  function toggleConsent() {
+    consentChecked = !consentChecked;
+    document.getElementById('consentRow').classList.toggle('checked', consentChecked);
+    document.getElementById('confirmBtn').classList.toggle('ready', consentChecked);
+  }
+
+  function showState(id) {
+    ['stateConsent','stateSending','stateConfirmed'].forEach(s => {
+      document.getElementById(s).classList.remove('active');
+    });
+    document.getElementById(id).classList.add('active');
+  }
+
+  function handleConfirm() {
+    if (!consentChecked) return;
+    showState('stateSending');
+    // Simulate API call
+    setTimeout(() => showState('stateConfirmed'), 1800);
+  }
+
+  function handleDone() {
+    closeModal();
+    // Swap UI: hide match section, show matched badge
+    document.getElementById('matchSection').style.display = 'none';
+    document.getElementById('matchedBadge').style.display = 'flex';
+  }
+
+  function openMessages() {
+    alert('→ Would navigate to /messages');
+  }
+</script>
+
+</body>
+</html>

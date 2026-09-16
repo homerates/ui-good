@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates — Opening Card (YouTube 16:9)</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #040608;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .card {
+    width: 1280px;
+    height: 720px;
+    background: #080c12;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 64px 96px;
+  }
+
+  /* Ambient glow left */
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -100px;
+    transform: translateY(-50%);
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(0,232,122,0.07) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* Grid lines */
+  .grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,232,122,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,232,122,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Corner accents */
+  .corner-tr {
+    position: absolute;
+    top: 0; right: 0;
+    width: 160px; height: 160px;
+    border-top: 1px solid rgba(0,232,122,0.12);
+    border-right: 1px solid rgba(0,232,122,0.12);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .corner-bl {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 160px; height: 160px;
+    border-bottom: 1px solid rgba(0,232,122,0.12);
+    border-left: 1px solid rgba(0,232,122,0.12);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* Vertical divider */
+  .vdivider {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1px;
+    height: 300px;
+    background: linear-gradient(to bottom, transparent, rgba(0,232,122,0.2), transparent);
+    z-index: 2;
+  }
+
+  /* Left column */
+  .left {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    z-index: 2;
+    flex: 1;
+    padding-right: 80px;
+  }
+
+  .logo {
+    height: 36px;
+    width: auto;
+    opacity: 0.95;
+  }
+
+  .hook-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #00e87a;
+  }
+
+  .hook {
+    font-family: 'Syne', sans-serif;
+    font-size: 64px;
+    font-weight: 800;
+    line-height: 1.05;
+    color: #f0f4ff;
+    letter-spacing: -0.03em;
+  }
+
+  .hook em {
+    font-style: normal;
+    color: #00e87a;
+  }
+
+  .sub {
+    font-size: 18px;
+    color: rgba(240,244,255,0.45);
+    line-height: 1.5;
+    max-width: 460px;
+  }
+
+  /* Right column */
+  .right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 28px;
+    z-index: 2;
+    flex-shrink: 0;
+  }
+
+  .stat-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(0,232,122,0.12);
+    border-radius: 16px;
+    padding: 20px 28px;
+    text-align: right;
+    min-width: 280px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(240,244,255,0.35);
+    margin-bottom: 6px;
+  }
+
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: #00e87a;
+    letter-spacing: -0.02em;
+  }
+
+  .stat-desc {
+    font-size: 12px;
+    color: rgba(240,244,255,0.4);
+    margin-top: 4px;
+  }
+
+  .domain {
+    font-size: 14px;
+    color: rgba(240,244,255,0.25);
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="grid"></div>
+    <div class="corner-tr"></div>
+    <div class="corner-bl"></div>
+    <div class="vdivider"></div>
+
+    <div class="left">
+      <img class="logo" src="https://chat.homerates.ai/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
+
+      <div class="hook-wrap">
+        <span class="eyebrow">Before you become a lead</span>
+        <h1 class="hook">Real answers.<br/>Not a<br/><em>sales funnel.</em></h1>
+        <p class="sub">Real mortgage math. Live rates. No one gets your number.</p>
+      </div>
+
+      <span class="domain">chat.homerates.ai</span>
+    </div>
+
+    <div class="right">
+      <div class="stat-card">
+        <div class="stat-label">No lead forms</div>
+        <div class="stat-value">Zero.</div>
+        <div class="stat-desc">Ask anything. Stay anonymous.</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Powered by</div>
+        <div class="stat-value">Live Rates</div>
+        <div class="stat-desc">Real FRED data. Real math.</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Cost to you</div>
+        <div class="stat-value">Free.</div>
+        <div class="stat-desc">No sign-up required.</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

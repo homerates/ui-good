@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HomeRates Property Intelligence Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #080c12;
+  --surface:   #0d1117;
+  --surface2:  #111827;
+  --surface3:  #1a2235;
+  --border:    rgba(255,255,255,0.06);
+  --text:      #f0f4ff;
+  --muted:     #8fa3b8;
+  --dim:       #4b5c70;
+  --green:     #00e87a;
+  --green2:    #4ade80;
+  --yellow:    #fbbf24;
+  --orange:    #fb923c;
+  --red:       #f87171;
+  --blue:      #60a5fa;
+  --purple:    #a78bfa;
+}
+
+/* ── PORTRAIT A4 WRAPPER ── */
+html { background: #000; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  font-size: 13px;
+  line-height: 1.5;
+  /* A4 portrait: 794px wide at 96dpi */
+  width: 794px;
+  margin: 0 auto;
+  box-shadow: 0 0 60px rgba(0,0,0,0.8);
+}
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+/* ── PAGE STRUCTURE ── */
+.page {
+  width: 794px;
+  min-height: 1123px; /* A4 at 96dpi */
+  position: relative;
+  overflow: hidden;
+  padding-bottom: 52px;
+  break-after: page;
+  page-break-after: always;
+}
+.page + .page { border-top: 3px solid #000; }
+.page-inner { padding: 0 36px 0; }
+
+@media print {
+  html { background: #000; }
+  body { margin: 0; box-shadow: none; }
+  .page { page-break-after: always; min-height: 0; }
+}
+
+/* ── WATERMARK ── */
+.watermark {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.watermark::before {
+  content: '';
+  position: absolute;
+  /* centre of page */
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  width: 360px; height: 360px;
+  background-image: url('/assets/homerates-icon-clear.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.028;
+}
+.watermark-corner {
+  position: absolute;
+  bottom: 68px; right: 32px;
+  width: 52px; height: 52px;
+  background-image: url('/assets/homerates-icon-clear.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── GLOBAL NAV HEADER ── */
+.report-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 36px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: relative; z-index: 1;
+}
+.nav-logo { display: flex; align-items: center; text-decoration: none; }
+.nav-logo img { height: 30px; width: auto; display: block; }
+.nav-meta { text-align: right; }
+.nav-report-type {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim);
+  margin-bottom: 3px;
+}
+.nav-report-date { font-size: 12px; color: var(--muted); }
+
+/* ── HERO ── */
+.hero {
+  position: relative; width: 100%; height: 280px; overflow: hidden;
+  background: var(--surface2);
+}
+.hero-img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  filter: brightness(0.75);
+}
+.hero-placeholder {
+  width: 100%; height: 100%;
+  background: linear-gradient(135deg, #111827 0%, #1a2a1a 50%, #0d1f1d 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 72px; opacity: 0.15;
+}
+.hero-gradient {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(8,12,18,0) 0%,
+    rgba(8,12,18,0.2) 40%,
+    rgba(8,12,18,0.85) 80%,
+    rgba(8,12,18,1) 100%
+  );
+}
+.hero-overlay {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 0 36px 16px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+}
+.hero-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(251,191,36,0.25); border: 1px solid rgba(251,191,36,0.5);
+  color: var(--yellow); font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  padding: 4px 12px; border-radius: 100px; text-transform: uppercase;
+  position: absolute; top: 16px; left: 40px;
+}
+.hero-status.active { background: rgba(0,232,122,0.2); border-color: rgba(0,232,122,0.4); color: var(--green); }
+.hero-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.hero-price {
+  font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -0.03em;
+  color: #fff; margin-bottom: 4px;
+}
+.hero-address { font-size: 14px; color: rgba(255,255,255,0.65); }
+.hero-piti-block { text-align: right; }
+.hero-piti-val {
+  font-size: 30px; font-weight: 800; letter-spacing: -0.02em;
+  color: var(--green);
+}
+.hero-piti-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255,255,255,0.45); margin-bottom: 3px;
+}
+.hero-piti-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+
+/* ── SPEC STRIP ── */
+.spec-strip {
+  display: flex; align-items: center; gap: 0;
+  padding: 0 36px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.spec-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 20px 14px 0;
+  font-size: 13px; color: var(--muted);
+  border-right: 1px solid var(--border);
+  margin-right: 20px;
+}
+.spec-item:last-child { border-right: none; }
+.spec-val { color: var(--text); font-weight: 600; }
+
+/* ── MONO LABEL ── */
+.mono-label {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim);
+}
+
+/* ── MAIN GRID ── */
+.main-grid {
+  display: grid; gap: 16px;
+  padding: 16px 36px 0;
+}
+.main-grid-2col { grid-template-columns: 1fr 1fr; }
+.main-grid-3col { grid-template-columns: 2fr 1fr; }
+
+/* ── CARD ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 20px;
+}
+.card-tight { padding: 14px 16px; border-radius: 12px; }
+
+/* ── GROK INTEL CARD ── */
+.grok-title {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  margin-bottom: 10px;
+}
+.grok-body {
+  font-size: 12.5px; line-height: 1.75; color: var(--muted);
+}
+
+/* ── KEY HIGHLIGHTS ── */
+.highlights-list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.highlights-list li {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 12.5px; color: var(--muted); line-height: 1.5;
+}
+.hi-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green); flex-shrink: 0; margin-top: 5px;
+}
+
+/* ── STAT CARDS (big number) ── */
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.stat-card-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.stat-card-val { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.stat-card-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.stat-card-val.green { color: var(--green2); }
+.stat-card-val.yellow { color: var(--yellow); }
+.stat-card-val.orange { color: var(--orange); }
+.stat-card-val.blue { color: var(--blue); }
+
+/* ── AVM ROW ── */
+.avm-row {
+  display: flex; align-items: center; gap: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+}
+.avm-item {
+  flex: 1; padding: 14px 20px; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.avm-item:last-child { border-right: none; }
+.avm-source { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); }
+.avm-val { font-size: 18px; font-weight: 700; }
+.avm-val.blue { color: var(--blue); }
+.avm-val.orange { color: var(--orange); }
+.avm-val.green { color: var(--green2); }
+
+/* ── COMP TABLE ── */
+.comp-table { width: 100%; border-collapse: collapse; }
+.comp-table th {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--dim);
+  padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border);
+}
+.comp-table td {
+  padding: 10px 12px; font-size: 12px; color: var(--text);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.comp-table tr.subject td { background: rgba(0,232,122,0.05); }
+.comp-table tr:last-child td { border-bottom: none; }
+.comp-addr { font-weight: 500; }
+.comp-tag {
+  display: inline-block; font-size: 9px; font-weight: 700;
+  padding: 2px 7px; border-radius: 100px;
+  background: rgba(0,232,122,0.15); color: var(--green);
+  margin-left: 6px; letter-spacing: 0.06em;
+}
+
+/* ── PAGE FOOTER ── */
+.page-footer {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 36px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  z-index: 1;
+}
+.footer-left { font-size: 10px; color: var(--dim); font-family: 'DM Mono', monospace; }
+.footer-right { font-size: 10px; color: var(--dim); font-family: 'DM Mono', monospace; }
+.footer-link {
+  font-size: 10px; font-family: 'DM Mono', monospace;
+  color: var(--green); text-decoration: none; letter-spacing: 0.04em;
+  border: 1px solid rgba(0,232,122,0.25); border-radius: 100px;
+  padding: 3px 10px;
+}
+.footer-link:hover { color: var(--green2); border-color: rgba(0,232,122,0.5); }
+/* nav chip */
+.nav-view-link {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-family: 'DM Mono', monospace;
+  color: var(--green); text-decoration: none; letter-spacing: 0.04em;
+  border: 1px solid rgba(0,232,122,0.2); border-radius: 100px;
+  padding: 4px 12px; background: rgba(0,232,122,0.05);
+}
+.nav-view-link:hover { background: rgba(0,232,122,0.10); }
+
+/* ══════════════════════════════════════════
+   PAGE 2 — SCENARIO
+══════════════════════════════════════════ */
+.scenario-hero {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 36px;
+}
+.scenario-headline { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
+.scenario-sub { font-size: 13px; color: var(--muted); }
+
+.piti-breakdown {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+}
+.piti-header {
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.piti-header-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.piti-header-val { font-size: 28px; font-weight: 800; color: var(--green); letter-spacing: -0.02em; }
+.piti-header-sub { font-size: 11px; color: var(--muted); }
+.piti-line {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 20px; border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.piti-line:last-child { border-bottom: none; }
+.piti-line-label { font-size: 13px; color: var(--muted); }
+.piti-line-val { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; color: var(--text); }
+
+.loan-option {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.loan-option.selected {
+  border-color: rgba(0,232,122,0.35);
+  background: rgba(0,232,122,0.05);
+}
+.loan-option-type { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; }
+.loan-option-rate { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+.loan-option-piti { font-size: 12px; color: var(--muted); }
+.loan-option-note { font-size: 10px; color: var(--dim); margin-top: 2px; }
+.loan-option-star { font-size: 10px; color: var(--green); font-weight: 700; margin-top: 4px; }
+
+.amort-row {
+  background: var(--surface2); border-radius: 12px; padding: 14px 18px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.amort-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.amort-val { font-size: 18px; font-weight: 700; }
+
+/* ══════════════════════════════════════════
+   PAGE 3 — LOCATION INTELLIGENCE
+══════════════════════════════════════════ */
+.loc-hero {
+  display: flex; align-items: flex-start; gap: 20px;
+  padding: 20px 36px; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.loc-score-circle {
+  width: 68px; height: 68px; border-radius: 50%; flex-shrink: 0;
+  border: 3px solid var(--green2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 800; color: var(--green2);
+  background: rgba(74,222,128,0.08);
+}
+.loc-hero-pct-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--dim); margin-bottom: 3px;
+}
+.loc-hero-title { font-size: 20px; font-weight: 800; color: var(--green2); margin-bottom: 6px; }
+.loc-hero-narrative { font-size: 12.5px; color: var(--muted); line-height: 1.65; max-width: 700px; }
+
+/* Location sub-score card */
+.loc-sub-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  padding: 0 36px; margin-top: 12px;
+}
+.loc-sub-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px; display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+.loc-sub-card::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+}
+.loc-sub-card.green::after { background: var(--green2); }
+.loc-sub-card.yellow::after { background: var(--yellow); }
+.loc-sub-card.orange::after { background: var(--orange); }
+.loc-sub-card.red::after { background: var(--red); }
+.loc-sub-card.blue::after { background: var(--blue); }
+.loc-sub-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--dim); margin-bottom: 8px;
+}
+.loc-sub-score-row { display: flex; align-items: baseline; gap: 4px; margin-bottom: 4px; }
+.loc-sub-score { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; }
+.loc-sub-score.green { color: var(--green2); }
+.loc-sub-score.yellow { color: var(--yellow); }
+.loc-sub-score.orange { color: var(--orange); }
+.loc-sub-score.red { color: var(--red); }
+.loc-sub-score.blue { color: var(--blue); }
+.loc-sub-100 { font-size: 13px; color: var(--dim); }
+.loc-sub-rating { font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+.loc-sub-rating.green { color: var(--green2); }
+.loc-sub-rating.yellow { color: var(--yellow); }
+.loc-sub-rating.orange { color: var(--orange); }
+.loc-sub-rating.red { color: var(--red); }
+.loc-sub-rating.blue { color: var(--blue); }
+.loc-sub-desc { font-size: 11.5px; color: var(--muted); line-height: 1.55; }
+
+/* Wildfire card */
+.wildfire-card {
+  margin: 12px 40px 0;
+  background: rgba(251,146,60,0.06); border: 1px solid rgba(251,146,60,0.25);
+  border-radius: 14px; padding: 18px 22px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center;
+}
+.wildfire-header-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.wildfire-icon { font-size: 14px; }
+.wildfire-cat-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--orange);
+}
+.wildfire-score-row { display: flex; align-items: baseline; gap: 6px; }
+.wildfire-score { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; color: var(--orange); }
+.wildfire-100 { font-size: 14px; color: var(--dim); }
+.wildfire-rating { font-size: 13px; font-weight: 700; color: var(--orange); margin-top: 2px; }
+.wildfire-desc { font-size: 12px; color: var(--muted); line-height: 1.55; margin-top: 8px; }
+.wildfire-chips { display: flex; gap: 10px; justify-content: flex-end; }
+.wildfire-chip {
+  background: rgba(251,146,60,0.12); border: 1px solid rgba(251,146,60,0.25);
+  border-radius: 10px; padding: 10px 16px; text-align: center; min-width: 90px;
+}
+.wildfire-chip-val { font-size: 18px; font-weight: 800; color: var(--orange); }
+.wildfire-chip-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin-top: 3px; }
+
+/* Strengths + Tradeoffs */
+.str-trade-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  margin: 12px 40px 0;
+}
+.str-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px;
+}
+.str-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.str-header-icon { font-size: 12px; }
+.str-header-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.str-header-label.green { color: var(--green); }
+.str-header-label.orange { color: var(--orange); }
+.str-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.str-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.str-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.str-dot.green { background: var(--green); }
+.str-dot.orange { background: var(--orange); }
+
+.loc-recommendation {
+  margin: 12px 40px 0;
+  background: rgba(251,191,36,0.05); border: 1px solid rgba(251,191,36,0.2);
+  border-radius: 14px; padding: 16px 20px;
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.loc-rec-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.loc-rec-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--yellow); margin-bottom: 5px;
+}
+.loc-rec-text { font-size: 13px; color: var(--text); line-height: 1.65; }
+
+/* ══════════════════════════════════════════
+   PAGE 4 — DECISION SCORE
+══════════════════════════════════════════ */
+.ds-hero {
+  display: flex; align-items: flex-start; gap: 32px;
+  padding: 20px 36px 18px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.ds-ring-wrap { flex-shrink: 0; }
+.ds-verdict { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: var(--green2); margin-bottom: 5px; }
+.ds-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+.ds-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.ds-chip {
+  padding: 5px 14px; border-radius: 100px;
+  font-size: 11px; font-weight: 600;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  color: var(--muted);
+}
+.ds-chip.green { background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.3); color: var(--green2); }
+
+/* Decision level rows */
+.ds-levels { padding: 12px 36px; display: flex; flex-direction: column; gap: 8px; }
+.ds-level-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px;
+  display: grid; grid-template-columns: 52px 1fr auto;
+  gap: 16px; align-items: center;
+}
+.ds-level-circle {
+  width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800;
+  border: 3px solid currentColor;
+}
+.ds-level-circle.green { color: var(--green2); background: rgba(74,222,128,0.08); }
+.ds-level-circle.yellow { color: var(--yellow); background: rgba(251,191,36,0.08); }
+.ds-level-circle.red { color: var(--red); background: rgba(248,113,113,0.08); }
+.ds-level-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.ds-level-name { font-size: 14px; font-weight: 700; }
+.ds-level-weight {
+  font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 600;
+  padding: 2px 8px; border-radius: 100px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  color: var(--muted);
+}
+.ds-level-sub { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.45; }
+.ds-bar-track { height: 6px; background: rgba(255,255,255,0.06); border-radius: 100px; overflow: hidden; }
+.ds-bar-fill { height: 100%; border-radius: 100px; }
+.ds-level-score { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 800; text-align: right; min-width: 48px; }
+.ds-level-score span { font-size: 11px; font-weight: 400; color: var(--dim); }
+
+/* score legend */
+.score-legend {
+  margin: 0 40px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+}
+.legend-title { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin-bottom: 2px; }
+.legend-items { display: flex; gap: 20px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--muted); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* CTA */
+.cta-section {
+  margin: 12px 40px 0;
+  background: linear-gradient(135deg, rgba(0,232,122,0.10) 0%, rgba(0,180,89,0.05) 100%);
+  border: 1px solid rgba(0,232,122,0.22); border-radius: 16px;
+  padding: 22px 28px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+}
+.cta-text-head { font-size: 16px; font-weight: 700; margin-bottom: 5px; }
+.cta-text-sub { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+.cta-btn {
+  background: var(--green); color: #000; font-weight: 700; font-size: 13.5px;
+  padding: 12px 26px; border-radius: 10px; white-space: nowrap;
+  text-decoration: none; flex-shrink: 0; display: inline-block;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Disclosures */
+.disclosures {
+  margin: 16px 40px 0;
+  border-top: 1px solid var(--border); padding-top: 16px;
+}
+.disc-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+.disc-text { font-size: 10px; line-height: 1.7; color: var(--dim); font-family: 'DM Mono', monospace; margin-bottom: 8px; }
+.disc-powered { font-size: 10px; color: var(--dim); font-family: 'DM Mono', monospace; margin-top: 12px; }
+.disc-powered span { color: rgba(143,163,184,0.6); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 1 — PROPERTY SNAPSHOT                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="watermark"></div>
+  <div class="watermark-corner"></div>
+
+  <!-- Nav header -->
+  <div class="report-nav">
+    <div class="nav-logo">
+      <img src="/assets/homerates-email-logo.png" alt="HomeRates.ai" />
+    </div>
+    <a href="https://chat.homerates.ai/property-intel?address=1306+Norman+Ave+Thousand+Oaks+CA+91360" class="nav-view-link" target="_blank">
+      ↗ View live analysis
+    </a>
+    <div class="nav-meta">
+      <div class="nav-report-type">Property Intelligence Report</div>
+      <div class="nav-report-date">Generated May 25, 2026 · Confidential</div>
+    </div>
+  </div>
+
+  <!-- Property hero -->
+  <div class="hero">
+    <div class="hero-placeholder">🏡</div>
+    <div class="hero-gradient"></div>
+    <div class="hero-status active"><span class="hero-status-dot"></span>Active Listing</div>
+    <div class="hero-overlay">
+      <div class="hero-price-block">
+        <div class="hero-price">$1,099,000</div>
+        <div class="hero-address">1306 Norman Ave, Thousand Oaks, CA 91360</div>
+      </div>
+      <div class="hero-piti-block">
+        <div class="hero-piti-label">Est. Monthly PITI</div>
+        <div class="hero-piti-val">$7,100/mo</div>
+        <div class="hero-piti-sub">@ 6.51% · 20% down</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spec strip -->
+  <div class="spec-strip">
+    <div class="spec-item"><span class="spec-val">3</span>&nbsp;bd</div>
+    <div class="spec-item"><span class="spec-val">2</span>&nbsp;ba</div>
+    <div class="spec-item"><span class="spec-val">1,791</span>&nbsp;sqft</div>
+    <div class="spec-item">Built <span class="spec-val">&nbsp;1962</span></div>
+    <div class="spec-item"><span class="spec-val">9,147</span>&nbsp;sqft lot</div>
+    <div class="spec-item">DOM: <span class="spec-val">&nbsp;33 days</span></div>
+    <div class="spec-item">$<span class="spec-val">614</span>&nbsp;/ sqft</div>
+  </div>
+
+  <!-- Main content grid -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:16px 36px 0;">
+
+    <!-- LEFT: Grok + Highlights -->
+    <div style="display:flex; flex-direction:column; gap:12px;">
+
+      <div class="card">
+        <div class="grok-title">Grok Intelligence</div>
+        <div class="grok-body">
+          This updated single-story Shadow Oaks home is priced competitively in a seller's market where homes sell in ~35 days at ~1% below list. Strong features like owned solar, pool, and location near schools and freeway position it well for families seeking move-in ready value. At $614/sqft vs. the $620/sqft area median, buyers enter at a slight discount with meaningful upside from the solar and pool amenities. The 33-day market time is just below the 36-day area median, indicating normal absorption — no urgency discounting expected.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="mono-label" style="margin-bottom:4px;">Key Highlights</div>
+        <ul class="highlights-list">
+          <li><span class="hi-dot"></span>Single-story 1962 home in Shadow Oaks — fully updated interior</li>
+          <li><span class="hi-dot"></span>Owned solar panels — estimated $180/mo utility savings</li>
+          <li><span class="hi-dot"></span>Sparkling pool with private backyard, firepit &amp; covered patio</li>
+          <li><span class="hi-dot"></span>Granite kitchen with stainless appliances, new HVAC (2022)</li>
+          <li><span class="hi-dot"></span>Top-rated schools · 0.3 mi to 101 freeway access</li>
+        </ul>
+      </div>
+
+      <!-- AVM row -->
+      <div class="avm-row">
+        <div class="avm-item">
+          <span class="avm-source">Zillow Est.</span>
+          <span class="avm-val blue">$1,111,800</span>
+        </div>
+        <div class="avm-item">
+          <span class="avm-source">Redfin Est.</span>
+          <span class="avm-val orange">$1,103,916</span>
+        </div>
+        <div class="avm-item">
+          <span class="avm-source">AI Estimate</span>
+          <span class="avm-val green">$1,108,000</span>
+        </div>
+        <div class="avm-item">
+          <span class="avm-source">List vs. AVM</span>
+          <span class="avm-val" style="color:var(--green2);">-0.8%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Stats grid -->
+    <div style="display:flex; flex-direction:column; gap:12px;">
+
+      <!-- 2x2 big stat grid -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div class="stat-card">
+          <span class="stat-card-label">Life-Fit Score</span>
+          <span class="stat-card-val green">82</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">Days on Market</span>
+          <span class="stat-card-val">33<span style="font-size:14px;font-weight:400;color:var(--dim);">d</span></span>
+          <span class="stat-card-sub" style="font-family:'DM Mono',monospace;font-size:9px;color:var(--dim);">Listed 2026-04-23</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">Price / Sqft</span>
+          <span class="stat-card-val">$614</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">Last Sold</span>
+          <span class="stat-card-val yellow">$257K</span>
+          <span class="stat-card-sub" style="font-family:'DM Mono',monospace;font-size:9px;color:var(--dim);">1990-06-13</span>
+        </div>
+      </div>
+
+      <!-- 3-col market metrics -->
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
+          <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Area Avg DOM</div>
+          <div style="font-size:20px;font-weight:800;">36<span style="font-size:12px;font-weight:400;color:var(--dim);">d</span></div>
+        </div>
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
+          <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Sale / List</div>
+          <div style="font-size:20px;font-weight:800;">0.99<span style="font-size:12px;font-weight:400;color:var(--dim);">%</span></div>
+        </div>
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
+          <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Median Price</div>
+          <div style="font-size:18px;font-weight:800;">$1.10M</div>
+        </div>
+      </div>
+
+      <!-- Comps -->
+      <div class="card" style="padding:0; overflow:hidden; flex:1;">
+        <div style="padding:12px 16px; border-bottom:1px solid var(--border); font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--dim);">Recent Comps</div>
+        <table class="comp-table">
+          <thead>
+            <tr>
+              <th>Address</th>
+              <th>Sqft</th>
+              <th>Price</th>
+              <th>$/Sqft</th>
+              <th>DOM</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="subject">
+              <td class="comp-addr">1306 Norman Ave <span class="comp-tag">SUBJECT</span></td>
+              <td>1,791</td>
+              <td style="color:var(--green2);font-weight:600;">$1,099K</td>
+              <td>$614</td>
+              <td>33d</td>
+            </tr>
+            <tr>
+              <td class="comp-addr">76 E Norman Ave</td>
+              <td>1,820</td>
+              <td>$1,125K</td>
+              <td>$618</td>
+              <td>28d</td>
+            </tr>
+            <tr>
+              <td class="comp-addr">442 Calle Viento</td>
+              <td>1,740</td>
+              <td>$1,085K</td>
+              <td>$624</td>
+              <td>41d</td>
+            </tr>
+            <tr>
+              <td class="comp-addr">918 Sundance Ave</td>
+              <td>1,810</td>
+              <td>$1,140K</td>
+              <td>$630</td>
+              <td>19d</td>
+            </tr>
+            <tr>
+              <td class="comp-addr">205 White Sage Rd</td>
+              <td>1,680</td>
+              <td>$1,062K</td>
+              <td>$632</td>
+              <td>44d</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page footer -->
+  <div class="page-footer">
+    <div class="footer-left">HomeRates.Ai · Property Intelligence Report · Confidential · © 2026</div>
+    <a href="https://chat.homerates.ai/property-intel?address=1306+Norman+Ave+Thousand+Oaks+CA+91360" class="footer-link" target="_blank">homerates.ai ↗</a>
+    <div class="footer-right">Page 1 of 4</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 2 — MORTGAGE SCENARIO                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="watermark"></div>
+  <div class="watermark-corner"></div>
+
+  <div class="report-nav">
+    <div class="nav-logo">
+      <img src="/assets/homerates-email-logo.png" alt="HomeRates.ai" />
+    </div>
+    <a href="https://chat.homerates.ai/chat" class="nav-view-link" target="_blank">
+      ↗ Run your scenario
+    </a>
+    <div class="nav-meta">
+      <div class="nav-report-type">Mortgage Scenario Analysis</div>
+      <div class="nav-report-date">1306 Norman Ave, Thousand Oaks CA</div>
+    </div>
+  </div>
+
+  <!-- Scenario banner -->
+  <div class="scenario-hero">
+    <div class="scenario-headline">Your Financing Scenario</div>
+    <div class="scenario-sub">30-Year Conventional Fixed · 20% Down · $879,200 Loan · 6.51% Rate · No PMI</div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:16px 36px 0;">
+
+    <!-- LEFT: Inputs + PITI -->
+    <div style="display:flex;flex-direction:column;gap:12px;">
+
+      <!-- Scenario inputs -->
+      <div class="card">
+        <div class="mono-label" style="margin-bottom:16px;">Scenario Inputs</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div>
+            <div style="font-size:11px;color:var(--dim);margin-bottom:3px;">Purchase Price</div>
+            <div style="font-size:18px;font-weight:700;">$1,099,000</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--dim);margin-bottom:3px;">Down Payment</div>
+            <div style="font-size:18px;font-weight:700;">$219,800</div>
+            <div style="font-size:11px;color:var(--muted);">20.0% · No PMI</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--dim);margin-bottom:3px;">Loan Amount</div>
+            <div style="font-size:18px;font-weight:700;">$879,200</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--dim);margin-bottom:3px;">Interest Rate</div>
+            <div style="font-size:18px;font-weight:700;color:var(--green2);">6.51%</div>
+            <div style="font-size:11px;color:var(--muted);">Conventional · Wk of 2026-05</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--dim);margin-bottom:3px;">Loan Type</div>
+            <div style="font-size:15px;font-weight:600;">30-Yr Conventional</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--dim);margin-bottom:3px;">LTV</div>
+            <div style="font-size:15px;font-weight:600;">80.0% · Favorable</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PITI Breakdown -->
+      <div class="piti-breakdown">
+        <div class="piti-header">
+          <div>
+            <div class="piti-header-label">Total Monthly PITI</div>
+            <div class="piti-header-sub">Principal · Interest · Tax · Insurance</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="piti-header-val">$7,100</div>
+            <div class="piti-header-sub">/month</div>
+          </div>
+        </div>
+        <div class="piti-line">
+          <span class="piti-line-label">Principal &amp; Interest</span>
+          <span class="piti-line-val">$5,579</span>
+        </div>
+        <div class="piti-line">
+          <span class="piti-line-label">Property Tax (1.25%)</span>
+          <span class="piti-line-val">$1,145</span>
+        </div>
+        <div class="piti-line">
+          <span class="piti-line-label">Homeowners Insurance</span>
+          <span class="piti-line-val">$285</span>
+        </div>
+        <div class="piti-line">
+          <span class="piti-line-label">HOA Dues</span>
+          <span class="piti-line-val">$0</span>
+        </div>
+        <div class="piti-line">
+          <span class="piti-line-label">PMI</span>
+          <span class="piti-line-val" style="color:var(--green2);">$0 · NONE</span>
+        </div>
+      </div>
+
+      <!-- AI buyer strategy -->
+      <div class="card">
+        <div class="mono-label" style="margin-bottom:10px;">AI Buyer Strategy</div>
+        <div class="grok-body">
+          List pricing at $1,099,000 is $9K below the $1,108K AI value estimate — a defensible offer range is <strong style="color:var(--text);">$1,085,000–$1,099,000</strong>. Request inspection contingency with emphasis on pool equipment, solar transfer documentation, and HVAC (replaced 2022 — verify permit). The 33-day DOM and 99% sale-to-list ratio suggest no significant seller motivation to discount. A clean offer at or near ask with a 30-day close will be competitive.
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Loan programs + amort + income -->
+    <div style="display:flex;flex-direction:column;gap:12px;">
+
+      <div class="mono-label" style="padding-top:4px;">Loan Program Comparison</div>
+      <div class="loan-option selected">
+        <div class="loan-option-type">30-Yr Conventional Fixed</div>
+        <div class="loan-option-rate">6.51%</div>
+        <div class="loan-option-piti">$7,100 / mo PITI</div>
+        <div class="loan-option-star">★ Your Scenario</div>
+      </div>
+      <div class="loan-option">
+        <div class="loan-option-type">15-Yr Conventional Fixed</div>
+        <div class="loan-option-rate">6.04%</div>
+        <div class="loan-option-piti">$7,925 / mo est.</div>
+        <div class="loan-option-note">+$825/mo · Pay off 15 yrs sooner · Less total interest</div>
+      </div>
+      <div class="loan-option">
+        <div class="loan-option-type">7/1 ARM Conventional</div>
+        <div class="loan-option-rate">5.88%</div>
+        <div class="loan-option-piti">$6,893 / mo est.</div>
+        <div class="loan-option-note">-$207/mo · Rate adjusts after 7 yrs · Rate-cap applies</div>
+      </div>
+
+      <!-- Income + cash to close -->
+      <div class="card" style="background:var(--surface2);">
+        <div class="mono-label" style="margin-bottom:14px;">Qualification Thresholds</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end; border-bottom:1px solid var(--border); padding-bottom:10px;">
+            <div>
+              <div style="font-size:11px;color:var(--dim);margin-bottom:3px;">Min. Gross Monthly Income (35% DTI)</div>
+              <div style="font-size:20px;font-weight:800;">$20,286</div>
+            </div>
+            <div style="font-size:12px;color:var(--muted);">$243,430/yr</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-end; border-bottom:1px solid var(--border); padding-bottom:10px;">
+            <div>
+              <div style="font-size:11px;color:var(--dim);margin-bottom:3px;">Min. Cash to Close (est.)</div>
+              <div style="font-size:20px;font-weight:800;">$249,500</div>
+            </div>
+            <div style="font-size:12px;color:var(--muted);">Down + ~2.7% costs</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+            <div>
+              <div style="font-size:11px;color:var(--dim);margin-bottom:3px;">PITI as % of Income (est.)</div>
+              <div style="font-size:20px;font-weight:800;">29.2%</div>
+            </div>
+            <div style="font-size:12px;color:var(--green2);">Well within DTI limit</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10-yr amort -->
+      <div class="card">
+        <div class="mono-label" style="margin-bottom:12px;">10-Year Equity Snapshot</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="amort-row">
+            <div class="amort-label">After 1 Year</div>
+            <div class="amort-val">$7,200</div>
+            <div style="font-size:11px;color:var(--muted);">principal paid</div>
+          </div>
+          <div class="amort-row">
+            <div class="amort-label">After 5 Years</div>
+            <div class="amort-val">$39,800</div>
+            <div style="font-size:11px;color:var(--muted);">principal paid</div>
+          </div>
+          <div class="amort-row">
+            <div class="amort-label">After 10 Years</div>
+            <div class="amort-val">$91,200</div>
+            <div style="font-size:11px;color:var(--muted);">principal paid</div>
+          </div>
+          <div class="amort-row" style="border-color:rgba(0,232,122,0.2); background:rgba(0,232,122,0.04);">
+            <div class="amort-label">Proj. Value (3.7%/yr)</div>
+            <div class="amort-val" style="color:var(--green2);">$1,603K</div>
+            <div style="font-size:11px;color:var(--muted);">10-yr appreciation est.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div class="footer-left">HomeRates.Ai · Property Intelligence Report · Confidential · © 2026</div>
+    <a href="https://chat.homerates.ai/chat" class="footer-link" target="_blank">chat.homerates.ai ↗</a>
+    <div class="footer-right">Page 2 of 4</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 3 — LOCATION INTELLIGENCE                                -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="watermark"></div>
+  <div class="watermark-corner"></div>
+
+  <div class="report-nav">
+    <div class="nav-logo">
+      <img src="/assets/homerates-email-logo.png" alt="HomeRates.ai" />
+    </div>
+    <a href="https://chat.homerates.ai/property-intel?address=1306+Norman+Ave+Thousand+Oaks+CA+91360" class="nav-view-link" target="_blank">
+      ↗ View live analysis
+    </a>
+    <div class="nav-meta">
+      <div class="nav-report-type">Location Intelligence · 15% of Index</div>
+      <div class="nav-report-date">1306 Norman Ave, Thousand Oaks CA</div>
+    </div>
+  </div>
+
+  <!-- Location hero -->
+  <div class="loc-hero">
+    <div class="loc-score-circle">78</div>
+    <div class="loc-hero-text">
+      <div class="loc-hero-pct-label">Location Score · 15% of Index</div>
+      <div class="loc-hero-title">Strong Location</div>
+      <div class="loc-hero-narrative">
+        Desirable central Thousand Oaks neighborhood blending suburban tranquility with convenient access to amenities and freeways. Strong schools, low crime, and walkable amenity access make this an above-average location for families and professionals. The neighborhood has demonstrated consistent appreciation driven by school district quality and proximity to major employment corridors.
+      </div>
+    </div>
+  </div>
+
+  <!-- 3×2 sub-score grid -->
+  <div class="loc-sub-grid">
+
+    <div class="loc-sub-card blue">
+      <div class="loc-sub-label">Walk Score</div>
+      <div class="loc-sub-score-row">
+        <span class="loc-sub-score blue">68</span>
+        <span class="loc-sub-100">/100</span>
+      </div>
+      <div class="loc-sub-rating blue">Somewhat Walkable</div>
+      <div class="loc-sub-desc">Some errands can be done on foot with nearby amenities. Grocery, pharmacy, and restaurants within 0.8 miles.</div>
+    </div>
+
+    <div class="loc-sub-card red">
+      <div class="loc-sub-label">Transit Score</div>
+      <div class="loc-sub-score-row">
+        <span class="loc-sub-score red">20</span>
+        <span class="loc-sub-100">/100</span>
+      </div>
+      <div class="loc-sub-rating red">Minimal Transit</div>
+      <div class="loc-sub-desc">Limited bus service; car-dependent for most trips. Conejo Valley Transit Agency routes nearby with limited frequency.</div>
+    </div>
+
+    <div class="loc-sub-card yellow">
+      <div class="loc-sub-label">Bike Score</div>
+      <div class="loc-sub-score-row">
+        <span class="loc-sub-score yellow">48</span>
+        <span class="loc-sub-100">/100</span>
+      </div>
+      <div class="loc-sub-rating yellow">Somewhat Bikeable</div>
+      <div class="loc-sub-desc">Minimal bike infrastructure but flat terrain aids cycling. Arroyo Conejo trail access within 0.5 miles.</div>
+    </div>
+
+    <div class="loc-sub-card green">
+      <div class="loc-sub-label">Schools</div>
+      <div class="loc-sub-score-row">
+        <span class="loc-sub-score green">85</span>
+        <span class="loc-sub-100">/100</span>
+      </div>
+      <div class="loc-sub-rating green">Excellent</div>
+      <div class="loc-sub-desc">High GreatSchools ratings for nearby public schools. Conejo Valley USD — Timber Elementary 9/10, Newbury Park HS 8/10.</div>
+    </div>
+
+    <div class="loc-sub-card green">
+      <div class="loc-sub-label">Safety</div>
+      <div class="loc-sub-score-row">
+        <span class="loc-sub-score green">89</span>
+        <span class="loc-sub-100">/100</span>
+      </div>
+      <div class="loc-sub-rating green">Very Safe</div>
+      <div class="loc-sub-desc">Quiet area with very few nearby noise or crime sources. Violent crime rate 72% below CA average. Top 11% safest zip in state.</div>
+    </div>
+
+    <div class="loc-sub-card yellow">
+      <div class="loc-sub-label">Amenities &amp; Commute</div>
+      <div class="loc-sub-score-row">
+        <span class="loc-sub-score yellow">80</span>
+        <span class="loc-sub-100">/100</span>
+      </div>
+      <div class="loc-sub-rating yellow">Good</div>
+      <div class="loc-sub-desc">Close to shopping, dining, parks and 15-min drive to major employment hubs. 101 freeway access 0.3 miles from property.</div>
+    </div>
+
+  </div>
+
+  <!-- Wildfire -->
+  <div class="wildfire-card">
+    <div class="wildfire-left">
+      <div class="wildfire-header-row">
+        <span class="wildfire-icon">⚠</span>
+        <span class="wildfire-cat-label">Wildfire Risk</span>
+      </div>
+      <div class="wildfire-score-row">
+        <span class="wildfire-score">65</span>
+        <span class="wildfire-100">/100</span>
+      </div>
+      <div class="wildfire-rating">MODERATE</div>
+      <div class="wildfire-desc">Moderate risk per First Street Foundation data with some recent regional activity. SoCal Fire Zone 3. Homeowner's insurance premium impact estimated at $180–$320/mo above standard rates. Verify current carrier availability.</div>
+    </div>
+    <div class="wildfire-right" style="display:flex;align-items:center;justify-content:flex-end;">
+      <div class="wildfire-chips">
+        <div class="wildfire-chip">
+          <div class="wildfire-chip-val">4.5/10</div>
+          <div class="wildfire-chip-label">Fire Factor</div>
+        </div>
+        <div class="wildfire-chip">
+          <div class="wildfire-chip-val">12%</div>
+          <div class="wildfire-chip-label">30-Yr Risk</div>
+        </div>
+        <div class="wildfire-chip">
+          <div class="wildfire-chip-val">Top 55%</div>
+          <div class="wildfire-chip-label">US Risk</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Strengths + Trade-offs -->
+  <div class="str-trade-grid">
+    <div class="str-card">
+      <div class="str-header">
+        <span class="str-header-icon">✓</span>
+        <span class="str-header-label green">Strengths</span>
+      </div>
+      <ul class="str-list">
+        <li><span class="str-dot green"></span>Excellent schools — Conejo Valley USD rated top 15% statewide</li>
+        <li><span class="str-dot green"></span>Low crime and quiet residential environment — Very Safe rating</li>
+        <li><span class="str-dot green"></span>Owned solar panels and sparkling pool add lifestyle and utility value</li>
+        <li><span class="str-dot green"></span>Strong 3-yr neighborhood appreciation +9.4% above CA avg</li>
+      </ul>
+    </div>
+    <div class="str-card">
+      <div class="str-header">
+        <span class="str-header-icon">⚠</span>
+        <span class="str-header-label orange">Trade-offs</span>
+      </div>
+      <ul class="str-list">
+        <li><span class="str-dot orange"></span>Car-dependent for transit — Transit Score 20, no meaningful bus/rail</li>
+        <li><span class="str-dot orange"></span>Moderate wildfire risk — verify HOI carrier availability before offer</li>
+        <li><span class="str-dot orange"></span>Older home (1962) — pool equipment, plumbing, and electrical should be inspected</li>
+        <li><span class="str-dot orange"></span>Solar panel lease vs. owned — confirm transfer terms if applicable</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Recommendation -->
+  <div class="loc-recommendation">
+    <span class="loc-rec-icon">💡</span>
+    <div>
+      <div class="loc-rec-label">Location Recommendation</div>
+      <div class="loc-rec-text">Ideal for families prioritizing schools and outdoor living. Buyers should review fire insurance options before committing — verify coverage and premiums with at least two carriers. Confirm solar panel ownership transfer in escrow. The neighborhood's strong school ratings and safety profile support long-term resale value.</div>
+    </div>
+  </div>
+
+  <div class="page-footer" style="margin-top:12px;">
+    <div class="footer-left">HomeRates.Ai · Property Intelligence Report · Confidential · © 2026</div>
+    <a href="https://chat.homerates.ai/property-intel?address=1306+Norman+Ave+Thousand+Oaks+CA+91360" class="footer-link" target="_blank">chat.homerates.ai ↗</a>
+    <div class="footer-right">Page 3 of 4</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 4 — DECISION SCORE + DISCLOSURES                         -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="watermark"></div>
+  <div class="watermark-corner"></div>
+
+  <div class="report-nav">
+    <div class="nav-logo">
+      <img src="/assets/homerates-email-logo.png" alt="HomeRates.ai" />
+    </div>
+    <a href="https://chat.homerates.ai/track5" class="nav-view-link" target="_blank">
+      ↗ Get Matched
+    </a>
+    <div class="nav-meta">
+      <div class="nav-report-type">Autonomous Decision Score</div>
+      <div class="nav-report-date">1306 Norman Ave, Thousand Oaks CA</div>
+    </div>
+  </div>
+
+  <!-- Decision hero: ring + verdict -->
+  <div class="ds-hero">
+    <div class="ds-ring-wrap">
+      <svg width="110" height="110" viewBox="0 0 110 110">
+        <!-- track -->
+        <circle cx="55" cy="55" r="44" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+        <!-- fill: 79/100 = 79% of 276.5px circumference = 218.4px -->
+        <circle cx="55" cy="55" r="44" fill="none"
+          stroke="#4ade80" stroke-width="10"
+          stroke-dasharray="218.4 276.5"
+          stroke-linecap="round"
+          transform="rotate(-90 55 55)"/>
+        <text x="55" y="50" text-anchor="middle" fill="#f0f4ff" font-size="26" font-weight="800" font-family="DM Sans,sans-serif">79</text>
+        <text x="55" y="66" text-anchor="middle" fill="#4b5c70" font-size="11" font-family="DM Mono,monospace">/100</text>
+      </svg>
+    </div>
+    <div class="ds-hero-text">
+      <div class="ds-verdict">Ready to Offer</div>
+      <div class="ds-subtitle">Based on 4 of 4 levels. All levels scored.</div>
+      <div class="ds-chips">
+        <div class="ds-chip green">4 of 4 levels scored</div>
+        <div class="ds-chip green">100% of index weight</div>
+        <div class="ds-chip">Conventional · 20% down · 6.51%</div>
+        <div class="ds-chip">1306 Norman Ave, Thousand Oaks CA</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 Decision Levels -->
+  <div class="ds-levels">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dim);margin-bottom:2px;">4 Decision Levels</div>
+
+    <!-- L1 -->
+    <div class="ds-level-card">
+      <div class="ds-level-circle green">85</div>
+      <div class="ds-level-body">
+        <div class="ds-level-header">
+          <span class="ds-level-name">Financial Readiness</span>
+          <span class="ds-level-weight">35%</span>
+        </div>
+        <div class="ds-level-sub">Conventional 20% down · 80.0% LTV · 6.51% rate. Strong equity entry, no PMI, DTI manageable at $243K+ income. Loan sizing at $879K is well within conventional limits — no Jumbo exposure.</div>
+        <div class="ds-bar-track">
+          <div class="ds-bar-fill" style="width:85%;background:linear-gradient(90deg,#4ade80,#00e87a);"></div>
+        </div>
+      </div>
+      <div class="ds-level-score" style="color:var(--green2);">85 <span>/ 100</span></div>
+    </div>
+
+    <!-- L2 -->
+    <div class="ds-level-card">
+      <div class="ds-level-circle green">90</div>
+      <div class="ds-level-body">
+        <div class="ds-level-header">
+          <span class="ds-level-name">Property Evaluation</span>
+          <span class="ds-level-weight">25%</span>
+        </div>
+        <div class="ds-level-sub">1306 Norman Ave, Thousand Oaks, CA 91360 — PITI $7,100/mo vs $7,845 qualifying budget (−9.5%). List priced 0.8% below AI value estimate of $1,108K. Solar + pool add measurable utility and resale value not fully reflected in AVM.</div>
+        <div class="ds-bar-track">
+          <div class="ds-bar-fill" style="width:90%;background:linear-gradient(90deg,#4ade80,#00e87a);"></div>
+        </div>
+      </div>
+      <div class="ds-level-score" style="color:var(--green2);">90 <span>/ 100</span></div>
+    </div>
+
+    <!-- L3 -->
+    <div class="ds-level-card">
+      <div class="ds-level-circle yellow">62</div>
+      <div class="ds-level-body">
+        <div class="ds-level-header">
+          <span class="ds-level-name">Market Intelligence</span>
+          <span class="ds-level-weight">25%</span>
+        </div>
+        <div class="ds-level-sub">Median DOM 36d, sale-to-list 99.0%. 33-day DOM just below area median — normal absorption, no distress. Sellers are holding near ask. Inventory at 2.3 months — slightly seller-favoring. No significant price reduction history on subject property.</div>
+        <div class="ds-bar-track">
+          <div class="ds-bar-fill" style="width:62%;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div>
+        </div>
+      </div>
+      <div class="ds-level-score" style="color:var(--yellow);">62 <span>/ 100</span></div>
+    </div>
+
+    <!-- L4 -->
+    <div class="ds-level-card">
+      <div class="ds-level-circle green">78</div>
+      <div class="ds-level-body">
+        <div class="ds-level-header">
+          <span class="ds-level-name">Location Intelligence</span>
+          <span class="ds-level-weight">15%</span>
+        </div>
+        <div class="ds-level-sub">Walk Score: Somewhat Walkable (68). Transit Score: Minimal Transit (20). Bike Score: Somewhat Bikeable (48). Schools: Excellent (85). Safety: Very Safe (89). Moderate wildfire risk (65/100) — review HOI options before offer.</div>
+        <div class="ds-bar-track">
+          <div class="ds-bar-fill" style="width:78%;background:linear-gradient(90deg,#4ade80,#00e87a);"></div>
+        </div>
+      </div>
+      <div class="ds-level-score" style="color:var(--green2);">78 <span>/ 100</span></div>
+    </div>
+  </div>
+
+  <!-- Score legend -->
+  <div class="score-legend">
+    <div>
+      <div class="legend-title">Score Legend</div>
+    </div>
+    <div class="legend-items">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--green2);"></span>85–100 Strong Buy</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--green2);"></span>70–84 Ready to Offer</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--yellow);"></span>55–69 Buy with Caution</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--yellow);"></span>40–54 Watch the Market</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--red);"></span>0–39 Hold Off</div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-section">
+    <div>
+      <div class="cta-text-head">Ready to move on this property?</div>
+      <div class="cta-text-sub">Connect with a HomeRates-vetted loan officer who can pre-approve your scenario and structure the strongest possible offer. No commission pressure — your advisor, your timeline.</div>
+    </div>
+    <a href="https://chat.homerates.ai/track5" class="cta-btn">Get Matched →</a>
+  </div>
+
+  <!-- Disclosures -->
+  <div class="disclosures">
+    <div class="disc-label">Disclosures &amp; Attribution</div>
+    <div class="disc-text">EDUCATIONAL PURPOSE ONLY. This report is generated by HomeRates.Ai and is for informational and educational purposes only. It does not constitute financial advice, a mortgage commitment, a loan guarantee, or an appraisal. All figures — including AVM estimates, PITI calculations, income requirements, appreciation projections, and Decision Scores — are statistical estimates and may differ materially from actual outcomes. A formal appraisal by a licensed appraiser is required for any mortgage transaction.</div>
+    <div class="disc-text">DATA SOURCES. Rate data sourced from FRED® (Federal Reserve Bank of St. Louis). Property intelligence generated by Grok (xAI) via Tavily web search. Location intelligence computed from publicly available school, walkability, crime, and wildfire data. Wildfire risk data sourced from First Street Foundation. AVM estimates sourced from Zillow and Redfin public data. HomeRates.Ai is not a licensed lender, broker, or financial advisor.</div>
+    <div class="disc-powered">Powered by Grok-4 · HomeRates.Ai · <span>homerates.ai · © 2026 · For recipient use only</span></div>
+  </div>
+
+  <div class="page-footer" style="position:relative;margin-top:20px;">
+    <div class="footer-left">HomeRates.Ai · Property Intelligence Report · Confidential · © 2026</div>
+    <a href="https://chat.homerates.ai/track5" class="footer-link" target="_blank">chat.homerates.ai ↗</a>
+    <div class="footer-right">Page 4 of 4</div>
+  </div>
+</div>
+
+</body>
+</html>

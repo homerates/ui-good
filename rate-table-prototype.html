@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rate Table — Prototype</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080c12; font-family: 'DM Sans', system-ui, sans-serif; color: #f0f4ff; padding: 32px 20px 80px; }
+  .wrap { max-width: 680px; margin: 0 auto; }
+  .label { font-size: 0.68rem; font-weight: 700; color: rgba(185,208,192,0.3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px; }
+
+  /* ── Scenario context bar ── */
+  .scenario-bar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+  }
+  .scenario-pill {
+    font-size: 0.72rem; color: rgba(185,208,192,0.55);
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 6px; padding: 3px 9px;
+  }
+  .scenario-pill.live { color: #4ade80; background: rgba(0,232,122,0.06); border-color: rgba(0,232,122,0.2); }
+
+  /* ── Rate table card ── */
+  .rate-table-card {
+    background: #0e1420;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .rt-header {
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  }
+  .rt-header-left {}
+  .rt-eyebrow {
+    font-size: 0.62rem; font-weight: 700; color: rgba(0,232,122,0.55);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 3px;
+  }
+  .rt-title {
+    font-size: 1rem; font-weight: 800; color: #f0f4ff;
+  }
+  .rt-sub {
+    font-size: 0.75rem; color: rgba(185,208,192,0.4); margin-top: 2px;
+  }
+  .rt-match-badge {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(0,232,122,0.07); border: 1px solid rgba(0,232,122,0.18);
+    border-radius: 20px; padding: 5px 12px; white-space: nowrap; flex-shrink: 0;
+    font-size: 0.7rem; font-weight: 700; color: #4ade80;
+  }
+  .rt-match-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── Eligibility criteria row ── */
+  .criteria-bar {
+    padding: 9px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    background: rgba(255,255,255,0.015);
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+  .criteria-label { font-size: 0.62rem; color: rgba(185,208,192,0.3); margin-right: 2px; }
+  .criteria-chip {
+    font-size: 0.65rem; font-weight: 600; color: rgba(185,208,192,0.45);
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 5px; padding: 2px 7px;
+  }
+  .criteria-chip.pass { color: rgba(74,222,128,0.7); background: rgba(0,232,122,0.05); border-color: rgba(0,232,122,0.15); }
+
+  /* ── More lenders row ── */
+  .rt-more-row {
+    padding: 13px 20px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .rt-more-note { font-size: 0.73rem; color: rgba(185,208,192,0.35); }
+  .rt-more-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px; padding: 8px 14px; color: rgba(185,208,192,0.6);
+    font-size: 0.77rem; font-weight: 600; cursor: pointer; font-family: inherit;
+    transition: background 0.12s;
+  }
+  .rt-more-btn:hover { background: rgba(255,255,255,0.07); }
+
+  /* ── Column headers ── */
+  .rt-col-heads {
+    display: grid;
+    grid-template-columns: 110px 1fr 1fr 1fr 1fr 120px;
+    gap: 0;
+    padding: 8px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .rt-col-head {
+    font-size: 0.62rem; font-weight: 700;
+    color: rgba(185,208,192,0.3); text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .rt-col-head.right { text-align: right; }
+  .rt-col-head.center { text-align: center; }
+
+  /* ── Rows ── */
+  .rt-row {
+    display: grid;
+    grid-template-columns: 110px 1fr 1fr 1fr 1fr 120px;
+    gap: 0;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    align-items: center;
+    transition: background 0.12s;
+    cursor: default;
+  }
+  .rt-row:last-child { border-bottom: none; }
+  .rt-row:hover { background: rgba(255,255,255,0.02); }
+  .rt-row.best { background: rgba(0,232,122,0.03); }
+  .rt-row.best:hover { background: rgba(0,232,122,0.055); }
+
+  .rt-cell { display: flex; flex-direction: column; gap: 1px; }
+  .rt-cell.right { align-items: flex-end; }
+  .rt-cell.center { align-items: center; }
+
+  /* Lender label */
+  .lender-label {
+    font-size: 0.78rem; font-weight: 700; color: rgba(185,208,192,0.55);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .best-badge {
+    font-size: 0.56rem; font-weight: 800; color: #4ade80;
+    background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.25);
+    border-radius: 4px; padding: 1px 5px; text-transform: uppercase; letter-spacing: 0.06em;
+  }
+
+  /* Rate */
+  .rate-val { font-size: 1.1rem; font-weight: 800; color: #f0f4ff; }
+  .rate-val.best-rate { color: #4ade80; }
+  .rate-note { font-size: 0.65rem; color: rgba(185,208,192,0.3); }
+
+  /* APR */
+  .apr-val { font-size: 0.88rem; font-weight: 700; color: rgba(185,208,192,0.7); }
+
+  /* Monthly */
+  .monthly-val { font-size: 0.88rem; font-weight: 700; color: #f0f4ff; }
+  .monthly-note { font-size: 0.63rem; color: rgba(185,208,192,0.3); }
+
+  /* Closing costs */
+  .costs-val { font-size: 0.85rem; font-weight: 600; color: rgba(185,208,192,0.6); }
+  .costs-note { font-size: 0.63rem; color: rgba(185,208,192,0.28); }
+
+  /* CTA */
+  .explore-btn {
+    padding: 9px 16px; border-radius: 9px; font-weight: 700; font-size: 0.78rem;
+    cursor: pointer; font-family: inherit; transition: background 0.15s;
+    border: 1px solid rgba(0,232,122,0.25);
+    background: rgba(0,232,122,0.08); color: #4ade80;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    white-space: nowrap;
+  }
+  .explore-btn:hover { background: rgba(0,232,122,0.15); }
+
+  /* ── Footer ── */
+  .rt-footer {
+    padding: 12px 20px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    flex-wrap: wrap;
+  }
+  .rt-footer-note {
+    font-size: 0.65rem; color: rgba(185,208,192,0.25); line-height: 1.5; max-width: 420px;
+  }
+  .rt-footer-note strong { color: rgba(185,208,192,0.45); }
+  .refresh-link {
+    font-size: 0.7rem; color: rgba(185,208,192,0.3); background: none; border: none;
+    cursor: pointer; font-family: inherit; text-decoration: underline; white-space: nowrap;
+  }
+
+  /* ── Explore state ── */
+  hr { border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 48px 0; }
+
+  /* Phase 1 — discover dialogue opens */
+  .explore-panel {
+    background: #0e1420; border: 1px solid rgba(0,232,122,0.18);
+    border-radius: 14px; overflow: hidden;
+  }
+  .explore-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .explore-eyebrow { font-size: 0.62rem; font-weight: 700; color: #00e87a; text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 2px; }
+  .explore-title { font-size: 0.95rem; font-weight: 800; color: #f0f4ff; }
+  .explore-rate-chip {
+    background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.25);
+    border-radius: 8px; padding: 6px 14px; text-align: center;
+  }
+  .explore-rate-big { font-size: 1.3rem; font-weight: 900; color: #4ade80; }
+  .explore-rate-label { font-size: 0.6rem; color: rgba(185,208,192,0.4); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* Discover chat area */
+  .discover-body { padding: 16px 20px 0; }
+  .discover-context-note {
+    font-size: 0.75rem; color: rgba(185,208,192,0.4); line-height: 1.5;
+    margin-bottom: 14px; padding: 10px 13px;
+    background: rgba(255,255,255,0.03); border-radius: 8px;
+    border-left: 2px solid rgba(0,232,122,0.3);
+  }
+
+  /* AI message bubbles */
+  .msg-ai {
+    background: rgba(255,255,255,0.04); border-radius: 0 10px 10px 10px;
+    padding: 11px 14px; font-size: 0.82rem; color: rgba(185,208,192,0.75);
+    line-height: 1.55; margin-bottom: 10px; max-width: 92%;
+  }
+  .msg-user {
+    background: rgba(0,232,122,0.07); border: 1px solid rgba(0,232,122,0.15);
+    border-radius: 10px 0 10px 10px; padding: 11px 14px;
+    font-size: 0.82rem; color: rgba(185,208,192,0.85); line-height: 1.55;
+    margin-bottom: 10px; max-width: 92%; margin-left: auto;
+  }
+  .msg-ai-2 {
+    background: rgba(255,255,255,0.04); border-radius: 0 10px 10px 10px;
+    padding: 11px 14px; font-size: 0.82rem; color: rgba(185,208,192,0.75);
+    line-height: 1.55; margin-bottom: 14px; max-width: 92%;
+  }
+
+  /* Discover input row */
+  .discover-input-row {
+    display: flex; gap: 8px; padding: 0 20px 16px;
+  }
+  .discover-input {
+    flex: 1; padding: 10px 13px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 9px; color: #f0f4ff; font-size: 0.85rem; font-family: inherit; outline: none;
+  }
+  .discover-send {
+    padding: 10px 16px; background: rgba(0,232,122,0.1);
+    border: 1px solid rgba(0,232,122,0.25); border-radius: 9px;
+    color: #4ade80; font-weight: 700; font-size: 0.82rem;
+    font-family: inherit; cursor: pointer;
+  }
+
+  /* Phase 2 — connect CTA surfaces after dialogue */
+  .connect-surface {
+    margin: 0 20px 20px;
+    background: linear-gradient(135deg, rgba(0,232,122,0.07), rgba(0,232,122,0.03));
+    border: 1px solid rgba(0,232,122,0.2); border-radius: 12px; padding: 16px;
+  }
+  .connect-surface-eyebrow {
+    font-size: 0.62rem; font-weight: 700; color: rgba(0,232,122,0.55);
+    text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 6px;
+  }
+  .connect-surface-msg {
+    font-size: 0.8rem; color: rgba(185,208,192,0.55); line-height: 1.5; margin-bottom: 12px;
+  }
+  .connect-btn-row { display: flex; gap: 8px; align-items: center; }
+  .connect-btn {
+    flex: 1; padding: 11px; background: #4ade80; border: none;
+    border-radius: 9px; color: #080c12; font-weight: 800; font-size: 0.85rem;
+    font-family: inherit; cursor: pointer;
+  }
+  .not-yet-btn {
+    padding: 11px 14px; background: none;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 9px; color: rgba(185,208,192,0.35); font-size: 0.75rem;
+    font-family: inherit; cursor: pointer; white-space: nowrap;
+  }
+  .connect-note { font-size: 0.65rem; color: rgba(185,208,192,0.25); margin-top: 9px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- SECTION 1: Rate table — matched to scenario   -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="label">Rate table — appears after LLPA output on Rate Intelligence Engine page</div>
+
+  <!-- Scenario context bar -->
+  <div class="scenario-bar">
+    <span class="scenario-pill live">✓ Scenario matched</span>
+    <span class="scenario-pill">$382,000 loan</span>
+    <span class="scenario-pill">80% LTV</span>
+    <span class="scenario-pill">740 FICO</span>
+    <span class="scenario-pill">Conventional · Purchase · CA</span>
+    <span class="scenario-pill">30-day lock</span>
+  </div>
+
+  <div class="rate-table-card">
+
+    <div class="rt-header">
+      <div class="rt-header-left">
+        <div class="rt-eyebrow">Live rate offers</div>
+        <div class="rt-title">Lenders eligible for your scenario</div>
+        <div class="rt-sub">Sorted by APR · Lender identity hidden until you choose to connect</div>
+      </div>
+      <div class="rt-match-badge">
+        <div class="rt-match-dot"></div>
+        3 eligible
+      </div>
+    </div>
+
+    <!-- Eligibility criteria — transparent filter, not HomeRates selection -->
+    <div class="criteria-bar">
+      <span class="criteria-label">Qualifying criteria:</span>
+      <span class="criteria-chip pass">✓ 740 FICO</span>
+      <span class="criteria-chip pass">✓ 80% LTV</span>
+      <span class="criteria-chip pass">✓ $382k loan</span>
+      <span class="criteria-chip pass">✓ Conventional</span>
+      <span class="criteria-chip pass">✓ CA</span>
+      <span class="criteria-chip pass">✓ 30-day lock</span>
+    </div>
+
+    <!-- Column headers -->
+    <div class="rt-col-heads">
+      <div class="rt-col-head">Lender</div>
+      <div class="rt-col-head">Rate</div>
+      <div class="rt-col-head">APR</div>
+      <div class="rt-col-head">Monthly P&I</div>
+      <div class="rt-col-head">Est. closing</div>
+      <div class="rt-col-head"></div>
+    </div>
+
+    <!-- Row 1 — best APR -->
+    <div class="rt-row best">
+      <div class="rt-cell">
+        <div class="lender-label">
+          Lender A
+          <span class="best-badge">Best APR</span>
+        </div>
+      </div>
+      <div class="rt-cell">
+        <div class="rate-val best-rate">6.750%</div>
+        <div class="rate-note">PAR · no points</div>
+      </div>
+      <div class="rt-cell">
+        <div class="apr-val">6.921%</div>
+      </div>
+      <div class="rt-cell">
+        <div class="monthly-val">$2,481</div>
+        <div class="monthly-note">30-yr fixed</div>
+      </div>
+      <div class="rt-cell">
+        <div class="costs-val">$3,200</div>
+        <div class="costs-note">est. 3rd-party</div>
+      </div>
+      <div class="rt-cell right">
+        <button class="explore-btn">Explore →</button>
+      </div>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="rt-row">
+      <div class="rt-cell">
+        <div class="lender-label">Lender B</div>
+      </div>
+      <div class="rt-cell">
+        <div class="rate-val">6.875%</div>
+        <div class="rate-note">PAR · no points</div>
+      </div>
+      <div class="rt-cell">
+        <div class="apr-val">7.051%</div>
+      </div>
+      <div class="rt-cell">
+        <div class="monthly-val">$2,516</div>
+        <div class="monthly-note">30-yr fixed</div>
+      </div>
+      <div class="rt-cell">
+        <div class="costs-val">$3,200</div>
+        <div class="costs-note">est. 3rd-party</div>
+      </div>
+      <div class="rt-cell right">
+        <button class="explore-btn">Explore →</button>
+      </div>
+    </div>
+
+    <!-- Row 3 -->
+    <div class="rt-row">
+      <div class="rt-cell">
+        <div class="lender-label">Lender C</div>
+      </div>
+      <div class="rt-cell">
+        <div class="rate-val">7.000%</div>
+        <div class="rate-note">PAR · no points</div>
+      </div>
+      <div class="rt-cell">
+        <div class="apr-val">7.182%</div>
+      </div>
+      <div class="rt-cell">
+        <div class="monthly-val">$2,547</div>
+        <div class="monthly-note">30-yr fixed</div>
+      </div>
+      <div class="rt-cell">
+        <div class="costs-val">$3,200</div>
+        <div class="costs-note">est. 3rd-party</div>
+      </div>
+      <div class="rt-cell right">
+        <button class="explore-btn">Explore →</button>
+      </div>
+    </div>
+
+    <!-- More lenders row -->
+    <div class="rt-more-row">
+      <div class="rt-more-note">Showing 3 of 11 lenders eligible for this scenario</div>
+      <button class="rt-more-btn">Review more lenders ↓</button>
+    </div>
+
+    <div class="rt-footer">
+      <div class="rt-footer-note">
+        Rates computed from live FRED par rate + Fannie Mae LLPA matrix + each lender's submitted margin.
+        Lenders are listed because your scenario meets their published eligibility criteria — not because HomeRates selects or endorses them.
+        <strong>Lender identity is revealed only when you choose to connect.</strong>
+        Est. closing costs are third-party averages and vary by location.
+      </div>
+      <button class="refresh-link">Refresh ↺</button>
+    </div>
+
+  </div>
+
+  <hr />
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- SECTION 2A: Explore clicked — discover dialogue opens    -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="label" style="margin-bottom:14px;">Phase 1 — Discover dialogue opens (AI pre-seeded with rate context)</div>
+
+  <div class="explore-panel">
+    <div class="explore-header">
+      <div>
+        <div class="explore-eyebrow">Lender A · Discover</div>
+        <div class="explore-title">Explore this rate offer</div>
+      </div>
+      <div class="explore-rate-chip">
+        <div class="explore-rate-big">6.750%</div>
+        <div class="explore-rate-label">APR 6.921%</div>
+      </div>
+    </div>
+
+    <div class="discover-body">
+      <div class="discover-context-note">
+        AI context loaded — $382k conventional purchase, 80% LTV, 740 FICO, CA, 30-day lock. Ask anything about this rate offer, program requirements, or what to expect from this lender.
+      </div>
+
+      <!-- Seeded AI opening message -->
+      <div class="msg-ai">
+        This offer is at 6.750% — that's PAR, meaning no discount points and no lender credits. Based on your scenario, this lender's eligibility criteria fully qualify you. Want me to walk you through what's included in the 6.921% APR, or what questions to ask if you connect?
+      </div>
+
+      <!-- User asks a question -->
+      <div class="msg-user">
+        What's actually included in the closing costs estimate?
+      </div>
+
+      <!-- AI answers -->
+      <div class="msg-ai-2">
+        The $3,200 estimate covers third-party costs only — title insurance, escrow, appraisal, and recording fees. These go to service providers, not the lender. What the lender controls is their origination fee and rate margin, which is already reflected in the 6.750% you see. When you connect, ask them for a Loan Estimate (LE) — that's the standardized form that breaks down every fee by line item.
+      </div>
+    </div>
+
+    <!-- Input row — borrower continues dialogue -->
+    <div class="discover-input-row">
+      <input class="discover-input" placeholder="Ask about this rate, program, or what to expect…" />
+      <button class="discover-send">Send →</button>
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- SECTION 2B: Connect CTA surfaces after dialogue           -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="label" style="margin-bottom:14px;">Phase 2 — Connect CTA surfaces naturally after discovery dialogue</div>
+
+  <div class="explore-panel">
+    <div class="explore-header">
+      <div>
+        <div class="explore-eyebrow">Lender A · Discover</div>
+        <div class="explore-title">Explore this rate offer</div>
+      </div>
+      <div class="explore-rate-chip">
+        <div class="explore-rate-big">6.750%</div>
+        <div class="explore-rate-label">APR 6.921%</div>
+      </div>
+    </div>
+
+    <div class="discover-body">
+      <!-- Condensed prior messages -->
+      <div class="msg-ai">
+        This offer is at 6.750% PAR — no points, no credits. Your scenario fully qualifies.
+      </div>
+      <div class="msg-user">What's actually included in the closing costs estimate?</div>
+      <div class="msg-ai">
+        The $3,200 covers third-party costs only — title, escrow, appraisal, recording. What the lender controls is their margin, already in the rate. Ask for a Loan Estimate when you connect.
+      </div>
+      <div class="msg-user">Sounds reasonable. How do I find out what their turnaround time is?</div>
+      <div class="msg-ai-2">
+        Processing timelines are lender-specific and depend on current volume — that's a direct question for them. Based on your dialogue so far, you have a solid picture of this offer. When you feel ready, you can open a direct conversation with this lender.
+      </div>
+    </div>
+
+    <!-- Connect CTA surfaces after natural dialogue -->
+    <div class="connect-surface">
+      <div class="connect-surface-eyebrow">Ready to connect?</div>
+      <div class="connect-surface-msg">
+        Share your name and email to open a direct conversation with this lender. They won't see your chat history — only your rate scenario and contact info.
+      </div>
+      <div class="connect-btn-row">
+        <button class="connect-btn">Connect with Lender A →</button>
+        <button class="not-yet-btn">Not yet</button>
+      </div>
+      <div class="connect-note">
+        Connecting reveals your name and email to this lender only. No unsolicited contact. You control the conversation.
+      </div>
+    </div>
+
+    <div class="discover-input-row">
+      <input class="discover-input" placeholder="Keep asking questions…" />
+      <button class="discover-send">Send →</button>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home Intelligence — HomeRates.Ai · Prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080c12; --panel:#0d1420; --panel2:#111a29; --line:rgba(255,255,255,0.07);
+  --green:#00e87a; --teal:#14b8a6; --amber:#f59e0b; --blue:#3d8bff; --purple:#8b5cf6;
+  --text:#eaf8f7; --dim:#94a3b8; --mono:'DM Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh}
+a{color:inherit;text-decoration:none}
+
+/* ── Top bar — orientation only, no bloat ─────────────────────────── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--line)}
+.brand{font-family:Syne;font-weight:800;font-size:17px;letter-spacing:-.02em}
+.brand em{color:var(--green);font-style:normal}
+.topnav{display:flex;gap:22px;font-size:13px;color:var(--dim);font-weight:500}
+.topnav .on{color:var(--text)}
+.userchip{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#14b8a6,#00e87a);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#07100f}
+
+/* ── Layout: main + portfolio rail ───────────────────────────────── */
+.shell{display:grid;grid-template-columns:1fr 288px;gap:0;max-width:1280px;margin:0 auto;min-height:calc(100vh - 59px)}
+.main{padding:28px 28px 60px;min-width:0}
+.rail{border-left:1px solid var(--line);padding:20px 16px;display:flex;flex-direction:column;gap:12px;height:calc(100vh - 59px);position:sticky;top:0;overflow:hidden}
+
+/* ── Hero: identity + ONE primary action (the command bar) ───────── */
+.hero{margin-bottom:22px}
+.hero-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--green);margin-bottom:8px}
+.hero h1{font-family:Syne;font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.hero p{color:var(--dim);font-size:14px;margin-top:6px;max-width:560px}
+
+/* lens tabs — switch the working context, not navigation */
+.lens{display:flex;gap:6px;margin:18px 0 10px}
+.lens button{background:none;border:1px solid var(--line);color:var(--dim);font:600 12.5px 'DM Sans';padding:7px 14px;border-radius:8px;cursor:pointer;transition:all .15s}
+.lens button.on{background:rgba(0,232,122,0.1);border-color:rgba(0,232,122,0.35);color:var(--green)}
+.lens .count{font-family:var(--mono);font-size:10.5px;opacity:.7;margin-left:5px}
+
+/* command bar — THE primary action */
+.cmd{display:flex;align-items:center;gap:10px;background:var(--panel);border:1.5px solid rgba(0,232,122,0.3);border-radius:14px;padding:14px 16px;box-shadow:0 0 0 4px rgba(0,232,122,0.05)}
+.cmd .icon{color:var(--green);font-size:16px}
+.cmd input{flex:1;background:none;border:none;outline:none;color:var(--text);font:500 15px 'DM Sans'}
+.cmd input::placeholder{color:#5b6b80}
+.cmd .go{background:var(--green);color:#07100f;border:none;border-radius:9px;padding:9px 18px;font:700 13px 'DM Sans';cursor:pointer}
+.quick{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.quick button{background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--dim);font:500 12px 'DM Sans';padding:6px 12px;cursor:pointer}
+.quick button:hover{color:var(--text);border-color:rgba(255,255,255,0.18)}
+
+/* ── Active property intelligence card ───────────────────────────── */
+.prop{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:24px}
+.prop-photo{height:190px;background:linear-gradient(160deg,#1a2c3d 0%,#0e1826 70%);position:relative;display:flex;align-items:flex-end;padding:14px}
+.prop-photo .status{position:absolute;top:12px;left:12px;background:rgba(0,232,122,0.14);border:1px solid rgba(0,232,122,0.4);color:var(--green);font:700 10.5px var(--mono);letter-spacing:.08em;padding:4px 10px;border-radius:6px}
+.prop-photo .src{position:absolute;top:12px;right:12px;font:500 10.5px var(--mono);color:var(--dim);background:rgba(8,12,18,0.7);padding:4px 10px;border-radius:6px}
+.prop-photo .addr{font-family:Syne;font-weight:700;font-size:18px;text-shadow:0 1px 8px rgba(0,0,0,0.6)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
+.kpi{padding:14px 16px;border-right:1px solid var(--line)}
+.kpi:last-child{border-right:none}
+.kpi .l{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.kpi .v{font-family:Syne;font-weight:700;font-size:19px;margin-top:3px}
+.kpi .d{font-size:11px;margin-top:2px;font-weight:600}
+.up{color:var(--green)} .warn{color:var(--amber)} .dim{color:var(--dim)}
+
+/* intelligence tabs inside the card */
+.ptabs{display:flex;gap:2px;padding:10px 12px 0;border-bottom:1px solid var(--line)}
+.ptabs button{background:none;border:none;color:var(--dim);font:600 12.5px 'DM Sans';padding:8px 13px;cursor:pointer;border-bottom:2px solid transparent}
+.ptabs button.on{color:var(--text);border-bottom-color:var(--green)}
+.pbody{padding:18px 16px;display:flex;flex-direction:column;gap:12px}
+
+/* AI insight strip — the "instant AI value" element */
+.insight{display:flex;gap:10px;align-items:flex-start;background:rgba(0,232,122,0.05);border:1px solid rgba(0,232,122,0.18);border-radius:10px;padding:12px 14px}
+.insight .dot{width:8px;height:8px;border-radius:50%;background:var(--green);margin-top:5px;flex-shrink:0;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.insight b{color:var(--green)}
+.insight p{font-size:13px;line-height:1.55;color:#c9d6d4}
+
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.actions .primary{background:var(--green);color:#07100f;border:none;border-radius:9px;padding:10px 18px;font:700 13px 'DM Sans';cursor:pointer}
+.actions .ghost{background:none;border:1px solid var(--line);border-radius:9px;color:var(--dim);padding:10px 16px;font:600 13px 'DM Sans';cursor:pointer}
+
+/* ── My Decision Portfolio rail ──────────────────────────────────── */
+.rail-head{display:flex;align-items:center;justify-content:space-between}
+.rail-head .t{font-family:Syne;font-weight:700;font-size:13.5px}
+.rail-head .add{background:rgba(0,232,122,0.1);border:1px solid rgba(0,232,122,0.3);color:var(--green);border-radius:7px;font:700 11.5px 'DM Sans';padding:5px 10px;cursor:pointer}
+.rail-scroll{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px}
+.rail-scroll>*{flex-shrink:0}
+.jcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.jcard:hover{border-color:rgba(0,232,122,0.3)}
+.jcard .ph{height:64px;background:linear-gradient(150deg,#22354a,#101b2a);position:relative}
+.jcard .score{position:absolute;right:8px;bottom:-14px;width:34px;height:34px;border-radius:50%;background:var(--panel2);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font:700 12px var(--mono);color:var(--green)}
+.jcard .score.amber{border-color:var(--amber);color:var(--amber)}
+.jcard .bd{padding:9px 10px 10px}
+.jcard .a{font-weight:700;font-size:12px;line-height:1.3}
+.jcard .m{font:500 10px var(--mono);color:var(--dim);margin-top:3px}
+.jcard .resume{margin-top:7px;font:700 11px 'DM Sans';color:var(--green)}
+.rail-foot{font:500 10px var(--mono);color:#5b6b80;text-align:center;padding-top:4px}
+
+/* responsive: rail folds under on small screens */
+@media (max-width:1023px){
+  .shell{grid-template-columns:1fr}
+  .rail{border-left:none;border-top:1px solid var(--line);height:auto;position:static}
+  .rail-scroll{flex-direction:row;overflow-x:auto;overflow-y:hidden}
+  .jcard{min-width:180px}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .kpi:nth-child(2){border-right:none}
+}
+
+/* annotation styles — prototype review notes only */
+.note{max-width:1280px;margin:30px auto;padding:0 28px 60px}
+.note h3{font-family:Syne;font-size:15px;color:var(--amber);margin:18px 0 6px}
+.note p,.note li{font-size:13px;color:var(--dim);line-height:1.6}
+.note ul{padding-left:18px}
+</style>
+</head>
+<body>
+
+<!-- ── Top bar ─────────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="brand">HomeRates<em>.Ai</em></div>
+  <nav class="topnav">
+    <a href="#">Chat</a><a href="#" class="on">Home Intelligence</a><a href="#">Scenario</a><a href="#">Property Lookup</a>
+  </nav>
+  <div class="userchip">R</div>
+</div>
+
+<div class="shell">
+  <div class="main">
+
+    <!-- ── Hero + command bar (the ONE primary action) ──────────── -->
+    <div class="hero">
+      <div class="hero-kicker">Home Intelligence</div>
+      <h1>Every property. One brain.</h1>
+      <p>Instant AI valuation, equity, payment and market intelligence on any home — yours, your next one, or your client's.</p>
+    </div>
+
+    <!-- lens tabs: same data, different working context -->
+    <div class="lens">
+      <button class="on">My Homes <span class="count">2</span></button>
+      <button>Researching <span class="count">5</span></button>
+      <button>Clients <span class="count">3</span></button>
+      <button>Watchlist <span class="count">8</span></button>
+    </div>
+
+    <div class="cmd">
+      <span class="icon">⌖</span>
+      <input placeholder="Address, Redfin link, or ask — 'equity on my Irvine home', '3bd comps near 92887'…">
+      <button class="go">Analyze</button>
+    </div>
+    <div class="quick">
+      <button>📋 Paste a listing URL</button>
+      <button>💰 Check my equity</button>
+      <button>🔄 Refi check</button>
+      <button>📊 Comp analysis</button>
+      <button>🎯 Decision Score</button>
+    </div>
+
+    <!-- ── Active property intelligence card ────────────────────── -->
+    <div class="prop">
+      <div class="prop-photo">
+        <span class="status">OWNED · PRIMARY</span>
+        <span class="src">AVM updated 2h ago</span>
+        <div class="addr">8 Peachtree, Coto De Caza, CA 92679</div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="l">Est. Value</div><div class="v">$1.84M</div><div class="d up">▲ 2.1% / 90d</div></div>
+        <div class="kpi"><div class="l">Equity</div><div class="v">$1.12M</div><div class="d up">61% · HELOC ready</div></div>
+        <div class="kpi"><div class="l">Your Rate vs Market</div><div class="v">5.25%</div><div class="d dim">market 6.52% — hold</div></div>
+        <div class="kpi"><div class="l">Monthly PITI</div><div class="v">$4,310</div><div class="d dim">$719/sqft area avg</div></div>
+      </div>
+
+      <div class="ptabs">
+        <button class="on">Wealth</button>
+        <button>Market Position</button>
+        <button>My Payment</button>
+        <button>Comps</button>
+        <button>True Cost</button>
+      </div>
+
+      <div class="pbody">
+        <div class="insight">
+          <span class="dot"></span>
+          <p><b>AI noticed:</b> Your rate is 1.27% below market — refinancing makes no sense, but your equity crossed the 60% HELOC sweet spot last month. Three comparable sales closed above your AVM in the last 45 days, and area inventory is tightening (9.4 → 7.1 months). <b>Your strongest move:</b> equity access planning, not a sale.</p>
+        </div>
+        <div class="actions">
+          <button class="primary">Run My Numbers →</button>
+          <button class="ghost">Wealth Report (L5)</button>
+          <button class="ghost">Set Rate Alert</button>
+          <button class="ghost">Share with Client</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── My Decision Portfolio rail (mirrors chat sidebar) ──────── -->
+  <aside class="rail">
+    <div class="rail-head">
+      <span class="t">My Decision Portfolio</span>
+      <button class="add">+ Journey</button>
+    </div>
+    <div class="rail-scroll">
+      <div class="jcard"><div class="ph"><div class="score">84</div></div><div class="bd"><div class="a">28525 Evening Breeze Dr</div><div class="m">Yorba Linda · researching · 2h</div><div class="resume">Resume →</div></div></div>
+      <div class="jcard"><div class="ph"><div class="score amber">69</div></div><div class="bd"><div class="a">2142 Hilltop Ct</div><div class="m">Fullerton · client: Nguyen · 1d</div><div class="resume">Resume →</div></div></div>
+      <div class="jcard"><div class="ph"><div class="score">78</div></div><div class="bd"><div class="a">12011 Theta Rd</div><div class="m">Santa Ana · watchlist · 2d</div><div class="resume">Resume →</div></div></div>
+      <div class="jcard"><div class="ph"><div class="score amber">64</div></div><div class="bd"><div class="a">141 Danbrook</div><div class="m">Irvine · client: Patel · 4d</div><div class="resume">Resume →</div></div></div>
+      <div class="jcard"><div class="ph"><div class="score">91</div></div><div class="bd"><div class="a">8 Peachtree</div><div class="m">Coto De Caza · owned · 1w</div><div class="resume">Resume →</div></div></div>
+    </div>
+    <div class="rail-foot">My Decision Portfolio · powered by HomeRates.Ai</div>
+  </aside>
+</div>
+
+<!-- ── PROTOTYPE REVIEW NOTES (not part of the build) ────────────── -->
+<div class="note">
+  <h3>⚠ Review notes — delete before any React work</h3>
+  <ul>
+    <li><b>One primary action:</b> the command bar. Address, listing URL, or natural-language question — all three resolve through the same input. Everything else is subordinate.</li>
+    <li><b>Lens tabs (My Homes / Researching / Clients / Watchlist)</b> switch the working set, not the page. Same engine, four audiences: homeowner, multi-property owner, investor, agent/LO building research for clients. Lens drives which properties show and which language the AI insight uses (wealth vs. buy vs. client-share framing).</li>
+    <li><b>AI insight strip</b> is the "instant AI value" element — computed, specific, references live signals (rate delta, equity threshold, comps, inventory). Never generic. This is the anti-legacy moment: Zillow shows data, we show the move.</li>
+    <li><b>KPI row</b> = max 4 data points (density rule). Everything deeper lives behind the tabs.</li>
+    <li><b>Wealth tab first for owned homes</b> (L5 framing per the locked Track 5 model); Market Position first when lens = Researching. "Wealth Report (L5)" button is the placeholder for the planned /my-wealth surface.</li>
+    <li><b>Portfolio rail</b> reuses the exact My Decision Portfolio card pattern from chat — same name, same score ring, same Resume action (locked naming). On mobile it folds beneath as a horizontal scroll strip.</li>
+    <li><b>Bridges preserved:</b> "Run My Numbers →" still seeds the chat 4-card flow (two-surface architecture stays intact — this page remains the research layer).</li>
+    <li><b>"Share with Client"</b> appears only in Clients lens — the agent/LO use case. Consumer privacy rule: shares are property/financial data only, never behavioral.</li>
+  </ul>
+</div>
+
+</body>
+</html>
