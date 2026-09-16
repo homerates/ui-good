@@ -303,7 +303,7 @@ function mergeAvm(vals: (number | null | undefined)[]): { avm: number | null; co
   return { avm: Math.round(clean.reduce((a, b) => a + b, 0) / clean.length), count: clean.length };
 }
 
-function lifecycleFromStatus(status: string | null | undefined): LifecycleStatus {
+export function lifecycleFromStatus(status: string | null | undefined): LifecycleStatus {
   switch (status) {
     case 'FOR_SALE': return 'active';
     case 'PENDING': return 'pending';

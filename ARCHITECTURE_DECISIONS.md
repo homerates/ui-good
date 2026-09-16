@@ -2981,3 +2981,106 @@ against two different failure modes -- Piece 1 guards the AD-46 bug class
 (a page never wiring up to live data), Piece 2 guards a pipeline-level
 staleness mode AD-46 was never an instance of. Not yet pushed as of this
 entry; not yet run against a real Vercel cron trigger.
+
+## AD-48 — property_publications: an authoritative publication registry, built in SHADOW MODE
+
+**Decision:** Before expanding the homepage's single Property Intelligence
+example (AD-47's follow-on) into a multi-property public portfolio, a
+Phase-1 inspection stopped that work outright: this repository had no
+explicit, enforceable distinction between "a property that technically
+meets a data-completeness/listing-status heuristic" and "a property a human
+deliberately reviewed and approved to represent HomeRates publicly." This
+migration/module/route/audit is the correction -- built in SHADOW MODE,
+meaning it exists and is fully reviewable but nothing in production reads
+or writes it yet, and no current visibility changed.
+
+**Why a separate registry, not a flag on `properties`:** `properties` is
+populated by both public/pilot corpus-building activity AND private
+per-user flows writing into the exact same shared, address-keyed rows --
+confirmed directly: `app/api/homeowner/analysis/route.ts` (the private "My
+Home" own-residence wealth tool) upserts into `properties` the same way any
+public lookup does, with zero distinguishing column. `app/api/cron/
+property-intelligence-publish/route.ts`'s own header comment states
+plainly that it anchors a `properties` row from ANY organic user activity
+with no review step, and that "eligibility itself is computed live by
+`listIndexEligiblePropertyIds()` ... this job does not decide or persist
+INDEX/NOINDEX." The one column that would have represented deliberate
+curation, `featured_properties.is_featured` ("curated/pinned on discovery
+pages," migration 050), is defined but never written by any code path in
+this repository (confirmed by a full-repo search) -- dead, not an active
+mechanism. A separate table means publication approval can never be
+inferred from property data alone, withdrawal never requires touching the
+underlying property intelligence, and the approval itself carries its own
+provenance/audit trail rather than being one more denormalized flag on a
+table two different privacy-sensitive workflows already write into.
+
+**Schema** (`supabase/migrations/088_property_publications.sql`, NOT
+applied -- manual review per CLAUDE.md): `property_publications` --
+`property_id uuid UNIQUE REFERENCES properties(id) ON DELETE CASCADE`,
+`publication_status text DEFAULT 'draft' CHECK IN ('draft','published',
+'withdrawn')`, `approved_at/approved_by/approval_reason`,
+`withdrawn_at/withdrawal_reason`, `is_homepage_featured boolean DEFAULT
+false`, `featured_at`, `created_at/updated_at`. A DB-level CHECK constraint
+(`property_publications_featured_requires_published`) enforces "a featured
+property must also be published" / "a withdrawn property cannot remain
+featured" independently of application code. RLS: `FOR ALL TO service_role`
+only (the corrected pattern from 082/083/084/087, not the older unscoped
+`079_aerial_view_cache.sql` pattern) -- no anon/authenticated policy at all
+yet, since nothing public reads this table in shadow mode.
+
+**Repository helpers** (`lib/propertyPublication.ts`):
+`getPropertyPublication()`, `isPropertyPublished()`,
+`listPublishedPropertyIds()`, `listFeaturedPublishedProperties()`. The
+file's header is explicit that these are NOT interchangeable with
+`listIndexEligiblePropertyIds()` -- one is a technical SEO-completeness
+heuristic, the other is deliberate human approval. Nothing calls these
+helpers yet.
+
+**Admin mutation path** (`app/api/admin/property-publications/route.ts`):
+GET (single record or bounded list) and POST with `action: 'approve' |
+'withdraw' | 'feature' | 'unfeature'`, gated by the existing
+`requireAdmin()` (Clerk + `admin_users`, `lib/adminAuth.ts`) -- the same
+pattern every other `/api/admin/*` route in this repo already uses. No new
+admin secret, no client-side role check. `approve` requires a non-empty
+`reason` (provenance is not optional); `feature` rejects a non-published
+record; `withdraw` always clears `is_homepage_featured`/`featured_at`. Not
+linked from any admin UI yet.
+
+**107 Oxford seed** (`supabase/migrations/089_seed_107_oxford_publication.sql`,
+also NOT applied): the property_id (`09ae496e-14be-4b74-b680-65e2b6b9c94d`)
+was not guessed -- it's the exact value already hardcoded and reviewed in
+`app/property-intelligence/page.tsx` (commit `a819247d`, 2026-08-24, "the
+canonical Property Intelligence pilot") and this session's own homepage
+work, confirmed by direct code read that `[id]/page.tsx` resolves this URL
+segment 1:1 against `properties.id`, and confirmed live via production
+`curl` returning the real 107 Oxford record. `approved_at` is the actual
+date this registry entry was created (today), not backdated -- no discrete
+approval event was ever formally logged before this registry existed;
+`approval_reason` states the real provenance instead.
+
+**Corpus audit** (`scripts/test-property-publication-audit.ts`, read-only,
+counts only, run against the live single shared Supabase project): 922
+total `properties` rows; 120 currently index-eligible; 521 with
+active/pending lifecycle; 22 whose `enrichment_source` is one of the two
+values the private My Home route can write -- but which the public
+lookup/enrich routes ALSO write, so this is reported as an honest ceiling,
+not a homeowner-specific count (no existing column can separate the two).
+Under the new registry: 0 published, all 922 draft, until an admin acts.
+
+**Tests** (`scripts/test-property-publication-registry.ts`): 11 static/
+guarded checks (draft-by-default, DB-level featured-requires-published
+constraint, service_role-only RLS with no public/authenticated policy, no
+borrower/session/financial columns, no organic-activity file references the
+new table, every admin-route handler requireAdmin()-gated, approve/
+withdraw/feature guard clauses, helpers carry no user identifiers, the
+three-function-distinction is documented, and a live check confirming the
+table genuinely does not exist yet in production). All 11 pass.
+
+**Status:** Shadow mode only. Nothing currently reads or writes this table
+in any live code path. `app/page.tsx`/`app/components/FactLabelBadge.tsx`
+(the existing single-example homepage work) were re-verified byte-for-byte
+unchanged before and after this task. Migrations 088/089 are drafted, not
+applied -- Rayaan applies both manually in the Supabase SQL Editor after
+review, per this repo's standing workflow. The multi-property homepage
+portfolio itself remains not-yet-resumed, pending a separate cutover task
+once these migrations are reviewed and applied.
