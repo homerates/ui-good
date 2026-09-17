@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAdminStatus } from "../../hooks/useAdminStatus";
 import AppNav from "../../components/AppNav";
 
-const ACCESS_CODE = "groves2026";
+const ACCESS_CODE = "HomeRates2026";
 
 const DOCS = [
     {

@@ -136,7 +136,8 @@
     #hr-gate{position:fixed;inset:0;z-index:1000;background:#080c12;
       display:flex;align-items:center;justify-content:center;padding:24px;}
     .hr-gate-card{max-width:380px;width:100%;text-align:center;}
-    .hr-gate-logo{font-size:1.5rem;font-weight:900;color:#00e87a;letter-spacing:-0.02em;margin-bottom:6px;}
+    .hr-gate-logo{display:flex;justify-content:center;margin-bottom:6px;}
+    .hr-gate-logo img{height:32px;width:auto;}
     .hr-gate-title{font-size:1.1rem;font-weight:800;color:#f0f4ff;margin-bottom:6px;}
     .hr-gate-sub{font-size:0.85rem;color:rgba(185,208,192,0.6);margin-bottom:24px;line-height:1.5;}
     .hr-gate-input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.15);
@@ -156,7 +157,7 @@
 
 <div id="hr-gate">
   <div class="hr-gate-card">
-    <div class="hr-gate-logo">HomeRates.AI</div>
+    <div class="hr-gate-logo"><img src="https://chat.homerates.ai/assets/homerates-email-logo.png" alt="HomeRates.Ai" /></div>
     <div class="hr-gate-title">Investor Deck — 2026</div>
     <div class="hr-gate-sub">This deck is shared privately. Enter the password to continue.</div>
     <input type="password" id="hr-gate-pw" class="hr-gate-input" placeholder="Password" autocomplete="off" />
