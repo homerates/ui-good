@@ -1,12 +1,12 @@
 "use client";
-// app/grovesiq/page.tsx
+// app/partnership/page.tsx
 // Password-gated partnership hub — shareable with external parties
 // No Clerk auth required. Simple access code gate.
 
 import { useState, useEffect } from "react";
 
 const ACCESS_CODE = "groves2026";
-const SESSION_KEY = "hr_grovesiq_auth";
+const SESSION_KEY = "hr_partnership_auth";
 
 const DOCS = [
     {
@@ -14,32 +14,32 @@ const DOCS = [
         label: "Consumer UX",
         icon: "📱",
         desc: "Consumer experience prototype — home, scenario card, affordability, and the pro/consumer toggle",
-        src: "/grovesiq/consumer-prototype.html",
+        src: "/partnership/consumer-prototype.html",
     },
     {
         id: "lo-partner",
         label: "LO Partner Model",
         icon: "🏦",
         desc: "Generic LO Partner Program — LO portal and the borrower consumer experience side by side",
-        src: "/grovesiq/lo-partner.html",
+        src: "/partnership/lo-partner.html",
     },
     {
         id: "consumer-mockup",
         label: "Partnership Visual",
         icon: "🤝",
         desc: "LO-sponsored consumer experience — what borrowers see when their loan officer invites them",
-        src: "/grovesiq/consumer-mockup.html",
+        src: "/partnership/consumer-mockup.html",
     },
     {
         id: "framework",
         label: "Framework Document",
         icon: "📄",
         desc: "One-page partnership framework — structure, commercial terms, and next steps",
-        src: "/grovesiq/framework.html",
+        src: "/partnership/framework.html",
     },
 ];
 
-export default function GrovesIQHub() {
+export default function PartnershipHub() {
     const [authed, setAuthed] = useState(false);
     const [input, setInput] = useState("");
     const [error, setError] = useState(false);
