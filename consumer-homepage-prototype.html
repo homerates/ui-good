@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HomeRates.AI — Consumer Homepage Prototype</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #080c12;
+    color: #e0f0e8;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Ticker ── */
+  .ticker-bar {
+    background: #0a0f18;
+    border-bottom: 1px solid rgba(0,232,122,0.12);
+    padding: 0;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .ticker-live {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 14px;
+    border-right: 1px solid rgba(0,232,122,0.15);
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: #00e87a;
+    text-transform: uppercase;
+    height: 100%;
+  }
+  .ticker-dot { width: 6px; height: 6px; border-radius: 50%; background: #00e87a; animation: pulse 2s infinite; flex-shrink: 0; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .ticker-scroll {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    animation: scroll 30s linear infinite;
+    white-space: nowrap;
+  }
+  @keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+  .ticker-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 22px;
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: rgba(185,208,192,0.65);
+    letter-spacing: 0.04em;
+    border-right: 1px solid rgba(255,255,255,0.05);
+  }
+  .ticker-item .label { color: rgba(185,208,192,0.4); font-weight: 500; }
+  .ticker-item .val { color: #e0f0e8; }
+  .ticker-item .up { color: #00e87a; }
+  .ticker-item .dn { color: #ef4444; }
+
+  /* ── Nav ── */
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    height: 58px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: rgba(8,12,18,0.96);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+  .nav-logo-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: conic-gradient(from 120deg, #00e87a, #00b85e, #080c12 60%);
+    border: 1.5px solid rgba(0,232,122,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 900;
+    color: #00e87a;
+  }
+  .nav-logo-text {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #e0f0e8;
+    letter-spacing: -0.01em;
+  }
+  .nav-logo-text span { color: #00e87a; }
+
+  .nav-center {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .nav-link {
+    padding: 6px 13px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: rgba(185,208,192,0.65);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.15s;
+    cursor: pointer;
+    border: none;
+    background: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .nav-link:hover { color: #e0f0e8; background: rgba(255,255,255,0.05); }
+  .nav-link.active { color: #00e87a; }
+  .nav-link .chevron { font-size: 0.6rem; opacity: 0.5; }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .nav-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #00e87a 0%, #0a8c4a 100%);
+    border: 1.5px solid rgba(0,232,122,0.3);
+    cursor: pointer;
+  }
+  .nav-menu-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex-direction: column;
+    padding: 0;
+  }
+  .nav-menu-btn span {
+    width: 14px;
+    height: 1.5px;
+    background: rgba(185,208,192,0.6);
+    border-radius: 2px;
+    display: block;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 80px 28px 60px;
+    max-width: 900px;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(0,232,122,0.3);
+    background: rgba(0,232,122,0.06);
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: #00e87a;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+  .hero-badge-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #00e87a;
+    flex-shrink: 0;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.6rem, 5vw, 4rem);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    color: #fff;
+    margin-bottom: 20px;
+  }
+  .hero h1 span { color: #00e87a; }
+
+  .hero-sub {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #e0f0e8;
+    margin-bottom: 6px;
+  }
+  .hero-desc {
+    font-size: 0.88rem;
+    color: rgba(185,208,192,0.6);
+    line-height: 1.65;
+    max-width: 520px;
+    margin-bottom: 36px;
+  }
+
+  /* ── Two instant surfaces ── */
+  .instant-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    max-width: 720px;
+    margin-bottom: 28px;
+  }
+  .instant-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 18px 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .instant-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .instant-card.green::before { background: radial-gradient(ellipse at 0% 0%, rgba(0,232,122,0.08), transparent 65%); }
+  .instant-card.blue::before  { background: radial-gradient(ellipse at 0% 0%, rgba(59,130,246,0.08), transparent 65%); }
+  .instant-card:hover::before { opacity: 1; }
+  .instant-card:hover { border-color: rgba(0,232,122,0.2); transform: translateY(-1px); }
+  .instant-card.blue:hover { border-color: rgba(59,130,246,0.25); }
+
+  .ic-tag {
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .ic-tag.green { color: #00e87a; }
+  .ic-tag.blue  { color: #60a5fa; }
+
+  .ic-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #e0f0e8;
+    margin-bottom: 5px;
+  }
+  .ic-desc {
+    font-size: 0.72rem;
+    color: rgba(185,208,192,0.45);
+    line-height: 1.55;
+    margin-bottom: 14px;
+  }
+
+  .ic-input-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .ic-pill {
+    flex: 1;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 0.75rem;
+    color: rgba(185,208,192,0.4);
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .ic-pill:focus { border-color: rgba(0,232,122,0.3); color: #e0f0e8; }
+  .ic-pill.blue:focus { border-color: rgba(59,130,246,0.4); }
+
+  .ic-go {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .ic-go.green { background: #00e87a; color: #080c12; }
+  .ic-go.blue  { background: #3b82f6; color: #fff; }
+  .ic-go:hover { transform: scale(1.06); }
+
+  /* ── Chat pill ── */
+  .chat-section {
+    max-width: 660px;
+    margin-bottom: 22px;
+  }
+  .chat-pill-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 4px 4px 4px 18px;
+    transition: border-color 0.2s;
+    margin-bottom: 12px;
+  }
+  .chat-pill-wrap:focus-within { border-color: rgba(0,232,122,0.3); }
+  .chat-pill-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    font-size: 0.88rem;
+    color: #e0f0e8;
+    font-family: inherit;
+    padding: 10px 0;
+  }
+  .chat-pill-input::placeholder { color: rgba(185,208,192,0.35); }
+  .chat-pill-send {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #00e87a;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .chat-pill-send:hover { background: #00d470; }
+  .chat-pill-send svg { width: 16px; height: 16px; fill: #080c12; }
+
+  .chat-hint {
+    font-size: 0.68rem;
+    color: rgba(185,208,192,0.35);
+    margin-bottom: 12px;
+    padding-left: 4px;
+  }
+
+  /* ── Chips ── */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+  .chip {
+    padding: 6px 13px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.03);
+    font-size: 0.7rem;
+    color: rgba(185,208,192,0.6);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .chip:hover {
+    border-color: rgba(0,232,122,0.3);
+    background: rgba(0,232,122,0.06);
+    color: #e0f0e8;
+  }
+
+  /* ── Annotation labels ── */
+  .annotation {
+    position: absolute;
+    right: -220px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.7rem;
+    color: rgba(255,200,50,0.8);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .annotation-line {
+    width: 60px;
+    height: 1px;
+    background: rgba(255,200,50,0.4);
+    margin-top: 8px;
+    flex-shrink: 0;
+  }
+  .annotation-label {
+    background: rgba(255,200,50,0.08);
+    border: 1px solid rgba(255,200,50,0.2);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Nav dropdown ghost ── */
+  .nav-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0d1420;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 8px;
+    min-width: 200px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    display: none;
+  }
+  .nav-item-wrap:hover .nav-dropdown { display: block; }
+  .nav-item-wrap { position: relative; }
+  .dd-item {
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    color: rgba(185,208,192,0.7);
+    cursor: pointer;
+    transition: all 0.12s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dd-item:hover { background: rgba(0,232,122,0.07); color: #00e87a; }
+  .dd-icon { font-size: 0.8rem; width: 18px; text-align: center; }
+
+  /* ── "NEW" badge on nav item ── */
+  .nav-new {
+    font-size: 0.5rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    background: rgba(0,232,122,0.15);
+    color: #00e87a;
+    border-radius: 4px;
+    padding: 1px 5px;
+    text-transform: uppercase;
+  }
+
+  /* ── Section divider ── */
+  .section-note {
+    margin-top: 60px;
+    padding: 20px 28px;
+    border-top: 1px dashed rgba(255,200,50,0.2);
+    background: rgba(255,200,50,0.02);
+  }
+  .section-note-title {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,200,50,0.6);
+    margin-bottom: 8px;
+  }
+  .section-note-text {
+    font-size: 0.75rem;
+    color: rgba(185,208,192,0.5);
+    line-height: 1.6;
+    max-width: 640px;
+  }
+
+  /* ── Prototype label ── */
+  .proto-label {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(255,200,50,0.15);
+    border: 1px solid rgba(255,200,50,0.3);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: rgba(255,200,50,0.8);
+    text-transform: uppercase;
+    z-index: 9999;
+  }
+</style>
+</head>
+<body>
+
+<div class="proto-label">PROTOTYPE — NOT LIVE</div>
+
+<!-- ── Ticker ── -->
+<div class="ticker-bar">
+  <div class="ticker-live">
+    <div class="ticker-dot"></div>
+    LIVE
+  </div>
+  <div style="flex:1; overflow:hidden; display:flex;">
+    <div class="ticker-scroll">
+      <!-- Set 1 -->
+      <div class="ticker-item"><span class="label">10Y TREASURY</span><span class="val">4.21%</span><span class="dn">-0.03%</span></div>
+      <div class="ticker-item"><span class="label">INFLATION (CPI)</span><span class="val">3.2%</span><span class="dn">-0.1%</span></div>
+      <div class="ticker-item"><span class="label">15Y FIXED</span><span class="val">5.87%</span><span class="up">+0.02%</span></div>
+      <div class="ticker-item"><span class="label">MEDIAN HOME PRICE</span><span class="val">$420,800</span><span class="dn">-2.1% YoY</span></div>
+      <div class="ticker-item"><span class="label">5/1 ARM</span><span class="val">6.01%</span><span class="dn">-0.06%</span></div>
+      <div class="ticker-item"><span class="label">UNEMPLOYMENT</span><span class="val">3.7%</span><span class="dn">—</span></div>
+      <div class="ticker-item"><span class="label">30Y FIXED</span><span class="val">6.38%</span><span class="dn">-0.04%</span></div>
+      <div class="ticker-item"><span class="label">FED FUNDS</span><span class="val">5.25%</span><span class="dn">—</span></div>
+      <!-- Set 2 (duplicate for seamless loop) -->
+      <div class="ticker-item"><span class="label">10Y TREASURY</span><span class="val">4.21%</span><span class="dn">-0.03%</span></div>
+      <div class="ticker-item"><span class="label">INFLATION (CPI)</span><span class="val">3.2%</span><span class="dn">-0.1%</span></div>
+      <div class="ticker-item"><span class="label">15Y FIXED</span><span class="val">5.87%</span><span class="up">+0.02%</span></div>
+      <div class="ticker-item"><span class="label">MEDIAN HOME PRICE</span><span class="val">$420,800</span><span class="dn">-2.1% YoY</span></div>
+      <div class="ticker-item"><span class="label">5/1 ARM</span><span class="val">6.01%</span><span class="dn">-0.06%</span></div>
+      <div class="ticker-item"><span class="label">UNEMPLOYMENT</span><span class="val">3.7%</span><span class="dn">—</span></div>
+      <div class="ticker-item"><span class="label">30Y FIXED</span><span class="val">6.38%</span><span class="dn">-0.04%</span></div>
+      <div class="ticker-item"><span class="label">FED FUNDS</span><span class="val">5.25%</span><span class="dn">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Nav ── -->
+<nav class="nav">
+  <a class="nav-logo" href="#">
+    <div class="nav-logo-icon">H</div>
+    <span class="nav-logo-text">HomeRates.<span>Ai</span></span>
+  </a>
+
+  <div class="nav-center">
+    <a class="nav-link active" href="#">Open Chat</a>
+
+    <div class="nav-item-wrap">
+      <a class="nav-link" href="#">My Home <span class="nav-new">NEW</span></a>
+      <div class="nav-dropdown">
+        <div class="dd-item"><span class="dd-icon">🏠</span> My Property</div>
+        <div class="dd-item"><span class="dd-icon">📊</span> Home Value</div>
+        <div class="dd-item"><span class="dd-icon">💰</span> Equity & Wealth</div>
+      </div>
+    </div>
+
+    <div class="nav-item-wrap">
+      <a class="nav-link" href="#">Scenario <span class="chevron">▾</span></a>
+      <div class="nav-dropdown">
+        <div class="dd-item"><span class="dd-icon">🏦</span> Run a Scenario</div>
+        <div class="dd-item"><span class="dd-icon">🔁</span> Refi Analysis</div>
+        <div class="dd-item"><span class="dd-icon">🏢</span> DSCR / Investor</div>
+        <div class="dd-item"><span class="dd-icon">📤</span> Share with Pro</div>
+      </div>
+    </div>
+
+    <div class="nav-item-wrap">
+      <a class="nav-link" href="#">Track 5</a>
+    </div>
+
+    <div class="nav-item-wrap">
+      <a class="nav-link" href="#">Tools <span class="chevron">▾</span></a>
+      <div class="nav-dropdown">
+        <div class="dd-item"><span class="dd-icon">🧮</span> Calculators</div>
+        <div class="dd-item"><span class="dd-icon">📍</span> Loan Limits</div>
+        <div class="dd-item"><span class="dd-icon">🤖</span> AI Underwriting</div>
+        <div class="dd-item"><span class="dd-icon">🧪</span> HomeRates Lab</div>
+      </div>
+    </div>
+
+    <div class="nav-item-wrap">
+      <a class="nav-link" href="#">Resources <span class="chevron">▾</span></a>
+      <div class="nav-dropdown">
+        <div class="dd-item"><span class="dd-icon">📚</span> Knowledge Hub</div>
+        <div class="dd-item"><span class="dd-icon">📰</span> Market News</div>
+        <div class="dd-item"><span class="dd-icon">📁</span> My Library</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-right">
+    <div class="nav-avatar"></div>
+    <button class="nav-menu-btn">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<div style="position:relative;">
+  <div class="hero">
+
+    <!-- Badge — UPDATED -->
+    <div class="hero-badge">
+      <div class="hero-badge-dot"></div>
+      First AI Home + Mortgage Intelligence Platform
+    </div>
+
+    <!-- Headline — UPDATED -->
+    <h1>Your Home + Mortgage,<br /><span>understood.</span></h1>
+
+    <!-- Sub — UPDATED -->
+    <p class="hero-sub">Real math. Live rates. No sales. No gatekeepers.</p>
+    <p class="hero-desc">
+      Ask any home or mortgage question and get an instant, precise answer —
+      backed by live market data, not guesswork.
+    </p>
+
+    <!-- ── Two instant-visual entry points ── -->
+    <div class="instant-row" style="position:relative;">
+      <div class="instant-card green">
+        <div class="ic-tag green">Instant Scenario</div>
+        <div class="ic-title">Run My Numbers</div>
+        <div class="ic-desc">Price, down payment, rate — see your full payment in seconds.</div>
+        <div class="ic-input-row">
+          <input class="ic-pill" type="text" placeholder="$850k · 10% down · 6.48%" />
+          <button class="ic-go green">→</button>
+        </div>
+      </div>
+
+      <div class="instant-card blue">
+        <div class="ic-tag blue">Property Lookup</div>
+        <div class="ic-title">Check Any Property</div>
+        <div class="ic-desc">Paste an address or Zillow/Redfin link — get payment, value & score.</div>
+        <div class="ic-input-row">
+          <input class="ic-pill blue" type="text" placeholder="Address or Zillow / Redfin link" />
+          <button class="ic-go blue">→</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Chat pill (preserved) ── -->
+    <div class="chat-section">
+      <div class="chat-pill-wrap">
+        <input class="chat-pill-input" type="text" placeholder="Ask any home or mortgage question…" />
+        <button class="chat-pill-send">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </div>
+      <p class="chat-hint">Try any scenario — no forms, no signups required</p>
+      <div class="chips">
+        <div class="chip">$832,750 · 20% down · conforming</div>
+        <div class="chip">$832,750 · 5% down · PMI?</div>
+        <div class="chip">FHA · $700k LA · 3.5% down</div>
+        <div class="chip">Can I afford $900k on $180k?</div>
+        <div class="chip">DSCR rental · $650k · $4,200 rent</div>
+        <div class="chip">VA loan · $850k · $0 down</div>
+        <div class="chip">2/1 buydown · $900k · 20% down</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Prototype notes ── -->
+<div class="section-note">
+  <div class="section-note-title">Prototype Notes — Changes from current homepage</div>
+  <div class="section-note-text">
+    <strong style="color:rgba(255,200,50,0.7);">Copy changes:</strong>
+    Badge → "First AI Home + Mortgage Intelligence Platform" &nbsp;·&nbsp;
+    Headline → "Your Home + Mortgage, understood." &nbsp;·&nbsp;
+    Sub copy → "home or mortgage" throughout.<br /><br />
+    <strong style="color:rgba(255,200,50,0.7);">Nav changes:</strong>
+    Open Chat (same) · My Home (new, replaces Home Value) · Scenario (new — Run/Refi/DSCR + Share with Pro) ·
+    Track 5 (new) · Tools dropdown (Calculators / Loan Limits / AI Underwriting / Lab) ·
+    Resources dropdown (Knowledge Hub / Market News / My Library).<br /><br />
+    <strong style="color:rgba(255,200,50,0.7);">New instant surfaces:</strong>
+    Two side-by-side entry cards above the chat pill — Instant Scenario (green) + Property Lookup (blue).
+    These render the slider card / property-intel result inline without navigating away.
+    Chat pill preserved below for open-ended questions.
+  </div>
+</div>
+
+</body>
+</html>

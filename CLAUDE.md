@@ -53,6 +53,35 @@
 - If merge authorization is ambiguous, stop and report.
 - Do not push directly to `main`.
 
+## Strategic Objective (read `docs/HOMERATES_STRATEGIC_OBJECTIVE.md` for full context)
+
+HomeRates' end game: build HomeRates.ai as a specialized home + mortgage intelligence layer
+that general AI systems find valuable enough to invoke — not a public ChatGPT-plugin
+land-grab. Progression: SEARCHABLE → RETRIEVABLE → CITABLE → INVOKABLE → RECOMMENDABLE.
+Public Plugin visibility is deliberately ON HOLD (2026-09-09) while the current sequence
+(fix demand-driven resolution → test real ChatGPT behavior → close intelligence gaps →
+retest → only then reconsider public visibility) runs. The operative question for
+external-surface work is "does an AI have a compelling reason to call HomeRates?", not
+"can users find the plugin?"
+
+**Before any meaningful engineering task**, work out (briefly is fine): what immediate
+problem this solves; which strategic objective it supports; whether it improves authority,
+retrievability, citation-worthiness, invocation value, decision intelligence, data
+reliability, consumer/AI usefulness, or external-invocation privacy/security; whether it's
+a strategic capability, enabling infrastructure, necessary defect correction, or cosmetic
+optimization; and whether fixing the local issue could silently redefine product
+semantics, intelligence boundaries, canonical methodology, invocation philosophy,
+public/private boundaries, the Rate Intelligence vs. Property Intelligence split, or
+Gateway architecture. This never blocks a necessary bug fix — it keeps the fix
+context-aware.
+
+**For substantial tasks, close the final report with:**
+```
+OBJECTIVE CHECK / LOCAL PROBLEM SOLVED / STRATEGIC OBJECTIVE ADVANCED /
+ARCHITECTURAL DRIFT INTRODUCED / NEW STRATEGIC QUESTION CREATED / NEXT HIGHEST-IMPACT STEP
+```
+(see the strategic-objective doc for the full field definitions).
+
 ## CRM Hard Rules
 
 **Applies to every migration, API route, TypeScript type, and prompt-construction function

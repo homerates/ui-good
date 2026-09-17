@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS ffiec_census_tracts (
 CREATE INDEX IF NOT EXISTS ffiec_tracts_county_idx ON ffiec_census_tracts(county_fips);
 
 ALTER TABLE ffiec_census_tracts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public ffiec tract data readable" ON ffiec_census_tracts;
 CREATE POLICY "Public ffiec tract data readable"
   ON ffiec_census_tracts FOR SELECT TO public USING (true);
 
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS ffiec_mfi (
 );
 
 ALTER TABLE ffiec_mfi ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public ffiec mfi data readable" ON ffiec_mfi;
 CREATE POLICY "Public ffiec mfi data readable"
   ON ffiec_mfi FOR SELECT TO public USING (true);
 

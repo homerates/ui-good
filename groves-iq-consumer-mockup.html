@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HomeRates × Sure First Lending — LO-Sponsored Consumer Experience</title>
+<title>HomeRates × Groves IQ — LO-Sponsored Consumer Experience</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -447,13 +447,73 @@
     background: radial-gradient(ellipse at center, rgba(0,232,122,0.08) 0%, transparent 70%);
     pointer-events: none;
   }
+
+  /* ── MOBILE ──────────────────────────────── */
+  @media (max-width: 700px) {
+    body { padding: 24px 14px 60px; gap: 40px; }
+
+    /* Page header */
+    .page-header h1 { font-size: 1.7rem; }
+    .page-header p { font-size: 0.9rem; }
+
+    /* Mockup frame — collapse browser chrome, hide sidebar */
+    .browser-bar { padding: 10px 12px; }
+    .browser-url { font-size: 0.65rem; }
+
+    .app-layout { height: auto; flex-direction: column; }
+
+    /* Sidebar becomes a compact top strip */
+    .sidebar {
+      width: 100%;
+      flex-direction: row;
+      align-items: center;
+      padding: 0;
+      border-right: none;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .sidebar-logo { border-bottom: none; border-right: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
+    .lo-sponsor { margin: 8px; flex-shrink: 0; }
+    .nav-items { flex-direction: row; padding: 6px 8px; flex: 1; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .nav-item { white-space: nowrap; flex-shrink: 0; }
+    .nav-section-lbl { display: none; }
+    .sidebar-bottom { display: none; }
+    .unlocked-badge { display: none; }
+
+    /* Main content */
+    .main-content { min-height: 400px; }
+    .welcome-banner { flex-wrap: wrap; gap: 6px; }
+
+    /* Consumer card full width */
+    .consumer-card { max-width: 100%; }
+    .hero-num { font-size: 2.2rem; }
+    .facts { grid-template-columns: repeat(2,1fr); gap: 8px; }
+    .premium-tiles { grid-template-columns: 1fr; }
+
+    /* Comparison */
+    .compare-wrap { grid-template-columns: 1fr; }
+    .caption-row { grid-template-columns: 1fr; }
+
+    /* Section titles */
+    .section-title h2 { font-size: 1rem; }
+    .section-title span { font-size: 0.7rem; }
+
+    /* Caption numbers */
+    .caption-num { font-size: 1.5rem; }
+  }
+
+  @media (max-width: 400px) {
+    .hero-num { font-size: 1.9rem; }
+    .facts { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
 
 <!-- ── PAGE HEADER ──────────────────────────────────────── -->
 <div class="page-header">
-  <div class="eyebrow">🤝 HomeRates × Sure First Lending</div>
+  <div class="eyebrow">🤝 HomeRates × Groves IQ</div>
   <h1>More intelligence<br><span>because your LO is on HomeRates</span></h1>
   <p>When a loan officer invites you, your HomeRates experience unlocks — giving you professional-grade tools that are normally out of reach for consumers.</p>
 </div>
@@ -491,8 +551,8 @@
           <div class="lo-avatar">RA</div>
           <div class="lo-info">
             <div class="lo-label">Your loan officer</div>
-            <div class="lo-name">Norm Steeg</div>
-            <div class="lo-company">Sure First Lending</div>
+            <div class="lo-name">Rayaan Arif</div>
+            <div class="lo-company">LoanDepot · NMLS 366082</div>
           </div>
         </div>
 
@@ -507,7 +567,7 @@
             <span class="nav-icon">📊</span> My Scenarios
           </div>
 
-          <div class="nav-section-lbl">Unlocked by Norm</div>
+          <div class="nav-section-lbl">Unlocked by Rayaan</div>
 
           <div class="nav-item">
             <span class="nav-icon">🏘️</span> Property Report
@@ -528,7 +588,7 @@
             <div class="user-avatar">JD</div>
             <div>
               <div class="user-name">Jane D.</div>
-              <div class="user-plan">Pro (via Norm)</div>
+              <div class="user-plan">Pro (via Rayaan)</div>
             </div>
           </div>
         </div>
@@ -542,10 +602,10 @@
           <div class="banner-left">
             <span class="banner-icon">🔓</span>
             <span class="banner-text">
-              <strong>Norm Steeg</strong> has unlocked full property intelligence and reports for you.
+              <strong>Rayaan Arif</strong> has unlocked full property intelligence and reports for you.
             </span>
           </div>
-          <div class="banner-cta">Contact Norm →</div>
+          <div class="banner-cta">Contact Rayaan →</div>
         </div>
 
         <div class="scroll-area">
@@ -603,7 +663,7 @@
                 <div class="premium-header">
                   <div class="premium-dot"></div>
                   <span class="premium-lbl">Unlocked by your loan officer</span>
-                  <span class="premium-who">via Norm Steeg · Sure First Lending</span>
+                  <span class="premium-who">via Rayaan Arif · LoanDepot</span>
                 </div>
                 <div class="premium-tiles">
                   <div class="premium-tile">
@@ -631,7 +691,7 @@
               <div class="chips">
                 <div class="chip pri">Can I qualify for this?</div>
                 <div class="chip">What if I put less down?</div>
-                <div class="chip">Message Norm</div>
+                <div class="chip">Message Rayaan</div>
               </div>
             </div>
           </div>
@@ -774,8 +834,8 @@
   </div>
   <div class="caption-card">
     <div class="caption-num">2×</div>
-    <div class="caption-title">Sure First Lending gets both sides</div>
-    <div class="caption-desc">Their borrowers get a premium engagement tool under Sure First Lending's own brand. Those borrowers become HomeRates users. If Norm's introduction to UWM's independent broker network succeeds, that same model extends to hundreds of brokers beyond Sure First Lending. Both grow together.</div>
+    <div class="caption-title">Groves IQ gets both sides</div>
+    <div class="caption-desc">Their 500+ LOs get a borrower engagement tool. Those borrowers become HomeRates users. As HomeRates grows its own consumer base, Groves IQ LOs have access to that pipeline too. Both platforms grow together.</div>
   </div>
 </div>
 

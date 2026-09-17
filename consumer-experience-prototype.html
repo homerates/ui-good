@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates — Consumer Experience v2</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg:        #080c12;
+    --card:      #0e1420;
+    --surface:   #141b28;
+    --surface2:  #1a2333;
+    --text:      #f0f4ff;
+    --weak:      #8fa3b8;
+    --dim:       rgba(255,255,255,0.25);
+    --border:    rgba(255,255,255,0.07);
+    --mid:       rgba(255,255,255,0.12);
+    --accent:    #00e87a;
+    --blue:      #3d8bff;
+    --amber:     #f59e0b;
+    --red:       #ff5f5f;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ────────────────────────────────────── */
+  .sidebar {
+    width: 220px; background: var(--card);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  .logo { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 9px; }
+  .logo-mark { width: 28px; height: 28px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; color: #000; flex-shrink: 0; }
+  .logo-text { font-size: 0.88rem; font-weight: 700; color: var(--text); }
+  .logo-text span { color: var(--accent); }
+
+  .nav { padding: 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 9px; font-size: 0.78rem; font-weight: 500; color: var(--weak); cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+  .nav-item.active { background: rgba(0,232,122,0.08); color: var(--accent); border-color: rgba(0,232,122,0.15); }
+  .nav-icon { font-size: 0.9rem; width: 18px; text-align: center; }
+
+  .free-count {
+    margin: 0 10px 10px;
+    padding: 10px 12px;
+    background: rgba(245,158,11,0.06);
+    border: 1px solid rgba(245,158,11,0.15);
+    border-radius: 10px;
+  }
+  .free-count-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber); margin-bottom: 6px; }
+  .free-pips { display: flex; gap: 4px; margin-bottom: 6px; }
+  .pip { width: 20px; height: 5px; border-radius: 99px; background: var(--amber); }
+  .pip.used { background: rgba(255,255,255,0.12); }
+  .free-count-sub { font-size: 0.62rem; color: var(--weak); line-height: 1.4; }
+
+  .talk-pro {
+    margin: 0 10px 10px;
+    padding: 10px 12px;
+    background: linear-gradient(135deg, rgba(61,139,255,0.12), rgba(61,139,255,0.06));
+    border: 1px solid rgba(61,139,255,0.2);
+    border-radius: 10px; cursor: pointer;
+  }
+  .talk-pro-title { font-size: 0.75rem; font-weight: 700; color: var(--blue); }
+  .talk-pro-sub { font-size: 0.62rem; color: var(--weak); margin-top: 2px; }
+
+  .sidebar-bottom { padding: 10px; border-top: 1px solid var(--border); }
+  .user-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; }
+  .avatar { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--accent)); display: flex; align-items: center; justify-content: center; font-size: 0.58rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .user-name { font-size: 0.72rem; font-weight: 600; color: var(--text); }
+  .user-plan { font-size: 0.58rem; color: var(--accent); font-weight: 600; }
+
+  /* ── MAIN ───────────────────────────────────────── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── PROTO NAV ──────────────────────────────────── */
+  .proto-nav { position: fixed; top: 10px; right: 10px; display: flex; gap: 5px; z-index: 100; flex-wrap: wrap; justify-content: flex-end; max-width: 520px; }
+  .proto-btn { padding: 5px 12px; border-radius: 7px; font-size: 0.7rem; font-weight: 600; cursor: pointer; border: 1px solid var(--mid); background: var(--surface); color: var(--weak); font-family: var(--font); transition: all 0.15s; }
+  .proto-btn:hover { color: var(--text); }
+  .proto-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  /* ── SCREEN BASE ─────────────────────────────────── */
+  .screen { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .screen.visible { display: flex; }
+
+  /* ── SCREEN 1: PROPERTY-FIRST HOME ─────────────── */
+  .chat-scroll { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* Property search hero — INSIDE the chat welcome */
+  .property-hero {
+    background: linear-gradient(135deg, rgba(0,232,122,0.06), rgba(61,139,255,0.04));
+    border: 1px solid rgba(0,232,122,0.15);
+    border-radius: 18px; padding: 28px 24px 22px;
+    display: flex; flex-direction: column; gap: 16px;
+    max-width: 600px; align-self: stretch;
+  }
+  .property-hero-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+  .property-hero h2 { font-size: 1.3rem; font-weight: 800; color: var(--text); letter-spacing: -0.03em; line-height: 1.2; }
+  .property-hero p { font-size: 0.82rem; color: var(--weak); line-height: 1.6; }
+
+  /* Address search bar — primary entry point */
+  .addr-search {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--card); border: 1px solid var(--mid);
+    border-radius: 12px; padding: 12px 14px;
+    transition: border-color 0.2s;
+  }
+  .addr-search:focus-within { border-color: rgba(0,232,122,0.4); }
+  .addr-icon { font-size: 1.1rem; flex-shrink: 0; }
+  .addr-input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: var(--font); font-size: 0.9rem; }
+  .addr-input::placeholder { color: var(--dim); }
+  .addr-btn { background: var(--accent); border: none; border-radius: 8px; padding: 8px 16px; color: #000; font-size: 0.78rem; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; transition: opacity 0.15s; }
+  .addr-btn:hover { opacity: 0.85; }
+
+  .hero-or { display: flex; align-items: center; gap: 10px; }
+  .hero-or-line { flex: 1; height: 1px; background: var(--border); }
+  .hero-or-text { font-size: 0.65rem; color: var(--dim); font-weight: 500; }
+
+  .scenario-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .s-chip { padding: 7px 14px; background: var(--surface); border: 1px solid var(--mid); border-radius: 99px; font-size: 0.75rem; font-weight: 500; color: var(--weak); cursor: pointer; transition: all 0.15s; }
+  .s-chip:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+  /* Trust strip */
+  .trust-strip { display: flex; gap: 20px; padding: 12px 0 0; flex-wrap: wrap; }
+  .trust-item { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; color: var(--dim); }
+  .trust-item .ti { font-size: 0.75rem; }
+
+  /* ── CHAT BUBBLES ───────────────────────────────── */
+  .bubble-user { align-self: flex-end; max-width: 70%; background: rgba(0,232,122,0.08); border: 1px solid rgba(0,232,122,0.18); border-radius: 14px 14px 4px 14px; padding: 9px 14px; font-size: 0.8rem; color: var(--text); line-height: 1.5; }
+  .bubble-system { align-self: flex-start; max-width: 100%; display: flex; flex-direction: column; gap: 8px; }
+  .sys-label { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.2); }
+
+  /* ── PROPERTY CARD (consumer mode) ─────────────── */
+  .prop-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; max-width: 560px; }
+  .prop-card-top { padding: 13px 16px 11px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .prop-type { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 2px; }
+  .prop-address { font-size: 0.85rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .for-sale-badge { padding: 3px 9px; background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.2); border-radius: 99px; font-size: 0.6rem; font-weight: 700; color: var(--accent); white-space: nowrap; flex-shrink: 0; }
+
+  /* Hero price */
+  .prop-hero { padding: 18px 16px 14px; text-align: center; border-bottom: 1px solid var(--border); }
+  .prop-hero-lbl { font-size: 0.58rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-bottom: 5px; }
+  .prop-price { font-size: 2.4rem; font-weight: 900; letter-spacing: -0.05em; color: var(--text); line-height: 1; }
+  .prop-price .dol { color: var(--accent); }
+  .prop-sub { font-size: 0.68rem; color: var(--weak); margin-top: 5px; }
+
+  /* 3 facts */
+  .prop-facts { display: grid; grid-template-columns: repeat(3,1fr); padding: 12px 16px; gap: 8px; border-bottom: 1px solid var(--border); }
+  .pf-val { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+  .pf-lbl { font-size: 0.58rem; color: var(--dim); margin-top: 2px; }
+
+  /* Score cards — the 4-step */
+  .score-section { border-bottom: 1px solid var(--border); }
+  .score-header { padding: 9px 16px; display: flex; align-items: center; gap: 6px; }
+  .score-dot { width: 5px; height: 5px; background: var(--blue); border-radius: 50%; }
+  .score-lbl { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue); }
+  .score-tiles { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: rgba(255,255,255,0.05); border-top: 1px solid rgba(255,255,255,0.05); }
+  .score-tile { background: var(--card); padding: 11px 10px; display: flex; flex-direction: column; gap: 3px; }
+  .score-num { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.03em; }
+  .score-name { font-size: 0.6rem; color: var(--weak); line-height: 1.3; }
+  .score-bar { height: 3px; border-radius: 99px; background: rgba(255,255,255,0.08); margin-top: 4px; position: relative; }
+  .score-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 99px; }
+
+  /* CTA bar */
+  .prop-cta { padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .cta-primary { padding: 8px 16px; background: var(--accent); border: none; border-radius: 8px; color: #000; font-size: 0.75rem; font-weight: 700; cursor: pointer; font-family: var(--font); }
+  .cta-secondary { padding: 8px 14px; background: var(--surface); border: 1px solid var(--mid); border-radius: 8px; color: var(--weak); font-size: 0.75rem; font-weight: 500; cursor: pointer; font-family: var(--font); }
+
+  /* Chips after property */
+  .chat-chips { display: flex; flex-wrap: wrap; gap: 6px; max-width: 560px; }
+  .chip { padding: 6px 12px; background: var(--surface); border: 1px solid var(--mid); border-radius: 99px; font-size: 0.72rem; color: var(--weak); cursor: pointer; }
+  .chip.pri { background: rgba(0,232,122,0.08); border-color: rgba(0,232,122,0.2); color: var(--accent); font-weight: 600; }
+
+  /* ── SCREEN 2: NOT FOR SALE DETECTION ──────────── */
+  .detect-card { background: var(--card); border: 1px solid rgba(245,158,11,0.2); border-radius: 16px; overflow: hidden; max-width: 480px; }
+  .detect-top { padding: 14px 16px; background: rgba(245,158,11,0.05); border-bottom: 1px solid rgba(245,158,11,0.12); display: flex; align-items: center; gap: 8px; }
+  .detect-icon { font-size: 1.1rem; }
+  .detect-title { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+  .detect-sub { font-size: 0.7rem; color: var(--weak); }
+  .detect-body { padding: 14px 16px; }
+  .detect-prop { font-size: 0.78rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .detect-note { font-size: 0.72rem; color: var(--weak); line-height: 1.55; margin-bottom: 14px; }
+  .detect-btns { display: flex; gap: 8px; }
+  .detect-yes { flex: 1; padding: 9px; background: var(--accent); border: none; border-radius: 9px; color: #000; font-size: 0.75rem; font-weight: 700; cursor: pointer; font-family: var(--font); }
+  .detect-no { flex: 1; padding: 9px; background: var(--surface); border: 1px solid var(--mid); border-radius: 9px; color: var(--weak); font-size: 0.75rem; cursor: pointer; font-family: var(--font); }
+
+  /* ── SCREEN 3: MY HOME INLINE ──────────────────── */
+  .myhome-card { background: var(--card); border: 1px solid rgba(0,232,122,0.15); border-radius: 16px; overflow: hidden; max-width: 520px; }
+  .myhome-top { padding: 13px 16px 11px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .myhome-icon { font-size: 1rem; }
+  .myhome-title { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+  .myhome-badge { margin-left: auto; font-size: 0.58rem; font-weight: 700; padding: 2px 7px; background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.2); border-radius: 99px; color: var(--accent); }
+  .myhome-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: rgba(255,255,255,0.05); }
+  .mh-stat { background: var(--card); padding: 14px 12px; }
+  .mh-val { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.03em; color: var(--text); }
+  .mh-lbl { font-size: 0.58rem; color: var(--dim); margin-top: 3px; }
+  .mh-val.green { color: var(--accent); }
+  .mhome-meaning { padding: 12px 16px; font-size: 0.72rem; color: var(--weak); line-height: 1.6; border-bottom: 1px solid var(--border); background: rgba(0,232,122,0.03); display: flex; gap: 7px; }
+  .mhome-meaning strong { color: var(--text); }
+  .mhome-actions { padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* ── SCREEN 4: PRO GATE (3rd use) ──────────────── */
+  .gate-card { background: var(--card); border: 1px solid rgba(61,139,255,0.2); border-radius: 16px; overflow: hidden; max-width: 480px; }
+  .gate-top { padding: 14px 16px; background: rgba(61,139,255,0.05); border-bottom: 1px solid rgba(61,139,255,0.12); }
+  .gate-icon { font-size: 1.4rem; margin-bottom: 6px; }
+  .gate-title { font-size: 0.95rem; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+  .gate-sub { font-size: 0.75rem; color: var(--weak); line-height: 1.55; }
+  .gate-body { padding: 14px 16px; }
+  .gate-what { font-size: 0.72rem; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  .gate-item { display: flex; align-items: center; gap: 7px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.75rem; color: var(--weak); }
+  .gate-item:last-child { border-bottom: none; }
+  .gate-item .ck { color: var(--blue); }
+  .gate-item strong { color: var(--text); }
+  .gate-btns { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 7px; }
+  .gate-primary { padding: 11px; background: var(--blue); border: none; border-radius: 10px; color: #fff; font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: var(--font); }
+  .gate-secondary { padding: 9px; background: none; border: 1px solid var(--mid); border-radius: 10px; color: var(--weak); font-size: 0.75rem; cursor: pointer; font-family: var(--font); }
+
+  /* ── COMPOSER ───────────────────────────────────── */
+  .composer-wrap { padding: 12px 16px 14px; background: var(--bg); border-top: 1px solid var(--border); flex-shrink: 0; }
+  .composer { display: flex; align-items: flex-end; gap: 9px; background: var(--card); border: 1px solid var(--mid); border-radius: 13px; padding: 10px 12px; transition: border-color 0.2s; }
+  .composer:focus-within { border-color: rgba(0,232,122,0.35); }
+  .composer-input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: var(--font); font-size: 0.85rem; resize: none; min-height: 22px; max-height: 100px; }
+  .composer-input::placeholder { color: var(--dim); }
+  .send { width: 32px; height: 32px; background: var(--accent); border: none; border-radius: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .send svg { width: 14px; height: 14px; fill: #000; }
+  .composer-hint { font-size: 0.62rem; color: var(--dim); text-align: center; margin-top: 6px; }
+
+  /* ── SCENARIO CARD (inline in chat) ─────────────── */
+  .scen-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; max-width: 540px; }
+  .scen-top { padding: 12px 16px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .scen-type { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 1px; }
+  .scen-title { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+  .scen-hero { padding: 18px 16px 14px; text-align: center; border-bottom: 1px solid var(--border); }
+  .scen-lbl { font-size: 0.58rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-bottom: 5px; }
+  .scen-num { font-size: 2.6rem; font-weight: 900; letter-spacing: -0.05em; color: var(--text); line-height: 1; }
+  .scen-num .dol { color: var(--accent); }
+  .scen-num .mo { font-size: 0.8rem; color: var(--dim); font-weight: 600; }
+  .scen-sub { font-size: 0.65rem; color: var(--weak); margin-top: 4px; }
+  .scen-facts { display: grid; grid-template-columns: repeat(3,1fr); padding: 11px 16px; gap: 8px; border-bottom: 1px solid var(--border); }
+  .sf-val { font-size: 0.88rem; font-weight: 700; color: var(--text); }
+  .sf-lbl { font-size: 0.58rem; color: var(--dim); margin-top: 1px; }
+  .scen-meaning { padding: 10px 16px; font-size: 0.72rem; color: var(--weak); line-height: 1.55; border-bottom: 1px solid var(--border); display: flex; gap: 7px; background: rgba(0,232,122,0.02); }
+  .scen-meaning strong { color: var(--text); }
+  .scen-chips { padding: 11px 16px; display: flex; flex-wrap: wrap; gap: 5px; }
+
+  /* Decision score inline */
+  .dscore-card { background: var(--card); border: 1px solid rgba(61,139,255,0.15); border-radius: 16px; overflow: hidden; max-width: 400px; }
+  .ds-top { padding: 12px 16px 10px; border-bottom: 1px solid var(--border); }
+  .ds-type { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--blue); margin-bottom: 2px; }
+  .ds-title { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+  .ds-hero { padding: 18px 16px 14px; text-align: center; border-bottom: 1px solid var(--border); }
+  .ds-ring { width: 80px; height: 80px; border-radius: 50%; border: 5px solid var(--blue); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; flex-direction: column; }
+  .ds-score { font-size: 1.6rem; font-weight: 900; color: var(--text); line-height: 1; }
+  .ds-max { font-size: 0.6rem; color: var(--dim); }
+  .ds-verdict { font-size: 0.78rem; font-weight: 700; color: var(--blue); }
+  .ds-sub { font-size: 0.65rem; color: var(--weak); margin-top: 3px; }
+  .ds-factors { padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--border); }
+  .ds-row { display: flex; align-items: center; gap: 8px; }
+  .ds-row-lbl { font-size: 0.68rem; color: var(--weak); flex: 1; }
+  .ds-row-bar { width: 80px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 99px; position: relative; }
+  .ds-row-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 99px; background: var(--blue); }
+  .ds-row-val { font-size: 0.68rem; font-weight: 700; color: var(--text); width: 24px; text-align: right; }
+  .ds-cta { padding: 12px 16px; }
+  .ds-btn { width: 100%; padding: 10px; background: var(--blue); border: none; border-radius: 9px; color: #fff; font-size: 0.78rem; font-weight: 700; cursor: pointer; font-family: var(--font); }
+
+  /* ── ANNOTATION ──────────────────────────────────── */
+  .annotation { position: fixed; bottom: 14px; left: 234px; background: rgba(0,0,0,0.88); border: 1px solid var(--mid); border-radius: 9px; padding: 9px 13px; font-size: 0.68rem; color: var(--weak); max-width: 400px; backdrop-filter: blur(8px); pointer-events: none; line-height: 1.5; }
+  .annotation strong { color: var(--text); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 99px; }
+
+  /* ── MOBILE ──────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    body { flex-direction: column; height: auto; overflow: auto; }
+
+    /* Hide sidebar on mobile — replaced by top bar */
+    .sidebar { display: none; }
+
+    /* Mobile top bar */
+    .mobile-topbar {
+      display: flex !important;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .mobile-logo { display: flex; align-items: center; gap: 7px; }
+    .mobile-logo-mark { width: 24px; height: 24px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 11px; color: #000; }
+    .mobile-logo-text { font-size: 0.82rem; font-weight: 700; }
+    .mobile-logo-text span { color: var(--accent); }
+    .mobile-free { font-size: 0.62rem; font-weight: 700; color: var(--amber); padding: 3px 8px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.15); border-radius: 6px; }
+
+    /* Main takes full width */
+    .main { width: 100%; min-height: 0; }
+
+    /* Screens scroll naturally */
+    .screen { height: auto; min-height: calc(100vh - 100px); }
+
+    /* Proto nav — scrollable row */
+    .proto-nav {
+      position: relative;
+      top: auto; right: auto;
+      display: flex !important;
+      gap: 5px;
+      padding: 8px 12px;
+      overflow-x: auto;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+      -webkit-overflow-scrolling: touch;
+      flex-shrink: 0;
+    }
+    .proto-btn { white-space: nowrap; flex-shrink: 0; font-size: 0.65rem; padding: 5px 10px; }
+
+    /* Cards max width on mobile */
+    .prop-card, .detect-card, .myhome-card, .scen-card, .dscore-card, .gate-card { max-width: 100%; }
+
+    /* Property hero price */
+    .prop-price { font-size: 1.9rem; }
+
+    /* Score tiles 2x2 on mobile */
+    .score-tiles { grid-template-columns: repeat(2, 1fr); }
+
+    /* Scenario number */
+    .scen-num { font-size: 2.1rem; }
+
+    /* Chat scroll padding */
+    .chat-scroll { padding: 14px 12px; }
+
+    /* Annotation hidden on mobile */
+    .annotation { display: none; }
+
+    /* Composer */
+    .composer-wrap { padding: 10px 12px 12px; }
+
+    /* Property hero section */
+    .property-hero { padding: 20px 16px 16px; }
+    .property-hero h2 { font-size: 1.1rem; }
+
+    /* Trust strip wraps */
+    .trust-strip { gap: 10px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- MOBILE TOP BAR (hidden on desktop) -->
+<div class="mobile-topbar" style="display:none;">
+  <div class="mobile-logo">
+    <div class="mobile-logo-mark">H</div>
+    <div class="mobile-logo-text">Home<span>Rates</span></div>
+  </div>
+  <div class="mobile-free" id="mobileFree">3 free lookups</div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">H</div>
+    <div class="logo-text">Home<span>Rates</span></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active"><span class="nav-icon">🔍</span> Check a Property</div>
+    <div class="nav-item"><span class="nav-icon">🏠</span> My Home</div>
+    <div class="nav-item"><span class="nav-icon">📊</span> My Scenarios</div>
+  </nav>
+
+  <!-- Free lookup counter -->
+  <div class="free-count" id="freeCount">
+    <div class="free-count-label">Free Property Lookups</div>
+    <div class="free-pips" id="pips">
+      <div class="pip"></div>
+      <div class="pip"></div>
+      <div class="pip"></div>
+    </div>
+    <div class="free-count-sub" id="freeCountSub">3 of 3 remaining — connect with a professional to unlock more</div>
+  </div>
+
+  <div class="talk-pro">
+    <div class="talk-pro-title">🤝 Talk to a Pro</div>
+    <div class="talk-pro-sub">Get matched with a loan officer</div>
+  </div>
+
+  <div class="sidebar-bottom">
+    <div class="user-row">
+      <div class="avatar">JD</div>
+      <div>
+        <div class="user-name">Guest</div>
+        <div class="user-plan">Free</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="proto-nav">
+    <button class="proto-btn active" onclick="show('home')">1. Property Home</button>
+    <button class="proto-btn" onclick="show('forsale')">2. For Sale Result</button>
+    <button class="proto-btn" onclick="show('notforsale')">3. Not For Sale</button>
+    <button class="proto-btn" onclick="show('myhome')">4. My Home Inline</button>
+    <button class="proto-btn" onclick="show('scenario')">5. Scenario in Chat</button>
+    <button class="proto-btn" onclick="show('gate')">6. Pro Gate</button>
+  </div>
+
+  <!-- ── SCREEN 1: PROPERTY-FIRST HOME ─────────── -->
+  <div class="screen visible" id="s-home">
+    <div class="chat-scroll">
+      <div class="property-hero">
+        <div class="property-hero-label">Check any property · Free</div>
+        <h2>The financial picture Zillow doesn't give you</h2>
+        <p>Enter any address. Get your monthly payment, affordability score, market position, and decision intelligence — in seconds.</p>
+
+        <div class="addr-search">
+          <span class="addr-icon">📍</span>
+          <input class="addr-input" placeholder="123 Main St, Los Angeles CA 90001" />
+          <button class="addr-btn" onclick="show('forsale')">Check property →</button>
+        </div>
+
+        <div class="hero-or">
+          <div class="hero-or-line"></div>
+          <div class="hero-or-text">or run a scenario</div>
+          <div class="hero-or-line"></div>
+        </div>
+
+        <div class="scenario-chips">
+          <div class="s-chip" onclick="show('scenario')">💰 What can I afford?</div>
+          <div class="s-chip" onclick="show('scenario')">🔁 Should I refinance?</div>
+          <div class="s-chip">📊 FHA vs conventional</div>
+          <div class="s-chip">🎖️ VA loan estimate</div>
+        </div>
+
+        <div class="trust-strip">
+          <div class="trust-item"><span class="ti">✓</span> No account required</div>
+          <div class="trust-item"><span class="ti">✓</span> 3 free lookups</div>
+          <div class="trust-item"><span class="ti">✓</span> No sales calls</div>
+          <div class="trust-item"><span class="ti">✓</span> Real FRED rates</div>
+        </div>
+      </div>
+    </div>
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea class="composer-input" rows="1" placeholder="Or ask anything — paste an address, ask about rates, income, refinancing…"></textarea>
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+      </div>
+      <div class="composer-hint">Free · Private · No mortgage jargon</div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 2: FOR SALE RESULT ─────────────── -->
+  <div class="screen" id="s-forsale">
+    <div class="chat-scroll">
+      <div class="bubble-user">123 Sunset Blvd, Los Angeles CA 90028</div>
+
+      <div class="bubble-system">
+        <div class="sys-label">HomeRates Property Analysis</div>
+        <div class="prop-card">
+          <div class="prop-card-top">
+            <div>
+              <div class="prop-type">Single Family · For Sale</div>
+              <div class="prop-address">123 Sunset Blvd, Los Angeles CA 90028</div>
+            </div>
+            <div class="for-sale-badge">✓ Active Listing</div>
+          </div>
+
+          <!-- List price hero -->
+          <div class="prop-hero">
+            <div class="prop-hero-lbl">List price</div>
+            <div class="prop-price"><span class="dol">$</span>1,249,000</div>
+            <div class="prop-sub">4 bed · 3 bath · 2,240 sqft · Listed 12 days ago</div>
+          </div>
+
+          <!-- 3 key facts -->
+          <div class="prop-facts">
+            <div><div class="pf-val">$6,840</div><div class="pf-lbl">Est. monthly payment (20% down)</div></div>
+            <div><div class="pf-val">$249,800</div><div class="pf-lbl">Down payment needed</div></div>
+            <div><div class="pf-val" style="color:var(--accent)">$0</div><div class="pf-lbl">Monthly PMI at 20% down</div></div>
+          </div>
+
+          <!-- 4-score decision tiles -->
+          <div class="score-section">
+            <div class="score-header">
+              <div class="score-dot"></div>
+              <div class="score-lbl">Decision Intelligence</div>
+            </div>
+            <div class="score-tiles">
+              <div class="score-tile">
+                <div class="score-num" style="color:var(--accent)">74</div>
+                <div class="score-name">Value Score</div>
+                <div class="score-bar"><div class="score-fill" style="width:74%;background:var(--accent)"></div></div>
+              </div>
+              <div class="score-tile">
+                <div class="score-num" style="color:var(--amber)">61</div>
+                <div class="score-name">Market Heat</div>
+                <div class="score-bar"><div class="score-fill" style="width:61%;background:var(--amber)"></div></div>
+              </div>
+              <div class="score-tile">
+                <div class="score-num" style="color:var(--accent)">82</div>
+                <div class="score-name">Neighborhood</div>
+                <div class="score-bar"><div class="score-fill" style="width:82%;background:var(--accent)"></div></div>
+              </div>
+              <div class="score-tile">
+                <div class="score-num" style="color:var(--blue)">68</div>
+                <div class="score-name">Investment</div>
+                <div class="score-bar"><div class="score-fill" style="width:68%;background:var(--blue)"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="prop-cta">
+            <button class="cta-primary">Get matched with an LO</button>
+            <button class="cta-secondary">Can I afford this?</button>
+            <button class="cta-secondary">Full property report</button>
+          </div>
+        </div>
+
+        <!-- Continuation chips — stays in chat -->
+        <div class="chat-chips">
+          <div class="chip pri">Can I afford $1.25M on my income?</div>
+          <div class="chip">What income do I need?</div>
+          <div class="chip">Run my numbers</div>
+          <div class="chip">Compare comps</div>
+        </div>
+      </div>
+    </div>
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea class="composer-input" rows="1" placeholder="Ask a follow-up — income, down payment, comparison…"></textarea>
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 3: NOT FOR SALE ─────────────────── -->
+  <div class="screen" id="s-notforsale">
+    <div class="chat-scroll">
+      <div class="bubble-user">456 Oak Avenue, Pasadena CA 91101</div>
+
+      <div class="bubble-system">
+        <div class="sys-label">HomeRates</div>
+        <!-- The detection happens inline — no redirect -->
+        <div class="detect-card">
+          <div class="detect-top">
+            <span class="detect-icon">🏡</span>
+            <div>
+              <div class="detect-title">This property isn't currently listed for sale</div>
+              <div class="detect-sub">We found it — but it's off-market</div>
+            </div>
+          </div>
+          <div class="detect-body">
+            <div class="detect-prop">456 Oak Avenue, Pasadena CA 91101</div>
+            <div class="detect-note">
+              This address appears to be an owner-occupied home, not an active listing. If this is your home, we can track your equity, value, local market trends, and when refinancing makes sense — all for free.
+            </div>
+            <div class="detect-btns">
+              <button class="detect-yes" onclick="show('myhome')">Yes, this is my home →</button>
+              <button class="detect-no">No, check another</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea class="composer-input" rows="1" placeholder="Or paste a different address…"></textarea>
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 4: MY HOME INLINE ──────────────── -->
+  <div class="screen" id="s-myhome">
+    <div class="chat-scroll">
+      <div class="bubble-user">456 Oak Avenue, Pasadena CA 91101</div>
+
+      <div class="bubble-system">
+        <div class="sys-label">HomeRates</div>
+        <div class="detect-card">
+          <div class="detect-top">
+            <span class="detect-icon">🏡</span>
+            <div>
+              <div class="detect-title">Not currently listed for sale</div>
+            </div>
+          </div>
+          <div class="detect-body">
+            <div class="detect-btns">
+              <button class="detect-yes">Yes, this is my home →</button>
+              <button class="detect-no">No, check another</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- My Home card appears inline in the same chat thread -->
+      <div class="bubble-system">
+        <div class="sys-label">Your Home Intelligence</div>
+        <div class="myhome-card">
+          <div class="myhome-top">
+            <span class="myhome-icon">🏠</span>
+            <div>
+              <div class="myhome-title">456 Oak Avenue, Pasadena CA 91101</div>
+            </div>
+            <div class="myhome-badge">My Home</div>
+          </div>
+          <div class="myhome-stats">
+            <div class="mh-stat">
+              <div class="mh-val green">$1,340,000</div>
+              <div class="mh-lbl">Estimated value</div>
+            </div>
+            <div class="mh-stat">
+              <div class="mh-val green">$380,000</div>
+              <div class="mh-lbl">Estimated equity</div>
+            </div>
+            <div class="mh-stat">
+              <div class="mh-val">28%</div>
+              <div class="mh-lbl">LTV ratio</div>
+            </div>
+          </div>
+          <div class="mhome-meaning">
+            <span>💡</span>
+            <div>Your home has appreciated ~<strong>$95k</strong> in the last 12 months. With 28% LTV, you have strong equity position — a HELOC or cash-out refi could unlock <strong>~$250k</strong>.</div>
+          </div>
+          <div class="mhome-actions">
+            <div class="chip pri">When should I refinance?</div>
+            <div class="chip">How much HELOC can I get?</div>
+            <div class="chip">What's my equity path?</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea class="composer-input" rows="1" placeholder="Ask about your home — equity, refi, market value…"></textarea>
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 5: SCENARIO INLINE IN CHAT ──────── -->
+  <div class="screen" id="s-scenario">
+    <div class="chat-scroll">
+      <div class="bubble-user">Can I afford a $1.25M home on $200k income with $300k saved?</div>
+
+      <div class="bubble-system">
+        <div class="sys-label">HomeRates Analysis</div>
+        <div class="scen-card">
+          <div class="scen-top">
+            <div>
+              <div class="scen-type">Conventional Loan</div>
+              <div class="scen-title">$1,249,000 · 20% Down · 6.875%</div>
+            </div>
+            <div class="for-sale-badge">✓ No PMI</div>
+          </div>
+          <div class="scen-hero">
+            <div class="scen-lbl">Your estimated monthly payment</div>
+            <div class="scen-num"><span class="dol">$</span>6,840<span class="mo">/mo</span></div>
+            <div class="scen-sub">Principal & Interest · Taxes · Insurance</div>
+          </div>
+          <div class="scen-facts">
+            <div><div class="sf-val">$999,200</div><div class="sf-lbl">Loan amount</div></div>
+            <div><div class="sf-val">$249,800</div><div class="sf-lbl">Down payment (20%)</div></div>
+            <div><div class="sf-val" style="color:var(--accent)">$0</div><div class="sf-lbl">Monthly PMI</div></div>
+          </div>
+          <div class="scen-meaning">
+            <span>💡</span>
+            <div>At <strong>$200k income</strong> your back-end DTI is <strong>41%</strong> — within conventional guidelines. You're qualifying-ready with your current income and savings.</div>
+          </div>
+          <div class="scen-chips">
+            <div class="chip pri">Get my Decision Score</div>
+            <div class="chip">What if rates drop?</div>
+            <div class="chip">10% down instead?</div>
+            <div class="chip">Get matched with an LO</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Decision Score follows inline — no page navigation -->
+      <div class="bubble-system">
+        <div class="sys-label">Decision Intelligence</div>
+        <div class="dscore-card">
+          <div class="ds-top">
+            <div class="ds-type">Decision Score</div>
+            <div class="ds-title">Are you ready to buy?</div>
+          </div>
+          <div class="ds-hero">
+            <div class="ds-ring">
+              <div class="ds-score">78</div>
+              <div class="ds-max">/100</div>
+            </div>
+            <div class="ds-verdict">Strong position — ready to apply</div>
+            <div class="ds-sub">Based on your scenario inputs</div>
+          </div>
+          <div class="ds-factors">
+            <div class="ds-row"><div class="ds-row-lbl">Income qualification</div><div class="ds-row-bar"><div class="ds-row-fill" style="width:85%"></div></div><div class="ds-row-val">85</div></div>
+            <div class="ds-row"><div class="ds-row-lbl">Down payment readiness</div><div class="ds-row-bar"><div class="ds-row-fill" style="width:92%"></div></div><div class="ds-row-val">92</div></div>
+            <div class="ds-row"><div class="ds-row-lbl">DTI headroom</div><div class="ds-row-bar"><div class="ds-row-fill" style="width:68%"></div></div><div class="ds-row-val">68</div></div>
+            <div class="ds-row"><div class="ds-row-lbl">Property value alignment</div><div class="ds-row-bar"><div class="ds-row-fill" style="width:74%"></div></div><div class="ds-row-val">74</div></div>
+          </div>
+          <div class="ds-cta">
+            <button class="ds-btn">Get matched with a loan officer →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea class="composer-input" rows="1" placeholder="Continue the conversation…"></textarea>
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 6: PRO GATE (3 used) ───────────── -->
+  <div class="screen" id="s-gate">
+    <div class="chat-scroll">
+      <div class="bubble-user">789 Wilshire Blvd, Beverly Hills CA 90212</div>
+
+      <div class="bubble-system">
+        <div class="sys-label">HomeRates</div>
+        <div class="gate-card">
+          <div class="gate-top">
+            <div class="gate-icon">🔍</div>
+            <div class="gate-title">You've used your 3 free property lookups</div>
+            <div class="gate-sub">Connect with a loan officer to unlock unlimited lookups, full property reports, and a personalised rate quote — all at no cost to you.</div>
+          </div>
+          <div class="gate-body">
+            <div class="gate-what">What you'll unlock</div>
+            <div class="gate-item"><span class="ck">✓</span><div>Unlimited property lookups and <strong>full intelligence reports</strong></div></div>
+            <div class="gate-item"><span class="ck">✓</span><div>Your <strong>Decision Score</strong> with detailed factor breakdown</div></div>
+            <div class="gate-item"><span class="ck">✓</span><div><strong>Personalised rate quote</strong> — not an estimate, an actual offer</div></div>
+            <div class="gate-item"><span class="ck">✓</span><div><strong>Refi Monitor</strong> — alerts when your strike rate hits</div></div>
+          </div>
+          <div class="gate-btns">
+            <button class="gate-primary">Connect with a loan officer →</button>
+            <button class="gate-secondary">Continue with scenarios (still free)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea class="composer-input" rows="1" placeholder="Scenarios are still free — ask about affordability, rates, or payments…"></textarea>
+        <button class="send"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Annotation -->
+<div class="annotation" id="ann">
+  <strong>Screen 1 — Property-First Home</strong><br>
+  Address search is the hero. Scenarios are secondary. Trust strip signals safety. Composer stays for free-form. Everything continues in chat — no redirects.
+</div>
+
+<script>
+  const anns = {
+    home:       '<strong>Screen 1 — Property-First Home</strong><br>Address search is the hero — like Zillow but with financial intelligence. Scenarios are secondary chips. Free lookup counter visible in sidebar. Everything flows into chat.',
+    forsale:    '<strong>Screen 2 — For Sale Property Result</strong><br>User typed address in chat/home → result appears inline as a chat card. List price, monthly payment, 4 decision scores. Chips keep the journey going in chat. No page navigation.',
+    notforsale: '<strong>Screen 3 — Not For Sale Detection</strong><br>System detects this isn\'t a listing. Prompts inline: "Is this your home?" Two paths: Yes → My Home card inline. No → try another address. No redirect to /check-property.',
+    myhome:     '<strong>Screen 4 — My Home Inline</strong><br>User confirms it\'s their home → My Home card appears as the next chat message in the same thread. Equity, value, LTV shown. Chips continue the conversation. Entire flow stayed in chat.',
+    scenario:   '<strong>Screen 5 — Scenario + Decision Score in Chat</strong><br>Scenario card renders inline. User clicks "Get my Decision Score" → score appears as next chat message. "Get matched" completes the journey. Zero page navigation at any point.',
+    gate:       '<strong>Screen 6 — Pro Gate (3 lookups used)</strong><br>After 3 property lookups, a soft gate appears inline in chat. Scenarios remain free. Gate leads to LO connection (the monetisation moment). Composer still open — journey continues.',
+  };
+  const btnLabels = { home:'1. Property Home', forsale:'2. For Sale Result', notforsale:'3. Not For Sale', myhome:'4. My Home Inline', scenario:'5. Scenario in Chat', gate:'6. Pro Gate' };
+
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+    document.querySelectorAll('.proto-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('s-' + id).classList.add('visible');
+    document.querySelectorAll('.proto-btn').forEach(b => {
+      if (b.textContent.trim() === btnLabels[id]) b.classList.add('active');
+    });
+    document.getElementById('ann').innerHTML = anns[id] || '';
+
+    // Update free counter per screen
+    const pips = document.getElementById('pips');
+    const sub = document.getElementById('freeCountSub');
+    if (id === 'forsale') {
+      pips.innerHTML = '<div class="pip used"></div><div class="pip"></div><div class="pip"></div>';
+      sub.textContent = '2 of 3 remaining';
+    } else if (id === 'gate') {
+      pips.innerHTML = '<div class="pip used"></div><div class="pip used"></div><div class="pip used"></div>';
+      sub.textContent = '0 of 3 remaining — connect with a pro to unlock more';
+      sub.style.color = 'var(--amber)';
+    } else {
+      pips.innerHTML = '<div class="pip"></div><div class="pip"></div><div class="pip"></div>';
+      sub.textContent = '3 of 3 remaining';
+      sub.style.color = '';
+    }
+  }
+</script>
+</body>
+</html>

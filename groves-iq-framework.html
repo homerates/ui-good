@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates × Groves IQ — Partnership Framework</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #0f172a;
+    --weak: #64748b;
+    --dim: #94a3b8;
+    --border: #e2e8f0;
+    --accent: #059669;
+    --accent-dim: rgba(5,150,105,0.08);
+    --blue: #2563eb;
+    --blue-dim: rgba(37,99,235,0.08);
+    --purple: #7c3aed;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+  }
+  @media (max-width: 600px) {
+    body { padding: 24px 16px 60px; }
+  }
+
+  /* ── DOC HEADER ─────────────────────────────── */
+  .doc-header { border-bottom: 2px solid var(--text); padding-bottom: 24px; margin-bottom: 40px; }
+  @media (max-width: 600px) { .doc-header { margin-bottom: 28px; } }
+
+  .doc-meta { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .doc-brand { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .brand-hr { display: flex; align-items: center; gap: 8px; }
+  .brand-mark { width: 32px; height: 32px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; color: #fff; flex-shrink: 0; }
+  .hr-mark { background: #059669; }
+  .gi-mark { background: #1e40af; }
+  .brand-name { font-size: 0.85rem; font-weight: 800; color: var(--text); }
+  .brand-divider { font-size: 1.2rem; color: var(--dim); padding: 0 4px; }
+  .doc-status { text-align: right; }
+  .status-pill { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; margin-bottom: 4px; }
+  .doc-date { font-size: 0.7rem; color: var(--dim); }
+  .doc-title { font-size: clamp(1.6rem, 4vw, 2rem); font-weight: 900; color: var(--text); letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 8px; }
+  .doc-subtitle { font-size: 0.9rem; color: var(--weak); line-height: 1.7; }
+
+  /* ── TABLE OF CONTENTS ─────────────────────── */
+  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 40px; }
+  .toc-title { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+  .toc-list { display: flex; flex-direction: column; gap: 4px; }
+  .toc-item { display: flex; align-items: baseline; gap: 8px; font-size: 0.8rem; color: var(--weak); text-decoration: none; }
+  .toc-item:hover { color: var(--blue); }
+  .toc-num { font-size: 0.62rem; font-weight: 700; color: var(--dim); width: 18px; flex-shrink: 0; }
+  .toc-new { font-size: 0.58rem; font-weight: 700; padding: 1px 5px; background: #eff6ff; border: 1px solid #bfdbfe; color: var(--blue); border-radius: 3px; margin-left: 4px; }
+
+  /* ── SECTIONS ──────────────────────────────── */
+  .section { margin-bottom: 40px; }
+  @media (max-width: 600px) { .section { margin-bottom: 32px; } }
+  .section-num { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin-bottom: 6px; }
+  .section-title { font-size: 1.1rem; font-weight: 800; color: var(--text); letter-spacing: -0.02em; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  p { font-size: 0.9rem; color: var(--weak); line-height: 1.7; margin-bottom: 12px; }
+  p strong { color: var(--text); }
+
+  /* ── JOURNEY MAP ───────────────────────────── */
+  .journey { display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 20px 0; }
+  @media (max-width: 640px) { .journey { flex-direction: column; } }
+  .journey-lane { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .lane-hr { background: var(--accent-dim); border-right: 1px solid rgba(5,150,105,0.15); }
+  .lane-gi { background: var(--blue-dim); }
+  @media (max-width: 640px) {
+    .lane-hr { border-right: none; border-bottom: 1px solid rgba(5,150,105,0.15); }
+  }
+  .lane-label { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+  .lane-label.green { color: var(--accent); }
+  .lane-label.blue { color: var(--blue); }
+  .journey-step { background: #fff; border-radius: 8px; padding: 10px 12px; font-size: 0.78rem; line-height: 1.5; border: 1px solid var(--border); }
+  .journey-step .step-num { font-size: 0.6rem; font-weight: 700; color: var(--dim); margin-bottom: 2px; }
+  .journey-step .step-text { color: var(--text); font-weight: 600; }
+  .journey-step .step-sub { font-size: 0.7rem; color: var(--weak); margin-top: 2px; }
+  .journey-connector { display: flex; align-items: center; justify-content: center; padding: 20px 0; background: #f1f5f9; width: 48px; flex-shrink: 0; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  .connector-arrow { font-size: 0.7rem; color: var(--dim); writing-mode: vertical-rl; letter-spacing: 0.08em; font-weight: 700; text-transform: uppercase; }
+  @media (max-width: 640px) {
+    .journey-connector { width: auto; height: 36px; padding: 0 20px; border-left: none; border-right: none; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .connector-arrow { writing-mode: horizontal-tb; }
+  }
+  .handoff-box { margin: 16px 0; padding: 14px 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; font-size: 0.82rem; color: #78350f; line-height: 1.6; }
+  .handoff-box strong { color: #92400e; }
+
+  /* ── TWO COLUMN ────────────────────────────── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+  .col-card { border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .col-card.green { border-color: rgba(5,150,105,0.3); background: rgba(5,150,105,0.03); }
+  .col-card.blue { border-color: rgba(37,99,235,0.3); background: rgba(37,99,235,0.03); }
+  .col-title { font-size: 0.75rem; font-weight: 800; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .col-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-g { background: var(--accent); }
+  .dot-b { background: var(--blue); }
+  .col-item { font-size: 0.78rem; color: var(--weak); padding: 5px 0; border-bottom: 1px solid var(--border); line-height: 1.5; display: flex; gap: 8px; }
+  .col-item:last-child { border-bottom: none; }
+  .col-item .ck { color: var(--accent); flex-shrink: 0; }
+  .col-item .ck.bl { color: var(--blue); }
+  .col-item strong { color: var(--text); }
+
+  /* ── DISTRIBUTION MODEL ────────────────────── */
+  .dist-row { display: flex; gap: 16px; margin: 16px 0; align-items: stretch; }
+  @media (max-width: 600px) { .dist-row { flex-direction: column; } }
+  .dist-card { flex: 1; border: 1px solid var(--border); border-radius: 10px; padding: 18px; position: relative; overflow: hidden; }
+  .dist-card.primary { border-color: rgba(37,99,235,0.3); background: rgba(37,99,235,0.02); }
+  .dist-badge { position: absolute; top: 12px; right: 12px; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; }
+  .badge-primary { background: #dbeafe; color: #1e40af; }
+  .badge-secondary { background: #f1f5f9; color: #64748b; }
+  .dist-title { font-size: 0.8rem; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+  .dist-sub { font-size: 0.72rem; color: var(--weak); line-height: 1.55; margin-bottom: 10px; }
+  .dist-detail { font-size: 0.72rem; color: var(--dim); line-height: 1.6; }
+
+  /* ── COMMERCIAL TERMS ──────────────────────── */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 16px 0; }
+  .terms-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 520px; }
+  .terms-table th { text-align: left; padding: 8px 12px; background: var(--bg); border-bottom: 2px solid var(--border); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+  .terms-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--weak); vertical-align: top; line-height: 1.5; }
+  .terms-table td strong { color: var(--text); }
+  .terms-table tr:last-child td { border-bottom: none; }
+  .terms-table .tbd { color: var(--dim); font-style: italic; }
+
+  /* ── NEXT STEPS ─────────────────────────────── */
+  .steps-list { margin: 12px 0; }
+  .step-item { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .step-item:last-child { border-bottom: none; }
+  .step-circle { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 800; color: var(--dim); flex-shrink: 0; }
+  .step-circle.done { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+  .step-circle.active { border-color: var(--blue); background: var(--blue-dim); color: var(--blue); }
+  .step-body { flex: 1; }
+  .step-title { font-size: 0.82rem; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .step-desc { font-size: 0.75rem; color: var(--weak); line-height: 1.5; }
+  .step-owner { font-size: 0.65rem; color: var(--dim); margin-top: 3px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* ── SIGNATURE BLOCK ────────────────────────── */
+  .sig-block { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); }
+  @media (max-width: 500px) { .sig-block { grid-template-columns: 1fr; gap: 28px; } }
+  .sig-party { display: flex; flex-direction: column; gap: 6px; }
+  .sig-company { font-size: 0.85rem; font-weight: 800; color: var(--text); }
+  .sig-line { height: 1px; background: var(--text); margin: 24px 0 6px; }
+  .sig-label { font-size: 0.65rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* ── CALLOUTS ────────────────────────────────── */
+  .callout { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; padding: 14px 16px; margin: 16px 0; font-size: 0.82rem; color: #166534; line-height: 1.6; }
+  .callout strong { color: #14532d; }
+  .callout-blue { background: #eff6ff; border: 1px solid #bfdbfe; border-left: 3px solid var(--blue); border-radius: 0 8px 8px 0; padding: 14px 16px; margin: 16px 0; font-size: 0.82rem; color: #1e3a8a; line-height: 1.6; }
+  .callout-blue strong { color: #1e3a8a; }
+
+  /* ── UX/UI SECTION — PROTOTYPE CARDS ────────── */
+  .proto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+  @media (max-width: 600px) { .proto-grid { grid-template-columns: 1fr; } }
+
+  .proto-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .proto-card.featured {
+    grid-column: span 2;
+    flex-direction: row;
+  }
+  @media (max-width: 600px) {
+    .proto-card.featured { grid-column: span 1; flex-direction: column; }
+  }
+
+  .proto-preview {
+    background: #080c12;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 180px;
+    flex-shrink: 0;
+  }
+  .proto-card:not(.featured) .proto-preview { min-height: 100px; justify-content: center; }
+  .proto-card.featured .proto-preview { min-width: 220px; min-height: auto; }
+
+  /* Mini app preview inside proto card */
+  .mini-sidebar { display: flex; gap: 5px; align-items: center; margin-bottom: 5px; }
+  .mini-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(0,232,122,0.5); }
+  .mini-nav { font-size: 0.52rem; color: rgba(0,232,122,0.6); font-weight: 700; letter-spacing: 0.06em; }
+  .mini-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 7px 9px; }
+  .mini-label { font-size: 0.5rem; color: rgba(0,232,122,0.5); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
+  .mini-num { font-size: 1rem; font-weight: 900; color: #f0f4ff; letter-spacing: -0.04em; }
+  .mini-num .g { color: #00e87a; }
+  .mini-row { display: flex; gap: 4px; margin-top: 4px; }
+  .mini-fact { flex: 1; background: rgba(255,255,255,0.03); border-radius: 3px; padding: 4px 5px; }
+  .mini-fact-val { font-size: 0.58rem; font-weight: 700; color: #f0f4ff; }
+  .mini-fact-lbl { font-size: 0.42rem; color: rgba(255,255,255,0.3); }
+  .mini-chip { display: inline-block; padding: 2px 6px; background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.2); border-radius: 99px; font-size: 0.48rem; color: #00e87a; font-weight: 600; margin-top: 5px; }
+  .mini-score-ring { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #00e87a; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 900; color: #00e87a; }
+  .mini-bar-row { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+  .mini-bar-lbl { font-size: 0.45rem; color: rgba(255,255,255,0.4); width: 28px; }
+  .mini-bar-wrap { flex: 1; height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+  .mini-bar-fill { height: 100%; border-radius: 2px; }
+  .mini-addr { display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(0,232,122,0.2); border-radius: 5px; padding: 5px 7px; margin-bottom: 6px; }
+  .mini-addr-text { font-size: 0.5rem; color: rgba(255,255,255,0.4); }
+  .mini-addr-icon { font-size: 0.6rem; }
+
+  .proto-body { padding: 16px 18px; flex: 1; display: flex; flex-direction: column; gap: 8px; background: #fff; }
+  .proto-tag { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  .proto-name { font-size: 0.88rem; font-weight: 800; color: var(--text); line-height: 1.2; }
+  .proto-desc { font-size: 0.75rem; color: var(--weak); line-height: 1.55; flex: 1; }
+  .proto-principles { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+  .proto-principle { font-size: 0.68rem; color: var(--dim); display: flex; gap: 5px; }
+  .proto-principle .bullet { flex-shrink: 0; }
+  .proto-cta {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 8px; padding: 7px 14px;
+    border-radius: 7px; font-size: 0.72rem; font-weight: 700;
+    text-decoration: none; border: 1px solid;
+    cursor: pointer; align-self: flex-start;
+  }
+  .proto-cta.green { color: var(--accent); border-color: rgba(5,150,105,0.25); background: rgba(5,150,105,0.05); }
+  .proto-cta.green:hover { background: rgba(5,150,105,0.1); }
+  .proto-cta.blue { color: var(--blue); border-color: rgba(37,99,235,0.25); background: rgba(37,99,235,0.05); }
+  .proto-cta.blue:hover { background: rgba(37,99,235,0.1); }
+  .proto-cta.purple { color: var(--purple); border-color: rgba(124,58,237,0.25); background: rgba(124,58,237,0.05); }
+  .proto-cta.purple:hover { background: rgba(124,58,237,0.1); }
+
+  /* Summary bar */
+  .ux-summary { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px 18px; margin: 20px 0; }
+  .ux-summary-title { font-size: 0.72rem; font-weight: 800; color: #14532d; margin-bottom: 8px; }
+  .ux-summary-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+  @media (max-width: 600px) { .ux-summary-grid { grid-template-columns: 1fr 1fr; } }
+  .ux-summary-item { font-size: 0.72rem; color: #166534; display: flex; gap: 5px; }
+
+  @media print {
+    body { padding: 20px 24px; }
+    .doc-header { margin-bottom: 24px; }
+    .section { margin-bottom: 24px; }
+    .proto-cta { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ─────────────────────────────────── -->
+<div class="doc-header">
+  <div class="doc-meta">
+    <div class="doc-brand">
+      <div class="brand-hr">
+        <div class="brand-mark hr-mark">H</div>
+        <div class="brand-name">HomeRates.ai</div>
+      </div>
+      <div class="brand-divider">×</div>
+      <div class="brand-hr">
+        <div class="brand-mark gi-mark">G</div>
+        <div class="brand-name">Groves IQ</div>
+      </div>
+    </div>
+    <div class="doc-status">
+      <div class="status-pill">Draft for Discussion</div>
+      <div class="doc-date">June 2026 · Confidential</div>
+    </div>
+  </div>
+  <div class="doc-title">Partnership Framework</div>
+  <div class="doc-subtitle">A proposed distribution and referral arrangement between HomeRates.ai and Groves IQ — two complementary platforms serving the same mortgage professional network at different stages of the loan lifecycle.</div>
+</div>
+
+<!-- ── TABLE OF CONTENTS ──────────────────────── -->
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <div class="toc-list">
+    <a href="#s1" class="toc-item"><span class="toc-num">1</span> What Each Platform Does</a>
+    <a href="#s2" class="toc-item"><span class="toc-num">2</span> Where Each Platform Lives on the Loan Journey</a>
+    <a href="#s3" class="toc-item"><span class="toc-num">3</span> Proposed Arrangement</a>
+    <a href="#s4" class="toc-item"><span class="toc-num">4</span> Planned UX/UI Changes — Consumer Experience <span class="toc-new">New</span></a>
+    <a href="#s5" class="toc-item"><span class="toc-num">5</span> Commercial Terms</a>
+    <a href="#s6" class="toc-item"><span class="toc-num">6</span> What Each Party Gets</a>
+    <a href="#s7" class="toc-item"><span class="toc-num">7</span> Next Steps</a>
+  </div>
+</div>
+
+<!-- ── 1. THE TWO PRODUCTS ──────────────────────── -->
+<div class="section" id="s1">
+  <div class="section-num">Section 1</div>
+  <div class="section-title">What Each Platform Does</div>
+  <p>HomeRates.ai and Groves IQ serve the same professional network — mortgage loan officers — but at entirely different points in the loan lifecycle. <strong>There is no overlap.</strong></p>
+
+  <div class="two-col">
+    <div class="col-card green">
+      <div class="col-title"><div class="dot dot-g"></div>HomeRates.ai — Front of Journey</div>
+      <div class="col-item"><span class="ck">→</span><div>Consumer intelligence platform: AI-powered mortgage scenarios, affordability analysis, property intelligence, rate monitoring</div></div>
+      <div class="col-item"><span class="ck">→</span><div>Operates <strong>before</strong> application: consumer is exploring, qualifying, comparing options</div></div>
+      <div class="col-item"><span class="ck">→</span><div>LO-sponsored model: loan officers invite borrowers, whose experience is branded to the LO</div></div>
+      <div class="col-item"><span class="ck">→</span><div>Revenue: LO subscription (per borrower or flat monthly)</div></div>
+    </div>
+    <div class="col-card blue">
+      <div class="col-title"><div class="dot dot-b"></div>Groves IQ — Back of Journey</div>
+      <div class="col-item"><span class="ck bl">→</span><div>AI-powered loan operations: takes underwritten files and manages conditions, stipulations through to funding</div></div>
+      <div class="col-item"><span class="ck bl">→</span><div>Operates <strong>after</strong> approval: file is in-process, conditions being satisfied, CTC in progress</div></div>
+      <div class="col-item"><span class="ck bl">→</span><div>ICE/Encompass integration: enterprise connection to 500+ broker network</div></div>
+      <div class="col-item"><span class="ck bl">→</span><div>Revenue: LO/broker subscription through Groves IQ platform</div></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Key insight:</strong> A consumer who finds a home and qualifies through HomeRates becomes the application that Groves IQ processes. HomeRates creates the borrower; Groves IQ closes the file. The two products are bookends of the same transaction.
+  </div>
+</div>
+
+<!-- ── 2. THE JOURNEY MAP ────────────────────────── -->
+<div class="section" id="s2">
+  <div class="section-num">Section 2</div>
+  <div class="section-title">Where Each Platform Lives on the Loan Journey</div>
+
+  <div class="journey">
+    <div class="journey-lane lane-hr">
+      <div class="lane-label green">HomeRates.ai territory</div>
+      <div class="journey-step">
+        <div class="step-num">Stage 1</div>
+        <div class="step-text">Consumer discovery</div>
+        <div class="step-sub">Affordability, scenarios, property intel, rate monitoring</div>
+      </div>
+      <div class="journey-step">
+        <div class="step-num">Stage 2</div>
+        <div class="step-text">Qualification analysis</div>
+        <div class="step-sub">Decision Score, income qualifying, DTI analysis</div>
+      </div>
+      <div class="journey-step">
+        <div class="step-num">Stage 3</div>
+        <div class="step-text">LO match / referral</div>
+        <div class="step-sub">Consumer connects with LO — application begins</div>
+      </div>
+    </div>
+
+    <div class="journey-connector">
+      <div class="connector-arrow">Handoff point</div>
+    </div>
+
+    <div class="journey-lane lane-gi">
+      <div class="lane-label blue">Groves IQ territory</div>
+      <div class="journey-step">
+        <div class="step-num">Stage 4</div>
+        <div class="step-text">Application submitted</div>
+        <div class="step-sub">File enters Groves IQ / Encompass pipeline</div>
+      </div>
+      <div class="journey-step">
+        <div class="step-num">Stage 5</div>
+        <div class="step-text">Conditional approval</div>
+        <div class="step-sub">AI manages conditions, stips, borrower docs</div>
+      </div>
+      <div class="journey-step">
+        <div class="step-num">Stage 6</div>
+        <div class="step-text">Clear to close → Funded</div>
+        <div class="step-sub">Groves IQ drives file to CTC and funding</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="handoff-box">
+    ⚡ <strong>The handoff:</strong> When a HomeRates consumer reaches Stage 3 — they have a property, a scenario, and a Decision Score — they are an application-ready borrower. A Groves IQ LO who receives that referral already has the full financial picture. The loan moves faster because HomeRates did the pre-work.
+  </div>
+</div>
+
+<!-- ── 3. THE ARRANGEMENT ──────────────────────── -->
+<div class="section" id="s3">
+  <div class="section-num">Section 3</div>
+  <div class="section-title">Proposed Arrangement</div>
+
+  <p>This is a <strong>distribution partnership</strong>, not a technical integration. No shared infrastructure is required at launch. The arrangement has two components:</p>
+
+  <div class="dist-row">
+    <div class="dist-card primary">
+      <div class="dist-badge badge-primary">Primary</div>
+      <div class="dist-title">Component A — Distribution</div>
+      <div class="dist-sub">Groves IQ distributes HomeRates to its 500+ LO network as a value-added tool. LOs get HomeRates bundled into their Groves IQ subscription, or at a negotiated group rate.</div>
+      <div class="dist-detail">
+        <strong>What Groves IQ LOs get:</strong> HomeRates Pro LO access — ability to invite borrowers, view their scenarios, and have their branding on the consumer experience.<br><br>
+        <strong>What Groves IQ gets:</strong> Stronger LO retention (additional value in the platform), and a differentiated offering vs competitors.
+      </div>
+    </div>
+    <div class="dist-card">
+      <div class="dist-badge badge-secondary">Secondary</div>
+      <div class="dist-title">Component B — Referral Pipeline</div>
+      <div class="dist-sub">HomeRates consumer base — borrowers who are application-ready — can be referred to Groves IQ LOs as a pipeline channel.</div>
+      <div class="dist-detail">
+        <strong>What Groves IQ LOs get:</strong> Referrals of pre-qualified, scenario-ready borrowers who have been through the full HomeRates discovery process.<br><br>
+        <strong>What HomeRates gets:</strong> A professional network to refer consumers into — completing the end-to-end journey.
+      </div>
+    </div>
+  </div>
+
+  <div class="callout-blue">
+    <strong>Why this is clean:</strong> Neither party is dependent on the other's core product. HomeRates runs with or without Groves IQ. Groves IQ runs with or without HomeRates. The arrangement adds value without creating risk for either side.
+  </div>
+</div>
+
+<!-- ── 4. PLANNED UX/UI CHANGES ─────────────────── -->
+<div class="section" id="s4">
+  <div class="section-num">Section 4 — New</div>
+  <div class="section-title">Planned UX/UI Changes — Consumer Experience</div>
+
+  <p>In parallel with this partnership discussion, HomeRates is building a dedicated consumer surface — a <strong>lighter, property-first experience</strong> designed for borrowers who arrive without a loan officer. This is directly relevant to the Groves IQ partnership because it defines the product their LOs will be sponsoring for their borrowers.</p>
+
+  <p>The consumer experience follows a single design principle: <strong>same data as the Pro platform, rendered through a consumer lens.</strong> Simpler language, fewer controls, faster path from question to answer. No mortgage jargon. No page navigation — everything flows inside a single chat thread.</p>
+
+  <div class="ux-summary">
+    <div class="ux-summary-title">Core design principles across all consumer surfaces</div>
+    <div class="ux-summary-grid">
+      <div class="ux-summary-item"><span class="bullet">→</span>Address search as the hero entry point</div>
+      <div class="ux-summary-item"><span class="bullet">→</span>Zero page navigation — all in chat</div>
+      <div class="ux-summary-item"><span class="bullet">→</span>Hero number first, context second</div>
+      <div class="ux-summary-item"><span class="bullet">→</span>2 adjusters max, not a slider forest</div>
+      <div class="ux-summary-item"><span class="bullet">→</span>Plain-English verdict, not raw data</div>
+      <div class="ux-summary-item"><span class="bullet">→</span>One primary CTA per card</div>
+    </div>
+  </div>
+
+  <p>Four interactive prototypes have been built and are linked below. These represent the planned consumer UI — not speculative designs. They are the basis for the React implementation that follows.</p>
+
+  <!-- PROTOTYPE CARDS -->
+  <div class="proto-grid">
+
+    <!-- 1. Consumer Experience — FEATURED (full width) -->
+    <div class="proto-card featured">
+      <div class="proto-preview">
+        <div class="mini-sidebar">
+          <div class="mini-dot"></div>
+          <div class="mini-nav">CHECK A PROPERTY</div>
+        </div>
+        <div class="mini-addr">
+          <span class="mini-addr-icon">📍</span>
+          <span class="mini-addr-text">123 Sunset Blvd, Los Angeles CA…</span>
+        </div>
+        <div class="mini-card">
+          <div class="mini-label">For Sale · Active</div>
+          <div class="mini-num"><span class="g">$</span>1,249,000</div>
+          <div class="mini-row">
+            <div class="mini-fact"><div class="mini-fact-val">$6,840</div><div class="mini-fact-lbl">Est. monthly</div></div>
+            <div class="mini-fact"><div class="mini-fact-val" style="color:#00e87a">74</div><div class="mini-fact-lbl">Value score</div></div>
+            <div class="mini-fact"><div class="mini-fact-val">$249k</div><div class="mini-fact-lbl">Down needed</div></div>
+          </div>
+        </div>
+        <div class="mini-chip">Can I afford this? →</div>
+      </div>
+      <div class="proto-body">
+        <div class="proto-tag" style="color:var(--accent)">Consumer Chat Experience</div>
+        <div class="proto-name">Property-First Home — 6-Screen Journey</div>
+        <div class="proto-desc">The complete consumer chat experience from first address entry through property result, off-market detection, My Home inline, scenario + Decision Score in chat, and the soft pro gate after 3 lookups. No page navigation at any point — every card renders as a chat message in the same thread.</div>
+        <div class="proto-principles">
+          <div class="proto-principle"><span class="bullet">→</span> Address search is the hero (Zillow-style but with financial intelligence)</div>
+          <div class="proto-principle"><span class="bullet">→</span> Off-market detection: "Is this your home?" inline — no redirect to /check-property</div>
+          <div class="proto-principle"><span class="bullet">→</span> Free counter visible in sidebar — 3 lookups → soft LO connection gate</div>
+          <div class="proto-principle"><span class="bullet">→</span> Scenarios remain free even after gate — LO connection is the unlock</div>
+        </div>
+        <a href="consumer-experience-prototype.html" class="proto-cta green" target="_blank">Open prototype →</a>
+      </div>
+    </div>
+
+    <!-- 2. My Scenarios -->
+    <div class="proto-card">
+      <div class="proto-preview">
+        <div class="mini-sidebar">
+          <div class="mini-dot"></div>
+          <div class="mini-nav">MY SCENARIOS</div>
+        </div>
+        <div class="mini-card" style="margin-bottom:5px;">
+          <div class="mini-label">Affordability</div>
+          <div class="mini-num"><span class="g">$</span>847k</div>
+          <div style="font-size:0.45rem;color:rgba(255,255,255,0.3);margin-top:3px;">Max comfortable purchase</div>
+        </div>
+        <div class="mini-card">
+          <div class="mini-label" style="color:rgba(245,158,11,0.6)">Refinance</div>
+          <div style="display:flex;align-items:baseline;gap:3px;margin-top:2px;"><div style="font-size:0.9rem;font-weight:900;color:#00e87a;">$230</div><div style="font-size:0.45rem;color:rgba(255,255,255,0.3)">/mo saved</div></div>
+        </div>
+      </div>
+      <div class="proto-body">
+        <div class="proto-tag" style="color:var(--blue)">Consumer Scenario Surface</div>
+        <div class="proto-name">My Scenarios — Consumer Lab</div>
+        <div class="proto-desc">The consumer-facing version of HomeRates Lab. 5 scenarios (vs 8 in Pro), plain-English names, no DSCR or investor tools. Each scenario card: hero number → 3 facts → plain-English verdict → 2 adjusters max → 1 CTA. Pro users still see the full Lab.</div>
+        <div class="proto-principles">
+          <div class="proto-principle"><span class="bullet">→</span> Affordability, Purchase, Refi, FHA vs Conv, VA Loan</div>
+          <div class="proto-principle"><span class="bullet">→</span> Consumer card = scen-card pattern, not the Pro slider</div>
+          <div class="proto-principle"><span class="bullet">→</span> Pro note at bottom links to full Lab for professionals</div>
+        </div>
+        <a href="consumer-scenario-prototype.html" class="proto-cta blue" target="_blank">Open prototype →</a>
+      </div>
+    </div>
+
+    <!-- 3. Decision Score Card -->
+    <div class="proto-card">
+      <div class="proto-preview" style="justify-content:center;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <div class="mini-score-ring">76</div>
+          <div>
+            <div style="font-size:0.52rem;color:#00e87a;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Decision Score</div>
+            <div style="font-size:0.7rem;font-weight:800;color:#f0f4ff;">Strong Candidate</div>
+          </div>
+        </div>
+        <div class="mini-bar-row"><div class="mini-bar-lbl">L1 Financial</div><div class="mini-bar-wrap"><div class="mini-bar-fill" style="width:82%;background:#00e87a;"></div></div><div style="font-size:0.5rem;font-weight:700;color:#f0f4ff;width:20px;text-align:right;">82</div></div>
+        <div class="mini-bar-row"><div class="mini-bar-lbl">L2 Property</div><div class="mini-bar-wrap"><div class="mini-bar-fill" style="width:65%;background:#fbbf24;"></div></div><div style="font-size:0.5rem;font-weight:700;color:#f0f4ff;width:20px;text-align:right;">65</div></div>
+        <div class="mini-bar-row"><div class="mini-bar-lbl">L3 Market</div><div class="mini-bar-wrap"><div class="mini-bar-fill" style="width:78%;background:#00e87a;"></div></div><div style="font-size:0.5rem;font-weight:700;color:#f0f4ff;width:20px;text-align:right;">78</div></div>
+        <div class="mini-bar-row"><div class="mini-bar-lbl">L4 Location</div><div class="mini-bar-wrap"><div class="mini-bar-fill" style="width:71%;background:#00e87a;"></div></div><div style="font-size:0.5rem;font-weight:700;color:#f0f4ff;width:20px;text-align:right;">71</div></div>
+      </div>
+      <div class="proto-body">
+        <div class="proto-tag" style="color:var(--purple)">Track 5 · Decision Score</div>
+        <div class="proto-name">Decision Score Card</div>
+        <div class="proto-desc">The autonomous score that fires at the bottom of any chat thread once a property and 2+ inputs are present. Computing state (shimmer on L3/L4 while Grok runs) → Complete state with animated bar fill. The "Get Matched" CTA is the monetisation moment.</div>
+        <div class="proto-principles">
+          <div class="proto-principle"><span class="bullet">→</span> Auto-fires — consumer never has to ask for it</div>
+          <div class="proto-principle"><span class="bullet">→</span> L1+L2 instant, L3+L4 shimmer ~20s (Grok)</div>
+          <div class="proto-principle"><span class="bullet">→</span> Score ring + 4 level bars animate in on complete</div>
+        </div>
+        <a href="decision-score-card-prototype.html" class="proto-cta purple" target="_blank">Open prototype →</a>
+      </div>
+    </div>
+
+    <!-- 4. LO-Sponsored Experience -->
+    <div class="proto-card featured">
+      <div class="proto-preview">
+        <div style="background:rgba(61,139,255,0.15);border:1px solid rgba(61,139,255,0.25);border-radius:6px;padding:6px 8px;display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+          <div style="width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#3d8bff,#00e87a);display:flex;align-items:center;justify-content:center;font-size:0.45rem;font-weight:800;color:#fff;flex-shrink:0;">RA</div>
+          <div><div style="font-size:0.45rem;color:#3d8bff;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Your loan officer</div><div style="font-size:0.6rem;font-weight:700;color:#f0f4ff;">Rayaan Arif</div></div>
+        </div>
+        <div class="mini-card">
+          <div class="mini-label">Conventional · 20% Down</div>
+          <div class="mini-num"><span class="g">$</span>5,240<span style="font-size:0.55rem;color:rgba(255,255,255,0.3)">/mo</span></div>
+          <div style="margin-top:5px;display:flex;gap:4px;">
+            <div style="flex:1;background:rgba(61,139,255,0.1);border:1px solid rgba(61,139,255,0.2);border-radius:3px;padding:3px 5px;">
+              <div style="font-size:0.5rem;color:#3d8bff;font-weight:700;">🏘️ Report</div>
+            </div>
+            <div style="flex:1;background:rgba(61,139,255,0.1);border:1px solid rgba(61,139,255,0.2);border-radius:3px;padding:3px 5px;">
+              <div style="font-size:0.5rem;color:#3d8bff;font-weight:700;">📈 Score</div>
+            </div>
+            <div style="flex:1;background:rgba(61,139,255,0.1);border:1px solid rgba(61,139,255,0.2);border-radius:3px;padding:3px 5px;">
+              <div style="font-size:0.5rem;color:#3d8bff;font-weight:700;">🔁 Refi</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="proto-body">
+        <div class="proto-tag" style="color:var(--blue)">LO-Sponsored Tier</div>
+        <div class="proto-name">What a Groves IQ LO's Borrower Sees</div>
+        <div class="proto-desc">When a Groves IQ LO invites a borrower to HomeRates, the consumer sees the LO's name and company in the sidebar — and their full professional-grade features unlock automatically. Property reports, Decision Score, Refi Monitor, and direct messaging all activate via the LO's subscription. The consumer never pays.</div>
+        <div class="proto-principles">
+          <div class="proto-principle"><span class="bullet">→</span> LO name + NMLS in sidebar throughout the session</div>
+          <div class="proto-principle"><span class="bullet">→</span> "Unlocked by [LO name]" — explicit value attribution</div>
+          <div class="proto-principle"><span class="bullet">→</span> Free vs LO-sponsored comparison shows the unlock delta</div>
+          <div class="proto-principle"><span class="bullet">→</span> This is the Homebot model — but with live mortgage intelligence</div>
+        </div>
+        <a href="groves-iq-consumer-mockup.html" class="proto-cta blue" target="_blank">Open prototype →</a>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="callout">
+    <strong>For Groves IQ:</strong> Every one of these screens is what a Groves IQ LO's borrower will experience when that LO is on HomeRates. The consumer sees the LO's name from first address search through to "Get Matched" — meaning HomeRates keeps the LO present throughout the entire pre-application journey, not just at the referral moment.
+  </div>
+</div>
+
+<!-- ── 5. COMMERCIAL TERMS ────────────────────── -->
+<div class="section" id="s5">
+  <div class="section-num">Section 5</div>
+  <div class="section-title">Commercial Terms — Draft Framework</div>
+
+  <div class="table-scroll">
+    <table class="terms-table">
+      <thead>
+        <tr>
+          <th>Term</th>
+          <th>Proposed Structure</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Distribution model</strong></td>
+          <td>Groves IQ bundles HomeRates LO access into their LO subscription</td>
+          <td>Either at cost or at a negotiated group rate per active LO</td>
+        </tr>
+        <tr>
+          <td><strong>Pricing to Groves IQ</strong></td>
+          <td class="tbd">To be negotiated — volume pricing</td>
+          <td>Suggested: flat per-LO/mo or revenue share on LOs who activate borrowers</td>
+        </tr>
+        <tr>
+          <td><strong>Referral component</strong></td>
+          <td class="tbd">To be defined</td>
+          <td>Could be referral fee per funded loan, or simply goodwill / LO availability</td>
+        </tr>
+        <tr>
+          <td><strong>Branding</strong></td>
+          <td>LO's name/company on consumer experience. "Powered by HomeRates" attribution.</td>
+          <td>Groves IQ branding optional — consumer sees their LO, not the platform</td>
+        </tr>
+        <tr>
+          <td><strong>Data</strong></td>
+          <td>Consumer data stays in HomeRates. Scenario data shared with LO only (their own borrower).</td>
+          <td>No consumer behavioral data shared with Groves IQ platform per HomeRates privacy model</td>
+        </tr>
+        <tr>
+          <td><strong>Integration</strong></td>
+          <td>None required at launch. Future: optional Encompass/ICE data bridge.</td>
+          <td>Phase 1 is purely distribution — no technical dependencies</td>
+        </tr>
+        <tr>
+          <td><strong>Term</strong></td>
+          <td class="tbd">12 months initial, auto-renewing</td>
+          <td>Either party can exit with 60 days notice</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── 6. MUTUAL VALUE ────────────────────────── -->
+<div class="section" id="s6">
+  <div class="section-num">Section 6</div>
+  <div class="section-title">What Each Party Gets</div>
+
+  <div class="two-col">
+    <div class="col-card green">
+      <div class="col-title"><div class="dot dot-g"></div>HomeRates gains</div>
+      <div class="col-item"><span class="ck">✓</span><div><strong>Instant distribution</strong> to 500+ active LOs without individual sales effort</div></div>
+      <div class="col-item"><span class="ck">✓</span><div>LO-activated consumer base — borrowers who come in through a professional relationship convert better</div></div>
+      <div class="col-item"><span class="ck">✓</span><div><strong>ICE/Encompass credibility</strong> — association with an enterprise-connected platform signals professional legitimacy</div></div>
+      <div class="col-item"><span class="ck">✓</span><div>Proof of the LO partner model at scale — 500+ LOs is a strong reference case for future lender distribution deals</div></div>
+    </div>
+    <div class="col-card blue">
+      <div class="col-title"><div class="dot dot-b"></div>Groves IQ gains</div>
+      <div class="col-item"><span class="ck bl">✓</span><div><strong>LO retention tool</strong> — HomeRates gives their LOs something to offer borrowers between transactions</div></div>
+      <div class="col-item"><span class="ck bl">✓</span><div>Consumer pipeline: HomeRates-ready borrowers who reach application stage can be referred to Groves IQ LOs</div></div>
+      <div class="col-item"><span class="ck bl">✓</span><div><strong>No product investment</strong> — they offer HomeRates to their LOs without building anything themselves</div></div>
+      <div class="col-item"><span class="ck bl">✓</span><div>Differentiator vs competing LO workflow platforms — most don't offer a consumer-facing intelligence layer</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 7. NEXT STEPS ──────────────────────────── -->
+<div class="section" id="s7">
+  <div class="section-num">Section 7</div>
+  <div class="section-title">Proposed Next Steps</div>
+
+  <div class="steps-list">
+    <div class="step-item">
+      <div class="step-circle done">✓</div>
+      <div class="step-body">
+        <div class="step-title">Initial conversations — alignment on vision</div>
+        <div class="step-desc">Both parties understand the product positioning and see the opportunity. No overlap confirmed.</div>
+        <div class="step-owner">Completed · June 2026</div>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-circle done">✓</div>
+      <div class="step-body">
+        <div class="step-title">Consumer UX prototypes delivered</div>
+        <div class="step-desc">Four interactive prototypes built: consumer chat experience, My Scenarios, Decision Score card, and LO-sponsored UI. These represent the planned product — not speculative mockups.</div>
+        <div class="step-owner">Completed · June 2026</div>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-circle active">3</div>
+      <div class="step-body">
+        <div class="step-title">Share this framework — get agreement on structure</div>
+        <div class="step-desc">Groves IQ reviews the proposed distribution + referral model and the consumer UX direction. Agree on which components to pursue at launch.</div>
+        <div class="step-owner">HomeRates → Groves IQ</div>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-circle">4</div>
+      <div class="step-body">
+        <div class="step-title">Pilot with 20–30 Groves IQ LOs</div>
+        <div class="step-desc">Select a cohort of active Groves IQ LOs to get early HomeRates access. Measure borrower activation rate and LO engagement. Validate the model before full rollout.</div>
+        <div class="step-owner">Groves IQ selects · HomeRates onboards</div>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-circle">5</div>
+      <div class="step-body">
+        <div class="step-title">Negotiate commercial terms</div>
+        <div class="step-desc">Based on pilot results, agree on pricing model, referral structure, and 12-month contract terms.</div>
+        <div class="step-owner">Both parties</div>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-circle">6</div>
+      <div class="step-body">
+        <div class="step-title">Full rollout to Groves IQ LO network</div>
+        <div class="step-desc">All 500+ Groves IQ LOs get HomeRates access. Consumer React implementation ships. Explore ICE/Encompass data bridge for Phase 2.</div>
+        <div class="step-owner">Q3 2026 target</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SIGNATURE ──────────────────────────────── -->
+<div class="sig-block">
+  <div class="sig-party">
+    <div class="sig-company">HomeRates.ai</div>
+    <div style="font-size:0.78rem;color:var(--weak);margin-top:4px;">Rayaan Arif, Founder<br>HomeRatesAi LLC · Delaware</div>
+    <div class="sig-line"></div>
+    <div class="sig-label">Signature · Date</div>
+  </div>
+  <div class="sig-party">
+    <div class="sig-company">Groves IQ / Groves Capital</div>
+    <div style="font-size:0.78rem;color:var(--weak);margin-top:4px;">Name, Title<br>Company · State</div>
+    <div class="sig-line"></div>
+    <div class="sig-label">Signature · Date</div>
+  </div>
+</div>
+
+<div style="margin-top:32px;padding-top:16px;border-top:1px solid var(--border);font-size:0.68rem;color:var(--dim);line-height:1.6;">
+  This document is a proposed framework for discussion purposes only. It does not constitute a binding agreement. All commercial terms are subject to negotiation and execution of a formal agreement between the parties.
+</div>
+
+</body>
+</html>

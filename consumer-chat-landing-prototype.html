@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consumer Chat Landing — Prototype v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c12;
+    --surface: #0e1420;
+    --border: rgba(255,255,255,0.07);
+    --border-bright: rgba(255,255,255,0.13);
+    --text: #f0f4ff;
+    --text-weak: #8fa3b8;
+    --text-dim: #eaf8f7;
+    --accent: #00e87a;
+    --card: #0e1420;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px 100px;
+  }
+
+  /* ── Outer shell ── */
+  .ccl {
+    width: 100%;
+    max-width: 720px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .ccl.visible { opacity: 1; transform: none; }
+
+  /* ── Headline ── */
+  .ccl-hero {
+    margin-bottom: 24px;
+  }
+  .ccl-hero h1 {
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(1.45rem, 4vw, 1.95rem);
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.18;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  .ccl-hero p {
+    font-size: 0.88rem;
+    color: var(--text-weak);
+    line-height: 1.6;
+  }
+
+  /* ── 2×2 scenario grid — exact hr-scenario card style ── */
+  .ccl-scenarios {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 480px) {
+    .ccl-scenarios { grid-template-columns: 1fr; }
+  }
+
+  /* Base card — matches hr-scenario exactly */
+  .ccl-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 22px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    cursor: pointer;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+    opacity: 0;
+    animation: cardIn 0.4s ease forwards;
+  }
+  /* Top accent bar — same as hr-scenario::before */
+  .ccl-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent-color, #00e87a);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .ccl-card:hover {
+    border-color: var(--border-bright);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    transform: translateY(-2px);
+  }
+  .ccl-card:hover::before { opacity: 1; }
+  .ccl-card:active { transform: translateY(0); }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .ccl-card:nth-child(1) { animation-delay: 100ms; }
+  .ccl-card:nth-child(2) { animation-delay: 155ms; }
+  .ccl-card:nth-child(3) { animation-delay: 210ms; }
+  .ccl-card:nth-child(4) { animation-delay: 265ms; }
+
+  /* Card icon */
+  .ccl-card__icon {
+    font-size: 22px;
+    margin-bottom: 14px;
+    display: block;
+    line-height: 1;
+    color: var(--accent-color, #00e87a);
+  }
+  /* Card label */
+  .ccl-card__label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+    line-height: 1.2;
+  }
+  /* Line 1 — colored metric */
+  .ccl-card__line1 {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent-color, #00e87a);
+    line-height: 1.4;
+    margin-bottom: 6px;
+  }
+  /* Line 2 — grey sub */
+  .ccl-card__line2 {
+    font-size: 12px;
+    color: var(--text-weak);
+    line-height: 1.5;
+  }
+
+  /* Per-card accent colours */
+  .ccl-card--afford  { --accent-color: #60a5fa; }
+  .ccl-card--conv    { --accent-color: #00e87a; }
+  .ccl-card--refi    { --accent-color: #a78bfa; }
+  .ccl-card--jumbo   { --accent-color: #f59e0b; }
+
+  /* ── Chips (same hr-chip style) ── */
+  .ccl-chips-wrap { margin-bottom: 16px; }
+  .ccl-chips-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-weak);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 10px;
+  }
+  .ccl-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .ccl-chip {
+    padding: 8px 16px;
+    background: var(--card);
+    border: 1px solid var(--border-bright);
+    border-radius: 99px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-weak);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    white-space: nowrap;
+    opacity: 0;
+    animation: cardIn 0.35s ease forwards;
+    font-family: 'Inter', sans-serif;
+  }
+  .ccl-chip:nth-child(1) { animation-delay: 310ms; }
+  .ccl-chip:nth-child(2) { animation-delay: 345ms; }
+  .ccl-chip:nth-child(3) { animation-delay: 380ms; }
+  .ccl-chip:nth-child(4) { animation-delay: 415ms; }
+  .ccl-chip:nth-child(5) { animation-delay: 450ms; }
+  .ccl-chip:nth-child(6) { animation-delay: 485ms; }
+  .ccl-chip:hover {
+    border-color: var(--accent);
+    background: rgba(0,232,122,0.07);
+    color: var(--accent);
+  }
+
+  /* ── Composer — exact hr-composer-inner style ── */
+  .ccl-composer-wrap {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg);
+    border-top: 1px solid rgba(245,247,250,0.06);
+    padding: 12px 0 16px;
+    margin-top: 4px;
+  }
+  .ccl-composer-inner {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 0;
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 16px;
+    padding: 10px 52px 10px 16px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .ccl-composer-inner:focus-within {
+    border-color: rgba(0,232,122,0.3);
+    box-shadow: 0 0 0 3px rgba(0,232,122,0.08);
+  }
+  .ccl-composer-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.93rem;
+    line-height: 1.55;
+    resize: none;
+    min-height: 24px;
+    max-height: 160px;
+  }
+  .ccl-composer-input::placeholder { color: rgba(143,163,184,0.45); }
+
+  /* Send button — green circle with angled polygon arrow */
+  .ccl-send {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: #000;
+    transition: box-shadow 0.15s, background 0.15s, opacity 0.15s;
+    flex-shrink: 0;
+  }
+  .ccl-send:hover { box-shadow: 0 0 0 6px rgba(0,232,122,0.18); }
+  .ccl-send svg { display: block; }
+</style>
+</head>
+<body>
+
+<div class="ccl" id="ccl">
+
+  <!-- Headline -->
+  <div class="ccl-hero">
+    <h1>What do you want to figure out?</h1>
+    <p>Pick a scenario — or just ask. Real math, live rates, no gatekeepers.</p>
+  </div>
+
+  <!-- 2×2 scenario cards -->
+  <div class="ccl-scenarios">
+
+    <!-- AFFORDABILITY -->
+    <button class="ccl-card ccl-card--afford" onclick="fire('I make $150,000 a year and have $90,000 saved — how much house can I afford in California? Show me income qualification, max price range, estimated PITI and DTI.')">
+      <span class="ccl-card__icon">🏠</span>
+      <span class="ccl-card__label">Can I afford it?</span>
+      <span class="ccl-card__line1">~$850k–$950k CA range</span>
+      <span class="ccl-card__line2">~$4,800/mo on $150k salary</span>
+    </button>
+
+    <!-- CONVENTIONAL -->
+    <button class="ccl-card ccl-card--conv" onclick="fire('Conventional loan with a $832,750 loan amount and 20% down at current rates — show me the full monthly payment breakdown including principal, interest, taxes, insurance, and no PMI.')">
+      <span class="ccl-card__icon">🏡</span>
+      <span class="ccl-card__label">Conventional Purchase</span>
+      <span class="ccl-card__line1">~$4,950/mo · PITI · no PMI</span>
+      <span class="ccl-card__line2">$832,750 · 20% down · up to $806,500 CA</span>
+    </button>
+
+    <!-- REFINANCE -->
+    <button class="ccl-card ccl-card--refi" onclick="fire('What would refinancing look like on a $750,000 California mortgage at 7.25%? Show me breakeven, monthly savings, and what rate I need for a 3-year payback.')">
+      <span class="ccl-card__icon">🔁</span>
+      <span class="ccl-card__label">Should I refi?</span>
+      <span class="ccl-card__line1">~$510/mo savings · 3yr breakeven</span>
+      <span class="ccl-card__line2">$750k CA balance · 7.25% → today</span>
+    </button>
+
+    <!-- JUMBO -->
+    <button class="ccl-card ccl-card--jumbo" onclick="fire('Jumbo loan on a $1,500,000 home with 20% down at current rates — show me the full payment breakdown, reserve requirements, and how this compares to conforming.')">
+      <span class="ccl-card__icon">🏛️</span>
+      <span class="ccl-card__label">Jumbo Purchase</span>
+      <span class="ccl-card__line1">~$8,900/mo · reserves required</span>
+      <span class="ccl-card__line2">$1.5M · 20% down · above conforming limit</span>
+    </button>
+
+  </div>
+
+  <!-- Quick chips -->
+  <div class="ccl-chips-wrap">
+    <div class="ccl-chips-label">Or try one of these</div>
+    <div class="ccl-chips">
+      <button class="ccl-chip" onclick="fire('FHA loan on a $700,000 home in Los Angeles with 3.5% down — show me the full payment including MIP')">FHA · $700k LA · 3.5% down</button>
+      <button class="ccl-chip" onclick="fire('VA loan on an $850,000 home with no down payment — full breakdown including funding fee')">VA loan · $0 down · $850k</button>
+      <button class="ccl-chip" onclick="fire('Conventional loan on a $650,000 home with 10% down — show me the full payment including PMI')">$650k home · 10% down · with PMI?</button>
+      <button class="ccl-chip" onclick="fire('I make $120,000 a year and have $60,000 saved — how much house can I afford?')">$120k income · what can I buy?</button>
+      <button class="ccl-chip" onclick="fire('DSCR loan on a $650,000 rental property with $4,200 rent and 25% down — does it cash flow?')">DSCR rental · $650k</button>
+      <button class="ccl-chip" onclick="fire('I make $200,000 a year and have $150,000 saved — what is my max home price range in California?')">$200k income · what\'s my max?</button>
+    </div>
+  </div>
+
+  <!-- Composer — matches app hr-composer style -->
+  <div class="ccl-composer-wrap">
+    <div class="ccl-composer-inner">
+      <textarea
+        class="ccl-composer-input"
+        placeholder="Ask about your payment, refi, equity, FHA, VA, or any mortgage question…"
+        rows="1"
+        oninput="this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,160)+'px'"
+      ></textarea>
+      <button class="ccl-send" title="Send">
+        <!-- Same polygon arrow used in app -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="17" height="17" aria-hidden="true">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => document.getElementById('ccl').classList.add('visible'), 60);
+  });
+  function fire(seed) {
+    // In React this calls onSend(seed) — show as alert in prototype
+    alert('Would fire into chat:\n\n' + seed);
+  }
+</script>
+
+</body>
+</html>

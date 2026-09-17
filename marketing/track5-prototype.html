@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track 5 — Decision Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#080c12;min-height:100vh}
+body{color:#f1f5f9;font-family:'DM Sans','Inter',system-ui,sans-serif}
+
+/* ── Nav ── */
+.t5-nav{
+  position:sticky;top:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 2rem;height:52px;
+  background:rgba(8,12,18,0.97);
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.t5-nav-left{display:flex;align-items:center;gap:12px}
+.t5-nav-logo{height:22px;opacity:0.9}
+.t5-nav-divider{width:1px;height:18px;background:rgba(255,255,255,0.1)}
+.t5-nav-label{font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#00e87a;opacity:0.8}
+.t5-nav-right{font-size:0.7rem;color:#334155}
+
+/* ── Body ── */
+.t5-body{max-width:780px;margin:0 auto;padding:2.5rem 1.5rem 6rem}
+
+/* ── Section label ── */
+.t5-section-label{
+  font-size:0.62rem;font-weight:700;letter-spacing:0.1em;
+  text-transform:uppercase;color:#475569;
+  margin-bottom:12px;
+}
+
+/* ── Card base ── */
+.t5-card{
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px;
+  padding:20px 24px;
+}
+
+/* ── Decision Index hero ── */
+.di-hero{
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px;
+  padding:24px 28px;
+  display:flex;align-items:center;gap:28px;
+  margin-bottom:8px;
+}
+.di-gauge-wrap{flex-shrink:0;position:relative;width:108px;height:108px}
+.di-gauge-wrap svg{width:100%;height:100%}
+.di-gauge-center{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:0;
+}
+.di-gauge-num{font-size:2.1rem;font-weight:900;line-height:1;letter-spacing:-0.04em;color:#4ade80}
+.di-gauge-denom{font-size:0.65rem;color:#334155;margin-top:2px}
+.di-info{flex:1;min-width:0}
+.di-verdict{font-size:1.35rem;font-weight:800;color:#4ade80;letter-spacing:-0.02em;margin-bottom:5px}
+.di-verdict.amber{color:#fbbf24}
+.di-verdict.red{color:#f87171}
+.di-verdict.muted{color:#475569}
+.di-summary{font-size:0.82rem;color:#64748b;line-height:1.65;margin-bottom:12px}
+.di-meta{display:flex;gap:8px;flex-wrap:wrap}
+.di-meta-chip{
+  font-size:0.65rem;font-weight:600;letter-spacing:0.04em;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:6px;padding:3px 8px;color:#475569;
+}
+.di-meta-chip span{color:#94a3b8;font-weight:700}
+
+/* ── Empty hero ── */
+.di-hero-empty{
+  background:#0d1117;
+  border:1px solid rgba(255,255,255,0.05);
+  border-radius:14px;
+  padding:24px 28px;
+  margin-bottom:8px;
+  display:flex;flex-direction:column;gap:8px;
+}
+.di-empty-title{font-size:0.95rem;font-weight:700;color:#334155}
+.di-empty-desc{font-size:0.8rem;color:#1e293b;line-height:1.65}
+
+/* ── Weight bar ── */
+.weight-bar-row{display:flex;align-items:center;gap:6px;margin-bottom:20px}
+.weight-bar-track{flex:1;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden}
+.weight-bar-fill{height:100%;border-radius:2px;background:rgba(255,255,255,0.12)}
+.weight-bar-label{font-size:0.6rem;color:#334155;white-space:nowrap}
+
+/* ── Level card ── */
+.lc{
+  background:#0d1117;
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:12px;
+  overflow:hidden;
+  margin-bottom:8px;
+  transition:border-color 0.15s;
+}
+.lc:hover{border-color:rgba(255,255,255,0.11)}
+.lc.scored{border-color:rgba(74,222,128,0.18)}
+.lc.amber{border-color:rgba(251,191,36,0.18)}
+.lc.empty{border-color:rgba(255,255,255,0.04)}
+
+.lc-inner{display:flex;align-items:stretch;gap:0}
+
+/* Left accent stripe */
+.lc-stripe{
+  width:3px;flex-shrink:0;
+  background:rgba(255,255,255,0.05);
+}
+.lc.scored .lc-stripe{background:#4ade80}
+.lc.amber  .lc-stripe{background:#fbbf24}
+.lc.empty  .lc-stripe{background:rgba(255,255,255,0.04)}
+
+/* Score column */
+.lc-score-col{
+  flex-shrink:0;
+  width:72px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:16px 0;
+  border-right:1px solid rgba(255,255,255,0.05);
+}
+.lc-level-num{font-size:0.6rem;font-weight:700;letter-spacing:0.08em;color:#334155;margin-bottom:8px}
+.ring-wrap{position:relative;width:48px;height:48px}
+.ring-wrap svg{width:100%;height:100%}
+.ring-val{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.8rem;font-weight:800;
+}
+.ring-val.green{color:#4ade80}
+.ring-val.amber{color:#fbbf24}
+.ring-val.none{color:#1e293b}
+
+/* Content column */
+.lc-content{flex:1;min-width:0;padding:16px 18px}
+.lc-head{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.lc-title{font-size:0.88rem;font-weight:700;color:#e2e8f0}
+.lc-weight{
+  font-size:0.6rem;font-weight:700;letter-spacing:0.05em;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:4px;padding:2px 6px;color:#475569;
+}
+.lc-summary{font-size:0.78rem;color:#64748b;line-height:1.65}
+.lc-summary.active{color:#94a3b8}
+.lc-summary.empty{color:#1e293b;font-style:italic}
+
+/* Score bar */
+.lc-bar{display:flex;align-items:center;gap:8px;margin-top:9px}
+.lc-bar-track{flex:1;height:2px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden}
+.lc-bar-fill{height:100%;border-radius:2px}
+.lc-bar-fill.green{background:#4ade80}
+.lc-bar-fill.amber{background:#fbbf24}
+.lc-bar-pct{font-size:0.62rem;color:#334155;white-space:nowrap}
+
+/* CTA column */
+.lc-cta-col{
+  flex-shrink:0;
+  display:flex;align-items:center;
+  padding:16px 18px 16px 0;
+}
+.lc-btn{
+  display:inline-block;
+  padding:8px 14px;border-radius:8px;
+  font-size:0.72rem;font-weight:700;
+  text-decoration:none;white-space:nowrap;
+  transition:opacity 0.15s;
+  border:1px solid transparent;
+}
+.lc-btn:hover{opacity:0.75}
+.lc-btn.run{
+  background:rgba(74,222,128,0.08);
+  color:#4ade80;
+  border-color:rgba(74,222,128,0.2);
+}
+.lc-btn.rerun{
+  background:rgba(255,255,255,0.04);
+  color:#475569;
+  border-color:rgba(255,255,255,0.08);
+}
+.lc-btn.soon{
+  background:transparent;
+  color:#1e293b;
+  border-color:rgba(255,255,255,0.04);
+  cursor:default;
+  font-style:italic;
+}
+
+/* ── Wealth Monitor section ── */
+.wm-section{margin-top:32px}
+.wm-header{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:14px;
+}
+.wm-badge{
+  font-size:0.58rem;font-weight:800;letter-spacing:0.1em;
+  text-transform:uppercase;
+  background:rgba(96,165,250,0.1);
+  border:1px solid rgba(96,165,250,0.2);
+  border-radius:4px;padding:2px 7px;color:#60a5fa;
+}
+.wm-title{font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#334155}
+.wm-desc{font-size:0.78rem;color:#1e293b;line-height:1.6;margin-bottom:16px}
+
+.wm-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.wm-tile{
+  background:#0d1117;
+  border:1px solid rgba(255,255,255,0.05);
+  border-radius:10px;
+  padding:14px 16px;
+  text-decoration:none;
+  transition:border-color 0.15s;
+  display:block;
+}
+.wm-tile:hover{border-color:rgba(96,165,250,0.2)}
+.wm-tile-icon{font-size:1.1rem;margin-bottom:7px}
+.wm-tile-label{font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:4px}
+.wm-tile-sub{font-size:0.68rem;color:#1e293b;line-height:1.5}
+.wm-tile-link{font-size:0.65rem;color:#60a5fa;margin-top:8px;font-weight:600}
+
+/* ── Demo toggles (prototype only) ── */
+.demo-bar{
+  display:flex;align-items:center;gap:6px;
+  margin-bottom:24px;
+  padding:10px 14px;
+  background:rgba(251,191,36,0.05);
+  border:1px solid rgba(251,191,36,0.15);
+  border-radius:8px;
+  flex-wrap:wrap;
+}
+.demo-label{font-size:0.65rem;color:#475569;font-weight:600;margin-right:4px}
+.demo-btn{
+  padding:5px 12px;border-radius:16px;
+  font-size:0.7rem;font-weight:600;
+  cursor:pointer;
+  border:1px solid rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.04);
+  color:#475569;
+  transition:all 0.12s;
+}
+.demo-btn.active{
+  background:rgba(74,222,128,0.1);
+  border-color:rgba(74,222,128,0.25);
+  color:#4ade80;
+}
+.state{display:none}.state.active{display:block}
+
+@media(max-width:600px){
+  .t5-body{padding:1.5rem 1rem 5rem}
+  .t5-nav{padding:0 1rem}
+  .di-hero{flex-direction:column;align-items:flex-start;gap:16px}
+  .lc-cta-col{padding-right:14px}
+  .wm-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="t5-nav">
+  <div class="t5-nav-left">
+    <!-- Logo placeholder -->
+    <div style="font-size:0.8rem;font-weight:800;color:#f1f5f9;letter-spacing:-0.02em">HomeRates<span style="color:#00e87a">.</span>ai</div>
+    <div class="t5-nav-divider"></div>
+    <span class="t5-nav-label">Track 5</span>
+  </div>
+  <span class="t5-nav-right">Decision Dashboard</span>
+</nav>
+
+<div class="t5-body">
+
+  <!-- Page intro -->
+  <div style="margin-bottom:28px">
+    <h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-0.02em;color:#f1f5f9;margin-bottom:4px">Your Buying Decision Score</h1>
+    <p style="font-size:0.8rem;color:#334155;line-height:1.6">Five independent analyses. One clear verdict. Run each tool — your score updates automatically.</p>
+  </div>
+
+  <!-- Demo toggle (prototype only) -->
+  <div class="demo-bar">
+    <span class="demo-label">Preview:</span>
+    <button class="demo-btn active" onclick="showState('empty')">No data</button>
+    <button class="demo-btn" onclick="showState('partial')">2 of 4 scored</button>
+    <button class="demo-btn" onclick="showState('full')">All scored</button>
+  </div>
+
+
+  <!-- ═══════════════ EMPTY ═══════════════ -->
+  <div class="state active" id="state-empty">
+
+    <div class="di-hero-empty">
+      <div class="di-empty-title">No analyses run yet</div>
+      <div class="di-empty-desc">Run any tool below. Your Decision Index appears here once you have at least one score. Each analysis can be run independently — start wherever makes sense for you.</div>
+    </div>
+
+    <div style="margin-bottom:12px"></div>
+    <div class="t5-section-label">4 Decision Levels</div>
+
+    <!-- L1 empty -->
+    <div class="lc empty">
+      <div class="lc-inner">
+        <div class="lc-stripe"></div>
+        <div class="lc-score-col">
+          <div class="lc-level-num">L1</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3"/></svg>
+            <div class="ring-val none">—</div>
+          </div>
+        </div>
+        <div class="lc-content">
+          <div class="lc-head">
+            <span class="lc-title">Financial Readiness</span>
+            <span class="lc-weight">35%</span>
+          </div>
+          <div class="lc-summary empty">How much home can you comfortably afford? DTI, PITI, and max purchase price based on your income and down payment.</div>
+        </div>
+        <div class="lc-cta-col">
+          <a href="/chat?sq=I+want+to+run+an+affordability+scenario" target="_blank" rel="noopener" class="lc-btn run">Run in Chat ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- L2 empty -->
+    <div class="lc empty">
+      <div class="lc-inner">
+        <div class="lc-stripe"></div>
+        <div class="lc-score-col">
+          <div class="lc-level-num">L2</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3"/></svg>
+            <div class="ring-val none">—</div>
+          </div>
+        </div>
+        <div class="lc-content">
+          <div class="lc-head">
+            <span class="lc-title">Market Conditions</span>
+            <span class="lc-weight">25%</span>
+          </div>
+          <div class="lc-summary empty">Days on market, sale-to-list ratio, inventory levels. Is now a good time to buy in your target area?</div>
+        </div>
+        <div class="lc-cta-col">
+          <a href="/chat?sq=Run+a+market+analysis+for+my+area" target="_blank" rel="noopener" class="lc-btn run">Run in Chat ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- L3 empty -->
+    <div class="lc empty">
+      <div class="lc-inner">
+        <div class="lc-stripe"></div>
+        <div class="lc-score-col">
+          <div class="lc-level-num">L3</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3"/></svg>
+            <div class="ring-val none">—</div>
+          </div>
+        </div>
+        <div class="lc-content">
+          <div class="lc-head">
+            <span class="lc-title">Property Value</span>
+            <span class="lc-weight">25%</span>
+          </div>
+          <div class="lc-summary empty">Is the asking price fair? AVM comparison, recent comps, and list price vs. estimated value for your target property.</div>
+        </div>
+        <div class="lc-cta-col">
+          <a href="/property-intel" target="_blank" rel="noopener" class="lc-btn run">Analyze Property ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- L4 empty -->
+    <div class="lc empty">
+      <div class="lc-inner">
+        <div class="lc-stripe"></div>
+        <div class="lc-score-col">
+          <div class="lc-level-num">L4</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3"/></svg>
+            <div class="ring-val none">—</div>
+          </div>
+        </div>
+        <div class="lc-content">
+          <div class="lc-head">
+            <span class="lc-title">Location Intelligence</span>
+            <span class="lc-weight">15%</span>
+          </div>
+          <div class="lc-summary empty">Schools, walkability, commute, neighborhood trajectory, and appreciation history. Does the location fit your life?</div>
+        </div>
+        <div class="lc-cta-col">
+          <span class="lc-btn soon">Coming Soon</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wealth Monitor -->
+    <div class="wm-section">
+      <div class="wm-header">
+        <span class="wm-badge">Ongoing</span>
+        <span class="wm-title">Wealth Monitor</span>
+      </div>
+      <div class="wm-desc">Not part of your buying score — but essential after you own. Track your investment health, refi timing, and equity position over time.</div>
+      <div class="wm-grid">
+        <a href="/chat?sq=Should+I+refinance+my+mortgage+now" target="_blank" rel="noopener" class="wm-tile">
+          <div class="wm-tile-icon">📉</div>
+          <div class="wm-tile-label">Refi Intelligence</div>
+          <div class="wm-tile-sub">Current rate vs. your rate. Break-even on a new loan.</div>
+          <div class="wm-tile-link">Run in Chat ↗</div>
+        </a>
+        <a href="/my-home" target="_blank" rel="noopener" class="wm-tile">
+          <div class="wm-tile-icon">🏠</div>
+          <div class="wm-tile-label">Equity & HELOC</div>
+          <div class="wm-tile-sub">Estimated equity position and HELOC potential.</div>
+          <div class="wm-tile-link">My Properties ↗</div>
+        </a>
+        <a href="/chat?sq=How+is+the+real+estate+market+impacting+my+home+value" target="_blank" rel="noopener" class="wm-tile">
+          <div class="wm-tile-icon">📊</div>
+          <div class="wm-tile-label">Market Impact</div>
+          <div class="wm-tile-sub">Local market factors affecting your asset value.</div>
+          <div class="wm-tile-link">Run in Chat ↗</div>
+        </a>
+      </div>
+    </div>
+
+  </div><!-- /empty -->
+
+
+  <!-- ═══════════════ PARTIAL (L1 + L3 scored) ═══════════════ -->
+  <div class="state" id="state-partial">
+
+    <!-- Decision Index -->
+    <div class="di-hero">
+      <div class="di-gauge-wrap">
+        <svg viewBox="0 0 108 108">
+          <circle cx="54" cy="54" r="43" fill="none" stroke="#1e293b" stroke-width="7"/>
+          <!-- score 74: (74/100)*270 = 200, offset = 270-200 = 70. Using 270° arc -->
+          <circle cx="54" cy="54" r="43" fill="none" stroke="#4ade80" stroke-width="7"
+            stroke-dasharray="270" stroke-dashoffset="70" stroke-linecap="round"
+            transform="rotate(-135 54 54)"/>
+        </svg>
+        <div class="di-gauge-center">
+          <span class="di-gauge-num">74</span>
+          <span class="di-gauge-denom">/100</span>
+        </div>
+      </div>
+      <div class="di-info">
+        <div class="di-verdict">Ready to Offer</div>
+        <div class="di-summary">Based on 2 of 4 levels. Financial readiness is strong and the property shows near-fair value. Complete L2 Market and L4 Location to sharpen the score.</div>
+        <div class="di-meta">
+          <div class="di-meta-chip"><span>2</span> of 4 levels scored</div>
+          <div class="di-meta-chip"><span>60%</span> of index weight</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Weight distribution bar -->
+    <div style="margin:12px 0 20px">
+      <div class="weight-bar-row">
+        <div class="weight-bar-track">
+          <div class="weight-bar-fill" style="width:60%;background:rgba(74,222,128,0.35)"></div>
+        </div>
+        <span class="weight-bar-label">60% scored · 40% pending</span>
+      </div>
+    </div>
+
+    <div class="t5-section-label">Decision Levels</div>
+
+    <!-- L1 SCORED -->
+    <div class="lc scored">
+      <div class="lc-inner">
+        <div class="lc-stripe"></div>
+        <div class="lc-score-col">
+          <div class="lc-level-num">L1</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="19" fill="none" stroke="#1e293b" stroke-width="3"/>
+              <!-- 83/100 → dash=119.4, fill=99, offset=20.4 -->
+              <circle cx="24" cy="24" r="19" fill="none" stroke="#4ade80" stroke-width="3"
+                stroke-dasharray="119" stroke-dashoffset="20" stroke-linecap="round"
+                transform="rotate(-90 24 24)"/>
+            </svg>
+            <div class="ring-val green">83</div>
+          </div>
+        </div>
+        <div class="lc-content">
+          <div class="lc-head">
+            <span class="lc-title">Financial Readiness</span>
+            <span class="lc-weight">35%</span>
+          </div>
+          <div class="lc-summary active">$185K income, 20% down. Max purchase ~$820K. PITI at $680K is 26% DTI — comfortably within conforming guidelines.</div>
+          <div class="lc-bar">
+            <div class="lc-bar-track"><div class="lc-bar-fill green" style="width:83%"></div></div>
+            <span class="lc-bar-pct">83 / 100</span>
+          </div>
+        </div>
+        <div class="lc-cta-col">
+          <a href="/chat?sq=Update+my+affordability+scenario" target="_blank" rel="noopener" class="lc-btn rerun">Re-run ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- L2 NOT SCORED -->
+    <div class="lc empty">
+      <div class="lc-inner">
+        <div class="lc-stripe"></div>
+        <div class="lc-score-col">
+          <div class="lc-level-num">L2</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3"/></svg>
+            <div class="ring-val none">—</div>
+          </div>
+        </div>
+        <div class="lc-content">
+          <div class="lc-head">
+            <span class="lc-title">Market Conditions</span>
+            <span class="lc-weight">25%</span>
+          </div>
+          <div class="lc-summary empty">Not yet run. Understand buyer/seller dynamics before committing to an offer price.</div>
+        </div>
+        <div class="lc-cta-col">
+          <a href="/chat?sq=Run+a+market+analysis+for+my+area" target="_blank" rel="noopener" class="lc-btn run">Run in Chat ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- L3 SCORED (amber) -->
+    <div class="lc amber">
+      <div class="lc-inner">
+        <div class="lc-stripe"></div>
+        <div class="lc-score-col">
+          <div class="lc-level-num">L3</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="19" fill="none" stroke="#1e293b" stroke-width="3"/>
+              <circle cx="24" cy="24" r="19" fill="none" stroke="#fbbf24" stroke-width="3"
+                stroke-dasharray="119" stroke-dashoffset="38" stroke-linecap="round"
+                transform="rotate(-90 24 24)"/>
+            </svg>
+            <div class="ring-val amber">68</div>
+          </div>
+        </div>
+        <div class="lc-content">
+          <div class="lc-head">
+            <span class="lc-title">Property Value</span>
+            <span class="lc-weight">25%</span>
+          </div>
+          <div class="lc-summary active">123 Main St, Pasadena CA — Listed $749K vs. AVM $712K (+5.2% premium). 3 comps avg $726K. Slight overprice, negotiation room exists.</div>
+          <div class="lc-bar">
+            <div class="lc-bar-track"><div class="lc-bar-fill amber" style="width:68%"></div></div>
+            <span class="lc-bar-pct">68 / 100</span>
+          </div>
+        </div>
+        <div class="lc-cta-col">
+          <a href="/property-intel" target="_blank" rel="noopener" class="lc-btn rerun">Re-run ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- L4 NOT SCORED -->
+    <div class="lc empty">
+      <div class="lc-inner">
+        <div class="lc-stripe"></div>
+        <div class="lc-score-col">
+          <div class="lc-level-num">L4</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3"/></svg>
+            <div class="ring-val none">—</div>
+          </div>
+        </div>
+        <div class="lc-content">
+          <div class="lc-head">
+            <span class="lc-title">Location Intelligence</span>
+            <span class="lc-weight">15%</span>
+          </div>
+          <div class="lc-summary empty">Coming soon — schools, walkability, commute, and neighborhood trajectory.</div>
+        </div>
+        <div class="lc-cta-col">
+          <span class="lc-btn soon">Coming Soon</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wealth Monitor -->
+    <div class="wm-section">
+      <div class="wm-header">
+        <span class="wm-badge">Ongoing</span>
+        <span class="wm-title">Wealth Monitor</span>
+      </div>
+      <div class="wm-desc">Not part of your buying score — but essential after you own.</div>
+      <div class="wm-grid">
+        <a href="#" class="wm-tile">
+          <div class="wm-tile-icon">📉</div>
+          <div class="wm-tile-label">Refi Intelligence</div>
+          <div class="wm-tile-sub">Rate vs. your rate. Break-even on a new loan.</div>
+          <div class="wm-tile-link">Run in Chat ↗</div>
+        </a>
+        <a href="#" class="wm-tile">
+          <div class="wm-tile-icon">🏠</div>
+          <div class="wm-tile-label">Equity & HELOC</div>
+          <div class="wm-tile-sub">Estimated equity and HELOC potential.</div>
+          <div class="wm-tile-link">My Properties ↗</div>
+        </a>
+        <a href="#" class="wm-tile">
+          <div class="wm-tile-icon">📊</div>
+          <div class="wm-tile-label">Market Impact</div>
+          <div class="wm-tile-sub">Local factors affecting your asset value.</div>
+          <div class="wm-tile-link">Run in Chat ↗</div>
+        </a>
+      </div>
+    </div>
+
+  </div><!-- /partial -->
+
+
+  <!-- ═══════════════ FULL (all 4 scored) ═══════════════ -->
+  <div class="state" id="state-full">
+
+    <div class="di-hero">
+      <div class="di-gauge-wrap">
+        <svg viewBox="0 0 108 108">
+          <circle cx="54" cy="54" r="43" fill="none" stroke="#1e293b" stroke-width="7"/>
+          <!-- score 84: (84/100)*270 = 227, offset = 43 -->
+          <circle cx="54" cy="54" r="43" fill="none" stroke="#4ade80" stroke-width="7"
+            stroke-dasharray="270" stroke-dashoffset="43" stroke-linecap="round"
+            transform="rotate(-135 54 54)"/>
+        </svg>
+        <div class="di-gauge-center">
+          <span class="di-gauge-num">84</span>
+          <span class="di-gauge-denom">/100</span>
+        </div>
+      </div>
+      <div class="di-info">
+        <div class="di-verdict">Ready to Offer</div>
+        <div class="di-summary">Strong financial position and good location score. Property is priced slightly above AVM but market conditions are moderate. Negotiate on price — your fundamentals support the move.</div>
+        <div class="di-meta">
+          <div class="di-meta-chip"><span>4</span> of 4 levels scored</div>
+          <div class="di-meta-chip"><span>100%</span> of index weight</div>
+          <div class="di-meta-chip">Updated <span>today</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin:12px 0 20px">
+      <div class="weight-bar-row">
+        <div class="weight-bar-track">
+          <div class="weight-bar-fill" style="width:100%;background:rgba(74,222,128,0.3)"></div>
+        </div>
+        <span class="weight-bar-label">All 4 levels scored</span>
+      </div>
+    </div>
+
+    <div class="t5-section-label">Decision Levels</div>
+
+    <!-- L1 -->
+    <div class="lc scored">
+      <div class="lc-inner">
+        <div class="lc-stripe"></div>
+        <div class="lc-score-col">
+          <div class="lc-level-num">L1</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="19" fill="none" stroke="#1e293b" stroke-width="3"/>
+              <circle cx="24" cy="24" r="19" fill="none" stroke="#4ade80" stroke-width="3"
+                stroke-dasharray="119" stroke-dashoffset="20" stroke-linecap="round"
+                transform="rotate(-90 24 24)"/>
+            </svg>
+            <div class="ring-val green">83</div>
+          </div>
+        </div>
+        <div class="lc-content">
+          <div class="lc-head"><span class="lc-title">Financial Readiness</span><span class="lc-weight">35%</span></div>
+          <div class="lc-summary active">$185K income, 20% down. Max purchase ~$820K. PITI at $680K is 26% DTI — comfortably within conforming guidelines.</div>
+          <div class="lc-bar">
+            <div class="lc-bar-track"><div class="lc-bar-fill green" style="width:83%"></div></div>
+            <span class="lc-bar-pct">83 / 100</span>
+          </div>
+        </div>
+        <div class="lc-cta-col"><a href="#" class="lc-btn rerun">Re-run ↗</a></div>
+      </div>
+    </div>
+
+    <!-- L2 amber -->
+    <div class="lc amber">
+      <div class="lc-inner">
+        <div class="lc-stripe"></div>
+        <div class="lc-score-col">
+          <div class="lc-level-num">L2</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="19" fill="none" stroke="#1e293b" stroke-width="3"/>
+              <circle cx="24" cy="24" r="19" fill="none" stroke="#fbbf24" stroke-width="3"
+                stroke-dasharray="119" stroke-dashoffset="47" stroke-linecap="round"
+                transform="rotate(-90 24 24)"/>
+            </svg>
+            <div class="ring-val amber">61</div>
+          </div>
+        </div>
+        <div class="lc-content">
+          <div class="lc-head"><span class="lc-title">Market Conditions</span><span class="lc-weight">25%</span></div>
+          <div class="lc-summary active">Pasadena CA — 34 avg DOM, 98.1% sale-to-list, inventory up 11% YoY. Moderate buyer market. No urgency but conditions are softening slowly.</div>
+          <div class="lc-bar">
+            <div class="lc-bar-track"><div class="lc-bar-fill amber" style="width:61%"></div></div>
+            <span class="lc-bar-pct">61 / 100</span>
+          </div>
+        </div>
+        <div class="lc-cta-col"><a href="#" class="lc-btn rerun">Re-run ↗</a></div>
+      </div>
+    </div>
+
+    <!-- L3 amber -->
+    <div class="lc amber">
+      <div class="lc-inner">
+        <div class="lc-stripe"></div>
+        <div class="lc-score-col">
+          <div class="lc-level-num">L3</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="19" fill="none" stroke="#1e293b" stroke-width="3"/>
+              <circle cx="24" cy="24" r="19" fill="none" stroke="#fbbf24" stroke-width="3"
+                stroke-dasharray="119" stroke-dashoffset="38" stroke-linecap="round"
+                transform="rotate(-90 24 24)"/>
+            </svg>
+            <div class="ring-val amber">68</div>
+          </div>
+        </div>
+        <div class="lc-content">
+          <div class="lc-head"><span class="lc-title">Property Value</span><span class="lc-weight">25%</span></div>
+          <div class="lc-summary active">123 Main St, Pasadena CA — Listed $749K vs. AVM $712K (+5.2%). 3 comps avg $726K. Slight premium. Negotiate toward $725K–$730K.</div>
+          <div class="lc-bar">
+            <div class="lc-bar-track"><div class="lc-bar-fill amber" style="width:68%"></div></div>
+            <span class="lc-bar-pct">68 / 100</span>
+          </div>
+        </div>
+        <div class="lc-cta-col"><a href="#" class="lc-btn rerun">Re-run ↗</a></div>
+      </div>
+    </div>
+
+    <!-- L4 scored green -->
+    <div class="lc scored">
+      <div class="lc-inner">
+        <div class="lc-stripe"></div>
+        <div class="lc-score-col">
+          <div class="lc-level-num">L4</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="19" fill="none" stroke="#1e293b" stroke-width="3"/>
+              <circle cx="24" cy="24" r="19" fill="none" stroke="#4ade80" stroke-width="3"
+                stroke-dasharray="119" stroke-dashoffset="16" stroke-linecap="round"
+                transform="rotate(-90 24 24)"/>
+            </svg>
+            <div class="ring-val green">87</div>
+          </div>
+        </div>
+        <div class="lc-content">
+          <div class="lc-head"><span class="lc-title">Location Intelligence</span><span class="lc-weight">15%</span></div>
+          <div class="lc-summary active">Pasadena CA — Walk Score 82, top-rated school district, avg commute 24 min. Neighborhood appreciation +6.2% over 3 yrs. Strong location fundamentals.</div>
+          <div class="lc-bar">
+            <div class="lc-bar-track"><div class="lc-bar-fill green" style="width:87%"></div></div>
+            <span class="lc-bar-pct">87 / 100</span>
+          </div>
+        </div>
+        <div class="lc-cta-col"><a href="#" class="lc-btn rerun">Re-run ↗</a></div>
+      </div>
+    </div>
+
+    <!-- Wealth Monitor -->
+    <div class="wm-section">
+      <div class="wm-header">
+        <span class="wm-badge">Ongoing</span>
+        <span class="wm-title">Wealth Monitor</span>
+      </div>
+      <div class="wm-desc">Not part of your buying score — but essential after you own. Track your investment health, refi timing, and equity position over time.</div>
+      <div class="wm-grid">
+        <a href="#" class="wm-tile">
+          <div class="wm-tile-icon">📉</div>
+          <div class="wm-tile-label">Refi Intelligence</div>
+          <div class="wm-tile-sub">Current rate vs. your rate. Break-even on a new loan.</div>
+          <div class="wm-tile-link">Run in Chat ↗</div>
+        </a>
+        <a href="#" class="wm-tile">
+          <div class="wm-tile-icon">🏠</div>
+          <div class="wm-tile-label">Equity & HELOC</div>
+          <div class="wm-tile-sub">Estimated equity position and HELOC potential.</div>
+          <div class="wm-tile-link">My Properties ↗</div>
+        </a>
+        <a href="#" class="wm-tile">
+          <div class="wm-tile-icon">📊</div>
+          <div class="wm-tile-label">Market Impact</div>
+          <div class="wm-tile-sub">Local factors affecting your asset value.</div>
+          <div class="wm-tile-link">Run in Chat ↗</div>
+        </a>
+      </div>
+    </div>
+
+  </div><!-- /full -->
+
+</div><!-- /body -->
+
+<script>
+function showState(name){
+  document.querySelectorAll('.state').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.demo-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('state-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

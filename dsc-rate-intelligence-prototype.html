@@ -1,0 +1,800 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DSC + Rate Intelligence — Embedded Prototype</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080c12; font-family: 'DM Sans', system-ui, sans-serif; color: #f0f4ff; padding: 32px 20px 100px; }
+  .wrap { max-width: 560px; margin: 0 auto; }
+
+  .section-label {
+    font-size: 0.65rem; font-weight: 700; color: rgba(185,208,192,0.25);
+    text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 14px;
+  }
+  hr { border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 52px 0; }
+
+  /* ════════════════════════════════════
+     DECISION SCORE CARD
+  ════════════════════════════════════ */
+  .dsc-card {
+    background: #0e1420;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  /* Header */
+  .dsc-header {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; gap: 16px;
+  }
+  .dsc-ring {
+    width: 66px; height: 66px; border-radius: 50%; flex-shrink: 0;
+    border: 3px solid #00e87a;
+    background: rgba(0,232,122,0.05);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .dsc-score-num { font-size: 1.55rem; font-weight: 900; color: #4ade80; line-height: 1; }
+  .dsc-score-den { font-size: 0.55rem; color: rgba(185,208,192,0.28); letter-spacing: 0.04em; margin-top: 1px; }
+  .dsc-header-body {}
+  .dsc-eyebrow { font-size: 0.6rem; font-weight: 700; color: rgba(0,232,122,0.5); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
+  .dsc-title { font-size: 1.05rem; font-weight: 800; color: #f0f4ff; }
+  .dsc-sub { font-size: 0.73rem; color: rgba(185,208,192,0.38); margin-top: 3px; line-height: 1.4; }
+
+  /* Factors */
+  .dsc-factors {
+    padding: 11px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .fc {
+    font-size: 0.7rem; font-weight: 600; border-radius: 6px; padding: 4px 10px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .fc.pass { color: #4ade80; background: rgba(0,232,122,0.07); border: 1px solid rgba(0,232,122,0.18); }
+  .fc.warn { color: #fbbf24; background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.2); }
+  .fc.neutral { color: rgba(185,208,192,0.5); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); }
+
+  /* Property row */
+  .dsc-property {
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .prop-val { font-size: 0.78rem; }
+  .prop-val strong { color: rgba(185,208,192,0.75); font-weight: 700; }
+  .prop-val span { color: rgba(185,208,192,0.38); }
+
+  /* Completion track */
+  .dsc-track {
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; gap: 0;
+  }
+  .track-step {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative;
+  }
+  .track-step::after {
+    content: ''; position: absolute; top: 9px; left: 50%; right: -50%;
+    height: 1px; background: rgba(255,255,255,0.07); z-index: 0;
+  }
+  .track-step:last-child::after { display: none; }
+  .track-dot {
+    width: 18px; height: 18px; border-radius: 50%; z-index: 1;
+    font-size: 0.6rem; display: flex; align-items: center; justify-content: center;
+    font-weight: 800;
+  }
+  .track-dot.done { background: rgba(0,232,122,0.15); border: 1.5px solid rgba(0,232,122,0.4); color: #4ade80; }
+  .track-dot.pending { background: rgba(139,92,246,0.1); border: 1.5px solid rgba(139,92,246,0.3); color: rgba(167,139,250,0.6); }
+  .track-dot.locked { background: rgba(255,255,255,0.04); border: 1.5px solid rgba(255,255,255,0.08); color: rgba(185,208,192,0.2); }
+  .track-lbl { font-size: 0.58rem; color: rgba(185,208,192,0.28); text-align: center; font-weight: 600; }
+  .track-lbl.done { color: rgba(0,232,122,0.45); }
+  .track-lbl.pending { color: rgba(167,139,250,0.5); }
+
+  /* ════════════════════════════════════
+     RATE INTELLIGENCE — EMBEDDED SECTION
+  ════════════════════════════════════ */
+  .rie-section { border-top: 1px solid rgba(139,92,246,0.15); }
+
+  /* Teaser row */
+  .rie-teaser {
+    padding: 13px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; background: rgba(139,92,246,0.025);
+    transition: background 0.15s;
+  }
+  .rie-teaser:hover { background: rgba(139,92,246,0.06); }
+  .rie-teaser-left { display: flex; align-items: center; gap: 10px; }
+  .rie-icon-wrap {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2);
+    display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+  }
+  .rie-teaser-label { font-size: 0.82rem; font-weight: 700; color: rgba(167,139,250,0.85); }
+  .rie-teaser-sub { font-size: 0.68rem; color: rgba(185,208,192,0.3); margin-top: 1px; }
+  .rie-chevron {
+    font-size: 0.7rem; color: rgba(167,139,250,0.35);
+    transition: transform 0.2s; display: inline-block;
+  }
+  .rie-chevron.open { transform: rotate(180deg); }
+
+  /* Expanded inputs */
+  .rie-body {
+    display: none;
+    padding: 14px 20px 16px;
+    border-top: 1px solid rgba(139,92,246,0.1);
+    background: rgba(139,92,246,0.02);
+  }
+  .rie-body.visible { display: block; }
+
+  .rie-prefill-note {
+    padding: 9px 12px; margin-bottom: 14px;
+    background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.1);
+    border-left: 2px solid rgba(0,232,122,0.3);
+    border-radius: 8px; font-size: 0.72rem; color: rgba(185,208,192,0.4); line-height: 1.55;
+  }
+  .rie-prefill-note strong { color: rgba(0,232,122,0.6); }
+
+  .rie-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .rie-field { display: flex; flex-direction: column; gap: 5px; }
+  .rie-lbl { font-size: 0.6rem; font-weight: 700; color: rgba(185,208,192,0.28); text-transform: uppercase; letter-spacing: 0.08em; }
+  .rie-input-wrap { position: relative; }
+  .rie-inp {
+    width: 100%; padding: 9px 12px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px; color: rgba(185,208,192,0.6); font-size: 0.83rem; font-family: inherit;
+    outline: none;
+  }
+  .rie-inp.prefilled { border-color: rgba(0,232,122,0.18); }
+  .pre-tag {
+    position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+    font-size: 0.57rem; font-weight: 700; color: rgba(0,232,122,0.5);
+    background: rgba(0,232,122,0.07); border-radius: 3px; padding: 1px 5px;
+    pointer-events: none;
+  }
+
+  /* Credit score spotlight */
+  .score-spotlight {
+    margin-bottom: 12px; padding: 12px 14px;
+    background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.22);
+    border-radius: 10px;
+  }
+  .ss-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .ss-label { font-size: 0.6rem; font-weight: 700; color: rgba(167,139,250,0.55); text-transform: uppercase; letter-spacing: 0.08em; }
+  .ss-hint { font-size: 0.65rem; color: rgba(167,139,250,0.35); }
+  .ss-row { display: flex; align-items: center; gap: 10px; }
+  .ss-input {
+    flex: 0 0 100px; padding: 10px; text-align: center;
+    background: rgba(255,255,255,0.05); border: 2px solid rgba(139,92,246,0.35);
+    border-radius: 9px; color: #f0f4ff; font-size: 1.1rem; font-weight: 800; font-family: inherit;
+    outline: none;
+  }
+  .ss-input:focus { border-color: rgba(139,92,246,0.6); }
+  .ss-scale { flex: 1; }
+  .ss-scale-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.06); margin-bottom: 5px; position: relative; }
+  .ss-scale-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #f87171, #fbbf24, #4ade80); width: 72%; }
+  .ss-scale-labels { display: flex; justify-content: space-between; font-size: 0.6rem; color: rgba(185,208,192,0.25); }
+
+  /* Lock pills */
+  .lock-row { margin-bottom: 12px; }
+  .lock-pills { display: flex; gap: 6px; margin-top: 5px; }
+  .lp {
+    flex: 1; padding: 8px 0; text-align: center;
+    font-size: 0.72rem; font-weight: 700; cursor: pointer; font-family: inherit;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 7px; color: rgba(185,208,192,0.35); transition: all 0.12s;
+  }
+  .lp.selected { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.3); color: rgba(167,139,250,0.9); }
+  .lp:hover:not(.selected) { background: rgba(255,255,255,0.06); }
+
+  /* Decode button */
+  .decode-btn {
+    width: 100%; padding: 13px;
+    background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.3);
+    border-radius: 11px; color: #a78bfa; font-weight: 800; font-size: 0.92rem; font-family: inherit;
+    cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+  }
+  .decode-btn:hover { background: rgba(139,92,246,0.22); border-color: rgba(139,92,246,0.45); }
+
+  /* ════════════════════════════════════
+     DECODED RESULT — inline in card
+  ════════════════════════════════════ */
+  .rie-result {
+    display: none;
+    border-top: 1px solid rgba(139,92,246,0.12);
+    background: rgba(139,92,246,0.03);
+  }
+  .rie-result.visible { display: block; }
+
+  .rr-header {
+    padding: 16px 20px 12px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
+  }
+  .rr-eyebrow { font-size: 0.6rem; font-weight: 700; color: rgba(167,139,250,0.5); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 3px; }
+  .rr-title { font-size: 1rem; font-weight: 800; color: #f0f4ff; }
+  .rr-sub { font-size: 0.72rem; color: rgba(185,208,192,0.35); margin-top: 2px; }
+  .rr-rate-chip {
+    flex-shrink: 0; text-align: center;
+    background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.28);
+    border-radius: 11px; padding: 9px 18px;
+  }
+  .rr-rate-num { font-size: 1.7rem; font-weight: 900; color: #a78bfa; line-height: 1; }
+  .rr-rate-lbl { font-size: 0.58rem; color: rgba(167,139,250,0.38); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 2px; }
+
+  .rr-stats {
+    padding: 0 20px 12px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .rr-stat-lbl { font-size: 0.58rem; color: rgba(185,208,192,0.25); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; }
+  .rr-stat-val { font-size: 0.9rem; font-weight: 700; }
+  .rr-stat-val.amber { color: #fbbf24; }
+  .rr-stat-val.green { color: #4ade80; }
+  .rr-stat-val.purple { color: #a78bfa; }
+  .rr-stat-note { font-size: 0.62rem; color: rgba(185,208,192,0.25); margin-top: 1px; }
+
+  .rr-brief {
+    padding: 11px 20px;
+    font-size: 0.75rem; color: rgba(185,208,192,0.38); line-height: 1.6;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .rr-brief strong { color: rgba(185,208,192,0.62); }
+
+  /* Updated DSC score after rate decoded */
+  .rr-score-update {
+    padding: 10px 20px;
+    background: rgba(0,232,122,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .rr-score-update-icon { font-size: 0.85rem; }
+  .rr-score-update-text { font-size: 0.73rem; color: rgba(185,208,192,0.38); flex: 1; }
+  .rr-score-update-text strong { color: rgba(0,232,122,0.6); }
+  .rr-score-badge { font-size: 0.7rem; font-weight: 700; color: #4ade80; background: rgba(0,232,122,0.08); border: 1px solid rgba(0,232,122,0.18); border-radius: 6px; padding: 3px 9px; }
+
+  .rr-cta-row {
+    padding: 14px 20px;
+    display: flex; gap: 8px;
+  }
+  .see-lenders-btn {
+    flex: 1; padding: 12px;
+    background: #4ade80; border: none;
+    border-radius: 10px; color: #080c12; font-weight: 800; font-size: 0.88rem;
+    font-family: inherit; cursor: pointer; transition: background 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .see-lenders-btn:hover { background: #6ee7b7; }
+  .retune-btn {
+    padding: 12px 14px; background: none;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; color: rgba(185,208,192,0.28); font-size: 0.73rem;
+    font-family: inherit; cursor: pointer; white-space: nowrap;
+  }
+  .retune-btn:hover { background: rgba(255,255,255,0.03); }
+
+  /* ════════════════════════════════════
+     RATE TABLE — surfaces below
+  ════════════════════════════════════ */
+  .rate-table-wrap {
+    display: none; margin-top: 10px;
+    animation: fadeSlideIn 0.3s ease;
+  }
+  .rate-table-wrap.visible { display: block; }
+  @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .rate-table-card {
+    background: #0e1420;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px; overflow: hidden;
+  }
+
+  .rt-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  }
+  .rt-eyebrow { font-size: 0.6rem; font-weight: 700; color: rgba(0,232,122,0.55); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
+  .rt-title { font-size: 0.95rem; font-weight: 800; color: #f0f4ff; }
+  .rt-sub { font-size: 0.72rem; color: rgba(185,208,192,0.35); margin-top: 2px; }
+  .rt-badge {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(0,232,122,0.07); border: 1px solid rgba(0,232,122,0.18);
+    border-radius: 20px; padding: 5px 12px; white-space: nowrap;
+    font-size: 0.7rem; font-weight: 700; color: #4ade80; flex-shrink: 0;
+  }
+  .rt-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* Reference bar — decoded rate vs offers */
+  .rt-ref-bar {
+    padding: 9px 20px;
+    background: rgba(139,92,246,0.03); border-bottom: 1px solid rgba(139,92,246,0.1);
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .rt-ref-lbl { font-size: 0.62rem; color: rgba(167,139,250,0.4); white-space: nowrap; }
+  .rt-ref-chip {
+    font-size: 0.68rem; font-weight: 700;
+    background: rgba(139,92,246,0.09); border: 1px solid rgba(139,92,246,0.22);
+    border-radius: 5px; padding: 2px 9px; color: rgba(167,139,250,0.75);
+  }
+  .rt-ref-note { font-size: 0.62rem; color: rgba(185,208,192,0.28); }
+
+  .criteria-bar {
+    padding: 8px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    background: rgba(255,255,255,0.01);
+    display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  }
+  .cr-lbl { font-size: 0.6rem; color: rgba(185,208,192,0.25); margin-right: 2px; }
+  .cr-chip {
+    font-size: 0.63rem; font-weight: 600; color: rgba(74,222,128,0.65);
+    background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.13);
+    border-radius: 4px; padding: 2px 7px;
+  }
+
+  .rt-cols {
+    display: grid; grid-template-columns: 100px 1fr 1fr 1fr 100px;
+    padding: 7px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .rt-col-lbl { font-size: 0.6rem; font-weight: 700; color: rgba(185,208,192,0.25); text-transform: uppercase; letter-spacing: 0.07em; }
+  .rt-col-lbl.r { text-align: right; }
+
+  .rt-row {
+    display: grid; grid-template-columns: 100px 1fr 1fr 1fr 100px;
+    padding: 13px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    align-items: center; transition: background 0.12s; cursor: default;
+  }
+  .rt-row:last-child { border-bottom: none; }
+  .rt-row:hover { background: rgba(255,255,255,0.02); }
+  .rt-row.best { background: rgba(0,232,122,0.02); }
+  .rt-row.best:hover { background: rgba(0,232,122,0.045); }
+
+  .rt-cell {}
+  .lender-name { font-size: 0.78rem; font-weight: 700; color: rgba(185,208,192,0.55); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .best-tag { font-size: 0.55rem; font-weight: 800; color: #4ade80; background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.22); border-radius: 4px; padding: 1px 5px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .rate-val { font-size: 1.08rem; font-weight: 800; color: #f0f4ff; }
+  .rate-val.best-rate { color: #4ade80; }
+  .rate-note { font-size: 0.63rem; color: rgba(185,208,192,0.28); margin-top: 1px; }
+  .rate-delta { font-size: 0.62rem; font-weight: 700; border-radius: 4px; padding: 1px 6px; margin-top: 2px; display: inline-block; }
+  .rate-delta.at-par { color: rgba(0,232,122,0.65); background: rgba(0,232,122,0.07); }
+  .rate-delta.above { color: rgba(251,191,36,0.7); background: rgba(251,191,36,0.06); }
+  .apr-val { font-size: 0.85rem; font-weight: 700; color: rgba(185,208,192,0.65); }
+  .monthly-val { font-size: 0.85rem; font-weight: 700; color: #f0f4ff; }
+  .monthly-note { font-size: 0.62rem; color: rgba(185,208,192,0.28); margin-top: 1px; }
+  .explore-btn {
+    padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 0.75rem;
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+    border: 1px solid rgba(0,232,122,0.22);
+    background: rgba(0,232,122,0.07); color: #4ade80;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    white-space: nowrap; margin-left: auto;
+  }
+  .explore-btn:hover { background: rgba(0,232,122,0.14); }
+
+  .rt-more {
+    padding: 12px 20px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .rt-more-note { font-size: 0.72rem; color: rgba(185,208,192,0.3); }
+  .rt-more-btn {
+    font-size: 0.74rem; font-weight: 600; color: rgba(185,208,192,0.4); font-family: inherit;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 7px; padding: 7px 13px; cursor: pointer;
+  }
+  .rt-footer {
+    padding: 11px 20px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    font-size: 0.63rem; color: rgba(185,208,192,0.22); line-height: 1.6;
+  }
+  .rt-footer strong { color: rgba(185,208,192,0.4); }
+
+  
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 1: Decision Score Card + Embedded Rate Intelligence
+  ══════════════════════════════════════════════════════════ -->
+  <div class="section-label">Surface A — Decision Score Card with Rate Intelligence embedded</div>
+
+  <div class="dsc-card" id="dscCard">
+
+    <!-- Score header -->
+    <div class="dsc-header">
+      <div class="dsc-ring">
+        <div class="dsc-score-num">74</div>
+        <div class="dsc-score-den">/ 100</div>
+      </div>
+      <div class="dsc-header-body">
+        <div class="dsc-eyebrow">Decision Score · L1–L4</div>
+        <div class="dsc-title">My Decision Portfolio</div>
+        <div class="dsc-sub">Good position — strong FICO, healthy LTV. Rate intelligence pending to complete your profile.</div>
+      </div>
+    </div>
+
+    <!-- Factors -->
+    <div class="dsc-factors">
+      <span class="fc pass">✓ 740 FICO</span>
+      <span class="fc pass">✓ 80% LTV</span>
+      <span class="fc pass">✓ Primary residence</span>
+      <span class="fc warn">⚠ DTI 41% — watch</span>
+      <span class="fc neutral">↗ Conventional · 30yr</span>
+    </div>
+
+    <!-- Property -->
+    <div class="dsc-property">
+      <span style="font-size:0.9rem">🏠</span>
+      <span class="prop-val"><strong>91362 · Ventura County</strong> <span>· $990,000 · $792,000 loan · High-balance conforming</span></span>
+    </div>
+
+    <!-- L1→L5 track -->
+    <div class="dsc-track">
+      <div class="track-step">
+        <div class="track-dot done">✓</div>
+        <div class="track-lbl done">Scenario</div>
+      </div>
+      <div class="track-step">
+        <div class="track-dot done">✓</div>
+        <div class="track-lbl done">Profile</div>
+      </div>
+      <div class="track-step">
+        <div class="track-dot done">✓</div>
+        <div class="track-lbl done">Property</div>
+      </div>
+      <div class="track-step">
+        <div class="track-dot done">✓</div>
+        <div class="track-lbl done">Location</div>
+      </div>
+      <div class="track-step">
+        <div class="track-dot pending" id="l5dot">L5</div>
+        <div class="track-lbl pending" id="l5lbl">Rate</div>
+      </div>
+    </div>
+
+    <!-- ── Rate Intelligence section ── -->
+    <div class="rie-section">
+
+      <!-- Teaser row (resting state) -->
+      <div class="rie-teaser" id="rieTeaser" onclick="toggleRie()">
+        <div class="rie-teaser-left">
+          <div class="rie-icon-wrap">🔬</div>
+          <div>
+            <div class="rie-teaser-label">Rate Intelligence</div>
+            <div class="rie-teaser-sub" id="rieTeaserSub">Decode your exact LLPA pricing — one input needed</div>
+          </div>
+        </div>
+        <span class="rie-chevron" id="rieChevron">▼</span>
+      </div>
+
+      <!-- Inputs (expanded) -->
+      <div class="rie-body" id="rieBody">
+        <div class="rie-prefill-note">
+          <strong>Loan details pre-filled from your scenario.</strong> Your credit score is the main variable — it's the biggest single pricing factor and not part of the chat.
+        </div>
+
+        <div class="rie-grid">
+          <div class="rie-field">
+            <div class="rie-lbl">Loan Amount</div>
+            <div class="rie-input-wrap">
+              <input class="rie-inp prefilled" value="$792,000" readonly />
+              <span class="pre-tag">✓ scenario</span>
+            </div>
+          </div>
+          <div class="rie-field">
+            <div class="rie-lbl">LTV</div>
+            <div class="rie-input-wrap">
+              <input class="rie-inp prefilled" value="80%" readonly />
+              <span class="pre-tag">✓ scenario</span>
+            </div>
+          </div>
+          <div class="rie-field">
+            <div class="rie-lbl">Loan Purpose</div>
+            <div class="rie-input-wrap">
+              <input class="rie-inp prefilled" value="Purchase" readonly />
+              <span class="pre-tag">✓ scenario</span>
+            </div>
+          </div>
+          <div class="rie-field">
+            <div class="rie-lbl">County Limit</div>
+            <div class="rie-input-wrap">
+              <input class="rie-inp prefilled" value="$1,209,750 · HB ✓" readonly />
+              <span class="pre-tag">✓ Ventura</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Credit score spotlight -->
+        <div class="score-spotlight">
+          <div class="ss-top">
+            <span class="ss-label">⚡ Credit Score — the biggest single pricing factor</span>
+            <span class="ss-hint">580–850</span>
+          </div>
+          <div class="ss-row">
+            <input class="ss-input" id="scoreInput" type="number" min="580" max="850" value="740" />
+            <div class="ss-scale">
+              <div class="ss-scale-bar"><div class="ss-scale-fill"></div></div>
+              <div class="ss-scale-labels"><span>Fair</span><span>Good</span><span>Excellent</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lock period -->
+        <div class="lock-row">
+          <div class="rie-lbl">Rate Lock Period</div>
+          <div class="lock-pills">
+            <button class="lp" onclick="selectLock(this)">15-day</button>
+            <button class="lp selected" onclick="selectLock(this)">30-day</button>
+            <button class="lp" onclick="selectLock(this)">45-day</button>
+            <button class="lp" onclick="selectLock(this)">60-day</button>
+          </div>
+        </div>
+
+        <button class="decode-btn" onclick="showResult()">
+          🔬 Decode my rate →
+        </button>
+      </div>
+
+      <!-- Result (inline, after decode) -->
+      <div class="rie-result" id="rieResult">
+        <div class="rr-header">
+          <div>
+            <div class="rr-eyebrow">Rate Intelligence · L5 Complete</div>
+            <div class="rr-title">Your rate is decoded</div>
+            <div class="rr-sub">Fannie Mae LLPA · 740 FICO · 80% LTV · Ventura County</div>
+          </div>
+          <div class="rr-rate-chip">
+            <div class="rr-rate-num">6.750%</div>
+            <div class="rr-rate-lbl">Fair par rate</div>
+          </div>
+        </div>
+
+        <div class="rr-stats">
+          <div>
+            <div class="rr-stat-lbl">FRED par</div>
+            <div class="rr-stat-val purple">6.82%</div>
+            <div class="rr-stat-note">live FRED rate</div>
+          </div>
+          <div>
+            <div class="rr-stat-lbl">LLPA adj</div>
+            <div class="rr-stat-val amber">−0.125%</div>
+            <div class="rr-stat-note">net credit</div>
+          </div>
+          <div>
+            <div class="rr-stat-lbl">Conforming</div>
+            <div class="rr-stat-val green">High-bal ✓</div>
+            <div class="rr-stat-note">Ventura ceiling</div>
+          </div>
+        </div>
+
+        <div class="rr-brief">
+          <strong>Your negotiation position:</strong> A lender offering 6.750%–6.875% is pricing at or near par with no hidden margin. A rate above 7.0% on this scenario would reflect over 0.25% in lender margin — ask for an itemised Loan Estimate to see Line A (origination charges) before committing.
+        </div>
+
+        <!-- Score update -->
+        <div class="rr-score-update">
+          <span class="rr-score-update-icon">📊</span>
+          <span class="rr-score-update-text">Decision Score updated — <strong>Rate Intelligence complete</strong>. Your profile is now fully verified.</span>
+          <span class="rr-score-badge">81 / 100</span>
+        </div>
+
+        <div class="rr-cta-row">
+          <button class="see-lenders-btn" onclick="showLenders()">
+            See eligible lenders →
+          </button>
+          <button class="retune-btn" onclick="reTune()">Adjust inputs</button>
+        </div>
+      </div>
+
+    </div>
+    <!-- /rie-section -->
+
+  </div>
+  <!-- /dsc-card -->
+
+  <!-- Rate table — appears below card after decode -->
+  <div class="rate-table-wrap" id="rateTable">
+    <div class="rate-table-card">
+
+      <div class="rt-header">
+        <div>
+          <div class="rt-eyebrow">Live rate offers</div>
+          <div class="rt-title">Lenders eligible for your scenario</div>
+          <div class="rt-sub">Sorted by APR · Lender identity hidden until you connect</div>
+        </div>
+        <div class="rt-badge">
+          <div class="rt-dot"></div>
+          3 eligible
+        </div>
+      </div>
+
+      <!-- Reference bar — this is what makes it different from Bankrate -->
+      <div class="rt-ref-bar">
+        <span class="rt-ref-lbl">Your decoded fair par:</span>
+        <span class="rt-ref-chip">6.750%</span>
+        <span class="rt-ref-note">— offers at or below this are at market; above = lender margin</span>
+      </div>
+
+      <div class="criteria-bar">
+        <span class="cr-lbl">Eligible criteria:</span>
+        <span class="cr-chip">✓ 740 FICO</span>
+        <span class="cr-chip">✓ 80% LTV</span>
+        <span class="cr-chip">✓ $792k loan</span>
+        <span class="cr-chip">✓ Conventional</span>
+        <span class="cr-chip">✓ Ventura County</span>
+        <span class="cr-chip">✓ 30-day lock</span>
+      </div>
+
+      <div class="rt-cols">
+        <div class="rt-col-lbl">Lender</div>
+        <div class="rt-col-lbl">Rate</div>
+        <div class="rt-col-lbl">APR</div>
+        <div class="rt-col-lbl">Monthly P&I</div>
+        <div class="rt-col-lbl r"></div>
+      </div>
+
+      <!-- Row 1 — at par -->
+      <div class="rt-row best">
+        <div class="rt-cell">
+          <div class="lender-name">Lender A <span class="best-tag">Best APR</span></div>
+        </div>
+        <div class="rt-cell">
+          <div class="rate-val best-rate">6.750%</div>
+          <div class="rate-note">PAR · no points</div>
+          <span class="rate-delta at-par">= fair par</span>
+        </div>
+        <div class="rt-cell">
+          <div class="apr-val">6.921%</div>
+        </div>
+        <div class="rt-cell">
+          <div class="monthly-val">$5,136</div>
+          <div class="monthly-note">30-yr fixed</div>
+        </div>
+        <div class="rt-cell">
+          <a class="explore-btn" href="rate-table-prototype.html" target="_blank">Explore →</a>
+        </div>
+      </div>
+
+      <!-- Row 2 — 0.125 above -->
+      <div class="rt-row">
+        <div class="rt-cell">
+          <div class="lender-name">Lender B</div>
+        </div>
+        <div class="rt-cell">
+          <div class="rate-val">6.875%</div>
+          <div class="rate-note">PAR · no points</div>
+          <span class="rate-delta above">+0.125% · $57/mo</span>
+        </div>
+        <div class="rt-cell">
+          <div class="apr-val">7.051%</div>
+        </div>
+        <div class="rt-cell">
+          <div class="monthly-val">$5,193</div>
+          <div class="monthly-note">30-yr fixed</div>
+        </div>
+        <div class="rt-cell">
+          <a class="explore-btn" href="rate-table-prototype.html" target="_blank">Explore →</a>
+        </div>
+      </div>
+
+      <!-- Row 3 — 0.25 above -->
+      <div class="rt-row">
+        <div class="rt-cell">
+          <div class="lender-name">Lender C</div>
+        </div>
+        <div class="rt-cell">
+          <div class="rate-val">7.000%</div>
+          <div class="rate-note">PAR · no points</div>
+          <span class="rate-delta above">+0.25% · $115/mo</span>
+        </div>
+        <div class="rt-cell">
+          <div class="apr-val">7.182%</div>
+        </div>
+        <div class="rt-cell">
+          <div class="monthly-val">$5,251</div>
+          <div class="monthly-note">30-yr fixed</div>
+        </div>
+        <div class="rt-cell">
+          <a class="explore-btn" href="rate-table-prototype.html" target="_blank">Explore →</a>
+        </div>
+      </div>
+
+      <div class="rt-more">
+        <span class="rt-more-note">Showing 3 of 11 lenders eligible for this scenario</span>
+        <button class="rt-more-btn">Review more ↓</button>
+      </div>
+
+      <div class="rt-footer">
+        Rates computed from live FRED par rate + Fannie Mae LLPA matrix + each lender's submitted margin.
+        Lenders are listed because your scenario meets their published eligibility criteria — <strong>not because HomeRates selects or endorses them.</strong>
+        Lender identity is revealed only when you choose to connect.
+      </div>
+
+    </div>
+  </div>
+
+
+</div><!-- /wrap -->
+
+<script>
+  /* ── RIE state ── */
+  let rieOpen = false;
+  let decoded = false;
+
+  function toggleRie() {
+    if (decoded) return;
+    rieOpen = !rieOpen;
+    document.getElementById('rieBody').classList.toggle('visible', rieOpen);
+    document.getElementById('rieChevron').classList.toggle('open', rieOpen);
+    document.getElementById('rieTeaserSub').textContent = rieOpen
+      ? 'Credit score entered — tap Decode to get your exact rate'
+      : 'Decode your exact LLPA pricing — one input needed';
+  }
+
+  function selectLock(el) {
+    document.querySelectorAll('.lp').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function showResult() {
+    decoded = true;
+    document.getElementById('rieBody').classList.remove('visible');
+    document.getElementById('rieResult').classList.add('visible');
+    document.getElementById('rieTeaser').style.cursor = 'default';
+    document.getElementById('rieChevron').style.display = 'none';
+    document.getElementById('rieTeaserSub').textContent = '6.750% fair par · 740 FICO · Ventura County · L5 complete ✓';
+    document.querySelector('.rie-teaser-label').textContent = 'Rate Intelligence — Complete';
+    document.querySelector('.rie-teaser-label').style.color = '#4ade80';
+    document.querySelector('.rie-icon-wrap').textContent = '✓';
+    document.querySelector('.rie-icon-wrap').style.background = 'rgba(0,232,122,0.1)';
+    document.querySelector('.rie-icon-wrap').style.borderColor = 'rgba(0,232,122,0.2)';
+    const dot = document.getElementById('l5dot');
+    const lbl = document.getElementById('l5lbl');
+    dot.className = 'track-dot done'; dot.textContent = '✓';
+    lbl.className = 'track-lbl done';
+    document.querySelector('.dsc-score-num').textContent = '81';
+    document.querySelector('.dsc-sub').textContent = 'Decision profile complete — Rate Intelligence verified. You\'re ready to compare lenders.';
+  }
+
+  function showLenders() {
+    const table = document.getElementById('rateTable');
+    table.classList.add('visible');
+    setTimeout(() => table.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+
+  function reTune() {
+    decoded = false;
+    document.getElementById('rieResult').classList.remove('visible');
+    document.getElementById('rieBody').classList.add('visible');
+    document.getElementById('rieChevron').style.display = '';
+    document.querySelector('.rie-teaser-label').textContent = 'Rate Intelligence';
+    document.querySelector('.rie-teaser-label').style.color = '';
+    document.getElementById('rieTeaserSub').textContent = 'Adjust your inputs and decode again';
+    document.querySelector('.rie-icon-wrap').textContent = '🔬';
+    document.querySelector('.rie-icon-wrap').style.background = '';
+    document.querySelector('.rie-icon-wrap').style.borderColor = '';
+    rieOpen = true;
+    document.getElementById('rieChevron').classList.add('open');
+    const dot = document.getElementById('l5dot');
+    const lbl = document.getElementById('l5lbl');
+    dot.className = 'track-dot pending'; dot.textContent = 'L5';
+    lbl.className = 'track-lbl pending';
+    document.querySelector('.dsc-score-num').textContent = '74';
+    document.querySelector('.dsc-sub').textContent = 'Good position — strong FICO, healthy LTV. Rate intelligence pending to complete your profile.';
+    document.getElementById('rateTable').classList.remove('visible');
+
+  }
+
+
+</script>
+</body>
+</html>

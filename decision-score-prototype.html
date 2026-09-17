@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Decision Score — Prototype</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080c12; color: #e0f0e8; font-family: 'DM Sans', system-ui, sans-serif; }
+
+  /* ── Header ── */
+  .hdr { position: sticky; top: 0; z-index: 50; width: 100%;
+    background: rgba(8,12,18,0.94); backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .hdr-inner { max-width: 900px; margin: 0 auto; padding: 0 24px; height: 56px;
+    display: flex; align-items: center; justify-content: space-between; }
+  .logo { font-size: 0.9rem; font-weight: 800; color: #00e87a; letter-spacing: -0.01em; }
+  .hdr-cta { font-size: 0.82rem; font-weight: 600; color: #00e87a; text-decoration: none;
+    padding: 6px 14px; border: 1px solid rgba(0,232,122,0.3); border-radius: 8px; }
+
+  /* ── Main ── */
+  main { max-width: 900px; margin: 0 auto; padding: 64px 24px 100px;
+    display: flex; flex-direction: column; gap: 64px; }
+
+  /* ── Hero ── */
+  .hero { text-align: center; }
+  .eyebrow { display: inline-block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: #00e87a; background: rgba(0,232,122,0.08);
+    border: 1px solid rgba(0,232,122,0.2); border-radius: 6px; padding: 4px 10px;
+    margin-bottom: 20px; }
+  h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); font-weight: 900; color: #f0f4ff;
+    line-height: 1.06; letter-spacing: -0.025em; margin-bottom: 22px; }
+  .hero-sub { font-size: 1.05rem; color: rgba(185,208,192,0.75); max-width: 580px;
+    margin: 0 auto 32px; line-height: 1.7; }
+  .hero-cta { display: inline-flex; align-items: center; gap: 8px;
+    background: #00e87a; color: #07100f; font-size: 0.95rem; font-weight: 800;
+    padding: 14px 30px; border-radius: 10px; text-decoration: none; }
+
+  /* ── Section labels ── */
+  .sec-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: #00e87a; margin-bottom: 10px; }
+  h2 { font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 800; color: #f0f4ff;
+    letter-spacing: -0.015em; line-height: 1.2; margin-bottom: 14px; }
+  .sec-body { font-size: 0.95rem; color: rgba(185,208,192,0.8); line-height: 1.72; }
+
+  /* ── Journey flow ── */
+  .journey { display: flex; flex-direction: column; gap: 0; }
+
+  .jstep { display: grid; grid-template-columns: 56px 1fr; gap: 20px;
+    position: relative; padding-bottom: 0; }
+
+  /* vertical connector line */
+  .jstep:not(:last-child) .jstep-line {
+    position: absolute; left: 27px; top: 56px; bottom: 0;
+    width: 2px; background: linear-gradient(to bottom, var(--accent), rgba(255,255,255,0.06));
+    pointer-events: none;
+  }
+
+  .jstep-left { display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .jstep-badge { width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    gap: 1px; }
+  .jstep-level { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--accent); opacity: 0.8; }
+  .jstep-icon { font-size: 1.3rem; }
+
+  .jstep-card { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px; padding: 24px 24px 28px; margin-bottom: 20px;
+    border-left: 3px solid var(--accent); }
+
+  .jstep-meta { margin-bottom: 14px; }
+  .jstep-seq { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 5px; }
+  .jstep-title { font-size: 1.1rem; font-weight: 800; color: #f0f4ff; margin-bottom: 4px; }
+  .jstep-q { font-size: 0.88rem; color: rgba(185,208,192,0.65); font-style: italic; }
+
+  .jstep-body { font-size: 0.88rem; color: rgba(185,208,192,0.8); line-height: 1.7; margin-bottom: 16px; }
+
+  .jstep-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .chip { font-size: 0.7rem; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);
+    color: #94a3b8; }
+
+  .jstep-score { display: flex; align-items: center; gap: 14px;
+    background: rgba(255,255,255,0.02); border-radius: 10px; padding: 12px 16px;
+    border: 1px solid rgba(255,255,255,0.05); }
+  .score-ring { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
+  .score-ring svg { width: 52px; height: 52px; transform: rotate(-90deg); }
+  .score-ring .track { fill: none; stroke: rgba(255,255,255,0.07); stroke-width: 4; }
+  .score-ring .fill { fill: none; stroke-width: 4; stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s ease; }
+  .score-val { position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; font-size: 0.82rem; font-weight: 800; color: var(--accent); }
+  .score-info { flex: 1; }
+  .score-label { font-size: 0.78rem; font-weight: 700; color: #f0f4ff; margin-bottom: 2px; }
+  .score-desc { font-size: 0.76rem; color: rgba(185,208,192,0.65); line-height: 1.5; }
+
+  /* ── Score output ── */
+  .verdict-block { background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.15);
+    border-radius: 20px; padding: 32px; }
+  .verdict-eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: #00e87a; margin-bottom: 18px; }
+  .verdict-row { display: flex; align-items: center; gap: 20px; margin-bottom: 24px;
+    flex-wrap: wrap; }
+  .verdict-ring-wrap { flex-shrink: 0; }
+  .big-ring { position: relative; width: 96px; height: 96px; }
+  .big-ring svg { width: 96px; height: 96px; transform: rotate(-90deg); }
+  .big-ring .track { fill: none; stroke: rgba(255,255,255,0.07); stroke-width: 6; }
+  .big-ring .fill { fill: none; stroke-width: 6; stroke-linecap: round; stroke: #00e87a; }
+  .big-ring-val { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; }
+  .big-score { font-size: 1.6rem; font-weight: 900; color: #f0f4ff; line-height: 1; }
+  .big-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #00e87a; margin-top: 2px; }
+  .verdict-text { flex: 1; min-width: 200px; }
+  .verdict-tag { display: inline-block; font-size: 0.75rem; font-weight: 800;
+    letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 12px;
+    border-radius: 20px; margin-bottom: 8px;
+    background: rgba(0,232,122,0.12); border: 1px solid rgba(0,232,122,0.3); color: #00e87a; }
+  .verdict-title { font-size: 1.1rem; font-weight: 800; color: #f0f4ff; margin-bottom: 6px; }
+  .verdict-sub { font-size: 0.85rem; color: rgba(185,208,192,0.75); line-height: 1.6; }
+
+  .verdict-levels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .vl { background: rgba(255,255,255,0.025); border-radius: 10px; padding: 12px;
+    border: 1px solid rgba(255,255,255,0.06); text-align: center; }
+  .vl-num { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.06em;
+    text-transform: uppercase; margin-bottom: 4px; }
+  .vl-score { font-size: 1.3rem; font-weight: 900; }
+  .vl-name { font-size: 0.65rem; color: rgba(185,208,192,0.55); margin-top: 2px; }
+
+  /* ── Why section ── */
+  .why-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px;
+    margin-top: 24px; }
+  .why-card { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px; padding: 20px; }
+  .why-icon { font-size: 1.5rem; margin-bottom: 10px; }
+  .why-title { font-size: 0.88rem; font-weight: 800; color: #f0f4ff; margin-bottom: 6px; }
+  .why-body { font-size: 0.8rem; color: rgba(185,208,192,0.7); line-height: 1.55; }
+
+  /* ── CTA ── */
+  .cta-block { text-align: center; padding: 40px;
+    background: rgba(0,232,122,0.04); border: 1px solid rgba(0,232,122,0.15); border-radius: 18px; }
+  .cta-h { font-size: 1.4rem; font-weight: 800; color: #f0f4ff; margin-bottom: 10px; }
+  .cta-sub { font-size: 0.92rem; color: rgba(185,208,192,0.7); margin-bottom: 24px; line-height: 1.6; }
+  .cta-btn { display: inline-flex; align-items: center; gap: 8px; background: #00e87a;
+    color: #07100f; font-size: 0.95rem; font-weight: 800; padding: 14px 32px;
+    border-radius: 10px; text-decoration: none; }
+
+  /* ── Footer ── */
+  footer { width: 100%; border-top: 1px solid rgba(255,255,255,0.06); padding: 20px 24px;
+    display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+    gap: 8px; font-size: 0.78rem; color: rgba(185,208,192,0.4); }
+  footer a { color: rgba(0,232,122,0.5); text-decoration: none; }
+  .sep { opacity: 0.4; }
+
+  @media (max-width: 640px) {
+    .verdict-levels { grid-template-columns: repeat(2, 1fr); }
+    .jstep { grid-template-columns: 44px 1fr; gap: 14px; }
+    .jstep-badge { width: 44px; height: 44px; border-radius: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-inner">
+    <span class="logo">HomeRates.AI</span>
+    <a href="#" class="hdr-cta">Start your analysis →</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- HERO -->
+  <section class="hero">
+    <span class="eyebrow">Decision Intelligence — Full Journey</span>
+    <h1>From First Number<br />to Final Score.</h1>
+    <p class="hero-sub">
+      Most home buyers check one thing — the monthly payment. HomeRates.AI runs four scored intelligence layers across affordability, market conditions, value gap, and location before you make an offer. This is the full journey.
+    </p>
+    <a href="#" class="hero-cta">Run the full analysis on any address →</a>
+  </section>
+
+  <!-- INTRO -->
+  <section>
+    <div class="sec-label">How the Journey Works</div>
+    <h2>Four levels. One verdict. No gut-feel required.</h2>
+    <p class="sec-body">
+      The journey begins the moment you enter a loan scenario in the AI chat — your income, target price, and down payment. From there, each step deepens the analysis. By the time you see a Track 5 score, four independent data sources have been synthesised into a single, honest verdict: <strong style="color:#f0f4ff">Buy, Wait, or Walk Away.</strong>
+    </p>
+  </section>
+
+  <!-- JOURNEY FLOW -->
+  <section>
+    <div class="sec-label">The Four Steps</div>
+    <h2>Each step builds on the last</h2>
+
+    <div class="journey" style="margin-top: 28px;">
+
+      <!-- Step 1: L1 Affordability -->
+      <div class="jstep" style="--accent: #00e87a">
+        <div class="jstep-left">
+          <div class="jstep-badge">
+            <span class="jstep-level">L1</span>
+            <span class="jstep-icon">💬</span>
+          </div>
+          <div class="jstep-line"></div>
+        </div>
+        <div class="jstep-card">
+          <div class="jstep-meta">
+            <div class="jstep-seq">Step 1 — Scenario Card (35% weight)</div>
+            <div class="jstep-title">L1 — Affordability Signal</div>
+            <div class="jstep-q">Can you actually afford this at today's rate?</div>
+          </div>
+          <p class="jstep-body">
+            You start by telling the AI your income, existing debts, target price, and down payment. HomeRates.AI pulls the live 30-year conforming rate from the Federal Reserve (FRED) and runs a deterministic PITI calculation — not an estimate, not a range, the actual number. Your L1 score reflects how comfortably the payment fits your finances today.
+          </p>
+          <div class="jstep-chips">
+            <span class="chip">FRED live mortgage rates</span>
+            <span class="chip">Income & debt (from chat)</span>
+            <span class="chip">PITI engine — P+I+T+I</span>
+            <span class="chip">DTI calculation</span>
+          </div>
+          <div class="jstep-score">
+            <div class="score-ring" style="--accent: #00e87a">
+              <svg viewBox="0 0 52 52">
+                <circle class="track" cx="26" cy="26" r="22"/>
+                <circle class="fill" cx="26" cy="26" r="22"
+                  stroke="#00e87a"
+                  stroke-dasharray="138.2"
+                  stroke-dashoffset="41.5"/>
+              </svg>
+              <div class="score-val">70</div>
+            </div>
+            <div class="score-info">
+              <div class="score-label">Affordability Score</div>
+              <div class="score-desc">Payment fits comfortably within income guidelines. Conforming loan eligible. Multiple rate options available.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: L2 Market Conditions (Check Property) -->
+      <div class="jstep" style="--accent: #60a5fa">
+        <div class="jstep-left">
+          <div class="jstep-badge">
+            <span class="jstep-level">L2</span>
+            <span class="jstep-icon">🏠</span>
+          </div>
+          <div class="jstep-line"></div>
+        </div>
+        <div class="jstep-card">
+          <div class="jstep-meta">
+            <div class="jstep-seq">Step 2 — Check Property (25% weight)</div>
+            <div class="jstep-title">L2 — Market Conditions</div>
+            <div class="jstep-q">Is this a buyer's market or a seller's market right now?</div>
+          </div>
+          <p class="jstep-body">
+            Paste any address or Zillow/Redfin URL into the Scenario Card and hit Check Property. The system scrapes live Redfin data — days on market, sale-to-list ratio, and listing activity — and scores the local market in real time. A DOM above 60 days with sale-to-list below 98% is negotiating room. A DOM under 15 days is a bidding-war market.
+          </p>
+          <div class="jstep-chips">
+            <span class="chip">Redfin — days on market</span>
+            <span class="chip">Redfin — sale-to-list ratio</span>
+            <span class="chip">Live listing activity</span>
+          </div>
+          <div class="jstep-score">
+            <div class="score-ring" style="--accent: #60a5fa">
+              <svg viewBox="0 0 52 52">
+                <circle class="track" cx="26" cy="26" r="22"/>
+                <circle class="fill" cx="26" cy="26" r="22"
+                  stroke="#60a5fa"
+                  stroke-dasharray="138.2"
+                  stroke-dashoffset="55.3"/>
+              </svg>
+              <div class="score-val" style="color: #60a5fa">60</div>
+            </div>
+            <div class="score-info">
+              <div class="score-label">Market Conditions Score</div>
+              <div class="score-desc">Balanced market — slight buyer advantage. DOM elevated vs peak. Some negotiation room on price or contingencies.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: L3 Value Gap (Property Intelligence — basic) -->
+      <div class="jstep" style="--accent: #a78bfa">
+        <div class="jstep-left">
+          <div class="jstep-badge">
+            <span class="jstep-level">L3</span>
+            <span class="jstep-icon">📊</span>
+          </div>
+          <div class="jstep-line"></div>
+        </div>
+        <div class="jstep-card">
+          <div class="jstep-meta">
+            <div class="jstep-seq">Step 3 — Property Intelligence (25% weight)</div>
+            <div class="jstep-title">L3 — Value Gap</div>
+            <div class="jstep-q">Is the list price fair, cheap, or overpriced?</div>
+          </div>
+          <p class="jstep-body">
+            Clicking the Track 5 badge in your Scenario Card opens the full Property Intelligence report. Redfin's Automated Valuation Model (AVM) — built from recent comp sales within 0.5 miles — is compared against the listing price. A gap above 5% in your favour is genuine value. A gap above 12% against you means the seller is anchoring high.
+          </p>
+          <div class="jstep-chips">
+            <span class="chip">Redfin AVM</span>
+            <span class="chip">Recent comp sales</span>
+            <span class="chip">List-to-AVM gap analysis</span>
+            <span class="chip">Zillow estimate cross-check</span>
+          </div>
+          <div class="jstep-score">
+            <div class="score-ring" style="--accent: #a78bfa">
+              <svg viewBox="0 0 52 52">
+                <circle class="track" cx="26" cy="26" r="22"/>
+                <circle class="fill" cx="26" cy="26" r="22"
+                  stroke="#a78bfa"
+                  stroke-dasharray="138.2"
+                  stroke-dashoffset="55.3"/>
+              </svg>
+              <div class="score-val" style="color: #a78bfa">60</div>
+            </div>
+            <div class="score-info">
+              <div class="score-label">Value Gap Score</div>
+              <div class="score-desc">List price within 3% of AVM. Priced fairly vs. comps — no obvious overpay, but no discount either.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: L4 Location Intelligence (deep mode) -->
+      <div class="jstep" style="--accent: #f59e0b">
+        <div class="jstep-left">
+          <div class="jstep-badge">
+            <span class="jstep-level">L4</span>
+            <span class="jstep-icon">🧠</span>
+          </div>
+        </div>
+        <div class="jstep-card">
+          <div class="jstep-meta">
+            <div class="jstep-seq">Step 4 — Full Market Analysis · Deep Mode (15% weight)</div>
+            <div class="jstep-title">L4 — Location Intelligence</div>
+            <div class="jstep-q">Will this neighbourhood support the investment long-term?</div>
+          </div>
+          <p class="jstep-body">
+            Hitting <strong style="color:#f0f4ff">Run Full Market Analysis</strong> in the Property Intelligence card triggers Grok-4 deep analysis via the xAI Responses API. Tavily searches the live web across Walk Score, school ratings, commute data, wildfire risk, and 3-year appreciation trends. Grok synthesises all seven sub-factors into a composite Location Intelligence score — the signal most buyers skip, and the one that most determines resale value and quality of life.
+          </p>
+          <div class="jstep-chips">
+            <span class="chip">Grok-4 — xAI Responses API</span>
+            <span class="chip">Tavily live web search</span>
+            <span class="chip">Walk Score / Transit Score</span>
+            <span class="chip">School ratings</span>
+            <span class="chip">Wildfire risk</span>
+            <span class="chip">3-yr appreciation trend</span>
+          </div>
+
+          <!-- Sub-scores mini grid -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:16px;">
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;">
+              <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Walk Score</div>
+              <div style="font-size:1rem;font-weight:800;color:#60a5fa;">72 <span style="font-size:0.65rem;color:rgba(185,208,192,0.5);font-weight:400;">Very Walkable</span></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;">
+              <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Transit</div>
+              <div style="font-size:1rem;font-weight:800;color:#818cf8;">55 <span style="font-size:0.65rem;color:rgba(185,208,192,0.5);font-weight:400;">Good Transit</span></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;">
+              <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Schools</div>
+              <div style="font-size:1rem;font-weight:800;color:#4ade80;">78 <span style="font-size:0.65rem;color:rgba(185,208,192,0.5);font-weight:400;">Strong District</span></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;">
+              <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Safety</div>
+              <div style="font-size:1rem;font-weight:800;color:#4ade80;">65 <span style="font-size:0.65rem;color:rgba(185,208,192,0.5);font-weight:400;">Below avg crime</span></div>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;">
+              <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">Appreciation</div>
+              <div style="font-size:1rem;font-weight:800;color:#fbbf24;">62 <span style="font-size:0.65rem;color:rgba(185,208,192,0.5);font-weight:400;">+4.1% / yr</span></div>
+            </div>
+            <div style="background:rgba(255,87,87,0.06);border:1px solid rgba(248,113,113,0.2);border-radius:8px;padding:10px 12px;">
+              <div style="font-size:0.65rem;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;">⚠️ Wildfire Risk</div>
+              <div style="font-size:1rem;font-weight:800;color:#f87171;">High <span style="font-size:0.65rem;color:rgba(185,208,192,0.5);font-weight:400;">Factor 7 / 10</span></div>
+            </div>
+          </div>
+
+          <div class="jstep-score">
+            <div class="score-ring" style="--accent: #f59e0b">
+              <svg viewBox="0 0 52 52">
+                <circle class="track" cx="26" cy="26" r="22"/>
+                <circle class="fill" cx="26" cy="26" r="22"
+                  stroke="#f59e0b"
+                  stroke-dasharray="138.2"
+                  stroke-dashoffset="69.1"/>
+              </svg>
+              <div class="score-val" style="color: #f59e0b">50</div>
+            </div>
+            <div class="score-info">
+              <div class="score-label">Location Intelligence Score</div>
+              <div class="score-desc">Strong schools and walkability tempered by high wildfire risk. Consider insurance costs and long-term resale exposure before committing.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /journey -->
+  </section>
+
+  <!-- FINAL VERDICT -->
+  <section>
+    <div class="sec-label">The Decision Score</div>
+    <h2>Four levels, one verdict — everything you need before an offer</h2>
+    <p class="sec-body" style="margin-bottom: 28px;">
+      Once all four levels are scored, the Track 5 composite calculates a weighted average and issues a plain-language verdict. This is the number you bring to your agent when you discuss price, contingencies, and negotiating strategy.
+    </p>
+
+    <div class="verdict-block">
+      <div class="verdict-eyebrow">Track 5 Decision Score — Example Output</div>
+      <div class="verdict-row">
+        <div class="verdict-ring-wrap">
+          <div class="big-ring">
+            <svg viewBox="0 0 96 96">
+              <circle class="track" cx="48" cy="48" r="42"/>
+              <circle class="fill" cx="48" cy="48" r="42"
+                stroke-dasharray="263.9"
+                stroke-dashoffset="95"/>
+            </svg>
+            <div class="big-ring-val">
+              <span class="big-score">64</span>
+              <span class="big-label">/ 100</span>
+            </div>
+          </div>
+        </div>
+        <div class="verdict-text">
+          <span class="verdict-tag">⚠️ Proceed with Caution</span>
+          <div class="verdict-title">Affordable at today's rate — but wildfire risk and market pricing warrant negotiation</div>
+          <div class="verdict-sub">Payment is manageable (L1 70). Market is balanced with some buyer room (L2 60). Listing is priced fair but not a discount (L3 60). Location has strong schools and walkability, but wildfire exposure pulls L4 to 50 — understand the insurance cost and resale dynamics before you commit.</div>
+        </div>
+      </div>
+
+      <div class="verdict-levels">
+        <div class="vl">
+          <div class="vl-num" style="color:#00e87a;">L1</div>
+          <div class="vl-score" style="color:#00e87a;">70</div>
+          <div class="vl-name">Affordability</div>
+        </div>
+        <div class="vl">
+          <div class="vl-num" style="color:#60a5fa;">L2</div>
+          <div class="vl-score" style="color:#60a5fa;">60</div>
+          <div class="vl-name">Market</div>
+        </div>
+        <div class="vl">
+          <div class="vl-num" style="color:#a78bfa;">L3</div>
+          <div class="vl-score" style="color:#a78bfa;">60</div>
+          <div class="vl-name">Value Gap</div>
+        </div>
+        <div class="vl">
+          <div class="vl-num" style="color:#f59e0b;">L4</div>
+          <div class="vl-score" style="color:#f59e0b;">50</div>
+          <div class="vl-name">Location</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY IT WENT TO A WHOLE NEW LEVEL -->
+  <section>
+    <div class="sec-label">Why This Went to a Whole New Level</div>
+    <h2>The four things that make this different from anything else</h2>
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="why-icon">📡</div>
+        <div class="why-title">Live data, not averages</div>
+        <div class="why-body">Federal Reserve rates, Redfin market stats, and live web search — every figure is pulled at the moment you run the analysis, not from a stale database.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">⚖️</div>
+        <div class="why-title">No opinion, no incentive</div>
+        <div class="why-body">No agent commission skews the comp selection. No lender adds a margin to the rate. The score is what the data says — nothing else.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">🔗</div>
+        <div class="why-title">Each step connects</div>
+        <div class="why-body">Your L1 affordability scenario flows directly into the property check. The property check unlocks the deep analysis. The deep analysis feeds the composite verdict. Nothing resets between steps.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">🧠</div>
+        <div class="why-title">Grok explains the score</div>
+        <div class="why-body">Every level comes with a plain-language summary of what the data found and what it means for your decision — not just a number, but the reasoning behind it.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-block">
+    <h2 class="cta-h">Start your full decision analysis</h2>
+    <p class="cta-sub">
+      Paste any address or listing URL. Run the full four-level analysis in under 90 seconds.<br />No email. No forms. No lender hand-off. Just the score.
+    </p>
+    <a href="#" class="cta-btn">Run your full analysis now →</a>
+  </section>
+
+</main>
+
+<footer>
+  <span>HomeRates.AI — educational tool, not a lender or broker.</span>
+  <span class="sep">•</span>
+  <a href="#">Platform Intelligence</a>
+  <span class="sep">•</span>
+  <a href="#">Track 5</a>
+  <span class="sep">•</span>
+  <a href="#">Privacy</a>
+</footer>
+
+</body>
+</html>

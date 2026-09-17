@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates · Animation Prototype</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0d1117;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #e6edf3;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+
+  .page-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #00e87a;
+    margin-bottom: 6px;
+  }
+
+  .page-title {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 800;
+    color: #e6edf3;
+    margin-bottom: 4px;
+  }
+
+  .page-sub {
+    text-align: center;
+    font-size: 13px;
+    color: #8b949e;
+    margin-bottom: 40px;
+  }
+
+  /* ── Chat Container ─────────────────────────────── */
+  .chat-wrap {
+    max-width: 620px;
+    margin: 0 auto 60px;
+  }
+
+  .user-bubble {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .user-bubble.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .user-bubble span {
+    background: #1c2d1e;
+    border: 1px solid rgba(0,232,122,0.25);
+    border-radius: 20px 20px 4px 20px;
+    padding: 11px 18px;
+    font-size: 14px;
+    color: #e6edf3;
+    max-width: 80%;
+  }
+
+  /* ── Thinking dots ──────────────────────────────── */
+  .thinking {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 16px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    padding: 0 4px;
+  }
+  .thinking.visible { opacity: 1; }
+  .thinking-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #00e87a;
+    animation: dotBounce 1.1s ease-in-out infinite;
+  }
+  .thinking-dot:nth-child(2) { animation-delay: 0.15s; }
+  .thinking-dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes dotBounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  /* ── Calc Card ──────────────────────────────────── */
+  .calc-card {
+    background: #161b22;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.45s cubic-bezier(0.16,1,0.3,1),
+                transform 0.45s cubic-bezier(0.16,1,0.3,1),
+                box-shadow 0.6s ease;
+  }
+  .calc-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+    box-shadow: 0 0 0 1px rgba(0,232,122,0.08),
+                0 8px 40px rgba(0,0,0,0.4),
+                0 0 60px rgba(0,232,122,0.04);
+  }
+
+  /* Card header */
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .card-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #8b949e;
+  }
+  .tag-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #00e87a;
+    box-shadow: 0 0 6px #00e87a;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; } 50% { opacity:0.4; }
+  }
+  .card-badge {
+    background: rgba(0,232,122,0.1);
+    border: 1px solid rgba(0,232,122,0.25);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: #00e87a;
+  }
+
+  /* House hero */
+  .house-hero {
+    background: linear-gradient(180deg, #0d1117 0%, #111820 100%);
+    padding: 24px 0 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .house-svg {
+    width: 140px;
+    height: 116px;
+    margin-bottom: 10px;
+  }
+
+  /* SVG paths — all start invisible */
+  .house-path {
+    fill: none;
+    stroke: #00e87a;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 0;
+    stroke-dashoffset: 0;
+  }
+  /* Glow paths — same shape, blurred */
+  .house-glow {
+    fill: none;
+    stroke: #00e87a;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.15;
+    filter: blur(3px);
+    stroke-dasharray: 0;
+    stroke-dashoffset: 0;
+  }
+
+  .house-location {
+    font-size: 12px;
+    color: #8b949e;
+    letter-spacing: 0.04em;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.4s ease 1.6s, transform 0.4s ease 1.6s;
+  }
+  .house-location.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .house-location strong {
+    color: #e6edf3;
+    font-weight: 600;
+  }
+
+  /* Main payment */
+  .payment-section {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .payment-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #8b949e;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .payment-label.visible { opacity: 1; }
+
+  .payment-main {
+    font-size: 44px;
+    font-weight: 800;
+    color: #e6edf3;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .payment-main .unit {
+    font-size: 16px;
+    font-weight: 500;
+    color: #8b949e;
+    margin-left: 2px;
+  }
+  .payment-breakdown {
+    font-size: 12px;
+    color: #484f58;
+    margin-top: 4px;
+    opacity: 0;
+    transition: opacity 0.3s ease 0.3s;
+  }
+  .payment-breakdown.visible { opacity: 1; }
+
+  /* Stats grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .stat-item {
+    padding: 14px 18px;
+    border-right: 1px solid rgba(255,255,255,0.05);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .stat-item:last-child { border-right: none; }
+  .stat-item.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .stat-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #484f58;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #e6edf3;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-value.green { color: #00e87a; }
+
+  /* Assumption */
+  .assumption {
+    padding: 8px 18px;
+    font-size: 11px;
+    color: #484f58;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .assumption.visible { opacity: 1; }
+
+  /* Chips */
+  .chips-row {
+    display: flex;
+    gap: 8px;
+    padding: 14px 18px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #8b949e;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.25s ease, transform 0.25s ease,
+                background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .chip:hover {
+    background: rgba(0,232,122,0.08);
+    border-color: rgba(0,232,122,0.3);
+    color: #00e87a;
+  }
+  .chip.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .chip.green-chip {
+    background: rgba(0,232,122,0.1);
+    border-color: rgba(0,232,122,0.3);
+    color: #00e87a;
+  }
+
+  /* ── Controls ───────────────────────────────────── */
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 60px;
+    margin-top: 20px;
+  }
+  .btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    padding: 9px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #8b949e;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .btn:hover { background: rgba(255,255,255,0.09); color: #e6edf3; }
+  .btn.primary {
+    background: #00e87a;
+    border-color: #00e87a;
+    color: #07100f;
+  }
+  .btn.primary:hover { background: #00d46e; }
+
+  /* ── Divider ─────────────────────────────────────── */
+  .section-divider {
+    max-width: 620px;
+    margin: 0 auto 40px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-divider hr {
+    flex: 1;
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .section-divider span {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #484f58;
+  }
+
+  /* ── Transition Demo ────────────────────────────── */
+  .demo-wrap {
+    max-width: 620px;
+    margin: 0 auto;
+  }
+  .demo-card {
+    background: #161b22;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .demo-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .demo-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #8b949e;
+  }
+  .demo-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #58a6ff;
+  }
+  .demo-body {
+    padding: 20px 20px 16px;
+  }
+  .demo-payment {
+    font-size: 40px;
+    font-weight: 800;
+    color: #e6edf3;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+    transition: color 0.15s ease;
+  }
+  .demo-payment .unit { font-size: 15px; font-weight: 500; color: #8b949e; }
+  .demo-payment.changed { color: #00e87a; }
+
+  .slider-wrap {
+    margin-bottom: 16px;
+  }
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #8b949e;
+    margin-bottom: 8px;
+  }
+  .slider-label strong { color: #e6edf3; }
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(to right, #00e87a var(--pct, 33%), rgba(255,255,255,0.1) var(--pct, 33%));
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #00e87a;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(0,232,122,0.4);
+    transition: transform 0.1s ease;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
+  .demo-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin: 0 -20px -16px;
+  }
+  .demo-stat {
+    padding: 12px 18px;
+    border-right: 1px solid rgba(255,255,255,0.05);
+  }
+  .demo-stat:last-child { border-right: none; }
+  .demo-stat .label { font-size: 10px; color: #484f58; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 3px; }
+  .demo-stat .value { font-size: 14px; font-weight: 700; color: #e6edf3; font-variant-numeric: tabular-nums; }
+
+</style>
+</head>
+<body>
+
+<p class="page-label">HomeRates · Design Prototype</p>
+<h1 class="page-title">Card Animation System</h1>
+<p class="page-sub">House draw-on · Number count-up · Slider transitions</p>
+
+<!-- ── DEMO 1: Card Appear ──────────────────────── -->
+<div class="chat-wrap">
+
+  <!-- User bubble -->
+  <div class="user-bubble" id="userBubble">
+    <span>850k home in Los Angeles 10% down</span>
+  </div>
+
+  <!-- Thinking -->
+  <div class="thinking" id="thinking">
+    <div class="thinking-dot"></div>
+    <div class="thinking-dot"></div>
+    <div class="thinking-dot"></div>
+  </div>
+
+  <!-- Calc Card -->
+  <div class="calc-card" id="calcCard">
+    <div class="card-header">
+      <div class="card-tag">
+        <div class="tag-dot"></div>
+        AI ANALYSIS
+      </div>
+      <div class="card-badge">CONVENTIONAL</div>
+    </div>
+
+    <!-- House hero -->
+    <div class="house-hero">
+      <svg class="house-svg" viewBox="0 0 140 116" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2.5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- Glow layer (same paths, blurred) -->
+        <path class="house-glow" id="g-floor"    d="M 12,100 H 128"/>
+        <path class="house-glow" id="g-leftwall"  d="M 12,100 V 56"/>
+        <path class="house-glow" id="g-rightwall" d="M 128,100 V 56"/>
+        <path class="house-glow" id="g-roofL"     d="M 8,58 L 70,10"/>
+        <path class="house-glow" id="g-roofR"     d="M 132,58 L 70,10"/>
+        <path class="house-glow" id="g-fascia"    d="M 8,58 H 132"/>
+        <path class="house-glow" id="g-chimney"   d="M 100,32 V 18 H 114 V 46"/>
+        <path class="house-glow" id="g-door"      d="M 55,100 V 72 Q 55,68 59,68 H 81 Q 85,68 85,72 V 100"/>
+        <path class="house-glow" id="g-winL"      d="M 20,70 H 44 V 86 H 20 V 70 M 32,70 V 86 M 20,78 H 44"/>
+        <path class="house-glow" id="g-winR"      d="M 96,70 H 120 V 86 H 96 V 70 M 108,70 V 86 M 96,78 H 120"/>
+
+        <!-- Main paths -->
+        <path class="house-path" id="p-floor"    d="M 12,100 H 128"/>
+        <path class="house-path" id="p-leftwall"  d="M 12,100 V 56"/>
+        <path class="house-path" id="p-rightwall" d="M 128,100 V 56"/>
+        <path class="house-path" id="p-roofL"     d="M 8,58 L 70,10"/>
+        <path class="house-path" id="p-roofR"     d="M 132,58 L 70,10"/>
+        <path class="house-path" id="p-fascia"    d="M 8,58 H 132"/>
+        <path class="house-path" id="p-chimney"   d="M 100,32 V 18 H 114 V 46"/>
+        <path class="house-path" id="p-door"      d="M 55,100 V 72 Q 55,68 59,68 H 81 Q 85,68 85,72 V 100"/>
+        <path class="house-path" id="p-winL"      d="M 20,70 H 44 V 86 H 20 V 70 M 32,70 V 86 M 20,78 H 44"/>
+        <path class="house-path" id="p-winR"      d="M 96,70 H 120 V 86 H 96 V 70 M 108,70 V 86 M 96,78 H 120"/>
+      </svg>
+
+      <div class="house-location" id="houseLocation">
+        <strong>Los Angeles, CA</strong> · $850,000
+      </div>
+    </div>
+
+    <!-- Main payment -->
+    <div class="payment-section">
+      <div class="payment-label" id="payLabel">Monthly Payment</div>
+      <div class="payment-main">
+        <span id="mainPayment">$0</span><span class="unit">/mo</span>
+      </div>
+      <div class="payment-breakdown" id="payBreakdown">P&I $4,007 · Tax $781 · Insurance $213</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-item" id="stat0">
+        <div class="stat-label">Down</div>
+        <div class="stat-value" id="statDown">$0</div>
+      </div>
+      <div class="stat-item" id="stat1">
+        <div class="stat-label">Loan</div>
+        <div class="stat-value" id="statLoan">$0</div>
+      </div>
+      <div class="stat-item" id="stat2">
+        <div class="stat-label">Rate</div>
+        <div class="stat-value green" id="statRate">0.00%</div>
+      </div>
+      <div class="stat-item" id="stat3">
+        <div class="stat-label">Term</div>
+        <div class="stat-value">30 yr</div>
+      </div>
+    </div>
+
+    <!-- Assumption -->
+    <div class="assumption" id="assumption">
+      Rate assumed 6.75% (FRED 30yr avg) · Down payment assumed 10%
+    </div>
+
+    <!-- Chips -->
+    <div class="chips-row">
+      <div class="chip" id="chip0">Adjust Rate</div>
+      <div class="chip" id="chip1">Compare FHA</div>
+      <div class="chip" id="chip2">Run 20% Down</div>
+      <div class="chip green-chip" id="chip3">Get Matched</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <button class="btn" onclick="resetAll()">↺ Reset</button>
+  <button class="btn primary" onclick="startSequence()">▶ Play Animation</button>
+</div>
+
+
+<!-- ── DEMO 2: Transition ─────────────────────────── -->
+<div class="section-divider">
+  <hr><span>Number Transition Demo</span><hr>
+</div>
+
+<div class="demo-wrap">
+  <p style="font-size:13px;color:#8b949e;text-align:center;margin-bottom:20px;">
+    When a slider adjusts, numbers transition smoothly between values — not from zero.
+  </p>
+  <div class="demo-card">
+    <div class="demo-header">
+      <div class="demo-title">· Conventional · $850,000</div>
+      <div class="demo-badge">LIVE ADJUSTMENT</div>
+    </div>
+    <div class="demo-body">
+      <div class="demo-payment" id="transPayment">$4,372 <span class="unit">/mo</span></div>
+      <div class="slider-wrap">
+        <div class="slider-label">
+          <span>Down Payment</span>
+          <strong id="downLabel">10% — $85,000</strong>
+        </div>
+        <input type="range" min="5" max="30" value="10" step="5" id="downSlider">
+      </div>
+      <div class="demo-stats">
+        <div class="demo-stat">
+          <div class="label">Down</div>
+          <div class="value" id="tDown">$85,000</div>
+        </div>
+        <div class="demo-stat">
+          <div class="label">Loan</div>
+          <div class="value" id="tLoan">$765,000</div>
+        </div>
+        <div class="demo-stat">
+          <div class="label">PMI</div>
+          <div class="value" id="tPmi" style="color:#f0a202">$276/mo</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ─────────────────────────────────────────────────────────
+// UTILITIES
+// ─────────────────────────────────────────────────────────
+
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
+
+function animateNum(el, from, to, duration, formatter, delay = 0) {
+  setTimeout(() => {
+    const start = performance.now();
+    function step(ts) {
+      const raw = Math.min((ts - start) / duration, 1);
+      const t    = easeOutCubic(raw);
+      const val  = from + (to - from) * t;
+      el.textContent = formatter(Math.round(val));
+      if (raw < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }, delay);
+}
+
+function fmtCurrency(n) {
+  return '$' + n.toLocaleString('en-US');
+}
+function fmtRate(n) {
+  // n is 0→675 representing 0.00%→6.75%
+  return (n / 100).toFixed(2) + '%';
+}
+
+
+// ─────────────────────────────────────────────────────────
+// SVG HOUSE — init dash arrays, then draw on command
+// ─────────────────────────────────────────────────────────
+
+// Sequence: [pathId, glowId, delay_ms, duration_ms]
+const HOUSE_SEQUENCE = [
+  ['p-floor',    'g-floor',    0,    320],
+  ['p-leftwall', 'g-leftwall', 200,  350],
+  ['p-rightwall','g-rightwall',240,  350],
+  ['p-fascia',   'g-fascia',   530,  200],
+  ['p-roofL',    'g-roofL',    640,  380],
+  ['p-roofR',    'g-roofR',    700,  380],
+  ['p-chimney',  'g-chimney',  960,  260],
+  ['p-door',     'g-door',    1100,  280],
+  ['p-winL',     'g-winL',    1260,  270],
+  ['p-winR',     'g-winR',    1310,  270],
+];
+
+function initHousePaths() {
+  HOUSE_SEQUENCE.forEach(([pid, gid]) => {
+    const p = document.getElementById(pid);
+    const g = document.getElementById(gid);
+    if (!p) return;
+    const len = p.getTotalLength();
+    // Main path
+    p.style.strokeDasharray  = len;
+    p.style.strokeDashoffset = len;
+    p.style.transition = 'none';
+    // Glow path
+    if (g) {
+      const gl = g.getTotalLength();
+      g.style.strokeDasharray  = gl;
+      g.style.strokeDashoffset = gl;
+      g.style.transition = 'none';
+    }
+  });
+}
+
+function drawHouse() {
+  HOUSE_SEQUENCE.forEach(([pid, gid, delay, dur]) => {
+    const p = document.getElementById(pid);
+    const g = document.getElementById(gid);
+    if (!p) return;
+    setTimeout(() => {
+      p.style.transition = `stroke-dashoffset ${dur}ms cubic-bezier(0.4,0,0.2,1)`;
+      p.style.strokeDashoffset = '0';
+      if (g) {
+        g.style.transition = `stroke-dashoffset ${dur}ms cubic-bezier(0.4,0,0.2,1)`;
+        g.style.strokeDashoffset = '0';
+      }
+    }, delay);
+  });
+}
+
+
+// ─────────────────────────────────────────────────────────
+// MAIN SEQUENCE
+// ─────────────────────────────────────────────────────────
+
+let playing = false;
+
+function startSequence() {
+  if (playing) return;
+  playing = true;
+  initHousePaths();
+
+  // 1. User bubble
+  setTimeout(() => {
+    document.getElementById('userBubble').classList.add('visible');
+  }, 100);
+
+  // 2. Thinking dots
+  setTimeout(() => {
+    document.getElementById('thinking').classList.add('visible');
+  }, 500);
+
+  // 3. Card slides in, thinking hides
+  setTimeout(() => {
+    document.getElementById('thinking').classList.remove('visible');
+    document.getElementById('calcCard').classList.add('visible');
+  }, 1400);
+
+  // 4. Draw house (starts 300ms after card appears)
+  setTimeout(drawHouse, 1700);
+
+  // 5. Location label
+  setTimeout(() => {
+    document.getElementById('houseLocation').classList.add('visible');
+  }, 3200);
+
+  // 6. Payment section reveals
+  setTimeout(() => {
+    document.getElementById('payLabel').classList.add('visible');
+  }, 3000);
+
+  // 7. Count up main payment ($4,372)
+  const payEl = document.getElementById('mainPayment');
+  animateNum(payEl, 0, 4372, 1100, fmtCurrency, 3100);
+
+  // 8. Payment breakdown
+  setTimeout(() => {
+    document.getElementById('payBreakdown').classList.add('visible');
+  }, 3800);
+
+  // 9. Stats stagger in
+  [0, 1, 2, 3].forEach((i, idx) => {
+    setTimeout(() => {
+      document.getElementById('stat' + i).classList.add('visible');
+    }, 3600 + idx * 80);
+  });
+
+  // 10. Count up stat numbers
+  animateNum(document.getElementById('statDown'), 0, 85000,  900, fmtCurrency, 3700);
+  animateNum(document.getElementById('statLoan'), 0, 765000, 900, fmtCurrency, 3780);
+  animateNum(document.getElementById('statRate'), 0, 675,    900, fmtRate,     3860);
+
+  // 11. Assumption
+  setTimeout(() => {
+    document.getElementById('assumption').classList.add('visible');
+  }, 4200);
+
+  // 12. Chips stagger in
+  [0, 1, 2, 3].forEach((i, idx) => {
+    setTimeout(() => {
+      document.getElementById('chip' + i).classList.add('visible');
+    }, 4400 + idx * 100);
+  });
+}
+
+function resetAll() {
+  playing = false;
+
+  // Reset bubble + thinking
+  document.getElementById('userBubble').classList.remove('visible');
+  document.getElementById('thinking').classList.remove('visible');
+
+  // Reset card
+  const card = document.getElementById('calcCard');
+  card.classList.remove('visible');
+
+  // Reset house paths
+  initHousePaths();
+  document.getElementById('houseLocation').classList.remove('visible');
+
+  // Reset labels + numbers
+  document.getElementById('payLabel').classList.remove('visible');
+  document.getElementById('mainPayment').textContent = '$0';
+  document.getElementById('payBreakdown').classList.remove('visible');
+  document.getElementById('assumption').classList.remove('visible');
+
+  [0,1,2,3].forEach(i => {
+    document.getElementById('stat' + i).classList.remove('visible');
+    document.getElementById('chip' + i).classList.remove('visible');
+  });
+
+  document.getElementById('statDown').textContent = '$0';
+  document.getElementById('statLoan').textContent = '$0';
+  document.getElementById('statRate').textContent = '0.00%';
+}
+
+
+// ─────────────────────────────────────────────────────────
+// TRANSITION DEMO — slider
+// ─────────────────────────────────────────────────────────
+
+// Simple mortgage calc
+function calcPayment(price, downPct, rate = 6.75, term = 30) {
+  const down     = price * (downPct / 100);
+  const loan     = price - down;
+  const monthly  = rate / 100 / 12;
+  const n        = term * 12;
+  const pi       = loan * (monthly * Math.pow(1 + monthly, n)) / (Math.pow(1 + monthly, n) - 1);
+  const tax      = price * 0.011 / 12;
+  const ins      = price * 0.003 / 12;
+  const pmi      = downPct < 20 ? loan * 0.005 / 12 : 0;
+  return { down, loan, pi, pmi, total: Math.round(pi + tax + ins + pmi) };
+}
+
+let transitionFrom = 4372;
+let rafId = null;
+
+function transitionTo(el, from, to, duration) {
+  if (rafId) cancelAnimationFrame(rafId);
+  const start = performance.now();
+
+  // Briefly flash green
+  el.classList.add('changed');
+  setTimeout(() => el.classList.remove('changed'), 300);
+
+  function step(ts) {
+    const raw = Math.min((ts - start) / duration, 1);
+    const t   = easeOutQuart(raw);
+    const val = from + (to - from) * t;
+    // Update text directly except the unit span
+    const unit = el.querySelector('.unit');
+    el.textContent = fmtCurrency(Math.round(val)) + ' ';
+    el.appendChild(unit);
+    if (raw < 1) rafId = requestAnimationFrame(step);
+    else transitionFrom = to;
+  }
+  rafId = requestAnimationFrame(step);
+}
+
+const slider = document.getElementById('downSlider');
+
+slider.addEventListener('input', () => {
+  const pct    = parseInt(slider.value);
+  const res    = calcPayment(850000, pct);
+  const pctVal = (pct - 5) / (30 - 5);  // 0→1 for slider track
+
+  slider.style.setProperty('--pct', Math.round(pctVal * 100) + '%');
+  document.getElementById('downLabel').textContent =
+    pct + '% — ' + fmtCurrency(res.down);
+
+  document.getElementById('tDown').textContent = fmtCurrency(res.down);
+  document.getElementById('tLoan').textContent = fmtCurrency(res.loan);
+
+  const pmiEl = document.getElementById('tPmi');
+  if (res.pmi > 0) {
+    pmiEl.textContent = fmtCurrency(Math.round(res.pmi)) + '/mo';
+    pmiEl.style.color = '#f0a202';
+  } else {
+    pmiEl.textContent = 'None ✓';
+    pmiEl.style.color = '#00e87a';
+  }
+
+  transitionTo(
+    document.getElementById('transPayment'),
+    transitionFrom,
+    res.total,
+    420
+  );
+});
+
+// Init slider track
+slider.style.setProperty('--pct', '16%');
+
+// Auto-play on load
+window.addEventListener('load', () => {
+  initHousePaths();
+  setTimeout(startSequence, 600);
+});
+</script>
+</body>
+</html>

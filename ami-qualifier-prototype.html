@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMI Income Qualifier — HomeRates.ai</title>
+<style>
+  :root {
+    --bg: #080c12;
+    --card: #0e1420;
+    --surface2: #141b28;
+    --text: #f0f4ff;
+    --text-weak: #8fa3b8;
+    --border: rgba(255,255,255,0.07);
+    --border-bright: rgba(255,255,255,0.13);
+    --accent: #00e87a;
+    --accent-dim: rgba(0,232,122,0.12);
+    --accent-fg: #000;
+    --red: #ff5f5f;
+    --red-dim: rgba(255,95,95,0.12);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245,158,11,0.12);
+    --blue: #3d8bff;
+    --blue-dim: rgba(61,139,255,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-logo {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  .header-logo span { color: var(--accent); }
+  .header-badge {
+    font-size: 11px;
+    color: var(--text-weak);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 40px 24px 30px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .hero h1 {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+  .hero p {
+    font-size: 15px;
+    color: var(--text-weak);
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+
+  /* ── Main layout ── */
+  .main {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 28px 16px 60px;
+  }
+
+  /* ── Input card ── */
+  .input-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .input-card-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-weak);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+
+  /* Address spans full width */
+  .field-address {
+    margin-bottom: 14px;
+  }
+  .field-address label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-weak);
+    margin-bottom: 6px;
+  }
+  .field-address input {
+    width: 100%;
+    padding: 11px 14px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border-bright);
+    border-radius: 9px;
+    font-size: 15px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field-address input:focus {
+    border-color: var(--accent);
+  }
+  .field-address input::placeholder { color: var(--text-weak); }
+  .field-address .hint {
+    font-size: 11px;
+    color: var(--text-weak);
+    margin-top: 5px;
+    opacity: 0.7;
+  }
+
+  .input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 480px) {
+    .input-row { grid-template-columns: 1fr; }
+  }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-weak);
+    margin-bottom: 6px;
+  }
+  .field input, .field select {
+    width: 100%;
+    padding: 11px 14px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border-bright);
+    border-radius: 9px;
+    font-size: 15px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    appearance: none;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field input::placeholder { color: var(--text-weak); }
+  /* Style select arrow */
+  .field .select-wrap {
+    position: relative;
+  }
+  .field .select-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-weak);
+    pointer-events: none;
+    font-size: 12px;
+  }
+  .field .select-wrap select {
+    padding-right: 30px;
+    cursor: pointer;
+  }
+  .field select option { background: #141b28; }
+
+  .btn-check {
+    width: 100%;
+    padding: 13px;
+    background: var(--accent);
+    color: var(--accent-fg);
+    border: none;
+    border-radius: 9px;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: -0.2px;
+    transition: opacity 0.15s;
+  }
+  .btn-check:hover { opacity: 0.9; }
+
+  /* ── Result card ── */
+  .result-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  /* Area header */
+  .result-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .result-area {
+    font-size: 12px;
+    color: var(--text-weak);
+    margin-bottom: 6px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  .result-ami-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .result-ami-main {
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -1px;
+  }
+  .result-ami-label {
+    font-size: 13px;
+    color: var(--text-weak);
+  }
+
+  /* ── AMI meter ── */
+  .ami-meter-wrap {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ami-meter-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .ami-income-label {
+    font-size: 13px;
+    color: var(--text-weak);
+  }
+  .ami-income-label strong { color: var(--text); font-weight: 700; }
+  .ami-pct-badge {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+  .ami-pct-badge.amber { color: var(--amber); }
+  .ami-pct-badge.red { color: var(--red); }
+
+  .meter-track {
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 99px;
+    position: relative;
+    margin-bottom: 10px;
+  }
+  .meter-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, rgba(0,232,122,0.5), var(--accent));
+    width: 67%;
+    position: relative;
+  }
+  .meter-fill.amber {
+    background: linear-gradient(90deg, rgba(245,158,11,0.5), var(--amber));
+  }
+  .meter-fill.red {
+    background: linear-gradient(90deg, rgba(255,95,95,0.5), var(--red));
+  }
+  .meter-cursor {
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(0,232,122,0.5);
+  }
+  .meter-cursor.amber { background: var(--amber); box-shadow: 0 0 8px rgba(245,158,11,0.5); }
+  .meter-cursor.red   { background: var(--red);   box-shadow: 0 0 8px rgba(255,95,95,0.5); }
+
+  .meter-ticks {
+    display: flex;
+    justify-content: space-between;
+  }
+  .meter-tick {
+    font-size: 10px;
+    color: var(--text-weak);
+    font-weight: 600;
+    opacity: 0.6;
+  }
+
+  /* ── Programs ── */
+  .programs-section {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-weak);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .program-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .program-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(0,232,122,0.18);
+  }
+  .program-row.fail {
+    background: var(--surface2);
+    border-color: var(--border);
+  }
+  .program-left { display: flex; flex-direction: column; gap: 3px; }
+  .program-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .program-desc {
+    font-size: 12px;
+    color: var(--text-weak);
+  }
+  .program-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-left: 12px;
+  }
+  .program-badge.fail { color: var(--text-weak); }
+  .badge-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .badge-dot.fail { background: var(--text-weak); opacity: 0.4; }
+
+  /* ── Limits table ── */
+  .limits-section {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .limits-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .limits-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-weak);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    opacity: 0.7;
+  }
+  .limits-table th:last-child { text-align: right; }
+  .limits-table td {
+    padding: 10px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-weak);
+    vertical-align: middle;
+  }
+  .limits-table tr:last-child td { border-bottom: none; }
+  .limits-table td:last-child { text-align: right; font-weight: 700; color: var(--text); }
+  .your-row td { color: var(--text) !important; font-weight: 600; }
+  .your-row td:last-child { color: var(--accent) !important; font-weight: 800; }
+
+  .tier-pill {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .pill-blue   { background: var(--blue-dim);   color: var(--blue); }
+  .pill-green  { background: var(--accent-dim);  color: var(--accent); }
+  .pill-amber  { background: var(--amber-dim);  color: var(--amber); }
+
+  /* ── Actions ── */
+  .actions-section {
+    padding: 18px 24px;
+    display: flex;
+    gap: 10px;
+  }
+  .btn-secondary {
+    flex: 1;
+    padding: 11px;
+    border: 1px solid var(--border-bright);
+    border-radius: 8px;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s;
+  }
+  .btn-secondary:hover { border-color: var(--accent); }
+  .btn-primary {
+    flex: 2;
+    padding: 11px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--accent-fg);
+    cursor: pointer;
+    text-align: center;
+    transition: opacity 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+
+  /* ── Data source note ── */
+  .data-note {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-top: 16px;
+  }
+  .data-note-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-weak);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+  }
+  .data-note p {
+    font-size: 12px;
+    color: var(--text-weak);
+    line-height: 1.5;
+    opacity: 0.8;
+  }
+
+  .disclosure {
+    font-size: 11px;
+    color: var(--text-weak);
+    text-align: center;
+    margin-top: 24px;
+    line-height: 1.6;
+    opacity: 0.5;
+    padding: 0 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">HomeRates<span>.ai</span></div>
+  <div class="header-badge">AMI Income Qualifier</div>
+</div>
+
+<div class="hero">
+  <div class="hero-eyebrow">Powered by HUD FY2025 Data</div>
+  <h1>Area Median Income Qualifier</h1>
+  <p>Check HomeReady, Home Possible, and DPA eligibility by property address — instantly.</p>
+</div>
+
+<div class="main">
+
+  <!-- Input card -->
+  <div class="input-card">
+    <div class="input-card-label">Enter Details</div>
+
+    <div class="field-address">
+      <label>Location</label>
+      <input type="text" value="8 Peachtree, Coto De Caza, CA 92679" placeholder="ZIP code, county, or full address...">
+      <div class="hint">Accept any of: ZIP code (92679) · County (Orange County, CA) · Full address</div>
+    </div>
+
+    <div class="input-row">
+      <div class="field">
+        <label>Annual Household Income</label>
+        <input type="text" value="$112,000" placeholder="$0">
+      </div>
+      <div class="field">
+        <label>Household Size</label>
+        <div class="select-wrap">
+          <select>
+            <option>1 person</option>
+            <option>2 people</option>
+            <option>3 people</option>
+            <option selected>4 people</option>
+            <option>5 people</option>
+            <option>6 people</option>
+            <option>7 people</option>
+            <option>8 people</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-check">Check Eligibility</button>
+  </div>
+
+  <!-- Result card -->
+  <div class="result-card">
+
+    <!-- Area + AMI headline -->
+    <div class="result-header">
+      <div class="result-area">Orange County, CA — ZIP 92679</div>
+      <div class="result-ami-row">
+        <div class="result-ami-main">$139,300</div>
+        <div class="result-ami-label">Area Median Income · 4-person household · HUD FY2025</div>
+      </div>
+    </div>
+
+    <!-- Income meter -->
+    <div class="ami-meter-wrap">
+      <div class="ami-meter-top">
+        <div class="ami-income-label">Your income: <strong>$112,000</strong> · 4-person household</div>
+        <div class="ami-pct-badge">80% of AMI</div>
+      </div>
+      <div class="meter-track">
+        <div class="meter-fill" style="width:67%">
+          <div class="meter-cursor"></div>
+        </div>
+      </div>
+      <div class="meter-ticks">
+        <span class="meter-tick">0%</span>
+        <span class="meter-tick">50%</span>
+        <span class="meter-tick">80%</span>
+        <span class="meter-tick">100%</span>
+        <span class="meter-tick">120%</span>
+        <span class="meter-tick">150%</span>
+      </div>
+    </div>
+
+    <!-- Program rows -->
+    <div class="programs-section">
+      <div class="section-label">Program Eligibility</div>
+      <div class="program-list">
+
+        <div class="program-row">
+          <div class="program-left">
+            <div class="program-name">Fannie Mae HomeReady</div>
+            <div class="program-desc">≤80% AMI · 3% minimum down · reduced mortgage insurance · limit $111,440</div>
+          </div>
+          <div class="program-badge">
+            <div class="badge-dot"></div>
+            Eligible
+          </div>
+        </div>
+
+        <div class="program-row">
+          <div class="program-left">
+            <div class="program-name">Freddie Mac Home Possible</div>
+            <div class="program-desc">≤80% AMI · 3% minimum down · flexible income sources · limit $111,440</div>
+          </div>
+          <div class="program-badge">
+            <div class="badge-dot"></div>
+            Eligible
+          </div>
+        </div>
+
+        <div class="program-row">
+          <div class="program-left">
+            <div class="program-name">Down Payment Assistance Programs</div>
+            <div class="program-desc">≤120% AMI · state/county DPA, bank CRA programs · limit $167,160</div>
+          </div>
+          <div class="program-badge">
+            <div class="badge-dot"></div>
+            Eligible
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Limits breakdown -->
+    <div class="limits-section">
+      <div class="section-label">Income Limit Breakdown · Orange County, CA</div>
+      <table class="limits-table">
+        <thead>
+          <tr>
+            <th>AMI Threshold</th>
+            <th>Used by</th>
+            <th>4-person limit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>50% AMI <span class="tier-pill pill-blue">Very Low</span></td>
+            <td>Section 8, rental assistance</td>
+            <td>$69,650</td>
+          </tr>
+          <tr>
+            <td>80% AMI <span class="tier-pill pill-green">Low</span></td>
+            <td>HomeReady · Home Possible</td>
+            <td>$111,440</td>
+          </tr>
+          <tr>
+            <td>100% AMI</td>
+            <td>Area median benchmark</td>
+            <td>$139,300</td>
+          </tr>
+          <tr>
+            <td>120% AMI <span class="tier-pill pill-amber">Moderate</span></td>
+            <td>DPA · bank CRA programs</td>
+            <td>$167,160</td>
+          </tr>
+          <tr class="your-row">
+            <td>Your income</td>
+            <td>—</td>
+            <td>$112,000 · 80% AMI</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- CTAs -->
+    <div class="actions-section">
+      <button class="btn-secondary">Share Results</button>
+      <button class="btn-primary">Explore Rate Options →</button>
+    </div>
+
+  </div>
+
+  <!-- Data source -->
+  <div class="data-note">
+    <div class="data-note-title">Data Source</div>
+    <p>AMI limits sourced from HUD FY2025 Income Limits, publicly available at huduser.gov. Income limits are adjusted by household size using standard HUD factors (1-person = 70% of 4-person AMI; 5-person = 108%, etc.). Fannie Mae and Freddie Mac use 80% AMI as the standard qualifying threshold for HomeReady and Home Possible. Program approval depends on additional factors including credit, property type, and lender overlays.</p>
+  </div>
+
+  <div class="disclosure">
+    HomeRates.ai · Data: HUD FY2025 Income Limits (huduser.gov) · Fannie Mae / Freddie Mac Guidelines<br>
+    For informational purposes only. Not a commitment to lend. Program eligibility subject to lender approval.
+  </div>
+
+</div>
+
+</body>
+</html>

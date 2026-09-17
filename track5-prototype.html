@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track 5 — Property Intel Inline Prototype</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080c12; color: #f1f5f9; font-family: 'DM Sans', system-ui, sans-serif; padding: 2rem 1rem 6rem; }
+  .wrap { max-width: 780px; margin: 0 auto; }
+
+  .page-title { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; color: #f1f5f9; margin-bottom: 4px; }
+  .page-sub   { font-size: 0.8rem; color: #94a3b8; line-height: 1.6; margin-bottom: 20px; }
+
+  .scenario-bar {
+    background: rgba(126,244,244,0.04); border: 1px solid rgba(126,244,244,0.18);
+    border-radius: 10px; padding: 10px 16px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .scenario-label { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: #7ef4f4; }
+  .scenario-val   { font-size: 0.82rem; font-weight: 700; color: #c4cfe0; }
+
+  .saved-banner {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.22);
+    border-radius: 8px; padding: 9px 14px; margin-bottom: 16px;
+  }
+  .saved-banner span { font-size: 0.75rem; font-weight: 700; color: #4ade80; }
+  .saved-banner a    { font-size: 0.72rem; font-weight: 600; color: #4ade80; text-decoration: underline; cursor: pointer; }
+
+  .idx-card {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px; padding: 24px 28px; display: flex; align-items: center; gap: 28px;
+    margin-bottom: 8px;
+  }
+  .idx-label { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 5px; }
+  .idx-sub   { font-size: 0.82rem; color: #94a3b8; line-height: 1.65; margin-bottom: 12px; }
+  .idx-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .idx-pill  {
+    font-size: 0.65rem; font-weight: 600;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 6px; padding: 3px 8px; color: #94a3b8;
+  }
+  .idx-pill strong { color: #e2e8f0; font-weight: 800; }
+
+  .wbar { display: flex; align-items: center; gap: 6px; margin: 12px 0 20px; }
+  .wbar-track { flex: 1; height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .wbar-fill  { height: 100%; border-radius: 2px; background: rgba(74,222,128,0.3); }
+  .wbar-lbl   { font-size: 0.6rem; color: #94a3b8; white-space: nowrap; }
+
+  .section-lbl {
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: #4b6080; margin-bottom: 12px;
+  }
+
+  /* L1 level card */
+  .level-card { background: #0d1117; border-radius: 12px; overflow: hidden; margin-bottom: 8px; }
+  .level-inner { display: flex; align-items: stretch; border: 1px solid rgba(74,222,128,0.18); border-radius: 12px; }
+  .level-stripe { width: 3px; flex-shrink: 0; background: #4ade80; }
+  .level-score-col {
+    flex-shrink: 0; width: 72px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 16px 0;
+    border-right: 1px solid rgba(255,255,255,0.05);
+  }
+  .level-num  { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 8px; }
+  .level-ring { width: 48px; height: 48px; position: relative; }
+  .level-ring svg { width: 48px; height: 48px; }
+  .ring-val   {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 800;
+  }
+  .level-body { flex: 1; min-width: 0; padding: 16px 18px; }
+  .level-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .level-title  { font-size: 0.88rem; font-weight: 700; color: #e2e8f0; }
+  .level-weight {
+    font-size: 0.6rem; font-weight: 700; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 2px 6px; color: #94a3b8;
+  }
+  .level-summary { font-size: 0.78rem; line-height: 1.65; color: #94a3b8; }
+  .level-bar-row { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+  .level-bar-track { flex: 1; height: 2px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .level-bar-fill  { height: 100%; border-radius: 2px; }
+  .level-bar-val   { font-size: 0.62rem; color: #94a3b8; }
+  .level-cta-col   { flex-shrink: 0; display: flex; align-items: center; padding: 16px 18px 16px 0; }
+  .level-cta-btn   {
+    display: inline-block; padding: 8px 14px; border-radius: 8px; font-size: 0.72rem; font-weight: 700;
+    cursor: pointer; background: rgba(255,255,255,0.04); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* ══ UNIFIED PROPERTY INTELLIGENCE CARD ══ */
+  .pi-card {
+    background: #0d1117;
+    border: 1px solid rgba(126,244,244,0.18);
+    border-radius: 14px; overflow: hidden; margin-bottom: 8px;
+  }
+
+  .pi-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 18px 18px 0;
+  }
+  .pi-icon {
+    width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0;
+    background: rgba(126,244,244,0.08); border: 1px solid rgba(126,244,244,0.2);
+    display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+  }
+  .pi-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+  .pi-title   { font-size: 0.92rem; font-weight: 800; color: #e2e8f0; }
+  .pi-badge   {
+    font-size: 0.58rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase;
+    background: rgba(126,244,244,0.1); border: 1px solid rgba(126,244,244,0.25);
+    border-radius: 4px; padding: 2px 7px; color: #7ef4f4;
+  }
+  .pi-subtitle { font-size: 0.71rem; color: #4b6080; }
+
+  /* Pill row */
+  .pi-pills { display: flex; gap: 6px; padding: 12px 18px 0; flex-wrap: wrap; }
+  .pi-pill {
+    display: flex; align-items: center; gap: 5px;
+    border: 1px solid rgba(255,255,255,0.07); border-radius: 20px;
+    padding: 4px 10px 4px 8px; font-size: 0.67rem;
+    background: rgba(255,255,255,0.03);
+  }
+  .pi-pill.g { border-color: rgba(74,222,128,0.22);  background: rgba(74,222,128,0.06); }
+  .pi-pill.y { border-color: rgba(251,191,36,0.22);  background: rgba(251,191,36,0.06); }
+  .pi-pill.r { border-color: rgba(248,113,113,0.22); background: rgba(248,113,113,0.06); }
+  .pi-pill .pnum  { font-weight: 800; color: #4b6080; }
+  .pi-pill .pname { color: #94a3b8; }
+  .pi-pill .pscore { font-weight: 800; }
+
+  /* Address input */
+  .pi-input-row { display: flex; gap: 8px; padding: 14px 18px; }
+  .pi-input {
+    flex: 1; background: #0a0f1a; border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 9px; padding: 11px 14px; font-size: 0.8rem; color: #f0f4ff;
+    font-family: inherit; outline: none;
+  }
+  .pi-input:focus { border-color: rgba(126,244,244,0.35); }
+  .pi-run-btn {
+    background: #7ef4f4; color: #060a10; border: none; border-radius: 9px;
+    padding: 11px 22px; font-size: 0.8rem; font-weight: 800; cursor: pointer;
+    font-family: inherit; white-space: nowrap;
+  }
+
+  /* Loading bar */
+  .pi-loading { padding: 0 18px 14px; }
+  .pi-loading-text { font-size: 0.75rem; color: #4b6080; margin-bottom: 8px; }
+  .pi-loading-bar  { height: 2px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .pi-loading-fill { height: 100%; background: #7ef4f4; border-radius: 2px; animation: shimload 1.4s ease-in-out infinite; }
+  @keyframes shimload { 0%{width:0;margin-left:0} 50%{width:60%;margin-left:20%} 100%{width:0;margin-left:100%} }
+
+  /* Results */
+  .pi-results { display: none; }
+  .pi-results.show { display: block; }
+
+  /* Property snapshot */
+  .pi-snap {
+    margin: 0 18px 12px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 12px 14px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .pi-snap-thumb {
+    width: 68px; height: 52px; border-radius: 7px; flex-shrink: 0;
+    background: linear-gradient(135deg,#1a2540,#0d1b30);
+    display: flex; align-items: center; justify-content: center; font-size: 1.6rem;
+  }
+  .pi-snap-addr  { font-size: 0.8rem; font-weight: 700; color: #c4cfe0; margin-bottom: 4px; }
+  .pi-snap-meta  { font-size: 0.7rem; color: #4b6080; }
+  .pi-snap-price { font-size: 1.3rem; font-weight: 900; color: #f0f4ff; letter-spacing: -0.03em; }
+  .pi-snap-piti  { font-size: 0.64rem; color: #4b6080; text-align: right; }
+
+  /* Sub-level rows */
+  .pi-sub-rows { padding: 0 18px 6px; display: flex; flex-direction: column; gap: 6px; }
+  .pi-sub {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .pi-sub.g { border-color: rgba(74,222,128,0.15); }
+  .pi-sub.y { border-color: rgba(251,191,36,0.15); }
+  .pi-sub-ring { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
+  .pi-sub-ring svg { width: 40px; height: 40px; }
+  .pi-sub-ring .rv {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; font-weight: 800;
+  }
+  .pi-sub-body  { flex: 1; min-width: 0; }
+  .pi-sub-hd    { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .pi-sub-num   { font-size: 0.6rem; font-weight: 800; color: #4b6080; }
+  .pi-sub-title { font-size: 0.8rem; font-weight: 700; color: #e2e8f0; }
+  .pi-sub-wt    { font-size: 0.58rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 3px; padding: 1px 5px; color: #4b6080; }
+  .pi-sub-sum   { font-size: 0.72rem; color: #94a3b8; line-height: 1.5; }
+  .pi-sub-dim   { font-size: 0.72rem; color: #4b6080; font-style: italic; }
+  .pi-bar-row   { display: flex; align-items: center; gap: 6px; margin-top: 7px; }
+  .pi-bar-track { flex: 1; height: 2px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .pi-bar-fill  { height: 100%; border-radius: 2px; }
+  .pi-bar-val   { font-size: 0.6rem; color: #4b6080; }
+
+  /* Deep CTA */
+  .pi-deep {
+    margin: 4px 18px 18px;
+    background: rgba(74,222,128,0.04); border: 1px solid rgba(74,222,128,0.15);
+    border-radius: 10px; padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .pi-deep-t  { font-size: 0.78rem; font-weight: 700; color: #4ade80; margin-bottom: 3px; }
+  .pi-deep-s  { font-size: 0.7rem; color: #4b6080; line-height: 1.5; }
+  .pi-deep-btn {
+    background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.25);
+    border-radius: 8px; padding: 9px 18px; font-size: 0.75rem; font-weight: 700;
+    cursor: pointer; font-family: inherit; white-space: nowrap;
+  }
+
+  /* Prototype controls */
+  .proto {
+    position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 6px; z-index: 99;
+    background: rgba(13,17,23,0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px;
+  }
+  .proto-lbl { font-size: 0.58rem; color: #4b6080; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .proto-btn {
+    background: #1e2a3a; color: #c4cfe0; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px; padding: 7px 12px; font-size: 0.7rem; font-weight: 700;
+    cursor: pointer; font-family: inherit; text-align: left;
+  }
+  .proto-btn.active { background: rgba(126,244,244,0.15); border-color: rgba(126,244,244,0.3); color: #7ef4f4; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div style="margin-bottom:28px;">
+    <h1 class="page-title">Your Buying Decision Score</h1>
+    <p class="page-sub">Four independent analyses. One clear verdict. Run each tool — your score updates automatically.</p>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-label">Scenario</span>
+    <span class="scenario-val">$1.4M · Jumbo · 20% down · 6.51% rate · $9,050/mo PITI</span>
+  </div>
+
+  <div class="saved-banner">
+    <span>✓ Evaluation saved</span>
+    <span style="color:#4b6080">·</span>
+    <a>View My Evaluations →</a>
+  </div>
+
+  <!-- Decision Index -->
+  <div class="idx-card" id="idx-card">
+    <div style="position:relative;width:108px;height:108px;flex-shrink:0;">
+      <svg width="108" height="108" viewBox="0 0 108 108">
+        <circle cx="54" cy="54" r="43" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="7"/>
+        <circle id="idx-ring" cx="54" cy="54" r="43" fill="none" stroke="#4ade80" stroke-width="7"
+          stroke-dasharray="189 270" stroke-linecap="round" transform="rotate(-135 54 54)"
+          style="transition:stroke-dasharray 0.9s ease"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <span id="idx-num" style="font-size:2.1rem;font-weight:900;line-height:1;letter-spacing:-0.04em;color:#4ade80;">72</span>
+        <span style="font-size:0.65rem;color:#94a3b8;margin-top:2px;">/100</span>
+      </div>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div id="idx-verdict" class="idx-label" style="color:#4ade80;">Ready to Offer</div>
+      <div class="idx-sub" id="idx-sub">Based on 3 of 4 levels. Complete remaining analyses to sharpen your score.</div>
+      <div class="idx-pills">
+        <div class="idx-pill"><strong id="pill-n">3</strong> of 4 levels scored</div>
+        <div class="idx-pill"><strong id="pill-p">85</strong>% of index weight</div>
+      </div>
+    </div>
+  </div>
+  <div class="wbar">
+    <div class="wbar-track"><div class="wbar-fill" id="wbar" style="width:85%"></div></div>
+    <span class="wbar-lbl" id="wbar-lbl">85% of index scored</span>
+  </div>
+
+  <div class="section-lbl">4 Decision Levels</div>
+
+  <!-- L1 -->
+  <div class="level-card">
+    <div class="level-inner">
+      <div class="level-stripe"></div>
+      <div class="level-score-col">
+        <div class="level-num">L1</div>
+        <div class="level-ring">
+          <svg viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="19.2" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3.1"/>
+            <circle cx="24" cy="24" r="19.2" fill="none" stroke="#4ade80" stroke-width="3.1"
+              stroke-dasharray="102.6 120.6" stroke-linecap="round" transform="rotate(-90 24 24)"/>
+          </svg>
+          <div class="ring-val" style="color:#4ade80;">85</div>
+        </div>
+      </div>
+      <div class="level-body">
+        <div class="level-head">
+          <span class="level-title">Financial Readiness</span>
+          <span class="level-weight">35%</span>
+        </div>
+        <div class="level-summary">Jumbo 20% down · 80.0% LTV · 6.51% rate</div>
+        <div class="level-bar-row">
+          <div class="level-bar-track"><div class="level-bar-fill" style="width:85%;background:#4ade80;"></div></div>
+          <span class="level-bar-val">85 / 100</span>
+        </div>
+      </div>
+      <div class="level-cta-col"><span class="level-cta-btn">Re-run ↗</span></div>
+    </div>
+  </div>
+
+  <!-- PROPERTY INTELLIGENCE UNIFIED CARD -->
+  <div class="pi-card" id="pi-card">
+    <div class="pi-header">
+      <div class="pi-icon">🏡</div>
+      <div>
+        <div class="pi-title-row">
+          <span class="pi-title">Property Intelligence</span>
+          <span class="pi-badge">L2 · L3 · L4</span>
+        </div>
+        <div class="pi-subtitle">Market conditions, property value &amp; location — all from one address</div>
+      </div>
+    </div>
+
+    <!-- Sub-level status pills -->
+    <div class="pi-pills">
+      <div class="pi-pill" id="pl2"><span class="pnum">L2</span><span class="pname">Market</span><span class="pscore" style="color:#4b6080;">—</span></div>
+      <div class="pi-pill" id="pl3"><span class="pnum">L3</span><span class="pname">Value</span><span class="pscore" style="color:#4b6080;">—</span></div>
+      <div class="pi-pill" id="pl4"><span class="pnum">L4</span><span class="pname">Location</span><span class="pscore" style="color:#4b6080;">—</span></div>
+    </div>
+
+    <!-- Address input -->
+    <div class="pi-input-row">
+      <input class="pi-input" id="pi-addr" type="text"
+        placeholder="Enter address, or paste a Redfin / Zillow URL" />
+      <button class="pi-run-btn" id="pi-run-btn" onclick="runLookup()">Run Numbers →</button>
+    </div>
+
+    <!-- Loading -->
+    <div class="pi-loading" id="pi-loading" style="display:none;">
+      <div class="pi-loading-text" id="pi-loading-msg">Pulling property data…</div>
+      <div class="pi-loading-bar"><div class="pi-loading-fill"></div></div>
+    </div>
+
+    <!-- Results -->
+    <div class="pi-results" id="pi-results">
+
+      <!-- Property snapshot -->
+      <div class="pi-snap">
+        <div class="pi-snap-thumb">🏠</div>
+        <div style="flex:1;min-width:140px;">
+          <div class="pi-snap-addr">2692 Rudolph Dr, Simi Valley, CA 93065</div>
+          <div class="pi-snap-meta">4 bd · 3 ba · 2,797 sqft · Built 2000 · FOR SALE</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div class="pi-snap-price">$1,399K</div>
+          <div class="pi-snap-piti">$9,050/mo PITI @ 6.51% · 20% down</div>
+        </div>
+      </div>
+
+      <!-- Sub-level rows -->
+      <div class="pi-sub-rows">
+
+        <!-- L2 -->
+        <div class="pi-sub y" id="sub-l2">
+          <div class="pi-sub-ring">
+            <svg viewBox="0 0 40 40">
+              <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2.8"/>
+              <circle cx="20" cy="20" r="16" fill="none" stroke="#fbbf24" stroke-width="2.8"
+                stroke-dasharray="49.3 100.5" stroke-linecap="round" transform="rotate(-90 20 20)"/>
+            </svg>
+            <div class="rv" style="color:#fbbf24;">49</div>
+          </div>
+          <div class="pi-sub-body">
+            <div class="pi-sub-hd">
+              <span class="pi-sub-num">L2</span>
+              <span class="pi-sub-title">Market Conditions</span>
+              <span class="pi-sub-wt">25%</span>
+            </div>
+            <div class="pi-sub-sum">Median DOM 46d · sale-to-list 99.3% — balanced market, moderate competition.</div>
+            <div class="pi-bar-row">
+              <div class="pi-bar-track"><div class="pi-bar-fill" style="width:49%;background:#fbbf24;"></div></div>
+              <span class="pi-bar-val">49 / 100</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- L3 -->
+        <div class="pi-sub g" id="sub-l3">
+          <div class="pi-sub-ring">
+            <svg viewBox="0 0 40 40">
+              <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2.8"/>
+              <circle cx="20" cy="20" r="16" fill="none" stroke="#4ade80" stroke-width="2.8"
+                stroke-dasharray="76.4 100.5" stroke-linecap="round" transform="rotate(-90 20 20)"/>
+            </svg>
+            <div class="rv" style="color:#4ade80;">76</div>
+          </div>
+          <div class="pi-sub-body">
+            <div class="pi-sub-hd">
+              <span class="pi-sub-num">L3</span>
+              <span class="pi-sub-title">Property Value</span>
+              <span class="pi-sub-wt">25%</span>
+            </div>
+            <div class="pi-sub-sum">Listed $1,399K vs AVM $1,374K (+1.9%, 3 comps) — at market value.</div>
+            <div class="pi-bar-row">
+              <div class="pi-bar-track"><div class="pi-bar-fill" style="width:76%;background:#4ade80;"></div></div>
+              <span class="pi-bar-val">76 / 100</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- L4 — unscored until deep analysis -->
+        <div class="pi-sub" id="sub-l4">
+          <div class="pi-sub-ring">
+            <svg viewBox="0 0 40 40">
+              <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2.8"/>
+              <circle id="l4-ring-fill" cx="20" cy="20" r="16" fill="none" stroke="#4ade80" stroke-width="2.8"
+                stroke-dasharray="0 100.5" stroke-linecap="round" transform="rotate(-90 20 20)"
+                style="transition:stroke-dasharray 0.8s ease"/>
+            </svg>
+            <div class="rv" id="l4-ring-num" style="color:#4b6080;">—</div>
+          </div>
+          <div class="pi-sub-body">
+            <div class="pi-sub-hd">
+              <span class="pi-sub-num">L4</span>
+              <span class="pi-sub-title">Location Intelligence</span>
+              <span class="pi-sub-wt">15%</span>
+            </div>
+            <div class="pi-sub-dim" id="l4-dim">Schools, walk score &amp; commute — run Deep Analysis to unlock.</div>
+            <div class="pi-sub-sum" id="l4-sum" style="display:none;"></div>
+            <div class="pi-bar-row" id="l4-bar" style="display:none;">
+              <div class="pi-bar-track"><div class="pi-bar-fill" id="l4-bar-fill" style="background:#4ade80;"></div></div>
+              <span class="pi-bar-val" id="l4-bar-val"></span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /sub-rows -->
+
+      <!-- Deep analysis CTA -->
+      <div class="pi-deep" id="pi-deep">
+        <div>
+          <div class="pi-deep-t">Run Deep Analysis — unlock Location Intelligence (L4)</div>
+          <div class="pi-deep-s">Adds schools, walk score, commute time &amp; neighborhood appreciation to your Decision Score.</div>
+        </div>
+        <button class="pi-deep-btn" onclick="runDeep()">Deep Analysis →</button>
+      </div>
+
+    </div><!-- /pi-results -->
+  </div><!-- /pi-card -->
+
+  <div style="font-size:0.7rem;color:#4b6080;line-height:1.6;margin-top:16px;text-align:center;">
+    Powered by Grok 4 · HomeRates.AI — scores save automatically to your evaluation
+  </div>
+</div>
+
+<!-- Prototype state switcher -->
+<div class="proto">
+  <div class="proto-lbl">States</div>
+  <button class="proto-btn" id="btn-0" onclick="applyState(0)">① No scores yet</button>
+  <button class="proto-btn" id="btn-1" onclick="applyState(1)">② L1 only · no address</button>
+  <button class="proto-btn" id="btn-2" onclick="applyState(2)">③ Lookup running…</button>
+  <button class="proto-btn active" id="btn-3" onclick="applyState(3)">④ L1+L2+L3 scored</button>
+  <button class="proto-btn" id="btn-4" onclick="applyState(4)">⑤ All 4 · Deep done</button>
+</div>
+
+<script>
+const SCORES = [
+  { l1:null, l2:null, l3:null, l4:null, addr:'', results:false, loading:false },
+  { l1:85,   l2:null, l3:null, l4:null, addr:'', results:false, loading:false },
+  { l1:85,   l2:null, l3:null, l4:null, addr:'2692 Rudolph Dr, Simi Valley, CA 93065', results:false, loading:true  },
+  { l1:85,   l2:49,   l3:76,   l4:null, addr:'2692 Rudolph Dr, Simi Valley, CA 93065', results:true,  loading:false },
+  { l1:85,   l2:49,   l3:76,   l4:72,  addr:'2692 Rudolph Dr, Simi Valley, CA 93065', results:true,  loading:false },
+];
+
+function scoreColor(s){ return s>=70?'#4ade80':s>=50?'#fbbf24':'#f87171'; }
+
+function ring40(s){
+  const circ = 2*Math.PI*16;
+  return (circ*s/100).toFixed(1)+' '+circ.toFixed(1);
+}
+function ring48(s){
+  const circ = 2*Math.PI*19.2;
+  return (circ*s/100).toFixed(1)+' '+circ.toFixed(1);
+}
+
+function setIndexVisible(show){
+  document.getElementById('idx-card').style.opacity = show ? '1' : '0.3';
+}
+
+function updateIndex(l1,l2,l3,l4){
+  const weights={l1:0.35,l2:0.25,l3:0.25,l4:0.15};
+  const vals={l1,l2,l3,l4};
+  let ws=0,wt=0;
+  for(const[k,w]of Object.entries(weights)) if(vals[k]!=null){ws+=vals[k]*w;wt+=w;}
+  if(wt===0){
+    document.getElementById('idx-card').style.display='none';
+    return;
+  }
+  document.getElementById('idx-card').style.display='flex';
+  const idx=Math.round(ws/wt), pct=Math.round(wt*100);
+  const levN=[l1,l2,l3,l4].filter(x=>x!=null).length;
+  const color=scoreColor(idx);
+  const lbl=idx>=85?'Strong Buy':idx>=70?'Ready to Offer':idx>=55?'Buy with Caution':idx>=40?'Watch the Market':'Hold Off';
+  document.getElementById('idx-num').textContent=idx;
+  document.getElementById('idx-num').style.color=color;
+  document.getElementById('idx-verdict').textContent=lbl;
+  document.getElementById('idx-verdict').style.color=color;
+  document.getElementById('idx-sub').textContent=`Based on ${levN} of 4 levels. ${levN<4?'Complete remaining analyses to sharpen your score.':'All levels scored.'}`;
+  document.getElementById('pill-n').textContent=levN;
+  document.getElementById('pill-p').textContent=pct;
+  document.getElementById('idx-ring').setAttribute('stroke-dasharray',(270*idx/100).toFixed(1)+' 270');
+  document.getElementById('idx-ring').setAttribute('stroke',color);
+  document.getElementById('wbar').style.width=pct+'%';
+  document.getElementById('wbar-lbl').textContent=pct+'% of index scored';
+}
+
+function updatePill(id, score){
+  const el=document.getElementById(id);
+  const sc=el.querySelector('.pscore');
+  el.className='pi-pill';
+  if(score!=null){
+    sc.textContent=score;
+    const c=scoreColor(score);
+    sc.style.color=c;
+    el.classList.add(score>=70?'g':score>=50?'y':'r');
+  } else {
+    sc.textContent='—';
+    sc.style.color='#4b6080';
+  }
+}
+
+function applyState(i){
+  document.querySelectorAll('.proto-btn').forEach((b,j)=>b.classList.toggle('active',j===i));
+  const s=SCORES[i];
+
+  document.getElementById('pi-addr').value=s.addr;
+  document.getElementById('pi-loading').style.display=s.loading?'block':'none';
+  document.getElementById('pi-results').className='pi-results'+(s.results?' show':'');
+  document.getElementById('pi-run-btn').textContent=s.loading?'Looking up…':s.results?'Re-run →':'Run Numbers →';
+  document.getElementById('pi-run-btn').style.opacity=s.loading?'0.5':'1';
+
+  updatePill('pl2',s.l2);
+  updatePill('pl3',s.l3);
+  updatePill('pl4',s.l4);
+  updateIndex(s.l1,s.l2,s.l3,s.l4);
+
+  // L4 inside results
+  if(s.l4!=null){
+    const c=scoreColor(s.l4);
+    document.getElementById('l4-ring-fill').setAttribute('stroke-dasharray',ring40(s.l4));
+    document.getElementById('l4-ring-fill').setAttribute('stroke',c);
+    document.getElementById('l4-ring-num').textContent=s.l4;
+    document.getElementById('l4-ring-num').style.color=c;
+    document.getElementById('sub-l4').className='pi-sub '+(s.l4>=70?'g':s.l4>=50?'y':'r');
+    document.getElementById('l4-dim').style.display='none';
+    document.getElementById('l4-sum').style.display='block';
+    document.getElementById('l4-sum').textContent='Schools 7/10 · Walk 52 · 28min commute · +8.4% 3yr appreciation.';
+    document.getElementById('l4-bar').style.display='flex';
+    document.getElementById('l4-bar-fill').style.width=s.l4+'%';
+    document.getElementById('l4-bar-fill').style.background=c;
+    document.getElementById('l4-bar-val').textContent=s.l4+' / 100';
+    document.getElementById('pi-deep').style.display='none';
+  } else {
+    document.getElementById('l4-ring-fill').setAttribute('stroke-dasharray','0 100.5');
+    document.getElementById('l4-ring-num').textContent='—';
+    document.getElementById('l4-ring-num').style.color='#4b6080';
+    document.getElementById('sub-l4').className='pi-sub';
+    document.getElementById('l4-dim').style.display='block';
+    document.getElementById('l4-sum').style.display='none';
+    document.getElementById('l4-bar').style.display='none';
+    document.getElementById('pi-deep').style.display=s.results?'flex':'none';
+  }
+}
+
+function runLookup(){ applyState(2); setTimeout(()=>applyState(3),1600); }
+function runDeep()   { applyState(4); }
+
+// Init
+applyState(3);
+</script>
+</body>
+</html>

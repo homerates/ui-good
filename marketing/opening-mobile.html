@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeRates — Opening Card (Mobile 9:16)</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #040608;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .card {
+    width: 390px;
+    height: 844px;
+    background: #080c12;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 56px 36px 52px;
+  }
+
+  /* Ambient glow top */
+  .card::before {
+    content: '';
+    position: absolute;
+    top: -120px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(0,232,122,0.08) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  /* Ambient glow bottom */
+  .card::after {
+    content: '';
+    position: absolute;
+    bottom: -80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 400px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(0,232,122,0.05) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  /* Top: logo */
+  .top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    z-index: 2;
+  }
+
+  .logo {
+    height: 32px;
+    width: auto;
+    opacity: 0.95;
+  }
+
+  /* Center: hook */
+  .center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 24px;
+    z-index: 2;
+    flex: 1;
+    justify-content: center;
+    padding: 20px 0;
+  }
+
+  .eyebrow {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #00e87a;
+    opacity: 0.9;
+  }
+
+  .hook {
+    font-family: 'Syne', sans-serif;
+    font-size: 42px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: #f0f4ff;
+    letter-spacing: -0.02em;
+  }
+
+  .hook em {
+    font-style: normal;
+    color: #00e87a;
+  }
+
+  .divider {
+    width: 48px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00e87a, transparent);
+    border-radius: 2px;
+  }
+
+  .sub {
+    font-size: 16px;
+    font-weight: 400;
+    color: rgba(240,244,255,0.5);
+    line-height: 1.5;
+    max-width: 280px;
+  }
+
+  /* Bottom: domain */
+  .bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    z-index: 2;
+  }
+
+  .domain {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(240,244,255,0.3);
+    letter-spacing: 0.04em;
+  }
+
+  /* Grid lines texture */
+  .grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,232,122,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,232,122,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Corner accent top-right */
+  .corner-tr {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 120px;
+    height: 120px;
+    border-top: 1px solid rgba(0,232,122,0.15);
+    border-right: 1px solid rgba(0,232,122,0.15);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* Corner accent bottom-left */
+  .corner-bl {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 120px;
+    height: 120px;
+    border-bottom: 1px solid rgba(0,232,122,0.15);
+    border-left: 1px solid rgba(0,232,122,0.15);
+    pointer-events: none;
+    z-index: 2;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="grid"></div>
+    <div class="corner-tr"></div>
+    <div class="corner-bl"></div>
+
+    <div class="top">
+      <img class="logo" src="https://chat.homerates.ai/assets/homerates-logo-horizontal.png" alt="HomeRates.ai" />
+    </div>
+
+    <div class="center">
+      <span class="eyebrow">Before you become a lead</span>
+      <h1 class="hook">You deserve<br/>real answers,<br/>not a <em>sales funnel.</em></h1>
+      <div class="divider"></div>
+      <p class="sub">Real mortgage math. Live rates. No one gets your number.</p>
+    </div>
+
+    <div class="bottom">
+      <span class="domain">chat.homerates.ai</span>
+    </div>
+  </div>
+</body>
+</html>
