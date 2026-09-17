@@ -1149,8 +1149,39 @@ async function findRedfinUrl(address: string): Promise<string | null> {
             });
             if (res3.ok) {
                 const data3 = await res3.json();
-                return extractRedfinUrl(data3.results ?? []);
+                const url3 = extractRedfinUrl(data3.results ?? []);
+                if (url3) return url3;
             }
+        }
+
+        // Fourth retry: plain address text + "redfin", NO site: restriction.
+        // Root cause (verified directly against Tavily, 2026-09-16): every attempt
+        // above pairs an address query with `site:redfin.com`, and that combination
+        // is unreliable on Tavily's current index — it frequently returns irrelevant
+        // site:redfin.com pages (the blog, the mobile app page, a bare zipcode hub)
+        // instead of the actual listing, even for addresses confirmed FOR_SALE in our
+        // own `properties` table (reproduced live for 870 Doud St, Monterey and 15432
+        // Cherbourg Ave, Irvine — both real, current listings). Dropping the `site:`
+        // operator and just searching the address text plus the word "redfin" finds
+        // the correct listing reliably. This doesn't loosen the identity guarantees —
+        // extractRedfinUrl()/slugMatchesAddress() below still require the candidate
+        // URL's own slug to match this address's house number (and street word), and
+        // handleAddress()'s validatePropertyIdentity() + candidateIsUnconfirmedUnit()
+        // still gate whatever URL comes back before it can ever be shown or persisted.
+        const res4 = await fetch('https://api.tavily.com/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(8_000),
+            body: JSON.stringify({
+                api_key: key,
+                query: `${clean} redfin`,
+                max_results: 5, search_depth: 'basic', include_answer: false,
+            }),
+        });
+        if (res4.ok) {
+            const data4 = await res4.json();
+            const url4 = extractRedfinUrl(data4.results ?? []);
+            if (url4) return url4;
         }
 
         return null;

@@ -179,8 +179,8 @@ const isPublicRoute = createRouteMatcher([
   "/consumer(.*)",
   // Consumer homepage — served on homerates.ai root
   "/consumer-home(.*)",
-  // Groves IQ partnership hub — password-gated, no Clerk auth required
-  "/grovesiq(.*)",
+  // Partnership materials hub — password-gated, no Clerk auth required
+  "/partnership(.*)",
   // Groves IQ partnership proposal — password-gated shareable doc
   "/groves(.*)",
   // Rate Intelligence Engine — consumer-facing LLPA calculator, no auth required

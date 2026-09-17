@@ -1,6 +1,6 @@
 "use client";
-// app/admin/grovesiq/page.tsx
-// Groves IQ partnership hub — admin view
+// app/admin/partnership/page.tsx
+// Partnership materials hub — admin view
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -15,7 +15,7 @@ const DOCS = [
         label: "Consumer UX",
         icon: "📱",
         desc: "4-screen consumer experience prototype — home, scenario card, affordability, pro toggle",
-        src: "/grovesiq/consumer-prototype.html",
+        src: "/partnership/consumer-prototype.html",
         tag: "UX Prototype",
     },
     {
@@ -23,15 +23,15 @@ const DOCS = [
         label: "LO Partner Model",
         icon: "🏦",
         desc: "Generic LO Partner Program — side-by-side LO portal and consumer borrower experience",
-        src: "/grovesiq/lo-partner.html",
+        src: "/partnership/lo-partner.html",
         tag: "Product Mockup",
     },
     {
         id: "consumer-mockup",
-        label: "Groves IQ Consumer",
+        label: "Partnership Visual",
         icon: "🤝",
-        desc: "Groves IQ specific — LO-sponsored consumer experience with unlocked premium features",
-        src: "/grovesiq/consumer-mockup.html",
+        desc: "Sure First Lending specific — LO-sponsored consumer experience with unlocked premium features",
+        src: "/partnership/consumer-mockup.html",
         tag: "Partnership Visual",
     },
     {
@@ -39,20 +39,20 @@ const DOCS = [
         label: "Framework Doc",
         icon: "📄",
         desc: "One-page partnership framework — what each platform does, the arrangement, commercial terms, next steps",
-        src: "/grovesiq/framework.html",
+        src: "/partnership/framework.html",
         tag: "Business Document",
     },
 ];
 
-export default function GrovesIQAdmin() {
+export default function PartnershipAdmin() {
     const router = useRouter();
     const { isAdmin, loading } = useAdminStatus();
     const [active, setActive] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
 
     const shareUrl = typeof window !== "undefined"
-        ? `${window.location.origin}/grovesiq`
-        : "https://chat.homerates.ai/grovesiq";
+        ? `${window.location.origin}/partnership`
+        : "https://chat.homerates.ai/partnership";
 
     function copyShareInfo() {
         navigator.clipboard.writeText(`URL: ${shareUrl}\nAccess code: ${ACCESS_CODE}`);
@@ -92,7 +92,7 @@ export default function GrovesIQAdmin() {
                             Admin · Partnership Materials
                         </div>
                         <h1 style={{ fontSize: "1.3rem", fontWeight: 800, color: "#f0f4ff", letterSpacing: "-0.03em", marginBottom: 4 }}>
-                            Groves IQ Partnership Hub
+                            Partnership Materials Hub
                         </h1>
                         <p style={{ fontSize: "0.8rem", color: "#8fa3b8" }}>
                             4 documents · Share externally via password-protected URL
@@ -108,7 +108,7 @@ export default function GrovesIQAdmin() {
                         minWidth: 280,
                     }}>
                         <div style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#3d8bff", marginBottom: 8 }}>
-                            Share with Groves IQ team
+                            Share with partner team
                         </div>
                         <div style={{ fontSize: "0.75rem", color: "#8fa3b8", marginBottom: 4 }}>
                             URL: <span style={{ color: "#f0f4ff", fontFamily: "monospace" }}>{shareUrl}</span>
