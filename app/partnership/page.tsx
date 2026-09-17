@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from "react";
 
-const ACCESS_CODE = "groves2026";
+const ACCESS_CODE = "HomeRates2026";
 const SESSION_KEY = "hr_partnership_auth";
 
 const DOCS = [
@@ -53,7 +53,7 @@ export default function PartnershipHub() {
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (input.trim().toLowerCase() === ACCESS_CODE) {
+        if (input.trim().toLowerCase() === ACCESS_CODE.toLowerCase()) {
             sessionStorage.setItem(SESSION_KEY, "1");
             setAuthed(true);
             setError(false);
@@ -68,7 +68,7 @@ export default function PartnershipHub() {
     // ── PASSWORD GATE ───────────────────────────────────────────
     if (!authed) {
         return (
-            <div style={{
+            <div className="page-standalone" style={{
                 minHeight: "100vh", background: "#080c12",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
@@ -76,16 +76,10 @@ export default function PartnershipHub() {
             }}>
                 <div style={{ maxWidth: 380, width: "100%", textAlign: "center" }}>
 
-                    {/* Logo */}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 32 }}>
-                        <div style={{
-                            width: 36, height: 36, background: "#00e87a",
-                            borderRadius: 9, display: "flex", alignItems: "center",
-                            justifyContent: "center", fontWeight: 900, fontSize: 16, color: "#000",
-                        }}>H</div>
-                        <span style={{ fontSize: "1.05rem", fontWeight: 700, color: "#f0f4ff" }}>
-                            Home<span style={{ color: "#00e87a" }}>Rates</span>
-                        </span>
+                    {/* Logo — BRAND.md hard rule: approved logo asset only, never a recreated wordmark */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 32 }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/assets/homerates-email-logo.png" alt="HomeRates.Ai" style={{ height: 28, width: "auto" }} />
                     </div>
 
                     <div style={{
@@ -152,7 +146,7 @@ export default function PartnershipHub() {
     const activeDoc = DOCS.find(d => d.id === active)!;
 
     return (
-        <div style={{
+        <div className="page-standalone" style={{
             minHeight: "100vh", background: "#080c12",
             display: "flex", flexDirection: "column",
             fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
@@ -167,14 +161,8 @@ export default function PartnershipHub() {
                 flexShrink: 0,
             }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{
-                        width: 28, height: 28, background: "#00e87a",
-                        borderRadius: 7, display: "flex", alignItems: "center",
-                        justifyContent: "center", fontWeight: 900, fontSize: 13, color: "#000",
-                    }}>H</div>
-                    <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#f0f4ff" }}>
-                        Home<span style={{ color: "#00e87a" }}>Rates</span>
-                    </span>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/assets/homerates-email-logo.png" alt="HomeRates.Ai" style={{ height: 20, width: "auto" }} />
                     <span style={{
                         fontSize: "0.6rem", fontWeight: 700, padding: "2px 8px",
                         background: "rgba(61,139,255,0.1)", border: "1px solid rgba(61,139,255,0.2)",
