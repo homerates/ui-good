@@ -18,6 +18,13 @@ const nextConfig = {
     return config;
   },
 
+  // Confidential docs live in private-docs/ (never public/) and are read via fs
+  // by the gated routes in lib/docAccess.ts — make sure Vercel bundles them.
+  outputFileTracingIncludes: {
+    "/investor-deck.html": ["./private-docs/**/*"],
+    "/partnership/*": ["./private-docs/**/*"],
+  },
+
   eslint: {
     ignoreDuringBuilds: true,
   },

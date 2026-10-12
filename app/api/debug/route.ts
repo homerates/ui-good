@@ -1,18 +1,15 @@
-﻿// app/api/debug/route.ts
+// app/api/debug/route.ts
+// Admin-only: reports runtime configuration presence. Never public.
 export const runtime = 'nodejs';
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+import { requireAdmin } from '../../../lib/adminAuth';
 
 export async function GET() {
-  return json({
+  const { error } = await requireAdmin();
+  if (error) return error;
+  return Response.json({
     dynamicEnabled: process.env.DYNAMIC_ENABLED,
     hasOpenAIKey: !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.length > 20,
-    nodeVersion: process.version
+    nodeVersion: process.version,
   });
 }
-

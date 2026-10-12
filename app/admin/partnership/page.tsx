@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { useAdminStatus } from "../../hooks/useAdminStatus";
 import AppNav from "../../components/AppNav";
 
-const ACCESS_CODE = "HomeRates2026";
 
 const DOCS = [
     {
@@ -55,7 +54,7 @@ export default function PartnershipAdmin() {
         : "https://chat.homerates.ai/partnership";
 
     function copyShareInfo() {
-        navigator.clipboard.writeText(`URL: ${shareUrl}\nAccess code: ${ACCESS_CODE}`);
+        navigator.clipboard.writeText(`URL: ${shareUrl}`);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     }
@@ -114,7 +113,7 @@ export default function PartnershipAdmin() {
                             URL: <span style={{ color: "#f0f4ff", fontFamily: "monospace" }}>{shareUrl}</span>
                         </div>
                         <div style={{ fontSize: "0.75rem", color: "#8fa3b8", marginBottom: 12 }}>
-                            Access code: <span style={{ color: "#00e87a", fontWeight: 700, fontFamily: "monospace" }}>{ACCESS_CODE}</span>
+                            Access code: <span style={{ color: "#00e87a", fontWeight: 700 }}>shared separately</span> <span style={{ color: "#5b6b80" }}>(DOC_ACCESS_CODE in Vercel)</span>
                         </div>
                         <button
                             onClick={copyShareInfo}
