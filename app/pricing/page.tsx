@@ -60,7 +60,7 @@ const PLANS = [
     cta: "Start Pro",
     ctaVariant: "pro" as const,
     badge2: "Investor + LO",
-    introUrgency: "⚡ Intro pricing — limited time",
+    introUrgency: "⚡ Intro pricing",
     features: [
       "⭐ Full DSCR / Investment Property Reports",
       "⭐ Portfolio tracker + deal pipeline",

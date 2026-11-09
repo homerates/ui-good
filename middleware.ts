@@ -181,6 +181,8 @@ const isPublicRoute = createRouteMatcher([
   "/consumer-home(.*)",
   // Partnership materials hub — password-gated, no Clerk auth required
   "/partnership(.*)",
+  // Server-side document gate (lib/docAccess.ts) — validates the code itself
+  "/api/doc-access(.*)",
   // Groves IQ partnership proposal — password-gated shareable doc
   "/groves(.*)",
   // Rate Intelligence Engine — consumer-facing LLPA calculator, no auth required

@@ -155,18 +155,7 @@
 </head>
 <body>
 
-<div id="hr-gate">
-  <div class="hr-gate-card">
-    <div class="hr-gate-logo"><img src="https://chat.homerates.ai/assets/homerates-email-logo.png" alt="HomeRates.Ai" /></div>
-    <div class="hr-gate-title">Investor Deck — 2026</div>
-    <div class="hr-gate-sub">This deck is shared privately. Enter the password to continue.</div>
-    <input type="password" id="hr-gate-pw" class="hr-gate-input" placeholder="Password" autocomplete="off" />
-    <button type="button" id="hr-gate-btn" class="hr-gate-btn">View Deck →</button>
-    <div class="hr-gate-error" id="hr-gate-err"></div>
-  </div>
-</div>
-
-<div id="hr-deck" style="display:none;">
+<div id="hr-deck">
 
 <!-- ══════════════════ SLIDE 1 — COVER ══════════════════ -->
 <div class="slide cover-slide">
@@ -408,8 +397,8 @@
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">
     <div class="card" style="text-align:center;padding:16px 12px;">
       <div style="font-size:0.95rem;font-weight:700;color:#f0f4ff;">ChatGPT</div>
-      <div class="green" style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-top:6px;">Live</div>
-      <div style="font-size:0.74rem;color:rgba(185,208,192,0.55);margin-top:4px;">OAuth-secured MCP connection, confirmed in production</div>
+      <div class="green" style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-top:6px;">Connected</div>
+      <div style="font-size:0.74rem;color:rgba(185,208,192,0.55);margin-top:4px;">OAuth-secured MCP connection, tested end-to-end with ChatGPT</div>
     </div>
     <div class="card" style="text-align:center;padding:16px 12px;">
       <div style="font-size:0.95rem;font-weight:700;color:#f0f4ff;">Claude</div>
@@ -563,9 +552,9 @@
 
 <!-- ══════════════════ SLIDE 4C — PRODUCT VISUALS ══════════════════ -->
 <div class="slide">
-  <div class="eyebrow">Product Visuals · Live, Not Mockups</div>
+  <div class="eyebrow">Product Visuals</div>
   <h2>Seven products. Seven real outcomes.</h2>
-  <p style="margin-bottom:16px;max-width:760px;">Every screen below is a working HomeRates prototype or live production page, not a design concept — the same intelligence engines described on the last two slides, rendered.</p>
+  <p style="margin-bottom:16px;max-width:760px;">Two of these are live production pages (the Scenario Engine and Check Any Property). The other five are product prototypes built around the same intelligence engines described on the last two slides, shown with sample data.</p>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
     <div class="card" style="padding:12px;">
       <img src="https://chat.homerates.ai/assets/deck-visuals/track5.png" alt="Track 5 Decision Score" style="width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.08);display:block;" />
@@ -675,7 +664,7 @@
   </div>
   <div class="card accent" style="margin-top:14px;text-align:center;">
     <span style="color:#f0f4ff;font-weight:700;">Intro pricing: </span>
-    <span style="color:rgba(185,208,192,0.7);">Pro is $19/mo (list $49) for a limited time — built to seed the investor/LO base before reverting to full price.</span>
+    <span style="color:rgba(185,208,192,0.7);">Pro launches at $19/mo (list $49) to seed the investor/LO base. Moving to list price is a deliberate, growth-gated decision — not a countdown.</span>
   </div>
   <div class="slide-footer">
     <span>HomeRates.AI — Confidential</span><span>chat.homerates.ai</span>
@@ -691,8 +680,8 @@
   </p>
   <div class="card-row">
     <div class="card accent">
-      <h3>Already Live, Not Speculative</h3>
-      <p>The white-label infrastructure is shipped and running in production today — partner branding (logo, tagline, accent color), a fully working consumer flow at a partner-specific URL. First deployment: Sure First Lending.</p>
+      <h3>Infrastructure Already Live</h3>
+      <p>The white-label infrastructure is shipped and running in production today — partner branding (logo, tagline, accent color), a fully working consumer flow at a partner-specific URL. Proposed first deployment: Sure First Lending (in discussion).</p>
     </div>
     <div class="card">
       <h3>What Gets Licensed</h3>
@@ -726,7 +715,7 @@
         <li>11 SEO platform marketing pages live and indexed</li>
         <li>Private vault (Supabase + Clerk auth) in production</li>
         <li>Google Aerial View flyover video on every property lookup</li>
-        <li>3 documented trade secrets protecting core IP</li>
+        <li>Proprietary scoring engine + prompt architecture</li>
         <li>YCombinator application submitted</li>
         <li>$0 customer acquisition cost to date — 100% organic</li>
       </ul>
@@ -768,11 +757,11 @@
       <td class="no-cell">Relationship / referral</td>
     </tr>
     <tr>
-      <td>Consumer data sold?</td>
+      <td>Your inquiry routed to multiple lenders?</td>
       <td class="yes-cell">Never</td>
-      <td class="no-cell">Always</td>
-      <td class="no-cell">Yes</td>
+      <td class="no-cell">Typically</td>
       <td class="no-cell">Often</td>
+      <td class="no-cell">Varies</td>
     </tr>
     <tr>
       <td>Rates source</td>
@@ -817,7 +806,7 @@
       <div class="team-name">Rayaan Arif</div>
       <div class="team-title">Founder &amp; CEO</div>
       <div class="team-bio" style="margin-bottom:10px;">
-        20+ year mortgage industry veteran and licensed loan officer. Built HomeRates.AI from direct experience watching consumers be systematically misled by the mortgage lead-gen industry.
+        20+ year mortgage industry veteran. Built HomeRates.AI from direct experience watching consumers be systematically misled by the mortgage lead-gen industry.
       </div>
       <div class="team-bio">
         <strong style="color:rgba(185,208,192,0.8);">3 prior exits:</strong>
@@ -922,7 +911,7 @@
   </table>
   <div style="font-size:0.7rem;color:rgba(185,208,192,0.35);margin-top:8px;line-height:1.5;">
     Model assumptions: free-user base of ~25K/120K/400K (Yr1–3), 3%→4.5%→6% free-to-paid conversion, 80/20 Plus/Pro mix ($7 / $19 blended).
-    White-label ACV ~$15K→$50K blended across the published $4,800–$120,000+/yr Enterprise range, anchored to one live deployment today (Sure First Lending) —
+    White-label ACV ~$15K→$50K blended across the published $4,800–$120,000+/yr Enterprise range, with a first deployment in discussion (Sure First Lending) —
     account count and ACV both scale as later deals skew toward larger lenders/banks. Illustrative, not committed guidance.
   </div>
   <div class="card-row" style="margin-top:14px;">
@@ -984,7 +973,7 @@
       <div class="card accent" style="text-align:center;flex:1;display:flex;flex-direction:column;justify-content:center;">
         <div style="font-size:0.72rem;color:rgba(185,208,192,0.45);text-transform:uppercase;letter-spacing:0.08em;">Primary Exit Strategy</div>
         <div style="font-size:1.05rem;color:#f0f4ff;font-weight:700;margin-top:6px;">Strategic Acquisition · 5–7 Years</div>
-        <div style="font-size:0.8rem;color:rgba(185,208,192,0.5);margin-top:4px;">ICE Mortgage Technology · CoStar · Black Knight · Zillow</div>
+        <div style="font-size:0.8rem;color:rgba(185,208,192,0.5);margin-top:4px;">ICE Mortgage Technology (incl. Black Knight) · CoStar · Zillow</div>
       </div>
       <div class="card" style="text-align:center;flex:1;display:flex;flex-direction:column;justify-content:center;">
         <div style="font-size:0.72rem;color:rgba(185,208,192,0.45);text-transform:uppercase;letter-spacing:0.08em;">Target Investor Return</div>
@@ -1019,44 +1008,6 @@
 
 </div><!-- /hr-deck -->
 
-<script>
-  (function () {
-    var PW = 'HomeRates2026';
-    var gate = document.getElementById('hr-gate');
-    var deck = document.getElementById('hr-deck');
-    var input = document.getElementById('hr-gate-pw');
-    var btn = document.getElementById('hr-gate-btn');
-    var err = document.getElementById('hr-gate-err');
-
-    function unlock() {
-      gate.style.display = 'none';
-      deck.style.display = 'block';
-      try { sessionStorage.setItem('hr_deck_unlocked', '1'); } catch (e) {}
-    }
-
-    function tryUnlock() {
-      if (input.value === PW) {
-        unlock();
-      } else {
-        err.textContent = 'Incorrect password — try again.';
-        var card = gate.querySelector('.hr-gate-card');
-        card.classList.remove('hr-gate-shake');
-        void card.offsetWidth;
-        card.classList.add('hr-gate-shake');
-        input.value = '';
-        input.focus();
-      }
-    }
-
-    try {
-      if (sessionStorage.getItem('hr_deck_unlocked') === '1') { unlock(); }
-    } catch (e) {}
-
-    btn.addEventListener('click', tryUnlock);
-    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') tryUnlock(); });
-    input.focus();
-  })();
-</script>
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
