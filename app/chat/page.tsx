@@ -2450,12 +2450,9 @@ export default function Page() {
             /\bmy home at\b.{5,120}(?:refinance|refi|equity|break.?even|heloc)/i.test(q);
         const plainAddress = (!listingUrl && !hasHomeownerIntent) ? extractPlainAddress(q) : null;
         if (listingUrl || plainAddress) {
-            // Zillow blocks server-side scraping — show a friendly nudge immediately
-            if (listingUrl && /zillow\.com/i.test(listingUrl)) {
-                typeOutAssistant(answerId, 'Zillow blocks automated lookups from our servers. For instant price data, paste the Redfin link for this property instead — Redfin works great.');
-                setLoading(false);
-                return;
-            }
+            // Zillow links used to be turned away here with a "paste the Redfin link" nudge.
+            // Since ISSUE-040 (Redfin behind AWS WAF; Zillow's own connector answers), Zillow
+            // links go through /api/property/lookup like any other listing link.
             const lookupBody = listingUrl ? { url: listingUrl } : { address: plainAddress! };
             try {
                 // Fetch property data + live FRED rate in parallel

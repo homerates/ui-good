@@ -9,7 +9,8 @@
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
-import { fetchPropertyData } from '@/property/fetch';
+import { fetchPropertyData, parseAddressFromZillowSlug } from '@/property/fetch';
+import { lookupViaZillow } from '@/property/zillowConnector';
 import { lookupTaxRate }     from '@/property/taxTable';
 import { getSupabase }       from '../../../../lib/supabaseServer';
 import { log }               from '../../../../lib/logger';
@@ -782,7 +783,7 @@ async function fetchSoldSnippets(address: string): Promise<SoldSnippetResult> {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        if (body.url)     return handleUrl(String(body.url));
+        if (body.url)     return handleUrl(String(body.url), { zillowFallback: true });
         if (body.address) return handleAddress(String(body.address));
         return NextResponse.json({ ok: false, error: 'url or address required' }, { status: 400 });
     } catch (err: any) {
@@ -792,8 +793,49 @@ export async function POST(req: Request) {
 
 // ── URL handler ─────────────────────────────────────────────────────────────
 
-async function handleUrl(rawUrl: string) {
+// Zillow connector result as an HTTP response (ISSUE-040). Deliberately never passed to
+// cachePropertyResult(): Zillow data stays out of the shared `properties` cache and
+// everything that publishes from it — see lib/property/zillowConnector.ts usage rules.
+async function zillowResponse(address: string): Promise<Response | null> {
+    const z = await lookupViaZillow(address);
+    if (!z) return null;
+    z.county = (await resolveCounty((z.zip as string | null) ?? null)) ?? z.county ?? null;
+    // Zillow's tax data comes only from its off-market details tool — for listed homes,
+    // fall back to the same state/county table the Redfin path uses.
+    if (z.taxRateEffective == null && typeof z.state === 'string') {
+        const { rate } = lookupTaxRate(z.state, (z.county as string | null) ?? null);
+        z.taxRateEffective = rate;
+        z.taxSource = 'table';
+        if (typeof z.price === 'number') z.annualTaxes = Math.round(z.price * rate);
+    }
+    console.log('[property/lookup] served via Zillow connector for', address);
+    return NextResponse.json({ ok: true, data: z });
+}
+
+// Address implied by a pasted Redfin/Zillow listing URL's own slug, or null.
+function addressFromListingUrl(url: string): string | null {
+    if (/redfin\.com/i.test(url)) return addressFromRedfinUrl(url);
+    if (/zillow\.com/i.test(url)) {
+        const z = parseAddressFromZillowSlug(url);
+        if (!z) return null;
+        const street = z.address.split(',')[0].trim();
+        return [street, z.city, [z.state, z.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    }
+    return null;
+}
+
+// opts.zillowFallback is set only for a user-pasted URL (POST). handleAddress() calls this
+// too, and then caches the result — a Zillow fallback there would leak Zillow data into the
+// shared cache, so handleAddress() runs its own Zillow step after this instead.
+async function handleUrl(rawUrl: string, opts: { zillowFallback?: boolean } = {}) {
     const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+    const slugAddress = opts.zillowFallback ? addressFromListingUrl(url) : null;
+
+    // Zillow listing links: Zillow blocks page scraping, but its own connector answers.
+    if (slugAddress && /zillow\.com/i.test(url)) {
+        const z = await zillowResponse(slugAddress);
+        if (z) return z;
+    }
 
     // Run base property fetch and Tavily extract in parallel
     const [baseResult, tavilyText] = await Promise.allSettled([
@@ -839,6 +881,12 @@ async function handleUrl(rawUrl: string) {
                 };
                 return NextResponse.json({ ok: true, data: mergeGpt4o(baseData, gpt) });
             }
+        }
+        // Redfin listing page blocked (AWS WAF challenge since Oct 2026) — try Zillow's
+        // connector using the address in the link's own slug.
+        if (slugAddress && /redfin\.com/i.test(url)) {
+            const z = await zillowResponse(slugAddress);
+            if (z) return z;
         }
         const err = base && !base.ok ? base : null;
         return NextResponse.json({
@@ -1217,8 +1265,10 @@ async function handleAddress(rawAddress: string) {
         // is the real, final gate on the EXTRACTED candidate before it can ever
         // be persisted or shown as this address's result. See lib/addressIdentity.ts.
         let identityFailed = false;
+        let redfinOk = false;
         try {
             const body = await result.clone().json();
+            redfinOk = !!body?.ok;
             if (body?.ok && body?.data) {
                 const identity = validatePropertyIdentity(rawAddress, body.data as CandidateAddressFields);
                 console.log('[address-identity]', { code: identity.code, branch: 'redfin_url' });
@@ -1258,8 +1308,14 @@ async function handleAddress(rawAddress: string) {
         // caller (internal or external) as this address's result -- fall
         // through to broad search exactly as if this branch found nothing,
         // rather than silently show the wrong property.
-        if (!identityFailed) return result;
+        // A Redfin page that couldn't be read (AWS WAF challenge, ISSUE-040) also falls
+        // through, to the Zillow connector below, instead of returning its error.
+        if (!identityFailed && redfinOk) return result;
     }
+
+    // Zillow's official connector (ISSUE-040). Never persisted — see zillowResponse().
+    const zillow = await zillowResponse(rawAddress);
+    if (zillow) return zillow;
 
     console.log('[property/lookup] no Redfin URL found, trying broad search for', rawAddress);
     const broadData = await broadSearchFallback(rawAddress);

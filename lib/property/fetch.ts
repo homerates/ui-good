@@ -63,7 +63,7 @@ function merge(primary: Partial<PropertyData> | null, og: Partial<PropertyData>)
  * Slug format: /homedetails/5365-Long-Shadow-Ct-Westlake-Village-CA-91362/16487723_zpid/
  * Returns null if the slug doesn't match the expected pattern.
  */
-function parseAddressFromZillowSlug(url: string): { address: string; city: string | null; state: string | null; zip: string | null } | null {
+export function parseAddressFromZillowSlug(url: string): { address: string; city: string | null; state: string | null; zip: string | null } | null {
     // Extract the slug between /homedetails/ and the next /
     const slugMatch = url.match(/\/homedetails\/([^/]+)/i);
     if (!slugMatch) return null;
