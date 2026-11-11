@@ -4,6 +4,7 @@ import { getSupabase } from '../../../../lib/supabaseServer';
 import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from '../../../../lib/constants';
 import { lookupTaxRate } from '../../../../lib/property/taxTable';
 import { resolveCountyByZip } from '../../../../lib/property/countyResolution';
+import { zillowSaleCheck } from '../../../../lib/property/zillowConnector';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -60,12 +61,12 @@ Current date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'nu
 Your job is to deliver the highest quality, most accurate, and freshest property analysis possible.
 
 CRITICAL REQUIREMENTS:
+- You have NO web access in this mode. Never state a property fact, sale, price, date or score from memory or training knowledge -- return null (or [] for lists) for anything not given to you in the user message.
 - If verified listing facts are provided in the user message, treat them as authoritative and reflect them accurately in all factual fields.
-- Always include current_status: For Sale, Pending, Sold, Off Market, or Withdrawn.
-- Include last sale date and price if available from public records.
-- Include original list date and days on market.
-- For life_fit_score: score 0-100 based on schools, neighborhood quality, commute access, walkability, and value vs comparable sales.
-- For comparable_sales: include 3-4 real recent sales within 0.5 miles from the past 18 months. Use real addresses.
+- Always include current_status: For Sale, Pending, Sold, Off Market, or Withdrawn -- from the provided facts; null if none were provided.
+- last_sold_date, last_sold_price, original_list_date, days_on_market: only from the provided facts, otherwise null.
+- For life_fit_score: score 0-100 based only on the provided facts and general, non-numeric location character; null if there is too little to go on.
+- comparable_sales: always [] in this mode -- comparable sales come only from a live search, never from memory.
 - grok_intelligence_summary: 2-3 high-quality sentences covering market context, positioning, and key buyer/seller considerations.
 - CONSISTENCY RULE: key_highlights, grok_intelligence_summary, and any other free-text field must never contradict current_status, current_list_price, or sqft in this same response. If verified listing facts say the property is currently For Sale at a given price and size, do not describe it elsewhere in the response as off-market, sold, or a different size based on an older sale or your own prior knowledge -- the authoritative facts govern every field, not just the structured ones.
 
@@ -98,9 +99,11 @@ const DEEP_SYSTEM_PROMPT = `You are HomeRates.ai's Property Intelligence Expert.
 
 Current date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
 
-Search the web for the property address provided. Find its active listing on Redfin and Zillow, then extract every available data point.
+Search the web for the property address provided. Find its listing or property page -- Zillow, Redfin, Realtor.com, Trulia, MLSListings, or any brokerage site showing the MLS listing (Redfin pages often cannot be opened; brokerage MLS pages usually can) -- then extract every available data point.
 
-CRITICAL RULE: If you found a value during your web search, you MUST include it in the JSON. Return null ONLY if the field is genuinely unavailable — not if you are uncertain. A value you found is always better than null.
+CRITICAL RULE: If you found a value on a page during this search, you MUST include it in the JSON. A value you found is always better than null.
+
+GROUNDING RULE (hard rule, overrides everything below): every fact, figure and score must come from a page you actually opened or a search result you actually read in THIS search. Never fill a field from memory or training knowledge, never estimate or infer a number, never "approximate" a score. If you did not find it, return null (or [] for lists) -- an honest null is correct; a plausible guess is a defect. For each factual field you populate, record the page URL it came from in "sources" (field name -> URL).
 
 CONSISTENCY RULE: key_highlights, grok_intelligence_summary, buyer_strategy, and location_intelligence.narrative must never contradict current_status, current_list_price, or sqft elsewhere in this same response. If the property is currently For Sale at a given price and size, do not describe it in any text field as off-market, sold, or a different size based on an older sale, a stale listing, or your own prior/training knowledge -- the current, verified facts govern every field, not just the structured ones. A past sale (last_sold_date/last_sold_price) is historical context only and must never be restated as the property's current status.
 
@@ -113,12 +116,12 @@ PRICE HISTORY RULE (critical -- do not assert a price change without evidence): 
 NO REFERRALS RULE (hard rule, no exceptions): HomeRates never recommends, names, or refers a user to any specific real estate agent, brokerage, lender, title company, or other business -- in any field, for any reason, even as a factual-sounding aside like "verify with [Name] at [Brokerage]." If you find a listing agent or brokerage name during your search, do not surface it anywhere in key_highlights, grok_intelligence_summary, buyer_strategy, or location_intelligence -- refer to them generically instead ("the listing agent," "a local lender," "the seller's agent") if you need to reference that role at all. This applies regardless of whether the name came from a structured field or free text.
 
 REQUIRED searches:
-1. Find the exact Redfin listing — extract days_on_market, original_list_date, original_list_price (the price history / "price cut" section, if the listing has one), lot_size_sqft, year_built, HOA, MLS# (a listing agent's or brokerage's NAME is never useful here -- see the NO REFERRALS RULE above; do not search for or record it)
-2. Find the Zillow listing — extract Zestimate, saves count, views count, last sold date + price
-3. Find 4-6 recent comparable sales (past 24 months, within 1 mile) — use web search AND your training knowledge. Real addresses with verified sale prices.
-4. Find ZIP-level market stats — median DOM, median sale price, sale-to-list ratio
-5. life_fit_score 0-100: schools, walkability, commute, neighborhood quality, value vs comps
-6. location_intelligence.sub_scores: You MUST return ALL 7 sub_scores (Walk Score, Transit Score, Bike Score, Schools, Safety, Amenities & Commute, Wildfire Risk) — never return an empty array. Use your knowledge if web data is unavailable. Each sub_score MUST have a numeric score, rating string, and description string.
+1. Find the property's listing page (any MLS listing page — see above) — extract days_on_market, original_list_date, original_list_price (the price history / "price cut" section, if the listing has one), lot_size_sqft, year_built, HOA, MLS# (a listing agent's or brokerage's NAME is never useful here -- see the NO REFERRALS RULE above; do not search for or record it)
+2. Look for the Zillow and Redfin pages — Zestimate, Redfin Estimate, saves, views, last sold date + price — only if a page you read states them
+3. Find 4-6 recent comparable sales (past 24 months, within 1 mile) from pages you read in this search. Each comp MUST include source_url, the page where you saw that sale. Never list a sale you did not see on a page; return fewer comps, or [], rather than recall one from memory.
+4. Find ZIP-level market stats — median DOM, median sale price, sale-to-list ratio — from a market page you read; null if not found
+5. life_fit_score 0-100: schools, walkability, commute, neighborhood quality, value vs comps — based only on what you found; null if you found too little
+6. location_intelligence.sub_scores: include a sub_score ONLY when you found a sourced figure for it (e.g. a Walk Score page, a GreatSchools page, a wildfire risk page) — give its source_url. Omit a metric you found nothing for; never fill one from memory. Each included sub_score MUST have a numeric score, rating string, description string and source_url.
 7. Sale terms and condition disclosures — read the listing remarks specifically for cash-only, as-is, no-warranty, short sale, trust/estate/probate sale, or fixer/handyman-special language. Populate sale_terms per the SALE TERMS RULE above.
 
 Return ONLY valid JSON — no markdown, no code fences, no explanation:
@@ -146,17 +149,18 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation:
   "sale_terms": ["string, e.g. Cash only / Sold as-is / No warranties / Trust sale -- [] if none found, never omit"],
   "key_highlights": ["string","string","string","string","string"],
   "comparable_sales": [
-    { "address": "string", "sold_price": number, "sold_date": "Mon YYYY", "sqft": number or null, "price_per_sqft": number or null, "days_on_market": number or null }
+    { "address": "string", "sold_price": number, "sold_date": "Mon YYYY", "sqft": number or null, "price_per_sqft": number or null, "days_on_market": number or null, "source_url": "page where you saw this sale" }
   ],
+  "sources": { "field_name": "URL of the page that field came from -- one entry per populated factual field" },
   "grok_intelligence_summary": "2-3 high-quality sentences covering market context, positioning, buyer/seller considerations",
   "buyer_strategy": "1-2 sentences of specific actionable strategy based on live data",
   "life_fit_score": number,
-  "school_score": "0-10 rating of nearby public school quality based on GreatSchools or equivalent, or null",
-  "walk_score": "0-100 walkability score for this address, or null",
-  "commute_minutes": "estimated drive time in minutes to nearest major employment hub or downtown, or null",
-  "neighborhood_appreciation_3yr_pct": "% home price appreciation over past 3 years for this neighborhood/ZIP e.g. 8.5 for +8.5%, or null",
+  "school_score": "0-10 rating of nearby public school quality from a GreatSchools (or equivalent) page you read, or null",
+  "walk_score": "0-100 walkability score from a Walk Score (or equivalent) page you read, or null",
+  "commute_minutes": "drive time in minutes to the nearest major employment hub or downtown, from a page you read, or null",
+  "neighborhood_appreciation_3yr_pct": "% home price appreciation over past 3 years for this neighborhood/ZIP from a market page you read e.g. 8.5 for +8.5%, or null",
   "location_intelligence": {
-    "overall_score": "0-100 composite location score — factor in wildfire/flood/climate risk heavily; high risk should pull score DOWN significantly",
+    "overall_score": "0-100 composite location score built from the sub_scores you sourced — factor in wildfire/flood/climate risk heavily; high risk should pull score DOWN significantly",
     "sub_scores": [
       { "metric": "Walk Score",            "score": "0-100", "rating": "label e.g. Car-Dependent / Somewhat Walkable / Very Walkable", "description": "1-2 sentences" },
       { "metric": "Transit Score",         "score": "0-100", "rating": "label e.g. Minimal Transit / Some Transit / Excellent Transit", "description": "1-2 sentences" },
@@ -195,7 +199,7 @@ function buildUserMessage(address: string, redfin?: RedfinFacts | null): string 
   if (redfin.last_sold_date)     facts.push(`Last Sold Date: ${redfin.last_sold_date}`);
   if (redfin.lot_size_sqft)      facts.push(`Lot Size: ${redfin.lot_size_sqft.toLocaleString()} sqft`);
 
-  return `The following verified listing facts are from Redfin MLS — treat as authoritative:\n\n${facts.join('\n')}\n\nReturn structured JSON for this property. Ensure factual fields match the verified data above exactly. Focus your intelligence on: comparable_sales, grok_intelligence_summary, life_fit_score, and key_highlights.`;
+  return `The following verified listing facts are from the property's listing source — treat as authoritative:\n\n${facts.join('\n')}\n\nReturn structured JSON for this property. Ensure factual fields match the verified data above exactly. Focus your intelligence on: comparable_sales, grok_intelligence_summary, life_fit_score, and key_highlights.`;
 }
 
 function buildDeepUserMessage(address: string, redfin?: RedfinFacts | null, searchContext?: string): string {
@@ -217,7 +221,7 @@ function buildDeepUserMessage(address: string, redfin?: RedfinFacts | null, sear
   const factSection = knownFacts.join('\n');
 
   if (!searchContext) {
-    return `${factSection}\n\nReturn complete structured JSON using your best knowledge of this property. Known status above, if present, is authoritative -- do not contradict it.`;
+    return `${factSection}\n\nReturn complete structured JSON using what you find in your web search (GROUNDING RULE: nothing from memory). Known status above, if present, is authoritative -- do not contradict it.`;
   }
   return `LIVE WEB SEARCH RESULTS:\n\n${searchContext}\n\n---\n\nVERIFIED MLS FACTS:\n${factSection}\n\nExtract every available data point from the search results above. Prioritize days_on_market, year_built, lot_size_sqft, last_sold_date, last_sold_price, zillow_estimate, redfin_estimate, zillow_saves, market stats, and verified comparable sales. Return complete structured JSON. Known status above, if present, is authoritative -- do not contradict it in current_status or any free-text field.`;
 }
@@ -348,6 +352,61 @@ function mergeResult(
   }
 
   return base;
+}
+
+// ── Grounding (deep mode) ─────────────────────────────────────────────────────
+// The deep prompt's GROUNDING RULE asks Grok for sourced facts only; this enforces
+// it on the output (2026-11-11, after a cached comp showed $2.95M for a home
+// Zillow records as sold for $1,828,000, and location scores were being filled
+// "from your knowledge" when no page had them):
+//   - location sub_scores without a numeric score AND a source_url are dropped
+//   - comps without a source_url are dropped
+//   - each comp's claimed sale is checked against Zillow's own record for that
+//     address: contradicted by >10% → dropped; confirmed → verified:'zillow';
+//     Zillow states no sale / unreachable → kept, verified:null (unconfirmed)
+const COMP_PRICE_TOLERANCE = 0.10;
+const SOURCE_REQUIRED_FIELDS = [
+  'walk_score', 'school_score', 'commute_minutes', 'neighborhood_appreciation_3yr_pct',
+  'market_median_dom', 'market_sale_to_list', 'market_median_price',
+  'zillow_estimate', 'redfin_estimate', 'zillow_saves', 'zillow_views',
+] as const;
+
+async function groundDeepResult(r: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const li = r.location_intelligence as { sub_scores?: Array<Record<string, unknown>> } | null | undefined;
+  if (li && Array.isArray(li.sub_scores)) {
+    li.sub_scores = li.sub_scores.filter(s =>
+      s != null && s.score != null && s.score !== '' && Number.isFinite(Number(s.score)) &&
+      typeof s.source_url === 'string' && /^https?:\/\//i.test(s.source_url));
+  }
+
+  // Scores and market figures are the fields a model most readily "fills in" — keep
+  // each one only when Grok recorded the page it came from. (Listing facts are not
+  // nulled here: verified listing-source facts already override them in mergeResult.)
+  const sources = (r.sources && typeof r.sources === 'object') ? r.sources as Record<string, unknown> : {};
+  for (const field of SOURCE_REQUIRED_FIELDS) {
+    const src = sources[field];
+    if (r[field] != null && !(typeof src === 'string' && /^https?:\/\//i.test(src))) r[field] = null;
+  }
+
+  const comps = Array.isArray(r.comparable_sales) ? r.comparable_sales as Array<Record<string, unknown>> : [];
+  const sourced = comps.filter(c =>
+    c && typeof c.address === 'string' && Number(c.sold_price) > 0 &&
+    typeof c.source_url === 'string' && /^https?:\/\//i.test(c.source_url));
+  const checked = await Promise.all(sourced.slice(0, 6).map(async (c) => {
+    const z = await zillowSaleCheck(String(c.address));
+    if (z?.soldPrice) {
+      const diff = Math.abs(z.soldPrice - Number(c.sold_price)) / z.soldPrice;
+      if (diff > COMP_PRICE_TOLERANCE) {
+        console.warn('[beta/grok-property] comp dropped: sale price contradicted by Zillow record');
+        return null;
+      }
+      return { ...c, verified: 'zillow' };
+    }
+    return { ...c, verified: null };
+  }));
+  r.comparable_sales = checked.filter(Boolean);
+  r.grounded = true;
+  return r;
 }
 
 // ── GET: read from cache ───────────────────────────────────────────────────────
@@ -572,18 +631,22 @@ export async function POST(req: NextRequest) {
               toStore = {
                 ...prev,
                 ...result,
-                // Use valid deep comps only if we got at least 2 with real prices;
-                // otherwise fall back to the basic run's quality comps
-                comparable_sales: validDeepComps.length >= 2 ? validDeepComps : prevComps ?? deepComps ?? [],
+                // Deep comps are now grounded (sourced + checked against Zillow, see
+                // groundDeepResult) — never fall back to a basic run's comps, which
+                // came from model memory with no search behind them.
+                comparable_sales: result.grounded ? validDeepComps
+                  : validDeepComps.length >= 2 ? validDeepComps : prevComps ?? deepComps ?? [],
                 // Preserve non-zero PITI/rate from basic if deep lost it
                 estimated_piti:    (result.estimated_piti as number) > 0 ? result.estimated_piti : prev.estimated_piti,
                 rate_used:         result.rate_used      ?? prev.rate_used,
                 price_per_sqft:    result.price_per_sqft ?? prev.price_per_sqft,
-                // Preserve AVM estimates — deep mode sometimes skips these
-                zillow_estimate:   result.zillow_estimate  ?? prev.zillow_estimate,
-                redfin_estimate:   result.redfin_estimate  ?? prev.redfin_estimate,
-                zillow_saves:      result.zillow_saves     ?? prev.zillow_saves,
-                zillow_views:      result.zillow_views     ?? prev.zillow_views,
+                // Preserve AVM estimates — deep mode sometimes skips these. Not for a
+                // grounded run: its nulls are deliberate (no source found), and the
+                // older values they'd fall back to have no source behind them.
+                zillow_estimate:   result.grounded ? result.zillow_estimate : result.zillow_estimate ?? prev.zillow_estimate,
+                redfin_estimate:   result.grounded ? result.redfin_estimate : result.redfin_estimate ?? prev.redfin_estimate,
+                zillow_saves:      result.grounded ? result.zillow_saves    : result.zillow_saves    ?? prev.zillow_saves,
+                zillow_views:      result.grounded ? result.zillow_views    : result.zillow_views    ?? prev.zillow_views,
               };
             }
           }
@@ -602,9 +665,10 @@ export async function POST(req: NextRequest) {
         if (error) console.error('[beta/grok-property] cache write error:', error.message);
       };
 
-      const finalizeResult = (raw: string): Record<string, unknown> | null => {
+      const finalizeResult = async (raw: string): Promise<Record<string, unknown> | null> => {
+        let grok: Record<string, unknown>;
+        try { grok = JSON.parse(raw); } catch { return null; }
         try {
-          const grok   = JSON.parse(raw);
           const merged = mergeResult(grok, redfin, pitiCalc, liveRate, effectiveTaxRate);
           if (deep) merged.deep_analysis = true;
           // If pitiCalc was 0 (redfin context missing) but we have the price, recalculate
@@ -616,8 +680,11 @@ export async function POST(req: NextRequest) {
             // actually used, not the earlier (possibly different) value.
             merged.tax_rate_effective = TAX_RATE_DEFAULT;
           }
-          return merged;
-        } catch { return null; }
+          return deep ? await groundDeepResult(merged) : merged;
+        } catch (e) {
+          console.error("[beta/grok-property] finalize failed", e);
+          return null;
+        }
       };
 
       try {
@@ -636,7 +703,7 @@ export async function POST(req: NextRequest) {
             const payload = trimmed.slice(6);
             if (payload === '[DONE]') {
               finish();
-              const merged = finalizeResult(fullContent);
+              const merged = await finalizeResult(fullContent);
               if (merged) {
                 ctrl.enqueue(sse({ done: true, result: merged, meta: { model: 'grok-4', fetched_at: new Date().toISOString() } }));
                 await cacheResult(merged);
@@ -664,7 +731,7 @@ export async function POST(req: NextRequest) {
                 const msgOutput = outputs.find((o: any) => o.type === 'message');
                 if (msgOutput?.content?.[0]?.text) fullContent = msgOutput.content[0].text;
                 finish();
-                const merged = finalizeResult(fullContent);
+                const merged = await finalizeResult(fullContent);
                 if (merged) {
                   ctrl.enqueue(sse({ done: true, result: merged, meta: { model: 'grok-4.3', fetched_at: new Date().toISOString() } }));
                   await cacheResult(merged);
@@ -692,7 +759,7 @@ export async function POST(req: NextRequest) {
         }
 
         finish();
-        const merged = finalizeResult(fullContent);
+        const merged = await finalizeResult(fullContent);
         if (merged) {
           ctrl.enqueue(sse({ done: true, result: merged, meta: { model: 'grok-4', fetched_at: new Date().toISOString() } }));
           await cacheResult(merged);
