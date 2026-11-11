@@ -33,6 +33,7 @@ export interface PropertyCardData {
     estimatedValue?: number | null;
     estimatedValueLow?: number | null;
     estimatedValueHigh?: number | null;
+    avmSource?: string | null;
     estimatedBalance?: number | null;
     estimatedEquity?: number | null;
     purchaseRate?: number | null;
@@ -85,6 +86,8 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
     const isOffMarket = data.listingStatus === 'OFF_MARKET' || data.listingStatus === 'SOLD';
     // Homeowner analysis mode: off-market with equity data from the AVM pipeline
     const isHomeowner = isOffMarket && data.estimatedEquity != null && data.estimatedBalance != null;
+    // Value source label — Zillow-served lookups (ISSUE-040) carry a Zestimate, never a Redfin AVM.
+    const avmLabel = data.avmSource === 'zillow_zestimate' ? 'Zillow Zestimate®' : 'Redfin AVM';
 
     // data.address is already the full "street, city, state zip" string whenever
     // it's present (confirmed: lib/property/parse/redfin.ts's parser builds it that
@@ -214,7 +217,7 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
                 ) : (
                     <div style={{ background: 'linear-gradient(135deg, #0e1420 0%, #141b28 100%)', padding: '18px 18px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
-                            Homeowner Analysis · Redfin AVM
+                            Homeowner Analysis · {avmLabel}
                         </div>
                         <div style={{ fontSize: 15, fontWeight: 700, color: '#f0f4ff', lineHeight: 1.3 }}>{data.address}</div>
                         <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3 }}>
@@ -280,9 +283,14 @@ export default function PropertyPreviewCard({ data }: { data: PropertyCardData }
                 )}
 
 
+                {/* Source notes — required with a Zestimate (Zillow's disclaimer, shown verbatim) */}
+                {data.source === 'zillow' && data.parseWarnings.length > 0 && (
+                    <div className="property-warnings" style={{ padding: '0 18px 10px' }}>{data.parseWarnings.join(' · ')}</div>
+                )}
+
                 {/* ── Footer ── */}
                 <div style={{ padding: '7px 18px', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: 10, color: '#eaf8f7', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>HomeRates.ai · Redfin AVM · Educational only</span>
+                    <span>HomeRates.ai · {avmLabel} · Educational only</span>
                     <span style={{ color: '#00e87a', fontWeight: 600 }}>Live estimate</span>
                 </div>
             </div>
