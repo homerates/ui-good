@@ -808,8 +808,157 @@ async function zillowResponse(address: string): Promise<Response | null> {
         z.taxSource = 'table';
         if (typeof z.price === 'number') z.annualTaxes = Math.round(z.price * rate);
     }
+    await addSaleHistoryAndPhoto(z);
     console.log('[property/lookup] served via Zillow connector for', address);
     return NextResponse.json({ ok: true, data: z });
+}
+
+// Zillow's connector returns no sale history and no photo we may use. Same rescue the
+// Redfin path runs for off-market homes (web-search snippets, no page fetch): last sale
+// date + price → estimated balance / equity / purchase rate, so the refi card doesn't
+// fall back to "80% of today's value" (real case, 2026-11-11: 5505 Salerno Dr showed an
+// $806k balance on a home that last sold for $711k in 2019). The photo comes from the
+// same search's images, ssl.cdn-redfin.com only (pickPropertyPhoto). Value used for
+// equity is Zillow's Zestimate as-is — never blended with another AVM.
+async function addSaleHistoryAndPhoto(z: Record<string, unknown>): Promise<void> {
+    if (typeof z.address !== 'string') return;
+    // Two searches in parallel: the Redfin-oriented one surfaces ssl.cdn-redfin.com
+    // photos; the plain-address one surfaces sale history from other listing sites.
+    const [{ snippets, photoUrl: saleSearchPhoto }, { photoUrl: redfinPhoto }] = await Promise.all([
+        fetchLastSaleEvidence(z.address),
+        fetchSoldSnippets(z.address),
+    ]);
+    const photoUrl = redfinPhoto ?? saleSearchPhoto;
+    if (!z.photoUrl && photoUrl) z.photoUrl = photoUrl;
+    if (z.listingStatus !== 'OFF_MARKET') return;
+
+    // Sale source, in order: Zillow's own report (recent sales, set by the connector),
+    // then an explicit "last sold" statement on a listing site. No sale found → no
+    // balance estimate here (the card asks the user to adjust it) rather than a guess.
+    let saleDate: Date | null = typeof z.lastSaleDate === 'string' ? parseMonthYear(z.lastSaleDate) : null;
+    if (!z.lastSalePrice || !saleDate) {
+        const sale = snippets.length ? extractLastSale(snippets) : null;
+        if (!sale) return;
+        // Year-only evidence ("Last sold $711K in 2019") is shown as just the year; the
+        // balance estimate then assumes mid-year, which moves it by at most ~6 months.
+        saleDate = new Date(sale.year, sale.month ?? 6, 1);
+        z.lastSaleDate  = sale.label;
+        z.lastSalePrice = sale.price;
+        z.parseWarnings = [...((z.parseWarnings as string[]) ?? []), 'Last sale from public web listings'];
+    }
+    const salePrice = z.lastSalePrice as number;
+    const elapsed = monthsAgo(saleDate);
+    const purchaseRate = historicalRate(saleDate.getFullYear());
+    const estimatedBalance = Math.round(remainingBalance(salePrice, 0.20, purchaseRate, elapsed));
+    z.purchaseRate     = purchaseRate;
+    z.estimatedBalance = estimatedBalance;
+    z.remainingMonths  = Math.max(60, 360 - elapsed);
+    const value = (z.estimatedValue as number | null) ?? null;
+    if (value) z.estimatedEquity = Math.round(value - estimatedBalance);
+}
+
+// Search snippets that mention this exact home (house number + street word), plus a
+// Redfin-CDN photo from the same search. Snippets only — no page fetch.
+async function fetchLastSaleEvidence(address: string): Promise<{ snippets: string[]; photoUrl: string | null }> {
+    const key = process.env.TAVILY_API_KEY;
+    const empty = { snippets: [] as string[], photoUrl: null };
+    if (!key) return empty;
+    const clean = cleanAddressForSearch(address);
+    const [street, ...rest] = clean.split(',');
+    const num = street.trim().match(/^(\d+)\s+([A-Za-z]{3,})/);
+    if (!num) return empty;
+    try {
+        const res = await fetch('https://api.tavily.com/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(10_000),
+            body: JSON.stringify({
+                api_key: key,
+                // Form tested to surface Realtor.com/Homes.com "Last sold" lines reliably:
+                // quoted street, then city + state, no ZIP, no commas.
+                query: `"${street.trim()}" ${rest.join(' ').replace(/\b\d{5}(-\d{4})?\b/, '').replace(/,/g, ' ').replace(/\s+/g, ' ').trim()} last sold`,
+                max_results: 8, search_depth: 'advanced', include_answer: false, include_images: true,
+            }),
+        });
+        if (!res.ok) return empty;
+        const data = await res.json();
+        const numRe  = new RegExp(`\\b${num[1]}\\b`);
+        const wordRe = new RegExp(num[2], 'i');
+        const results = ((data.results ?? []) as Record<string, unknown>[]).filter((r) => {
+            const hay = `${r.title ?? ''} ${r.content ?? ''} ${r.url ?? ''}`;
+            return numRe.test(hay) && wordRe.test(hay);
+        });
+        const images: string[] = [
+            ...((data.images as string[]) ?? []),
+            ...results.flatMap((r) => (r.images as string[] | undefined) ?? []),
+        ];
+        return {
+            snippets: results.map((r) => `${r.title ?? ''}\n${r.content ?? ''}`),
+            photoUrl: pickPropertyPhoto(images),
+        };
+    } catch (e: unknown) {
+        log.warn('[PropertyLookup] last-sale search failed (non-blocking)', { error: (e as Error)?.message });
+        return empty;
+    }
+}
+
+const SALE_MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const SALE_MONTH_RE = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+
+/** Last sale from listing-site snippets. Each snippet is read on its own; a date and a
+ *  price are only paired when they come from the same snippet, or from different
+ *  snippets that agree on the sale year — never a date from one sale and a price from
+ *  another. Recognised: "Sold: August 30, 2019 … Last sale price $711,000",
+ *  "Last sold $711K in 2019", "Last sold May 2025 for $2,150,000" and similar. */
+function extractLastSale(snippets: string[]): { year: number; month: number | null; price: number; label: string } | null {
+    const toMoney = (s: string): number | null => {
+        const m = s.replace(/,/g, '').match(/^([\d.]+)\s*([KkMm])?$/);
+        if (!m) return null;
+        const v = parseFloat(m[1]) * (m[2] ? (/k/i.test(m[2]) ? 1_000 : 1_000_000) : 1);
+        return v >= 10_000 && v < 100_000_000 ? Math.round(v) : null;
+    };
+    type Ev = { year: number | null; month: number | null; price: number | null };
+    // Only snippets that explicitly speak of the LAST sale — a generic "Sold Aug 1997 for
+    // $368,000" line can be any historical sale, not the latest one.
+    const evidence: Ev[] = snippets.filter((t) => /last\s+(?:sold|sale)/i.test(t)).map((full) => {
+        const ev: Ev = { year: null, month: null, price: null };
+        // Read only the text around the "last sold / last sale" phrase, so a different
+        // sale elsewhere in the same snippet (a history list) can't be paired with it.
+        const at = full.search(/last\s+(?:sold|sale)/i);
+        const t = full.slice(Math.max(0, at - 120), at + 160);
+        // "Sold: Aug 30, 2019" is only trusted inside a snippet that also states the last
+        // sale (filtered above) — the date and price are then paired by year below.
+        const d = t.match(new RegExp(`sold(?:\\s+on)?[:\\s•·-]+${SALE_MONTH_RE}\\.?\\s+(?:\\d{1,2},?\\s+)?(\\d{4})`, 'i'));
+        if (d) { ev.month = SALE_MONTHS.indexOf(d[1].toLowerCase().slice(0, 3)); ev.year = +d[2]; }
+        const p = t.match(/last\s+sale\s+price[:\s]+\$\s?([\d,.]+\s*[KkMm]?)/i)
+            ?? t.match(/last\s+sold\s+(?:[A-Za-z]+\.?\s+(?:\d{1,2},?\s+)?\d{4}\s+)?(?:for\s+)?\$\s?([\d,.]+\s*[KkMm]?)/i);
+        if (p) ev.price = toMoney(p[1].trim());
+        // An explicit last-sale year ("Last sold $1.9M in 2015") always wins; a date found
+        // nearby only supplies the month when it is from that same year.
+        const y = t.match(/last\s+sold\s+(?:for\s+)?\$\s?[\d,.]+\s*[KkMm]?\s+in\s+(\d{4})/i);
+        if (y) {
+            if (ev.year !== +y[1]) ev.month = null;
+            ev.year = +y[1];
+        }
+        return ev;
+    }).filter((e) => e.year != null && isPlausibleSaleYear(e.year));
+
+    const label = (year: number, month: number | null) =>
+        month != null ? new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : String(year);
+
+    // Explicit "last sold" statements win: snippets truncate price-history tables, so a
+    // table's newest visible row can be an older sale (real case: 5505 Salerno Dr's visible
+    // rows stopped at 2003; its real last sale was 2019).
+    const complete = evidence.find((e) => e.price != null && e.month != null);
+    if (complete) return { year: complete.year!, month: complete.month, price: complete.price!, label: label(complete.year!, complete.month) };
+    const priced = evidence.find((e) => e.price != null);
+    if (priced) {
+        const dated = evidence.find((e) => e.month != null && e.year === priced.year);
+        const month = dated?.month ?? null;
+        return { year: priced.year!, month, price: priced.price!, label: label(priced.year!, month) };
+    }
+
+    return null;
 }
 
 // Address implied by a pasted Redfin/Zillow listing URL's own slug, or null.

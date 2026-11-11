@@ -89,6 +89,8 @@ export interface ZestimateResult {
     report: string;
     /** The address as Zillow states it in the report header. */
     zillowAddress: string | null;
+    /** Recent sale Zillow states in the report ("This home sold for $X, N days ago"). */
+    recentSale: { price: number; monthsAgo: number } | null;
 }
 
 export function parseZestimateReport(text: string): ZestimateResult | null {
@@ -103,7 +105,14 @@ export function parseZestimateReport(text: string): ZestimateResult | null {
     // "…is a key input to the Zestimate…" or "…is a key factor driving this estimate."
     const keyInput = text.match(/[^\n.]*\bis a key (?:input|factor)\b[^\n]*/);
     const discIdx = text.indexOf('What is the Zestimate');
+    const sold = text.match(/This home sold for (\$[\d,]+),\s*~?(\d+)\s+(day|week|month|year)s?\s+ago/i);
+    const soldPrice = money(sold?.[1]);
+    const unitMonths: Record<string, number> = { day: 1 / 30, week: 7 / 30, month: 1, year: 12 };
+    const recentSale = sold && soldPrice
+        ? { price: soldPrice, monthsAgo: Math.round(Number(sold[2]) * unitMonths[sold[3].toLowerCase()]) }
+        : null;
     return {
+        recentSale,
         value,
         low:  money(range?.[1]),
         high: money(range?.[2]),
@@ -312,7 +321,16 @@ export async function lookupViaZillow(requestedAddress: string): Promise<Record<
         zestimateDisclaimer: z?.disclaimer ?? null,
         zestimateKeyInput:   z?.keyInputNote ?? null,
         dataAttribution:  'Property data and Zestimate® from Zillow',
-        lastSaleDate:     null,
-        lastSalePrice:    null,
+        // Only a sale Zillow itself states (recent sales); older sale history is added by
+        // the lookup route from explicit "last sold" statements on listing sites.
+        lastSaleDate:     z?.recentSale ? monthYearAgo(z.recentSale.monthsAgo) : null,
+        lastSalePrice:    z?.recentSale?.price ?? null,
     };
+}
+
+function monthYearAgo(months: number): string {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - months);
+    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
