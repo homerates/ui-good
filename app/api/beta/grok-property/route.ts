@@ -5,6 +5,7 @@ import { TAX_RATE_DEFAULT, INS_RATE_DEFAULT } from '../../../../lib/constants';
 import { lookupTaxRate } from '../../../../lib/property/taxTable';
 import { resolveCountyByZip } from '../../../../lib/property/countyResolution';
 import { zillowSaleCheck } from '../../../../lib/property/zillowConnector';
+import { getGovernmentLocationData } from '../../../../lib/property/locationData';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -409,6 +410,34 @@ async function groundDeepResult(r: Record<string, unknown>): Promise<Record<stri
   return r;
 }
 
+// Location scores come from government open data (lib/property/locationData.ts), not
+// from Grok: after grounding, Grok can rarely source Walk Score / school / wildfire
+// pages, which left overall_score null and Decision Score L4 empty (2026-11-11).
+// Grok's sourced sub-scores are kept alongside; its narrative text is kept as-is.
+// overall_score is computed from the government sub-scores only.
+async function attachGovernmentLocation(r: Record<string, unknown>, address: string): Promise<Record<string, unknown>> {
+  const gov = await getGovernmentLocationData(address);
+  const prev = (r.location_intelligence ?? {}) as Record<string, unknown>;
+  const grokSubs = Array.isArray(prev.sub_scores) ? prev.sub_scores as Array<Record<string, unknown>> : [];
+  r.location_intelligence = {
+    ...prev,
+    // The report pages call .map() on these without guards.
+    narrative:      typeof prev.narrative === 'string' ? prev.narrative : '',
+    strengths:      Array.isArray(prev.strengths) ? prev.strengths : [],
+    tradeoffs:      Array.isArray(prev.tradeoffs) ? prev.tradeoffs : [],
+    recommendation: typeof prev.recommendation === 'string' ? prev.recommendation : '',
+    overall_score:  gov?.overall_score ?? null,
+    sub_scores:     [...(gov?.sub_scores ?? []), ...grokSubs],
+    basis:          gov?.sub_scores.length ? 'government_open_data' : 'unavailable',
+  };
+  if (gov) {
+    r.flood_zone = gov.flood_zone;
+    r.flood_high_risk = gov.flood_high_risk;
+    r.walkability_index = gov.walkability_index;
+  }
+  return r;
+}
+
 // ── GET: read from cache ───────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -680,7 +709,7 @@ export async function POST(req: NextRequest) {
             // actually used, not the earlier (possibly different) value.
             merged.tax_rate_effective = TAX_RATE_DEFAULT;
           }
-          return deep ? await groundDeepResult(merged) : merged;
+          return deep ? await attachGovernmentLocation(await groundDeepResult(merged), address) : merged;
         } catch (e) {
           console.error("[beta/grok-property] finalize failed", e);
           return null;
