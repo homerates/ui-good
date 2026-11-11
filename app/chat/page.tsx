@@ -2400,7 +2400,7 @@ export default function Page() {
                 const cmpPriced = cmpProps.filter(p => p.price != null);
                 const cmpFriendly = cmpPriced.length >= 1
                     ? `Side-by-side on ${cmpProps.length} properties below — payment math at ${cmpRate.toFixed(2)}% with 20% down, from live listing data.${cmpPriced.length < cmpProps.length ? ' A listing price was unavailable for one of them, so that column shows the facts we could verify without payment math.' : ''}`
-                    : `I pulled what I could on these ${cmpProps.length} properties — listing prices weren't available, so the comparison shows verified facts without payment math. Try pasting each property's Redfin link for fuller data.`;
+                    : `I pulled what I could on these ${cmpProps.length} properties — listing prices weren't available, so the comparison shows verified facts without payment math. Try each address on its own for fuller data.`;
 
                 const compareMeta: ApiResponse = {
                     path: 'property_lookup',
@@ -2433,7 +2433,7 @@ export default function Page() {
                     }
                 }
             } catch {
-                typeOutAssistant(answerId, 'I hit a snag pulling those properties — try comparing them one at a time, or paste each Redfin link.');
+                typeOutAssistant(answerId, "I couldn't pull those properties together — try looking them up one at a time by address.");
             }
             setLoading(false);
             return;
@@ -2701,7 +2701,9 @@ export default function Page() {
                     const _siteName = d.source === 'redfin' ? 'Redfin' : d.source === 'zillow' ? 'Zillow' : 'The listing site';
                     const cta = d.price
                         ? `Pre-loaded at today's illustrative market rate of ${rateLabel} with 20% down. Adjust the sliders to explore.`
-                        : `${_siteName} blocked price data — enter the listing price below to run the numbers.`;
+                        : d.source === 'zillow'
+                            ? `Zillow doesn't share the asking price for this listing — check it on Zillow and enter it below to run the numbers.`
+                            : `${_siteName} didn't share a price — enter the listing price below to run the numbers.`;
 
                     const friendly = [headline, subline, cta].filter(Boolean).join('\n');
 
@@ -3126,13 +3128,14 @@ export default function Page() {
                     } // close FOR_SALE else
                 } else {
                     // Lookup failed — surface the error as assistant text
-                    const errMsg = lookupJson.error ?? 'Could not read that listing. Try pasting the price and address manually.';
+                    const errMsg = lookupJson.error ?? "We couldn't look up that property. Try typing its address, or enter the price yourself to run the numbers.";
                     const details = lookupJson.details ? ` ${lookupJson.details}` : '';
                     typeOutAssistant(answerId, errMsg + details);
                 }
             } catch (e) {
                 const msg = e instanceof Error ? e.message : String(e);
-                typeOutAssistant(answerId, `Could not fetch listing: ${msg}`);
+                console.error('[property-lookup] request failed', msg);
+                typeOutAssistant(answerId, "Something went wrong looking up that property. Please try again in a moment, or type the address instead.");
             } finally {
                 setLoading(false);
             }

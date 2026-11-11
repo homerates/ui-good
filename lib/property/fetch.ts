@@ -149,8 +149,8 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
     if (!detected) {
         return {
             ok: false,
-            error: 'Unrecognised listing URL',
-            details: 'Please paste a Zillow, Redfin, or Realtor.com listing link.',
+            error: "That link isn't a property listing we can read.",
+            details: "Type the property's address instead, or paste its listing link from Zillow, Redfin or Realtor.com (app share links don't work yet).",
         };
     }
 
@@ -168,9 +168,9 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes('abort') || msg.includes('timeout')) {
-            return { ok: false, error: 'Listing page timed out', details: msg };
+            return { ok: false, error: 'The listing page took too long to respond.', details: "Try again, or type the property's address instead." };
         }
-        return { ok: false, error: 'Could not fetch listing page', details: msg };
+        return { ok: false, error: "We couldn't reach that listing page.", details: "Try again, or type the property's address instead." };
     }
 
     // Hard block (403/429) — try slug parsing before giving up.
@@ -199,8 +199,8 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
         }
         return {
             ok: false,
-            error: `${source === 'zillow' ? 'Zillow' : 'Redfin'} blocked our request`,
-            details: `HTTP ${httpStatus}. Try pasting the price and address manually.`,
+            error: "We couldn't read that listing page.",
+            details: "Try typing the property's address instead, or enter the price yourself to run the numbers.",
         };
     }
 
@@ -271,8 +271,8 @@ export async function fetchPropertyData(rawUrl: string): Promise<PropertyLookupR
     if (!m.price && !m.address) {
         return {
             ok: false,
-            error: 'Could not read this listing',
-            details: 'The listing site may have blocked our request. Try again or enter the price manually.',
+            error: "We couldn't read that listing page.",
+            details: "Try typing the property's address instead, or enter the price yourself to run the numbers.",
         };
     }
 

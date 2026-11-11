@@ -118,6 +118,26 @@ export function parseZestimateReport(text: string): ZestimateResult | null {
     };
 }
 
+export interface ZillowSaleCheck {
+    /** Zillow has a home record at this address (its Zestimate report names it). */
+    exists: boolean;
+    /** Sale price Zillow's report states for the home's most recent sale, when it states one. */
+    soldPrice: number | null;
+}
+
+/**
+ * Checks a claimed sale (e.g. a comparable sale an AI model reported) against Zillow's own
+ * record for that address. Returns null when Zillow couldn't be reached — "unknown", never
+ * "false". Only reads facts; the Zestimate value itself is not used here.
+ */
+export async function zillowSaleCheck(address: string): Promise<ZillowSaleCheck | null> {
+    const r = await callTool('get_zestimate', { address });
+    if (!r) return null;
+    const exists = !r.isError && /The Zestimate for /.test(r.text);
+    const sold = r.text.match(/This home sold for (\$[\d,]+)/);
+    return { exists, soldPrice: sold ? money(sold[1]) : null };
+}
+
 interface OffMarketDetails {
     street: string; city: string; state: string; zip: string;
     county: string | null;

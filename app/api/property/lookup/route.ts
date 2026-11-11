@@ -1354,6 +1354,7 @@ async function handleAddress(rawAddress: string) {
 
     return NextResponse.json({
         ok: false,
-        error: 'Could not find property data for this address. Try pasting the Redfin or Zillow link directly.',
+        error: "We couldn't confirm details for this address.",
+        details: 'Check the street number, city and ZIP, or paste the property\'s Zillow or Realtor.com link. You can also enter the price yourself to run the numbers.',
     });
 }
