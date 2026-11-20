@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Lead Conversion Pilot — Sure First Lending</title>
+<style>
+  :root {
+    --ink: #0f172a;
+    --body: #334155;
+    --weak: #64748b;
+    --rule: #e2e8f0;
+    --wash: #f6f8f7;
+    --accent: #047857;
+    --accent-wash: #ecfdf5;
+    --amber: #92400e;
+    --amber-wash: #fffbeb;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e9edeb;
+    color: var(--body);
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 32px 16px;
+  }
+  .page {
+    background: #fff;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 40px 44px 36px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(15,23,42,.08), 0 8px 24px rgba(15,23,42,.06);
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  /* Header */
+  header { display: flex; flex-direction: column; gap: 14px; padding-bottom: 18px; border-bottom: 2px solid var(--ink); }
+  .masthead { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .masthead img { height: 40px; width: auto; display: block; }
+  .meta { font-size: 11px; color: var(--weak); text-align: right; }
+  .meta .pill {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--amber); background: var(--amber-wash); border: 1px solid #fde68a; border-radius: 3px; padding: 2px 8px; margin-bottom: 3px;
+  }
+  h1 { font-size: 26px; line-height: 1.15; color: var(--ink); letter-spacing: -.02em; text-wrap: balance; }
+  .lede { font-size: 14px; color: var(--body); max-width: 68ch; }
+  .lede strong { color: var(--ink); }
+
+  /* Section labels */
+  h2 {
+    font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 10px;
+  }
+  section { display: flex; flex-direction: column; }
+
+  /* Flow strip */
+  .flow { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
+  .node {
+    flex: 1 1 0; min-width: 112px; border: 1px solid var(--rule); border-radius: 5px; padding: 8px 10px; background: var(--wash);
+  }
+  .node b { display: block; font-size: 12px; color: var(--ink); }
+  .node span { font-size: 11px; color: var(--weak); }
+  .node.hr { background: var(--accent-wash); border-color: #a7f3d0; }
+  .node.hr b { color: var(--accent); }
+  .arrow { align-self: center; color: #94a3b8; font-size: 14px; }
+  .flow-note { font-size: 12px; color: var(--weak); margin-top: 8px; }
+  .flow-note strong { color: var(--ink); }
+
+  /* Ideas table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th {
+    text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--weak); padding: 6px 10px; border-bottom: 2px solid var(--rule); white-space: nowrap;
+  }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.pain { color: var(--ink); font-weight: 600; width: 27%; }
+  td.idea b { color: var(--ink); }
+  td.when { width: 15%; white-space: nowrap; }
+  .tag { display: inline-block; font-size: 10.5px; font-weight: 700; border-radius: 3px; padding: 2px 7px; }
+  .tag.now { color: var(--accent); background: var(--accent-wash); }
+  .tag.later { color: #475569; background: #f1f5f9; }
+
+  /* Two-column lower band */
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  ol.steps, ul.plain { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  ol.steps li { display: grid; grid-template-columns: 74px 1fr; gap: 8px; }
+  ol.steps .when { font-size: 11px; font-weight: 700; color: var(--accent); padding-top: 1px; }
+  ol.steps b, ul.plain b { color: var(--ink); }
+  ul.plain li { padding-left: 14px; position: relative; }
+  ul.plain li::before { content: ""; position: absolute; left: 0; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .measure { margin-top: 10px; font-size: 12px; background: var(--wash); border-radius: 5px; padding: 10px 12px; }
+  .measure b { color: var(--ink); }
+
+  /* Questions */
+  .questions { background: var(--amber-wash); border: 1px solid #fde68a; border-radius: 6px; padding: 16px 18px; }
+  .questions h2 { color: var(--amber); }
+  .questions ol { padding-left: 20px; display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; row-gap: 7px; }
+  .questions li { padding-left: 2px; }
+  .questions li b { color: var(--ink); }
+
+  footer { font-size: 10.5px; color: var(--weak); border-top: 1px solid var(--rule); padding-top: 10px; }
+
+  @media (max-width: 680px) {
+    .page { padding: 24px 16px; }
+    .cols, .questions ol { grid-template-columns: 1fr; }
+    .arrow { display: none; }
+    .meta { text-align: left; }
+  }
+  @media print {
+    body { background: #fff; padding: 0; font-size: 11.5px; }
+    .page { box-shadow: none; padding: 0; max-width: none; gap: 14px; }
+    @page { margin: 12mm; }
+    section, .questions, tr { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <header>
+    <div class="masthead">
+      <img src="https://chat.homerates.ai/assets/homerates-email-logo.png" alt="HomeRates.Ai">
+      <div class="meta">
+        <div class="pill">Draft for discussion</div>
+        <div>Prepared for Sure First Lending · November 2026 · Confidential</div>
+      </div>
+    </div>
+    <h1>Lead Conversion Pilot: HomeRates alongside your existing lead workflow</h1>
+    <p class="lede">
+      Every LendingTree lead is also called by several other lenders, and most never pick up.
+      <strong>Speed is already solved by SELA. The remaining gap is giving a rate-shopper a reason to trust Sure First over everyone else calling.</strong>
+      HomeRates fills that gap without replacing anything you already run.
+    </p>
+  </header>
+
+  <section>
+    <h2>Where HomeRates fits</h2>
+    <div class="flow" aria-label="Lead flow">
+      <div class="node"><b>LendingTree</b><span>Lead source</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>Bonzo</b><span>CRM, texts, emails</span></div>
+      <div class="arrow">↔</div>
+      <div class="node hr"><b>HomeRates</b><span>Scenario, quotes, brief</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>Arive</b><span>LOS, one-button send</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>UWM + lenders</b><span>Pricing, funding</span></div>
+    </div>
+    <p class="flow-note">
+      <strong>One connection point: Bonzo.</strong> SELA, RingCentral and Arive stay exactly as they are.
+      HomeRates never calls or texts a borrower itself. Every message still goes out from Bonzo, under Sure First's name and existing consent.
+    </p>
+  </section>
+
+  <section>
+    <h2>Five ideas, each aimed at a known lead-buyer problem</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>The problem</th><th>What HomeRates adds</th><th>Needs Bonzo access?</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="pain">Every lender sends the same "call me back" text</td>
+            <td class="idea"><b>Personal scenario page.</b> A Sure First–branded page built from the lead's own details: payment, cash to close, county loan limits, FHA vs. conventional, and today's market rate range with a cited source. The text becomes "Here's your scenario at today's rates."</td>
+            <td class="when"><span class="tag now">No, to start</span></td>
+          </tr>
+          <tr>
+            <td class="pain">"Another lender quoted me lower"</td>
+            <td class="idea"><b>Quote checker.</b> The borrower enters every quote they've received, Sure First's included. HomeRates compares APR, points cost and break-even against the market benchmark. It's honest, and the LO who offered it becomes the trusted one.</td>
+            <td class="when"><span class="tag now">No</span></td>
+          </tr>
+          <tr>
+            <td class="pain">LOs call back cold, with no context</td>
+            <td class="idea"><b>Pre-call brief in Bonzo.</b> When a lead lands, a note appears with the scenario, market range, a likely program fit and suggested talking points.</td>
+            <td class="when"><span class="tag later">Yes</span></td>
+          </tr>
+          <tr>
+            <td class="pain">Leads that aren't ready go cold and buy elsewhere later</td>
+            <td class="idea"><b>Rate Watch.</b> The borrower sets their own target payment or rate. When the market reaches it, they get a Sure First–branded alert with one button: "Talk to my loan officer." It keeps aged leads, where most of the spend sits, alive for months.</td>
+            <td class="when"><span class="tag now">No</span></td>
+          </tr>
+          <tr>
+            <td class="pain">Borrowers distrust lead-gen callers</td>
+            <td class="idea"><b>Ask-first questions + a no-tracking promise.</b> The borrower can send Sure First structured questions on costs, process and lock policy before committing. HomeRates never reports when a borrower opens a page. The LO hears only what the borrower chooses to send.</td>
+            <td class="when"><span class="tag now">No</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section>
+      <h2>How we'd test it</h2>
+      <ol class="steps">
+        <li><span class="when">Weeks 1–2</span><span><b>Manual pilot.</b> An LO enters a lead's basics and gets a branded link to paste into their Bonzo text. No integration. 30–50 leads.</span></li>
+        <li><span class="when">Weeks 3–6</span><span><b>Connect Bonzo.</b> Scenario page and pre-call brief are created automatically, and the link fills into existing sequences.</span></li>
+        <li><span class="when">Weeks 7–12</span><span><b>Full set.</b> Quote checker, Rate Watch and ask-first questions are live on every lead.</span></li>
+      </ol>
+      <div class="measure">
+        <b>Measured in your systems, not ours.</b> Alternate leads get the HomeRates sequence vs. your current one.
+        We compare contact rate, reply rate and applications in Arive. Funded-loan lift takes longer to prove at a ~2% baseline.
+        For example, at 500 leads a month, 2% → 3% is 10 → 15 funded loans.
+      </div>
+    </section>
+
+    <section>
+      <h2>Our commitments</h2>
+      <ul class="plain">
+        <li><b>Nothing to replace.</b> Bonzo, SELA, RingCentral and Arive stay as they are.</li>
+        <li><b>Sure First's brand, NMLS ID and required disclosures</b> on every borrower page, plus HomeRates' educational disclaimer.</li>
+        <li><b>No credit scores or SSNs stored.</b> Credit fields are dropped on arrival, and borrowers pick their own credit range on the page.</li>
+        <li><b>No borrower tracking.</b> The LO sees only what the borrower chooses to send.</li>
+        <li><b>Flat software fee only.</b> Never paid per lead or per loan. To be confirmed with compliance counsel.</li>
+        <li><b>The test must earn its place.</b> If your LOs don't keep using it on their own by week 2, we change it before building more.</li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="questions">
+    <h2>What we need from you</h2>
+    <ol>
+      <li><b>Bonzo:</b> which plan, are the API and webhooks turned on, and who has admin access?</li>
+      <li><b>Lead fields:</b> which LendingTree fields come through to Bonzo? A sample with personal details removed would help.</li>
+      <li><b>Volume and baseline:</b> leads per month, cost per lead, current contact rate and funded rate.</li>
+      <li><b>Pilot team:</b> how many LOs, and who will give honest feedback?</li>
+      <li><b>Current messaging:</b> what does your Bonzo text and email sequence say today?</li>
+      <li><b>SELA:</b> does it also leave texts or voicemails? We shouldn't double up on messages.</li>
+      <li><b>LendingTree terms:</b> the borrower consent wording, and whether lead data can be processed by a third-party tool.</li>
+      <li><b>Branding:</b> Sure First logo, NMLS ID and licensed states.</li>
+      <li><b>Success:</b> what would make you and your LOs call this a win at 90 days?</li>
+    </ol>
+  </section>
+
+  <footer>
+    Draft framework for discussion only. Not an offer or commitment by either party. All rate figures shown to borrowers are market estimates for education, not a rate commitment.
+  </footer>
+
+</main>
+</body>
+</html>

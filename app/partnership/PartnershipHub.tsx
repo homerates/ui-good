@@ -34,6 +34,13 @@ const DOCS = [
         desc: "One-page partnership framework — structure, commercial terms, and next steps",
         src: "/partnership/framework.html",
     },
+    {
+        id: "lead-pilot",
+        label: "Lead Pilot",
+        icon: "📈",
+        desc: "Lead conversion pilot — HomeRates alongside your existing lead workflow, plus the questions we need answered",
+        src: "/partnership/lead-pilot.html",
+    },
 ];
 
 export default function PartnershipHub() {

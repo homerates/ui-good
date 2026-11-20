@@ -41,6 +41,14 @@ const DOCS = [
         src: "/partnership/framework.html",
         tag: "Business Document",
     },
+    {
+        id: "lead-pilot",
+        label: "Lead Pilot",
+        icon: "📈",
+        desc: "Sure First lead conversion pilot one-pager — where HomeRates fits in the LendingTree → Bonzo → Arive flow, five ideas, test plan, questions for Norm",
+        src: "/partnership/lead-pilot.html",
+        tag: "Pilot Proposal",
+    },
 ];
 
 export default function PartnershipAdmin() {
@@ -94,7 +102,7 @@ export default function PartnershipAdmin() {
                             Partnership Materials Hub
                         </h1>
                         <p style={{ fontSize: "0.8rem", color: "#8fa3b8" }}>
-                            4 documents · Share externally via password-protected URL
+                            5 documents · Share externally via password-protected URL
                         </p>
                     </div>
 
