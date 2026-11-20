@@ -13,6 +13,7 @@ const ALLOWED = new Set([
   'lo-partner.html',
   'consumer-mockup.html',
   'framework.html',
+  'lead-pilot.html',
 ]);
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ doc: string }> }) {
